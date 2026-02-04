@@ -1,49 +1,56 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
+
 # Build script for code with multi-platform and multi-configuration support
 # Usage: ./build.zsh platform="android" --release
 #        ./build.zsh                      (default: native build)
 #        ./build.zsh --release            (default platform, release mode)
 #        ./build.zsh platform="android"   (Android, debug mode)
 
-set -eu
+emulate -L zsh
+setopt errexit nounset pipefail
+
+typeset    SCRIPT_DIR WORKSPACE_ROOT CODE_RS_DIR
+typeset -l PLATFORM BUILD_MODE
+typeset -a BUILD_FLAGS CARGO_BUILD_FLAGS
 
 # Script configuration
-typeset SCRIPT_DIR="${0:a:h}"
-typeset WORKSPACE_ROOT="$SCRIPT_DIR"
-typeset CODE_RS_DIR="$WORKSPACE_ROOT/code-rs"
+SCRIPT_DIR="${0:a:h}"
+WORKSPACE_ROOT="${SCRIPT_DIR}"
+CODE_RS_DIR="${WORKSPACE_ROOT}/code-rs"
 
 # Build configuration variables
-typeset -l PLATFORM="${PLATFORM:-native}"
-typeset -l BUILD_MODE="debug"
-typeset BUILD_FLAGS=()
-typeset CARGO_BUILD_FLAGS=()
+PLATFORM="${PLATFORM:-native}"
+BUILD_MODE="debug"
+BUILD_FLAGS=()
+CARGO_BUILD_FLAGS=()
 
 # Color output
 typeset -r RED='\033[0;31m'
 typeset -r GREEN='\033[0;32m'
 typeset -r YELLOW='\033[1;33m'
 typeset -r BLUE='\033[0;34m'
-typeset -r NC='\033[0m'  # No Color
+typeset -r NC='\033[0m'
 
 # Helper functions
-log_info() {
-  print "${BLUE}ℹ${NC} $*"
+function log-info
+{   print "${BLUE}ℹ${NC} $*"
 }
 
-log_success() {
-  print "${GREEN}✓${NC} $*"
+function log-success
+{print "${GREEN}✓${NC} $*"
 }
 
-log_warn() {
-  print "${YELLOW}⚠${NC} $*"
+function log-warn
+{	print "${YELLOW}⚠${NC} $*"
 }
 
-log_error() {
-  print "${RED}✗${NC} $*" >&2
+function log-error
+{	print "${RED}✗${NC} $*" >&2
 }
 
-show_usage() {
-  cat << 'EOF'
+function show-usage
+{   emulate -L zsh
+  	cat << 'EOF'
 Build script for code - Multi-platform build orchestration
 
 USAGE:
@@ -79,226 +86,268 @@ EOF
 }
 
 # Parse command line arguments
-parse_args() {
-  local arg
-  for arg in "$@"; do
-    case "$arg" in
-      platform=*)
-        PLATFORM="${arg#platform=}"
-        ;;
-      --release)
-        BUILD_MODE="release"
-        CARGO_BUILD_FLAGS+=("--release")
-        ;;
-      --debug)
-        BUILD_MODE="debug"
-        ;;
-      --help|-h)
-        show_usage
-        exit 0
-        ;;
-      *)
-        log_error "Unknown argument: $arg"
-        show_usage
-        exit 1
-        ;;
-    esac
-  done
+function parse-args
+{   emulate -L zsh
+
+    typeset arg
+
+    for arg in "$@"; do
+        case "$arg" in
+            platform=*)
+                PLATFORM="${arg#platform=}"
+                ;;
+				
+            --release)
+                BUILD_MODE="release"
+                CARGO_BUILD_FLAGS+=("--release")
+                ;;
+
+            --debug)
+                BUILD_MODE="debug"
+                ;;
+
+            --help|-h)
+                show-usage
+                exit 0
+                ;;
+
+            *)
+                log-error "Unknown argument: ${arg}"
+                show-usage
+                exit 1
+                ;;
+        esac
+    done
 }
 
 # Validate platform
-validate_platform() {
-  case "$PLATFORM" in
-    native|android)
-      return 0
-      ;;
-    *)
-      log_error "Unknown platform: $PLATFORM"
-      echo "Supported platforms: native, android"
-      exit 1
-      ;;
-  esac
+function validate-platform
+{	emulate -L zsh
+
+	case "$PLATFORM" in
+        native|android) return 0 ;;
+        
+		*)
+            log-error "Unknown platform: ${PLATFORM}"
+            print     "Supported platforms: native, android"
+            exit 1
+            ;;
+    esac
 }
 
 # Setup Android environment
-setup_android_env() {
-  log_info "Setting up Android build environment..."
-  
-  # Check if OpenSSL is built
-  if [[ ! -d "/tmp/openssl-android-aarch64" ]]; then
-    log_error "OpenSSL not found at /tmp/openssl-android-aarch64"
-    log_info "Building OpenSSL for Android..."
+function setup-android-env
+{   emulate -L zsh
+
+    log-info "Setting up Android build environment..."
     
-    local OPENSSL_TMP="/tmp/openssl-1.1.1w"
-    if [[ ! -d "$OPENSSL_TMP" ]]; then
-      cd /tmp
-      curl -sSL https://www.openssl.org/source/openssl-1.1.1w.tar.gz | tar xz
+    # Check if OpenSSL is built
+    if [[ ! -d "/tmp/openssl-android-aarch64" ]]; then
+        log-error "OpenSSL not found at /tmp/openssl-android-aarch64"
+        log-info  "Building OpenSSL for Android with static libraries..."
+        
+        typeset OPENSSL_TMP NDK_ROOT TOOLCHAIN_PATH CC AR
+                OPENSSL_TMP="/tmp/openssl-1.1.1w"
+
+        if [[ ! -d "$OPENSSL_TMP" ]]; then
+            cd /tmp
+			curl -sSL "https://www.openssl.org/source/openssl-1.1.1w.tar.gz" ||
+			wget -qO- "https://www.openssl.org/source/openssl-1.1.1w.tar.gz"  | tar  xz
+        fi
+        
+        cd "$OPENSSL_TMP"
+
+        NDK_ROOT="/opt/homebrew/share/android-ndk"
+        TOOLCHAIN_PATH="${NDK_ROOT}/toolchains/llvm/prebuilt/darwin-x86_64"
+        
+        export CC="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang"
+        export AR="${TOOLCHAIN_PATH}/bin/llvm-ar"
+        export PATH="${TOOLCHAIN_PATH}/bin:${PATH}"
+        
+        # Clean previous builds to ensure static libraries
+        make clean 2>/dev/null || true
+        
+        # Build with no-shared to create only static libraries
+        ./Configure android-arm64 --prefix=/tmp/openssl-android-aarch64 no-shared
+        make -j$(sysctl -n hw.ncpu)
+        make install
+        
+        log-success "OpenSSL built successfully with static libraries"
     fi
     
-    cd "$OPENSSL_TMP"
-    local NDK_ROOT="/opt/homebrew/share/android-ndk"
-    local TOOLCHAIN_PATH="$NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64"
+    # Export Android-specific environment variables
+    export OPENSSL_DIR="/tmp/openssl-android-aarch64"
+    export OPENSSL_STATIC="1"
+    export OPENSSL_LIB_DIR="${OPENSSL_DIR}/lib"
+    export OPENSSL_INCLUDE_DIR="${OPENSSL_DIR}/include"
+    export ANDROID_NDK_ROOT="/opt/homebrew/share/android-ndk"
     
-    export CC="$TOOLCHAIN_PATH/bin/aarch64-linux-android24-clang"
-    export AR="$TOOLCHAIN_PATH/bin/llvm-ar"
-    export PATH="$TOOLCHAIN_PATH/bin:$PATH"
+    typeset TOOLCHAIN_PATH
+            TOOLCHAIN_PATH="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/darwin-x86_64"
+			
+    export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang"
+    export CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${TOOLCHAIN_PATH}/bin/llvm-ar"
     
-    ./Configure android-arm64 --prefix=/tmp/openssl-android-aarch64
-    make -j$(sysctl -n hw.ncpu)
-    make install
+    BUILD_FLAGS+=("--target" "aarch64-linux-android")
     
-    log_success "OpenSSL built successfully"
-  fi
-  
-  # Export Android-specific environment variables
-  export OPENSSL_DIR="/tmp/openssl-android-aarch64"
-  export ANDROID_NDK_ROOT="/opt/homebrew/share/android-ndk"
-  
-  local TOOLCHAIN_PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64"
-  export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN_PATH/bin/aarch64-linux-android24-clang"
-  export CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="$TOOLCHAIN_PATH/bin/llvm-ar"
-  
-  # Add Android target flags
-  BUILD_FLAGS+=("--target" "aarch64-linux-android")
-  
-  log_success "Android environment ready"
+    log-success "Android environment ready"
 }
 
-# Setup native environment
-setup_native_env() {
-  log_info "Setting up native build environment..."
-  # Native builds don't need special setup
-  log_success "Native environment ready"
+
+function setup-native-env
+{	log-info "Setting up native build environment..."
+    # Native builds don't need special setup
+    log-success "Native environment ready"
 }
 
 # Validate environment
-validate_env() {
-  log_info "Validating environment..."
-  
-  if [[ ! -d "$CODE_RS_DIR" ]]; then
-    log_error "code-rs directory not found at $CODE_RS_DIR"
-    exit 1
-  fi
-  
-  if ! command -v rustup &> /dev/null; then
-    log_error "rustup not found. Please install Rust."
-    exit 1
-  fi
-  
-  if ! command -v cargo &> /dev/null; then
-    log_error "cargo not found. Please install Rust."
-    exit 1
-  fi
-  
-  if [[ "$PLATFORM" == "android" ]]; then
-    if ! rustup target list | grep -q "aarch64-linux-android (installed)"; then
-      log_warn "aarch64-linux-android target not installed"
-      log_info "Installing target..."
-      rustup target add aarch64-linux-android
+function validate-env
+{   emulate -L zsh
+
+    log-info "Validating environment..."
+
+    if [[ ! -d "$CODE_RS_DIR" ]]; then
+        log-error "code-rs directory not found at $CODE_RS_DIR"
+        exit 1
+    fi
+
+    if ! command -v rustup &> /dev/null; then
+        log-error  "rustup not found. Please install Rust."
+        exit 1
+    fi
+
+    if ! command -v cargo &> /dev/null; then
+        log-error  "cargo not found. Please install Rust."
+        exit 1
+    fi
+
+    if [[ "$PLATFORM" == "android" ]]; then
+		if [[ ${(f)"$(rustup target list)"} != *$'aarch64-linux-android (installed)'* ]]; then
+            log-warn "aarch64-linux-android target not installed"
+            log-info "Installing target..."
+            rustup    target add aarch64-linux-android
+        fi
+
+        if [[ ! -d "/opt/homebrew/share/android-ndk" ]]; then
+            log-error "Android NDK not found at /opt/homebrew/share/android-ndk"
+            log-info  "Install with: brew install android-ndk"
+            exit 1
+        fi
     fi
     
-    if [[ ! -d "/opt/homebrew/share/android-ndk" ]]; then
-      log_error "Android NDK not found at /opt/homebrew/share/android-ndk"
-      log_info "Install with: brew install android-ndk"
-      exit 1
-    fi
-  fi
-  
-  log_success "Environment validated"
+    log-success "Environment validated"
 }
 
 # Perform the build
-perform_build() {
-  local OUTPUT_DIR="$CODE_RS_DIR/target"
-  
-  if [[ "$PLATFORM" == "android" ]]; then
-    OUTPUT_DIR="$OUTPUT_DIR/aarch64-linux-android"
-  fi
-  
-  if [[ "$BUILD_MODE" == "release" ]]; then
-    OUTPUT_DIR="$OUTPUT_DIR/release"
-  else
-    OUTPUT_DIR="$OUTPUT_DIR/debug"
-  fi
-  
-  log_info "Building code for $PLATFORM in $BUILD_MODE mode..."
-  log_info "Output will be: $OUTPUT_DIR/code"
-  
-  cd "$CODE_RS_DIR"
-  
-  # Build with appropriate flags
-  log_info "Running: cargo build --bin code $BUILD_FLAGS $CARGO_BUILD_FLAGS"
-  
-  if ! rustup run 1.90.0 cargo build \
-    --bin code \
-    $BUILD_FLAGS \
-    $CARGO_BUILD_FLAGS; then
-    log_error "Build failed"
-    exit 1
-  fi
-  
-  # Verify output
-  if [[ ! -f "$OUTPUT_DIR/code" ]]; then
-    log_error "Binary not found at $OUTPUT_DIR/code"
-    exit 1
-  fi
-  
-  # Get binary info
-  local BINARY_SIZE
-  BINARY_SIZE=$(ls -lh "$OUTPUT_DIR/code" | awk '{print $5}')
-  
-  local BINARY_TYPE
-  BINARY_TYPE=$(file "$OUTPUT_DIR/code" | cut -d: -f2-)
-  
-  log_success "Build completed successfully!"
-  log_info "Binary size: $BINARY_SIZE"
-  log_info "Binary type: $BINARY_TYPE"
-  
-  # Show platform-specific next steps
-  case "$PLATFORM" in
-    android)
-      log_info ""
-      log_info "Android binary ready for deployment to Termux:"
-      log_info "  adb push '$OUTPUT_DIR/code' /data/data/com.termux/files/usr/bin/code"
-      log_info "  adb shell chmod +x /data/data/com.termux/files/usr/bin/code"
-      log_info "  adb shell code --version"
-      ;;
-    native)
-      log_info ""
-      log_info "Native binary ready:"
-      log_info "  $OUTPUT_DIR/code"
-      ;;
-  esac
+function perform-build
+{   emulate -L zsh
+
+	typeset OUTPUT_DIR BINARY_SIZE BINARY_TYPE
+            OUTPUT_DIR="${CODE_RS_DIR}/target"
+    
+    if [[ "${PLATFORM}" == "android" ]]; then
+        OUTPUT_DIR="${OUTPUT_DIR}/aarch64-linux-android"
+    fi
+    
+    if [[ "${BUILD_MODE}" == "release" ]]; then
+        OUTPUT_DIR="${OUTPUT_DIR}/release"
+    else
+        OUTPUT_DIR="${OUTPUT_DIR}/debug"
+    fi
+    
+    log-info "Building code for ${PLATFORM} in ${BUILD_MODE} mode..."
+    log-info "Output will be: ${OUTPUT_DIR}/code"
+    
+    cd "${CODE_RS_DIR}"
+    
+    # Build with appropriate flags
+    log-info "Running: cargo build --bin code ${BUILD_FLAGS} ${CARGO_BUILD_FLAGS}"
+    
+    # For Android, ensure all environment variables are passed to cargo
+    if [[ "${PLATFORM}" == "android" ]]; then
+        typeset NDK_ROOT TOOLCHAIN_PATH
+                NDK_ROOT="/opt/homebrew/share/android-ndk"
+                TOOLCHAIN_PATH="${NDK_ROOT}/toolchains/llvm/prebuilt/darwin-x86_64"
+        
+        log-info "Using OpenSSL: ${OPENSSL_DIR}"
+        if ! env                                                                                            \
+            PATH="${TOOLCHAIN_PATH}/bin:${PATH}"                                                            \
+            CC="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang"                                        \
+            AR="${TOOLCHAIN_PATH}/bin/llvm-ar"                                                              \
+            OPENSSL_DIR="${OPENSSL_DIR}"                                                                    \
+            OPENSSL_STATIC="1"                                                                              \
+            OPENSSL_LIB_DIR="${OPENSSL_LIB_DIR}"                                                            \
+            OPENSSL_INCLUDE_DIR="${OPENSSL_INCLUDE_DIR}"                                                    \
+            CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang" \
+            CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${TOOLCHAIN_PATH}/bin/llvm-ar"                           \
+            rustup run 1.90.0 cargo build                                                                   \
+            --bin code                                                                                      \
+            $BUILD_FLAGS                                                                                    \
+            $CARGO_BUILD_FLAGS; then
+            	log-error "Build failed"
+            	exit 1
+        fi
+    else
+        if ! rustup run 1.90.0 cargo build \
+            --bin code                     \
+            $BUILD_FLAGS                   \
+            $CARGO_BUILD_FLAGS; then
+            log-error "Build failed"
+            exit 1
+        fi
+    fi
+    
+    # Verify output
+    if [[ ! -f "${OUTPUT_DIR}/code" ]]; then
+        log-error "Binary not found at ${OUTPUT_DIR}/code"
+        exit 1
+    fi
+    
+    # Get binary info
+    BINARY_SIZE=${${"$(ls -lh --  "${OUTPUT_DIR}/code")"}[(w)5]}
+    BINARY_TYPE=${"$(file     --  "${OUTPUT_DIR}/code")"#*:}
+    
+    log-success "Build completed successfully!"
+    log-info "Binary size: ${BINARY_SIZE}"
+    log-info "Binary type: ${BINARY_TYPE}"
+    
+    # Show platform-specific next steps
+    case "${PLATFORM}" in
+        android)
+            print
+            log-info "Android binary ready for deployment to Termux:"
+            log-info "  adb push '${OUTPUT_DIR}/code' /data/data/com.termux/files/usr/bin/code"
+            log-info "  adb shell chmod +x /data/data/com.termux/files/usr/bin/code"
+            log-info "  adb shell code --version"
+            ;;
+
+        native)
+            print
+            log-info "Native binary ready:"
+            log-info "  ${OUTPUT_DIR}/code"
+    esac
 }
 
-# Main execution
-main() {
-  log_info "Code build system"
-  
-  # Parse arguments
-  parse_args "$@"
-  
-  # Validate and show configuration
-  validate_platform
-  log_info "Platform: $PLATFORM"
-  log_info "Build mode: $BUILD_MODE"
-  
-  # Validate build environment
-  validate_env
-  
-  # Setup platform-specific environment
-  case "$PLATFORM" in
-    android)
-      setup_android_env
-      ;;
-    native)
-      setup_native_env
-      ;;
-  esac
-  
-  # Perform the build
-  perform_build
+function main
+{	emulate -L zsh
+
+	log-info "Code build system"
+    
+    parse-args "$@"
+    
+    validate-platform
+    log-info "Platform:   ${PLATFORM}"
+    log-info "Build mode: ${BUILD_MODE}"
+    
+    validate-env
+    
+    case "${PLATFORM}" in
+        android) setup-android-env ;;
+        native)  setup-native-env  ;;
+
+    esac
+    
+    perform-build
 }
 
-# Run main function with all arguments
 main "$@"

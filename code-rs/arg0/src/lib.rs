@@ -2,7 +2,7 @@ use std::future::Future;
 use std::path::Path;
 use std::path::PathBuf;
 
-use code_core::config::resolve_code_path_for_read;
+use code_core::config::{find_code_home, resolve_code_path_for_read};
 use code_core::CODEX_APPLY_PATCH_ARG1;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
@@ -107,13 +107,13 @@ where
 
 const ILLEGAL_ENV_VAR_PREFIX: &str = "CODEX_";
 
-/// Load env vars from ~/.code/.env (legacy ~/.codex/.env is still read) and `$(pwd)/.env`.
+/// Load env vars from ~/.code/.env and $(pwd)/.env.
 ///
 /// Security: Do not allow `.env` files to create or modify any variables
 /// with names starting with `CODEX_`.
 fn load_dotenv() {
-    // 1) Load from global ~/.code/.env (or ~/.codex/.env) first.
-    if let Ok(code_home) = code_core::config::find_code_home() {
+    // 1) Load from global ~/.code/.env first.
+    if let Ok(code_home) = find_code_home() {
         let global_env_path = resolve_code_path_for_read(&code_home, Path::new(".env"));
         if let Ok(iter) = dotenvy::from_path_iter(global_env_path) {
             // Global env may legitimately contain provider keys for Code usage.
@@ -239,6 +239,9 @@ fn default_path_env_var() -> String {
     // Ensure we always include standard system locations.
     if cfg!(target_os = "macos") {
         "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin".to_string()
+    } else if cfg!(target_os = "android") {
+        // On Android/Termux, use Termux-specific paths
+        "/data/data/com.termux/files/usr/bin:/data/data/com.termux/files/usr/sbin:/system/bin:/system/xbin".to_string()
     } else {
         "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string()
     }
@@ -270,6 +273,8 @@ fn path_has_standard_dirs(path: &str) -> bool {
             || p == std::path::Path::new("/bin")
             || p == std::path::Path::new("/usr/sbin")
             || p == std::path::Path::new("/sbin")
+            || p == std::path::Path::new("/data/data/com.termux/files/usr/bin")
+            || p == std::path::Path::new("/system/bin")
     })
 }
 
