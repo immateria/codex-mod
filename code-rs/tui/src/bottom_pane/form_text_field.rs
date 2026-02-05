@@ -118,6 +118,13 @@ impl FormTextField {
         }
     }
 
+    /// Handle mouse click at screen coordinates, repositioning the cursor.
+    /// Returns true if the cursor was moved.
+    #[allow(dead_code)]
+    pub fn handle_mouse_click(&mut self, screen_x: u16, screen_y: u16, area: Rect) -> bool {
+        self.textarea.handle_mouse_click(screen_x, screen_y, area, *self.state.borrow())
+    }
+
     pub fn desired_height(&self, width: u16) -> u16 {
         if self.single_line { 1 } else { self.textarea.desired_height(width).max(1) }
     }

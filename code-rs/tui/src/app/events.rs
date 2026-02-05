@@ -29,6 +29,7 @@ use crate::slash_command::SlashCommand;
 use crate::thread_spawner;
 use crate::tui;
 
+
 use super::render::flatten_draw_result;
 use super::state::{
     App,
@@ -170,7 +171,14 @@ impl App<'_> {
                             placement,
                             message.len()
                         );
-                        widget.insert_background_event_with_placement(message, placement, order);
+
+                        // Special message used to instruct the widget to restore a
+                        // previous shell value when persistence failed.
+                        if let Some(rest) = message.strip_prefix("__restore_shell__:") {
+                            widget.restore_shell_from_string(rest);
+                        } else {
+                            widget.insert_background_event_with_placement(message, placement, order);
+                        }
                     }
                     AppState::Onboarding { .. } => {}
                 },
@@ -189,6 +197,14 @@ impl App<'_> {
                     AppState::Onboarding { .. } => {}
                 },
                 AppEvent::RequestRedraw => {
+                    self.schedule_redraw();
+                }
+                AppEvent::BottomPaneViewChanged => {
+                    // Notify the height manager that the bottom pane view changed
+                    // so it can bypass hysteresis and apply the new height immediately.
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.notify_bottom_pane_view_changed();
+                    }
                     self.schedule_redraw();
                 }
                 AppEvent::ModelPresetsUpdated { presets, default_model } => {
@@ -1249,6 +1265,11 @@ impl App<'_> {
                                 widget.show_settings_overlay(section);
                             }
                         }
+                        SlashCommand::Shell => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.handle_shell_command(command_args.to_string());
+                            }
+                        }
                         SlashCommand::Notifications => {
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.handle_notifications_command(command_args);
@@ -1451,6 +1472,21 @@ impl App<'_> {
                 AppEvent::UpdateModelSelection { model, effort } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.apply_model_selection(model, effort);
+                    }
+                }
+                AppEvent::UpdateShellSelection { path, args } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apply_shell_selection(path, args);
+                    }
+                }
+                AppEvent::ShellSelectionClosed { confirmed } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.on_shell_selection_closed(confirmed);
+                    }
+                }
+                AppEvent::ShowShellSelector => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.show_shell_selector();
                     }
                 }
                 AppEvent::UpdateReviewModelSelection { model, effort } => {

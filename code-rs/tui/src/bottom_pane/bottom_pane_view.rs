@@ -1,6 +1,6 @@
 use crate::chatwidget::BackgroundOrderTicket;
 use crate::user_approval_widget::ApprovalRequest;
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyEvent, MouseEvent};
 use std::any::Any;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -21,6 +21,18 @@ pub(crate) trait BottomPaneView<'a> {
     /// Handle a key event while the view is active. A redraw is always
     /// scheduled after this call.
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, _key_event: KeyEvent) {}
+
+    /// Handle a mouse event while the view is active. Return whether a redraw
+    /// is needed. Default: ignore mouse events.
+    fn handle_mouse_event(&mut self, _pane: &mut BottomPane<'a>, _mouse_event: MouseEvent, _area: Rect) -> ConditionalUpdate {
+        ConditionalUpdate::NoRedraw
+    }
+
+    /// Update hover state based on mouse position. Called on mouse move.
+    /// Returns true if a redraw is needed.
+    fn update_hover(&mut self, _mouse_pos: (u16, u16), _area: Rect) -> bool {
+        false
+    }
 
     /// Return `true` if the view has finished and should be removed.
     fn is_complete(&self) -> bool {

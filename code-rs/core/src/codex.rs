@@ -1124,6 +1124,7 @@ impl Codex {
             resume_path: resume_path.clone(),
             demo_developer_message: config.demo_developer_message.clone(),
             dynamic_tools: config.dynamic_tools.clone(),
+            shell: config.shell.clone(),
         };
 
         let config = Arc::new(config);

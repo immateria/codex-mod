@@ -20,6 +20,7 @@ use crate::config_types::OtelExporterKind;
 use crate::config_types::ProjectCommandConfig;
 use crate::config_types::ProjectHookConfig;
 use crate::config_types::SandboxWorkspaceWrite;
+use crate::config_types::ShellConfig;
 use crate::config_types::ShellEnvironmentPolicy;
 use crate::config_types::ShellEnvironmentPolicyToml;
 use crate::config_types::TextVerbosity;
@@ -67,6 +68,7 @@ pub use sources::{
     load_config_as_toml,
     load_global_mcp_servers,
     persist_model_selection,
+    persist_shell,
     resolve_code_path_for_read,
     set_auto_drive_settings,
     set_auto_review_model,
@@ -206,6 +208,11 @@ pub struct Config {
     pub project_commands: Vec<ProjectCommand>,
 
     pub shell_environment_policy: ShellEnvironmentPolicy,
+
+    /// Shell configuration for command execution.
+    /// If not set, the user's default shell is detected automatically.
+    pub shell: Option<ShellConfig>,
+
     /// Patterns requiring an explicit confirm prefix before running.
     pub confirm_guard: ConfirmGuardConfig,
 
@@ -517,6 +524,10 @@ pub struct ConfigToml {
 
     #[serde(default)]
     pub shell_environment_policy: ShellEnvironmentPolicyToml,
+
+    /// Shell configuration for command execution.
+    /// If not set, the user's default shell is detected automatically.
+    pub shell: Option<ShellConfig>,
 
     /// Sandbox mode to use.
     pub sandbox_mode: Option<SandboxMode>,
@@ -1374,6 +1385,7 @@ impl Config {
             project_hooks,
             project_commands,
             shell_environment_policy,
+            shell: cfg.shell,
             confirm_guard,
             disable_response_storage: config_profile
                 .disable_response_storage

@@ -8,6 +8,9 @@ use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
+use crossterm::event::MouseEvent;
+use crossterm::event::MouseEventKind;
+use crossterm::event::MouseButton;
 
 use super::chat_composer_history::ChatComposerHistory;
 use super::command_popup::CommandItem;
@@ -184,6 +187,8 @@ pub(crate) struct ChatComposer {
     render_mode: ComposerRenderMode,
     auto_drive_active: bool,
     auto_drive_style: Option<ComposerStyle>,
+    /// Last rendered textarea rect, used for mouse click-to-cursor positioning
+    last_textarea_rect: RefCell<Option<Rect>>,
 }
 
 /// Popup state – at most one can be visible at any time.
@@ -248,6 +253,7 @@ impl ChatComposer {
             render_mode: ComposerRenderMode::Full,
             auto_drive_active: false,
             auto_drive_style: None,
+            last_textarea_rect: RefCell::new(None),
         }
     }
 
@@ -1058,6 +1064,173 @@ impl ChatComposer {
         self.resync_popups();
 
         result
+    }
+
+    /// Handle a mouse event. Returns (InputResult, bool) matching handle_key_event.
+    /// The `area` parameter is the full area where the composer is rendered.
+    pub(crate) fn handle_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> (InputResult, bool) {
+        let (mx, my) = (mouse_event.column, mouse_event.row);
+
+        // Only handle left clicks and scroll
+        match mouse_event.kind {
+            MouseEventKind::Down(MouseButton::Left) => {}
+            MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {}
+            _ => return (InputResult::None, false),
+        }
+
+        // Calculate footer area (where popups live)
+        let footer_height = self.footer_height();
+        let footer_area = if footer_height > 0 {
+            Some(Rect {
+                x: area.x,
+                y: area.y + area.height.saturating_sub(footer_height),
+                width: area.width,
+                height: footer_height,
+            })
+        } else {
+            None
+        };
+
+        // Check if click/scroll is in footer area for popup handling
+        let in_footer = footer_area.is_some_and(|fa| {
+            mx >= fa.x && mx < fa.x + fa.width && my >= fa.y && my < fa.y + fa.height
+        });
+
+        // First, check if there's an active popup and handle events for it
+        if in_footer {
+            if let Some(fa) = footer_area {
+                match &mut self.active_popup {
+                    ActivePopup::Command(popup) => {
+                        match mouse_event.kind {
+                            MouseEventKind::Down(MouseButton::Left) => {
+                                let rel_y = my.saturating_sub(fa.y) as usize;
+                                if popup.select_visible_index(rel_y) {
+                                    return self.confirm_slash_popup_selection();
+                                }
+                            }
+                            MouseEventKind::ScrollUp => {
+                                popup.move_up();
+                                return (InputResult::None, true);
+                            }
+                            MouseEventKind::ScrollDown => {
+                                popup.move_down();
+                                return (InputResult::None, true);
+                            }
+                            _ => {}
+                        }
+                        return (InputResult::None, false);
+                    }
+                    ActivePopup::File(popup) => {
+                        match mouse_event.kind {
+                            MouseEventKind::Down(MouseButton::Left) => {
+                                let rel_y = my.saturating_sub(fa.y) as usize;
+                                if popup.select_visible_index(rel_y) {
+                                    return self.confirm_file_popup_selection();
+                                }
+                            }
+                            MouseEventKind::ScrollUp => {
+                                popup.move_up();
+                                return (InputResult::None, true);
+                            }
+                            MouseEventKind::ScrollDown => {
+                                popup.move_down();
+                                return (InputResult::None, true);
+                            }
+                            _ => {}
+                        }
+                        return (InputResult::None, false);
+                    }
+                    ActivePopup::None => {}
+                }
+            }
+        }
+
+        // Not in popup area - check if click is on the textarea
+        if let MouseEventKind::Down(MouseButton::Left) = mouse_event.kind {
+            if let Some(textarea_rect) = *self.last_textarea_rect.borrow() {
+                let state = *self.textarea_state.borrow();
+                if self.textarea.handle_mouse_click(mx, my, textarea_rect, state) {
+                    return (InputResult::None, true);
+                }
+            }
+        }
+
+        (InputResult::None, false)
+    }
+
+    /// Confirm the currently selected item in the slash command popup.
+    /// This is the same logic as pressing Enter when the popup is visible.
+    fn confirm_slash_popup_selection(&mut self) -> (InputResult, bool) {
+        let ActivePopup::Command(popup) = &mut self.active_popup else {
+            return (InputResult::None, false);
+        };
+
+        let Some(sel) = popup.selected_item() else {
+            return (InputResult::None, false);
+        };
+
+        let command_text = self.textarea.text().to_string();
+        self.history.record_local_submission(&command_text);
+
+        match sel {
+            CommandItem::Builtin(cmd) => {
+                if cmd.is_prompt_expanding() {
+                    self.app_event_tx.send(crate::app_event::AppEvent::PrepareAgents);
+                }
+                self.app_event_tx
+                    .send(crate::app_event::AppEvent::DispatchCommand(cmd, command_text.clone()));
+                self.textarea.set_text("");
+                self.active_popup = ActivePopup::None;
+                (InputResult::Command(cmd), true)
+            }
+            CommandItem::UserPrompt(idx) => {
+                let prompt_content = popup.prompt(idx).map(|p| p.content.clone());
+                self.textarea.set_text("");
+                self.active_popup = ActivePopup::None;
+                if let Some(contents) = prompt_content {
+                    (InputResult::Submitted(contents), true)
+                } else {
+                    (InputResult::None, true)
+                }
+            }
+            CommandItem::Subagent(i) => {
+                if let Some(name) = popup.subagent_name(i) {
+                    let first_line = command_text.lines().next().unwrap_or("");
+                    let starts_with = first_line.trim_start().starts_with(&format!("/{}", name));
+                    if starts_with {
+                        self.active_popup = ActivePopup::None;
+                        return self.handle_key_event_without_popup(
+                            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                        );
+                    }
+                    self.textarea.set_text(&format!("/{} ", name));
+                    let new_cursor = self.textarea.text().len();
+                    self.textarea.set_cursor(new_cursor);
+                    return (InputResult::None, true);
+                }
+                (InputResult::None, true)
+            }
+        }
+    }
+
+    /// Confirm the currently selected item in the file search popup.
+    /// This is the same logic as pressing Enter/Tab when the popup is visible.
+    fn confirm_file_popup_selection(&mut self) -> (InputResult, bool) {
+        let ActivePopup::File(popup) = &mut self.active_popup else {
+            return (InputResult::None, false);
+        };
+
+        let Some(sel) = popup.selected_match() else {
+            return (InputResult::None, false);
+        };
+
+        let sel_path = sel.to_string();
+        // Drop popup borrow before using self mutably again.
+        self.insert_selected_path(&sel_path);
+        self.active_popup = ActivePopup::None;
+        self.file_popup_origin = None;
+        self.current_file_query = None;
+        (InputResult::None, true)
     }
 
     // popup_active removed; callers use explicit state or rely on App policy.
@@ -2889,6 +3062,8 @@ impl WidgetRef for ChatComposer {
 
         // Add padding inside the text area (1 char horizontal only, no vertical padding)
         let padded_textarea_rect = textarea_rect.inner(Margin::new(1, 0));
+        // Cache the textarea rect for mouse click-to-cursor positioning
+        *self.last_textarea_rect.borrow_mut() = Some(padded_textarea_rect);
 
         let mut state = self.textarea_state.borrow_mut();
         StatefulWidgetRef::render_ref(&(&self.textarea), padded_textarea_rect, buf, &mut state);

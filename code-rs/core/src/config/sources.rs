@@ -6,6 +6,7 @@ use crate::config_types::{
     McpServerConfig,
     McpServerTransportConfig,
     ReasoningEffort,
+    ShellConfig,
     ThemeColors,
     ThemeName,
 };
@@ -229,6 +230,64 @@ pub async fn persist_model_selection(
                     root.remove("preferred_model_reasoning_effort");
                 }
             }
+        }
+    }
+
+    fs::create_dir_all(code_home).await?;
+    let tmp_path = config_path.with_extension("tmp");
+    fs::write(&tmp_path, doc.to_string()).await?;
+    fs::rename(&tmp_path, &config_path).await?;
+
+    Ok(())
+}
+
+/// Persist the shell setting back to `config.toml`.
+pub async fn persist_shell(code_home: &Path, shell: Option<&ShellConfig>) -> anyhow::Result<()> {
+    use tokio::fs;
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let existing = match fs::read_to_string(&read_path).await {
+        Ok(raw) => Some(raw),
+        Err(err) if err.kind() == ErrorKind::NotFound => None,
+        Err(err) => return Err(err.into()),
+    };
+
+    let mut doc = match existing {
+        Some(raw) if raw.trim().is_empty() => DocumentMut::new(),
+        Some(raw) => raw
+            .parse::<DocumentMut>()
+            .map_err(|e| anyhow::anyhow!("failed to parse config.toml: {e}"))?,
+        None => DocumentMut::new(),
+    };
+
+    {
+        let root = doc.as_table_mut();
+        if let Some(shell_config) = shell {
+            let shell_table = root
+                .entry("shell")
+                .or_insert_with(|| {
+                    let mut table = TomlTable::new();
+                    table.set_implicit(false);
+                    TomlItem::Table(table)
+                });
+
+            let shell_table = shell_table
+                .as_table_mut()
+                .expect("shell entry should be a table");
+
+            shell_table["path"] = toml_edit::value(shell_config.path.clone());
+            if !shell_config.args.is_empty() {
+                let mut args_array = toml_edit::Array::new();
+                for arg in &shell_config.args {
+                    args_array.push(arg.as_str());
+                }
+                shell_table["args"] = toml_edit::value(args_array);
+            } else {
+                shell_table.remove("args");
+            }
+        } else {
+            root.remove("shell");
         }
     }
 

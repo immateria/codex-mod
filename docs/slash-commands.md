@@ -24,6 +24,10 @@ Notes
 - `/settings [section]`: open the settings panel. Optional section argument
   jumps directly to `model`, `theme`, `agents`, `skills`, `auto`, `review`,
   `validation`, `limits`, `chrome`, `mcp`, or `notifications`.
+- `/shell [path]`: configure the shell used for command execution. Without
+  arguments, shows the current shell. With arguments, sets the shell path and
+  any flags. Use `/shell -` to clear the setting and use auto-detection.
+  Examples: `/shell /bin/bash`, `/shell /bin/bash -l`, `/shell /usr/local/bin/fish --interactive`.
 
 ## Workspace & Git
 

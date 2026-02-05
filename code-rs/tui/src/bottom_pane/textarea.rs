@@ -131,6 +131,56 @@ impl TextArea {
         self.preferred_col = None;
     }
 
+    /// Handle a mouse click at the given screen coordinates.
+    /// Converts the screen position to a byte offset in the text and moves the cursor there.
+    /// Returns true if the cursor was moved.
+    pub fn handle_mouse_click(&mut self, screen_x: u16, screen_y: u16, area: Rect, state: TextAreaState) -> bool {
+        // Ensure the click is within the textarea area
+        if screen_x < area.x || screen_x >= area.x + area.width
+            || screen_y < area.y || screen_y >= area.y + area.height
+        {
+            return false;
+        }
+
+        // Gather information from wrapped_lines while borrowing, then release
+        let (line_start, line_end) = {
+            let lines = self.wrapped_lines(area.width);
+            let effective_scroll = self.effective_scroll(area.height, &lines, state.scroll);
+
+            // Convert screen row to line index
+            let relative_row = (screen_y - area.y) as usize;
+            let line_idx = effective_scroll as usize + relative_row;
+
+            let num_lines = lines.len();
+            if line_idx >= num_lines {
+                // Indicate we clicked beyond the last line
+                (usize::MAX, usize::MAX)
+            } else {
+                // Get the byte range for this wrapped line
+                let line_range = &lines[line_idx];
+                let line_start = line_range.start;
+                // Exclude trailing space/newline marker from the end
+                let line_end = line_range.end.saturating_sub(1).min(self.text.len());
+                (line_start, line_end)
+            }
+        };
+
+        // Convert screen column to byte position within the line
+        let relative_col = (screen_x - area.x) as usize;
+        let old_pos = self.cursor_pos;
+
+        if line_start == usize::MAX {
+            // Click was beyond the last line - move cursor to end
+            self.cursor_pos = self.text.len();
+            self.cursor_pos = self.clamp_pos_to_nearest_boundary(self.cursor_pos);
+        } else {
+            self.move_to_display_col_on_line(line_start, line_end, relative_col);
+        }
+        self.preferred_col = None;
+
+        self.cursor_pos != old_pos
+    }
+
     pub fn desired_height(&self, width: u16) -> u16 {
         self.wrapped_lines(width).len() as u16
     }

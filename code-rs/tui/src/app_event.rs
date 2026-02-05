@@ -115,6 +115,10 @@ pub(crate) enum AppEvent {
     /// Request a redraw which will be debounced by the [`App`].
     RequestRedraw,
 
+    /// Notify that the bottom pane view changed, requiring immediate height recalculation.
+    /// This bypasses height manager hysteresis to ensure the new view's height is applied.
+    BottomPaneViewChanged,
+
     /// Update the model preset list used by the TUI model picker.
     ///
     /// The picker boots with built-in presets; when a remote-merged list arrives
@@ -326,6 +330,20 @@ pub(crate) enum AppEvent {
         target: ModelSelectionKind,
         accepted: bool,
     },
+
+    /// Update the shell selection
+    UpdateShellSelection {
+        path: String,
+        args: Vec<String>,
+    },
+
+    /// Shell selection UI closed
+    ShellSelectionClosed {
+        confirmed: bool,
+    },
+
+    /// Open the shell selector overlay
+    ShowShellSelector,
 
     /// Update the text verbosity level
     UpdateTextVerbosity(TextVerbosity),

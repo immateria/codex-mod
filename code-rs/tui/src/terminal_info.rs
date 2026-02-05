@@ -28,6 +28,8 @@ const ANSI_16_TO_RGB: [(u8, u8, u8); 16] = [
 pub enum TerminalBackgroundSource {
     Osc11,
     ColorFgBg,
+    /// System appearance (e.g., macOS Dark/Light setting)
+    SystemAppearance,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -310,6 +312,42 @@ fn parse_colorfgbg_env() -> Option<(u8, u8, u8)> {
     xterm_color_to_rgb(idx)
 }
 
+#[cfg(target_os = "macos")]
+fn detect_macos_system_theme() -> Option<bool> {
+    // Prefer `osascript` which should be available on macOS to query Appearance
+    // via AppleScript. Fall back to `defaults read -g AppleInterfaceStyle`.
+    use std::process::Command;
+
+    // Try osascript first
+    if let Ok(output) = Command::new("osascript")
+        .arg("-e")
+        .arg("tell application \"System Events\" to tell appearance preferences to get dark mode")
+        .output()
+    {
+        if output.status.success() {
+            let out = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if out.eq_ignore_ascii_case("true") {
+                return Some(true);
+            }
+            if out.eq_ignore_ascii_case("false") {
+                return Some(false);
+            }
+        }
+    }
+
+    // Fallback to `defaults read -g AppleInterfaceStyle` - returns "Dark" when dark
+    if let Ok(output) = Command::new("defaults").arg("read").arg("-g").arg("AppleInterfaceStyle").output() {
+        if output.status.success() {
+            let out = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if out.eq_ignore_ascii_case("Dark") {
+                return Some(true);
+            }
+        }
+    }
+
+    None
+}
+
 fn relative_luminance((r, g, b): (u8, u8, u8)) -> f64 {
     let to_linear = |component: u8| {
         let c = component as f64 / 255.0;
@@ -350,6 +388,18 @@ pub fn detect_dark_terminal_background() -> Option<TerminalBackgroundDetection> 
             source: TerminalBackgroundSource::ColorFgBg,
             rgb: Some(rgb),
         });
+    }
+
+    // On macOS, fall back to the system appearance setting if available
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(is_dark) = detect_macos_system_theme() {
+            return Some(TerminalBackgroundDetection {
+                is_dark,
+                source: TerminalBackgroundSource::SystemAppearance,
+                rgb: None,
+            });
+        }
     }
 
     None

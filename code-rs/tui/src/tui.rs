@@ -12,6 +12,7 @@ use crossterm::event::DisableMouseCapture;
 use crossterm::event::DisableFocusChange;
 use crossterm::event::EnableBracketedPaste;
 use crossterm::event::EnableFocusChange;
+use crossterm::event::EnableMouseCapture;
 use crossterm::event::KeyboardEnhancementFlags;
 use crossterm::event::PopKeyboardEnhancementFlags;
 use crossterm::event::PushKeyboardEnhancementFlags;
@@ -80,6 +81,7 @@ pub fn init(config: &Config) -> Result<(Tui, TerminalInfo)> {
     crate::syntax_highlight::init_highlight_from_config(&config.tui.highlight);
 
     execute!(stdout(), EnableBracketedPaste)?;
+    execute!(stdout(), EnableMouseCapture)?;
     enable_alternate_scroll_mode()?;
     // Enable focus change events so we can detect when the terminal window/tab
     // regains focus and proactively repaint the UI (helps terminals that clear

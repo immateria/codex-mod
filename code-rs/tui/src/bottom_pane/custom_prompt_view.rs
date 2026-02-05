@@ -1,6 +1,9 @@
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
+use crossterm::event::MouseButton;
+use crossterm::event::MouseEvent;
+use crossterm::event::MouseEventKind;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;
@@ -18,6 +21,7 @@ use crate::bottom_pane::SelectionAction;
 
 use super::CancellationEvent;
 use super::bottom_pane_view::BottomPaneView;
+use super::bottom_pane_view::ConditionalUpdate;
 use super::textarea::TextArea;
 use super::textarea::TextAreaState;
 
@@ -37,6 +41,8 @@ pub(crate) struct CustomPromptView {
     textarea: TextArea,
     textarea_state: RefCell<TextAreaState>,
     complete: bool,
+    /// Last rendered textarea rect, used for mouse hit testing
+    last_textarea_rect: RefCell<Option<Rect>>,
 }
 
 impl CustomPromptView {
@@ -58,6 +64,7 @@ impl CustomPromptView {
             textarea: TextArea::new(),
             textarea_state: RefCell::new(TextAreaState::default()),
             complete: false,
+            last_textarea_rect: RefCell::new(None),
         }
     }
 }
@@ -90,6 +97,22 @@ impl BottomPaneView<'_> for CustomPromptView {
             other => {
                 self.textarea.input(other);
             }
+        }
+    }
+
+    fn handle_mouse_event(&mut self, _pane: &mut super::BottomPane<'_>, mouse_event: MouseEvent, _area: Rect) -> ConditionalUpdate {
+        match mouse_event.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                // Check if we have a cached textarea rect from the last render
+                if let Some(textarea_rect) = *self.last_textarea_rect.borrow() {
+                    let state = *self.textarea_state.borrow();
+                    if self.textarea.handle_mouse_click(mouse_event.column, mouse_event.row, textarea_rect, state) {
+                        return ConditionalUpdate::NeedsRedraw;
+                    }
+                }
+                ConditionalUpdate::NoRedraw
+            }
+            _ => ConditionalUpdate::NoRedraw
         }
     }
 
@@ -178,6 +201,8 @@ impl BottomPaneView<'_> for CustomPromptView {
                     width: input_area.width.saturating_sub(2),
                     height: text_area_height,
                 };
+                // Cache the textarea rect for mouse hit testing
+                *self.last_textarea_rect.borrow_mut() = Some(textarea_rect);
                 let mut state = self.textarea_state.borrow_mut();
                 StatefulWidgetRef::render_ref(&(&self.textarea), textarea_rect, buf, &mut state);
                 if self.textarea.text().is_empty() {

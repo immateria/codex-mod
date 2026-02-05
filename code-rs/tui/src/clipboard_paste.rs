@@ -7,6 +7,7 @@ use arboard;
 #[derive(Debug)]
 pub enum PasteImageError {
     ClipboardUnavailable(String),
+    #[allow(dead_code)]
     NoImage(String),
     DecodeFailed(String),
     EncodeFailed(String),
@@ -50,11 +51,13 @@ pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageErro
         .map_err(|e| PasteImageError::NoImage(e.to_string()))?;
     let w = img.width as u32;
     let h = img.height as u32;
+    let expected_len = w as usize * h as usize * 4;
+    if img.bytes.len() != expected_len {
+        return Err(PasteImageError::EncodeFailed(format!("invalid buffer size: expected {expected_len}, got {}", img.bytes.len())));
+    }
 
     let mut png: Vec<u8> = Vec::new();
-    let Some(rgba_img) = image::RgbaImage::from_raw(w, h, img.bytes.into_owned()) else {
-        return Err(PasteImageError::EncodeFailed("invalid RGBA buffer".into()));
-    };
+    let rgba_img = image::RgbaImage::from_raw(w, h, img.bytes.into_owned()).unwrap();
     let dyn_img = image::DynamicImage::ImageRgba8(rgba_img);
     tracing::debug!("clipboard image decoded RGBA {w}x{h}");
     {

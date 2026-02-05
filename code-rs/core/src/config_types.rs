@@ -171,6 +171,13 @@ impl<'de> Deserialize<'de> for McpServerConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ShellConfig {
+    pub path: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged, deny_unknown_fields, rename_all = "snake_case")]
 pub enum McpServerTransportConfig {
     /// https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#stdio

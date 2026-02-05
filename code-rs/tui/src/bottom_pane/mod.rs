@@ -10,6 +10,7 @@ use crate::thread_spawner;
 pub(crate) use bottom_pane_view::BottomPaneView;
 pub(crate) use bottom_pane_view::ConditionalUpdate;
 use crate::util::buffer::fill_rect;
+use code_common::shell_presets::ShellPreset;
 use code_protocol::custom_prompts::CustomPrompt;
 use code_protocol::skills::Skill;
 use code_core::protocol::TokenUsage;
@@ -38,6 +39,7 @@ mod paste_burst;
 mod popup_consts;
 pub(crate) mod agent_editor_view;
 pub(crate) mod model_selection_view;
+pub(crate) mod shell_selection_view;
 mod scroll_state;
 mod selection_popup_common;
 pub mod list_selection_view;
@@ -104,6 +106,7 @@ use code_core::config_types::ReasoningEffort;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
 pub(crate) use model_selection_view::{ModelSelectionTarget, ModelSelectionView};
+pub(crate) use shell_selection_view::ShellSelectionView;
 pub(crate) use mcp_settings_view::McpSettingsView;
 pub(crate) use theme_selection_view::ThemeSelectionView;
 use verbosity_selection_view::VerbositySelectionView;
@@ -111,9 +114,11 @@ pub(crate) use undo_timeline_view::{UndoTimelineEntry, UndoTimelineEntryKind, Un
 pub(crate) use request_user_input_view::RequestUserInputView;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ActiveViewKind {
+pub(crate) enum ActiveViewKind {
     None,
     AutoCoordinator,
+    ModelSelection,
+    ShellSelection,
     Other,
 }
 
@@ -367,6 +372,49 @@ impl BottomPane<'_> {
             };
             self.composer.cursor_pos(composer_rect)
         }
+    }
+
+    /// Forward a mouse event to the active view if present, or to the composer.
+    /// Returns (InputResult, bool) where bool indicates if a redraw is needed.
+    pub fn handle_mouse_event(&mut self, mouse_event: crossterm::event::MouseEvent, area: Rect) -> (InputResult, bool) {
+        // If there's an active view, forward to it
+        if let Some(mut view) = self.active_view.take() {
+            let result = view.handle_mouse_event(self, mouse_event, area);
+            let is_complete = view.is_complete();
+
+            // Put the view back (unless it's complete)
+            if !is_complete {
+                self.active_view = Some(view);
+            } else {
+                self.active_view_kind = ActiveViewKind::None;
+                self.set_standard_terminal_hint(None);
+            }
+
+            let needs_redraw = matches!(result, ConditionalUpdate::NeedsRedraw);
+            return (InputResult::None, needs_redraw);
+        }
+
+        // No active view - forward to the composer for popup handling
+        let (input_result, needs_redraw) = self.composer.handle_mouse_event(mouse_event, area);
+        if needs_redraw {
+            self.request_redraw();
+        }
+        (input_result, needs_redraw)
+    }
+
+    /// Update hover state in the active view.
+    /// Returns true if a redraw is needed.
+    pub fn update_hover(&mut self, mouse_pos: (u16, u16), area: Rect) -> bool {
+        if let Some(view) = self.active_view.as_mut() {
+            view.update_hover(mouse_pos, area)
+        } else {
+            false
+        }
+    }
+
+    /// Check if a specific view kind is currently active.
+    pub fn is_view_kind_active(&self, kind: ActiveViewKind) -> bool {
+        self.active_view_kind == kind
     }
 
     /// Forward a key event to the active view or the composer.
@@ -750,10 +798,19 @@ impl BottomPane<'_> {
             self.app_event_tx.clone(),
         );
         self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
+        self.active_view_kind = ActiveViewKind::ModelSelection;
         // Status shown in composer title now
         self.status_view_active = false;
-        self.request_redraw()
+        self.request_redraw_with_height_change()
+    }
+
+    /// Show the shell selection UI
+    pub fn show_shell_selection(&mut self, current_shell: Option<String>, shell_presets: Vec<ShellPreset>) {
+        let view = ShellSelectionView::new(current_shell, shell_presets, self.app_event_tx.clone());
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::ShellSelection;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change()
     }
 
     #[allow(dead_code)]
@@ -774,7 +831,7 @@ impl BottomPane<'_> {
         self.active_view_kind = ActiveViewKind::Other;
         // Status shown in composer title now
         self.status_view_active = false;
-        self.request_redraw()
+        self.request_redraw_with_height_change()
     }
 
     /// Show the diffs popup with tabs for each file.
@@ -784,7 +841,7 @@ impl BottomPane<'_> {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
-        self.request_redraw()
+        self.request_redraw_with_height_change()
     }
 
     /// Show the verbosity selection UI
@@ -794,7 +851,7 @@ impl BottomPane<'_> {
         self.active_view_kind = ActiveViewKind::Other;
         // Status shown in composer title now
         self.status_view_active = false;
-        self.request_redraw()
+        self.request_redraw_with_height_change()
     }
 
     /// Show a multi-line prompt input view (used for custom review instructions)
@@ -802,14 +859,14 @@ impl BottomPane<'_> {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
-        self.request_redraw();
+        self.request_redraw_with_height_change();
     }
 
     pub(crate) fn show_request_user_input(&mut self, view: RequestUserInputView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
-        self.request_redraw();
+        self.request_redraw_with_height_change();
     }
 
     pub(crate) fn close_request_user_input_view(&mut self) {
@@ -840,14 +897,14 @@ impl BottomPane<'_> {
         self.active_view_kind = ActiveViewKind::Other;
         // Status shown in composer title now
         self.status_view_active = false;
-        self.request_redraw();
+        self.request_redraw_with_height_change();
     }
 
     pub fn show_cloud_tasks(&mut self, view: CloudTasksView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
-        self.request_redraw();
+        self.request_redraw_with_height_change();
     }
 
     /// Show the resume selection UI with structured rows
@@ -862,14 +919,14 @@ impl BottomPane<'_> {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
-        self.request_redraw()
+        self.request_redraw_with_height_change()
     }
 
     pub fn show_undo_timeline_view(&mut self, view: UndoTimelineView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
-        self.request_redraw();
+        self.request_redraw_with_height_change();
     }
 
     /// Show MCP servers status/toggle UI
@@ -880,7 +937,7 @@ impl BottomPane<'_> {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
-        self.request_redraw();
+        self.request_redraw_with_height_change();
     }
 
     pub(crate) fn show_auto_coordinator_view(&mut self, model: AutoCoordinatorViewModel) {
@@ -937,7 +994,7 @@ impl BottomPane<'_> {
         self.composer.set_embedded_mode(false);
         self.composer.set_render_mode(mode);
         self.enable_auto_drive_style();
-        self.request_redraw();
+        self.request_redraw_with_height_change();
     }
 
     pub(crate) fn clear_auto_coordinator_view(&mut self, disable_style: bool) {
@@ -969,6 +1026,12 @@ impl BottomPane<'_> {
     /// Height (terminal rows) required by the current bottom pane.
     pub(crate) fn request_redraw(&self) {
         self.app_event_tx.send(AppEvent::RequestRedraw)
+    }
+
+    /// Request redraw and notify that the bottom pane view changed.
+    /// This bypasses height manager hysteresis for immediate height recalculation.
+    fn request_redraw_with_height_change(&self) {
+        self.app_event_tx.send(AppEvent::BottomPaneViewChanged);
     }
 
     pub(crate) fn update_model_selection_presets(&mut self, presets: Vec<ModelPreset>) {

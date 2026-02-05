@@ -257,6 +257,7 @@ pub(super) async fn submission_loop(
                 resume_path,
                 demo_developer_message,
                 dynamic_tools,
+                shell: shell_override,
             } => {
                 debug!(
                     "Configuring session: model={model}; provider={provider:?}; resume={resume_path:?}"
@@ -583,7 +584,9 @@ pub(super) async fn submission_loop(
                         mcp_connection_errors.push(message);
                     }
                 }
-                let default_shell = shell::default_user_shell().await;
+                let default_shell = shell::default_user_shell_with_override(
+                    shell_override.as_ref().or(config.shell.as_ref())
+                ).await;
                 let mut tools_config = ToolsConfig::new(
                     &config.model_family,
                     approval_policy,
@@ -688,6 +691,11 @@ pub(super) async fn submission_loop(
                 }
                 sess = Some(new_session);
                 if let Some(sess_arc) = &sess {
+                    // Reset environment context tracker if shell changed
+                    if shell_override.is_some() {
+                        let mut st = sess_arc.state.lock().unwrap();
+                        st.environment_context_tracker = crate::environment_context::EnvironmentContextTracker::new();
+                    }
                     if !config.always_allow_commands.is_empty() {
                         let mut st = sess_arc.state.lock().unwrap();
                         for pattern in &config.always_allow_commands {

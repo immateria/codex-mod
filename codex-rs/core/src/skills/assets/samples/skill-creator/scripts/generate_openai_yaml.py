@@ -154,7 +154,7 @@ def parse_interface_overrides(raw_overrides):
 
 def write_openai_yaml(skill_dir, skill_name, raw_overrides):
     overrides, optional_order = parse_interface_overrides(raw_overrides)
-    if overrides is None:
+    if overrides is None or optional_order is None:
         return None
 
     display_name = overrides.get("display_name") or format_display_name(skill_name)

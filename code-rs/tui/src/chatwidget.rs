@@ -31,14 +31,17 @@ use code_common::elapsed::format_duration;
 use code_common::model_presets::builtin_model_presets;
 use code_common::model_presets::clamp_reasoning_effort_for_model;
 use code_common::model_presets::ModelPreset;
+use code_common::shell_presets::builtin_shell_presets;
 use code_core::agent_defaults::{agent_model_spec, enabled_agent_model_specs};
 use code_core::smoke_test_agent_blocking;
 use code_core::config::Config;
+use code_core::config::persist_shell;
 use code_core::git_info::CommitLogEntry;
 use code_core::config_types::AgentConfig;
 use code_core::config_types::AutoDriveContinueMode;
 use code_core::config_types::Notifications;
 use code_core::config_types::ReasoningEffort;
+use code_core::config_types::ShellConfig;
 use code_core::config_types::TextVerbosity;
 use code_core::spawn::spawn_std_command_with_retry;
 use code_core::plan_tool::{PlanItemArg, StepStatus, UpdatePlanArgs};
@@ -1484,6 +1487,23 @@ struct RenderRequestSeed {
     kind: RenderRequestKind,
 }
 
+/// Actions that can be triggered by clicking on UI elements
+#[derive(Clone, Debug)]
+enum ClickableAction {
+    ShowModelSelector,
+    ShowShellSelector,
+    ShowReasoningSelector,
+    #[allow(dead_code)]
+    ExecuteCommand(String),
+}
+
+/// A clickable region with its screen coordinates and associated action
+#[derive(Clone, Debug)]
+struct ClickableRegion {
+    rect: ratatui::layout::Rect,
+    action: ClickableAction,
+}
+
 pub(crate) struct ChatWidget<'a> {
     app_event_tx: AppEventSender,
     code_op_tx: UnboundedSender<Op>,
@@ -1791,6 +1811,8 @@ pub(crate) struct ChatWidget<'a> {
     replay_history_depth: usize,
     resume_placeholder_visible: bool,
     resume_picker_loading: bool,
+    // Clickable regions for mouse interaction (tracked during render, checked on click)
+    clickable_regions: RefCell<Vec<ClickableRegion>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -6607,6 +6629,7 @@ impl ChatWidget<'_> {
                 last_bottom_reserved_rows: std::cell::Cell::new(0),
                 last_frame_height: std::cell::Cell::new(0),
                 last_frame_width: std::cell::Cell::new(0),
+                last_bottom_pane_area: std::cell::Cell::new(Rect::default()),
             },
             last_theme: crate::theme::current_theme(),
             perf_state: PerfState {
@@ -6674,6 +6697,7 @@ impl ChatWidget<'_> {
             replay_history_depth: 0,
             resume_placeholder_visible: false,
             resume_picker_loading: false,
+            clickable_regions: RefCell::new(Vec::new()),
         };
         new_widget.load_auto_review_baseline_marker();
         new_widget.spawn_conversation_runtime(config.clone(), auth_manager.clone(), code_op_rx);
@@ -6719,7 +6743,16 @@ impl ChatWidget<'_> {
             let _ = w.history_insert_plain_state_with_key(notice_state, notice_key, "prelude");
             if connecting_mcp && !w.test_mode {
                 // Render connecting status as a separate cell with standard gutter and spacing
-                w.history_push_top_next_req(history_cell::new_connecting_mcp_status());
+                let cell = history_cell::new_connecting_mcp_status();
+                let record = HistoryDomainRecord::BackgroundEvent(cell.state().clone());
+                w.push_system_cell(
+                    Box::new(cell),
+                    SystemPlacement::EarlyInCurrent,
+                    None,
+                    None,
+                    "background",
+                    Some(record),
+                );
             }
             // Mark welcome as shown to avoid duplicating the Popular commands section
             // when SessionConfigured arrives shortly after.
@@ -6982,6 +7015,7 @@ impl ChatWidget<'_> {
                 last_bottom_reserved_rows: std::cell::Cell::new(0),
                 last_frame_height: std::cell::Cell::new(0),
                 last_frame_width: std::cell::Cell::new(0),
+                last_bottom_pane_area: std::cell::Cell::new(Rect::default()),
             },
             last_theme: crate::theme::current_theme(),
             perf_state: PerfState {
@@ -7049,6 +7083,7 @@ impl ChatWidget<'_> {
             replay_history_depth: 0,
             resume_placeholder_visible: false,
             resume_picker_loading: false,
+            clickable_regions: RefCell::new(Vec::new()),
         };
         w.load_auto_review_baseline_marker();
         if let Ok(Some(active_id)) = auth_accounts::get_active_account_id(&config.code_home) {
@@ -13160,11 +13195,158 @@ impl ChatWidget<'_> {
             return;
         }
 
+        // Check if settings overlay is visible - it should intercept mouse events
+        if let Some(overlay) = self.settings.overlay.as_mut() {
+            // Settings overlay covers the full screen - compute terminal area from layout
+            let terminal_area = Rect {
+                x: 0,
+                y: 0,
+                width: self.layout.last_frame_width.get(),
+                height: self.layout.last_frame_height.get(),
+            };
+            if overlay.handle_mouse_event(mouse_event, terminal_area) {
+                self.request_redraw();
+                return;
+            }
+        }
+
+        let bottom_pane_area = self.layout.last_bottom_pane_area.get();
+        let mouse_pos = (mouse_event.column, mouse_event.row);
+
+        // Helper: check if mouse is inside bottom pane area
+        let in_bottom_pane = mouse_event.row >= bottom_pane_area.y
+            && mouse_event.row < bottom_pane_area.y + bottom_pane_area.height
+            && mouse_event.column >= bottom_pane_area.x
+            && mouse_event.column < bottom_pane_area.x + bottom_pane_area.width;
+
         match mouse_event.kind {
-            MouseEventKind::ScrollUp => layout_scroll::mouse_scroll(self, true),
-            MouseEventKind::ScrollDown => layout_scroll::mouse_scroll(self, false),
+            MouseEventKind::ScrollUp => {
+                // If scroll is in the bottom pane area, forward it there first
+                if in_bottom_pane {
+                    let (input_result, needs_redraw) = self.bottom_pane.handle_mouse_event(mouse_event, bottom_pane_area);
+                    if needs_redraw {
+                        self.process_mouse_input_result(input_result);
+                        return;
+                    }
+                }
+                // Otherwise, scroll the history
+                layout_scroll::mouse_scroll(self, true)
+            }
+            MouseEventKind::ScrollDown => {
+                // If scroll is in the bottom pane area, forward it there first
+                if in_bottom_pane {
+                    let (input_result, needs_redraw) = self.bottom_pane.handle_mouse_event(mouse_event, bottom_pane_area);
+                    if needs_redraw {
+                        self.process_mouse_input_result(input_result);
+                        return;
+                    }
+                }
+                // Otherwise, scroll the history
+                layout_scroll::mouse_scroll(self, false)
+            }
+            MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
+                // First check if click is inside the bottom pane area
+                if in_bottom_pane {
+                    // Forward click to bottom pane
+                    let (input_result, needs_redraw) = self.bottom_pane.handle_mouse_event(mouse_event, bottom_pane_area);
+                    if needs_redraw {
+                        self.process_mouse_input_result(input_result);
+                        return;
+                    }
+                }
+                // Handle left click by checking clickable regions (header bar, etc.)
+                self.handle_click(mouse_pos);
+            }
+            MouseEventKind::Moved => {
+                // Update hover state in bottom pane
+                if in_bottom_pane {
+                    if self.bottom_pane.update_hover(mouse_pos, bottom_pane_area) {
+                        self.request_redraw();
+                    }
+                }
+            }
             _ => {
                 // Ignore other mouse events for now
+            }
+        }
+    }
+
+    /// Process InputResult from mouse events (similar to key event handling).
+    fn process_mouse_input_result(&mut self, input_result: InputResult) {
+        match input_result {
+            InputResult::Submitted(text) => {
+                if let Some(pending) = self.pending_request_user_input.take() {
+                    self.submit_request_user_input_answer(pending, text);
+                    return;
+                }
+                self.pending_turn_origin = Some(TurnOrigin::User);
+                let cleaned = Self::strip_context_sections(&text);
+                self.last_user_message = (!cleaned.trim().is_empty()).then_some(cleaned);
+                let user_message = self.parse_message_with_images(text);
+                self.submit_user_message(user_message);
+            }
+            InputResult::Command(_cmd) => {
+                // Command was dispatched at the App layer; request redraw.
+                self.app_event_tx.send(AppEvent::RequestRedraw);
+            }
+            InputResult::None | InputResult::ScrollUp | InputResult::ScrollDown => {
+                self.request_redraw();
+            }
+        }
+    }
+
+    fn handle_click(&mut self, pos: (u16, u16)) {
+        let (x, y) = pos;
+        
+        // Check clickable regions from last render and find matching action
+        let action_opt: Option<ClickableAction> = {
+            let regions = self.clickable_regions.borrow();
+            
+            regions.iter().find_map(|region| {
+                // Check if click is inside this region
+                if x >= region.rect.x
+                    && x < region.rect.x + region.rect.width
+                    && y >= region.rect.y
+                    && y < region.rect.y + region.rect.height
+                {
+                    Some(region.action.clone())
+                } else {
+                    None
+                }
+            })
+        };
+        
+        // Execute the action after dropping the borrow
+        if let Some(action) = action_opt {
+            match action {
+                ClickableAction::ShowModelSelector => {
+                    // Open model selector with empty args (opens selector UI)
+                    self.handle_model_command(String::new());
+                }
+                ClickableAction::ShowShellSelector => {
+                    let _ = self.app_event_tx.send(AppEvent::ShowShellSelector);
+                }
+                ClickableAction::ShowReasoningSelector => {
+                    // Cycle through reasoning efforts
+                    use code_core::config_types::ReasoningEffort;
+                    let current = self.config.model_reasoning_effort;
+                    let next = match current {
+                        ReasoningEffort::None => ReasoningEffort::Minimal,
+                        ReasoningEffort::Minimal => ReasoningEffort::Low,
+                        ReasoningEffort::Low => ReasoningEffort::Medium,
+                        ReasoningEffort::Medium => ReasoningEffort::High,
+                        ReasoningEffort::High => ReasoningEffort::XHigh,
+                        ReasoningEffort::XHigh => ReasoningEffort::None,
+                    };
+                    self.set_reasoning_effort(next);
+                }
+                ClickableAction::ExecuteCommand(cmd) => {
+                    // Parse and dispatch the slash command
+                    let trimmed = cmd.trim_start_matches('/').trim();
+                    if let Ok(slash_cmd) = trimmed.parse::<SlashCommand>() {
+                        let _ = self.app_event_tx.send(AppEvent::DispatchCommand(slash_cmd, cmd));
+                    }
+                }
             }
         }
     }
@@ -15298,6 +15480,14 @@ impl ChatWidget<'_> {
         self.app_event_tx.send(AppEvent::RequestRedraw);
     }
 
+    /// Notify the height manager that the bottom pane view has changed.
+    /// This bypasses hysteresis so the new view's height is applied immediately.
+    pub(crate) fn notify_bottom_pane_view_changed(&mut self) {
+        self.height_manager
+            .borrow_mut()
+            .record_event(HeightEvent::ComposerModeChange);
+    }
+
     pub(crate) fn handle_perf_command(&mut self, args: String) {
         let arg = args.trim().to_lowercase();
         match arg.as_str() {
@@ -16498,6 +16688,131 @@ impl ChatWidget<'_> {
             ));
         }
         self.show_settings_overlay(Some(SettingsSection::Limits));
+    }
+
+    pub(crate) fn handle_shell_command(&mut self, args: String) {
+        let args = args.trim();
+        if args.is_empty() {
+            // Show shell selector instead of just printing current shell
+            let current_shell = self.config.shell.as_ref().map(|s| {
+                format!("{} {}", s.path, s.args.join(" ")).trim().to_string()
+            });
+            // Check if shell selector is already open
+            if self.bottom_pane.is_view_kind_active(crate::bottom_pane::ActiveViewKind::ShellSelection) {
+                return;
+            }
+            self.bottom_pane.show_shell_selection(current_shell, builtin_shell_presets());
+            return;
+        }
+        
+        if args == "?" {
+            let current_shell = match &self.config.shell {
+                Some(shell) => format!("{} {}", shell.path, shell.args.join(" ")).trim().to_string(),
+                None => "auto-detected".to_string(),
+            };
+            self.history_push_plain_paragraphs(crate::history::state::PlainMessageKind::Notice, vec![format!("Current shell: {}", current_shell)]);
+        } else {
+            let shell_config = if args == "-" || args.eq_ignore_ascii_case("clear") {
+                None
+            } else {
+                // Parse the args as shell command line
+                match shlex::split(args) {
+                    Some(mut parts) if !parts.is_empty() => {
+                        let path = parts.remove(0);
+                        Some(ShellConfig { path, args: parts })
+                    }
+                    _ => None,
+                }
+            };
+            let code_home = self.config.code_home.clone();
+            let tx = self.app_event_tx.clone();
+            let shell_label = shell_config.clone();
+
+            // Update the in-memory config immediately so the header reflects the
+            // user's change while persistence happens in the background.
+            let previous_shell = self.config.shell.clone();
+            self.config.shell = shell_config.clone();
+            self.request_redraw();
+
+            // Send ConfigureSession to update the backend session's user_shell
+            let op = Op::ConfigureSession {
+                provider: self.config.model_provider.clone(),
+                model: self.config.model.clone(),
+                model_explicit: self.config.model_explicit,
+                model_reasoning_effort: self.config.model_reasoning_effort,
+                preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
+                model_reasoning_summary: self.config.model_reasoning_summary,
+                model_text_verbosity: self.config.model_text_verbosity,
+                user_instructions: self.config.user_instructions.clone(),
+                base_instructions: self.config.base_instructions.clone(),
+                approval_policy: self.config.approval_policy.clone(),
+                sandbox_policy: self.config.sandbox_policy.clone(),
+                disable_response_storage: self.config.disable_response_storage,
+                notify: self.config.notify.clone(),
+                cwd: self.config.cwd.clone(),
+                resume_path: None,
+                demo_developer_message: self.config.demo_developer_message.clone(),
+                dynamic_tools: Vec::new(),
+                shell: self.config.shell.clone(),
+            };
+            self.submit_op(op);
+
+            tokio::spawn(async move {
+                match persist_shell(&code_home, shell_config.as_ref()).await {
+                    Ok(()) => {
+                        let message = match shell_label {
+                            Some(config) => format!("Shell set to: {} {}", config.path, config.args.join(" ")).trim().to_string(),
+                            None => "Shell setting cleared.".to_string(),
+                        };
+                        let _ = tx.send(AppEvent::InsertBackgroundEvent {
+                            message,
+                            placement: crate::app_event::BackgroundPlacement::Tail,
+                            order: None,
+                        });
+                    }
+                    Err(err) => {
+                        // If persistence failed, send an error message and restore the previous value
+                        let message = format!("Failed to persist shell setting: {}", err);
+                        let _ = tx.send(AppEvent::InsertBackgroundEvent {
+                            message: message.clone(),
+                            placement: crate::app_event::BackgroundPlacement::Tail,
+                            order: None,
+                        });
+
+                        // Try to restore previous shell by sending a background event that
+                        // the main loop can interpret to update state. We reuse the same
+                        // background event channel to avoid adding a new AppEvent variant.
+                        // Note: The actual restore will be done on the main thread to avoid
+                        // concurrency issues; send a special message payload.
+                        let _ = tx.send(AppEvent::InsertBackgroundEvent {
+                            message: format!("__restore_shell__:{}", previous_shell.as_ref().map(|s| format!("{} {}", s.path, s.args.join(" "))).unwrap_or_else(||"__NONE__".to_string())),
+                            placement: crate::app_event::BackgroundPlacement::Tail,
+                            order: None,
+                        });
+                    }
+                }
+            });
+            self.history_push_plain_paragraphs(crate::history::state::PlainMessageKind::Notice, vec!["Updating shell setting...".to_string()]);
+        }
+    }
+
+    pub(crate) fn set_shell_config(&mut self, shell: Option<ShellConfig>) {
+        self.config.shell = shell;
+        self.request_redraw();
+    }
+
+    pub(crate) fn restore_shell_from_string(&mut self, s: &str) {
+        if s == "__NONE__" {
+            self.set_shell_config(None);
+            return;
+        }
+        if let Some(parts) = shlex::split(s) {
+            if !parts.is_empty() {
+                let path = parts[0].clone();
+                let args = parts[1..].to_vec();
+                self.set_shell_config(Some(ShellConfig { path, args }));
+            }
+        }
     }
 
     pub(crate) fn handle_login_command(&mut self) {
@@ -22232,6 +22547,11 @@ Have we met every part of this goal and is there no further work to do?"#
             return;
         }
 
+        // Check if model selector is already open
+        if self.bottom_pane.is_view_kind_active(crate::bottom_pane::ActiveViewKind::ModelSelection) {
+            return;
+        }
+
         self.bottom_pane.show_model_selection(
             presets,
             self.config.model.clone(),
@@ -22411,6 +22731,84 @@ Have we met every part of this goal and is there no further work to do?"#
         self.apply_model_selection_inner(model, effort, true, true);
     }
 
+    pub(crate) fn apply_shell_selection(&mut self, path: String, args: Vec<String>) {
+        use code_core::config_types::ShellConfig;
+        use code_core::config::persist_shell;
+        
+        let shell_config = ShellConfig { path, args };
+        let code_home = self.config.code_home.clone();
+        let tx = self.app_event_tx.clone();
+        let shell_label = shell_config.clone();
+
+        // Update the in-memory config immediately
+        self.config.shell = Some(shell_config.clone());
+        self.request_redraw();
+
+        // Send ConfigureSession to update the backend session's user_shell
+        let op = Op::ConfigureSession {
+            provider: self.config.model_provider.clone(),
+            model: self.config.model.clone(),
+            model_explicit: self.config.model_explicit,
+            model_reasoning_effort: self.config.model_reasoning_effort,
+            preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
+            model_reasoning_summary: self.config.model_reasoning_summary,
+            model_text_verbosity: self.config.model_text_verbosity,
+            user_instructions: self.config.user_instructions.clone(),
+            base_instructions: self.config.base_instructions.clone(),
+            approval_policy: self.config.approval_policy.clone(),
+            sandbox_policy: self.config.sandbox_policy.clone(),
+            disable_response_storage: self.config.disable_response_storage,
+            notify: self.config.notify.clone(),
+            cwd: self.config.cwd.clone(),
+            resume_path: None,
+            demo_developer_message: self.config.demo_developer_message.clone(),
+            dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
+        };
+        self.submit_op(op);
+
+        // Persist in background
+        tokio::spawn(async move {
+            match persist_shell(&code_home, Some(&shell_config)).await {
+                Ok(()) => {
+                    let message = format!("Shell set to: {} {}", shell_label.path, shell_label.args.join(" ")).trim().to_string();
+                    let _ = tx.send(AppEvent::InsertBackgroundEvent {
+                        message,
+                        placement: crate::app_event::BackgroundPlacement::Tail,
+                        order: None,
+                    });
+                }
+                Err(e) => {
+                    let _ = tx.send(AppEvent::InsertBackgroundEvent {
+                        message: format!("Failed to persist shell setting: {}", e),
+                        placement: crate::app_event::BackgroundPlacement::Tail,
+                        order: None,
+                    });
+                }
+            }
+        });
+    }
+
+    pub(crate) fn on_shell_selection_closed(&mut self, confirmed: bool) {
+        if !confirmed {
+            self.history_push_plain_paragraphs(
+                crate::history::state::PlainMessageKind::Notice,
+                vec!["Shell selection cancelled.".to_string()],
+            );
+        }
+    }
+
+    pub(crate) fn show_shell_selector(&mut self) {
+        // Check if shell selector is already open
+        if self.bottom_pane.is_view_kind_active(crate::bottom_pane::ActiveViewKind::ShellSelection) {
+            return;
+        }
+        let current_shell = self.config.shell.as_ref().map(|s| {
+            format!("{} {}", s.path, s.args.join(" ")).trim().to_string()
+        });
+        self.bottom_pane.show_shell_selection(current_shell, builtin_shell_presets());
+    }
+
     fn clamp_reasoning_for_model_from_presets(
         model: &str,
         requested: ReasoningEffort,
@@ -22518,6 +22916,7 @@ Have we met every part of this goal and is there no further work to do?"#
                 resume_path: None,
                 demo_developer_message: self.config.demo_developer_message.clone(),
                 dynamic_tools: Vec::new(),
+                shell: self.config.shell.clone(),
             };
             self.submit_op(op);
 
@@ -23149,6 +23548,7 @@ Have we met every part of this goal and is there no further work to do?"#
             resume_path: None,
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
         };
         self.submit_op(op);
     }
@@ -23176,6 +23576,7 @@ Have we met every part of this goal and is there no further work to do?"#
                 resume_path: None,
                 demo_developer_message: self.config.demo_developer_message.clone(),
                 dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
             };
             self.submit_op(op);
         }
@@ -23383,6 +23784,7 @@ Have we met every part of this goal and is there no further work to do?"#
                 resume_path: None,
                 demo_developer_message: self.config.demo_developer_message.clone(),
                 dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
             };
             let _ = self.code_op_tx.send(op);
         } else {
@@ -23528,6 +23930,7 @@ Have we met every part of this goal and is there no further work to do?"#
             resume_path: None,
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
         };
 
         self.submit_op(op);
@@ -23570,6 +23973,7 @@ Have we met every part of this goal and is there no further work to do?"#
             resume_path: None,
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
         };
 
         self.submit_op(op);
@@ -24760,6 +25164,7 @@ Have we met every part of this goal and is there no further work to do?"#
             resume_path: None,
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
         };
         self.submit_op(op);
 
@@ -29048,13 +29453,21 @@ Have we met every part of this goal and is there no further work to do?"#
         // Removal priority when space is tight:
         //   1) Reasoning level
         //   2) Model
-        //   3) Branch
-        //   4) Directory
+        //   3) Shell
+        //   4) Branch
+        //   5) Directory
         let branch_opt = self.get_git_branch();
+
+        // Determine current shell display (configured override or $SHELL fallback)
+        let shell_display = match &self.config.shell {
+            Some(shell) => format!("{} {}", shell.path, shell.args.join(" ")).trim().to_string(),
+            None => std::env::var("SHELL").ok().unwrap_or_else(|| "sh".to_string()),
+        };
 
         // Helper to assemble spans based on include flags
         let build_spans = |include_reasoning: bool,
                            include_model: bool,
+                           include_shell: bool,
                            include_branch: bool,
                            include_dir: bool,
                            dir_display: &str| {
@@ -29078,6 +29491,21 @@ Have we met every part of this goal and is there no further work to do?"#
                 ));
                 spans.push(Span::styled(
                     self.format_model_name(&self.config.model),
+                    Style::default().fg(crate::colors::info()),
+                ));
+            }
+
+            if include_shell {
+                spans.push(Span::styled(
+                    "  •  ",
+                    Style::default().fg(crate::colors::text_dim()),
+                ));
+                spans.push(Span::styled(
+                    "Shell: ",
+                    Style::default().fg(crate::colors::text_dim()),
+                ));
+                spans.push(Span::styled(
+                    shell_display.clone(),
                     Style::default().fg(crate::colors::info()),
                 ));
             }
@@ -29139,12 +29567,14 @@ Have we met every part of this goal and is there no further work to do?"#
         let demo_mode = self.config.demo_developer_message.is_some();
         let mut include_reasoning = !minimal_header;
         let mut include_model = !minimal_header;
+        let mut include_shell = !minimal_header;
         let mut include_branch = !minimal_header && branch_opt.is_some();
         let mut include_dir = !minimal_header && !demo_mode;
         let mut use_short_dir = false;
         let mut status_spans = build_spans(
             include_reasoning,
             include_model,
+            include_shell,
             include_branch,
             include_dir,
             &cwd_str,
@@ -29172,6 +29602,7 @@ Have we met every part of this goal and is there no further work to do?"#
             status_spans = build_spans(
                 include_reasoning,
                 include_model,
+                include_shell,
                 include_branch,
                 include_dir,
                 &cwd_short_str,
@@ -29184,6 +29615,8 @@ Have we met every part of this goal and is there no further work to do?"#
                 include_reasoning = false;
             } else if include_model {
                 include_model = false;
+            } else if include_shell {
+                include_shell = false;
             } else if include_branch {
                 include_branch = false;
             } else if include_dir {
@@ -29194,6 +29627,7 @@ Have we met every part of this goal and is there no further work to do?"#
             status_spans = build_spans(
                 include_reasoning,
                 include_model,
+                include_shell,
                 include_branch,
                 include_dir,
                 if use_short_dir { &cwd_short_str } else { &cwd_str },
@@ -29234,10 +29668,126 @@ Have we met every part of this goal and is there no further work to do?"#
                 .fg(crate::colors::text())
         };
 
-        let status_widget = Paragraph::new(vec![status_line])
+        let status_widget = Paragraph::new(vec![status_line.clone()])
             .alignment(ratatui::layout::Alignment::Center)
             .style(status_style);
         ratatui::widgets::Widget::render(status_widget, padded_inner, buf);
+
+        // Track clickable regions for Model, Shell, and Reasoning
+        self.track_status_bar_clickable_regions(
+            &status_line.spans,
+            padded_inner,
+            include_model,
+            include_shell,
+            include_reasoning,
+        );
+    }
+
+    /// Calculate and store clickable regions for the status bar (Model, Shell, Reasoning)
+    fn track_status_bar_clickable_regions(
+        &self,
+        spans: &[Span],
+        area: Rect,
+        include_model: bool,
+        include_shell: bool,
+        include_reasoning: bool,
+    ) {
+        // Calculate total width of all spans
+        let total_width: usize = spans.iter().map(|s| s.content.chars().count()).sum();
+        
+        // Calculate starting x position for centered text
+        let start_x = if total_width < area.width as usize {
+            area.x + ((area.width as usize - total_width) / 2) as u16
+        } else {
+            area.x
+        };
+        
+        let mut current_x = start_x;
+        let mut regions = self.clickable_regions.borrow_mut();
+        regions.clear();  // Clear previous frame's regions
+        
+        // Scan through spans to find Model, Shell, and Reasoning sections
+        let mut i = 0;
+        while i < spans.len() {
+            let span = &spans[i];
+            let content = span.content.as_ref();
+            
+            // Check if this is a clickable label
+            if include_model && content.contains("Model:") {
+                // Find the extent of the Model section (label + value)
+                let mut section_width = content.chars().count();
+                if i + 1 < spans.len() {
+                    // Include the value span
+                    section_width += spans[i + 1].content.chars().count();
+                }
+                regions.push(ClickableRegion {
+                    rect: Rect {
+                        x: current_x,
+                        y: area.y,
+                        width: section_width as u16,
+                        height: 1,
+                    },
+                    action: ClickableAction::ShowModelSelector,
+                });
+                current_x += content.chars().count() as u16;
+                i += 1;
+                if i < spans.len() {
+                    current_x += spans[i].content.chars().count() as u16;
+                    i += 1;
+                }
+                continue;
+            }
+            
+            if include_shell && content.contains("Shell:") {
+                let mut section_width = content.chars().count();
+                if i + 1 < spans.len() {
+                    section_width += spans[i + 1].content.chars().count();
+                }
+                regions.push(ClickableRegion {
+                    rect: Rect {
+                        x: current_x,
+                        y: area.y,
+                        width: section_width as u16,
+                        height: 1,
+                    },
+                    action: ClickableAction::ShowShellSelector,
+                });
+                current_x += content.chars().count() as u16;
+                i += 1;
+                if i < spans.len() {
+                    current_x += spans[i].content.chars().count() as u16;
+                    i += 1;
+                }
+                continue;
+            }
+            
+            if include_reasoning && content.contains("Reasoning:") {
+                let mut section_width = content.chars().count();
+                if i + 1 < spans.len() {
+                    section_width += spans[i + 1].content.chars().count();
+                }
+                regions.push(ClickableRegion {
+                    rect: Rect {
+                        x: current_x,
+                        y: area.y,
+                        width: section_width as u16,
+                        height: 1,
+                    },
+                    action: ClickableAction::ShowReasoningSelector,
+                });
+                current_x += content.chars().count() as u16;
+                i += 1;
+                if i < spans.len() {
+                    current_x += spans[i].content.chars().count() as u16;
+                    i += 1;
+                }
+                continue;
+            }
+            
+            // Not a clickable section, just advance position
+            current_x += content.chars().count() as u16;
+            i += 1;
+        }
     }
 
     fn render_screenshot_highlevel(&self, path: &PathBuf, area: Rect, buf: &mut Buffer) {
@@ -36811,6 +37361,7 @@ impl ChatWidget<'_> {
             resume_path: None,
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
         };
         self.submit_op(op);
 
@@ -38482,6 +39033,8 @@ impl WidgetRef for &ChatWidget<'_> {
         self.layout
             .last_bottom_reserved_rows
             .set(bottom_pane_area.height);
+        // Store the bottom pane area for mouse hit testing
+        self.layout.last_bottom_pane_area.set(bottom_pane_area);
 
         // Render status bar and HUD only in full TUI mode
         if !self.standard_terminal_mode {
@@ -40636,6 +41189,8 @@ struct LayoutState {
     last_bottom_reserved_rows: std::cell::Cell<u16>,
     last_frame_height: std::cell::Cell<u16>,
     last_frame_width: std::cell::Cell<u16>,
+    // Last bottom pane area for mouse hit testing
+    last_bottom_pane_area: std::cell::Cell<Rect>,
 }
 
 #[derive(Default)]

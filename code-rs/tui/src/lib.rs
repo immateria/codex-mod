@@ -1035,6 +1035,7 @@ fn maybe_apply_terminal_theme_detection(config: &mut Config, theme_configured_ex
             let source = match detection.source {
                 crate::terminal_info::TerminalBackgroundSource::Osc11 => "osc-11",
                 crate::terminal_info::TerminalBackgroundSource::ColorFgBg => "colorfgbg",
+                crate::terminal_info::TerminalBackgroundSource::SystemAppearance => "system",
             };
 
             let cache = CachedTerminalBackground {

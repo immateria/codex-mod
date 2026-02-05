@@ -473,7 +473,6 @@ def define_string_enum(
         out.append(f"    {capitalize(value)},\n")
 
     out.append("}\n\n")
-    return out
 
 
 def define_untagged_enum(name: str, type_list: list[str], out: list[str]) -> None:
@@ -589,7 +588,7 @@ def get_serde_annotation_for_anyof_type(type_name: str) -> str | None:
 
 
 def map_type(
-    typedef: dict[str, any],
+    typedef: dict[str, Any],
     prop_name: str | None = None,
     struct_name: str | None = None,
 ) -> str:
@@ -696,7 +695,7 @@ def rust_prop_name(name: str, is_optional: bool) -> RustProp:
     return RustProp(prop_name, serde_str)
 
 
-def to_snake_case(name: str) -> str:
+def to_snake_case(name: str) -> str | None:
     """Convert a camelCase or PascalCase name to snake_case."""
     snake_case = name[0].lower() + "".join("_" + c.lower() if c.isupper() else c for c in name[1:])
     if snake_case != name:

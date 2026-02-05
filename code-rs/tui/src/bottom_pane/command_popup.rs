@@ -234,6 +234,25 @@ impl CommandPopup {
             .selected_idx
             .and_then(|idx| matches.get(idx).copied())
     }
+
+    /// Select an item by its visible row index (0-based). Returns true if selection changed.
+    pub(crate) fn select_visible_index(&mut self, visible_row: usize) -> bool {
+        let matches_len = self.filtered_items().len();
+        if matches_len == 0 {
+            return false;
+        }
+
+        // Compute actual index from scroll state and visible row
+        let scroll_top = self.state.scroll_top.min(matches_len.saturating_sub(1));
+        let actual_idx = scroll_top + visible_row;
+
+        if actual_idx < matches_len {
+            self.state.selected_idx = Some(actual_idx);
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl WidgetRef for CommandPopup {

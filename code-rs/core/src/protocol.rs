@@ -21,6 +21,7 @@ use uuid::Uuid;
 
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use crate::config_types::ShellConfig;
 use crate::config_types::TextVerbosity as TextVerbosityConfig;
 use crate::message_history::HistoryEntry;
 use crate::model_provider_info::ModelProviderInfo;
@@ -145,6 +146,11 @@ pub enum Op {
         /// Dynamic tools to include for this session.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         dynamic_tools: Vec<DynamicToolSpec>,
+
+        /// Optional shell override for command execution.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
+        shell: Option<ShellConfig>,
     },
 
     /// Abort current task.

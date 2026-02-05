@@ -3,6 +3,7 @@ use serde::Serialize;
 use shlex;
 use std::path::PathBuf;
 
+use crate::config_types::ShellConfig;
 use crate::util::is_shell_like_executable;
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
@@ -24,10 +25,16 @@ pub struct PowerShellConfig {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct GenericShell {
+    pub(crate) command: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Shell {
     Zsh(ZshShell),
     Bash(BashShell),
     PowerShell(PowerShellConfig),
+    Generic(GenericShell),
     Unknown,
 }
 
@@ -89,6 +96,12 @@ impl Shell {
                 // Model generated a PowerShell command. Run it.
                 Some(command)
             }
+            Shell::Generic(generic) => {
+                // For generic shells, prepend the shell command to the user command
+                let mut invocation = generic.command.clone();
+                invocation.extend(command);
+                Some(invocation)
+            }
             Shell::Unknown => None,
         }
     }
@@ -102,6 +115,7 @@ impl Shell {
                 .file_name()
                 .map(|s| s.to_string_lossy().to_string()),
             Shell::PowerShell(ps) => Some(ps.exe.clone()),
+            Shell::Generic(generic) => generic.command.first().cloned(),
             Shell::Unknown => None,
         }
     }
@@ -223,6 +237,18 @@ pub async fn default_user_shell() -> Shell {
 #[cfg(all(not(target_os = "windows"), not(unix)))]
 pub async fn default_user_shell() -> Shell {
     Shell::Unknown
+}
+
+pub async fn default_user_shell_with_override(shell_override: Option<&ShellConfig>) -> Shell {
+    if let Some(shell_config) = shell_override {
+        Shell::Generic(GenericShell {
+            command: std::iter::once(shell_config.path.clone())
+                .chain(shell_config.args.clone())
+                .collect(),
+        })
+    } else {
+        default_user_shell().await
+    }
 }
 
 #[cfg(test)]

@@ -158,6 +158,11 @@ exclude = ["*SECRET*", "*PASSWORD*", "*CREDENTIAL*"]
 # Set custom environment variables
 set = { EDITOR = "vim", PAGER = "less" }
 
+# Shell to use for command execution (defaults to user's shell)
+# [shell]
+# path = "/bin/bash"
+# args = ["-l"]
+
 # History Configuration
 [history]
 persistence = "save-all"
