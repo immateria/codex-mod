@@ -20,6 +20,7 @@ use crate::auth_accounts;
 use crate::account_switching::RateLimitSwitchState;
 use crate::protocol::McpListToolsResponseEvent;
 use code_app_server_protocol::AuthMode as AppAuthMode;
+use code_protocol::models::FunctionCallOutputContentItem;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum AgentTaskKind {
@@ -3339,9 +3340,15 @@ async fn handle_dynamic_tool_call(
 
     ResponseInputItem::FunctionCallOutput {
         call_id: ctx.call_id.clone(),
-        output: FunctionCallOutputPayload {
-            content: response.output,
-            success: Some(response.success),
+        output: {
+            let content_items = response
+                .content_items
+                .into_iter()
+                .map(FunctionCallOutputContentItem::from)
+                .collect::<Vec<_>>();
+            let mut payload = FunctionCallOutputPayload::from_content_items(content_items);
+            payload.success = Some(response.success);
+            payload
         },
     }
 }
@@ -5984,7 +5991,7 @@ mod resolve_agent_command_for_check_tests {
 
     #[test]
     fn external_models_use_cli_for_command_checks() {
-        let (cmd, is_builtin) = resolve_agent_command_for_check("claude-opus-4.5", None);
+        let (cmd, is_builtin) = resolve_agent_command_for_check("claude-opus-4.6", None);
         assert_eq!(cmd, "claude");
         assert!(!is_builtin, "Claude should not be treated as a built-in family");
     }

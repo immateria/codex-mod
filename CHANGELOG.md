@@ -7,6 +7,20 @@
 
 - (none)
 
+## [0.6.59] - 2026-02-06
+
+- Models: add gpt-5.3-codex and bump Claude Opus to 4.6. (3b45488a)
+- TUI: add sortable resume picker with created/updated toggle. (22545bf2)
+- TUI: add /statusline command for interactive status line configuration. (b0e5a630)
+- App Server: add websocket transport support and send beta header. (8473096e, dbe47ea0)
+
+## [0.6.58] - 2026-02-05
+
+- Core: add configurable log_dir for logs. (cddfd1e6)
+- App Server/Core: allow text + image content items for dynamic tool outputs. (5ea107a0)
+- Skills: support live updates to skills. (7bcc5523)
+- Linux Sandbox: add bubblewrap support for isolation. (ae4de43c, f956cc2a)
+
 ## [0.6.57] - 2026-02-02
 
 - TUI/GH: show gh_run_wait summary output after completion. (816aae9c)

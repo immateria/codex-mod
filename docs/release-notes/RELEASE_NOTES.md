@@ -1,14 +1,18 @@
-## @just-every/code v0.6.57
-This release improves the TUI display for GitHub Actions wait summaries.
+## @just-every/code v0.6.59
+
+This release adds new model options, improves TUI controls, and expands app-server connectivity.
 
 ### Changes
-- TUI/GH: show gh_run_wait summary output after completion.
-- TUI/GH: trim redundant title lines in gh_run_wait previews for cleaner display.
+- Models: add gpt-5.3-codex and bump Claude Opus to 4.6.
+- TUI: add sortable resume picker with created/updated toggle.
+- TUI: add /statusline command for interactive status line configuration.
+- App Server: add websocket transport support and send beta header.
 
 ### Install
-```sh
+```
 npm install -g @just-every/code@latest
 code
 ```
 
-Compare: https://github.com/just-every/code/compare/v0.6.56...v0.6.57
+### Thanks
+Thanks to @MatthewZeng and @NoahJorgensen for contributions!
