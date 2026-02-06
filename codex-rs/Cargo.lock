@@ -1219,6 +1219,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "chrono",
+ "clap",
  "codex-app-server-protocol",
  "codex-arg0",
  "codex-backend-client",
@@ -1233,8 +1234,10 @@ dependencies = [
  "codex-protocol",
  "codex-rmcp-client",
  "codex-utils-absolute-path",
+ "codex-utils-cargo-bin",
  "codex-utils-json-to-toml",
  "core_test_support",
+ "futures",
  "os_info",
  "pretty_assertions",
  "rmcp",
@@ -1245,6 +1248,7 @@ dependencies = [
  "tempfile",
  "time",
  "tokio",
+ "tokio-tungstenite",
  "toml 0.9.11+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
@@ -1740,6 +1744,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-experimental-api-macros"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
+]
+
+
+[[package]]
 name = "codex-feedback"
 version = "0.2.0"
 dependencies = [
@@ -1926,9 +1940,9 @@ version = "0.2.0"
 dependencies = [
  "chrono",
  "codex-api",
- "codex-app-server-protocol",
  "codex-protocol",
  "codex-utils-absolute-path",
+ "codex-utils-string",
  "eventsource-stream",
  "http 1.4.0",
  "opentelemetry",
@@ -1936,6 +1950,7 @@ dependencies = [
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
  "opentelemetry_sdk",
+ "os_info",
  "pretty_assertions",
  "reqwest",
  "serde",
@@ -2028,6 +2043,25 @@ dependencies = [
  "urlencoding",
  "webbrowser",
  "which",
+]
+
+[[package]]
+name = "codex-secrets"
+version = "0.0.0"
+dependencies = [
+ "age",
+ "anyhow",
+ "base64 0.22.1",
+ "codex-keyring-store",
+ "keyring",
+ "pretty_assertions",
+ "rand 0.9.2",
+ "schemars 0.8.22",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]
@@ -2272,6 +2306,9 @@ dependencies = [
 [[package]]
 name = "codex-utils-string"
 version = "0.2.0"
+dependencies = [
+ "pretty_assertions",
+]
 
 [[package]]
 name = "codex-windows-sandbox"
