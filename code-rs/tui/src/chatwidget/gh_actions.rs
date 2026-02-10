@@ -4,6 +4,15 @@ use code_core::config::Config;
 use code_core::git_info::collect_git_info;
 use std::process::Command;
 
+struct RunFailureContext<'a> {
+    owner: &'a str,
+    repo: &'a str,
+    branch: &'a str,
+    sha: &'a str,
+    url: &'a str,
+    conclusion: &'a str,
+}
+
 /// Source of a GitHub API token used by the watcher.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum TokenSource {
@@ -98,12 +107,14 @@ pub(super) fn maybe_watch_after_push(
                                 surface_failure(
                                     &tx,
                                     &ticket,
-                                    &owner,
-                                    &repo,
-                                    &branch,
-                                    &head_sha,
-                                    html,
-                                    conclusion,
+                                    RunFailureContext {
+                                        owner: &owner,
+                                        repo: &repo,
+                                        branch: &branch,
+                                        sha: &head_sha,
+                                        url: html,
+                                        conclusion,
+                                    },
                                 );
                             }
                             return;
@@ -129,12 +140,14 @@ pub(super) fn maybe_watch_after_push(
                             surface_failure(
                                 &tx,
                                 &ticket,
-                                &owner,
-                                &repo,
-                                &branch,
-                                &head_sha,
-                                html,
-                                conclusion,
+                                RunFailureContext {
+                                    owner: &owner,
+                                    repo: &repo,
+                                    branch: &branch,
+                                    sha: &head_sha,
+                                    url: html,
+                                    conclusion,
+                                },
                             );
                         }
                         return;
@@ -174,13 +187,16 @@ fn parse_owner_repo(url: &str) -> Option<(String, String)> {
 fn surface_failure(
     tx: &AppEventSender,
     ticket: &BackgroundOrderTicket,
-    owner: &str,
-    repo: &str,
-    branch: &str,
-    sha: &str,
-    url: &str,
-    conclusion: &str,
+    context: RunFailureContext<'_>,
 ) {
+    let RunFailureContext {
+        owner,
+        repo,
+        branch,
+        sha,
+        url,
+        conclusion,
+    } = context;
     let short = &sha[..std::cmp::min(7, sha.len())];
     let msg = if url.is_empty() {
         format!("❌ GitHub Actions failed for {owner}/{repo}@{short} on {branch}: {conclusion}")

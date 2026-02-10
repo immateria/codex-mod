@@ -288,6 +288,23 @@ pub struct AgentStatusUpdatePayload {
     pub task: Option<String>,
 }
 
+#[derive(Clone, Debug)]
+pub struct AgentCreateRequest {
+    pub model: String,
+    pub name: Option<String>,
+    pub prompt: String,
+    pub context: Option<String>,
+    pub output_goal: Option<String>,
+    pub files: Vec<String>,
+    pub read_only: bool,
+    pub batch_id: Option<String>,
+    pub config: Option<AgentConfig>,
+    pub worktree_branch: Option<String>,
+    pub worktree_base: Option<String>,
+    pub source_kind: Option<AgentSourceKind>,
+    pub reasoning_effort: code_protocol::config_types::ReasoningEffort,
+}
+
 impl Default for AgentManager {
     fn default() -> Self {
         Self::new()
@@ -474,117 +491,47 @@ impl AgentManager {
 
     pub async fn create_agent(
         &mut self,
-        model: String,
-        name: Option<String>,
-        prompt: String,
-        context: Option<String>,
-        output_goal: Option<String>,
-        files: Vec<String>,
-        read_only: bool,
-        batch_id: Option<String>,
-        reasoning_effort: code_protocol::config_types::ReasoningEffort,
+        request: AgentCreateRequest,
     ) -> String {
-        self.create_agent_internal(
-            model,
-            name,
-            prompt,
-            context,
-            output_goal,
-            files,
-            read_only,
-            batch_id,
-            None,
-            None,
-            None,
-            None,
-            reasoning_effort,
-        )
-        .await
+        self.create_agent_internal(request).await
     }
 
     pub async fn create_agent_with_config(
         &mut self,
-        model: String,
-        name: Option<String>,
-        prompt: String,
-        context: Option<String>,
-        output_goal: Option<String>,
-        files: Vec<String>,
-        read_only: bool,
-        batch_id: Option<String>,
+        mut request: AgentCreateRequest,
         config: AgentConfig,
-        reasoning_effort: code_protocol::config_types::ReasoningEffort,
     ) -> String {
-        self.create_agent_internal(
-            model,
-            name,
-            prompt,
-            context,
-            output_goal,
-            files,
-            read_only,
-            batch_id,
-            Some(config),
-            None,
-            None,
-            None,
-            reasoning_effort,
-        )
-        .await
+        request.config = Some(config);
+        self.create_agent_internal(request).await
     }
 
     #[allow(dead_code)]
     pub async fn create_agent_with_options(
         &mut self,
-        model: String,
-        name: Option<String>,
-        prompt: String,
-        context: Option<String>,
-        output_goal: Option<String>,
-        files: Vec<String>,
-        read_only: bool,
-        batch_id: Option<String>,
-        config: Option<AgentConfig>,
-        worktree_branch: Option<String>,
-        worktree_base: Option<String>,
-        source_kind: Option<AgentSourceKind>,
-        reasoning_effort: code_protocol::config_types::ReasoningEffort,
+        request: AgentCreateRequest,
     ) -> String {
-        self
-            .create_agent_internal(
-                model,
-                name,
-                prompt,
-                context,
-                output_goal,
-                files,
-                read_only,
-                batch_id,
-                config,
-                worktree_branch,
-                worktree_base,
-                source_kind,
-                reasoning_effort,
-            )
-            .await
+        self.create_agent_internal(request).await
     }
 
     async fn create_agent_internal(
         &mut self,
-        model: String,
-        name: Option<String>,
-        prompt: String,
-        context: Option<String>,
-        output_goal: Option<String>,
-        files: Vec<String>,
-        read_only: bool,
-        batch_id: Option<String>,
-        config: Option<AgentConfig>,
-        worktree_branch: Option<String>,
-        worktree_base: Option<String>,
-        source_kind: Option<AgentSourceKind>,
-        reasoning_effort: code_protocol::config_types::ReasoningEffort,
+        request: AgentCreateRequest,
     ) -> String {
+        let AgentCreateRequest {
+            model,
+            name,
+            prompt,
+            context,
+            output_goal,
+            files,
+            read_only,
+            batch_id,
+            config,
+            worktree_branch,
+            worktree_base,
+            source_kind,
+            reasoning_effort,
+        } = request;
         let agent_id = Uuid::new_v4().to_string();
 
         let log_tag = match source_kind {
@@ -1012,18 +959,18 @@ async fn execute_agent(agent_id: String, config: Option<AgentConfig>) {
                                 .await
                             }
                         } else {
-                            execute_model_with_permissions(
-                                &agent_id,
-                                &model,
-                                &full_prompt,
-                                false,
-                                Some(worktree_path),
-                                config.clone(),
+                            execute_model_with_permissions(ExecuteModelRequest {
+                                agent_id: &agent_id,
+                                model: &model,
+                                prompt: &full_prompt,
+                                read_only: false,
+                                working_dir: Some(worktree_path),
+                                config: config.clone(),
                                 reasoning_effort,
-                                review_output_json_path.as_ref(),
-                                source_kind.clone(),
-                                log_tag.as_deref(),
-                            )
+                                review_output_json_path: review_output_json_path.as_ref(),
+                                source_kind: source_kind.clone(),
+                                log_tag: log_tag.as_deref(),
+                            })
                             .await
                         }
                     }
@@ -1053,18 +1000,18 @@ async fn execute_agent(agent_id: String, config: Option<AgentConfig>) {
                 execute_cloud_built_in_streaming(&agent_id, &full_prompt, None, config, model.as_str()).await
             }
         } else {
-            execute_model_with_permissions(
-                &agent_id,
-                &model,
-                &full_prompt,
-                true,
-                None,
+            execute_model_with_permissions(ExecuteModelRequest {
+                agent_id: &agent_id,
+                model: &model,
+                prompt: &full_prompt,
+                read_only: true,
+                working_dir: None,
                 config,
                 reasoning_effort,
-                None,
+                review_output_json_path: None,
                 source_kind,
-                log_tag.as_deref(),
-            )
+                log_tag: log_tag.as_deref(),
+            })
             .await
         }
     };
@@ -1083,18 +1030,32 @@ fn prefer_json_result(path: Option<&PathBuf>, fallback: Result<String, String>) 
     fallback
 }
 
-async fn execute_model_with_permissions(
-    agent_id: &str,
-    model: &str,
-    prompt: &str,
+struct ExecuteModelRequest<'a> {
+    agent_id: &'a str,
+    model: &'a str,
+    prompt: &'a str,
     read_only: bool,
     working_dir: Option<PathBuf>,
     config: Option<AgentConfig>,
     reasoning_effort: code_protocol::config_types::ReasoningEffort,
-    review_output_json_path: Option<&PathBuf>,
+    review_output_json_path: Option<&'a PathBuf>,
     source_kind: Option<AgentSourceKind>,
-    log_tag: Option<&str>,
-) -> Result<String, String> {
+    log_tag: Option<&'a str>,
+}
+
+async fn execute_model_with_permissions(request: ExecuteModelRequest<'_>) -> Result<String, String> {
+    let ExecuteModelRequest {
+        agent_id,
+        model,
+        prompt,
+        read_only,
+        working_dir,
+        config,
+        reasoning_effort,
+        review_output_json_path,
+        source_kind,
+        log_tag,
+    } = request;
     // Helper: cross‑platform check whether an executable is available in PATH
     // and is directly spawnable by std::process::Command (no shell wrappers).
 fn command_exists(cmd: &str) -> bool {
@@ -1371,8 +1332,9 @@ fn command_exists(cmd: &str) -> bool {
     // Proactively check for presence of external command before spawn when not
     // using the current executable fallback. This avoids confusing OS errors
     // like "program not found" and lets us surface a cleaner message.
-    if !(family == "codex" || family == "code" || (family == "cloud" && config.is_none()))
-        && !command_exists(&command_for_spawn)
+    let requires_command_check =
+        family != "codex" && family != "code" && !(family == "cloud" && config.is_none());
+    if requires_command_check && !command_exists(&command_for_spawn)
     {
         return Err(format_agent_not_found_error(&command, &command_for_spawn));
     }
@@ -1743,18 +1705,18 @@ async fn run_agent_smoke_test(cfg: AgentConfig) -> Result<String, String> {
     let model_name = cfg.name.clone();
     let read_only = should_validate_in_read_only(&cfg);
     let mut task = tokio::spawn(async move {
-        execute_model_with_permissions(
-            "agent-smoke-test",
-            &model_name,
-            AGENT_SMOKE_TEST_PROMPT,
+        execute_model_with_permissions(ExecuteModelRequest {
+            agent_id: "agent-smoke-test",
+            model: &model_name,
+            prompt: AGENT_SMOKE_TEST_PROMPT,
             read_only,
-            None,
-            Some(cfg),
-            code_protocol::config_types::ReasoningEffort::High,
-            None,
-            None,
-            None,
-        )
+            working_dir: None,
+            config: Some(cfg),
+            reasoning_effort: code_protocol::config_types::ReasoningEffort::High,
+            review_output_json_path: None,
+            source_kind: None,
+            log_tag: None,
+        })
         .await
     });
     let timer = tokio::time::sleep(AGENT_SMOKE_TEST_TIMEOUT);
@@ -1766,10 +1728,10 @@ async fn run_agent_smoke_test(cfg: AgentConfig) -> Result<String, String> {
         _ = timer.as_mut() => {
             task.abort();
             let _ = task.await;
-            return Err(format!(
+            Err(format!(
                 "agent validation timed out after {}s",
                 AGENT_SMOKE_TEST_TIMEOUT.as_secs()
-            ));
+            ))
         }
     }
 }
@@ -2271,9 +2233,7 @@ pub struct AgentToolRequest {
 }
 
 pub(crate) fn normalize_agent_name(name: Option<String>) -> Option<String> {
-    let Some(name) = name.map(|value| value.trim().to_string()) else {
-        return None;
-    };
+    let name = name.map(|value| value.trim().to_string())?;
 
     if name.is_empty() {
         return None;
@@ -2315,17 +2275,15 @@ fn canonicalize_agent_word_boundaries(input: &str) -> String {
         let mut split = false;
 
         if !current.is_empty()
-            && let Some(prev) = prev_char {
-                if prev.is_ascii_lowercase() && ch.is_ascii_uppercase() {
-                    split = true;
-                } else if prev.is_ascii_uppercase()
+            && let Some(prev) = prev_char
+            && ((prev.is_ascii_lowercase() && ch.is_ascii_uppercase())
+                || (prev.is_ascii_uppercase()
                     && ch.is_ascii_uppercase()
                     && uppercase_run > 0
-                    && next_char.is_some_and(|c| c.is_ascii_lowercase())
-                {
-                    split = true;
-                }
-            }
+                    && next_char.is_some_and(|c| c.is_ascii_lowercase())))
+        {
+            split = true;
+        }
 
         if split {
             tokens.push(std::mem::take(&mut current));
@@ -2520,18 +2478,18 @@ mod tests {
             std::env::set_var("PATH", prepend_path(dir.path()));
         }
 
-        let output = execute_model_with_permissions(
-            "agent-test",
-            "code-gpt-5.2-codex",
-            "ok",
-            true,
-            None,
-            None,
-            ReasoningEffort::Low,
-            None,
-            None,
-            None,
-        )
+        let output = execute_model_with_permissions(ExecuteModelRequest {
+            agent_id: "agent-test",
+            model: "code-gpt-5.2-codex",
+            prompt: "ok",
+            read_only: true,
+            working_dir: None,
+            config: None,
+            reasoning_effort: ReasoningEffort::Low,
+            review_output_json_path: None,
+            source_kind: None,
+            log_tag: None,
+        })
         .await
         .expect("execute read-only agent");
 

@@ -195,7 +195,7 @@ impl ThemeSelectionView {
                             self.app_event_tx
                                 .send(AppEvent::PreviewTheme(self.revert_theme_on_back));
                             self.clear_theme_split_preview();
-                            self.mode = Mode::CreateTheme(CreateThemeState {
+                            self.mode = Mode::CreateTheme(Box::new(CreateThemeState {
                                 step: std::cell::Cell::new(CreateStep::Prompt),
                                 prompt: String::new(),
                                 is_loading: std::cell::Cell::new(false),
@@ -209,7 +209,7 @@ impl ThemeSelectionView {
                                 review_focus_is_toggle: std::cell::Cell::new(true),
                                 last_raw_output: std::cell::RefCell::new(None),
                                 proposed_is_dark: std::cell::Cell::new(None),
-                            });
+                            }));
                         } else {
                             self.confirm_theme()
                         }
@@ -220,7 +220,7 @@ impl ThemeSelectionView {
                             self.selected_spinner_index = names.len().saturating_sub(1);
                         }
                         if self.selected_spinner_index >= names.len() {
-                            self.mode = Mode::CreateSpinner(CreateState {
+                            self.mode = Mode::CreateSpinner(Box::new(CreateState {
                                 step: std::cell::Cell::new(CreateStep::Prompt),
                                 prompt: String::new(),
                                 is_loading: std::cell::Cell::new(false),
@@ -232,7 +232,7 @@ impl ThemeSelectionView {
                                 proposed_frames: std::cell::RefCell::new(None),
                                 proposed_name: std::cell::RefCell::new(None),
                                 last_raw_output: std::cell::RefCell::new(None),
-                            });
+                            }));
                         } else {
                             self.confirm_spinner()
                         }

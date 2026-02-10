@@ -93,11 +93,13 @@ async fn run_remote_compact_task_inner(
     let new_history = loop {
         prune_orphan_tool_outputs(&mut turn_items);
 
-        let mut prompt = Prompt::default();
-        prompt.input = turn_items.clone();
-        prompt.base_instructions_override = turn_context.base_instructions.clone();
-        prompt.include_additional_instructions = false;
-        prompt.log_tag = Some("codex/remote-compact".to_string());
+        let mut prompt = Prompt {
+            input: turn_items.clone(),
+            base_instructions_override: turn_context.base_instructions.clone(),
+            include_additional_instructions: false,
+            log_tag: Some("codex/remote-compact".to_string()),
+            ..Prompt::default()
+        };
 
         sess.apply_remote_model_overrides(&mut prompt).await;
 

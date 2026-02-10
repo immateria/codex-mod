@@ -43,13 +43,7 @@ pub(crate) fn border() -> Color {
 /// while preserving the original hue relationship.
 pub(crate) fn border_dim() -> Color {
     match palette_mode() {
-        PaletteMode::Ansi16 => {
-            if is_dark_background(current_theme().background) {
-                Color::Indexed(8)
-            } else {
-                Color::Indexed(8)
-            }
-        }
+        PaletteMode::Ansi16 => Color::Indexed(8),
         PaletteMode::Ansi256 => {
             let b = current_theme().border;
             let bg = current_theme().background;

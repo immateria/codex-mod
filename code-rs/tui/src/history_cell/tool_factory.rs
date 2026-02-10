@@ -810,15 +810,15 @@ fn dim_webfetch_emphasis_and_links(lines: &mut Vec<Line<'static>>) {
         // Heuristic list detection on the plain text form
         let s: String = line.spans.iter().map(|sp| sp.content.as_ref()).collect();
         let t = s.trim_start();
+        let digit_prefix_len = t.chars().take_while(char::is_ascii_digit).count();
+        let numbered_list_suffix = t.chars().nth(digit_prefix_len);
         let is_list = t.starts_with('-')
             || t.starts_with('*')
             || t.starts_with('+')
             || t.starts_with('•')
             || t.starts_with('·')
             || t.starts_with('⋅')
-            || t.chars().take_while(char::is_ascii_digit).count() > 0
-                && (t.chars().skip_while(char::is_ascii_digit).next() == Some('.')
-                    || t.chars().skip_while(char::is_ascii_digit).next() == Some(')'));
+            || digit_prefix_len > 0 && matches!(numbered_list_suffix, Some('.') | Some(')'));
 
         for sp in line.spans.iter_mut() {
             // Skip code block spans (have a solid code background)

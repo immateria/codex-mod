@@ -122,13 +122,11 @@ pub(crate) enum AgentHintLabel {
 fn format_with_thousands(n: u64) -> String {
     let s = n.to_string();
     let mut out = String::with_capacity(s.len() + s.len() / 3);
-    let mut count = 0usize;
-    for ch in s.chars().rev() {
+    for (count, ch) in s.chars().rev().enumerate() {
         if count != 0 && count.is_multiple_of(3) {
             out.push(',');
         }
         out.push(ch);
-        count += 1;
     }
     out.chars().rev().collect()
 }
@@ -1993,13 +1991,12 @@ impl ChatComposer {
         self.textarea.input(input);
         let text_after = self.textarea.text();
 
-        if text_before != text_after {
-            self.post_paste_space_guard = None;
-        } else if self
-            .post_paste_space_guard
-            .as_ref()
-            .map(|guard| self.textarea.cursor() != guard.cursor_pos)
-            .unwrap_or(false)
+        if text_before != text_after
+            || self
+                .post_paste_space_guard
+                .as_ref()
+                .map(|guard| self.textarea.cursor() != guard.cursor_pos)
+                .unwrap_or(false)
         {
             self.post_paste_space_guard = None;
         }
@@ -2861,7 +2858,6 @@ impl ChatComposer {
                 // If still too wide, truncate left as a final safety net.
                 let mut left_spans = final_left;
                 let right_spans = final_right;
-                let mut left_len = left_len;
                 if left_len + right_len + trailing_pad > total_width {
                     let mut remaining = total_width.saturating_sub(right_len + trailing_pad);
                     if remaining == 0 {

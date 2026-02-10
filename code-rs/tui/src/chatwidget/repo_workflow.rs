@@ -283,22 +283,15 @@ impl ChatWidget<'_> {
                 match fs::read_dir(&workflow_dir).await {
                     Ok(mut dir) => {
                         let mut found = false;
-                        loop {
-                            match dir.next_entry().await {
-                                Ok(Some(entry)) => {
-                                    if entry
-                                        .file_type()
-                                        .await
-                                        .map(|ft| ft.is_file())
-                                        .unwrap_or(false)
-                                    {
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                                Ok(None) | Err(_) => {
-                                    break;
-                                }
+                        while let Ok(Some(entry)) = dir.next_entry().await {
+                            if entry
+                                .file_type()
+                                .await
+                                .map(|ft| ft.is_file())
+                                .unwrap_or(false)
+                            {
+                                found = true;
+                                break;
                             }
                         }
                         found
@@ -330,16 +323,14 @@ impl ChatWidget<'_> {
                         const MAX_CHARS: usize = 16_000;
                         let mut preview = String::new();
                         let mut truncated = false;
-                        let mut emitted = 0usize;
                         let mut chars = 0usize;
-                        for line in diff_text.lines() {
+                        for (emitted, line) in diff_text.lines().enumerate() {
                             if emitted >= MAX_LINES || chars >= MAX_CHARS {
                                 truncated = true;
                                 break;
                             }
                             preview.push_str(line);
                             preview.push('\n');
-                            emitted += 1;
                             chars += line.len() + 1;
                         }
                         if truncated {

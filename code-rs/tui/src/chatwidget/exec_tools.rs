@@ -31,6 +31,8 @@ use code_core::protocol::{ExecCommandBeginEvent, ExecCommandEndEvent, OrderMeta}
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+type RunningExecEntry = (super::ExecCallId, Option<usize>, Option<(usize, usize)>);
+
 fn find_trailing_explore_agg(chat: &ChatWidget<'_>) -> Option<usize> {
     if chat.is_reasoning_shown() {
         return None;
@@ -407,7 +409,7 @@ pub(super) fn finalize_exec_cell_at(
 pub(super) fn finalize_all_running_as_interrupted(chat: &mut ChatWidget<'_>) {
     let interrupted_msg = "Cancelled by user.".to_string();
     let stdout_empty = String::new();
-    let running: Vec<(super::ExecCallId, Option<usize>, Option<(usize, usize)>)> = chat
+    let running: Vec<RunningExecEntry> = chat
         .exec
         .running_commands
         .iter()
@@ -462,10 +464,12 @@ pub(super) fn finalize_all_running_as_interrupted(chat: &mut ChatWidget<'_>) {
             .map(|(k, entry)| (k.clone(), *entry))
             .collect();
         for (tool_id, entry) in entries {
-            if let Some(idx) = running_tools::resolve_entry_index(chat, &entry, &tool_id.0)
-                && idx < chat.history_cells.len() {
-                    let mut emphasis = TextEmphasis::default();
-                    emphasis.bold = true;
+                if let Some(idx) = running_tools::resolve_entry_index(chat, &entry, &tool_id.0)
+                    && idx < chat.history_cells.len() {
+                    let emphasis = TextEmphasis {
+                        bold: true,
+                        ..TextEmphasis::default()
+                    };
                     let wait_state = PlainMessageState {
                         id: HistoryId::ZERO,
                         role: PlainMessageRole::Error,

@@ -161,8 +161,8 @@ enum Mode {
     Overview,
     Themes,
     Spinner,
-    CreateSpinner(CreateState),
-    CreateTheme(CreateThemeState),
+    CreateSpinner(Box<CreateState>),
+    CreateTheme(Box<CreateThemeState>),
 }
 
 struct CreateState {
@@ -219,10 +219,16 @@ enum ProgressMsg {
         interval: u64,
         frames: Vec<String>,
     },
-    CompletedThemeOk(String, code_core::config_types::ThemeColors, Option<bool>),
+    CompletedThemeOk(Box<ThemeGenerationResult>),
     // `_raw_snippet` is captured for potential future display/debugging
     CompletedErr {
         error: String,
         _raw_snippet: String,
     },
+}
+
+struct ThemeGenerationResult {
+    name: String,
+    colors: code_core::config_types::ThemeColors,
+    is_dark: Option<bool>,
 }

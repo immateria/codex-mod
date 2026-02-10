@@ -893,10 +893,10 @@ fn apply_ansi16_profile(theme: &mut Theme, original: &Theme) {
         theme.keyword = if is_light { Color::Indexed(12) } else { Color::Indexed(13) };
     }
     if contrast_ratio(theme.string, theme.background) < 2.5 {
-        theme.string = if is_light { Color::Indexed(10) } else { Color::Indexed(10) };
+        theme.string = Color::Indexed(10);
     }
     if contrast_ratio(theme.comment, theme.background) < 2.0 {
-        theme.comment = if is_light { Color::Indexed(8) } else { Color::Indexed(8) };
+        theme.comment = Color::Indexed(8);
     }
 }
 

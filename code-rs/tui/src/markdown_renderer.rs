@@ -225,7 +225,7 @@ impl MarkdownRenderer {
         }
 
         // Must have space after #
-        if (trimmed.chars().nth(level) != Some(' ')) {
+        if trimmed.chars().nth(level) != Some(' ') {
             return None;
         }
 
@@ -833,11 +833,14 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
     }
     let mut aligns = vec![Align::Left; cols];
     if has_pipe_sep {
-        for i in 0..cols {
-            let seg = sep_segments.get(i).map(std::string::String::as_str).unwrap_or("");
+        for (i, align) in aligns.iter_mut().enumerate().take(cols) {
+            let seg = sep_segments
+                .get(i)
+                .map(std::string::String::as_str)
+                .unwrap_or("");
             let left_colon = seg.starts_with(':');
             let right_colon = seg.ends_with(':');
-            aligns[i] = if right_colon && !left_colon {
+            *align = if right_colon && !left_colon {
                 Align::Right
             } else {
                 Align::Left
@@ -856,12 +859,12 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
     }
     // Infer alignment for numeric columns if not specified by pipes
     if !has_pipe_sep {
-        for i in 0..cols {
+        for (i, align) in aligns.iter_mut().enumerate().take(cols) {
             let numeric = body
                 .iter()
                 .all(|r| r.get(i).map(|c| is_numeric(c)).unwrap_or(true));
             if numeric {
-                aligns[i] = Align::Right;
+                *align = Align::Right;
             }
         }
     }
@@ -901,11 +904,11 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
     // Separator row using box-drawing to avoid being mistaken for a horizontal rule
     {
         let mut spans: Vec<Span<'static>> = Vec::new();
-        for i in 0..cols {
+        for (i, width) in widths.iter().copied().enumerate().take(cols) {
             if i > 0 {
                 spans.push(Span::raw("  "));
             }
-            spans.push(Span::raw("─".repeat(widths[i]).to_string()));
+            spans.push(Span::raw("─".repeat(width).to_string()));
         }
         out.push(Line::from(spans));
     }

@@ -570,11 +570,10 @@ pub(crate) fn new_session_info(
 /// Build the common lines for the "Popular commands" section (without the leading
 /// "notice" marker). Shared between the initial session info and the startup prelude.
 fn popular_commands_lines(_latest_version: Option<&str>) -> Vec<Line<'static>> {
-    let mut lines: Vec<Line<'static>> = Vec::new();
-    lines.push(Line::styled(
+    let mut lines: Vec<Line<'static>> = vec![Line::styled(
         "Popular commands:",
         Style::default().fg(crate::colors::text_bright()),
-    ));
+    )];
     lines.push(Line::from(vec![
         Span::styled("/settings", Style::default().fg(crate::colors::primary())),
         Span::from(" - "),

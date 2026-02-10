@@ -124,16 +124,22 @@ event: response.completed\ndata: {completed}\n\n",
         let mut manager = AGENT_MANAGER.write().await;
         manager
             .create_agent_with_config(
-                "echo".to_string(),
-                Some("echo-agent".to_string()),
-                "wake test".to_string(),
-                None,
-                None,
-                Vec::new(),
-                true,
-                Some(batch_id.clone()),
+                code_core::AgentCreateRequest {
+                    model: "echo".to_string(),
+                    name: Some("echo-agent".to_string()),
+                    prompt: "wake test".to_string(),
+                    context: None,
+                    output_goal: None,
+                    files: Vec::new(),
+                    read_only: true,
+                    batch_id: Some(batch_id.clone()),
+                    config: None,
+                    worktree_branch: None,
+                    worktree_base: None,
+                    source_kind: None,
+                    reasoning_effort: ReasoningEffort::Low,
+                },
                 agent_config,
-                ReasoningEffort::Low,
             )
             .await
     };

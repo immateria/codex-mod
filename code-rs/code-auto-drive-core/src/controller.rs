@@ -182,6 +182,16 @@ pub struct TransitionEffects {
     pub phase_changed: bool,
 }
 
+#[derive(Clone, Debug)]
+pub struct AutoLaunchSettings {
+    pub review_enabled: bool,
+    pub subagents_enabled: bool,
+    pub cross_check_enabled: bool,
+    pub qa_automation_enabled: bool,
+    pub continue_mode: AutoContinueMode,
+    pub reduced_motion: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct AutoRunSummary {
     pub duration: Duration,
@@ -482,13 +492,16 @@ impl AutoDriveController {
     pub fn prepare_launch(
         &mut self,
         goal: String,
-        review_enabled: bool,
-        subagents_enabled: bool,
-        cross_check_enabled: bool,
-        qa_automation_enabled: bool,
-        continue_mode: AutoContinueMode,
-        reduced_motion: bool,
+        settings: AutoLaunchSettings,
     ) {
+        let AutoLaunchSettings {
+            review_enabled,
+            subagents_enabled,
+            cross_check_enabled,
+            qa_automation_enabled,
+            continue_mode,
+            reduced_motion,
+        } = settings;
         let seed_intro = self.take_intro_pending();
         self.reset();
         if seed_intro {

@@ -1,5 +1,7 @@
 use super::*;
 
+type NumstatRow = (Option<u32>, Option<u32>, String);
+
 impl ChatWidget<'_> {
     pub(crate) fn handle_key_event(&mut self, key_event: KeyEvent) {
         if settings_handlers::handle_settings_key(self, key_event) {
@@ -2722,7 +2724,6 @@ impl ChatWidget<'_> {
         placement: BackgroundPlacement,
         order: Option<code_core::protocol::OrderMeta>,
     ) {
-        let order = order;
         if order.is_none() {
             if matches!(placement, BackgroundPlacement::Tail) {
                 tracing::error!(
@@ -2739,12 +2740,12 @@ impl ChatWidget<'_> {
             }
         }
         let system_placement = match placement {
-            BackgroundPlacement::Tail => SystemPlacement::EndOfCurrent,
+            BackgroundPlacement::Tail => SystemPlacement::Tail,
             BackgroundPlacement::BeforeNextOutput => {
                 if self.pending_user_prompts_for_next_turn > 0 {
-                    SystemPlacement::EarlyInCurrent
+                    SystemPlacement::Early
                 } else {
-                    SystemPlacement::PrePromptInCurrent
+                    SystemPlacement::PrePrompt
                 }
             }
         };
@@ -3461,9 +3462,7 @@ impl ChatWidget<'_> {
                     {
                         self.auto_history.append_raw(std::slice::from_ref(&item));
                     }
-                    let mut lines = Vec::with_capacity(2);
-                    lines.push("AUTO DRIVE RESPONSE".to_string());
-                    lines.push(notice_text);
+                    let lines = vec!["AUTO DRIVE RESPONSE".to_string(), notice_text];
                     self.history_push_plain_paragraphs(PlainMessageKind::Notice, lines);
                 }
 
@@ -4752,7 +4751,7 @@ impl ChatWidget<'_> {
     pub(super) fn git_numstat<I, S>(
         &self,
         args: I,
-    ) -> Result<Vec<(Option<u32>, Option<u32>, String)>, String>
+    ) -> Result<Vec<NumstatRow>, String>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,

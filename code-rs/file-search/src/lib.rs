@@ -289,18 +289,32 @@ pub fn run(
 /// `run` that sends one final batch of results over the provided channel.
 ///
 /// Parameters mirror the upstream API for compatibility.
+pub struct StreamingSearchConfig {
+    pub exclude: Vec<String>,
+    pub threads: NonZeroUsize,
+    pub cancel_flag: Arc<AtomicBool>,
+    pub compute_indices: bool,
+    pub part_tx: std::sync::mpsc::Sender<Vec<FileMatch>>,
+    pub update_interval: std::time::Duration,
+    pub prefer_cwd: bool,
+}
+
 pub fn run_streaming(
     pattern_text: &str,
     limit: NonZeroUsize,
     search_directory: &Path,
-    exclude: Vec<String>,
-    threads: NonZeroUsize,
-    cancel_flag: Arc<AtomicBool>,
-    compute_indices: bool,
-    part_tx: std::sync::mpsc::Sender<Vec<FileMatch>>,
-    _update_interval: std::time::Duration,
-    _prefer_cwd: bool,
+    config: StreamingSearchConfig,
 ) -> anyhow::Result<FileSearchResults> {
+    let StreamingSearchConfig {
+        exclude,
+        threads,
+        cancel_flag,
+        compute_indices,
+        part_tx,
+        update_interval: _update_interval,
+        prefer_cwd: _prefer_cwd,
+    } = config;
+
     if cancel_flag.load(Ordering::Relaxed) {
         return Ok(FileSearchResults { matches: Vec::new(), total_match_count: 0 });
     }

@@ -117,6 +117,9 @@ pub(crate) use self::esc::EscIntent;
 use self::agent_summary::agent_summary_counts;
 use self::esc::AutoGoalEscState;
 use self::agent_install::{
+    AgentInstallSessionArgs,
+    GuidedTerminalControl,
+    UpgradeTerminalSessionArgs,
     start_agent_install_session,
     start_direct_terminal_session,
     start_prompt_terminal_session,
@@ -220,9 +223,11 @@ use crate::bottom_pane::{
     NotificationsSettingsView,
     SettingsSection,
     ThemeSelectionView,
-    agent_editor_view::AgentEditorView,
+    agent_editor_view::{AgentEditorInit, AgentEditorView},
+    AutoDriveSettingsInit,
     AutoDriveSettingsView,
     PlanningSettingsView,
+    UpdateSettingsInit,
     UpdateSettingsView,
     ReviewSettingsView,
     ValidationSettingsView,
@@ -764,18 +769,16 @@ impl ChatWidget<'_> {
             }
         }
 
-        let mut spans: Vec<Span> = Vec::new();
-        spans.push(Span::styled(prefix.to_string(), Style::default().fg(crate::colors::text())));
-        spans.push(Span::styled(
-            slider,
-            Style::default()
-                .fg(crate::colors::primary())
-                .add_modifier(Modifier::BOLD),
-        ));
-        spans.push(Span::styled(
-            suffix,
-            Style::default().fg(crate::colors::text()),
-        ));
+        let spans: Vec<Span> = vec![
+            Span::styled(prefix.to_string(), Style::default().fg(crate::colors::text())),
+            Span::styled(
+                slider,
+                Style::default()
+                    .fg(crate::colors::primary())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(suffix, Style::default().fg(crate::colors::text())),
+        ];
 
         Line::from(spans)
     }
@@ -2848,18 +2851,85 @@ impl AsRef<str> for StreamId {
 #[derive(Copy, Clone)]
 enum SystemPlacement {
     /// Place near the top of the current request (before most provider output)
-    EarlyInCurrent,
+    Early,
     /// Place at the end of the current request window (after provider output)
-    EndOfCurrent,
+    Tail,
     /// Place before the first user prompt of the very first request
     /// (used for pre-turn UI confirmations like theme/spinner changes)
-    PrePromptInCurrent,
+    PrePrompt,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AutoDriveRole {
     User,
     Assistant,
+}
+
+pub(crate) struct ChatWidgetInit {
+    pub(crate) config: Config,
+    pub(crate) app_event_tx: AppEventSender,
+    pub(crate) initial_prompt: Option<String>,
+    pub(crate) initial_images: Vec<PathBuf>,
+    pub(crate) enhanced_keys_supported: bool,
+    pub(crate) terminal_info: crate::tui::TerminalInfo,
+    pub(crate) show_order_overlay: bool,
+    pub(crate) latest_upgrade_version: Option<String>,
+}
+
+pub(crate) struct ForkedChatWidgetInit {
+    pub(crate) config: Config,
+    pub(crate) conversation: Arc<code_core::CodexConversation>,
+    pub(crate) session_configured: SessionConfiguredEvent,
+    pub(crate) app_event_tx: AppEventSender,
+    pub(crate) enhanced_keys_supported: bool,
+    pub(crate) terminal_info: crate::tui::TerminalInfo,
+    pub(crate) show_order_overlay: bool,
+    pub(crate) latest_upgrade_version: Option<String>,
+    pub(crate) auth_manager: Arc<AuthManager>,
+    pub(crate) show_welcome: bool,
+}
+
+pub(crate) struct BackgroundReviewFinishedEvent {
+    pub(crate) worktree_path: std::path::PathBuf,
+    pub(crate) branch: String,
+    pub(crate) has_findings: bool,
+    pub(crate) findings: usize,
+    pub(crate) summary: Option<String>,
+    pub(crate) error: Option<String>,
+    pub(crate) agent_id: Option<String>,
+    pub(crate) snapshot: Option<String>,
+}
+
+pub(crate) struct AutoLaunchRequest {
+    pub(crate) goal: String,
+    pub(crate) derive_goal_from_history: bool,
+    pub(crate) review_enabled: bool,
+    pub(crate) subagents_enabled: bool,
+    pub(crate) cross_check_enabled: bool,
+    pub(crate) qa_automation_enabled: bool,
+    pub(crate) continue_mode: AutoContinueMode,
+}
+
+pub(crate) struct AutoDecisionEvent {
+    pub(crate) seq: u64,
+    pub(crate) status: AutoCoordinatorStatus,
+    pub(crate) status_title: Option<String>,
+    pub(crate) status_sent_to_user: Option<String>,
+    pub(crate) goal: Option<String>,
+    pub(crate) cli: Option<AutoTurnCliAction>,
+    pub(crate) agents_timing: Option<AutoTurnAgentsTiming>,
+    pub(crate) agents: Vec<AutoTurnAgentsAction>,
+    pub(crate) transcript: Vec<code_protocol::models::ResponseItem>,
+}
+
+pub(crate) struct AgentUpdateRequest {
+    pub(crate) name: String,
+    pub(crate) enabled: bool,
+    pub(crate) args_ro: Option<Vec<String>>,
+    pub(crate) args_wr: Option<Vec<String>>,
+    pub(crate) instructions: Option<String>,
+    pub(crate) description: Option<String>,
+    pub(crate) command: String,
 }
 
 impl ChatWidget<'_> {
@@ -3003,14 +3073,14 @@ impl ChatWidget<'_> {
 
         self.internal_seq = self.internal_seq.saturating_add(1);
         let mut out = match placement {
-            SystemPlacement::EarlyInCurrent => i32::MIN + 2,
-            SystemPlacement::EndOfCurrent => i32::MAX,
-            SystemPlacement::PrePromptInCurrent => i32::MIN,
+            SystemPlacement::Early => i32::MIN + 2,
+            SystemPlacement::Tail => i32::MAX,
+            SystemPlacement::PrePrompt => i32::MIN,
         };
 
         if order.is_none()
             && self.pending_user_prompts_for_next_turn > 0
-            && matches!(placement, SystemPlacement::EarlyInCurrent)
+            && matches!(placement, SystemPlacement::Early)
         {
             out = i32::MIN;
         }
@@ -3021,7 +3091,7 @@ impl ChatWidget<'_> {
             seq: self.internal_seq,
         };
 
-        if matches!(placement, SystemPlacement::EndOfCurrent) {
+        if matches!(placement, SystemPlacement::Tail) {
             let reference = self
                 .last_assigned_order
                 .or_else(|| self.cell_order_seq.iter().copied().max());
@@ -3324,9 +3394,9 @@ impl ChatWidget<'_> {
     /// place before the first user prompt. Otherwise, append to end of current.
     fn ui_placement_for_now(&self) -> SystemPlacement {
         if self.last_seen_request_index == 0 && self.pending_user_prompts_for_next_turn == 0 {
-            SystemPlacement::PrePromptInCurrent
+            SystemPlacement::PrePrompt
         } else {
-            SystemPlacement::EndOfCurrent
+            SystemPlacement::Tail
         }
     }
     pub(crate) fn enable_perf(&mut self, enable: bool) {
@@ -4215,30 +4285,40 @@ impl ChatWidget<'_> {
             "Summarize blockers".to_string(),
             "Draft announcement".to_string(),
         ]);
-        let mut completed_preview = history_cell::AgentStatusPreview::default();
-        completed_preview.id = "demo-completed".to_string();
-        completed_preview.name = "Docs Scout".to_string();
-        completed_preview.status = "Completed".to_string();
-        completed_preview.model = Some("gpt-5.1-large".to_string());
-        completed_preview.details = vec![history_cell::AgentDetail::Result(
-            "Summarized API changes".to_string(),
-        )];
-        completed_preview.status_kind = history_cell::AgentStatusKind::Completed;
-        completed_preview.step_progress = Some(history_cell::StepProgress { completed: 3, total: 3 });
-        completed_preview.elapsed = Some(Duration::from_secs(32));
-        completed_preview.last_update = Some("Wrapped up summary".to_string());
-        let mut running_preview = history_cell::AgentStatusPreview::default();
-        running_preview.id = "demo-running".to_string();
-        running_preview.name = "Lint Fixer".to_string();
-        running_preview.status = "Running".to_string();
-        running_preview.model = Some("code-gpt-5.2".to_string());
-        running_preview.details = vec![history_cell::AgentDetail::Progress(
-            "Refining suggested fixes".to_string(),
-        )];
-        running_preview.status_kind = history_cell::AgentStatusKind::Running;
-        running_preview.step_progress = Some(history_cell::StepProgress { completed: 1, total: 3 });
-        running_preview.elapsed = Some(Duration::from_secs(18));
-        running_preview.last_update = Some("Step 2 of 3".to_string());
+        let completed_preview = history_cell::AgentStatusPreview {
+            id: "demo-completed".to_string(),
+            name: "Docs Scout".to_string(),
+            status: "Completed".to_string(),
+            model: Some("gpt-5.1-large".to_string()),
+            details: vec![history_cell::AgentDetail::Result(
+                "Summarized API changes".to_string(),
+            )],
+            status_kind: history_cell::AgentStatusKind::Completed,
+            step_progress: Some(history_cell::StepProgress {
+                completed: 3,
+                total: 3,
+            }),
+            elapsed: Some(Duration::from_secs(32)),
+            last_update: Some("Wrapped up summary".to_string()),
+            ..history_cell::AgentStatusPreview::default()
+        };
+        let running_preview = history_cell::AgentStatusPreview {
+            id: "demo-running".to_string(),
+            name: "Lint Fixer".to_string(),
+            status: "Running".to_string(),
+            model: Some("code-gpt-5.2".to_string()),
+            details: vec![history_cell::AgentDetail::Progress(
+                "Refining suggested fixes".to_string(),
+            )],
+            status_kind: history_cell::AgentStatusKind::Running,
+            step_progress: Some(history_cell::StepProgress {
+                completed: 1,
+                total: 3,
+            }),
+            elapsed: Some(Duration::from_secs(18)),
+            last_update: Some("Step 2 of 3".to_string()),
+            ..history_cell::AgentStatusPreview::default()
+        };
         agent_card.set_agent_overview(vec![completed_preview, running_preview]);
         agent_card.set_latest_result(vec!["Generated release briefing".to_string()]);
         agent_card.record_action("Collecting changelog entries");
@@ -4257,26 +4337,33 @@ impl ChatWidget<'_> {
             "Gather doc highlights".to_string(),
             "Verify changelog snippets".to_string(),
         ]);
-        let mut pending_preview = history_cell::AgentStatusPreview::default();
-        pending_preview.id = "demo-read-pending".to_string();
-        pending_preview.name = "Doc Harvester".to_string();
-        pending_preview.status = "Pending".to_string();
-        pending_preview.model = Some("gpt-4.5".to_string());
-        pending_preview.details = vec![history_cell::AgentDetail::Info(
-            "Waiting for search index".to_string(),
-        )];
-        pending_preview.status_kind = history_cell::AgentStatusKind::Pending;
-        let mut running_read = history_cell::AgentStatusPreview::default();
-        running_read.id = "demo-read-running".to_string();
-        running_read.name = "Spec Parser".to_string();
-        running_read.status = "Running".to_string();
-        running_read.model = Some("code-gpt-3.5".to_string());
-        running_read.details = vec![history_cell::AgentDetail::Progress(
-            "Scanning RFC summaries".to_string(),
-        )];
-        running_read.status_kind = history_cell::AgentStatusKind::Running;
-        running_read.step_progress = Some(history_cell::StepProgress { completed: 2, total: 5 });
-        running_read.elapsed = Some(Duration::from_secs(22));
+        let pending_preview = history_cell::AgentStatusPreview {
+            id: "demo-read-pending".to_string(),
+            name: "Doc Harvester".to_string(),
+            status: "Pending".to_string(),
+            model: Some("gpt-4.5".to_string()),
+            details: vec![history_cell::AgentDetail::Info(
+                "Waiting for search index".to_string(),
+            )],
+            status_kind: history_cell::AgentStatusKind::Pending,
+            ..history_cell::AgentStatusPreview::default()
+        };
+        let running_read = history_cell::AgentStatusPreview {
+            id: "demo-read-running".to_string(),
+            name: "Spec Parser".to_string(),
+            status: "Running".to_string(),
+            model: Some("code-gpt-3.5".to_string()),
+            details: vec![history_cell::AgentDetail::Progress(
+                "Scanning RFC summaries".to_string(),
+            )],
+            status_kind: history_cell::AgentStatusKind::Running,
+            step_progress: Some(history_cell::StepProgress {
+                completed: 2,
+                total: 5,
+            }),
+            elapsed: Some(Duration::from_secs(22)),
+            ..history_cell::AgentStatusPreview::default()
+        };
         agent_read_card.set_agent_overview(vec![pending_preview, running_read]);
         agent_read_card.record_action("Fetching documentation excerpts");
         agent_read_card.set_duration(Some(Duration::from_secs(54)));
@@ -5452,16 +5539,16 @@ impl ChatWidget<'_> {
             }
         };
 
-        let view = UpdateSettingsView::new(
-            self.app_event_tx.clone(),
-            self.make_background_tail_ticket(),
-            code_version::version().to_string(),
-            self.config.auto_upgrade_enabled,
+        let view = UpdateSettingsView::new(UpdateSettingsInit {
+            app_event_tx: self.app_event_tx.clone(),
+            ticket: self.make_background_tail_ticket(),
+            current_version: code_version::version().to_string(),
+            auto_enabled: self.config.auto_upgrade_enabled,
             command,
-            display,
-            instructions,
-            shared_state.clone(),
-        );
+            command_display: display,
+            manual_instructions: instructions,
+            shared: shared_state.clone(),
+        });
 
         if allow_refresh {
             self.spawn_update_refresh(shared_state);
@@ -5579,17 +5666,17 @@ impl ChatWidget<'_> {
         let cross = self.auto_state.cross_check_enabled;
         let qa = self.auto_state.qa_automation_enabled;
         let mode = self.auto_state.continue_mode;
-        AutoDriveSettingsView::new(
-            self.app_event_tx.clone(),
+        AutoDriveSettingsView::new(AutoDriveSettingsInit {
+            app_event_tx: self.app_event_tx.clone(),
             model,
-            model_effort,
+            model_reasoning: model_effort,
             use_chat_model,
-            review,
-            agents,
-            cross,
-            qa,
-            mode,
-        )
+            review_enabled: review,
+            agents_enabled: agents,
+            cross_check_enabled: cross,
+            qa_automation_enabled: qa,
+            continue_mode: mode,
+        })
     }
 
     fn build_auto_drive_settings_content(&mut self) -> AutoDriveSettingsContent {
@@ -6766,17 +6853,19 @@ fi\n\
         self.push_background_before_next_output(format!(
             "Starting guided install for agent '{name}'"
         ));
-        start_agent_install_session(
-            self.app_event_tx.clone(),
-            id,
-            name.clone(),
+        start_agent_install_session(AgentInstallSessionArgs {
+            app_event_tx: self.app_event_tx.clone(),
+            terminal_id: id,
+            agent_name: name.clone(),
             default_command,
-            Some(cwd),
-            controller.clone(),
-            controller_rx,
+            cwd: Some(cwd),
+            control: GuidedTerminalControl {
+                controller: controller.clone(),
+                controller_rx,
+            },
             selected_index,
-            self.config.debug,
-        );
+            debug_enabled: self.config.debug,
+        });
         Some(TerminalLaunch {
             id,
             title: format!("Install {name}"),
@@ -7079,26 +7168,28 @@ fi\n\
         true
     }
 
-    fn auto_launch_with_goal(
-        &mut self,
-        goal: String,
-        derive_goal_from_history: bool,
-        review_enabled: bool,
-        subagents_enabled: bool,
-        cross_check_enabled: bool,
-        qa_automation_enabled: bool,
-        continue_mode: AutoContinueMode,
-    ) {
-        let conversation = self.rebuild_auto_history();
-        let reduced_motion = Self::auto_reduced_motion_preference();
-        self.auto_state.prepare_launch(
-            goal.clone(),
+    fn auto_launch_with_goal(&mut self, request: AutoLaunchRequest) {
+        let AutoLaunchRequest {
+            goal,
+            derive_goal_from_history,
             review_enabled,
             subagents_enabled,
             cross_check_enabled,
             qa_automation_enabled,
             continue_mode,
-            reduced_motion,
+        } = request;
+        let conversation = self.rebuild_auto_history();
+        let reduced_motion = Self::auto_reduced_motion_preference();
+        self.auto_state.prepare_launch(
+            goal.clone(),
+            code_auto_drive_core::AutoLaunchSettings {
+                review_enabled,
+                subagents_enabled,
+                cross_check_enabled,
+                qa_automation_enabled,
+                continue_mode,
+                reduced_motion,
+            },
         );
         self.config.auto_drive.cross_check_enabled = cross_check_enabled;
         self.config.auto_drive.qa_automation_enabled = qa_automation_enabled;
@@ -7226,7 +7317,7 @@ fi\n\
             (SandboxPolicy::DangerFullAccess, AskForApproval::Never)
         );
 
-        if !full_auto_enabled && !(trimmed.is_empty() && self.auto_state.is_active()) {
+        if !(full_auto_enabled || (trimmed.is_empty() && self.auto_state.is_active())) {
             self.push_background_tail(
                 "Please use Shift+Tab to switch to Full Auto before using Auto Drive"
                     .to_string(),
@@ -7258,15 +7349,15 @@ fi\n\
         let default_mode = auto_continue_from_config(defaults.continue_mode);
 
         self.auto_state.mark_intro_pending();
-        self.auto_launch_with_goal(
-            goal_text,
-            false,
-            defaults.review_enabled,
-            defaults.agents_enabled,
-            defaults.cross_check_enabled,
-            defaults.qa_automation_enabled,
-            default_mode,
-        );
+        self.auto_launch_with_goal(AutoLaunchRequest {
+            goal: goal_text,
+            derive_goal_from_history: false,
+            review_enabled: defaults.review_enabled,
+            subagents_enabled: defaults.agents_enabled,
+            cross_check_enabled: defaults.cross_check_enabled,
+            qa_automation_enabled: defaults.qa_automation_enabled,
+            continue_mode: default_mode,
+        });
     }
 
     pub(crate) fn show_auto_drive_settings(&mut self) {
@@ -7524,18 +7615,18 @@ fi\n\
         self.auto_apply_controller_effects(effects);
     }
 
-    pub(crate) fn auto_handle_decision(
-        &mut self,
-        seq: u64,
-        status: AutoCoordinatorStatus,
-        status_title: Option<String>,
-        status_sent_to_user: Option<String>,
-        goal: Option<String>,
-        cli: Option<AutoTurnCliAction>,
-        agents_timing: Option<AutoTurnAgentsTiming>,
-        agents: Vec<AutoTurnAgentsAction>,
-        transcript: Vec<code_protocol::models::ResponseItem>,
-    ) {
+    pub(crate) fn auto_handle_decision(&mut self, event: AutoDecisionEvent) {
+        let AutoDecisionEvent {
+            seq,
+            status,
+            status_title,
+            status_sent_to_user,
+            goal,
+            cli,
+            agents_timing,
+            agents,
+            transcript,
+        } = event;
         if !self.auto_state.is_active() {
             if let Some(handle) = self.auto_handle.as_ref() {
                 let _ = handle.send(code_auto_drive_core::AutoCoordinatorCommand::AckDecision { seq });
@@ -7754,9 +7845,7 @@ Have we met every part of this goal and is there no further work to do?"#
                 self.auto_history
                     .append_raw(std::slice::from_ref(&item));
             }
-            let mut lines = Vec::with_capacity(2);
-            lines.push("AUTO DRIVE RESPONSE".to_string());
-            lines.push(text);
+            let lines = vec!["AUTO DRIVE RESPONSE".to_string(), text];
             self.history_push_plain_paragraphs(PlainMessageKind::Notice, lines);
         }
 
@@ -7840,10 +7929,14 @@ Have we met every part of this goal and is there no further work to do?"#
     }
 
     fn auto_can_bootstrap_from_history(&self) -> bool {
-        self.history_cells.iter().any(|cell| match cell.kind() {
-            HistoryCellType::User | HistoryCellType::Assistant | HistoryCellType::Plain => true,
-            HistoryCellType::Exec { .. } => true,
-            _ => false,
+        self.history_cells.iter().any(|cell| {
+            matches!(
+                cell.kind(),
+                HistoryCellType::User
+                    | HistoryCellType::Assistant
+                    | HistoryCellType::Plain
+                    | HistoryCellType::Exec { .. }
+            )
         })
     }
 
@@ -8084,15 +8177,15 @@ Have we met every part of this goal and is there no further work to do?"#
         self.auto_card_add_action(resume_message, AutoDriveActionKind::Info);
         self.auto_card_set_status(AutoDriveStatus::Running);
 
-        self.auto_launch_with_goal(
+        self.auto_launch_with_goal(AutoLaunchRequest {
             goal,
-            false,
+            derive_goal_from_history: false,
             review_enabled,
-            agents_enabled,
+            subagents_enabled: agents_enabled,
             cross_check_enabled,
             qa_automation_enabled,
             continue_mode,
-        );
+        });
 
         if previous_turns > 0 {
             self.auto_state.turns_completed = previous_turns;
@@ -8430,15 +8523,15 @@ Have we met every part of this goal and is there no further work to do?"#
         }
 
         self.auto_state.mark_intro_pending();
-        self.auto_launch_with_goal(
-            AUTO_BOOTSTRAP_GOAL_PLACEHOLDER.to_string(),
-            true,
-            defaults.review_enabled,
-            defaults.agents_enabled,
-            defaults.cross_check_enabled,
-            defaults.qa_automation_enabled,
-            default_mode,
-        );
+        self.auto_launch_with_goal(AutoLaunchRequest {
+            goal: AUTO_BOOTSTRAP_GOAL_PLACEHOLDER.to_string(),
+            derive_goal_from_history: true,
+            review_enabled: defaults.review_enabled,
+            subagents_enabled: defaults.agents_enabled,
+            cross_check_enabled: defaults.cross_check_enabled,
+            qa_automation_enabled: defaults.qa_automation_enabled,
+            continue_mode: default_mode,
+        });
 
         if self.auto_handle.is_none() {
             return false;
@@ -8500,9 +8593,7 @@ Have we met every part of this goal and is there no further work to do?"#
         self.bottom_pane.set_task_running(false);
         let mut message: UserMessage = full_prompt.into();
         message.suppress_persistence = true;
-        if self.auto_state.pending_stop_message.is_some() {
-            message.display_text.clear();
-        } else if self.auto_state.suppress_next_cli_display {
+        if self.auto_state.pending_stop_message.is_some() || self.auto_state.suppress_next_cli_display {
             message.display_text.clear();
         }
         self.submit_user_message(message);
@@ -9098,13 +9189,9 @@ Have we met every part of this goal and is there no further work to do?"#
                 "Esc enter new goal".to_string()
             } else if has_cli_prompt {
                 "Esc to edit".to_string()
-            } else if continue_cta_active {
-                "Esc to stop".to_string()
             } else {
                 "Esc to stop".to_string()
             }
-        } else if self.auto_state.is_waiting_for_response() {
-            String::new()
         } else {
             String::new()
         };
@@ -9512,17 +9599,19 @@ Have we met every part of this goal and is there no further work to do?"#
         };
 
         let cwd = self.config.cwd.to_string_lossy().to_string();
-        start_upgrade_terminal_session(
-            self.app_event_tx.clone(),
-            id,
-            command_text,
+        start_upgrade_terminal_session(UpgradeTerminalSessionArgs {
+            app_event_tx: self.app_event_tx.clone(),
+            terminal_id: id,
+            initial_command: command_text,
             latest_version,
-            Some(cwd),
-            controller,
-            controller_rx,
-            self.config.clone(),
-            self.config.debug,
-        );
+            cwd: Some(cwd),
+            control: GuidedTerminalControl {
+                controller,
+                controller_rx,
+            },
+            config: self.config.clone(),
+            debug_enabled: self.config.debug,
+        });
 
         Some(launch)
     }
@@ -10273,17 +10362,17 @@ Have we met every part of this goal and is there no further work to do?"#
                 cfg.description.as_deref(),
             );
             let build_editor = || {
-                AgentEditorView::new(
-                    cfg_name.clone(),
-                    cfg_enabled,
-                    ro.clone(),
-                    wr.clone(),
-                    cfg_instructions.clone(),
-                    description.clone(),
-                    cfg_command.clone(),
+                AgentEditorView::new(AgentEditorInit {
+                    name: cfg_name.clone(),
+                    enabled: cfg_enabled,
+                    args_read_only: ro.clone(),
+                    args_write: wr.clone(),
+                    instructions: cfg_instructions.clone(),
+                    description: description.clone(),
+                    command: cfg_command.clone(),
                     builtin,
-                    app_event_tx.clone(),
-                )
+                    app_event_tx: app_event_tx.clone(),
+                })
             };
             if self.try_set_agents_settings_agent_editor(build_editor()) {
                 self.request_redraw();
@@ -10304,17 +10393,17 @@ Have we met every part of this goal and is there no further work to do?"#
             let description = Self::agent_description_for(&name, Some(&cmd), None);
             let builtin = Self::is_builtin_agent(&name, &cmd);
             let build_editor = || {
-                AgentEditorView::new(
-                    name.clone(),
+                AgentEditorView::new(AgentEditorInit {
+                    name: name.clone(),
+                    enabled: builtin,
+                    args_read_only: if ro.is_empty() { None } else { Some(ro.clone()) },
+                    args_write: if wr.is_empty() { None } else { Some(wr.clone()) },
+                    instructions: None,
+                    description: description.clone(),
+                    command: cmd.clone(),
                     builtin,
-                    if ro.is_empty() { None } else { Some(ro.clone()) },
-                    if wr.is_empty() { None } else { Some(wr.clone()) },
-                    None,
-                    description.clone(),
-                    cmd.clone(),
-                    builtin,
-                    app_event_tx.clone(),
-                )
+                    app_event_tx: app_event_tx.clone(),
+                })
             };
             if self.try_set_agents_settings_agent_editor(build_editor()) {
                 self.request_redraw();
@@ -10331,17 +10420,17 @@ Have we met every part of this goal and is there no further work to do?"#
     pub(crate) fn show_agent_editor_new_ui(&mut self) {
         let app_event_tx = self.app_event_tx.clone();
         let build_editor = || {
-            AgentEditorView::new(
-                String::new(),
-                true,
-                None,
-                None,
-                None,
-                None,
-                String::new(),
-                false,
-                app_event_tx.clone(),
-            )
+            AgentEditorView::new(AgentEditorInit {
+                name: String::new(),
+                enabled: true,
+                args_read_only: None,
+                args_write: None,
+                instructions: None,
+                description: None,
+                command: String::new(),
+                builtin: false,
+                app_event_tx: app_event_tx.clone(),
+            })
         };
 
         if self.try_set_agents_settings_agent_editor(build_editor()) {
@@ -10380,35 +10469,35 @@ Have we met every part of this goal and is there no further work to do?"#
         self.refresh_settings_overview_rows();
     }
 
-    pub(crate) fn apply_agent_update(
-        &mut self,
-        name: &str,
-        enabled: bool,
-        args_ro: Option<Vec<String>>,
-        args_wr: Option<Vec<String>>,
-        instr: Option<String>,
-        description: Option<String>,
-        command: String,
-    ) {
+    pub(crate) fn apply_agent_update(&mut self, update: AgentUpdateRequest) {
+        let AgentUpdateRequest {
+            name,
+            enabled,
+            args_ro,
+            args_wr,
+            instructions,
+            description,
+            command,
+        } = update;
         let provided_command = if command.trim().is_empty() { None } else { Some(command.as_str()) };
         let existing_index = self
             .config
             .agents
             .iter()
-            .position(|a| a.name.eq_ignore_ascii_case(name));
+            .position(|a| a.name.eq_ignore_ascii_case(&name));
 
         let existing_command = existing_index
             .and_then(|idx| self.config.agents.get(idx))
             .map(|cfg| cfg.command.clone());
         let resolved = Self::resolve_agent_command(
-            name,
+            &name,
             provided_command,
             existing_command.as_deref(),
         );
 
         let mut candidate_cfg = if let Some(idx) = existing_index {
             self.config.agents.get(idx).cloned().unwrap_or_else(|| AgentConfig {
-                name: name.to_string(),
+                name,
                 command: resolved.clone(),
                 args: Vec::new(),
                 read_only: false,
@@ -10417,11 +10506,11 @@ Have we met every part of this goal and is there no further work to do?"#
                 env: None,
                 args_read_only: args_ro.clone(),
                 args_write: args_wr.clone(),
-                instructions: instr.clone(),
+                instructions: instructions.clone(),
             })
         } else {
             AgentConfig {
-                name: name.to_string(),
+                name,
                 command: resolved.clone(),
                 args: Vec::new(),
                 read_only: false,
@@ -10430,7 +10519,7 @@ Have we met every part of this goal and is there no further work to do?"#
                 env: None,
                 args_read_only: args_ro.clone(),
                 args_write: args_wr.clone(),
-                instructions: instr.clone(),
+                instructions: instructions.clone(),
             }
         };
 
@@ -10439,7 +10528,7 @@ Have we met every part of this goal and is there no further work to do?"#
         candidate_cfg.description = description;
         candidate_cfg.args_read_only = args_ro;
         candidate_cfg.args_write = args_wr;
-        candidate_cfg.instructions = instr;
+        candidate_cfg.instructions = instructions;
 
         let pending = PendingAgentUpdate { id: Uuid::new_v4(), cfg: candidate_cfg };
         let requires_validation = !self.test_mode && existing_index.is_none();
@@ -10529,14 +10618,16 @@ Have we met every part of this goal and is there no further work to do?"#
             tokio::spawn(async move {
                 let _ = code_core::config_edit::upsert_agent_config(
                     &home,
-                    &name,
-                    Some(enabled),
-                    None,
-                    ro.as_deref(),
-                    wr.as_deref(),
-                    instr.as_deref(),
-                    desc.as_deref(),
-                    Some(command.as_str()),
+                    code_core::config_edit::AgentConfigPatch {
+                        name: &name,
+                        enabled: Some(enabled),
+                        args: None,
+                        args_read_only: ro.as_deref(),
+                        args_write: wr.as_deref(),
+                        instructions: instr.as_deref(),
+                        description: desc.as_deref(),
+                        command: Some(command.as_str()),
+                    },
                 )
                 .await;
             });
@@ -10555,17 +10646,17 @@ Have we met every part of this goal and is there no further work to do?"#
         let command = cfg.command.clone();
         let builtin = Self::is_builtin_agent(&cfg.name, &command);
         let build_editor = || {
-            AgentEditorView::new(
-                name_value.clone(),
-                enabled_value,
-                ro.clone(),
-                wr.clone(),
-                instructions.clone(),
-                description.clone(),
-                command.clone(),
+            AgentEditorView::new(AgentEditorInit {
+                name: name_value.clone(),
+                enabled: enabled_value,
+                args_read_only: ro.clone(),
+                args_write: wr.clone(),
+                instructions: instructions.clone(),
+                description: description.clone(),
+                command: command.clone(),
                 builtin,
-                app_event_tx.clone(),
-            )
+                app_event_tx: app_event_tx.clone(),
+            })
         };
         if self.try_set_agents_settings_agent_editor(build_editor()) {
             self.request_redraw();
@@ -13599,11 +13690,12 @@ Have we met every part of this goal and is there no further work to do?"#
         );
 
         match mutation {
-            HistoryMutation::Inserted { record, .. } => {
-                if let HistoryRecord::AssistantStream(state) = record {
-                    self.refresh_streaming_cell_for_stream_id(stream_id, state);
-                    self.mark_history_dirty();
-                }
+            HistoryMutation::Inserted {
+                record: HistoryRecord::AssistantStream(state),
+                ..
+            } => {
+                self.refresh_streaming_cell_for_stream_id(stream_id, state);
+                self.mark_history_dirty();
             }
             HistoryMutation::Replaced { id, record, .. } => {
                 if matches!(record, HistoryRecord::AssistantStream(_)) {
@@ -16749,11 +16841,13 @@ Have we met every part of this goal and is there no further work to do?"#
             &self.config.code_home,
             &account_id,
             plan.as_deref(),
-            warning.scope,
-            warning.threshold,
-            reset_at,
-            Utc::now(),
-            &warning.message,
+            account_usage::RateLimitWarningEvent::new(
+                warning.scope,
+                warning.threshold,
+                reset_at,
+                Utc::now(),
+                &warning.message,
+            ),
         ) {
             Ok(result) => result,
             Err(err) => {
@@ -17441,7 +17535,7 @@ Have we met every part of this goal and is there no further work to do?"#
         }
     }
 
-    fn render_screenshot_placeholder(&self, path: &PathBuf, area: Rect, buf: &mut Buffer) {
+    fn render_screenshot_placeholder(&self, path: &Path, area: Rect, buf: &mut Buffer) {
         use ratatui::style::Modifier;
         use ratatui::style::Style;
         use ratatui::widgets::Block;
@@ -17607,21 +17701,21 @@ async fn run_background_review(
 
         let mut manager = code_core::AGENT_MANAGER.write().await;
         let agent_id = manager
-            .create_agent_with_options(
-                review_model,
-                Some("Auto Review".to_string()),
-                review_prompt,
-                None,
-                None,
-                Vec::new(),
-                false,
-                Some(branch.clone()),
-                Some(agent_config.clone()),
-                Some(branch.clone()),
-                Some(snapshot_id.clone()),
-                Some(code_core::protocol::AgentSourceKind::AutoReview),
-                config.auto_review_model_reasoning_effort.into(),
-            )
+            .create_agent_with_options(code_core::AgentCreateRequest {
+                model: review_model,
+                name: Some("Auto Review".to_string()),
+                prompt: review_prompt,
+                context: None,
+                output_goal: None,
+                files: Vec::new(),
+                read_only: false,
+                batch_id: Some(branch.clone()),
+                config: Some(agent_config.clone()),
+                worktree_branch: Some(branch.clone()),
+                worktree_base: Some(snapshot_id.clone()),
+                source_kind: Some(code_core::protocol::AgentSourceKind::AutoReview),
+                reasoning_effort: config.auto_review_model_reasoning_effort.into(),
+            })
             .await;
         insert_background_lock(&agent_id, worktree_guard);
         drop(manager);
@@ -18019,16 +18113,16 @@ use code_core::protocol::OrderMeta;
             last_seen: std::time::Instant::now(),
         });
 
-        chat.on_background_review_finished(
-            PathBuf::from("/tmp/wt"),
-            "auto-review-branch".to_string(),
-            true,
-            2,
-            Some("Short summary".to_string()),
-            None,
-            Some("agent-123".to_string()),
-            Some("ghost123".to_string()),
-        );
+        chat.on_background_review_finished(BackgroundReviewFinishedEvent {
+            worktree_path: PathBuf::from("/tmp/wt"),
+            branch: "auto-review-branch".to_string(),
+            has_findings: true,
+            findings: 2,
+            summary: Some("Short summary".to_string()),
+            error: None,
+            agent_id: Some("agent-123".to_string()),
+            snapshot: Some("ghost123".to_string()),
+        });
 
         assert!(
             !chat.auto_state.awaiting_review(),
@@ -18085,16 +18179,16 @@ use code_core::protocol::OrderMeta;
         }"#;
 
         // Simulate agent status observation completion path
-        chat.on_background_review_finished(
-            PathBuf::from("/tmp/wt"),
-            "auto-review-branch".to_string(),
-            true,
-            1,
-            Some(review_json.to_string()),
-            None,
-            Some("agent-123".to_string()),
-            Some("ghost123".to_string()),
-        );
+        chat.on_background_review_finished(BackgroundReviewFinishedEvent {
+            worktree_path: PathBuf::from("/tmp/wt"),
+            branch: "auto-review-branch".to_string(),
+            has_findings: true,
+            findings: 1,
+            summary: Some(review_json.to_string()),
+            error: None,
+            agent_id: Some("agent-123".to_string()),
+            snapshot: Some("ghost123".to_string()),
+        });
 
         // Busy path still injects a developer note immediately so the user sees it in the transcript.
         assert!(chat.pending_agent_notes.is_empty());
@@ -18311,16 +18405,16 @@ use code_core::protocol::OrderMeta;
         assert_eq!(pending.base.id(), pending_base.id());
         assert_eq!(pending.defer_until_turn, None);
 
-        chat.on_background_review_finished(
-            PathBuf::from("/tmp/wt"),
-            "auto-review-running".to_string(),
-            true,
-            2,
-            Some("found issues".to_string()),
-            None,
-            Some("agent-running".to_string()),
-            Some("ghost-running".to_string()),
-        );
+        chat.on_background_review_finished(BackgroundReviewFinishedEvent {
+            worktree_path: PathBuf::from("/tmp/wt"),
+            branch: "auto-review-running".to_string(),
+            has_findings: true,
+            findings: 2,
+            summary: Some("found issues".to_string()),
+            error: None,
+            agent_id: Some("agent-running".to_string()),
+            snapshot: Some("ghost-running".to_string()),
+        });
 
         let pending_after_finish = chat
             .pending_auto_review_range
@@ -18377,16 +18471,16 @@ use code_core::protocol::OrderMeta;
         assert_eq!(launches.load(Ordering::SeqCst), 0);
         assert!(chat.pending_auto_review_range.is_some());
 
-        chat.on_background_review_finished(
-            PathBuf::from("/tmp/wt"),
-            "auto-review-running".to_string(),
-            false,
-            0,
-            None,
-            None,
-            Some("agent-running".to_string()),
-            Some("ghost-running".to_string()),
-        );
+        chat.on_background_review_finished(BackgroundReviewFinishedEvent {
+            worktree_path: PathBuf::from("/tmp/wt"),
+            branch: "auto-review-running".to_string(),
+            has_findings: false,
+            findings: 0,
+            summary: None,
+            error: None,
+            agent_id: Some("agent-running".to_string()),
+            snapshot: Some("ghost-running".to_string()),
+        });
 
         assert_eq!(launches.load(Ordering::SeqCst), 1, "follow-up should start immediately");
         assert!(chat.pending_auto_review_range.is_none(), "pending should be consumed");
@@ -18444,16 +18538,16 @@ use code_core::protocol::OrderMeta;
             .expect("pending should persist");
         assert_eq!(pending_after_second.base.id(), first_base.id());
 
-        chat.on_background_review_finished(
-            PathBuf::from("/tmp/wt"),
-            "auto-review-running".to_string(),
-            false,
-            0,
-            None,
-            None,
-            Some("agent-running".to_string()),
-            Some("ghost-running".to_string()),
-        );
+        chat.on_background_review_finished(BackgroundReviewFinishedEvent {
+            worktree_path: PathBuf::from("/tmp/wt"),
+            branch: "auto-review-running".to_string(),
+            has_findings: false,
+            findings: 0,
+            summary: None,
+            error: None,
+            agent_id: Some("agent-running".to_string()),
+            snapshot: Some("ghost-running".to_string()),
+        });
 
         assert_eq!(launches.load(Ordering::SeqCst), 1, "collapsed follow-up should run once");
         let running = chat.background_review.as_ref().expect("follow-up running");
@@ -19271,21 +19365,21 @@ use code_core::protocol::OrderMeta;
 
         {
             let chat = harness.chat();
-            chat.auto_handle_decision(
-                1,
-                AutoCoordinatorStatus::Continue,
-                None,
-                None,
-                Some("Finish migrations".to_string()),
-                Some(AutoTurnCliAction {
+            chat.auto_handle_decision(AutoDecisionEvent {
+                seq: 1,
+                status: AutoCoordinatorStatus::Continue,
+                status_title: None,
+                status_sent_to_user: None,
+                goal: Some("Finish migrations".to_string()),
+                cli: Some(AutoTurnCliAction {
                     prompt: "echo ready".to_string(),
                     context: None,
                     suppress_ui_context: false,
                 }),
-                None,
-                Vec::new(),
-                Vec::new(),
-            );
+                agents_timing: None,
+                agents: Vec::new(),
+                transcript: Vec::new(),
+            });
         }
 
         let chat = harness.chat();
@@ -19307,21 +19401,21 @@ use code_core::protocol::OrderMeta;
 
         {
             let chat = harness.chat();
-            chat.auto_handle_decision(
-                2,
-                AutoCoordinatorStatus::Continue,
-                None,
-                None,
-                Some("Document release tasks".to_string()),
-                Some(AutoTurnCliAction {
+            chat.auto_handle_decision(AutoDecisionEvent {
+                seq: 2,
+                status: AutoCoordinatorStatus::Continue,
+                status_title: None,
+                status_sent_to_user: None,
+                goal: Some("Document release tasks".to_string()),
+                cli: Some(AutoTurnCliAction {
                     prompt: "echo start".to_string(),
                     context: None,
                     suppress_ui_context: false,
                 }),
-                None,
-                Vec::new(),
-                Vec::new(),
-            );
+                agents_timing: None,
+                agents: Vec::new(),
+                transcript: Vec::new(),
+            });
         }
 
         let chat = harness.chat();
@@ -19394,21 +19488,21 @@ use code_core::protocol::OrderMeta;
 
         {
             let chat = harness.chat();
-            chat.auto_handle_decision(
-                3,
-                AutoCoordinatorStatus::Continue,
-                Some("Drafting fix".to_string()),
-                Some("Past work".to_string()),
-                None,
-                Some(AutoTurnCliAction {
+            chat.auto_handle_decision(AutoDecisionEvent {
+                seq: 3,
+                status: AutoCoordinatorStatus::Continue,
+                status_title: Some("Drafting fix".to_string()),
+                status_sent_to_user: Some("Past work".to_string()),
+                goal: None,
+                cli: Some(AutoTurnCliAction {
                     prompt: "echo work".to_string(),
                     context: None,
                     suppress_ui_context: false,
                 }),
-                None,
-                Vec::new(),
-                Vec::new(),
-            );
+                agents_timing: None,
+                agents: Vec::new(),
+                transcript: Vec::new(),
+            });
         }
 
         let chat = harness.chat();
@@ -20120,27 +20214,27 @@ use code_core::protocol::OrderMeta;
         chat.auto_state.review_enabled = true;
         chat.config.sandbox_policy = SandboxPolicy::DangerFullAccess;
 
-        chat.auto_handle_decision(
-            4,
-            AutoCoordinatorStatus::Continue,
-            Some("Running unit tests".to_string()),
-            Some("Finished setup".to_string()),
-            Some("Refine goal".to_string()),
-            Some(AutoTurnCliAction {
+        chat.auto_handle_decision(AutoDecisionEvent {
+            seq: 4,
+            status: AutoCoordinatorStatus::Continue,
+            status_title: Some("Running unit tests".to_string()),
+            status_sent_to_user: Some("Finished setup".to_string()),
+            goal: Some("Refine goal".to_string()),
+            cli: Some(AutoTurnCliAction {
                 prompt: "Run cargo test".to_string(),
                 context: Some("use --all-features".to_string()),
                 suppress_ui_context: false,
             }),
-            Some(AutoTurnAgentsTiming::Parallel),
-            vec![AutoTurnAgentsAction {
+            agents_timing: Some(AutoTurnAgentsTiming::Parallel),
+            agents: vec![AutoTurnAgentsAction {
                 prompt: "Draft alternative fix".to_string(),
                 context: None,
                 write: false,
                 write_requested: Some(false),
                 models: None,
             }],
-            Vec::new(),
-        );
+            transcript: Vec::new(),
+        });
 
         assert_eq!(
             chat.auto_state.current_cli_prompt.as_deref(),
@@ -21036,7 +21130,7 @@ use code_core::protocol::OrderMeta;
         chat.last_seen_request_index = 1;
         chat.pending_user_prompts_for_next_turn = 0;
 
-        let key = chat.system_order_key(SystemPlacement::PrePromptInCurrent, None);
+        let key = chat.system_order_key(SystemPlacement::PrePrompt, None);
         chat.history_insert_plain_state_with_key(make_plain("system"), key, "system");
 
         let labels: Vec<String> = chat

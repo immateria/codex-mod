@@ -91,13 +91,11 @@ impl ChatWidget<'_> {
         }
 
         let mut truncated = String::new();
-        let mut count = 0usize;
-        for ch in collapsed.chars() {
+        for (count, ch) in collapsed.chars().enumerate() {
             if count >= LIMIT.saturating_sub(3) {
                 break;
             }
             truncated.push(ch);
-            count += 1;
         }
         truncated.push_str("...");
         truncated

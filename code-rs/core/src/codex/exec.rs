@@ -114,6 +114,22 @@ pub(crate) struct ApplyPatchCommandContext {
     pub(crate) changes: HashMap<PathBuf, FileChange>,
 }
 
+#[derive(Clone, Copy)]
+struct ExecOrderContext {
+    seq_hint: Option<u64>,
+    output_index: Option<u32>,
+    attempt_req: u64,
+}
+
+#[derive(Clone, Copy)]
+struct HookCommandContext<'a> {
+    event: ProjectHookEvent,
+    payload: &'a Value,
+    base_ctx: Option<&'a ExecCommandContext>,
+    attempt_req: u64,
+    index: usize,
+}
+
 fn sanitize_identifier(value: &str) -> String {
     let mut slug = String::with_capacity(value.len());
     for ch in value.chars() {
@@ -326,9 +342,7 @@ impl Session {
         call_id: &str,
         output: &ExecToolCallOutput,
         is_apply_patch: bool,
-        seq_hint: Option<u64>,
-        output_index: Option<u32>,
-        attempt_req: u64,
+        order_ctx: ExecOrderContext,
     ) {
         let ExecToolCallOutput {
             stdout,
@@ -361,8 +375,12 @@ impl Session {
                 duration: *duration,
             })
         };
-        let order = crate::protocol::OrderMeta { request_ordinal: attempt_req, output_index, sequence_number: seq_hint };
-        let event = self.make_event_with_order(sub_id, msg, order, seq_hint);
+        let order = crate::protocol::OrderMeta {
+            request_ordinal: order_ctx.attempt_req,
+            output_index: order_ctx.output_index,
+            sequence_number: order_ctx.seq_hint,
+        };
+        let event = self.make_event_with_order(sub_id, msg, order, order_ctx.seq_hint);
         let _ = self.tx_event.send(event).await;
 
         // If this is an apply_patch, after we emit the end patch, emit a second event
@@ -395,9 +413,11 @@ impl Session {
                 turn_diff_tracker,
                 begin_ctx,
                 exec_args,
-                seq_hint,
-                output_index,
-                attempt_req,
+                ExecOrderContext {
+                    seq_hint,
+                    output_index,
+                    attempt_req,
+                },
                 true,
             )
             .await
@@ -494,9 +514,7 @@ impl Session {
         turn_diff_tracker: &mut TurnDiffTracker,
         begin_ctx: ExecCommandContext,
         exec_args: ExecInvokeArgs<'a>,
-        seq_hint: Option<u64>,
-        output_index: Option<u32>,
-        attempt_req: u64,
+        order_ctx: ExecOrderContext,
         enable_hooks: bool,
     ) -> crate::error::Result<ExecToolCallOutput> {
         let is_apply_patch = begin_ctx.apply_patch.is_some();
@@ -504,9 +522,9 @@ impl Session {
         let call_id = begin_ctx.call_id.clone();
 
         let order_for_end = crate::protocol::OrderMeta {
-            request_ordinal: attempt_req,
-            output_index,
-            sequence_number: seq_hint.map(|h| h.saturating_add(1)),
+            request_ordinal: order_ctx.attempt_req,
+            output_index: order_ctx.output_index,
+            sequence_number: order_ctx.seq_hint.map(|h| h.saturating_add(1)),
         };
 
         let cancel_flag = Arc::new(AtomicBool::new(false));
@@ -547,13 +565,19 @@ impl Session {
                         &begin_ctx,
                         params_ref,
                         None,
-                        attempt_req,
+                        order_ctx.attempt_req,
                     )
                     .await;
             }
 
-        self.on_exec_command_begin(turn_diff_tracker, begin_ctx.clone(), seq_hint, output_index, attempt_req)
-            .await;
+        self.on_exec_command_begin(
+            turn_diff_tracker,
+            begin_ctx.clone(),
+            order_ctx.seq_hint,
+            order_ctx.output_index,
+            order_ctx.attempt_req,
+        )
+        .await;
 
         let result = process_exec_tool_call(params, sandbox_type, sandbox_policy, sandbox_cwd, code_linux_sandbox_exe, stdout_stream)
         .await;
@@ -580,9 +604,11 @@ impl Session {
             &call_id,
             borrowed,
             is_apply_patch,
-            seq_hint.map(|h| h.saturating_add(1)),
-            output_index,
-            attempt_req,
+            ExecOrderContext {
+                seq_hint: order_ctx.seq_hint.map(|h| h.saturating_add(1)),
+                output_index: order_ctx.output_index,
+                attempt_req: order_ctx.attempt_req,
+            },
         )
         .await;
 
@@ -603,7 +629,7 @@ impl Session {
                         &begin_ctx,
                         params_ref,
                         Some(borrowed),
-                        attempt_req,
+                        order_ctx.attempt_req,
                     )
                     .await;
             }
@@ -675,7 +701,17 @@ impl Session {
         let payload = build_exec_hook_payload(event, exec_ctx, params, output);
         for (idx, hook) in hooks.into_iter().enumerate() {
             self
-                .run_hook_command(turn_diff_tracker, &hook, event, &payload, Some(exec_ctx), attempt_req, idx)
+                .run_hook_command(
+                    turn_diff_tracker,
+                    &hook,
+                    HookCommandContext {
+                        event,
+                        payload: &payload,
+                        base_ctx: Some(exec_ctx),
+                        attempt_req,
+                        index: idx,
+                    },
+                )
                 .await;
         }
     }
@@ -696,7 +732,17 @@ impl Session {
         let attempt_req = self.current_request_ordinal();
         for (idx, hook) in hooks.into_iter().enumerate() {
             self
-                .run_hook_command(&mut tracker, &hook, event, &payload, None, attempt_req, idx)
+                .run_hook_command(
+                    &mut tracker,
+                    &hook,
+                    HookCommandContext {
+                        event,
+                        payload: &payload,
+                        base_ctx: None,
+                        attempt_req,
+                        index: idx,
+                    },
+                )
                 .await;
         }
     }
@@ -723,12 +769,15 @@ impl Session {
         &self,
         turn_diff_tracker: &mut TurnDiffTracker,
         hook: &ProjectHook,
-        event: ProjectHookEvent,
-        payload: &Value,
-        base_ctx: Option<&ExecCommandContext>,
-        attempt_req: u64,
-        index: usize,
+        hook_ctx: HookCommandContext<'_>,
     ) {
+        let HookCommandContext {
+            event,
+            payload,
+            base_ctx,
+            attempt_req,
+            index,
+        } = hook_ctx;
         let sub_id = base_ctx
             .map(|ctx| ctx.sub_id.clone())
             .unwrap_or_else(|| INITIAL_SUBMIT_ID.to_string());
@@ -788,9 +837,11 @@ impl Session {
             turn_diff_tracker,
             exec_ctx,
             exec_args,
-            None,
-            None,
-            attempt_req,
+            ExecOrderContext {
+                seq_hint: None,
+                output_index: None,
+                attempt_req,
+            },
             false,
         ))
         .await

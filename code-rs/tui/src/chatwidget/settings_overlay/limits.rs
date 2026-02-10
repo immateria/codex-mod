@@ -130,9 +130,7 @@ impl LimitsSettingsContent {
             return None;
         }
 
-        let Some(tabs) = self.overlay.tabs() else {
-            return None;
-        };
+        let tabs = self.overlay.tabs()?;
         let mut x = tabs_area.x;
         for (idx, tab) in tabs.iter().enumerate() {
             let tab_width = UnicodeWidthStr::width(tab.title.as_str()) as u16 + 2;

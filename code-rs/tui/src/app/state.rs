@@ -74,14 +74,17 @@ pub(super) struct ThemeSplitPreview {
     pub(super) preview: ThemeName,
 }
 
+type WriterTx = Arc<Mutex<Option<StdSender<Vec<u8>>>>>;
+type PtyHandle = Arc<Mutex<Box<dyn MasterPty + Send>>>;
+
 pub(super) struct TerminalRunState {
     pub(super) command: Vec<String>,
     pub(super) display: String,
     pub(super) cancel_tx: Option<oneshot::Sender<()>>,
     pub(super) running: bool,
     pub(super) controller: Option<TerminalRunController>,
-    pub(super) writer_tx: Option<Arc<Mutex<Option<StdSender<Vec<u8>>>>>>,
-    pub(super) pty: Option<Arc<Mutex<Box<dyn MasterPty + Send>>>>,
+    pub(super) writer_tx: Option<WriterTx>,
+    pub(super) pty: Option<PtyHandle>,
 }
 
 pub(super) struct FrameTimer {
@@ -317,6 +320,21 @@ pub(crate) struct ChatWidgetArgs {
     pub(crate) show_order_overlay: bool,
     pub(crate) enable_perf: bool,
     pub(crate) resume_picker: bool,
+    pub(crate) latest_upgrade_version: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct AppInitArgs {
+    pub(crate) config: Config,
+    pub(crate) initial_prompt: Option<String>,
+    pub(crate) initial_images: Vec<PathBuf>,
+    pub(crate) show_trust_screen: bool,
+    pub(crate) debug: bool,
+    pub(crate) show_order_overlay: bool,
+    pub(crate) terminal_info: TerminalInfo,
+    pub(crate) enable_perf: bool,
+    pub(crate) resume_picker: bool,
+    pub(crate) startup_footer_notice: Option<String>,
     pub(crate) latest_upgrade_version: Option<String>,
 }
 

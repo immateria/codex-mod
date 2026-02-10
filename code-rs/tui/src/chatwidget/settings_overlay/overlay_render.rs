@@ -627,8 +627,7 @@ impl SettingsOverlayView {
         let hovered = *self.hovered_section.borrow();
 
         let mut lines: Vec<Line<'static>> = Vec::new();
-        for idx in start..end {
-            let section = sections[idx];
+        for (idx, section) in sections.iter().copied().enumerate().take(end).skip(start) {
             let is_active = idx == selected_idx;
             let is_hovered = hovered == Some(section) && !is_active;
             let is_first_visible = idx == start;

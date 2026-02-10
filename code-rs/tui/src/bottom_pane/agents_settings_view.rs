@@ -457,29 +457,32 @@ impl<'a> BottomPaneView<'a> for SubagentEditorView {
         if self.confirm_delete {
             let confirm_style = sel(4).fg(crate::colors::error()).add_modifier(Modifier::BOLD);
             let back_style = sel(5).fg(crate::colors::text());
-            let mut btn_spans: Vec<Span> = Vec::new();
-            btn_spans.push(Span::styled("[ Confirm Delete ]", confirm_style));
-            btn_spans.push(Span::raw("  "));
-            btn_spans.push(Span::styled("[ Back ]", back_style));
+            let btn_spans: Vec<Span> = vec![
+                Span::styled("[ Confirm Delete ]", confirm_style),
+                Span::raw("  "),
+                Span::styled("[ Back ]", back_style),
+            ];
             lines.push(Line::from(btn_spans));
         } else if show_delete {
             let save_style = sel(4).fg(crate::colors::success());
             let delete_style = sel(5).fg(crate::colors::error());
             let cancel_style = sel(6).fg(crate::colors::text());
-            let mut btn_spans: Vec<Span> = Vec::new();
-            btn_spans.push(Span::styled("[ Save ]", save_style));
-            btn_spans.push(Span::raw("  "));
-            btn_spans.push(Span::styled("[ Delete ]", delete_style));
-            btn_spans.push(Span::raw("  "));
-            btn_spans.push(Span::styled("[ Cancel ]", cancel_style));
+            let btn_spans: Vec<Span> = vec![
+                Span::styled("[ Save ]", save_style),
+                Span::raw("  "),
+                Span::styled("[ Delete ]", delete_style),
+                Span::raw("  "),
+                Span::styled("[ Cancel ]", cancel_style),
+            ];
             lines.push(Line::from(btn_spans));
         } else {
             let save_style = sel(4).fg(crate::colors::success());
             let cancel_style = sel(5).fg(crate::colors::text());
-            let mut btn_spans: Vec<Span> = Vec::new();
-            btn_spans.push(Span::styled("[ Save ]", save_style));
-            btn_spans.push(Span::raw("  "));
-            btn_spans.push(Span::styled("[ Cancel ]", cancel_style));
+            let btn_spans: Vec<Span> = vec![
+                Span::styled("[ Save ]", save_style),
+                Span::raw("  "),
+                Span::styled("[ Cancel ]", cancel_style),
+            ];
             lines.push(Line::from(btn_spans));
         }
         // Remove any trailing blank lines so buttons hug the bottom frame

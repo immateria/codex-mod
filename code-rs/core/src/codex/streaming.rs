@@ -654,17 +654,17 @@ pub(super) async fn submission_loop(
                 };
 
                 // Wrap provided auth (if any) in a minimal AuthManager for client usage.
-                let client = ModelClient::new(
-                    config.clone(),
-                    auth_manager.clone(),
-                    Some(otel_event_manager.clone()),
-                    provider.clone(),
-                    model_reasoning_effort,
-                    model_reasoning_summary,
-                    model_text_verbosity,
+                let client = ModelClient::new(crate::client::ModelClientInit {
+                    config: config.clone(),
+                    auth_manager: auth_manager.clone(),
+                    otel_event_manager: Some(otel_event_manager.clone()),
+                    provider: provider.clone(),
+                    effort: model_reasoning_effort,
+                    summary: model_reasoning_summary,
+                    verbosity: model_text_verbosity,
                     session_id,
                     debug_logger,
-                );
+                });
 
                 // abort any current running session and clone its state
                 let old_session = sess.take();
@@ -736,16 +736,16 @@ pub(super) async fn submission_loop(
                         mcp_connection_errors.push(message);
                     }
                 }
-                let mut tools_config = ToolsConfig::new(
-                    &config.model_family,
+                let mut tools_config = ToolsConfig::new(crate::openai_tools::ToolsConfigParams {
+                    model_family: &config.model_family,
                     approval_policy,
-                    sandbox_policy.clone(),
-                    config.include_plan_tool,
-                    config.include_apply_patch_tool,
-                    config.tools_web_search_request,
-                    config.use_experimental_streamable_shell_tool,
-                    config.include_view_image_tool,
-                );
+                    sandbox_policy: sandbox_policy.clone(),
+                    include_plan_tool: config.include_plan_tool,
+                    include_apply_patch_tool: config.include_apply_patch_tool,
+                    include_web_search_request: config.tools_web_search_request,
+                    use_streamable_shell_tool: config.use_experimental_streamable_shell_tool,
+                    include_view_image_tool: config.include_view_image_tool,
+                });
                 tools_config.web_search_allowed_domains =
                     config.tools_web_search_allowed_domains.clone();
 
@@ -1456,17 +1456,17 @@ async fn spawn_review_thread(
         .get_otel_event_manager()
         .map(|mgr| mgr.with_model(review_config.model.as_str(), review_config.model_family.slug.as_str()));
 
-    let review_client = ModelClient::new(
-        review_config.clone(),
-        parent_turn_context.client.get_auth_manager(),
-        review_otel,
-        parent_turn_context.client.get_provider(),
-        review_config.model_reasoning_effort,
-        review_config.model_reasoning_summary,
-        review_config.model_text_verbosity,
-        sess.session_uuid(),
-        review_debug_logger,
-    );
+    let review_client = ModelClient::new(crate::client::ModelClientInit {
+        config: review_config.clone(),
+        auth_manager: parent_turn_context.client.get_auth_manager(),
+        otel_event_manager: review_otel,
+        provider: parent_turn_context.client.get_provider(),
+        effort: review_config.model_reasoning_effort,
+        summary: review_config.model_reasoning_summary,
+        verbosity: review_config.model_text_verbosity,
+        session_id: sess.session_uuid(),
+        debug_logger: review_debug_logger,
+    });
 
     let review_demo_message = if config.timeboxed_exec_mode {
         build_timeboxed_review_message(parent_turn_context.demo_developer_message.clone())
@@ -1674,7 +1674,7 @@ async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>, sub_id: S
             review_history.push(response_item.clone());
         } else {
             // Record to history but we'll handle ephemeral images separately
-            sess.record_conversation_items(&[response_item.clone()])
+            sess.record_conversation_items(std::slice::from_ref(&response_item))
                 .await;
         }
         initial_response_item = Some(response_item);
@@ -1719,7 +1719,7 @@ async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>, sub_id: S
                 if is_review_mode {
                     review_history.push(first_pending.clone());
                 } else {
-                    sess.record_conversation_items(&[first_pending.clone()])
+                    sess.record_conversation_items(std::slice::from_ref(&first_pending))
                         .await;
                 }
                 initial_response_item = Some(first_pending);
@@ -3034,8 +3034,7 @@ async fn handle_response_item(
                 let stamped = sess.make_event_with_order(&eid, EventMsg::AgentReasoning(AgentReasoningEvent { text }), order, seq_hint);
                 sess.tx_event.send(stamped).await.ok();
             }
-            if sess.show_raw_agent_reasoning && content.is_some() {
-                let content = content.unwrap();
+            if sess.show_raw_agent_reasoning && let Some(content) = content {
                 for item in content.into_iter() {
                     let text = match item {
                         ReasoningItemContent::ReasoningText { text } => text,
@@ -3059,13 +3058,15 @@ async fn handle_response_item(
                 handle_function_call(
                     sess,
                     turn_diff_tracker,
-                    sub_id.to_string(),
-                    name,
-                    arguments,
-                    call_id,
-                    seq_hint,
-                    output_index,
-                    attempt_req,
+                    FunctionCallInvocation {
+                        sub_id: sub_id.to_string(),
+                        name,
+                        arguments,
+                        call_id,
+                        seq_hint,
+                        output_index,
+                        attempt_req,
+                    },
                 )
                 .await,
             )
@@ -3102,18 +3103,21 @@ async fn handle_response_item(
             };
 
             let exec_params = to_exec_params(params, sess);
-            Some(
-            handle_container_exec_with_params(
-                exec_params,
-                sess,
-                turn_diff_tracker,
+            let ctx = ToolCallCtx::new(
                 sub_id.to_string(),
                 effective_call_id,
                 seq_hint,
                 output_index,
-                attempt_req,
-            )
-            .await,
+            );
+            Some(
+                handle_container_exec_with_params(
+                    exec_params,
+                    sess,
+                    turn_diff_tracker,
+                    &ctx,
+                    attempt_req,
+                )
+                .await,
             )
         }
         ResponseItem::CustomToolCall { call_id, name, .. } => {
@@ -3266,9 +3270,7 @@ mod preview_tests {
     }
 }
 
-async fn handle_function_call(
-    sess: &Session,
-    turn_diff_tracker: &mut TurnDiffTracker,
+struct FunctionCallInvocation {
     sub_id: String,
     name: String,
     arguments: String,
@@ -3276,7 +3278,22 @@ async fn handle_function_call(
     seq_hint: Option<u64>,
     output_index: Option<u32>,
     attempt_req: u64,
+}
+
+async fn handle_function_call(
+    sess: &Session,
+    turn_diff_tracker: &mut TurnDiffTracker,
+    invocation: FunctionCallInvocation,
 ) -> ResponseInputItem {
+    let FunctionCallInvocation {
+        sub_id,
+        name,
+        arguments,
+        call_id,
+        seq_hint,
+        output_index,
+        attempt_req,
+    } = invocation;
     let ctx = ToolCallCtx::new(sub_id.clone(), call_id.clone(), seq_hint, output_index);
     match name.as_str() {
         "container.exec" | "shell" => {
@@ -3286,7 +3303,13 @@ async fn handle_function_call(
                     return *output;
                 }
             };
-            handle_container_exec_with_params(params, sess, turn_diff_tracker, sub_id, call_id, seq_hint, output_index, attempt_req)
+            handle_container_exec_with_params(
+                params,
+                sess,
+                turn_diff_tracker,
+                &ctx,
+                attempt_req,
+            )
                 .await
         }
         "update_plan" => handle_update_plan(sess, &ctx, arguments).await,
@@ -3785,13 +3808,15 @@ async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, arguments: String) 
                 url: &str,
                 timeout: Duration,
             ) -> Result<BrowserFetchOutcome, String> {
-                let mut config = CodexBrowserConfig::default();
-                config.enabled = true;
-                config.headless = true;
-                config.fullpage = false;
-                config.segments_max = 2;
-                config.persist_profile = false;
-                config.idle_timeout_ms = 10_000;
+                let config = CodexBrowserConfig {
+                    enabled: true,
+                    headless: true,
+                    fullpage: false,
+                    segments_max: 2,
+                    persist_profile: false,
+                    idle_timeout_ms: 10_000,
+                    ..CodexBrowserConfig::default()
+                };
 
                 let manager = BrowserManager::new(config);
                 manager.set_enabled_sync(true);
@@ -4081,8 +4106,9 @@ async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, arguments: String) 
                 let open = {
                     let mut i = 0usize;
                     let tag = b"main";
+                    let mut found = None;
                     while i + 5 < bytes.len() { // < m a i n > (min)
-                        if bytes[i] == b'<' {
+                        let candidate = if bytes[i] == b'<' {
                             // skip '<' and whitespace
                             let mut j = i + 1;
                             while j < bytes.len() && bytes[j].is_ascii_whitespace() { j += 1; }
@@ -4091,11 +4117,16 @@ async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, arguments: String) 
                                 while j < bytes.len() && bytes[j] != b'>' { j += 1; }
                                 if j < bytes.len() { Some((i, j + 1)) } else { None }
                             } else { None }
-                        } else { None }
-                            .map(|pair| pair);
+                        } else {
+                            None
+                        };
+                        if let Some(candidate) = candidate {
+                            found = Some(candidate);
+                            break;
+                        }
                         i += 1;
                     }
-                    None
+                    found
                 };
                 let (start, after_open) = open?;
                 // Find closing </main>
@@ -4206,7 +4237,7 @@ async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, arguments: String) 
                 fn extract_ld_json(html: &str) -> Option<serde_json::Value> {
                     let mut s = html;
                     loop {
-                        let start = s.find("<script").map(|i| i)?;
+                        let start = s.find("<script")?;
                         let rest = &s[start + 7..];
                         if rest.to_lowercase().contains("type=\"application/ld+json\"") {
                             // Find end of script open tag
@@ -5433,17 +5464,28 @@ async fn handle_gh_run_wait(
         None
     }
 
-    fn run_summary_text(
-        run_id: &str,
-        branch: &str,
-        status: &str,
-        conclusion: &str,
+    struct RunSummaryInput<'a> {
+        run_id: &'a str,
+        branch: &'a str,
+        status: &'a str,
+        conclusion: &'a str,
         workflow: Option<String>,
         title: Option<String>,
         url: Option<String>,
-        job_summary: &JobSummary,
         duration: Option<String>,
-    ) -> String {
+    }
+
+    fn run_summary_text(input: RunSummaryInput<'_>, job_summary: &JobSummary) -> String {
+        let RunSummaryInput {
+            run_id,
+            branch,
+            status,
+            conclusion,
+            workflow,
+            title,
+            url,
+            duration,
+        } = input;
         let outcome = if conclusion.is_empty() {
             status.to_string()
         } else {
@@ -5799,15 +5841,17 @@ async fn handle_gh_run_wait(
 
                 if run_complete {
                     let summary = run_summary_text(
-                        &run_id,
-                        prepared_branch.as_deref().unwrap_or(""),
-                        &status,
-                        &conclusion,
-                        workflow_name,
-                        display_title,
-                        html_url,
+                        RunSummaryInput {
+                            run_id: &run_id,
+                            branch: prepared_branch.as_deref().unwrap_or(""),
+                            status: &status,
+                            conclusion: &conclusion,
+                            workflow: workflow_name,
+                            title: display_title,
+                            url: html_url,
+                            duration: run_duration_from_view(&view),
+                        },
                         &job_summary,
-                        run_duration_from_view(&view),
                     );
                     let success = if conclusion.is_empty() {
                         None
@@ -6745,16 +6789,22 @@ pub(crate) async fn handle_run_agent(
 
                     let agent_id = manager
                         .create_agent_with_config(
-                            model.clone(),
-                            agent_name.clone(),
-                            params.task.clone(),
-                            params.context.clone(),
-                            params.output.clone(),
-                            params.files.clone().unwrap_or_default(),
-                            read_only,
-                            Some(batch_id.clone()),
+                            crate::agent_tool::AgentCreateRequest {
+                                model: model.clone(),
+                                name: agent_name.clone(),
+                                prompt: params.task.clone(),
+                                context: params.context.clone(),
+                                output_goal: params.output.clone(),
+                                files: params.files.clone().unwrap_or_default(),
+                                read_only,
+                                batch_id: Some(batch_id.clone()),
+                                config: None,
+                                worktree_branch: None,
+                                worktree_base: None,
+                                source_kind: None,
+                                reasoning_effort: sess.model_reasoning_effort.into(),
+                            },
                             config.clone(),
-                            sess.model_reasoning_effort.into(),
                         )
                         .await;
                     agent_ids.push(agent_id);
@@ -6769,17 +6819,21 @@ pub(crate) async fn handle_run_agent(
                     }
                     let read_only = resolve_agent_read_only(params.write, params.read_only, None);
                     let agent_id = manager
-                        .create_agent(
-                            model.clone(),
-                            agent_name.clone(),
-                            params.task.clone(),
-                            params.context.clone(),
-                            params.output.clone(),
-                            params.files.clone().unwrap_or_default(),
+                        .create_agent(crate::agent_tool::AgentCreateRequest {
+                            model: model.clone(),
+                            name: agent_name.clone(),
+                            prompt: params.task.clone(),
+                            context: params.context.clone(),
+                            output_goal: params.output.clone(),
+                            files: params.files.clone().unwrap_or_default(),
                             read_only,
-                            Some(batch_id.clone()),
-                            sess.model_reasoning_effort.into(),
-                        )
+                            batch_id: Some(batch_id.clone()),
+                            config: None,
+                            worktree_branch: None,
+                            worktree_base: None,
+                            source_kind: None,
+                            reasoning_effort: sess.model_reasoning_effort.into(),
+                        })
                         .await;
                     agent_ids.push(agent_id);
                     let label = display_label_for(&model);
@@ -6838,17 +6892,21 @@ pub(crate) async fn handle_run_agent(
 
                 let read_only = resolve_agent_read_only(params.write, params.read_only, None);
                 let agent_id = manager
-                    .create_agent(
-                        "code".to_string(),
-                        agent_name.clone(),
-                        params.task.clone(),
-                        params.context.clone(),
-                        params.output.clone(),
-                        params.files.clone().unwrap_or_default(),
+                    .create_agent(crate::agent_tool::AgentCreateRequest {
+                        model: "code".to_string(),
+                        name: agent_name.clone(),
+                        prompt: params.task.clone(),
+                        context: params.context.clone(),
+                        output_goal: params.output.clone(),
+                        files: params.files.clone().unwrap_or_default(),
                         read_only,
-                        Some(batch_id.clone()),
-                        sess.model_reasoning_effort.into(),
-                    )
+                        batch_id: Some(batch_id.clone()),
+                        config: None,
+                        worktree_branch: None,
+                        worktree_base: None,
+                        source_kind: None,
+                        reasoning_effort: sess.model_reasoning_effort.into(),
+                    })
                     .await;
                 agent_ids.push(agent_id);
                 let label = display_label_for("code");
@@ -7882,12 +7940,13 @@ async fn handle_container_exec_with_params(
     params: ExecParams,
     sess: &Session,
     turn_diff_tracker: &mut TurnDiffTracker,
-    sub_id: String,
-    call_id: String,
-    seq_hint: Option<u64>,
-    output_index: Option<u32>,
+    ctx: &ToolCallCtx,
     attempt_req: u64,
 ) -> ResponseInputItem {
+    let sub_id = ctx.sub_id.clone();
+    let call_id = ctx.call_id.clone();
+    let seq_hint = ctx.seq_hint;
+    let output_index = ctx.output_index;
     // Intercept risky git commands and require an explicit confirm prefix.
     // We support a simple convention: prefix the script with `confirm:` to proceed.
     // The prefix is stripped before execution.
@@ -8405,9 +8464,9 @@ async fn handle_container_exec_with_params(
                         "checkout" => {
                             if args.contains(&"--") {
                                 Some(SensitiveGitKind::PathCheckout)
-                            } else if args.iter().any(|a| matches!(*a, "-b" | "-B" | "--orphan" | "--detach")) {
-                                Some(SensitiveGitKind::BranchChange)
-                            } else if args.first().copied() == Some("-") {
+                            } else if args.iter().any(|a| matches!(*a, "-b" | "-B" | "--orphan" | "--detach"))
+                                || args.first().copied() == Some("-")
+                            {
                                 Some(SensitiveGitKind::BranchChange)
                             } else if let Some(first_arg) = args.first() {
                                 let a = *first_arg;
@@ -10211,7 +10270,7 @@ async fn handle_browser_click(sess: &Session, ctx: &ToolCallCtx, arguments: Stri
                         Ok((x, y)) => Ok((x, y, "Mouse up".to_string())),
                         Err(e) => Err(e),
                     },
-                    "click" | _ => match browser_manager.click_at_current().await {
+                    _ => match browser_manager.click_at_current().await {
                         Ok((x, y)) => Ok((x, y, "Clicked".to_string())),
                         Err(e) => Err(e),
                     },

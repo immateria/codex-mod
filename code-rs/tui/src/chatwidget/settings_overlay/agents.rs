@@ -52,8 +52,8 @@ impl AgentsOverviewState {
 
 enum AgentsPane {
     Overview(AgentsOverviewState),
-    Subagent(SubagentEditorView),
-    Agent(AgentEditorView),
+    Subagent(Box<SubagentEditorView>),
+    Agent(Box<AgentEditorView>),
 }
 
 pub(crate) struct AgentsSettingsContent {
@@ -96,7 +96,7 @@ impl AgentsSettingsContent {
     }
 
     pub(crate) fn set_editor(&mut self, editor: SubagentEditorView) {
-        self.pane = AgentsPane::Subagent(editor);
+        self.pane = AgentsPane::Subagent(Box::new(editor));
     }
 
     pub(crate) fn set_overview_selection(&mut self, selected: usize) {
@@ -107,7 +107,7 @@ impl AgentsSettingsContent {
     }
 
     pub(crate) fn set_agent_editor(&mut self, editor: AgentEditorView) {
-        self.pane = AgentsPane::Agent(editor);
+        self.pane = AgentsPane::Agent(Box::new(editor));
     }
 
     #[cfg_attr(not(any(test, feature = "test-helpers")), allow(dead_code))]

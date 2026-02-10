@@ -119,12 +119,6 @@ pub struct Cli {
 
 impl Cli {
     pub fn finalize_defaults(&mut self) {
-        self.web_search = if self.disable_web_search {
-            false
-        } else if self.enable_web_search {
-            true
-        } else {
-            true
-        };
+        self.web_search = !self.disable_web_search;
     }
 }

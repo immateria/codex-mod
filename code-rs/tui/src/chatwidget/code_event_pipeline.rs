@@ -1,5 +1,7 @@
 use super::*;
 
+type WaitHistoryUpdate = (HistoryId, Option<Duration>, Vec<(String, bool)>);
+
 impl ChatWidget<'_> {
     pub(crate) fn handle_code_event(&mut self, event: Event) {
         tracing::debug!(
@@ -1202,11 +1204,7 @@ impl ChatWidget<'_> {
                                 .insert(ToolCallId(call_id.clone()), exec_call_id.clone());
 
 
-                            let mut wait_update: Option<(
-                                HistoryId,
-                                Option<Duration>,
-                                Vec<(String, bool)>,
-                            )> = None;
+                            let mut wait_update: Option<WaitHistoryUpdate> = None;
                             if let Some(running) = self.exec.running_commands.get_mut(&exec_call_id) {
                                 running.wait_active = true;
                                 running.wait_notes.clear();
@@ -1249,11 +1247,6 @@ impl ChatWidget<'_> {
                 // Animated running cell with live timer and formatted args
                 let mut cell = if tool_name.starts_with("browser_") {
                     history_cell::new_running_browser_tool_call(
-                        tool_name.clone(),
-                        params_string,
-                    )
-                } else if tool_name.starts_with("agent_") {
-                    history_cell::new_running_custom_tool_call(
                         tool_name.clone(),
                         params_string,
                     )
@@ -1483,9 +1476,7 @@ impl ChatWidget<'_> {
                                     Self::append_wait_pairs(&mut wait_notes_snapshot, &note_lines);
                                 }
                             }
-                            if exec_completed {
-                                wait_still_pending = false;
-                            } else if wait_interrupted && !exec_running {
+                            if exec_completed || (wait_interrupted && !exec_running) {
                                 wait_still_pending = false;
                             }
 
@@ -1590,8 +1581,10 @@ impl ChatWidget<'_> {
                     return;
                 }
                 if tool_name == "wait" && !success && content.trim() == "Cancelled by user." {
-                    let mut emphasis = TextEmphasis::default();
-                    emphasis.bold = true;
+                    let emphasis = TextEmphasis {
+                        bold: true,
+                        ..TextEmphasis::default()
+                    };
                     let wait_state = PlainMessageState {
                         id: HistoryId::ZERO,
                         role: PlainMessageRole::Error,
@@ -1781,9 +1774,9 @@ impl ChatWidget<'_> {
                 // provider output; else append to the tail. Use the event.id for
                 // in-place replacement.
                 let placement = match event.order.as_ref().and_then(|om| om.output_index) {
-                    Some(v) if v == i32::MAX as u32 => SystemPlacement::EndOfCurrent,
-                    Some(_) => SystemPlacement::EarlyInCurrent,
-                    None => SystemPlacement::EndOfCurrent,
+                    Some(v) if v == i32::MAX as u32 => SystemPlacement::Tail,
+                    Some(_) => SystemPlacement::Early,
+                    None => SystemPlacement::Tail,
                 };
                 let id_for_replace = Some(id.clone());
                 let message_clone = message.clone();

@@ -271,9 +271,7 @@ impl LoginAccountsState {
                 }
             }
             KeyCode::Down => {
-                if account_count == 0 {
-                    self.selected = 0;
-                } else if self.selected >= account_count {
+                if account_count == 0 || self.selected >= account_count {
                     self.selected = 0;
                 } else {
                     self.selected = (self.selected + 1).min(account_count);
@@ -1070,9 +1068,7 @@ fn format_timestamp(ts: DateTime<Utc>) -> String {
 
 impl FormTextField {
     fn render_line(&self) -> Line<'static> {
-        let mut spans: Vec<Span<'static>> = Vec::new();
-        spans.push(Span::raw(self.text().to_string()));
-        spans.push(Span::raw("_"));
+        let spans: Vec<Span<'static>> = vec![Span::raw(self.text().to_string()), Span::raw("_")];
         Line::from(spans)
     }
 }

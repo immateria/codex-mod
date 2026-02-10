@@ -10,7 +10,7 @@ use code_core::protocol::OrderMeta;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 use serde_json::Value;
-use std::path::PathBuf;
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 const BROWSER_CONSOLE_EVENT_PREFIX: &str = "[browser console]";
@@ -298,7 +298,7 @@ pub(super) fn handle_background_event(
 pub(super) fn handle_screenshot_update(
     chat: &mut ChatWidget<'_>,
     order: Option<&OrderMeta>,
-    screenshot_path: &PathBuf,
+    screenshot_path: &Path,
     url: &str,
 ) -> BrowserScreenshotUpdateResult {
     let mut result = BrowserScreenshotUpdateResult {
@@ -338,7 +338,11 @@ pub(super) fn handle_screenshot_update(
 
     tracker
         .cell
-        .record_screenshot(relative, screenshot_path.clone(), Some(url.to_string()));
+        .record_screenshot(
+            relative,
+            screenshot_path.to_path_buf(),
+            Some(url.to_string()),
+        );
 
     ensure_cell_picker(chat, &tracker.cell);
     if tracker.slot.has_order_change() && !tracker.anchor_inserted

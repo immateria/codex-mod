@@ -358,10 +358,10 @@ pub struct TextFormat {
 /// Limits the number of screenshots in the input to a maximum of 5.
 /// Keeps the first screenshot and the last 4 screenshots.
 /// Replaces removed screenshots with a placeholder message.
-fn limit_screenshots_in_input(input: &mut Vec<ResponseItem>) {
+fn limit_screenshots_in_input(input: &mut [ResponseItem]) {
     // Find all screenshot positions
     let mut screenshot_positions = Vec::new();
-    
+
     for (idx, item) in input.iter().enumerate() {
         if let ResponseItem::Message { content, .. } = item {
             let has_screenshot = content
@@ -372,26 +372,26 @@ fn limit_screenshots_in_input(input: &mut Vec<ResponseItem>) {
             }
         }
     }
-    
+
     // If we have 5 or fewer screenshots, no action needed
     if screenshot_positions.len() <= 5 {
         return;
     }
-    
+
     // Determine which screenshots to keep
     let mut positions_to_keep = std::collections::HashSet::new();
-    
+
     // Keep the first screenshot
     if let Some(&first) = screenshot_positions.first() {
         positions_to_keep.insert(first);
     }
-    
+
     // Keep the last 4 screenshots
     let last_four_start = screenshot_positions.len().saturating_sub(4);
     for &pos in &screenshot_positions[last_four_start..] {
         positions_to_keep.insert(pos);
     }
-    
+
     // Replace screenshots that should be removed
     for &pos in &screenshot_positions {
         if !positions_to_keep.contains(&pos)
@@ -411,7 +411,7 @@ fn limit_screenshots_in_input(input: &mut Vec<ResponseItem>) {
                 *content = new_content;
             }
     }
-    
+
     tracing::debug!(
         "Limited screenshots from {} to {} (kept first and last 4)",
         screenshot_positions.len(),

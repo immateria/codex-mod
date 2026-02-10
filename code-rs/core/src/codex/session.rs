@@ -241,6 +241,9 @@ pub(super) struct AccountUsageContext {
     pub(super) plan: Option<String>,
 }
 
+type ScreenshotHashInfo = (PathBuf, Vec<u8>, Vec<u8>);
+type LastScreenshotInfo = Option<ScreenshotHashInfo>;
+
 pub(super) fn account_usage_context(sess: &Session) -> Option<AccountUsageContext> {
     let code_home = sess.client.code_home().to_path_buf();
     let account_id = auth_accounts::get_active_account_id(&code_home).ok().flatten()?;
@@ -264,7 +267,7 @@ pub(super) fn spawn_usage_task<F>(task: F)
 where
     F: FnOnce() + Send + 'static,
 {
-    let _ = tokio::task::spawn_blocking(task);
+    std::mem::drop(tokio::task::spawn_blocking(task));
 }
 
 pub(super) fn format_retry_eta(retry_after: &RetryAfter) -> Option<String> {
@@ -362,7 +365,7 @@ pub(crate) struct Session {
     /// Track the last system status to detect changes
     pub(super) last_system_status: Mutex<Option<String>>,
     /// Track the last screenshot path and hash to detect changes
-    pub(super) last_screenshot_info: Mutex<Option<(PathBuf, Vec<u8>, Vec<u8>)>>, // (path, phash, dhash)
+    pub(super) last_screenshot_info: Mutex<LastScreenshotInfo>, // (path, phash, dhash)
     pub(super) time_budget: Mutex<Option<RunTimeBudget>>,
     pub(super) confirm_guard: ConfirmGuardRuntime,
     pub(super) project_hooks: ProjectHooks,

@@ -238,18 +238,20 @@ pub(super) async fn perform_compaction(
     loop {
         prune_orphan_tool_outputs(&mut turn_input);
 
-        let mut prompt = Prompt::default();
-        prompt.input = turn_input.clone();
-        prompt.store = !sess.disable_response_storage;
-        prompt.user_instructions = turn_context.user_instructions.clone();
-        prompt.environment_context = Some(EnvironmentContext::new(
-            Some(turn_context.cwd.clone()),
-            Some(turn_context.approval_policy),
-            Some(turn_context.sandbox_policy.clone()),
-            Some(sess.user_shell.clone()),
-        ));
-        prompt.model_descriptions = sess.model_descriptions.clone();
-        prompt.log_tag = Some("codex/compact".to_string());
+        let prompt = Prompt {
+            input: turn_input.clone(),
+            store: !sess.disable_response_storage,
+            user_instructions: turn_context.user_instructions.clone(),
+            environment_context: Some(EnvironmentContext::new(
+                Some(turn_context.cwd.clone()),
+                Some(turn_context.approval_policy),
+                Some(turn_context.sandbox_policy.clone()),
+                Some(sess.user_shell.clone()),
+            )),
+            model_descriptions: sess.model_descriptions.clone(),
+            log_tag: Some("codex/compact".to_string()),
+            ..Prompt::default()
+        };
 
         match drain_to_completed(&sess, turn_context.as_ref(), &prompt).await {
             Ok(()) => {
@@ -399,18 +401,20 @@ async fn run_compact_task_inner_inline(
     let mut retries = 0;
     let mut truncated_count = 0usize;
     loop {
-        let mut prompt = Prompt::default();
-        prompt.input = turn_input.clone();
-        prompt.store = !sess.disable_response_storage;
-        prompt.user_instructions = turn_context.user_instructions.clone();
-        prompt.environment_context = Some(EnvironmentContext::new(
-            Some(turn_context.cwd.clone()),
-            Some(turn_context.approval_policy),
-            Some(turn_context.sandbox_policy.clone()),
-            Some(sess.user_shell.clone()),
-        ));
-        prompt.model_descriptions = sess.model_descriptions.clone();
-        prompt.log_tag = Some("codex/compact".to_string());
+        let prompt = Prompt {
+            input: turn_input.clone(),
+            store: !sess.disable_response_storage,
+            user_instructions: turn_context.user_instructions.clone(),
+            environment_context: Some(EnvironmentContext::new(
+                Some(turn_context.cwd.clone()),
+                Some(turn_context.approval_policy),
+                Some(turn_context.sandbox_policy.clone()),
+                Some(sess.user_shell.clone()),
+            )),
+            model_descriptions: sess.model_descriptions.clone(),
+            log_tag: Some("codex/compact".to_string()),
+            ..Prompt::default()
+        };
 
         match drain_to_completed(&sess, turn_context.as_ref(), &prompt).await {
             Ok(()) => {

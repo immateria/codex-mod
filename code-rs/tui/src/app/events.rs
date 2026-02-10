@@ -950,7 +950,7 @@ impl App<'_> {
                     transcript,
                 } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.auto_handle_decision(
+                        widget.auto_handle_decision(crate::chatwidget::AutoDecisionEvent {
                             seq,
                             status,
                             status_title,
@@ -960,7 +960,7 @@ impl App<'_> {
                             agents_timing,
                             agents,
                             transcript,
-                        );
+                        });
                     }
                 }
                 AppEvent::AutoCoordinatorUserReply {
@@ -1151,16 +1151,16 @@ impl App<'_> {
                             }
                             // Start a brand new conversation (core session) with no carried history.
                             // Replace the chat widget entirely, mirroring SwitchCwd flow but without import.
-                            let mut new_widget = ChatWidget::new(
-                                self.config.clone(),
-                                self.app_event_tx.clone(),
-                                None,
-                                Vec::new(),
-                                self.enhanced_keys_supported,
-                                self.terminal_info.clone(),
-                                self.show_order_overlay,
-                                self.latest_upgrade_version.clone(),
-                            );
+                            let mut new_widget = ChatWidget::new(crate::chatwidget::ChatWidgetInit {
+                                config: self.config.clone(),
+                                app_event_tx: self.app_event_tx.clone(),
+                                initial_prompt: None,
+                                initial_images: Vec::new(),
+                                enhanced_keys_supported: self.enhanced_keys_supported,
+                                terminal_info: self.terminal_info.clone(),
+                                show_order_overlay: self.show_order_overlay,
+                                latest_upgrade_version: self.latest_upgrade_version.clone(),
+                            });
                             new_widget.enable_perf(self.timing_enabled);
                             self.app_state = AppState::Chat { widget: Box::new(new_widget) };
                             self.terminal_runs.clear();
@@ -1424,16 +1424,16 @@ impl App<'_> {
                     let mut cfg = self.config.clone();
                     cfg.experimental_resume = Some(path);
                     if let AppState::Chat { .. } = &self.app_state {
-                        let mut new_widget = ChatWidget::new(
-                            cfg,
-                            self.app_event_tx.clone(),
-                            None,
-                            Vec::new(),
-                            self.enhanced_keys_supported,
-                            self.terminal_info.clone(),
-                            self.show_order_overlay,
-                            self.latest_upgrade_version.clone(),
-                        );
+                        let mut new_widget = ChatWidget::new(crate::chatwidget::ChatWidgetInit {
+                            config: cfg,
+                            app_event_tx: self.app_event_tx.clone(),
+                            initial_prompt: None,
+                            initial_images: Vec::new(),
+                            enhanced_keys_supported: self.enhanced_keys_supported,
+                            terminal_info: self.terminal_info.clone(),
+                            show_order_overlay: self.show_order_overlay,
+                            latest_upgrade_version: self.latest_upgrade_version.clone(),
+                        });
                         new_widget.enable_perf(self.timing_enabled);
                         self.app_state = AppState::Chat { widget: Box::new(new_widget) };
                         self.terminal_runs.clear();
@@ -1623,7 +1623,15 @@ impl App<'_> {
                 }
                 AppEvent::UpdateAgentConfig { name, enabled, args_read_only, args_write, instructions, description, command } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.apply_agent_update(&name, enabled, args_read_only, args_write, instructions, description, command);
+                        widget.apply_agent_update(crate::chatwidget::AgentUpdateRequest {
+                            name,
+                            enabled,
+                            args_ro: args_read_only,
+                            args_wr: args_write,
+                            instructions,
+                            description,
+                            command,
+                        });
                     }
                 }
                 AppEvent::AgentValidationFinished { name, result, attempt_id } => {
@@ -1748,16 +1756,16 @@ impl App<'_> {
                 }
                 AppEvent::BackgroundReviewFinished { worktree_path, branch, has_findings, findings, summary, error, agent_id, snapshot } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.on_background_review_finished(
+                        widget.on_background_review_finished(crate::chatwidget::BackgroundReviewFinishedEvent {
                             worktree_path,
                             branch,
                             has_findings,
                             findings,
-                            summary.clone(),
-                            error.clone(),
-                            agent_id.clone(),
-                            snapshot.clone(),
-                        );
+                            summary,
+                            error,
+                            agent_id,
+                            snapshot,
+                        });
                     }
                 }
                 AppEvent::OpenReviewCustomPrompt => {
@@ -2244,16 +2252,16 @@ impl App<'_> {
                     resume_picker,
                     latest_upgrade_version,
                 }) => {
-                    let mut w = ChatWidget::new(
+                    let mut w = ChatWidget::new(crate::chatwidget::ChatWidgetInit {
                         config,
-                        app_event_tx.clone(),
+                        app_event_tx: app_event_tx.clone(),
                         initial_prompt,
                         initial_images,
                         enhanced_keys_supported,
                         terminal_info,
                         show_order_overlay,
                         latest_upgrade_version,
-                    );
+                    });
                     w.enable_perf(enable_perf);
                     if resume_picker {
                         w.show_resume_picker();
@@ -2350,18 +2358,19 @@ impl App<'_> {
 
                     if let AppState::Chat { widget } = &mut self.app_state {
                         let auth_manager = widget.auth_manager();
-                        let mut new_widget = ChatWidget::new_from_existing(
-                            cfg,
-                            conv,
-                            session_conf,
-                            self.app_event_tx.clone(),
-                            self.enhanced_keys_supported,
-                            self.terminal_info.clone(),
-                            self.show_order_overlay,
-                            self.latest_upgrade_version.clone(),
-                            auth_manager,
-                            false,
-                        );
+                        let mut new_widget =
+                            ChatWidget::new_from_existing(crate::chatwidget::ForkedChatWidgetInit {
+                                config: cfg,
+                                conversation: conv,
+                                session_configured: session_conf,
+                                app_event_tx: self.app_event_tx.clone(),
+                                enhanced_keys_supported: self.enhanced_keys_supported,
+                                terminal_info: self.terminal_info.clone(),
+                                show_order_overlay: self.show_order_overlay,
+                                latest_upgrade_version: self.latest_upgrade_version.clone(),
+                                auth_manager,
+                                show_welcome: false,
+                            });
                         if let Some(state) = ghost_state.take() {
                             new_widget.adopt_ghost_state(state);
                         } else {
@@ -2379,18 +2388,19 @@ impl App<'_> {
                             AuthMode::ApiKey,
                             cfg.responses_originator_header.clone(),
                         );
-                        let mut new_widget = ChatWidget::new_from_existing(
-                            cfg,
-                            conv,
-                            session_conf,
-                            self.app_event_tx.clone(),
-                            self.enhanced_keys_supported,
-                            self.terminal_info.clone(),
-                            self.show_order_overlay,
-                            self.latest_upgrade_version.clone(),
-                            auth_manager,
-                            false,
-                        );
+                        let mut new_widget =
+                            ChatWidget::new_from_existing(crate::chatwidget::ForkedChatWidgetInit {
+                                config: cfg,
+                                conversation: conv,
+                                session_configured: session_conf,
+                                app_event_tx: self.app_event_tx.clone(),
+                                enhanced_keys_supported: self.enhanced_keys_supported,
+                                terminal_info: self.terminal_info.clone(),
+                                show_order_overlay: self.show_order_overlay,
+                                latest_upgrade_version: self.latest_upgrade_version.clone(),
+                                auth_manager,
+                                show_welcome: false,
+                            });
                         if let Some(state) = ghost_state.take() {
                             new_widget.adopt_ghost_state(state);
                         }

@@ -438,9 +438,7 @@ fn agent_start_line(tracker: &AgentRunTracker) -> Line<'static> {
             .iter()
             .filter_map(|id| {
                 let trimmed = id.trim();
-                if trimmed.is_empty() {
-                    None
-                } else if looks_like_uuid(trimmed) {
+                if trimmed.is_empty() || looks_like_uuid(trimmed) {
                     None
                 } else {
                     Some(trimmed.to_string())

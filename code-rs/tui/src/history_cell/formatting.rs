@@ -151,8 +151,8 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
                                     1 => {
                                         // Replace from start to cursor with spaces to keep remaining columns stable
                                         let end = cursor.min(line.len());
-                                        for k in 0..end {
-                                            line[k] = ' ';
+                                        for ch in line.iter_mut().take(end) {
+                                            *ch = ' ';
                                         }
                                         // Trim leading spaces if the whole line became spaces
                                         while line.last().is_some_and(|c| *c == ' ') {
@@ -196,8 +196,8 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
                                     line.clear();
                                     cursor = 0;
                                 }
-                                for k in i..=j {
-                                    out.push(chars[k]);
+                                for ch in chars.iter().take(j + 1).skip(i) {
+                                    out.push(*ch);
                                 }
                                 i = j + 1;
                                 continue;
@@ -283,8 +283,8 @@ pub(crate) fn build_preview_lines(text: &str, _include_left_pipe: bool) -> Vec<L
     } else {
         let mut v: Vec<Seg> = Vec::with_capacity(PREVIEW_HEAD_LINES + PREVIEW_TAIL_LINES + 1);
         // Head
-        for i in 0..PREVIEW_HEAD_LINES {
-            v.push(Seg::Line(non_empty[i]));
+        for line in non_empty.iter().take(PREVIEW_HEAD_LINES) {
+            v.push(Seg::Line(line));
         }
         v.push(Seg::Ellipsis);
         // Tail

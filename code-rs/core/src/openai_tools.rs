@@ -94,28 +94,30 @@ pub struct ToolsConfig {
 }
 
 #[allow(dead_code)]
-pub(crate) struct ToolsConfigParams<'a> {
-    pub(crate) model_family: &'a ModelFamily,
-    pub(crate) approval_policy: AskForApproval,
-    pub(crate) sandbox_policy: SandboxPolicy,
-    pub(crate) include_plan_tool: bool,
-    pub(crate) include_apply_patch_tool: bool,
-    pub(crate) include_web_search_request: bool,
-    pub(crate) use_streamable_shell_tool: bool,
-    pub(crate) include_view_image_tool: bool,
+pub struct ToolsConfigParams<'a> {
+    pub model_family: &'a ModelFamily,
+    pub approval_policy: AskForApproval,
+    pub sandbox_policy: SandboxPolicy,
+    pub include_plan_tool: bool,
+    pub include_apply_patch_tool: bool,
+    pub include_web_search_request: bool,
+    pub use_streamable_shell_tool: bool,
+    pub include_view_image_tool: bool,
 }
 
 impl ToolsConfig {
-    pub fn new(
-        model_family: &ModelFamily,
-        approval_policy: AskForApproval,
-        sandbox_policy: SandboxPolicy,
-        include_plan_tool: bool,
-        include_apply_patch_tool: bool,
-        include_web_search_request: bool,
-        _use_streamable_shell_tool: bool,
-        include_view_image_tool: bool,
-    ) -> Self {
+    pub fn new(params: ToolsConfigParams<'_>) -> Self {
+        let ToolsConfigParams {
+            model_family,
+            approval_policy,
+            sandbox_policy,
+            include_plan_tool,
+            include_apply_patch_tool,
+            include_web_search_request,
+            use_streamable_shell_tool: _use_streamable_shell_tool,
+            include_view_image_tool,
+        } = params;
+        // TODO
         // Our fork does not yet enable the experimental streamable shell tool
         // in the tool selection phase. Default to the existing behaviors.
         let use_streamable_shell_tool = false;
@@ -164,16 +166,16 @@ impl ToolsConfig {
     // Compatibility constructor used by some tests/upstream calls.
     #[allow(dead_code)]
     pub(crate) fn new_from_params(p: &ToolsConfigParams) -> Self {
-        Self::new(
-            p.model_family,
-            p.approval_policy,
-            p.sandbox_policy.clone(),
-            p.include_plan_tool,
-            p.include_apply_patch_tool,
-            p.include_web_search_request,
-            p.use_streamable_shell_tool,
-            p.include_view_image_tool,
-        )
+        Self::new(ToolsConfigParams {
+            model_family: p.model_family,
+            approval_policy: p.approval_policy,
+            sandbox_policy: p.sandbox_policy.clone(),
+            include_plan_tool: p.include_plan_tool,
+            include_apply_patch_tool: p.include_apply_patch_tool,
+            include_web_search_request: p.include_web_search_request,
+            use_streamable_shell_tool: p.use_streamable_shell_tool,
+            include_view_image_tool: p.include_view_image_tool,
+        })
     }
 }
 
@@ -1331,16 +1333,16 @@ mod tests {
     fn test_get_openai_tools() {
         let model_family = find_family_for_model("codex-mini-latest")
             .expect("codex-mini-latest should be a valid model family");
-        let mut config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            true,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: true,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
         apply_default_agent_models(&mut config);
         let tools = get_openai_tools(&config, Some(HashMap::new()), false, false, &[]);
 
@@ -1365,16 +1367,16 @@ mod tests {
     fn test_get_openai_tools_with_active_agents() {
         let model_family = find_family_for_model("codex-mini-latest")
             .expect("codex-mini-latest should be a valid model family");
-        let mut config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            true,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: true,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
         apply_default_agent_models(&mut config);
         let tools = get_openai_tools(&config, Some(HashMap::new()), false, true, &[]);
 
@@ -1398,16 +1400,16 @@ mod tests {
     #[test]
     fn test_get_openai_tools_default_shell() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let mut config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            true,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: true,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
         apply_default_agent_models(&mut config);
         let tools = get_openai_tools(&config, Some(HashMap::new()), false, false, &[]);
 
@@ -1431,16 +1433,16 @@ mod tests {
     #[test]
     fn test_get_openai_tools_mcp_tools() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let mut config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            false,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: false,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
         apply_default_agent_models(&mut config);
         let tools = get_openai_tools(
             &config,
@@ -1681,16 +1683,16 @@ mod tests {
     #[test]
     fn test_get_openai_tools_mcp_tools_sorted_by_name() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let _config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            false,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let _config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: false,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
     }
 
     #[test]
@@ -1775,16 +1777,16 @@ mod tests {
     #[test]
     fn test_mcp_tool_integer_normalized_to_number() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let mut config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            false,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: false,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
         apply_default_agent_models(&mut config);
 
         let tools = get_openai_tools(
@@ -1852,16 +1854,16 @@ mod tests {
     #[test]
     fn test_mcp_tool_array_without_items_gets_default_string_items() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let mut config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            false,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: false,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
         apply_default_agent_models(&mut config);
 
         let tools = get_openai_tools(
@@ -1927,16 +1929,16 @@ mod tests {
     #[test]
     fn test_mcp_tool_anyof_defaults_to_string() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let mut config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            false,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: false,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
         apply_default_agent_models(&mut config);
 
         let tools = get_openai_tools(

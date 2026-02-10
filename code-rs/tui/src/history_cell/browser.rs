@@ -55,6 +55,28 @@ const ACTION_TIME_GAP: usize = 2;
 const ACTION_TIME_COLUMN_MIN_WIDTH: usize = 2;
 const MAX_SCREENSHOT_HISTORY: usize = 24;
 
+#[derive(Copy, Clone)]
+struct ActionColumns {
+    label_width: usize,
+    time_width: usize,
+}
+
+struct ActionRowInput<'a> {
+    indent: &'a str,
+    time: &'a str,
+    time_width: usize,
+    time_gap: usize,
+    label: &'a str,
+    label_width: usize,
+    gap: &'a str,
+    detail: &'a str,
+    indent_cols: usize,
+    right_padding: usize,
+    time_style: Style,
+    label_style: Style,
+    detail_style: Style,
+}
+
 #[derive(Clone)]
 pub(crate) struct BrowserScreenshotRecord {
     pub path: PathBuf,
@@ -518,8 +540,10 @@ impl BrowserSessionCell {
                             style,
                             indent_cols,
                             right_padding,
-                            label_width,
-                            time_width,
+                            ActionColumns {
+                                label_width,
+                                time_width,
+                            },
                         );
                         rows.extend(entry_rows);
                     }
@@ -619,9 +643,12 @@ impl BrowserSessionCell {
         style: &CardStyle,
         indent_cols: usize,
         right_padding: usize,
-        label_width: usize,
-        time_width: usize,
+        action_columns: ActionColumns,
     ) -> Vec<CardRow> {
+        let ActionColumns {
+            label_width,
+            time_width,
+        } = action_columns;
         if body_width == 0 || time_width == 0 {
             return Vec::new();
         }
@@ -694,19 +721,21 @@ impl BrowserSessionCell {
             rows.push(self.build_action_row(
                 body_width,
                 style,
-                indent_string.as_deref().unwrap_or(""),
-                time_column.as_str(),
-                time_width,
-                TIME_GAP,
-                label_column.as_str(),
-                effective_label_width,
-                &gap,
-                first,
-                indent,
-                right_padding,
-                time_style,
-                label_style,
-                detail_style,
+                ActionRowInput {
+                    indent: indent_string.as_deref().unwrap_or(""),
+                    time: time_column.as_str(),
+                    time_width,
+                    time_gap: TIME_GAP,
+                    label: label_column.as_str(),
+                    label_width: effective_label_width,
+                    gap: &gap,
+                    detail: first,
+                    indent_cols: indent,
+                    right_padding,
+                    time_style,
+                    label_style,
+                    detail_style,
+                },
             ));
         }
 
@@ -714,19 +743,21 @@ impl BrowserSessionCell {
             rows.push(self.build_action_row(
                 body_width,
                 style,
-                indent_string.as_deref().unwrap_or(""),
-                continuation_time.as_str(),
-                time_width,
-                TIME_GAP,
-                continuation_label.as_str(),
-                effective_label_width,
-                &gap,
-                detail_line,
-                indent,
-                right_padding,
-                time_style,
-                label_style,
-                detail_style,
+                ActionRowInput {
+                    indent: indent_string.as_deref().unwrap_or(""),
+                    time: continuation_time.as_str(),
+                    time_width,
+                    time_gap: TIME_GAP,
+                    label: continuation_label.as_str(),
+                    label_width: effective_label_width,
+                    gap: &gap,
+                    detail: detail_line,
+                    indent_cols: indent,
+                    right_padding,
+                    time_style,
+                    label_style,
+                    detail_style,
+                },
             ));
         }
 
@@ -737,20 +768,23 @@ impl BrowserSessionCell {
         &self,
         body_width: usize,
         style: &CardStyle,
-        indent: &str,
-        time: &str,
-        time_width: usize,
-        time_gap: usize,
-        label: &str,
-        label_width: usize,
-        gap: &str,
-        detail: &str,
-        indent_cols: usize,
-        right_padding: usize,
-        time_style: Style,
-        label_style: Style,
-        detail_style: Style,
+        input: ActionRowInput<'_>,
     ) -> CardRow {
+        let ActionRowInput {
+            indent,
+            time,
+            time_width,
+            time_gap,
+            label,
+            label_width,
+            gap,
+            detail,
+            indent_cols,
+            right_padding,
+            time_style,
+            label_style,
+            detail_style,
+        } = input;
         let mut segments = Vec::new();
         let mut consumed = 0usize;
         if !indent.is_empty() {
@@ -962,8 +996,6 @@ fn compute_screenshot_rows(&self, screenshot_cols: usize) -> Option<usize> {
 
         let cw = cell_w as u32;
         let ch = cell_h as u32;
-        let img_w = img_w;
-        let img_h = img_h;
 
         let rows_by_w = (cols * cw * img_h) as f64 / (img_w * ch) as f64;
         let rows = rows_by_w.ceil().max(1.0) as usize;

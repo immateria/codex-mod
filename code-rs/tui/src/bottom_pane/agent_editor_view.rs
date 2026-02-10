@@ -52,6 +52,18 @@ pub(crate) struct AgentEditorView {
     name_error: Option<String>,
 }
 
+pub(crate) struct AgentEditorInit {
+    pub(crate) name: String,
+    pub(crate) enabled: bool,
+    pub(crate) args_read_only: Option<Vec<String>>,
+    pub(crate) args_write: Option<Vec<String>>,
+    pub(crate) instructions: Option<String>,
+    pub(crate) description: Option<String>,
+    pub(crate) command: String,
+    pub(crate) builtin: bool,
+    pub(crate) app_event_tx: AppEventSender,
+}
+
 // These indices define the deterministic focus order for arrow/tab navigation.
 // Keep them aligned with the visual layout: ID -> Command -> Status -> params...
 const FIELD_NAME: usize = 0;
@@ -73,17 +85,17 @@ mod tests {
     fn field_order_matches_visual_layout() {
         let (app_event_tx_raw, _app_event_rx) = std::sync::mpsc::channel();
         let app_event_tx = AppEventSender::new(app_event_tx_raw);
-        let mut view = AgentEditorView::new(
-            "coder".to_string(),
-            true,
-            None,
-            None,
-            None,
-            Some("desc".to_string()),
-            "coder".to_string(),
-            true,
+        let mut view = AgentEditorView::new(AgentEditorInit {
+            name: "coder".to_string(),
+            enabled: true,
+            args_read_only: None,
+            args_write: None,
+            instructions: None,
+            description: Some("desc".to_string()),
+            command: "coder".to_string(),
+            builtin: true,
             app_event_tx,
-        );
+        });
 
         view.field = FIELD_COMMAND;
         view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
@@ -273,17 +285,18 @@ impl AgentEditorView {
         }
     }
 
-    pub fn new(
-        name: String,
-        enabled: bool,
-        args_read_only: Option<Vec<String>>,
-        args_write: Option<Vec<String>>,
-        instructions: Option<String>,
-        description: Option<String>,
-        command: String,
-        builtin: bool,
-        app_event_tx: AppEventSender,
-    ) -> Self {
+    pub fn new(init: AgentEditorInit) -> Self {
+        let AgentEditorInit {
+            name,
+            enabled,
+            args_read_only,
+            args_write,
+            instructions,
+            description,
+            command,
+            builtin,
+            app_event_tx,
+        } = init;
         // Simple PATH check similar to the core executor’s logic
         fn command_exists(cmd: &str) -> bool {
             if cmd.contains(std::path::MAIN_SEPARATOR) || cmd.contains('/') || cmd.contains('\\') {

@@ -37,18 +37,33 @@ use code_protocol::models::ContentItem;
 use code_protocol::models::ReasoningItemContent;
 use code_protocol::models::ResponseItem;
 
+pub(crate) struct ChatCompletionsRequest<'a> {
+    pub(crate) prompt: &'a Prompt,
+    pub(crate) model_family: &'a ModelFamily,
+    pub(crate) model_slug: &'a str,
+    pub(crate) client: &'a reqwest::Client,
+    pub(crate) provider: &'a ModelProviderInfo,
+    pub(crate) debug_logger: &'a Arc<Mutex<DebugLogger>>,
+    pub(crate) auth_manager: Option<Arc<AuthManager>>,
+    pub(crate) otel_event_manager: Option<OtelEventManager>,
+    pub(crate) log_tag: Option<&'a str>,
+}
+
 /// Implementation for the classic Chat Completions API.
 pub(crate) async fn stream_chat_completions(
-    prompt: &Prompt,
-    model_family: &ModelFamily,
-    model_slug: &str,
-    client: &reqwest::Client,
-    provider: &ModelProviderInfo,
-    debug_logger: &Arc<Mutex<DebugLogger>>,
-    auth_manager: Option<Arc<AuthManager>>,
-    otel_event_manager: Option<OtelEventManager>,
-    log_tag: Option<&str>,
+    request: ChatCompletionsRequest<'_>,
 ) -> Result<ResponseStream> {
+    let ChatCompletionsRequest {
+        prompt,
+        model_family,
+        model_slug,
+        client,
+        provider,
+        debug_logger,
+        auth_manager,
+        otel_event_manager,
+        log_tag,
+    } = request;
     if prompt.output_schema.is_some() {
         return Err(CodexErr::UnsupportedOperation(
             "output_schema is not supported for Chat Completions API".to_string(),

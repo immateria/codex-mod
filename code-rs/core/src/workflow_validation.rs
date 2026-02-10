@@ -58,9 +58,7 @@ pub fn maybe_run_actionlint(
     } else {
         which(&exe)
     };
-    let Some(executable) = executable else {
-        return None;
-    };
+    let executable = executable?;
 
     let touches_workflow = action
         .changes()

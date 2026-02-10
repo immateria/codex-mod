@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::{perf::PerfStats, ChatWidget, ExecCallId, RunningCommand};
+use super::{perf::PerfStats, AgentUpdateRequest, ChatWidget, ExecCallId, RunningCommand};
 use crate::app_event::{AppEvent, AutoContinueMode};
 use crate::app_event_sender::AppEventSender;
 use crate::history_cell::{self, HistoryCellType};
@@ -99,16 +99,16 @@ impl ChatWidgetHarness {
         let runtime = &*TEST_RUNTIME;
         let _guard = runtime.enter();
 
-        let chat = ChatWidget::new(
-            cfg,
+        let chat = ChatWidget::new(crate::chatwidget::ChatWidgetInit {
+            config: cfg,
             app_event_tx,
-            None,
-            Vec::new(),
-            false,
+            initial_prompt: None,
+            initial_images: Vec::new(),
+            enhanced_keys_supported: false,
             terminal_info,
-            false,
-            None,
-        );
+            show_order_overlay: false,
+            latest_upgrade_version: None,
+        });
 
         let mut harness = Self {
             chat,
@@ -156,15 +156,15 @@ impl ChatWidgetHarness {
                 } => {
                     let runtime = &*TEST_RUNTIME;
                     let _guard = runtime.enter();
-                    self.chat.apply_agent_update(
-                        &name,
+                    self.chat.apply_agent_update(AgentUpdateRequest {
+                        name,
                         enabled,
-                        args_read_only,
-                        args_write,
+                        args_ro: args_read_only,
+                        args_wr: args_write,
                         instructions,
                         description,
                         command,
-                    );
+                    });
                 }
                 AppEvent::AgentValidationFinished { name, result, attempt_id } => {
                     self.chat.handle_agent_validation_finished(&name, attempt_id, result);

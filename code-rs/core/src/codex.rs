@@ -791,7 +791,7 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
 
 fn should_include_browser_screenshot(
     last_info: &mut Option<(PathBuf, Vec<u8>, Vec<u8>)>,
-    path: &PathBuf,
+    path: &Path,
     current_hash: Option<(Vec<u8>, Vec<u8>)>,
 ) -> bool {
     if let Some((cur_phash, cur_dhash)) = current_hash {
@@ -804,10 +804,10 @@ fn should_include_browser_screenshot(
             ) {
                 return false;
             }
-        *last_info = Some((path.clone(), cur_phash, cur_dhash));
+        *last_info = Some((path.to_path_buf(), cur_phash, cur_dhash));
         true
     } else {
-        *last_info = Some((path.clone(), Vec::new(), Vec::new()));
+        *last_info = Some((path.to_path_buf(), Vec::new(), Vec::new()));
         true
     }
 }

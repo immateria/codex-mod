@@ -22,6 +22,27 @@ const LARGE_VERSION_COLUMN: usize = 65;
 const MEDIUM_VERSION_COLUMN: usize = 43;
 const ANIMATED_CHARS: &[char] = &['█'];
 
+type CharGrid = Vec<Vec<char>>;
+type BoolGrid = Vec<Vec<bool>>;
+type LineMasks = (CharGrid, BoolGrid, BoolGrid, usize, usize);
+
+struct OverlayRenderInputs<'a> {
+    chars: &'a [Vec<char>],
+    mask: &'a [Vec<bool>],
+    border: &'a [Vec<bool>],
+}
+
+#[derive(Copy, Clone)]
+struct OverlayRenderState {
+    reveal_x_outline: isize,
+    reveal_x_fill: isize,
+    shine_x: isize,
+    shine_band: isize,
+    fade: f32,
+    frame: u32,
+    alpha: Option<f32>,
+}
+
 pub fn intro_art_size_for_width(width: u16) -> IntroArtSize {
     if width >= LARGE_MIN_WIDTH {
         IntroArtSize::Large
@@ -128,36 +149,24 @@ pub(crate) fn render_intro_animation_with_size_and_alpha_offset(
     let shine_x = (w as f32 * scan_p).round() as isize;
     let shine_band = 3isize;
 
-    if alpha >= 1.0 {
-        render_overlay_lines(
-            &char_mask,
-            &anim_mask,
-            &border,
+    render_overlay_lines(
+        OverlayRenderInputs {
+            chars: &char_mask,
+            mask: &anim_mask,
+            border: &border,
+        },
+        OverlayRenderState {
             reveal_x_outline,
             reveal_x_fill,
             shine_x,
             shine_band,
             fade,
             frame,
-            render_area,
-            buf,
-        );
-    } else {
-        render_overlay_lines_with_alpha(
-            &char_mask,
-            &anim_mask,
-            &border,
-            reveal_x_outline,
-            reveal_x_fill,
-            shine_x,
-            shine_band,
-            fade,
-            frame,
-            alpha,
-            render_area,
-            buf,
-        );
-    }
+            alpha: (alpha < 1.0).then_some(alpha),
+        },
+        render_area,
+        buf,
+    );
 }
 
 /* ---------------- welcome art ---------------- */
@@ -330,7 +339,7 @@ fn shift_left(lines: Vec<String>, n: usize) -> Vec<String> {
 fn lines_masks(
     lines: &[String],
     is_animated: impl Fn(char) -> bool,
-) -> (Vec<Vec<char>>, Vec<Vec<bool>>, Vec<Vec<bool>>, usize, usize) {
+) -> LineMasks {
     let height = lines.len();
     let width = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
 
@@ -396,18 +405,21 @@ fn render_static_lines(
     }
 }
 fn render_overlay_lines(
-    chars: &[Vec<char>],
-    mask: &[Vec<bool>],
-    border: &[Vec<bool>],
-    reveal_x_outline: isize,
-    reveal_x_fill: isize,
-    shine_x: isize,
-    shine_band: isize,
-    fade: f32,
-    frame: u32,
+    inputs: OverlayRenderInputs<'_>,
+    state: OverlayRenderState,
     area: Rect,
     buf: &mut Buffer,
 ) {
+    let OverlayRenderInputs { chars, mask, border } = inputs;
+    let OverlayRenderState {
+        reveal_x_outline,
+        reveal_x_fill,
+        shine_x,
+        shine_band,
+        fade,
+        frame,
+        alpha,
+    } = state;
     let h = mask.len();
     let w = mask[0].len();
 
@@ -426,6 +438,9 @@ fn render_overlay_lines(
                     (1.0 - (dx as f32 / (shine_band as f32 + 0.001)).clamp(0.0, 1.0)).powf(1.6);
                 let bright = bump_rgb(base, shine * 0.30);
                 color = mix_rgb(bright, Color::Rgb(230, 232, 235), fade);
+                if let Some(alpha) = alpha {
+                    color = blend_to_background(color, alpha);
+                }
                 draw = true;
             } else if border[y][x] && xi <= reveal_x_outline.max(reveal_x_fill) {
                 let base = gradient_multi(x as f32 / (w.max(1) as f32));
@@ -433,65 +448,9 @@ fn render_overlay_lines(
                 let on = ((x + y + (frame as usize)) % period) < (period / 2);
                 let c = if on { bump_rgb(base, 0.22) } else { base };
                 color = mix_rgb(c, Color::Rgb(235, 237, 240), fade * 0.8);
-                draw = true;
-            }
-
-            if draw {
-                let target_x = area.x + x as u16;
-                let target_y = area.y + y as u16;
-                if target_x < area.x + area.width && target_y < area.y + area.height {
-                    let cell = &mut buf[(target_x, target_y)];
-                    let mut utf8 = [0u8; 4];
-                    let sym = base_char.encode_utf8(&mut utf8);
-                    cell.set_symbol(sym);
-                    cell.set_fg(color);
-                    cell.set_bg(crate::colors::background());
-                    cell.set_style(Style::default().add_modifier(Modifier::BOLD));
+                if let Some(alpha) = alpha {
+                    color = blend_to_background(color, alpha);
                 }
-            }
-        }
-    }
-}
-
-fn render_overlay_lines_with_alpha(
-    chars: &[Vec<char>],
-    mask: &[Vec<bool>],
-    border: &[Vec<bool>],
-    reveal_x_outline: isize,
-    reveal_x_fill: isize,
-    shine_x: isize,
-    shine_band: isize,
-    fade: f32,
-    frame: u32,
-    alpha: f32,
-    area: Rect,
-    buf: &mut Buffer,
-) {
-    let h = mask.len();
-    let w = mask[0].len();
-
-    for y in 0..h {
-        for x in 0..w {
-            let xi = x as isize;
-            let base_char = chars[y][x];
-
-            let mut draw = false;
-            let mut color = Color::Reset;
-
-            if mask[y][x] && xi <= reveal_x_fill {
-                let base = gradient_multi(x as f32 / (w.max(1) as f32));
-                let dx = (xi - shine_x).abs();
-                let shine =
-                    (1.0 - (dx as f32 / (shine_band as f32 + 0.001)).clamp(0.0, 1.0)).powf(1.6);
-                let bright = bump_rgb(base, shine * 0.30);
-                color = blend_to_background(mix_rgb(bright, Color::Rgb(230, 232, 235), fade), alpha);
-                draw = true;
-            } else if border[y][x] && xi <= reveal_x_outline.max(reveal_x_fill) {
-                let base = gradient_multi(x as f32 / (w.max(1) as f32));
-                let period = 8usize;
-                let on = ((x + y + (frame as usize)) % period) < (period / 2);
-                let c = if on { bump_rgb(base, 0.22) } else { base };
-                color = blend_to_background(mix_rgb(c, Color::Rgb(235, 237, 240), fade * 0.8), alpha);
                 draw = true;
             }
 

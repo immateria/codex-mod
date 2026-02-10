@@ -185,14 +185,15 @@ impl ThemeSelectionView {
                 let fg = Style::default().fg(crate::colors::info());
                 let x: u16 = max_frame_len.saturating_add(8);
                 let border_len = x.saturating_sub(max_frame_len);
-                let mut spans: Vec<Span> = Vec::new();
-                spans.push(Span::styled("─".repeat(border_len as usize), border));
-                spans.push(Span::raw(" "));
-                spans.push(Span::styled(preview, fg));
-                spans.push(Span::raw(" "));
-                spans.push(Span::styled("Preview...", fg));
-                spans.push(Span::raw(" "));
-                spans.push(Span::styled("─".repeat(border_len as usize), border));
+                let spans: Vec<Span> = vec![
+                    Span::styled("─".repeat(border_len as usize), border),
+                    Span::raw(" "),
+                    Span::styled(preview, fg),
+                    Span::raw(" "),
+                    Span::styled("Preview...", fg),
+                    Span::raw(" "),
+                    Span::styled("─".repeat(border_len as usize), border),
+                ];
                 form_lines.push(Line::from(spans));
 
                 self.app_event_tx
@@ -337,7 +338,12 @@ impl ThemeSelectionView {
                         }
                         self.app_event_tx.send(AppEvent::RequestRedraw);
                     }
-                    Ok(ProgressMsg::CompletedThemeOk(name, colors, is_dark)) => {
+                    Ok(ProgressMsg::CompletedThemeOk(result)) => {
+                        let ThemeGenerationResult {
+                            name,
+                            colors,
+                            is_dark,
+                        } = *result;
                         if let Mode::CreateTheme(state) = &self.mode {
                             state.is_loading.set(false);
                             state.step.set(CreateStep::Review);

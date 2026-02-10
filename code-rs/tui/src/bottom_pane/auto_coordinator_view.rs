@@ -85,6 +85,16 @@ struct IntroState<'a> {
     schedule_next_in: Option<Duration>,
 }
 
+struct HeaderRenderParams<'a> {
+    area: Rect,
+    model: &'a AutoActiveViewModel,
+    frame_style: &'a FrameStyle,
+    display_message: &'a str,
+    header_label: &'a str,
+    full_title: &'a str,
+    intro: &'a IntroState<'a>,
+}
+
 pub(crate) struct AutoCoordinatorView {
     model: AutoCoordinatorViewModel,
     app_event_tx: AppEventSender,
@@ -428,17 +438,16 @@ impl AutoCoordinatorView {
         }
     }
 
-    fn render_header(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        model: &AutoActiveViewModel,
-        frame_style: &FrameStyle,
-        display_message: &str,
-        header_label: &str,
-        full_title: &str,
-        intro: &IntroState<'_>,
-    ) {
+    fn render_header(&self, buf: &mut Buffer, params: HeaderRenderParams<'_>) {
+        let HeaderRenderParams {
+            area,
+            model,
+            frame_style,
+            display_message,
+            header_label,
+            full_title,
+            intro,
+        } = params;
         if area.width == 0 || area.height == 0 {
             return;
         }
@@ -1198,14 +1207,16 @@ impl AutoCoordinatorView {
         };
         let header_label = intro.header_text.as_ref();
         self.render_header(
-            header_area,
             buf,
-            model,
-            &frame_style,
-            &display_message,
-            header_label,
-            frame_style.title_text,
-            &intro,
+            HeaderRenderParams {
+                area: header_area,
+                model,
+                frame_style: &frame_style,
+                display_message: &display_message,
+                header_label,
+                full_title: frame_style.title_text,
+                intro: &intro,
+            },
         );
 
         if view_height <= 1 + Self::HEADER_HEIGHT {

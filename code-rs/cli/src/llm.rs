@@ -5,6 +5,7 @@ use code_common::CliConfigOverrides;
 use code_core::config::Config;
 use code_core::config::ConfigOverrides;
 use code_core::ModelClient;
+use code_core::ModelClientInit;
 use code_core::ModelProviderInfo;
 use code_core::agent_defaults::model_guide_markdown_with_custom;
 use code_core::AuthManager;
@@ -143,17 +144,19 @@ async fn run_llm_request(
         config.responses_originator_header.clone(),
     );
     let provider: ModelProviderInfo = config.model_provider.clone();
-    let client = ModelClient::new(
-        std::sync::Arc::new(config.clone()),
-        Some(auth_mgr),
-        None,
+    let client = ModelClient::new(ModelClientInit {
+        config: std::sync::Arc::new(config.clone()),
+        auth_manager: Some(auth_mgr),
+        otel_event_manager: None,
         provider,
-        config.model_reasoning_effort,
-        config.model_reasoning_summary,
-        config.model_text_verbosity,
-        uuid::Uuid::new_v4(),
-        std::sync::Arc::new(std::sync::Mutex::new(code_core::debug_logger::DebugLogger::new(false)?)),
-    );
+        effort: config.model_reasoning_effort,
+        summary: config.model_reasoning_summary,
+        verbosity: config.model_text_verbosity,
+        session_id: uuid::Uuid::new_v4(),
+        debug_logger: std::sync::Arc::new(std::sync::Mutex::new(
+            code_core::debug_logger::DebugLogger::new(false)?,
+        )),
+    });
 
     // Collect the assistant message text from the stream (no TUI events)
     let mut stream = client.stream(&prompt).await?;

@@ -183,9 +183,7 @@ fn humanize(name: &str) -> String {
             prev_is_alpha = false;
             continue;
         }
-        if ch.is_ascii_uppercase() && prev_is_lower {
-            out.push(' ');
-        } else if ch.is_ascii_digit() && prev_is_alpha {
+        if (ch.is_ascii_uppercase() && prev_is_lower) || (ch.is_ascii_digit() && prev_is_alpha) {
             out.push(' ');
         }
         out.push(ch);

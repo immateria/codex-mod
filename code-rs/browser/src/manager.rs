@@ -33,6 +33,10 @@ struct JsonVersion {
 }
 
 static INTERNAL_BROWSER_LAUNCH_GUARD: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+type NavigationCallback = Box<dyn Fn(String) + Send + Sync>;
+type NavigationCallbackSlot = Arc<RwLock<Option<NavigationCallback>>>;
+type LastAppliedMetrics = Option<(i64, i64, f64, bool, std::time::Instant)>;
+type LastAppliedMetricsSlot = Arc<Mutex<LastAppliedMetrics>>;
 
 struct BrowserLaunchLockFile {
     file: std::fs::File,
@@ -45,6 +49,7 @@ impl BrowserLaunchLockFile {
             .create(true)
             .read(true)
             .write(true)
+            .truncate(false)
             .open(&lock_path)?;
 
         let start = Instant::now();
@@ -334,13 +339,13 @@ pub struct BrowserManager {
     assets: Arc<Mutex<Option<Arc<crate::assets::AssetManager>>>>,
     user_data_dir: Arc<Mutex<Option<String>>>,
     cleanup_profile_on_drop: Arc<Mutex<bool>>,
-    navigation_callback: Arc<tokio::sync::RwLock<Option<Box<dyn Fn(String) + Send + Sync>>>>,
+    navigation_callback: NavigationCallbackSlot,
     navigation_monitor_handle: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
     viewport_monitor_handle: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Gate to temporarily disable all automatic viewport corrections (post-initial set)
     auto_viewport_correction_enabled: Arc<tokio::sync::RwLock<bool>>,
     /// Track last applied device metrics to avoid redundant overrides
-    last_metrics_applied: Arc<Mutex<Option<(i64, i64, f64, bool, std::time::Instant)>>>,
+    last_metrics_applied: LastAppliedMetricsSlot,
 }
 
 #[derive(Debug)]

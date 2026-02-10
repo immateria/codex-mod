@@ -85,7 +85,7 @@ pub(crate) use auto_coordinator_view::{
     AutoCoordinatorViewModel,
     CountdownState,
 };
-pub(crate) use auto_drive_settings_view::AutoDriveSettingsView;
+pub(crate) use auto_drive_settings_view::{AutoDriveSettingsInit, AutoDriveSettingsView};
 pub(crate) use account_switch_settings_view::AccountSwitchSettingsView;
 pub(crate) use login_accounts_view::{
     LoginAccountsState,
@@ -94,7 +94,7 @@ pub(crate) use login_accounts_view::{
     LoginAddAccountView,
 };
 
-pub(crate) use update_settings_view::{UpdateSettingsView, UpdateSharedState};
+pub(crate) use update_settings_view::{UpdateSettingsInit, UpdateSettingsView, UpdateSharedState};
 pub(crate) use notifications_settings_view::{NotificationsMode, NotificationsSettingsView};
 pub(crate) use validation_settings_view::ValidationSettingsView;
 pub(crate) use review_settings_view::ReviewSettingsView;

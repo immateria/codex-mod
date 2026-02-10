@@ -111,13 +111,17 @@ fn item(scope: &str, fg: (u8,u8,u8), style: Option<FontStyle>) -> ThemeItem {
 }
 
 fn build_code_dark_theme() -> Theme {
-    let mut t = Theme::default();
-    t.name = Some("Code Dark".to_string());
+    let mut t = Theme {
+        name: Some("Code Dark".to_string()),
+        ..Theme::default()
+    };
     t.settings = {
-        let mut s = ThemeSettings::default();
+        let mut s = ThemeSettings {
+            foreground: Some(hex((0xD4, 0xD4, 0xD4))),
+            background: Some(hex((0x1E, 0x1E, 0x1E))),
+            ..ThemeSettings::default()
+        };
         // Globals
-        s.foreground = Some(hex((0xD4,0xD4,0xD4)));
-        s.background = Some(hex((0x1E,0x1E,0x1E)));
         s.caret = Some(hex((0xAE,0xAF,0xAD)));
         s.selection = Some(hex((0x26,0x4F,0x78)));
         s.line_highlight = Some(hex((0x2A,0x2A,0x2A)));
@@ -217,13 +221,17 @@ fn build_code_dark_theme() -> Theme {
 }
 
 fn build_code_light_theme() -> Theme {
-    let mut t = Theme::default();
-    t.name = Some("Code Light".to_string());
+    let mut t = Theme {
+        name: Some("Code Light".to_string()),
+        ..Theme::default()
+    };
     t.settings = {
-        let mut s = ThemeSettings::default();
+        let mut s = ThemeSettings {
+            foreground: Some(hex((0x00, 0x00, 0x00))),
+            background: Some(hex((0xFF, 0xFF, 0xFF))),
+            ..ThemeSettings::default()
+        };
         // Globals
-        s.foreground = Some(hex((0x00,0x00,0x00)));
-        s.background = Some(hex((0xFF,0xFF,0xFF)));
         s.caret = Some(hex((0x00,0x00,0x00)));
         s.selection = Some(hex((0xAD,0xD6,0xFF)));
         s.line_highlight = Some(hex((0xF3,0xF3,0xF3))); // per mapping
@@ -376,10 +384,12 @@ fn build_ui_aware_theme() -> Theme {
 
     // Base settings follow our UI theme closely
     t.settings = {
-        let mut s = ThemeSettings::default();
-        s.foreground = Some(to_rgb(colors::text()));
-        s.background = Some(to_rgb(colors::background()));
-        s.selection = Some(to_rgb(colors::selection()));
+        let mut s = ThemeSettings {
+            foreground: Some(to_rgb(colors::text())),
+            background: Some(to_rgb(colors::background())),
+            selection: Some(to_rgb(colors::selection())),
+            ..ThemeSettings::default()
+        };
         // Subtle line highlight to match history rows
         let bg = colors::background();
         let lh = crate::colors::mix_toward(bg, colors::info(), if is_light_bg() { 0.06 } else { 0.04 });

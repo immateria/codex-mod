@@ -199,17 +199,20 @@ impl FileSearchManager {
             let prefer_cwd = query.starts_with("./") || !query.contains('/');
 
             // Run streaming search with modest update cadence for snappy UX.
+            let streaming_config = file_search::StreamingSearchConfig {
+                exclude: Vec::new(),
+                threads: NUM_FILE_SEARCH_THREADS,
+                cancel_flag: cancellation_token.clone(),
+                compute_indices,
+                part_tx,
+                update_interval: Duration::from_millis(50),
+                prefer_cwd,
+            };
             let _final = file_search::run_streaming(
                 &search_query,
                 MAX_FILE_SEARCH_RESULTS,
                 &search_dir,
-                Vec::new(),
-                NUM_FILE_SEARCH_THREADS,
-                cancellation_token.clone(),
-                compute_indices,
-                part_tx,
-                Duration::from_millis(50),
-                prefer_cwd,
+                streaming_config,
             );
 
             // Reset the active search state. Do a pointer comparison to verify

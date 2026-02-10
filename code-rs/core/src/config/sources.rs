@@ -1801,10 +1801,10 @@ pub fn add_project_allowed_command(
 
 /// List MCP servers from `CODEX_HOME/config.toml`.
 /// Returns `(enabled, disabled)` lists of `(name, McpServerConfig)`.
-pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<(
-    Vec<(String, McpServerConfig)>,
-    Vec<(String, McpServerConfig)>,
-)> {
+type NamedMcpServer = (String, McpServerConfig);
+type McpServerListPair = (Vec<NamedMcpServer>, Vec<NamedMcpServer>);
+
+pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
     let doc_str = std::fs::read_to_string(&read_path).unwrap_or_default();
     let doc = doc_str.parse::<DocumentMut>().unwrap_or_else(|_| DocumentMut::new());
@@ -2067,7 +2067,6 @@ pub fn set_mcp_server_enabled(
 }
 
 /// Apply a single dotted-path override onto a TOML value.
-
 fn env_path(var: &str) -> std::io::Result<Option<PathBuf>> {
     match std::env::var(var) {
         Ok(val) if !val.trim().is_empty() => {
@@ -2093,9 +2092,7 @@ fn compute_legacy_code_home_dir() -> Option<PathBuf> {
     if env_overrides_present() {
         return None;
     }
-    let Some(home) = home_dir() else {
-        return None;
-    };
+    let home = home_dir()?;
     let candidate = home.join(".codex");
     if path_exists(&candidate) {
         Some(candidate)
@@ -2189,9 +2186,7 @@ pub(crate) fn load_instructions(code_dir: Option<&Path>) -> Option<String> {
             if env_overrides_present() {
                 return None;
             }
-            let Some(legacy_home) = legacy_code_home_dir() else {
-                return None;
-            };
+            let legacy_home = legacy_code_home_dir()?;
             let legacy_path = legacy_home.join("AGENTS.md");
             match std::fs::read_to_string(&legacy_path) {
                 Ok(s) => s,

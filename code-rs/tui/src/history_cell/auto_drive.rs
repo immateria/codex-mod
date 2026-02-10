@@ -1036,8 +1036,7 @@ impl AutoDriveCardCell {
                 }
         };
 
-        for idx in 0..total {
-            let ch = chars[idx];
+        for (idx, ch) in chars.iter().copied().enumerate() {
             let style_for_char = if idx < left_pad || idx >= ascii_span_end {
                 (Color::Rgb(255, 255, 255), false)
             } else {

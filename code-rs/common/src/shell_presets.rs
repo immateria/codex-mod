@@ -4,10 +4,9 @@
 //! or overridden by user configuration.
 
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 
 /// Metadata describing a shell option.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ShellPreset {
     /// Unique identifier for the shell
     pub id: String,
@@ -18,18 +17,11 @@ pub struct ShellPreset {
     /// Description of the shell
     pub description: String,
     /// Default arguments to pass to the shell
-    #[serde(default)]
     pub default_args: Vec<String>,
     /// Preferred shell scripting style for model-generated commands.
-    #[serde(default)]
     pub script_style: Option<String>,
     /// Whether this shell should be shown in the picker
-    #[serde(default = "default_show_in_picker")]
     pub show_in_picker: bool,
-}
-
-fn default_show_in_picker() -> bool {
-    true
 }
 
 /// Built-in shell presets. These cover the most common shells across platforms.

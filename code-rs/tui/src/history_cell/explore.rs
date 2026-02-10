@@ -706,10 +706,7 @@ fn unwrap_shell_script(command: &[String]) -> Option<String> {
 
 fn is_shell_like(token: &str) -> bool {
     filter_command_name(token)
-        .map(|name| match name.as_str() {
-            "bash" | "sh" | "dash" | "zsh" | "ksh" | "busybox" => true,
-            _ => false,
-        })
+        .map(|name| matches!(name.as_str(), "bash" | "sh" | "dash" | "zsh" | "ksh" | "busybox"))
         .unwrap_or(false)
 }
 
@@ -789,9 +786,7 @@ enum WrapperKind {
 }
 
 fn classify_wrapper(token: &str) -> Option<WrapperKind> {
-    let Some(name) = filter_command_name(token) else {
-        return None;
-    };
+    let name = filter_command_name(token)?;
 
     match name.as_str() {
         "sudo" => Some(WrapperKind::Sudo),

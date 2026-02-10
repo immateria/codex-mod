@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::Arc;
@@ -24,24 +23,24 @@ use crate::file_search::FileSearchManager;
 use crate::get_login_status;
 use crate::onboarding::onboarding_screen::{OnboardingScreen, OnboardingScreenArgs};
 use crate::thread_spawner;
-use crate::tui::TerminalInfo;
 
-use super::state::{App, AppState, ChatWidgetArgs, FrameTimer};
+use super::state::{App, AppInitArgs, AppState, ChatWidgetArgs, FrameTimer};
 
 impl App<'_> {
-    pub(crate) fn new(
-        config: Config,
-        initial_prompt: Option<String>,
-        initial_images: Vec<PathBuf>,
-        show_trust_screen: bool,
-        debug: bool,
-        show_order_overlay: bool,
-        terminal_info: TerminalInfo,
-        enable_perf: bool,
-        resume_picker: bool,
-        startup_footer_notice: Option<String>,
-        latest_upgrade_version: Option<String>,
-    ) -> Self {
+    pub(crate) fn new(args: AppInitArgs) -> Self {
+        let AppInitArgs {
+            config,
+            initial_prompt,
+            initial_images,
+            show_trust_screen,
+            debug,
+            show_order_overlay,
+            terminal_info,
+            enable_perf,
+            resume_picker,
+            startup_footer_notice,
+            latest_upgrade_version,
+        } = args;
         let auth_manager = AuthManager::shared_with_mode_and_originator(
             config.code_home.clone(),
             AuthMode::ApiKey,
@@ -278,16 +277,16 @@ impl App<'_> {
                 }),
             }
         } else {
-            let mut chat_widget = ChatWidget::new(
-                config.clone(),
-                app_event_tx.clone(),
+            let mut chat_widget = ChatWidget::new(crate::chatwidget::ChatWidgetInit {
+                config: config.clone(),
+                app_event_tx: app_event_tx.clone(),
                 initial_prompt,
                 initial_images,
                 enhanced_keys_supported,
-                terminal_info.clone(),
+                terminal_info: terminal_info.clone(),
                 show_order_overlay,
-                latest_upgrade_version.clone(),
-            );
+                latest_upgrade_version: latest_upgrade_version.clone(),
+            });
             chat_widget.enable_perf(enable_perf);
             if resume_picker {
                 chat_widget.show_resume_picker();

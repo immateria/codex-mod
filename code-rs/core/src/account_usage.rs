@@ -362,6 +362,7 @@ where
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(&path)?;
 
     file.lock_exclusive()?;
@@ -626,15 +627,9 @@ fn record_threshold_log(
             && previous_logged
                 .is_some_and(|logged| observed_at.signed_duration_since(logged) >= UNKNOWN_RESET_RELOG_INTERVAL);
 
-        let mut should_clear = false;
-
-        if reset_moved_earlier {
-            should_clear = true;
-        } else if prev_reset_elapsed && !logged_after_prev_reset {
-            should_clear = true;
-        } else if unknown_reset_elapsed {
-            should_clear = true;
-        }
+        let should_clear = reset_moved_earlier
+            || (prev_reset_elapsed && !logged_after_prev_reset)
+            || unknown_reset_elapsed;
 
         existing.reset_at = new_reset;
 
@@ -658,15 +653,37 @@ fn record_threshold_log(
     true
 }
 
+pub struct RateLimitWarningEvent<'a> {
+    pub scope: RateLimitWarningScope,
+    pub threshold: f64,
+    pub reset_at: Option<DateTime<Utc>>,
+    pub observed_at: DateTime<Utc>,
+    pub message: &'a str,
+}
+
+impl<'a> RateLimitWarningEvent<'a> {
+    pub fn new(
+        scope: RateLimitWarningScope,
+        threshold: f64,
+        reset_at: Option<DateTime<Utc>>,
+        observed_at: DateTime<Utc>,
+        message: &'a str,
+    ) -> Self {
+        Self {
+            scope,
+            threshold,
+            reset_at,
+            observed_at,
+            message,
+        }
+    }
+}
+
 fn append_rate_limit_warning_log(
     code_home: &Path,
     account_id: &str,
     plan: Option<&str>,
-    scope: RateLimitWarningScope,
-    threshold: f64,
-    reset_at: Option<DateTime<Utc>>,
-    observed_at: DateTime<Utc>,
-    message: &str,
+    warning: &RateLimitWarningEvent<'_>,
 ) -> std::io::Result<()> {
     let dir = usage_dir(code_home);
     fs::create_dir_all(&dir)?;
@@ -677,23 +694,24 @@ fn append_rate_limit_warning_log(
         .read(true)
         .open(&path)?;
     file.lock_exclusive()?;
-    let scope_field = match scope {
+    let scope_field = match warning.scope {
         RateLimitWarningScope::Primary => "primary",
         RateLimitWarningScope::Secondary => "secondary",
     };
     let plan_field = plan.unwrap_or("-");
-    let reset_field = reset_at
+    let reset_field = warning
+        .reset_at
         .map(|dt| dt.to_rfc3339())
         .unwrap_or_else(|| "-".to_string());
     let line = format!(
         "{}\t{}\t{}\t{:.0}\t{}\t{}\t{}\n",
-        observed_at.to_rfc3339(),
+        warning.observed_at.to_rfc3339(),
         account_id,
         plan_field,
-        threshold,
+        warning.threshold,
         scope_field,
         reset_field,
-        message,
+        warning.message,
     );
     let write_res = file.write_all(line.as_bytes());
     let unlock_res = file.unlock();
@@ -706,37 +724,29 @@ pub fn record_rate_limit_warning(
     code_home: &Path,
     account_id: &str,
     plan: Option<&str>,
-    scope: RateLimitWarningScope,
-    threshold: f64,
-    reset_at: Option<DateTime<Utc>>,
-    observed_at: DateTime<Utc>,
-    message: &str,
+    warning: RateLimitWarningEvent<'_>,
 ) -> std::io::Result<bool> {
     let mut should_log = false;
     with_usage_file(code_home, account_id, plan, |data| {
-        data.last_updated = observed_at;
+        data.last_updated = warning.observed_at;
         let mut info = data.rate_limit.take().unwrap_or_default();
-        let logs = match scope {
+        let logs = match warning.scope {
             RateLimitWarningScope::Primary => &mut info.primary_threshold_logs,
             RateLimitWarningScope::Secondary => &mut info.secondary_threshold_logs,
         };
-        if record_threshold_log(logs, threshold, reset_at, observed_at) {
+        if record_threshold_log(
+            logs,
+            warning.threshold,
+            warning.reset_at,
+            warning.observed_at,
+        ) {
             should_log = true;
         }
         data.rate_limit = Some(info);
     })?;
 
     if should_log {
-        append_rate_limit_warning_log(
-            code_home,
-            account_id,
-            plan,
-            scope,
-            threshold,
-            reset_at,
-            observed_at,
-            message,
-        )?;
+        append_rate_limit_warning_log(code_home, account_id, plan, &warning)?;
     }
 
     Ok(should_log)
@@ -906,11 +916,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(reset_at),
-            now,
-            "Secondary usage exceeded 75% of the limit. Run /limits for detailed usage.",
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(reset_at),
+                now,
+                "Secondary usage exceeded 75% of the limit. Run /limits for detailed usage.",
+            ),
         )
         .expect("first record succeeds");
 
@@ -920,11 +932,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(now + Duration::days(7) + Duration::hours(6)),
-            now + Duration::hours(6),
-            "Secondary usage exceeded 75% of the limit. Run /limits for detailed usage.",
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(now + Duration::days(7) + Duration::hours(6)),
+                now + Duration::hours(6),
+                "Secondary usage exceeded 75% of the limit. Run /limits for detailed usage.",
+            ),
         )
         .expect("second record succeeds");
 
@@ -934,11 +948,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(now + Duration::days(15)),
-            now + Duration::days(8),
-            "Secondary usage exceeded 75% of the limit. Run /limits for detailed usage.",
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(now + Duration::days(15)),
+                now + Duration::days(8),
+                "Secondary usage exceeded 75% of the limit. Run /limits for detailed usage.",
+            ),
         )
         .expect("third record succeeds");
 
@@ -955,11 +971,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(now + Duration::hours(1)),
-            now,
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(now + Duration::hours(1)),
+                now,
+                msg,
+            ),
         )
         .expect("first record succeeds");
         assert!(first);
@@ -970,11 +988,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(now + Duration::hours(2)),
-            now + Duration::minutes(65),
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(now + Duration::hours(2)),
+                now + Duration::minutes(65),
+                msg,
+            ),
         )
         .expect("second record succeeds");
         assert!(second, "after reset we should log again even if next window is later");
@@ -984,11 +1004,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(now + Duration::hours(2)),
-            now + Duration::minutes(70),
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(now + Duration::hours(2)),
+                now + Duration::minutes(70),
+                msg,
+            ),
         )
         .expect("third record succeeds");
         assert!(!third, "duplicate logging inside the same window should stay muted");
@@ -1005,11 +1027,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(reset_at),
-            reset_at - Duration::seconds(3),
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(reset_at),
+                reset_at - Duration::seconds(3),
+                msg,
+            ),
         )
         .expect("first record succeeds");
         assert!(first);
@@ -1019,11 +1043,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(reset_at + Duration::hours(1)),
-            reset_at + Duration::seconds(45),
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(reset_at + Duration::hours(1)),
+                reset_at + Duration::seconds(45),
+                msg,
+            ),
         )
         .expect("second record succeeds");
         assert!(second, "post-reset poll should emit again even if prior log was moments before reset");
@@ -1039,11 +1065,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(now + Duration::hours(1)),
-            now,
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(now + Duration::hours(1)),
+                now,
+                msg,
+            ),
         )
         .expect("first record succeeds");
         assert!(first);
@@ -1053,11 +1081,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            None,
-            now + Duration::minutes(20),
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                None,
+                now + Duration::minutes(20),
+                msg,
+            ),
         )
         .expect("second record succeeds");
         assert!(!second, "dropping reset info should keep warning muted initially");
@@ -1067,11 +1097,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            None,
-            now + Duration::hours(25),
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                None,
+                now + Duration::hours(25),
+                msg,
+            ),
         )
         .expect("third record succeeds");
         assert!(third, "after backoff expires we should re-emit");
@@ -1087,11 +1119,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(now + Duration::hours(1)),
-            now,
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(now + Duration::hours(1)),
+                now,
+                msg,
+            ),
         )
         .expect("first record succeeds");
         assert!(first);
@@ -1100,11 +1134,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            None,
-            now + Duration::minutes(20),
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                None,
+                now + Duration::minutes(20),
+                msg,
+            ),
         )
         .expect("second record succeeds");
         assert!(!second);
@@ -1113,11 +1149,13 @@ mod tests {
             home.path(),
             "acct-1",
             Some("Team"),
-            RateLimitWarningScope::Secondary,
-            75.0,
-            Some(now + Duration::hours(30)),
-            now + Duration::hours(25),
-            msg,
+            RateLimitWarningEvent::new(
+                RateLimitWarningScope::Secondary,
+                75.0,
+                Some(now + Duration::hours(30)),
+                now + Duration::hours(25),
+                msg,
+            ),
         )
         .expect("third record succeeds");
         assert!(third, "restored reset metadata after fallback window should re-log");

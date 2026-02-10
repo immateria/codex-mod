@@ -326,15 +326,16 @@ impl ChatWidget<'_> {
                 )]));
             } else {
                 for (time, label, detail) in entries {
-                    let mut spans: Vec<Span> = Vec::new();
-                    spans.push(Span::styled("•", secondary_style));
-                    spans.push(Span::raw(" "));
-                    spans.push(Span::styled(
-                        self.normalize_action_time_label(time.as_str()),
-                        secondary_style,
-                    ));
-                    spans.push(Span::raw("  "));
-                    spans.push(Span::styled(label.clone(), primary_style));
+                    let mut spans: Vec<Span> = vec![
+                        Span::styled("•", secondary_style),
+                        Span::raw(" "),
+                        Span::styled(
+                            self.normalize_action_time_label(time.as_str()),
+                            secondary_style,
+                        ),
+                        Span::raw("  "),
+                        Span::styled(label.clone(), primary_style),
+                    ];
                     let detail_trimmed = detail.trim();
                     if !detail_trimmed.is_empty() {
                         spans.push(Span::raw(" "));
@@ -2682,10 +2683,7 @@ impl WidgetRef for &ChatWidget<'_> {
             StatefulWidget::render(sb, sb_area, buf, &mut sb_state);
         }
 
-        if self.terminal.overlay().is_some() {
-            let bg_style = Style::default().bg(crate::colors::background());
-            fill_rect(buf, bottom_pane_area, Some(' '), bg_style);
-        } else if self.agents_terminal.active {
+        if self.terminal.overlay().is_some() || self.agents_terminal.active {
             let bg_style = Style::default().bg(crate::colors::background());
             fill_rect(buf, bottom_pane_area, Some(' '), bg_style);
         } else {

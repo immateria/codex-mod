@@ -282,19 +282,13 @@ impl ChatWidget<'_> {
                 .find(|a| a.name.eq_ignore_ascii_case(name))
             {
                 let builtin = Self::is_builtin_agent(&cfg.name, &cfg.command);
-                    let spec_cli = agent_model_spec(&cfg.name)
-                        .or_else(|| agent_model_spec(&cfg.command))
-                        .map(|spec| spec.cli);
+                let spec_cli = agent_model_spec(&cfg.name)
+                    .or_else(|| agent_model_spec(&cfg.command))
+                    .map(|spec| spec.cli);
                 let command_to_check = command_for_check(&cfg.command);
-                let installed = if builtin {
-                    true
-                } else if command_exists(&command_to_check) {
-                    true
-                } else if let Some(cli) = spec_cli {
-                    command_exists(cli)
-                } else {
-                    false
-                };
+                let installed = builtin
+                    || command_exists(&command_to_check)
+                    || spec_cli.is_some_and(command_exists);
                 agent_rows.push(AgentOverviewRow {
                     name: cfg.name.clone(),
                     enabled: cfg.enabled && installed,
@@ -311,15 +305,9 @@ impl ChatWidget<'_> {
                     .or_else(|| agent_model_spec(&cfg.command))
                     .map(|spec| spec.cli);
                 let command_to_check = command_for_check(&cfg.command);
-                let installed = if builtin {
-                    true
-                } else if command_exists(&command_to_check) {
-                    true
-                } else if let Some(cli) = spec_cli {
-                    command_exists(cli)
-                } else {
-                    false
-                };
+                let installed = builtin
+                    || command_exists(&command_to_check)
+                    || spec_cli.is_some_and(command_exists);
                 agent_rows.push(AgentOverviewRow {
                     name: cfg.name.clone(),
                     enabled: cfg.enabled && installed,
@@ -334,13 +322,7 @@ impl ChatWidget<'_> {
                 let cmd = name.clone();
                 let builtin = Self::is_builtin_agent(name, &cmd);
                 let spec_cli = agent_model_spec(name).map(|spec| spec.cli);
-                let installed = if builtin {
-                    true
-                } else if let Some(cli) = spec_cli {
-                    command_exists(cli)
-                } else {
-                    command_exists(&cmd)
-                };
+                let installed = builtin || spec_cli.is_some_and(command_exists) || command_exists(&cmd);
                 agent_rows.push(AgentOverviewRow {
                     name: name.clone(),
                     enabled: installed,

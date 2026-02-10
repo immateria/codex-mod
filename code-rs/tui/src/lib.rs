@@ -818,19 +818,19 @@ fn run_ratatui_app(
         resume_session_id: _,
         ..
     } = cli;
-    let mut app = App::new(
-        config.clone(),
-        prompt,
-        images,
-        should_show_trust_screen,
+    let mut app = App::new(app::AppInitArgs {
+        config: config.clone(),
+        initial_prompt: prompt,
+        initial_images: images,
+        show_trust_screen: should_show_trust_screen,
         debug,
-        order,
+        show_order_overlay: order,
         terminal_info,
-        timing,
+        enable_perf: timing,
         resume_picker,
         startup_footer_notice,
         latest_upgrade_version,
-    );
+    });
 
     let app_result = app.run(&mut terminal);
     let session_id = app.session_id();

@@ -161,10 +161,7 @@ impl Page {
                         .map(|d| d.as_millis() as i128)
                         .unwrap_or(0);
                     // Join args into a readable string; also keep raw values
-                    let text = match serde_json::to_string(&evt.args) {
-                        Ok(s) => s,
-                        Err(_) => String::new(),
-                    };
+                    let text = serde_json::to_string(&evt.args).unwrap_or_default();
                     let item = serde_json::json!({
                         "ts_unix_ms": ts,
                         "level": format!("{:?}", evt.r#type),
@@ -542,7 +539,7 @@ impl Page {
     ///   with from_surface(true) immediately (safe when not visible). Fallbacks stay conservative.
     /// - Final fallback: If two attempts with false fail even while visible, we try true once rather than
     ///   failing entirely. This prevents chronic timeouts; the flash trade-off is acceptable as a last resort.
-    /// Do not loosen these guarantees casually; they were tuned to balance reliability and no-flash UX.
+    ///   Do not loosen these guarantees casually; they were tuned to balance reliability and no-flash UX.
     async fn capture_screenshot_with_retry(
         &self,
         params_builder: chromiumoxide::cdp::browser_protocol::page::CaptureScreenshotParamsBuilder,

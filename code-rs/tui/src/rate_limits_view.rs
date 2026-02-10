@@ -335,8 +335,7 @@ fn build_hourly_reset_line(
         let prefix = field_prefix("Resets");
         if let Some(timing) = compute_window_timing(window_minutes, next) {
             let remaining = format_duration(timing.remaining);
-            let mut spans: Vec<Span<'static>> = Vec::new();
-            spans.push(Span::raw(prefix));
+            let mut spans: Vec<Span<'static>> = vec![Span::raw(prefix)];
             let time_display = format_reset_timestamp(timing.next_reset_local, false);
             spans.push(Span::raw("at "));
             spans.push(Span::raw(time_display));
@@ -354,12 +353,13 @@ fn build_hourly_reset_line(
             ),
         ]);
     }
-    let mut spans: Vec<Span<'static>> = Vec::new();
-    spans.push(Span::raw(field_prefix("Resets")));
-    spans.push(Span::styled(
-        "awaiting reset timing…".to_string(),
-        Style::default().fg(colors::dim()),
-    ));
+    let spans: Vec<Span<'static>> = vec![
+        Span::raw(field_prefix("Resets")),
+        Span::styled(
+            "awaiting reset timing…".to_string(),
+            Style::default().fg(colors::dim()),
+        ),
+    ];
     Line::from(spans)
 }
 
@@ -421,8 +421,7 @@ fn build_weekly_reset_line(
         let prefix = field_prefix("Resets");
         if let Some(timing) = compute_window_timing(window_minutes, next) {
             let remaining = format_duration(timing.remaining);
-            let mut spans: Vec<Span<'static>> = Vec::new();
-            spans.push(Span::raw(prefix));
+            let mut spans: Vec<Span<'static>> = vec![Span::raw(prefix)];
             let detailed_display = format_reset_timestamp(timing.next_reset_local, true);
             spans.push(Span::raw(detailed_display));
             spans.push(Span::styled(
@@ -439,12 +438,13 @@ fn build_weekly_reset_line(
             ),
         ]);
     }
-    let mut spans: Vec<Span<'static>> = Vec::new();
-    spans.push(Span::raw(field_prefix("Resets")));
-    spans.push(Span::styled(
-        "awaiting reset timing…".to_string(),
-        Style::default().fg(colors::dim()),
-    ));
+    let spans: Vec<Span<'static>> = vec![
+        Span::raw(field_prefix("Resets")),
+        Span::styled(
+            "awaiting reset timing…".to_string(),
+            Style::default().fg(colors::dim()),
+        ),
+    ];
     Line::from(spans)
 }
 

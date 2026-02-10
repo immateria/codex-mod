@@ -1216,16 +1216,16 @@ impl ChatWidget<'_> {
             let (has_findings, findings, summary) = Self::parse_agent_review_result(agent.result.as_deref());
 
             self.processed_auto_review_agents.insert(agent.id.clone());
-            self.on_background_review_finished(
+            self.on_background_review_finished(BackgroundReviewFinishedEvent {
                 worktree_path,
                 branch,
                 has_findings,
                 findings,
                 summary,
-                agent.error.clone(),
-                Some(agent.id.clone()),
+                error: agent.error.clone(),
+                agent_id: Some(agent.id.clone()),
                 snapshot,
-            );
+            });
         }
     }
 
@@ -1495,15 +1495,18 @@ impl ChatWidget<'_> {
 
     pub(crate) fn on_background_review_finished(
         &mut self,
-        worktree_path: std::path::PathBuf,
-        branch: String,
-        has_findings: bool,
-        findings: usize,
-        summary: Option<String>,
-        error: Option<String>,
-        agent_id: Option<String>,
-        snapshot: Option<String>,
+        event: BackgroundReviewFinishedEvent,
     ) {
+        let BackgroundReviewFinishedEvent {
+            worktree_path,
+            branch,
+            has_findings,
+            findings,
+            summary,
+            error,
+            agent_id,
+            snapshot,
+        } = event;
         // Normalize zero-count "issues" so the indicator and developer notes stay
         // aligned with the overlay: if the parser could not produce a findings list,
         // treat the run as clean instead of "fixed".

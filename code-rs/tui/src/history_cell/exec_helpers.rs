@@ -45,12 +45,7 @@ pub(crate) fn exec_command_lines(
 pub(crate) fn first_context_path(parsed_commands: &[ParsedCommand]) -> Option<String> {
     for parsed in parsed_commands.iter() {
         match parsed {
-            ParsedCommand::ListFiles { path, .. } => {
-                if let Some(p) = path {
-                    return Some(p.clone());
-                }
-            }
-            ParsedCommand::Search { path, .. } => {
+            ParsedCommand::ListFiles { path, .. } | ParsedCommand::Search { path, .. } => {
                 if let Some(p) = path {
                     return Some(p.clone());
                 }
@@ -889,9 +884,7 @@ pub(crate) fn emphasize_shell_command_name(line: &mut Line<'static>) {
         emphasized = true;
     }
 
-    if emphasized {
-        line.spans = rebuilt;
-    } else if !rebuilt.is_empty() {
+    if emphasized || !rebuilt.is_empty() {
         line.spans = rebuilt;
     }
 }
@@ -1074,10 +1067,12 @@ fn heredoc_delimiter(token: &str) -> Option<String> {
     if delim.is_empty() {
         return None;
     }
-    if delim.starts_with('"') && delim.ends_with('"') && delim.len() >= 2 {
-        delim = delim[1..delim.len() - 1].to_string();
-    } else if delim.starts_with('\'') && delim.ends_with('\'') && delim.len() >= 2 {
-        delim = delim[1..delim.len() - 1].to_string();
+    if delim.len() >= 2 {
+        let first = delim.chars().next();
+        let last = delim.chars().next_back();
+        if matches!((first, last), (Some('"'), Some('"')) | (Some('\''), Some('\''))) {
+            delim = delim[1..delim.len() - 1].to_string();
+        }
     }
     if delim.is_empty() {
         None

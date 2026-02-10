@@ -199,17 +199,31 @@ pub async fn delete_subagent_command(code_home: &Path, name: &str) -> Result<boo
 /// (case-insensitive) name exists, update selected fields; otherwise append a
 /// new entry with the provided values. Fields not managed by the editor are
 /// preserved when updating.
+pub struct AgentConfigPatch<'a> {
+    pub name: &'a str,
+    pub enabled: Option<bool>,
+    pub args: Option<&'a [String]>,
+    pub args_read_only: Option<&'a [String]>,
+    pub args_write: Option<&'a [String]>,
+    pub instructions: Option<&'a str>,
+    pub description: Option<&'a str>,
+    pub command: Option<&'a str>,
+}
+
 pub async fn upsert_agent_config(
     code_home: &Path,
-    name: &str,
-    enabled: Option<bool>,
-    args: Option<&[String]>,
-    args_read_only: Option<&[String]>,
-    args_write: Option<&[String]>,
-    instructions: Option<&str>,
-    description: Option<&str>,
-    command: Option<&str>,
+    patch: AgentConfigPatch<'_>,
 ) -> Result<()> {
+    let AgentConfigPatch {
+        name,
+        enabled,
+        args,
+        args_read_only,
+        args_write,
+        instructions,
+        description,
+        command,
+    } = patch;
     let config_path = code_home.join(CONFIG_TOML_FILE);
 
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
@@ -225,7 +239,25 @@ pub async fn upsert_agent_config(
     // Search existing [[agents]] for a case‑insensitive name match
     let mut found = false;
     if let Some(item) = doc.as_table().get("agents").cloned() {
-        let Some(arr) = item.as_array_of_tables() else { /* not an array, treat as missing */ return write_new_or_append(doc, code_home, config_path, name, enabled, args, args_read_only, args_write, instructions, description, command).await };
+        let Some(arr) = item.as_array_of_tables() else {
+            /* not an array, treat as missing */
+            return write_new_or_append(
+                doc,
+                code_home,
+                config_path,
+                AgentConfigPatch {
+                    name,
+                    enabled,
+                    args,
+                    args_read_only,
+                    args_write,
+                    instructions,
+                    description,
+                    command,
+                },
+            )
+            .await;
+        };
         let mut new_arr = toml_edit::ArrayOfTables::new();
         for tbl_ref in arr.iter() {
             let mut tbl = tbl_ref.clone();
@@ -270,7 +302,19 @@ pub async fn upsert_agent_config(
 
     if !found {
         // Append a new entry safely
-        append_agent_entry(&mut doc, name, enabled, args, args_read_only, args_write, instructions, description, command);
+        append_agent_entry(
+            &mut doc,
+            AgentConfigPatch {
+                name,
+                enabled,
+                args,
+                args_read_only,
+                args_write,
+                instructions,
+                description,
+                command,
+            },
+        );
     }
 
     // Write back atomically
@@ -283,15 +327,18 @@ pub async fn upsert_agent_config(
 // Helper: append a single [[agents]] entry (no-alloc fallible path wrapper above)
 fn append_agent_entry(
     doc: &mut DocumentMut,
-    name: &str,
-    enabled: Option<bool>,
-    args: Option<&[String]>,
-    args_read_only: Option<&[String]>,
-    args_write: Option<&[String]>,
-    instructions: Option<&str>,
-    description: Option<&str>,
-    command: Option<&str>,
+    patch: AgentConfigPatch<'_>,
 ) {
+    let AgentConfigPatch {
+        name,
+        enabled,
+        args,
+        args_read_only,
+        args_write,
+        instructions,
+        description,
+        command,
+    } = patch;
     let mut t = toml_edit::Table::new();
     t.set_implicit(true);
     t["name"] = toml_edit::value(name.to_string());
@@ -319,16 +366,9 @@ async fn write_new_or_append(
     mut doc: DocumentMut,
     code_home: &Path,
     config_path: std::path::PathBuf,
-    name: &str,
-    enabled: Option<bool>,
-    args: Option<&[String]>,
-    args_read_only: Option<&[String]>,
-    args_write: Option<&[String]>,
-    instructions: Option<&str>,
-    description: Option<&str>,
-    command: Option<&str>,
+    patch: AgentConfigPatch<'_>,
 ) -> Result<()> {
-    append_agent_entry(&mut doc, name, enabled, args, args_read_only, args_write, instructions, description, command);
+    append_agent_entry(&mut doc, patch);
     let tmp_file = NamedTempFile::new_in(code_home)?;
     tokio::fs::write(tmp_file.path(), doc.to_string()).await?;
     tmp_file.persist(config_path)?;

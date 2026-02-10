@@ -379,11 +379,10 @@ impl HistoryRenderState {
                 let prohibit_cache = matches!(req.kind, RenderRequestKind::Streaming { .. });
                 let use_cache = req.use_cache && !prohibit_cache;
 
-                let layout = if has_custom_render {
-                    None
-                } else if settings.width == 0 {
-                    None
-                } else if assistant_plan.is_some() {
+                let layout = if has_custom_render
+                    || settings.width == 0
+                    || assistant_plan.is_some()
+                {
                     None
                 } else if use_cache && req.history_id != HistoryId::ZERO {
                     Some(self.render_cached(req.history_id, settings, || {

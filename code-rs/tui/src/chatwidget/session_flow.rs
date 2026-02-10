@@ -15,16 +15,17 @@ impl ChatWidget<'_> {
     pub(super) fn try_stream_order_key(&self, kind: StreamKind, id: &str) -> Option<OrderKey> {
         self.stream_order_seq.get(&(kind, id.to_string())).copied()
     }
-    pub(crate) fn new(
-        mut config: Config,
-        app_event_tx: AppEventSender,
-        initial_prompt: Option<String>,
-        initial_images: Vec<PathBuf>,
-        enhanced_keys_supported: bool,
-        terminal_info: crate::tui::TerminalInfo,
-        show_order_overlay: bool,
-        latest_upgrade_version: Option<String>,
-    ) -> Self {
+    pub(crate) fn new(args: ChatWidgetInit) -> Self {
+        let ChatWidgetInit {
+            mut config,
+            app_event_tx,
+            initial_prompt,
+            initial_images,
+            enhanced_keys_supported,
+            terminal_info,
+            show_order_overlay,
+            latest_upgrade_version,
+        } = args;
         let mapped_theme = crate::theme::map_theme_for_palette(
             config.tui.theme.name,
             config.tui.theme.is_dark,
@@ -351,7 +352,7 @@ impl ChatWidget<'_> {
                 let record = HistoryDomainRecord::BackgroundEvent(cell.state().clone());
                 w.push_system_cell(
                     Box::new(cell),
-                    SystemPlacement::EarlyInCurrent,
+                    SystemPlacement::Early,
                     None,
                     None,
                     "background",
@@ -376,18 +377,19 @@ impl ChatWidget<'_> {
     }
 
     /// Construct a ChatWidget from an existing conversation (forked session).
-    pub(crate) fn new_from_existing(
-        config: Config,
-        conversation: std::sync::Arc<code_core::CodexConversation>,
-        session_configured: SessionConfiguredEvent,
-        app_event_tx: AppEventSender,
-        enhanced_keys_supported: bool,
-        terminal_info: crate::tui::TerminalInfo,
-        show_order_overlay: bool,
-        latest_upgrade_version: Option<String>,
-        auth_manager: Arc<AuthManager>,
-        show_welcome: bool,
-    ) -> Self {
+    pub(crate) fn new_from_existing(args: ForkedChatWidgetInit) -> Self {
+        let ForkedChatWidgetInit {
+            config,
+            conversation,
+            session_configured,
+            app_event_tx,
+            enhanced_keys_supported,
+            terminal_info,
+            show_order_overlay,
+            latest_upgrade_version,
+            auth_manager,
+            show_welcome,
+        } = args;
         remember_cwd_history(&config.cwd);
         let (code_op_tx, mut code_op_rx) = unbounded_channel::<Op>();
 

@@ -118,16 +118,17 @@ impl SettingsContent for ChromeSettingsContent {
             return;
         }
 
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from(vec![Span::styled(
-            "Chrome is already running or CDP connection failed",
-            Style::default()
-                .fg(crate::colors::warning())
-                .add_modifier(Modifier::BOLD),
-        )]));
-        lines.push(Line::from(""));
-        lines.push(Line::from("Select an option:"));
-        lines.push(Line::from(""));
+        let mut lines: Vec<Line<'static>> = vec![
+            Line::from(vec![Span::styled(
+                "Chrome is already running or CDP connection failed",
+                Style::default()
+                    .fg(crate::colors::warning())
+                    .add_modifier(Modifier::BOLD),
+            )]),
+            Line::from(""),
+            Line::from("Select an option:"),
+            Line::from(""),
+        ];
 
         for (idx, (_, label, description)) in Self::options().iter().enumerate() {
             let selected = idx == self.selected_index;

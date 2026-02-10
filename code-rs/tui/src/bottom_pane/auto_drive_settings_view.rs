@@ -31,20 +31,33 @@ pub(crate) struct AutoDriveSettingsView {
     closing: bool,
 }
 
+pub(crate) struct AutoDriveSettingsInit {
+    pub(crate) app_event_tx: AppEventSender,
+    pub(crate) model: String,
+    pub(crate) model_reasoning: ReasoningEffort,
+    pub(crate) use_chat_model: bool,
+    pub(crate) review_enabled: bool,
+    pub(crate) agents_enabled: bool,
+    pub(crate) cross_check_enabled: bool,
+    pub(crate) qa_automation_enabled: bool,
+    pub(crate) continue_mode: AutoContinueMode,
+}
+
 impl AutoDriveSettingsView {
     const PANEL_TITLE: &'static str = "Auto Drive Settings";
 
-    pub fn new(
-        app_event_tx: AppEventSender,
-        model: String,
-        model_reasoning: ReasoningEffort,
-        use_chat_model: bool,
-        review_enabled: bool,
-        agents_enabled: bool,
-        cross_check_enabled: bool,
-        qa_automation_enabled: bool,
-        continue_mode: AutoContinueMode,
-    ) -> Self {
+    pub fn new(init: AutoDriveSettingsInit) -> Self {
+        let AutoDriveSettingsInit {
+            app_event_tx,
+            model,
+            model_reasoning,
+            use_chat_model,
+            review_enabled,
+            agents_enabled,
+            cross_check_enabled,
+            qa_automation_enabled,
+            continue_mode,
+        } = init;
         let diagnostics_enabled = qa_automation_enabled
             && (review_enabled || cross_check_enabled);
         Self {
@@ -285,12 +298,13 @@ impl AutoDriveSettingsView {
     }
 
     fn info_lines(&self) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
-        lines.push(self.option_label(0));
-        lines.push(self.option_label(1));
-        lines.push(self.option_label(2));
-        lines.push(self.option_label(3));
-        lines.push(Line::default());
+        let mut lines = vec![
+            self.option_label(0),
+            self.option_label(1),
+            self.option_label(2),
+            self.option_label(3),
+            Line::default(),
+        ];
 
         let footer_style = Style::default().fg(colors::text_dim());
         lines.push(Line::from(vec![

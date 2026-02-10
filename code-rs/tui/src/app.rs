@@ -5,4 +5,4 @@ mod render;
 mod state;
 mod terminal;
 
-pub(crate) use state::{App, ChatWidgetArgs};
+pub(crate) use state::{App, AppInitArgs, ChatWidgetArgs};

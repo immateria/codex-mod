@@ -52,31 +52,78 @@ struct InstallDecision {
     command: Option<String>,
 }
 
-pub(super) fn start_agent_install_session(
+pub(super) struct GuidedTerminalControl {
+    pub(super) controller: TerminalRunController,
+    pub(super) controller_rx: Receiver<TerminalRunEvent>,
+}
+
+pub(super) struct AgentInstallSessionArgs {
+    pub(super) app_event_tx: AppEventSender,
+    pub(super) terminal_id: u64,
+    pub(super) agent_name: String,
+    pub(super) default_command: String,
+    pub(super) cwd: Option<String>,
+    pub(super) control: GuidedTerminalControl,
+    pub(super) selected_index: usize,
+    pub(super) debug_enabled: bool,
+}
+
+pub(super) struct UpgradeTerminalSessionArgs {
+    pub(super) app_event_tx: AppEventSender,
+    pub(super) terminal_id: u64,
+    pub(super) initial_command: String,
+    pub(super) latest_version: Option<String>,
+    pub(super) cwd: Option<String>,
+    pub(super) control: GuidedTerminalControl,
+    pub(super) config: Config,
+    pub(super) debug_enabled: bool,
+}
+
+struct GuidedTerminalSessionArgs {
     app_event_tx: AppEventSender,
     terminal_id: u64,
-    agent_name: String,
-    default_command: String,
+    mode: GuidedTerminalMode,
     cwd: Option<String>,
-    controller: TerminalRunController,
-    controller_rx: Receiver<TerminalRunEvent>,
-    selected_index: usize,
+    control: GuidedTerminalControl,
+    config: Option<Config>,
     debug_enabled: bool,
-) {
-    start_guided_terminal_session(
+}
+
+struct GuidedLoopArgs<'a> {
+    app_event_tx: &'a AppEventSender,
+    terminal_id: u64,
+    mode: &'a GuidedTerminalMode,
+    cwd: Option<&'a str>,
+    controller: TerminalRunController,
+    controller_rx: &'a mut Receiver<TerminalRunEvent>,
+    provided_config: Option<Config>,
+    debug_enabled: bool,
+}
+
+pub(super) fn start_agent_install_session(args: AgentInstallSessionArgs) {
+    let AgentInstallSessionArgs {
         app_event_tx,
         terminal_id,
-        GuidedTerminalMode::AgentInstall {
+        agent_name,
+        default_command,
+        cwd,
+        control,
+        selected_index,
+        debug_enabled,
+    } = args;
+    start_guided_terminal_session(GuidedTerminalSessionArgs {
+        app_event_tx,
+        terminal_id,
+        mode: GuidedTerminalMode::AgentInstall {
             agent_name,
             default_command,
             selected_index,
         },
         cwd,
-        controller,
-        controller_rx,
-        None,
+        control,
+        config: None,
         debug_enabled,
-    );
+    });
 }
 
 pub(super) fn start_prompt_terminal_session(
@@ -88,16 +135,18 @@ pub(super) fn start_prompt_terminal_session(
     controller_rx: Receiver<TerminalRunEvent>,
     debug_enabled: bool,
 ) {
-    start_guided_terminal_session(
+    start_guided_terminal_session(GuidedTerminalSessionArgs {
         app_event_tx,
         terminal_id,
-        GuidedTerminalMode::Prompt { user_prompt },
+        mode: GuidedTerminalMode::Prompt { user_prompt },
         cwd,
-        controller,
-        controller_rx,
-        None,
+        control: GuidedTerminalControl {
+            controller,
+            controller_rx,
+        },
+        config: None,
         debug_enabled,
-    );
+    });
 }
 
 pub(super) fn start_direct_terminal_session(
@@ -109,58 +158,60 @@ pub(super) fn start_direct_terminal_session(
     controller_rx: Receiver<TerminalRunEvent>,
     debug_enabled: bool,
 ) {
-    start_guided_terminal_session(
+    start_guided_terminal_session(GuidedTerminalSessionArgs {
         app_event_tx,
         terminal_id,
-        GuidedTerminalMode::DirectCommand { command },
+        mode: GuidedTerminalMode::DirectCommand { command },
         cwd,
-        controller,
-        controller_rx,
-        None,
+        control: GuidedTerminalControl {
+            controller,
+            controller_rx,
+        },
+        config: None,
         debug_enabled,
-    );
+    });
 }
 
-pub(super) fn start_upgrade_terminal_session(
-    app_event_tx: AppEventSender,
-    terminal_id: u64,
-    initial_command: String,
-    latest_version: Option<String>,
-    cwd: Option<String>,
-    controller: TerminalRunController,
-    controller_rx: Receiver<TerminalRunEvent>,
-    config: Config,
-    debug_enabled: bool,
-) {
-    start_guided_terminal_session(
+pub(super) fn start_upgrade_terminal_session(args: UpgradeTerminalSessionArgs) {
+    let UpgradeTerminalSessionArgs {
         app_event_tx,
         terminal_id,
-        GuidedTerminalMode::Upgrade {
+        initial_command,
+        latest_version,
+        cwd,
+        control,
+        config,
+        debug_enabled,
+    } = args;
+    start_guided_terminal_session(GuidedTerminalSessionArgs {
+        app_event_tx,
+        terminal_id,
+        mode: GuidedTerminalMode::Upgrade {
             initial_command,
             latest_version,
         },
         cwd,
-        controller,
-        controller_rx,
-        Some(config),
+        control,
+        config: Some(config),
         debug_enabled,
-    );
+    });
 }
 
-fn start_guided_terminal_session(
-    app_event_tx: AppEventSender,
-    terminal_id: u64,
-    mode: GuidedTerminalMode,
-    cwd: Option<String>,
-    controller: TerminalRunController,
-    controller_rx: Receiver<TerminalRunEvent>,
-    config: Option<Config>,
-    debug_enabled: bool,
-) {
+fn start_guided_terminal_session(args: GuidedTerminalSessionArgs) {
+    let GuidedTerminalSessionArgs {
+        app_event_tx,
+        terminal_id,
+        mode,
+        cwd,
+        control,
+        config,
+        debug_enabled,
+    } = args;
     let fail_tx = app_event_tx.clone();
     if let Err(err) = std::thread::Builder::new()
         .name("guided-terminal-session".to_string())
         .spawn(move || {
+        let mut control = control;
         let runtime = match tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -187,17 +238,18 @@ fn start_guided_terminal_session(
             }
         };
 
-        let mut controller_rx = controller_rx;
         if let Err(err) = run_guided_loop(
             &runtime,
-            &app_event_tx,
-            terminal_id,
-            &mode,
-            cwd.as_deref(),
-            controller,
-            &mut controller_rx,
-            config,
-            debug_enabled,
+            GuidedLoopArgs {
+                app_event_tx: &app_event_tx,
+                terminal_id,
+                mode: &mode,
+                cwd: cwd.as_deref(),
+                controller: control.controller,
+                controller_rx: &mut control.controller_rx,
+                provided_config: config,
+                debug_enabled,
+            },
         ) {
             let helper = match &mode {
                 GuidedTerminalMode::AgentInstall { .. } => "Install helper",
@@ -232,17 +284,17 @@ fn start_guided_terminal_session(
     }
 }
 
-fn run_guided_loop(
-    runtime: &tokio::runtime::Runtime,
-    app_event_tx: &AppEventSender,
-    terminal_id: u64,
-    mode: &GuidedTerminalMode,
-    cwd: Option<&str>,
-    controller: TerminalRunController,
-    controller_rx: &mut Receiver<TerminalRunEvent>,
-    provided_config: Option<Config>,
-    debug_enabled: bool,
-) -> Result<()> {
+fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) -> Result<()> {
+    let GuidedLoopArgs {
+        app_event_tx,
+        terminal_id,
+        mode,
+        cwd,
+        controller,
+        controller_rx,
+        provided_config,
+        debug_enabled,
+    } = args;
     let cfg = match provided_config {
         Some(cfg) => cfg,
         None => Config::load_with_cli_overrides(vec![], ConfigOverrides::default())
@@ -262,17 +314,17 @@ fn run_guided_loop(
         .or_else(|_| DebugLogger::new(false))
         .context("creating debug logger")?;
 
-    let client = ModelClient::new(
-        Arc::new(cfg.clone()),
-        Some(auth_mgr),
-        None,
-        cfg.model_provider.clone(),
-        ReasoningEffort::Low,
-        cfg.model_reasoning_summary,
-        cfg.model_text_verbosity,
-        Uuid::new_v4(),
-        Arc::new(Mutex::new(debug_logger)),
-    );
+    let client = ModelClient::new(code_core::ModelClientInit {
+        config: Arc::new(cfg.clone()),
+        auth_manager: Some(auth_mgr),
+        otel_event_manager: None,
+        provider: cfg.model_provider.clone(),
+        effort: ReasoningEffort::Low,
+        summary: cfg.model_reasoning_summary,
+        verbosity: cfg.model_text_verbosity,
+        session_id: Uuid::new_v4(),
+        debug_logger: Arc::new(Mutex::new(debug_logger)),
+    });
 
     let platform = std::env::consts::OS;
     let sandbox = if matches!(cfg.sandbox_policy, SandboxPolicy::DangerFullAccess) {
@@ -742,12 +794,13 @@ fn request_decision(
         while let Some(ev) = stream.next().await {
             match ev {
                 Ok(ResponseEvent::OutputTextDelta { delta, .. }) => out.push_str(&delta),
-                Ok(ResponseEvent::OutputItemDone { item, .. }) => {
-                    if let ResponseItem::Message { content, .. } = item {
-                        for c in content {
-                            if let ContentItem::OutputText { text } = c {
-                                out.push_str(&text);
-                            }
+                Ok(ResponseEvent::OutputItemDone {
+                    item: ResponseItem::Message { content, .. },
+                    ..
+                }) => {
+                    for c in content {
+                        if let ContentItem::OutputText { text } = c {
+                            out.push_str(&text);
                         }
                     }
                 }
@@ -882,7 +935,7 @@ fn extract_first_json_object(input: &str) -> Option<String> {
                 }
                 depth -= 1;
                 if depth == 0 {
-                    let Some(s) = start else { return None; };
+                    let s = start?;
                     return Some(input[s..=idx].to_string());
                 }
             }

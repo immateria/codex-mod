@@ -39,6 +39,7 @@ const AUTH_REQUIRED_MESSAGE: &str = "Authentication required. Run `code login` t
 
 use crate::agent_defaults::{default_agent_configs, enabled_agent_model_specs};
 use crate::chat_completions::AggregateStreamExt;
+use crate::chat_completions::ChatCompletionsRequest;
 use crate::chat_completions::stream_chat_completions;
 use crate::client_common::Prompt;
 use crate::client_common::ResponseEvent;
@@ -190,7 +191,7 @@ fn is_reasoning_summary_rejected(error: &Error) -> bool {
     // Only treat as rejection if it's specifically an "unsupported_value" error
     // for the reasoning.summary parameter, or if the message explicitly says
     // the organization must be verified for reasoning summaries.
-    (param_matches && code_matches) || (code_matches && message_matches)
+    code_matches && (param_matches || message_matches)
 }
 
 fn map_unauthorized_outcome(
@@ -228,6 +229,18 @@ pub struct ModelClient {
     debug_logger: Arc<Mutex<DebugLogger>>,
 }
 
+pub struct ModelClientInit {
+    pub config: Arc<Config>,
+    pub auth_manager: Option<Arc<AuthManager>>,
+    pub otel_event_manager: Option<OtelEventManager>,
+    pub provider: ModelProviderInfo,
+    pub effort: ReasoningEffortConfig,
+    pub summary: ReasoningSummaryConfig,
+    pub verbosity: TextVerbosityConfig,
+    pub session_id: Uuid,
+    pub debug_logger: Arc<Mutex<DebugLogger>>,
+}
+
 impl Clone for ModelClient {
     fn clone(&self) -> Self {
         Self {
@@ -249,17 +262,18 @@ impl Clone for ModelClient {
 }
 
 impl ModelClient {
-    pub fn new(
-        config: Arc<Config>,
-        auth_manager: Option<Arc<AuthManager>>,
-        otel_event_manager: Option<OtelEventManager>,
-        provider: ModelProviderInfo,
-        effort: ReasoningEffortConfig,
-        summary: ReasoningSummaryConfig,
-        verbosity: TextVerbosityConfig,
-        session_id: Uuid,
-        debug_logger: Arc<Mutex<DebugLogger>>,
-    ) -> Self {
+    pub fn new(init: ModelClientInit) -> Self {
+        let ModelClientInit {
+            config,
+            auth_manager,
+            otel_event_manager,
+            provider,
+            effort,
+            summary,
+            verbosity,
+            session_id,
+            debug_logger,
+        } = init;
         let effective_verbosity = clamp_text_verbosity_for_model(config.model.as_str(), verbosity);
         let clamped_effort = clamp_reasoning_effort_for_model(config.model.as_str(), effort);
         let client = create_client(&config.responses_originator_header);
@@ -359,16 +373,16 @@ impl ModelClient {
         sandbox_policy: SandboxPolicy,
         model_family: &ModelFamily,
     ) -> ToolsConfig {
-        let mut tools_config = ToolsConfig::new(
+        let mut tools_config = ToolsConfig::new(crate::openai_tools::ToolsConfigParams {
             model_family,
-            self.config.approval_policy,
-            sandbox_policy.clone(),
-            self.config.include_plan_tool,
-            self.config.include_apply_patch_tool,
-            self.config.tools_web_search_request,
-            self.config.use_experimental_streamable_shell_tool,
-            self.config.include_view_image_tool,
-        );
+            approval_policy: self.config.approval_policy,
+            sandbox_policy: sandbox_policy.clone(),
+            include_plan_tool: self.config.include_plan_tool,
+            include_apply_patch_tool: self.config.include_apply_patch_tool,
+            include_web_search_request: self.config.tools_web_search_request,
+            use_streamable_shell_tool: self.config.use_experimental_streamable_shell_tool,
+            include_view_image_tool: self.config.include_view_image_tool,
+        });
         tools_config.web_search_allowed_domains = self.config.tools_web_search_allowed_domains.clone();
 
         let mut agent_models: Vec<String> = if self.config.agents.is_empty() {
@@ -458,17 +472,17 @@ impl ModelClient {
                     .as_deref()
                     .unwrap_or(self.config.model.as_str());
                 // Create the raw streaming connection first.
-                let response_stream = stream_chat_completions(
+                let response_stream = stream_chat_completions(ChatCompletionsRequest {
                     prompt,
-                    effective_family,
+                    model_family: effective_family,
                     model_slug,
-                    &self.client,
-                    &self.provider,
-                    &self.debug_logger,
-                    self.auth_manager.clone(),
-                    self.otel_event_manager.clone(),
+                    client: &self.client,
+                    provider: &self.provider,
+                    debug_logger: &self.debug_logger,
+                    auth_manager: self.auth_manager.clone(),
+                    otel_event_manager: self.otel_event_manager.clone(),
                     log_tag,
-                )
+                })
                 .await?;
 
                 // Wrap it with the aggregation adapter so callers see *only*

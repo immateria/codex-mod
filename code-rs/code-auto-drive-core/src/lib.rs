@@ -31,6 +31,7 @@ pub use controller::{
     AutoContinueMode,
     AutoControllerEffect,
     AutoDriveController,
+    AutoLaunchSettings,
     AutoRunPhase,
     AutoResolvePhase,
     AutoResolveState,

@@ -14,7 +14,7 @@ use code_core::model_family::{derive_default_model_family, find_family_for_model
 use code_core::project_doc::read_auto_drive_docs;
 use code_core::protocol::SandboxPolicy;
 use code_core::slash_commands::get_enabled_agents;
-use code_core::{AuthManager, ModelClient, Prompt, ResponseEvent, TextFormat};
+use code_core::{AuthManager, ModelClient, ModelClientInit, Prompt, ResponseEvent, TextFormat};
 use code_core::{RateLimitSwitchState, switch_active_account_on_rate_limit};
 use code_core::auth;
 use code_core::auth_accounts;
@@ -1058,16 +1058,16 @@ pub fn start_auto_coordinator(
         .name("code-auto-coordinator".to_string())
         .stack_size(1024 * 1024);
     let handle = match builder.spawn(move || {
-        if let Err(err) = run_auto_loop(
+        if let Err(err) = run_auto_loop(AutoLoopInputs {
             event_tx,
             goal_text,
-            conversation,
+            initial_conversation: conversation,
             config,
             cmd_rx,
             debug_enabled,
-            thread_cancel,
+            cancel_token: thread_cancel,
             derive_goal_from_history,
-        ) {
+        }) {
             tracing::error!("auto coordinator loop error: {err:#}");
         }
     }) {
@@ -1085,8 +1085,7 @@ pub fn start_auto_coordinator(
     })
 }
 
-#[tracing::instrument(skip_all, fields(goal = %goal_text, derive_goal = derive_goal_from_history))]
-fn run_auto_loop(
+struct AutoLoopInputs {
     event_tx: AutoCoordinatorEventSender,
     goal_text: String,
     initial_conversation: Vec<ResponseItem>,
@@ -1095,7 +1094,20 @@ fn run_auto_loop(
     debug_enabled: bool,
     cancel_token: CancellationToken,
     derive_goal_from_history: bool,
-) -> Result<()> {
+}
+
+#[tracing::instrument(skip_all)]
+fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
+    let AutoLoopInputs {
+        event_tx,
+        goal_text,
+        initial_conversation,
+        config,
+        cmd_rx,
+        debug_enabled,
+        cancel_token,
+        derive_goal_from_history,
+    } = inputs;
     let mut config = config;
     if config.model.trim().is_empty() {
         config.model = MODEL_SLUG.to_string();
@@ -1144,22 +1156,22 @@ fn run_auto_loop(
     let coordinator_turn_cap = config.auto_drive.coordinator_turn_cap;
     let config = Arc::new(config);
     let active_agent_names = get_enabled_agents(&config.agents);
-    let client = Arc::new(ModelClient::new(
-        config.clone(),
-        Some(auth_mgr),
-        None,
-        model_provider,
-        config.model_reasoning_effort,
-        model_reasoning_summary,
-        model_text_verbosity,
-        Uuid::new_v4(),
-        Arc::new(Mutex::new(
+    let client = Arc::new(ModelClient::new(ModelClientInit {
+        config: config.clone(),
+        auth_manager: Some(auth_mgr),
+        otel_event_manager: None,
+        provider: model_provider,
+        effort: config.model_reasoning_effort,
+        summary: model_reasoning_summary,
+        verbosity: model_text_verbosity,
+        session_id: Uuid::new_v4(),
+        debug_logger: Arc::new(Mutex::new(
             DebugLogger::new(debug_enabled)
                 .unwrap_or_else(|_| {
                     DebugLogger::new(false).unwrap_or_else(|err| panic!("debug logger: {err}"))
                 }),
         )),
-    ));
+    }));
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -1275,16 +1287,16 @@ fn run_auto_loop(
 
             let conv = conv.as_ref().to_vec();
             let mut conv = filter_popular_commands(conv);
-            let compaction_result = maybe_compact(
-                &runtime,
-                client.as_ref(),
-                &event_tx,
-                &mut conv,
-                &session_metrics,
-                prev_compact_summary.as_deref(),
-                &active_model_slug,
-                &compact_prompt_text,
-            );
+            let compaction_result = maybe_compact(CompactionRequest {
+                runtime: &runtime,
+                client: client.as_ref(),
+                event_tx: &event_tx,
+                conversation: &mut conv,
+                metrics: &session_metrics,
+                prev_summary: prev_compact_summary.as_deref(),
+                model_slug: &active_model_slug,
+                compact_prompt: &compact_prompt_text,
+            });
             let conv = Arc::<[ResponseItem]>::from(conv);
             if matches!(compaction_result, CompactionResult::Completed { .. }) {
                 event_tx.send(AutoCoordinatorEvent::CompactedHistory {
@@ -1300,22 +1312,22 @@ fn run_auto_loop(
             let time_budget_message = time_budget.as_mut().and_then(AutoTimeBudget::maybe_nudge);
             let time_budget_deadline = time_budget.as_ref().map(|budget| budget.deadline);
             let loop_warning = session_metrics.loop_detection_warning();
-            match request_coordinator_decision(
-                &runtime,
-                client.as_ref(),
+            match request_coordinator_decision(DecisionRequest {
+                runtime: &runtime,
+                client: client.as_ref(),
                 developer_intro,
-                &primary_goal_message,
-                coordinator_prompt_message.as_deref(),
-                time_budget_message.as_deref(),
+                primary_goal: &primary_goal_message,
+                coordinator_prompt: coordinator_prompt_message.as_deref(),
+                time_budget_message: time_budget_message.as_deref(),
                 time_budget_deadline,
-                loop_warning.as_deref(),
-                &schema,
-                Arc::clone(&conv),
-                auto_instructions.as_deref(),
-                &event_tx,
-                &cancel_token,
-                &active_model_slug,
-            ) {
+                loop_warning: loop_warning.as_deref(),
+                schema: &schema,
+                conversation: Arc::clone(&conv),
+                auto_instructions: auto_instructions.as_deref(),
+                event_tx: &event_tx,
+                cancel_token: &cancel_token,
+                model_slug: active_model_slug.clone(),
+            }) {
                 Ok(ParsedCoordinatorDecision {
                     status,
                     status_title,
@@ -1575,21 +1587,22 @@ fn run_auto_loop(
                 let schema = user_turn_schema();
                 let time_budget_message = time_budget.as_mut().and_then(AutoTimeBudget::maybe_nudge);
                 let time_budget_deadline = time_budget.as_ref().map(|budget| budget.deadline);
-                match request_user_turn_decision(
-                    &runtime,
-                    client.as_ref(),
+                match request_user_turn_decision(DecisionRequest {
+                    runtime: &runtime,
+                    client: client.as_ref(),
                     developer_intro,
-                    &primary_goal_message,
-                    coordinator_prompt_message.as_deref(),
-                    time_budget_message.as_deref(),
+                    primary_goal: &primary_goal_message,
+                    coordinator_prompt: coordinator_prompt_message.as_deref(),
+                    time_budget_message: time_budget_message.as_deref(),
                     time_budget_deadline,
-                    &schema,
-                    Arc::clone(&conversation_snapshot),
-                    auto_instructions.as_deref(),
-                    &event_tx,
-                    &cancel_token,
-                    &active_model_slug,
-                ) {
+                    loop_warning: None,
+                    schema: &schema,
+                    conversation: Arc::clone(&conversation_snapshot),
+                    auto_instructions: auto_instructions.as_deref(),
+                    event_tx: &event_tx,
+                    cancel_token: &cancel_token,
+                    model_slug: active_model_slug.clone(),
+                }) {
                     Ok((user_response, cli_command)) => {
                         let mut updated_conversation = conversation_snapshot.as_ref().to_vec();
                         if let Some(response_text) = user_response.clone() {
@@ -1958,44 +1971,34 @@ struct RequestStreamResult {
     model_slug: String,
 }
 
-#[tracing::instrument(skip_all, fields(conv_items = conversation.len()))]
-fn request_coordinator_decision(
-    runtime: &tokio::runtime::Runtime,
-    client: &ModelClient,
-    developer_intro: &str,
-    primary_goal: &str,
-    coordinator_prompt: Option<&str>,
-    time_budget_message: Option<&str>,
+#[derive(Clone)]
+struct DecisionRequest<'a> {
+    runtime: &'a tokio::runtime::Runtime,
+    client: &'a ModelClient,
+    developer_intro: &'a str,
+    primary_goal: &'a str,
+    coordinator_prompt: Option<&'a str>,
+    time_budget_message: Option<&'a str>,
     time_budget_deadline: Option<Instant>,
-    loop_warning: Option<&str>,
-    schema: &Value,
+    loop_warning: Option<&'a str>,
+    schema: &'a Value,
     conversation: Arc<[ResponseItem]>,
-    auto_instructions: Option<&str>,
-    event_tx: &AutoCoordinatorEventSender,
-    cancel_token: &CancellationToken,
-    preferred_model_slug: &str,
+    auto_instructions: Option<&'a str>,
+    event_tx: &'a AutoCoordinatorEventSender,
+    cancel_token: &'a CancellationToken,
+    model_slug: String,
+}
+
+#[tracing::instrument(skip_all)]
+fn request_coordinator_decision(
+    request: DecisionRequest<'_>,
 ) -> Result<ParsedCoordinatorDecision, DecisionFailure> {
     let RequestStreamResult {
         output_text,
         response_items,
         token_usage,
         model_slug,
-    } = request_decision(
-        runtime,
-        client,
-        developer_intro,
-        primary_goal,
-        coordinator_prompt,
-        time_budget_message,
-        time_budget_deadline,
-        loop_warning,
-        schema,
-        Arc::clone(&conversation),
-        auto_instructions,
-        event_tx,
-        cancel_token,
-        preferred_model_slug,
-    )
+    } = request_decision(request)
     .map_err(|err| DecisionFailure::new(err, "coordinator_decision", None))?;
     if output_text.trim().is_empty() && response_items.is_empty() {
         return Err(DecisionFailure::new(
@@ -2014,69 +2017,28 @@ fn request_coordinator_decision(
 }
 
 fn request_decision(
-    runtime: &tokio::runtime::Runtime,
-    client: &ModelClient,
-    developer_intro: &str,
-    primary_goal: &str,
-    coordinator_prompt: Option<&str>,
-    time_budget_message: Option<&str>,
-    time_budget_deadline: Option<Instant>,
-    loop_warning: Option<&str>,
-    schema: &Value,
-    conversation: Arc<[ResponseItem]>,
-    auto_instructions: Option<&str>,
-    event_tx: &AutoCoordinatorEventSender,
-    cancel_token: &CancellationToken,
-    preferred_model_slug: &str,
+    request: DecisionRequest<'_>,
 ) -> Result<RequestStreamResult> {
-    match request_decision_with_model(
-        runtime,
-        client,
-        developer_intro,
-        primary_goal,
-        coordinator_prompt,
-        time_budget_message,
-        time_budget_deadline,
-        loop_warning,
-        schema,
-        Arc::clone(&conversation),
-        auto_instructions,
-        event_tx,
-        cancel_token,
-        preferred_model_slug,
-    ) {
+    match request_decision_with_model(request.clone()) {
         Ok(result) => Ok(result),
         Err(err) => {
-            let preferred = preferred_model_slug;
-            let fallback_candidate = client.default_model_slug().to_string();
+            let preferred = request.model_slug.as_str();
+            let fallback_candidate = request.client.default_model_slug().to_string();
             let fallback_slug = if fallback_candidate.eq_ignore_ascii_case(preferred) {
                 MODEL_SLUG.to_string()
             } else {
                 fallback_candidate
             };
-            if fallback_slug != preferred_model_slug && should_retry_with_default_model(&err) {
+            if fallback_slug != preferred && should_retry_with_default_model(&err) {
                 debug!(
                     preferred = %preferred,
                     fallback = %fallback_slug,
                     "auto coordinator falling back to configured model after invalid model error"
                 );
                 let original_error = err.to_string();
-                return request_decision_with_model(
-                    runtime,
-                    client,
-                    developer_intro,
-                    primary_goal,
-                    coordinator_prompt,
-                    time_budget_message,
-                    time_budget_deadline,
-                    loop_warning,
-                    schema,
-                    Arc::clone(&conversation),
-                    auto_instructions,
-                    event_tx,
-                    cancel_token,
-                    &fallback_slug,
-                )
+                let mut fallback_request = request;
+                fallback_request.model_slug = fallback_slug.clone();
+                return request_decision_with_model(fallback_request)
                 .map_err(|fallback_err| {
                     fallback_err.context(format!(
                         "coordinator fallback with model '{fallback_slug}' failed after original error: {original_error}"
@@ -2106,39 +2068,13 @@ fn indent_lines(text: &str, prefix: &str) -> String {
         .join("\n")
 }
 
-#[tracing::instrument(skip_all, fields(conv_items = conversation.len()))]
+#[tracing::instrument(skip_all)]
 fn request_user_turn_decision(
-    runtime: &tokio::runtime::Runtime,
-    client: &ModelClient,
-    developer_intro: &str,
-    primary_goal: &str,
-    coordinator_prompt: Option<&str>,
-    time_budget_message: Option<&str>,
-    time_budget_deadline: Option<Instant>,
-    schema: &Value,
-    conversation: Arc<[ResponseItem]>,
-    auto_instructions: Option<&str>,
-    event_tx: &AutoCoordinatorEventSender,
-    cancel_token: &CancellationToken,
-    preferred_model_slug: &str,
+    mut request: DecisionRequest<'_>,
 ) -> Result<(Option<String>, Option<String>), DecisionFailure> {
     // User turn decisions don't need loop warnings as they handle user prompts.
-    let result = request_decision(
-        runtime,
-        client,
-        developer_intro,
-        primary_goal,
-        coordinator_prompt,
-        time_budget_message,
-        time_budget_deadline,
-        None,
-        schema,
-        Arc::clone(&conversation),
-        auto_instructions,
-        event_tx,
-        cancel_token,
-        preferred_model_slug,
-    )
+    request.loop_warning = None;
+    let result = request_decision(request)
     .map_err(|err| DecisionFailure::new(err, "auto_coordinator_user_turn", None))?;
     let (user_response, cli_command) = parse_user_turn_reply(&result.output_text)
         .map_err(|err| DecisionFailure::new(err, "auto_coordinator_user_turn", Some(result.output_text.clone())))?;
@@ -2146,21 +2082,24 @@ fn request_user_turn_decision(
 }
 
 fn request_decision_with_model(
-    runtime: &tokio::runtime::Runtime,
-    client: &ModelClient,
-    developer_intro: &str,
-    primary_goal: &str,
-    coordinator_prompt: Option<&str>,
-    time_budget_message: Option<&str>,
-    time_budget_deadline: Option<Instant>,
-    loop_warning: Option<&str>,
-    schema: &Value,
-    conversation: Arc<[ResponseItem]>,
-    auto_instructions: Option<&str>,
-    event_tx: &AutoCoordinatorEventSender,
-    cancel_token: &CancellationToken,
-    model_slug: &str,
+    request: DecisionRequest<'_>,
 ) -> Result<RequestStreamResult> {
+    let DecisionRequest {
+        runtime,
+        client,
+        developer_intro,
+        primary_goal,
+        coordinator_prompt,
+        time_budget_message,
+        time_budget_deadline,
+        loop_warning,
+        schema,
+        conversation,
+        auto_instructions,
+        event_tx,
+        cancel_token,
+        model_slug,
+    } = request;
     let developer_intro = developer_intro.to_string();
     let primary_goal = primary_goal.to_string();
     let time_budget_message = time_budget_message.map(std::string::ToString::to_string);
@@ -2185,17 +2124,18 @@ fn request_decision_with_model(
                 let time_budget_message = time_budget_message.clone();
                 let loop_warning = loop_warning.clone();
                 let conversation = Arc::clone(&conversation);
-                let prompt = build_user_turn_prompt(
-                    &developer_intro,
-                    &primary_goal,
-                    coordinator_prompt.as_deref(),
-                    time_budget_message.as_deref(),
-                    loop_warning.as_deref(),
-                    &schema,
-                    conversation.as_ref(),
-                    model_slug,
-                    instructions.as_deref(),
-                );
+                let model_slug_for_attempt = model_slug.clone();
+                let prompt = build_user_turn_prompt(BuildUserTurnPromptInput {
+                    developer_intro: &developer_intro,
+                    primary_goal: &primary_goal,
+                    coordinator_prompt: coordinator_prompt.as_deref(),
+                    time_budget_message: time_budget_message.as_deref(),
+                    loop_warning: loop_warning.as_deref(),
+                    schema: &schema,
+                    conversation: conversation.as_ref(),
+                    model_slug: model_slug_for_attempt.as_str(),
+                    auto_instructions: instructions.as_deref(),
+                });
                 let tx_inner = tx.clone();
                 async move {
                     #[cfg(feature = "dev-faults")]
@@ -2278,7 +2218,7 @@ fn request_decision_with_model(
                         output_text: out,
                         response_items,
                         token_usage,
-                        model_slug: model_slug.to_string(),
+                        model_slug: model_slug_for_attempt,
                     })
                 }
             },
@@ -2338,17 +2278,30 @@ fn request_decision_with_model(
     }
 }
 
-fn build_user_turn_prompt(
-    developer_intro: &str,
-    primary_goal: &str,
-    coordinator_prompt: Option<&str>,
-    time_budget_message: Option<&str>,
-    loop_warning: Option<&str>,
-    schema: &Value,
-    conversation: &[ResponseItem],
-    model_slug: &str,
-    auto_instructions: Option<&str>,
-) -> Prompt {
+struct BuildUserTurnPromptInput<'a> {
+    developer_intro: &'a str,
+    primary_goal: &'a str,
+    coordinator_prompt: Option<&'a str>,
+    time_budget_message: Option<&'a str>,
+    loop_warning: Option<&'a str>,
+    schema: &'a Value,
+    conversation: &'a [ResponseItem],
+    model_slug: &'a str,
+    auto_instructions: Option<&'a str>,
+}
+
+fn build_user_turn_prompt(input: BuildUserTurnPromptInput<'_>) -> Prompt {
+    let BuildUserTurnPromptInput {
+        developer_intro,
+        primary_goal,
+        coordinator_prompt,
+        time_budget_message,
+        loop_warning,
+        schema,
+        conversation,
+        model_slug,
+        auto_instructions,
+    } = input;
     let mut prompt = Prompt::default();
     prompt.store = true;
     prompt.session_id_override = Some(Uuid::new_v4());
@@ -3186,7 +3139,7 @@ pub(crate) fn extract_first_json_object(input: &str) -> Option<String> {
                 }
                 depth -= 1;
                 if depth == 0 {
-                    let Some(s) = start else { return None; };
+                    let s = start?;
                     return Some(input[s..=idx].to_string());
                 }
             }
@@ -3244,16 +3197,28 @@ enum CompactionResult {
     Completed { summary_text: Option<String> },
 }
 
-fn maybe_compact(
-    runtime: &tokio::runtime::Runtime,
-    client: &ModelClient,
-    event_tx: &AutoCoordinatorEventSender,
-    conversation: &mut Vec<ResponseItem>,
-    metrics: &SessionMetrics,
-    prev_summary: Option<&str>,
-    model_slug: &str,
-    compact_prompt: &str,
-) -> CompactionResult {
+struct CompactionRequest<'a> {
+    runtime: &'a tokio::runtime::Runtime,
+    client: &'a ModelClient,
+    event_tx: &'a AutoCoordinatorEventSender,
+    conversation: &'a mut Vec<ResponseItem>,
+    metrics: &'a SessionMetrics,
+    prev_summary: Option<&'a str>,
+    model_slug: &'a str,
+    compact_prompt: &'a str,
+}
+
+fn maybe_compact(request: CompactionRequest<'_>) -> CompactionResult {
+    let CompactionRequest {
+        runtime,
+        client,
+        event_tx,
+        conversation,
+        metrics,
+        prev_summary,
+        model_slug,
+        compact_prompt,
+    } = request;
     let transcript_tokens: u64 = conversation
         .iter()
         .map(|item| estimate_item_tokens(item) as u64)

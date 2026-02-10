@@ -38,19 +38,31 @@ pub(crate) struct UpdateSettingsView {
     manual_instructions: Option<String>,
 }
 
+pub(crate) struct UpdateSettingsInit {
+    pub(crate) app_event_tx: AppEventSender,
+    pub(crate) ticket: BackgroundOrderTicket,
+    pub(crate) current_version: String,
+    pub(crate) auto_enabled: bool,
+    pub(crate) command: Option<Vec<String>>,
+    pub(crate) command_display: Option<String>,
+    pub(crate) manual_instructions: Option<String>,
+    pub(crate) shared: Arc<Mutex<UpdateSharedState>>,
+}
+
 impl UpdateSettingsView {
     const PANEL_TITLE: &'static str = "Upgrade";
 
-    pub fn new(
-        app_event_tx: AppEventSender,
-        ticket: BackgroundOrderTicket,
-        current_version: String,
-        auto_enabled: bool,
-        command: Option<Vec<String>>,
-        command_display: Option<String>,
-        manual_instructions: Option<String>,
-        shared: Arc<Mutex<UpdateSharedState>>,
-    ) -> Self {
+    pub fn new(init: UpdateSettingsInit) -> Self {
+        let UpdateSettingsInit {
+            app_event_tx,
+            ticket,
+            current_version,
+            auto_enabled,
+            command,
+            command_display,
+            manual_instructions,
+            shared,
+        } = init;
         Self {
             app_event_tx,
             ticket,
