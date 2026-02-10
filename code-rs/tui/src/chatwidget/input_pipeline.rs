@@ -1420,10 +1420,10 @@ impl ChatWidget<'_> {
     pub(super) fn bar_segment(value: u64, max: u64, width: usize) -> String {
         const FILL: &str = "▇";
         if max == 0 {
-            return format!("{}{}", FILL.to_string(), " ".repeat(width.saturating_sub(1)));
+            return format!("{}{}", FILL, " ".repeat(width.saturating_sub(1)));
         }
         if value == 0 {
-            return format!("{}{}", FILL.to_string(), " ".repeat(width.saturating_sub(1)));
+            return format!("{}{}", FILL, " ".repeat(width.saturating_sub(1)));
         }
         let ratio = value as f64 / max as f64;
         let filled = (ratio * width as f64).ceil().clamp(1.0, width as f64) as usize;

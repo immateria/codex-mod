@@ -846,20 +846,18 @@ pub(crate) fn wrap_bullet_line(
             if cur_style.map(|cs| cs == *st).unwrap_or(false) {
                 buf.push_str(g);
             } else {
-                if !buf.is_empty() {
-                    if let Some(style) = cur_style {
+                if !buf.is_empty()
+                    && let Some(style) = cur_style {
                         seg_spans.push(Span::styled(std::mem::take(&mut buf), style));
                     }
-                }
                 cur_style = Some(*st);
                 buf.push_str(g);
             }
         }
-        if !buf.is_empty() {
-            if let Some(style) = cur_style {
+        if !buf.is_empty()
+            && let Some(style) = cur_style {
                 seg_spans.push(Span::styled(buf, style));
             }
-        }
         out.push(ratatui::text::Line::from(seg_spans));
         pos = next_start;
         first = false;

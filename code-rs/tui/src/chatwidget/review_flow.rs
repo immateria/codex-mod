@@ -1003,7 +1003,7 @@ impl ChatWidget<'_> {
             Ok(changed) => changed,
             Err(err) => {
                 tracing::warn!("auto review untracked check failed: {err}");
-                return true;
+                true
             }
         }
     }

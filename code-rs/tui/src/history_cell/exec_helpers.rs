@@ -196,7 +196,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                         } else {
                             format!("{p}/")
                         };
-                        ("List".to_string(), format!("{display_p}"))
+                        ("List".to_string(), display_p.to_string())
                     }
                 }
                 None => ("List".to_string(), "./".to_string()),
@@ -704,11 +704,10 @@ pub(crate) fn parse_read_line_annotation_with_range(cmd: &str) -> (Option<String
         }
     }
     // bare `head` => default 10 lines
-    if lower.contains("head") && !lower.contains("-n") {
-        if cmd.split_whitespace().any(|part| part == "head") {
+    if lower.contains("head") && !lower.contains("-n")
+        && cmd.split_whitespace().any(|part| part == "head") {
             return (Some("(lines 1 to 10)".to_string()), Some((1, 10)));
         }
-    }
     // tail -n +K => from K to end; tail -n N => last N lines
     if lower.contains("tail") && lower.contains("-n") {
         let parts: Vec<&str> = cmd.split_whitespace().collect();
@@ -735,11 +734,10 @@ pub(crate) fn parse_read_line_annotation_with_range(cmd: &str) -> (Option<String
         }
     }
     // bare `tail` => default 10 lines
-    if lower.contains("tail") && !lower.contains("-n") {
-        if cmd.split_whitespace().any(|part| part == "tail") {
+    if lower.contains("tail") && !lower.contains("-n")
+        && cmd.split_whitespace().any(|part| part == "tail") {
             return (Some("(last 10 lines)".to_string()), None);
         }
-    }
     (None, None)
 }
 
