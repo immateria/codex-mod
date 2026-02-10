@@ -80,6 +80,7 @@ use std::sync::RwLock;
 const RESPONSES_BETA_HEADER_V1: &str = "responses=v1";
 const RESPONSES_BETA_HEADER_EXPERIMENTAL: &str = "responses=experimental";
 const RESPONSES_WEBSOCKETS_BETA_HEADER: &str = "responses_websockets=2026-02-04";
+const WEB_SEARCH_ELIGIBLE_HEADER: &str = "x-oai-web-search-eligible";
 
 // Sticky-routing token captured at the start of a turn. When present, it must
 // be replayed on every subsequent request within the same turn (retries,
@@ -679,6 +680,7 @@ impl ModelClient {
 
             req_builder = attach_openai_subagent_header(req_builder);
             req_builder = attach_codex_beta_features_header(req_builder, &self.config);
+            req_builder = attach_web_search_eligible_header(req_builder, &self.config);
             if let Some(state) = turn_state.get() {
                 req_builder = req_builder.header(X_CODEX_TURN_STATE_HEADER, state);
             }
@@ -1092,6 +1094,7 @@ impl ModelClient {
 
             req_builder = attach_openai_subagent_header(req_builder);
             req_builder = attach_codex_beta_features_header(req_builder, &self.config);
+            req_builder = attach_web_search_eligible_header(req_builder, &self.config);
             if let Some(state) = turn_state.get() {
                 req_builder = req_builder.header(X_CODEX_TURN_STATE_HEADER, state);
             }
@@ -1702,6 +1705,7 @@ impl ModelClient {
 
             request = attach_openai_subagent_header(request);
             request = attach_codex_beta_features_header(request, &self.config);
+            request = attach_web_search_eligible_header(request, &self.config);
 
             if let Some(auth) = auth.as_ref()
                 && auth.mode.is_chatgpt()
@@ -1882,6 +1886,22 @@ fn map_wrapped_websocket_error_event(event: WrappedWebsocketErrorEvent) -> Optio
             }
         })
         .to_string()
+    } else {
+        serde_json::json!({
+            "error": {
+                "message": "websocket returned an error event"
+            }
+        })
+        .to_string()
+    };
+
+    Some(CodexErr::UnexpectedStatus(UnexpectedResponseError {
+        status,
+        body,
+        request_id: None,
+    }))
+}
+
 fn attach_web_search_eligible_header(
     builder: reqwest::RequestBuilder,
     config: &Config,
@@ -1897,19 +1917,9 @@ fn attach_web_search_eligible_header(
     let value = if config.tools_web_search_request {
         "true"
     } else {
-        serde_json::json!({
-            "error": {
-                "message": "websocket returned an error event"
-            }
-        })
-        .to_string()
+        "false"
     };
-
-    Some(CodexErr::UnexpectedStatus(UnexpectedResponseError {
-        status,
-        body,
-        request_id: None,
-    }))
+    builder.header(WEB_SEARCH_ELIGIBLE_HEADER, HeaderValue::from_static(value))
 }
 
 fn websocket_connect_is_upgrade_required(error: &WsError) -> bool {
