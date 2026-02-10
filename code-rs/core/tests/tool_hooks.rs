@@ -98,10 +98,8 @@ async fn tool_hooks_fire_for_shell_exec() {
     });
 
     let body_one = format!(
-        "event: response.output_item.done\ndata: {}\n\n\
-event: response.completed\ndata: {}\n\n",
-        function_call_item,
-        completed_one
+        "event: response.output_item.done\ndata: {function_call_item}\n\n\
+event: response.completed\ndata: {completed_one}\n\n"
     );
 
     let message_item = json!({
@@ -127,10 +125,8 @@ event: response.completed\ndata: {}\n\n",
         }
     });
     let body_two = format!(
-        "event: response.output_item.done\ndata: {}\n\n\
-event: response.completed\ndata: {}\n\n",
-        message_item,
-        completed_two
+        "event: response.output_item.done\ndata: {message_item}\n\n\
+event: response.completed\ndata: {completed_two}\n\n"
     );
 
     Mock::given(method("POST"))

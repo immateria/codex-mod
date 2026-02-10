@@ -18,18 +18,15 @@ fn agents_overlay_editor_stays_in_overlay() {
 
     assert!(
         harness.is_settings_overlay_visible(),
-        "Settings overlay should remain visible after showing agent editor:\n{}",
-        overlay_frame
+        "Settings overlay should remain visible after showing agent editor:\n{overlay_frame}"
     );
     assert!(harness.settings_overlay_is_agents_active());
     assert!(
         harness.agents_settings_is_agent_editor_active(),
-        "Agent editor should be active inside the overlay:\n{}",
-        overlay_frame
+        "Agent editor should be active inside the overlay:\n{overlay_frame}"
     );
     assert!(
         !harness.is_bottom_pane_active(),
-        "Bottom pane should not activate while the agent editor is embedded in the overlay:\n{}",
-        overlay_frame
+        "Bottom pane should not activate while the agent editor is embedded in the overlay:\n{overlay_frame}"
     );
 }

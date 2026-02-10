@@ -147,7 +147,7 @@ fn collapsed_reasoning_before_exec_keeps_last_line() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "printf".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(order(&mut seq)),
@@ -160,7 +160,7 @@ fn collapsed_reasoning_before_exec_keeps_last_line() {
             call_id: call_id.clone(),
             stream: ExecOutputStream::Stdout,
             chunk: ByteBuf::from(
-                format!("line 1\nline 2\nline 3\n").into_bytes(),
+                "line 1\nline 2\nline 3\n".to_string().into_bytes(),
             ),
         }),
         order: Some(order(&mut seq)),
@@ -381,7 +381,7 @@ fn exec_history_small_viewport_keeps_last_line() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "printf".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(order(&mut seq)),

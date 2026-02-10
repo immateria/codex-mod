@@ -35,7 +35,7 @@ pub enum TurnLatencyPhase {
 }
 
 impl TurnLatencyPhase {
-    fn as_str(&self) -> &'static str {
+    fn as_str(self) -> &'static str {
         match self {
             TurnLatencyPhase::RequestScheduled => "request_scheduled",
             TurnLatencyPhase::RequestCompleted => "request_completed",

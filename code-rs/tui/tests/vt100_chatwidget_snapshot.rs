@@ -310,7 +310,7 @@ fn normalize_agent_history_details(text: String) -> String {
                     const DETAIL_FILLER: &str = " ...                     ";
                     transformed = format!("{prefix}{label}{DETAIL_FILLER}{tail}");
                 } else {
-                    transformed = format!("{}{label} ...", prefix);
+                    transformed = format!("{prefix}{label} ...");
                 }
                 handled_detail = true;
                 break;
@@ -1292,8 +1292,7 @@ fn multiline_final_history_line_visible_at_bottom() {
 
     assert!(
         frame.contains("FINAL ROW SENTINEL -- ensure this stays visible."),
-        "final assistant line disappeared when scrolled to bottom:\n{}",
-        frame
+        "final assistant line disappeared when scrolled to bottom:\n{frame}"
     );
 }
 
@@ -1321,8 +1320,7 @@ fn assert_final_line_visible(mut harness: ChatWidgetHarness, viewport_height: u1
     let frame = normalize_output(render_chat_widget_to_vt100(&mut harness, 60, viewport_height));
     assert!(
         frame.contains("FINAL ROW SENTINEL -- ensure this stays visible."),
-        "final assistant line disappeared for viewport {viewport_height}:\n{}",
-        frame
+        "final assistant line disappeared for viewport {viewport_height}:\n{frame}"
     );
 }
 
@@ -2387,7 +2385,7 @@ fn plan_agent_keeps_single_aggregate_block() {
 
     let output = render_chat_widget_to_vt100(&mut harness, 80, 40);
     let agent_blocks = harness.count_agent_run_cells();
-    assert_eq!(agent_blocks, 1, "expected a single aggregate agent block, saw {}\n{}", agent_blocks, output);
+    assert_eq!(agent_blocks, 1, "expected a single aggregate agent block, saw {agent_blocks}\n{output}");
 }
 
 #[test]
@@ -2427,15 +2425,13 @@ fn settings_overview_hints_clean() {
         output
             .lines()
             .any(|line| line.contains("Settings ▸ Overview")),
-        "border title should show settings breadcrumb\n{}",
-        output
+        "border title should show settings breadcrumb\n{output}"
     );
     assert!(
         output
             .lines()
             .any(|line| line.contains("↑ ↓ Move    Enter Open    Esc Close    ? Help")),
-        "footer hints should appear on the last row\n{}",
-        output
+        "footer hints should appear on the last row\n{output}"
     );
     insta::assert_snapshot!("settings_overview_hints_clean", output);
 }
@@ -2451,13 +2447,11 @@ fn settings_overlay_theme_swatch_visible() {
     let normalized = normalize_output(frame.clone());
     assert!(
         normalized.contains("Theme: "),
-        "theme summary should include labeled theme value\n{}",
-        frame
+        "theme summary should include labeled theme value\n{frame}"
     );
     assert!(
         normalized.contains("Spinner:"),
-        "theme summary should include spinner label\n{}",
-        frame
+        "theme summary should include spinner label\n{frame}"
     );
 }
 

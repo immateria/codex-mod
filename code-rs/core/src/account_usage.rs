@@ -153,11 +153,10 @@ impl AccountUsageData {
     }
 
     fn apply_plan(&mut self, plan: Option<&str>) {
-        if let Some(plan) = plan {
-            if self.plan.as_deref() != Some(plan) {
+        if let Some(plan) = plan
+            && self.plan.as_deref() != Some(plan) {
                 self.plan = Some(plan.to_string());
             }
-        }
     }
 
     fn update_last_hour(&mut self, now: DateTime<Utc>) {
@@ -189,7 +188,7 @@ impl AccountUsageData {
                 let bucket = truncate_to_hour(entry.timestamp);
                 rollover
                     .entry(bucket)
-                    .or_insert_with(TokenTotals::default)
+                    .or_default()
                     .add_totals(&entry.tokens);
             }
         }
@@ -240,7 +239,7 @@ impl AccountUsageData {
                 let month_key = truncate_to_month(entry.period_start);
                 monthly_rollover
                     .entry(month_key)
-                    .or_insert_with(TokenTotals::default)
+                    .or_default()
                     .add_totals(&entry.tokens);
             } else {
                 remaining.push(entry);
@@ -281,22 +280,21 @@ fn truncate_to_hour(ts: DateTime<Utc>) -> DateTime<Utc> {
         .with_minute(0)
         .and_then(|dt| dt.with_second(0))
         .and_then(|dt| dt.with_nanosecond(0))
-        .expect("valid hour truncation");
+        .unwrap_or(naive);
     Utc.from_utc_datetime(&trimmed)
 }
 
 fn truncate_to_day(ts: DateTime<Utc>) -> DateTime<Utc> {
     let date = ts.date_naive();
-    let start = date.and_hms_opt(0, 0, 0).expect("valid day truncation");
+    let start = date.and_hms_opt(0, 0, 0).unwrap_or_else(|| ts.naive_utc());
     Utc.from_utc_datetime(&start)
 }
 
 fn truncate_to_month(ts: DateTime<Utc>) -> DateTime<Utc> {
     let date = ts.date_naive();
     let month_start = NaiveDate::from_ymd_opt(date.year(), date.month(), 1)
-        .expect("valid month truncation")
-        .and_hms_opt(0, 0, 0)
-        .expect("valid month start time");
+        .and_then(|month| month.and_hms_opt(0, 0, 0))
+        .unwrap_or_else(|| ts.naive_utc());
     Utc.from_utc_datetime(&month_start)
 }
 
@@ -894,8 +892,8 @@ mod tests {
 
         // Only the most recent entry should remain in the sliding hourly window.
         assert_eq!(summary.hourly_entries.len(), 1);
-        assert!(summary.hourly_buckets.len() >= 1, "older usage should compact into buckets");
-        assert!(summary.daily_buckets.len() >= 1, "hourly buckets roll into daily aggregates");
+        assert!(!summary.hourly_buckets.is_empty(), "older usage should compact into buckets");
+        assert!(!summary.daily_buckets.is_empty(), "hourly buckets roll into daily aggregates");
     }
 
     #[test]

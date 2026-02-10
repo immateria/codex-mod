@@ -131,7 +131,9 @@ references = ["docs/shell/zsh-style.md"]
 prepend_developer_messages = [
   "Write idiomatic zsh and prefer native zsh array forms."
 ]
+skill_roots = ["docs/skills/zsh", "docs/skills/termux"]
 skills = ["zsh-arrays", "termux-zsh"]
+disabled_skills = ["legacy-zsh-skill"]
 
 [shell_style_profiles.zsh.mcp_servers]
 # Optional allow-list and deny-list applied in this order.

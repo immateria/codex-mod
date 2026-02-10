@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
         if !token_usage.is_zero() {
             println!(
                 "{}",
-                code_core::protocol::FinalOutput::from(token_usage.clone())
+                code_core::protocol::FinalOutput::from(token_usage)
             );
         }
         if let Some(session_id) = session_id {

@@ -81,7 +81,7 @@ async fn wait_ready_state(
             .evaluate(script)
             .await
             .ok()
-            .and_then(|r| r.value().and_then(|v| v.as_str().map(|s| s.to_string())));
+            .and_then(|r| r.value().and_then(|v| v.as_str().map(std::string::ToString::to_string)));
         let done = match target {
             ReadyStateTarget::InteractiveOrComplete => {
                 matches!(state.as_deref(), Some("interactive") | Some("complete"))
@@ -225,12 +225,11 @@ impl Page {
                         }}
                         return 'ok';
                       }} catch (e) {{ return 'reinstall'; }}
-                }})({})"#,
-                desired_version
+                }})({desired_version})"#
             ))
             .await
             .ok()
-            .and_then(|r| r.value().and_then(|v| v.as_str().map(|s| s.to_string())))
+            .and_then(|r| r.value().and_then(|v| v.as_str().map(std::string::ToString::to_string)))
             .unwrap_or_else(|| "missing".to_string());
 
         if status != "ok" {
@@ -562,7 +561,7 @@ impl Page {
                     let obj = v.value().cloned().unwrap_or(serde_json::Value::Null);
                     let hidden = obj
                         .get("hidden")
-                        .and_then(|x| x.as_bool())
+                        .and_then(serde_json::Value::as_bool)
                         .unwrap_or(false);
                     let vs = obj.get("vs").and_then(|x| x.as_str()).unwrap_or("visible");
                     !(hidden || vs != "visible")
@@ -846,25 +845,25 @@ impl Page {
         if let Some(obj) = result.value() {
             let needs_correction = obj
                 .get("needsCorrection")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false);
 
             if needs_correction {
                 let current_width = obj
                     .get("currentWidth")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0);
                 let current_height = obj
                     .get("currentHeight")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0);
                 let current_dpr = obj
                     .get("currentDpr")
-                    .and_then(|v| v.as_f64())
+                    .and_then(serde_json::Value::as_f64)
                     .unwrap_or(1.0);
                 let current_zoom = obj
                     .get("currentZoom")
-                    .and_then(|v| v.as_f64())
+                    .and_then(serde_json::Value::as_f64)
                     .unwrap_or(1.0);
 
                 debug!(
@@ -886,7 +885,7 @@ impl Page {
                     .mobile(self.config.viewport.mobile)
                     .build()
                     .map_err(|e| {
-                        BrowserError::CdpError(format!("Failed to build viewport params: {}", e))
+                        BrowserError::CdpError(format!("Failed to build viewport params: {e}"))
                     })?;
 
                 self.cdp_page.execute(params).await?;
@@ -910,10 +909,7 @@ impl Page {
         // First try the externalized installer for easier iteration.
         // The JS must define `window.__vcInstall(x,y)` and create window.__vc with __version=11.
         let external = format!(
-            "{}\n;(()=>{{ try {{ return (window.__vcInstall ? window.__vcInstall : function(x,y){{}})({:.0},{:.0}); }} catch (e) {{ return String(e && e.message || e); }} }})()",
-            VIRTUAL_CURSOR_JS,
-            cursor_x,
-            cursor_y
+            "{VIRTUAL_CURSOR_JS}\n;(()=>{{ try {{ return (window.__vcInstall ? window.__vcInstall : function(x,y){{}})({cursor_x:.0},{cursor_y:.0}); }} catch (e) {{ return String(e && e.message || e); }} }})()"
         );
         if let Ok(res) = self.cdp_page.evaluate(external).await {
             let status = res
@@ -926,8 +922,7 @@ impl Page {
             } else {
                 warn!("Virtual cursor injection reported: {}", status);
                 return Err(BrowserError::CdpError(format!(
-                    "Virtual cursor injection failed: {}",
-                    status
+                    "Virtual cursor injection failed: {status}"
                 )));
             }
         }
@@ -1033,13 +1028,11 @@ impl Page {
                 }}
                 return false; // Do not steal focus by picking arbitrary candidates.
             }})({cursor_x}, {cursor_y})
-            "#,
-            cursor_x = cursor_x,
-            cursor_y = cursor_y
+            "#
         );
 
         let result = self.cdp_page.evaluate(script).await?;
-        let focused = result.value().and_then(|v| v.as_bool()).unwrap_or(false);
+        let focused = result.value().and_then(serde_json::Value::as_bool).unwrap_or(false);
         Ok(focused)
     }
 
@@ -1077,8 +1070,8 @@ impl Page {
                         last_error = Some(e);
 
                         // Check if the page actually navigated despite the timeout
-                        if let Ok(cur_opt) = self.cdp_page.url().await {
-                            if let Some(cur) = cur_opt {
+                        if let Ok(cur_opt) = self.cdp_page.url().await
+                            && let Some(cur) = cur_opt {
                                 let looks_loaded =
                                     cur.starts_with("http://") || cur.starts_with("https://");
                                 if looks_loaded && cur != "about:blank" {
@@ -1091,7 +1084,6 @@ impl Page {
                                     break;
                                 }
                             }
-                        }
 
                         if attempt < max_retries {
                             // Wait before retry, increasing delay each time
@@ -1112,8 +1104,8 @@ impl Page {
                         attempt, max_retries
                     );
                     // Check if the page actually navigated despite the timeout
-                    if let Ok(cur_opt) = self.cdp_page.url().await {
-                        if let Some(cur) = cur_opt {
+                    if let Ok(cur_opt) = self.cdp_page.url().await
+                        && let Some(cur) = cur_opt {
                             let looks_loaded =
                                 cur.starts_with("http://") || cur.starts_with("https://");
                             if looks_loaded && cur != "about:blank" {
@@ -1126,7 +1118,6 @@ impl Page {
                                 break;
                             }
                         }
-                    }
 
                     if attempt < max_retries {
                         let delay_ms = 1000 * attempt as u64;
@@ -1143,8 +1134,7 @@ impl Page {
         // If we exhausted retries and still have an error, bail out
         if let Some(e) = last_error {
             return Err(BrowserError::CdpError(format!(
-                "Navigation failed after {} retries: {}",
-                max_retries, e
+                "Navigation failed after {max_retries} retries: {e}"
             )));
         }
 
@@ -1274,8 +1264,7 @@ impl Page {
                 }
                 _ => {
                     return Err(BrowserError::ConfigError(format!(
-                        "Unknown wait event: {}",
-                        event
+                        "Unknown wait event: {event}"
                     )));
                 }
             },
@@ -1366,8 +1355,8 @@ impl Page {
             .await
             .unwrap_or(serde_json::Value::Null);
 
-        let doc_w = probe.get("w").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-        let doc_h = probe.get("h").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+        let doc_w = probe.get("w").and_then(serde_json::Value::as_u64).unwrap_or(0) as u32;
+        let doc_h = probe.get("h").and_then(serde_json::Value::as_u64).unwrap_or(0) as u32;
 
         // Fall back to configured viewport if probe failed
         let vw = if doc_w > 0 {
@@ -1401,7 +1390,7 @@ impl Page {
         let data_b64: &str = resp.data.as_ref();
         let data = base64::engine::general_purpose::STANDARD
             .decode(data_b64.as_bytes())
-            .map_err(|e| BrowserError::ScreenshotError(format!("base64 decode failed: {}", e)))?;
+            .map_err(|e| BrowserError::ScreenshotError(format!("base64 decode failed: {e}")))?;
 
         Ok(vec![Screenshot {
             data,
@@ -1450,7 +1439,7 @@ impl Page {
             let data = base64::engine::general_purpose::STANDARD
                 .decode(data_b64.as_bytes())
                 .map_err(|e| {
-                    BrowserError::ScreenshotError(format!("base64 decode failed: {}", e))
+                    BrowserError::ScreenshotError(format!("base64 decode failed: {e}"))
                 })?;
             shots.push(Screenshot {
                 data,
@@ -1495,7 +1484,7 @@ impl Page {
         let data_b64: &str = resp.data.as_ref();
         let data = base64::engine::general_purpose::STANDARD
             .decode(data_b64.as_bytes())
-            .map_err(|e| BrowserError::ScreenshotError(format!("base64 decode failed: {}", e)))?;
+            .map_err(|e| BrowserError::ScreenshotError(format!("base64 decode failed: {e}")))?;
 
         let final_width = if region.width > 1024 {
             1024
@@ -1519,7 +1508,7 @@ impl Page {
             .device_scale_factor(viewport.device_scale_factor.unwrap_or(1.0))
             .mobile(viewport.mobile.unwrap_or(false))
             .build()
-            .map_err(|e| BrowserError::CdpError(format!("Failed to build viewport params: {}", e)))?;
+            .map_err(|e| BrowserError::CdpError(format!("Failed to build viewport params: {e}")))?;
         self.cdp_page.execute(params).await?;
 
         Ok(ViewportResult {
@@ -1651,7 +1640,7 @@ impl Page {
             .evaluate(check_script)
             .await
             .ok()
-            .and_then(|result| result.value().and_then(|v| v.as_bool()))
+            .and_then(|result| result.value().and_then(serde_json::Value::as_bool))
             .unwrap_or(false);
 
         if !cursor_exists {
@@ -1667,20 +1656,18 @@ impl Page {
             self
                 .cdp_page
                 .evaluate(format!(
-                    "(function(x,y){{ try {{ if(window.__vc && window.__vc.update) return window.__vc.update(x,y)|0; }} catch(_e){{}} return 0; }})({:.0},{:.0})",
-                    move_x, move_y
+                    "(function(x,y){{ try {{ if(window.__vc && window.__vc.update) return window.__vc.update(x,y)|0; }} catch(_e){{}} return 0; }})({move_x:.0},{move_y:.0})"
                 ))
                 .await
                 .ok()
-                .and_then(|r| r.value().and_then(|v| v.as_u64()))
-                .unwrap_or(0) as u64
+                .and_then(|r| r.value().and_then(serde_json::Value::as_u64))
+                .unwrap_or(0)
         } else {
             // Internal browser: snap immediately and report zero duration
             let _ = self
                 .cdp_page
                 .evaluate(format!(
-                    "(function(x,y){{ try {{ if(window.__vc && window.__vc.snapTo) {{ window.__vc.snapTo(x,y); return 0; }} }} catch(_e){{}} return 0; }})({:.0},{:.0})",
-                    move_x, move_y
+                    "(function(x,y){{ try {{ if(window.__vc && window.__vc.snapTo) {{ window.__vc.snapTo(x,y); return 0; }} }} catch(_e){{}} return 0; }})({move_x:.0},{move_y:.0})"
                 ))
                 .await;
             0
@@ -1715,8 +1702,8 @@ impl Page {
             )
             .await
             .ok()
-            .and_then(|r| r.value().and_then(|v| v.as_u64()))
-            .unwrap_or(0) as u64;
+            .and_then(|r| r.value().and_then(serde_json::Value::as_u64))
+            .unwrap_or(0);
 
         // Mouse down
         let down_params = DispatchMouseEventParams::builder()
@@ -1849,8 +1836,8 @@ impl Page {
             )
             .await
             .ok()
-            .and_then(|r| r.value().and_then(|v| v.as_u64()))
-            .unwrap_or(0) as u64;
+            .and_then(|r| r.value().and_then(serde_json::Value::as_u64))
+            .unwrap_or(0);
 
         // Mouse down
         let down_params = DispatchMouseEventParams::builder()
@@ -2156,6 +2143,8 @@ impl Page {
 
         // Create the user code with sourceURL for better debugging
         let user_code_with_source = format!("{code}\n//# sourceURL=browser_js_user_code.js");
+        let user_code_json = serde_json::to_string(&user_code_with_source)
+            .map_err(|err| BrowserError::CdpError(format!("Failed to serialize user code: {err}")))?;
 
         // Use the improved JavaScript harness
         let wrapped = format!(
@@ -2216,7 +2205,7 @@ impl Page {
 
   try {{
     const AsyncFunction = Object.getPrototypeOf(async function(){{}}).constructor;
-    const __userCode = {0};
+    const __userCode = {user_code_json};
     const evaluator = new AsyncFunction('__code', '"use strict"; return eval(__code);');
     const raw = await evaluator(__userCode);
     const value = (raw === undefined ? null : __normalize(raw));
@@ -2247,8 +2236,7 @@ impl Page {
     console.error = __orig.error;
     console.debug = __orig.debug;
   }}
-}})()"#,
-            serde_json::to_string(&user_code_with_source).expect("Failed to serialize user code")
+}})()"#
         );
 
         tracing::debug!("Executing JavaScript code: {}", code);

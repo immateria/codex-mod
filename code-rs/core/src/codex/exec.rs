@@ -533,8 +533,8 @@ impl Session {
             None
         };
 
-        if enable_hooks {
-            if let Some(params_ref) = params_for_hooks.as_ref() {
+        if enable_hooks
+            && let Some(params_ref) = params_for_hooks.as_ref() {
                 let before_event = if is_apply_patch {
                     ProjectHookEvent::FileBeforeWrite
                 } else {
@@ -551,7 +551,6 @@ impl Session {
                     )
                     .await;
             }
-        }
 
         self.on_exec_command_begin(turn_diff_tracker, begin_ctx.clone(), seq_hint, output_index, attempt_req)
             .await;
@@ -590,8 +589,8 @@ impl Session {
         exec_guard.mark_completed();
         self.finalize_cancelled_execs(&sub_id).await;
 
-        if enable_hooks {
-            if let Some(params_ref) = params_for_hooks.as_ref() {
+        if enable_hooks
+            && let Some(params_ref) = params_for_hooks.as_ref() {
                 let after_event = if is_apply_patch {
                     ProjectHookEvent::FileAfterWrite
                 } else {
@@ -608,7 +607,6 @@ impl Session {
                     )
                     .await;
             }
-        }
 
         if let Some(analysis) = dry_run_analysis.as_ref() {
             let mut state = self.state.lock().unwrap();

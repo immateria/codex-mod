@@ -1,5 +1,5 @@
 use code_core::config_types::ReasoningEffort;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
@@ -189,6 +189,41 @@ impl PlanningSettingsView {
                 self.is_complete = true;
             }
             _ => {}
+        }
+    }
+
+    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        if area.width == 0 || area.height == 0 {
+            return false;
+        }
+
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        if inner.width == 0 || inner.height == 0 {
+            return false;
+        }
+
+        let is_inside_inner = mouse_event.column >= inner.x
+            && mouse_event.column < inner.x.saturating_add(inner.width)
+            && mouse_event.row >= inner.y
+            && mouse_event.row < inner.y.saturating_add(inner.height);
+
+        if !is_inside_inner {
+            return false;
+        }
+
+        // Header consumes three lines; the first selectable row starts after that.
+        let row_y = inner.y.saturating_add(3);
+        match mouse_event.kind {
+            MouseEventKind::Moved => false,
+            MouseEventKind::Down(MouseButton::Left) => {
+                if mouse_event.row != row_y {
+                    return false;
+                }
+                self.state.selected_idx = Some(0);
+                self.handle_enter(PlanningRow::CustomModel);
+                true
+            }
+            _ => false,
         }
     }
 }

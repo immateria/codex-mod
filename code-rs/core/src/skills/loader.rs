@@ -17,6 +17,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use tracing::error;
+use tracing::warn;
 
 #[derive(Debug, Deserialize)]
 struct SkillFrontmatter {
@@ -58,15 +59,66 @@ impl fmt::Display for SkillParseError {
 impl Error for SkillParseError {}
 
 pub fn load_skills(config: &Config) -> SkillLoadOutcome {
+    load_skills_with_additional_roots(config, std::iter::empty::<PathBuf>())
+}
+
+/// Load skills from optional caller-provided roots plus the standard repo/user/system
+/// roots. Earlier roots win when duplicate skill names are discovered.
+pub fn load_skills_with_additional_roots<I>(config: &Config, additional_roots: I) -> SkillLoadOutcome
+where
+    I: IntoIterator<Item = PathBuf>,
+{
     if let Err(err) = install_system_skills(&config.code_home) {
         tracing::error!("failed to install system skills: {err}");
     }
-    load_skills_from_roots(skill_roots(config))
+
+    // Normalize and validate caller-provided roots first so they take precedence
+    // over default roots when duplicate skill names are deduped later.
+    let mut seen_additional_roots: HashSet<PathBuf> = HashSet::new();
+    let mut roots: Vec<SkillRoot> = Vec::new();
+    for path in additional_roots {
+        if path.as_os_str().is_empty() {
+            continue;
+        }
+
+        let root = skill_root_from_config_path(path, &config.cwd);
+        if !seen_additional_roots.insert(root.path.clone()) {
+            continue;
+        }
+
+        if !root.path.is_dir() {
+            warn!(
+                "ignoring shell style skill root {} because it is not a directory",
+                root.path.display()
+            );
+            continue;
+        }
+
+        roots.push(root);
+    }
+
+    roots.extend(skill_roots(config));
+
+    load_skills_from_roots(roots)
 }
 
 pub(crate) struct SkillRoot {
     pub(crate) path: PathBuf,
     pub(crate) scope: SkillScope,
+}
+
+fn skill_root_from_config_path(path: PathBuf, cwd: &Path) -> SkillRoot {
+    // Config paths are cwd-relative by convention so style-specific roots can be
+    // defined portably in project config.
+    let path = if path.is_relative() {
+        cwd.join(path)
+    } else {
+        path
+    };
+    SkillRoot {
+        path,
+        scope: SkillScope::Repo,
+    }
 }
 
 pub(crate) fn load_skills_from_roots<I>(roots: I) -> SkillLoadOutcome
@@ -145,7 +197,8 @@ fn skill_roots(config: &Config) -> Vec<SkillRoot> {
     }
 
     // Load order matters: we dedupe by name, keeping the first occurrence.
-    // This makes repo/user skills win over system skills.
+    // This makes repo/user skills win over system skills. Callers that prepend
+    // additional roots (e.g. shell-style roots) override all defaults.
     roots.push(user_skills_root(config));
     roots.push(system_skills_root(config));
 

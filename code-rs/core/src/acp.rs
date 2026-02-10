@@ -65,7 +65,7 @@ impl<'a> AcpFileSystem<'a> {
             .await?;
 
         if is_error.unwrap_or_default() {
-            anyhow::bail!("Error reading text file: {:?}", structured_content);
+            anyhow::bail!("Error reading text file: {structured_content:?}");
         }
 
         let output = serde_json::from_value::<acp::ReadTextFileResponse>(
@@ -103,7 +103,7 @@ impl<'a> AcpFileSystem<'a> {
             .await?;
 
         if is_error.unwrap_or_default() {
-            anyhow::bail!("Error writing text file: {:?}", structured_content);
+            anyhow::bail!("Error writing text file: {structured_content:?}");
         }
 
         Ok(())
@@ -115,7 +115,7 @@ impl<'a> FileSystem for AcpFileSystem<'a> {
         if let Some(tool) = self.tools.read_text_file.as_ref() {
             self.read_text_file_impl(tool, path)
                 .await
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))
+                .map_err(std::io::Error::other)
         } else {
             StdFileSystem.read_text_file(path).await
         }
@@ -125,7 +125,7 @@ impl<'a> FileSystem for AcpFileSystem<'a> {
         if let Some(tool) = self.tools.write_text_file.as_ref() {
             self.write_text_file_impl(tool, path, contents)
                 .await
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))
+                .map_err(std::io::Error::other)
         } else {
             StdFileSystem.write_text_file(path, contents).await
         }
@@ -192,7 +192,7 @@ pub(crate) async fn request_permission(
             } else if option_id == deny_id {
                 ReviewDecision::Denied
             } else {
-                anyhow::bail!("Unexpected permission option: {}", option_id);
+                anyhow::bail!("Unexpected permission option: {option_id}");
             }
         }
         Cancelled => ReviewDecision::Abort,

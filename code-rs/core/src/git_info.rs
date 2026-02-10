@@ -79,34 +79,28 @@ pub async fn collect_git_info(cwd: &Path) -> Option<GitInfo> {
     };
 
     // Process commit hash
-    if let Some(output) = commit_result {
-        if output.status.success() {
-            if let Ok(hash) = String::from_utf8(output.stdout) {
+    if let Some(output) = commit_result
+        && output.status.success()
+            && let Ok(hash) = String::from_utf8(output.stdout) {
                 git_info.commit_hash = Some(hash.trim().to_string());
             }
-        }
-    }
 
     // Process branch name
-    if let Some(output) = branch_result {
-        if output.status.success() {
-            if let Ok(branch) = String::from_utf8(output.stdout) {
+    if let Some(output) = branch_result
+        && output.status.success()
+            && let Ok(branch) = String::from_utf8(output.stdout) {
                 let branch = branch.trim();
                 if branch != "HEAD" {
                     git_info.branch = Some(branch.to_string());
                 }
             }
-        }
-    }
 
     // Process repository URL
-    if let Some(output) = url_result {
-        if output.status.success() {
-            if let Ok(url) = String::from_utf8(output.stdout) {
+    if let Some(output) = url_result
+        && output.status.success()
+            && let Ok(url) = String::from_utf8(output.stdout) {
                 git_info.repository_url = Some(url.trim().to_string());
             }
-        }
-    }
 
     Some(git_info)
 }
@@ -210,7 +204,7 @@ async fn get_git_remotes(cwd: &Path) -> Option<Vec<String>> {
     let mut remotes: Vec<String> = String::from_utf8(output.stdout)
         .ok()?
         .lines()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
     if let Some(pos) = remotes.iter().position(|r| r == "origin") {
         let origin = remotes.remove(pos);
@@ -239,23 +233,19 @@ async fn get_default_branch(cwd: &Path) -> Option<String> {
             cwd,
         )
         .await
-        {
-            if symref_output.status.success() {
-                if let Ok(sym) = String::from_utf8(symref_output.stdout) {
+            && symref_output.status.success()
+                && let Ok(sym) = String::from_utf8(symref_output.stdout) {
                     let trimmed = sym.trim();
                     if let Some((_, name)) = trimmed.rsplit_once('/') {
                         return Some(name.to_string());
                     }
                 }
-            }
-        }
 
         // Fall back to parsing `git remote show <remote>` output
         if let Some(show_output) =
             run_git_command_with_timeout(&["remote", "show", &remote], cwd).await
-        {
-            if show_output.status.success() {
-                if let Ok(text) = String::from_utf8(show_output.stdout) {
+            && show_output.status.success()
+                && let Ok(text) = String::from_utf8(show_output.stdout) {
                     for line in text.lines() {
                         let line = line.trim();
                         if let Some(rest) = line.strip_prefix("HEAD branch:") {
@@ -266,8 +256,6 @@ async fn get_default_branch(cwd: &Path) -> Option<String> {
                         }
                     }
                 }
-            }
-        }
     }
 
     // No remote-derived default; try common local defaults if they exist
@@ -287,11 +275,9 @@ async fn get_default_branch_local(cwd: &Path) -> Option<String> {
             cwd,
         )
         .await
-        {
-            if verify.status.success() {
+            && verify.status.success() {
                 return Some(candidate.to_string());
             }
-        }
     }
 
     None
@@ -322,12 +308,11 @@ async fn branch_ancestry(cwd: &Path) -> Option<Vec<String>> {
         seen.insert(cb.clone());
         ancestry.push(cb);
     }
-    if let Some(db) = default_branch.clone() {
-        if !seen.contains(&db) {
+    if let Some(db) = default_branch.clone()
+        && !seen.contains(&db) {
             seen.insert(db.clone());
             ancestry.push(db);
         }
-    }
 
     // Expand candidates: include any remote branches that already contain HEAD.
     // This addresses cases where we're on a new local-only branch forked from a
@@ -345,21 +330,17 @@ async fn branch_ancestry(cwd: &Path) -> Option<Vec<String>> {
             cwd,
         )
         .await
-        {
-            if output.status.success() {
-                if let Ok(text) = String::from_utf8(output.stdout) {
+            && output.status.success()
+                && let Ok(text) = String::from_utf8(output.stdout) {
                     for line in text.lines() {
                         let short = line.trim();
-                        if let Some(stripped) = short.strip_prefix(&format!("{remote}/")) {
-                            if !stripped.is_empty() && !seen.contains(stripped) {
+                        if let Some(stripped) = short.strip_prefix(&format!("{remote}/"))
+                            && !stripped.is_empty() && !seen.contains(stripped) {
                                 seen.insert(stripped.to_string());
                                 ancestry.push(stripped.to_string());
                             }
-                        }
                     }
                 }
-            }
-        }
     }
 
     // Ensure we return Some vector, even if empty, to allow caller logic to proceed
@@ -487,12 +468,11 @@ async fn diff_against_sha(cwd: &Path, sha: &GitSha) -> Option<String> {
 
     if let Some(untracked_output) =
         run_git_command_with_timeout(&["ls-files", "--others", "--exclude-standard"], cwd).await
-    {
-        if untracked_output.status.success() {
+        && untracked_output.status.success() {
             let untracked: Vec<String> = String::from_utf8(untracked_output.stdout)
                 .ok()?
                 .lines()
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .filter(|s| !s.is_empty())
                 .collect();
 
@@ -505,15 +485,13 @@ async fn diff_against_sha(cwd: &Path, sha: &GitSha) -> Option<String> {
                 });
                 let results = join_all(futures_iter).await;
                 for extra in results.into_iter().flatten() {
-                    if extra.status.code().is_some_and(|c| c == 0 || c == 1) {
-                        if let Ok(s) = String::from_utf8(extra.stdout) {
+                    if extra.status.code().is_some_and(|c| c == 0 || c == 1)
+                        && let Ok(s) = String::from_utf8(extra.stdout) {
                             diff.push_str(&s);
                         }
-                    }
                 }
             }
         }
-    }
 
     Some(diff)
 }
@@ -981,7 +959,7 @@ mod tests {
     async fn resolve_root_git_project_for_trust_regular_repo_returns_repo_root() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let repo_path = create_test_git_repo(&temp_dir).await;
-        let expected = std::fs::canonicalize(&repo_path).unwrap().to_path_buf();
+        let expected = std::fs::canonicalize(&repo_path).unwrap();
 
         assert_eq!(
             resolve_root_git_project_for_trust(&repo_path),
@@ -991,7 +969,7 @@ mod tests {
         std::fs::create_dir_all(&nested).unwrap();
         assert_eq!(
             resolve_root_git_project_for_trust(&nested),
-            Some(expected.clone())
+            Some(expected)
         );
     }
 

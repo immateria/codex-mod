@@ -65,16 +65,14 @@ impl SessionCatalog {
             if !query.include_deleted && entry.deleted {
                 continue;
             }
-            if let Some(cwd) = &query.cwd {
-                if &entry.cwd_real != cwd {
+            if let Some(cwd) = &query.cwd
+                && &entry.cwd_real != cwd {
                     continue;
                 }
-            }
-            if let Some(git_root) = &query.git_root {
-                if entry.git_project_root.as_ref() != Some(git_root) {
+            if let Some(git_root) = &query.git_root
+                && entry.git_project_root.as_ref() != Some(git_root) {
                     continue;
                 }
-            }
             if !query.sources.is_empty() && !query.sources.contains(&entry.session_source) {
                 continue;
             }
@@ -84,11 +82,10 @@ impl SessionCatalog {
 
             rows.push(entry.clone());
 
-            if let Some(limit) = query.limit {
-                if rows.len() >= limit {
+            if let Some(limit) = query.limit
+                && rows.len() >= limit {
                     break;
                 }
-            }
         }
 
         Ok(rows)
@@ -179,7 +176,7 @@ type SharedCatalog = Arc<AsyncMutex<Option<rollout_catalog::SessionCatalog>>>;
 fn catalog_cache_handle(code_home: &Path) -> SharedCatalog {
     static CACHE: OnceCell<Mutex<HashMap<PathBuf, SharedCatalog>>> = OnceCell::new();
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut guard = cache.lock().expect("session catalog cache poisoned");
+    let mut guard = cache.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     guard
         .entry(code_home.to_path_buf())
         .or_insert_with(|| Arc::new(AsyncMutex::new(None)))

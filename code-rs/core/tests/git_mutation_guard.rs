@@ -56,8 +56,7 @@ fn new_git_invocations_must_use_epoch_helpers() {
                     && markers.iter().all(|m| !contents.contains(m))
                 {
                     offenders.push(format!(
-                        "{} (allowlisted but missing epoch marker(s): {:?})",
-                        path_str, markers
+                        "{path_str} (allowlisted but missing epoch marker(s): {markers:?})"
                     ));
                 }
                 continue;
@@ -68,8 +67,7 @@ fn new_git_invocations_must_use_epoch_helpers() {
 
     if !offenders.is_empty() {
         panic!(
-            "Found new direct git invocations without epoch bumping: {:?}. Use the shared helpers or add an allow-list entry with justification.",
-            offenders
+            "Found new direct git invocations without epoch bumping: {offenders:?}. Use the shared helpers or add an allow-list entry with justification."
         );
     }
 }

@@ -54,7 +54,7 @@ pub fn process_exec_slash_command(message: &str, ctx: SlashContext<'_>) -> Resul
                 return handle_subagent(other, args_raw, ctx);
             }
 
-            Err(format!("Command '/{}' is not supported in exec mode.", other))
+            Err(format!("Command '/{other}' is not supported in exec mode."))
         }
     }
 }
@@ -66,8 +66,7 @@ fn handle_subagent(
 ) -> Result<SlashDispatch, String> {
     if args.is_empty() {
         return Err(format!(
-            "Error: /{name} requires a task description. Usage: /{name} <task>",
-            name = name
+            "Error: /{name} requires a task description. Usage: /{name} <task>"
         ));
     }
 
@@ -99,7 +98,7 @@ fn handle_review(args_raw: &str) -> Result<SlashDispatch, String> {
         let text = args_raw.trim().to_string();
         (
             text.clone(),
-            text.clone(),
+            text,
             ReviewContextMetadata {
                 scope: Some("custom".to_string()),
                 ..Default::default()
@@ -158,7 +157,7 @@ mod tests {
                 assert!(prompt.contains("Task for /audit"));
                 assert_eq!(summary, "/audit security pass");
             }
-            other => panic!("unexpected result: {:?}", other),
+            other => panic!("unexpected result: {other:?}"),
         }
     }
 

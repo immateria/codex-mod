@@ -32,7 +32,7 @@ pub enum PackageManager {
 }
 
 impl PackageManager {
-    fn label(&self) -> &'static str {
+    fn label(self) -> &'static str {
         match self {
             PackageManager::Npm => "npm",
             PackageManager::Pnpm => "pnpm",
@@ -267,7 +267,7 @@ fn first_command_tokens(argv: &[String]) -> Option<Vec<String>> {
     };
     match shlex_split(&cmd) {
         Some(tokens) => Some(tokens),
-        None => Some(cmd.split_whitespace().map(|s| s.to_string()).collect()),
+        None => Some(cmd.split_whitespace().map(std::string::ToString::to_string).collect()),
     }
 }
 
@@ -310,146 +310,6 @@ fn command_basename(token: &str) -> String {
 
 fn equal_ignore_case<S: AsRef<str>, T: AsRef<str>>(left: S, right: T) -> bool {
     left.as_ref().eq_ignore_ascii_case(right.as_ref())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn to_vec(items: &[&str]) -> Vec<String> {
-        items.iter().map(|s| s.to_string()).collect()
-    }
-
-    fn analyze(raw: &str) -> DryRunAnalysis {
-        analyze_command(&to_vec(&["bash", "-lc", raw])).expect("analysis")
-    }
-
-    #[test]
-    fn detects_cargo_fmt_mutating() {
-        let analysis = analyze("cargo fmt");
-        assert_eq!(analysis.key, DryRunGuardKey::CargoFmt);
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_cargo_fmt_check() {
-        let analysis = analyze("cargo fmt -- --check");
-        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
-    }
-
-    #[test]
-    fn detects_cargo_fix_mutating() {
-        let analysis = analyze("cargo fix");
-        assert_eq!(analysis.key, DryRunGuardKey::CargoFix);
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_cargo_fix_dry_run() {
-        let analysis = analyze("cargo fix --dry-run");
-        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
-    }
-
-    #[test]
-    fn detects_cargo_clippy_fix() {
-        let analysis = analyze("cargo clippy --fix");
-        assert_eq!(analysis.key, DryRunGuardKey::CargoClippyFix);
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_rustfmt_check() {
-        let analysis = analyze("rustfmt --check src/lib.rs");
-        assert_eq!(analysis.key, DryRunGuardKey::Rustfmt);
-        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
-    }
-
-    #[test]
-    fn detects_npm_lint_without_dry_run() {
-        let analysis = analyze("npm run lint");
-        assert_eq!(analysis.key, DryRunGuardKey::PackageLint(PackageManager::Npm));
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_npm_lint_with_dry_run() {
-        let analysis = analyze("npm run lint -- --dry-run");
-        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
-    }
-
-    #[test]
-    fn detects_package_format_script() {
-        let analysis = analyze("yarn format");
-        assert_eq!(analysis.key, DryRunGuardKey::PackageFormat(PackageManager::Yarn));
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_eslint_fix() {
-        let analysis = analyze("npx eslint --fix src");
-        assert_eq!(analysis.key, DryRunGuardKey::EslintFix);
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_prettier_write() {
-        let analysis = analyze("pnpm exec prettier --write src/index.ts");
-        assert_eq!(analysis.key, DryRunGuardKey::PrettierWrite);
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_black_check() {
-        let analysis = analyze("black --check app.py");
-        assert_eq!(analysis.key, DryRunGuardKey::Black);
-        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
-    }
-
-    #[test]
-    fn detects_black_mutating() {
-        let analysis = analyze("black app.py");
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_ruff_format() {
-        let analysis = analyze("ruff format src");
-        assert_eq!(analysis.key, DryRunGuardKey::RuffFormat);
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_gofmt_w() {
-        let analysis = analyze("gofmt -w main.go");
-        assert_eq!(analysis.key, DryRunGuardKey::Gofmt);
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_dart_format() {
-        let analysis = analyze("dart format lib");
-        assert_eq!(analysis.key, DryRunGuardKey::DartFormat);
-        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
-    }
-
-    #[test]
-    fn detects_swiftformat_lint() {
-        let analysis = analyze("swiftformat --lint Sources");
-        assert_eq!(analysis.key, DryRunGuardKey::SwiftFormat);
-        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
-    }
-
-    #[test]
-    fn dry_run_state_requires_new_check() {
-        let mut state = DryRunGuardState::default();
-        let mut analysis = analyze("cargo fmt -- --check");
-        state.note_execution(&analysis);
-        assert!(state.has_recent_dry_run(DryRunGuardKey::CargoFmt));
-
-        analysis = analyze("cargo fmt");
-        state.note_execution(&analysis);
-        assert!(!state.has_recent_dry_run(DryRunGuardKey::CargoFmt));
-    }
 }
 pub fn analyze_command(command: &[String]) -> Option<DryRunAnalysis> {
     let first_tokens = first_command_tokens(command)?;
@@ -752,7 +612,7 @@ fn analyze_direct_formatter(tokens: &[String]) -> Option<InternalAnalysis> {
     }
 }
 
-fn peel_exec_wrappers<'a>(mut tokens: &'a [String]) -> &'a [String] {
+fn peel_exec_wrappers(mut tokens: &[String]) -> &[String] {
     loop {
         if tokens.is_empty() {
             return tokens;
@@ -785,7 +645,7 @@ fn peel_exec_wrappers<'a>(mut tokens: &'a [String]) -> &'a [String] {
     tokens
 }
 
-fn skip_leading_flags<'a>(tokens: &'a [String]) -> &'a [String] {
+fn skip_leading_flags(tokens: &[String]) -> &[String] {
     let mut idx = 0usize;
     while idx < tokens.len() {
         let token = tokens[idx].as_str();
@@ -804,4 +664,144 @@ fn skip_leading_flags<'a>(tokens: &'a [String]) -> &'a [String] {
 
 fn slice_contains_flag(args: &[String], flag: &str) -> bool {
     args.iter().any(|arg| equal_ignore_case(arg, flag))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn to_vec(items: &[&str]) -> Vec<String> {
+        items.iter().map(std::string::ToString::to_string).collect()
+    }
+
+    fn analyze(raw: &str) -> DryRunAnalysis {
+        analyze_command(&to_vec(&["bash", "-lc", raw])).expect("analysis")
+    }
+
+    #[test]
+    fn detects_cargo_fmt_mutating() {
+        let analysis = analyze("cargo fmt");
+        assert_eq!(analysis.key, DryRunGuardKey::CargoFmt);
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_cargo_fmt_check() {
+        let analysis = analyze("cargo fmt -- --check");
+        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
+    }
+
+    #[test]
+    fn detects_cargo_fix_mutating() {
+        let analysis = analyze("cargo fix");
+        assert_eq!(analysis.key, DryRunGuardKey::CargoFix);
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_cargo_fix_dry_run() {
+        let analysis = analyze("cargo fix --dry-run");
+        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
+    }
+
+    #[test]
+    fn detects_cargo_clippy_fix() {
+        let analysis = analyze("cargo clippy --fix");
+        assert_eq!(analysis.key, DryRunGuardKey::CargoClippyFix);
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_rustfmt_check() {
+        let analysis = analyze("rustfmt --check src/lib.rs");
+        assert_eq!(analysis.key, DryRunGuardKey::Rustfmt);
+        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
+    }
+
+    #[test]
+    fn detects_npm_lint_without_dry_run() {
+        let analysis = analyze("npm run lint");
+        assert_eq!(analysis.key, DryRunGuardKey::PackageLint(PackageManager::Npm));
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_npm_lint_with_dry_run() {
+        let analysis = analyze("npm run lint -- --dry-run");
+        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
+    }
+
+    #[test]
+    fn detects_package_format_script() {
+        let analysis = analyze("yarn format");
+        assert_eq!(analysis.key, DryRunGuardKey::PackageFormat(PackageManager::Yarn));
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_eslint_fix() {
+        let analysis = analyze("npx eslint --fix src");
+        assert_eq!(analysis.key, DryRunGuardKey::EslintFix);
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_prettier_write() {
+        let analysis = analyze("pnpm exec prettier --write src/index.ts");
+        assert_eq!(analysis.key, DryRunGuardKey::PrettierWrite);
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_black_check() {
+        let analysis = analyze("black --check app.py");
+        assert_eq!(analysis.key, DryRunGuardKey::Black);
+        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
+    }
+
+    #[test]
+    fn detects_black_mutating() {
+        let analysis = analyze("black app.py");
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_ruff_format() {
+        let analysis = analyze("ruff format src");
+        assert_eq!(analysis.key, DryRunGuardKey::RuffFormat);
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_gofmt_w() {
+        let analysis = analyze("gofmt -w main.go");
+        assert_eq!(analysis.key, DryRunGuardKey::Gofmt);
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_dart_format() {
+        let analysis = analyze("dart format lib");
+        assert_eq!(analysis.key, DryRunGuardKey::DartFormat);
+        assert_eq!(analysis.disposition, DryRunDisposition::Mutating);
+    }
+
+    #[test]
+    fn detects_swiftformat_lint() {
+        let analysis = analyze("swiftformat --lint Sources");
+        assert_eq!(analysis.key, DryRunGuardKey::SwiftFormat);
+        assert_eq!(analysis.disposition, DryRunDisposition::DryRun);
+    }
+
+    #[test]
+    fn dry_run_state_requires_new_check() {
+        let mut state = DryRunGuardState::default();
+        let mut analysis = analyze("cargo fmt -- --check");
+        state.note_execution(&analysis);
+        assert!(state.has_recent_dry_run(DryRunGuardKey::CargoFmt));
+
+        analysis = analyze("cargo fmt");
+        state.note_execution(&analysis);
+        assert!(!state.has_recent_dry_run(DryRunGuardKey::CargoFmt));
+    }
 }

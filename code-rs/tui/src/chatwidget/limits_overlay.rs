@@ -93,6 +93,20 @@ impl LimitsOverlay {
         self.selected_tab.get().min(self.tab_count().saturating_sub(1))
     }
 
+    pub(crate) fn select_tab(&self, idx: usize) -> bool {
+        let count = self.tab_count();
+        if idx >= count {
+            return false;
+        }
+        let current = self.selected_tab();
+        if idx == current {
+            return false;
+        }
+        self.selected_tab.set(idx);
+        self.scroll.set(0);
+        true
+    }
+
     pub(crate) fn select_next_tab(&self) -> bool {
         let count = self.tab_count();
         if count <= 1 {

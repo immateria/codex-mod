@@ -46,7 +46,7 @@ fn exec_cell_clears_after_patch_flow() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.to_string(),
             command: vec!["bash".into(), "-lc".into(), "apply_patch".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -91,8 +91,7 @@ fn exec_cell_clears_after_patch_flow() {
     let output = render_chat_widget_to_vt100(&mut harness, 80, 12);
     assert!(
         !output.contains("Running"),
-        "exec cell should not remain running after patch apply:\n{}",
-        output
+        "exec cell should not remain running after patch apply:\n{output}"
     );
 }
 
@@ -107,9 +106,9 @@ fn exec_spinner_clears_after_final_answer() {
         id: "exec-begin-spinner".to_string(),
         event_seq: 0,
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
-            call_id: call_id.clone(),
+            call_id: call_id,
             command: vec!["bash".into(), "-lc".into(), "echo running".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -127,8 +126,7 @@ fn exec_spinner_clears_after_final_answer() {
     let output = render_chat_widget_to_vt100(&mut harness, 80, 12);
     assert!(
         !output.contains("running command"),
-        "spinner should clear after final answer, but output was:\n{}",
-        output
+        "spinner should clear after final answer, but output was:\n{output}"
     );
 }
 
@@ -150,9 +148,9 @@ fn exec_cell_clears_after_task_started_final_answer_without_task_complete() {
         id: "exec-begin".to_string(),
         event_seq: 1,
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
-            call_id: call_id.clone(),
+            call_id: call_id,
             command: vec!["bash".into(), "-lc".into(), "echo pending".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -170,13 +168,11 @@ fn exec_cell_clears_after_task_started_final_answer_without_task_complete() {
     let output = render_chat_widget_to_vt100(&mut harness, 80, 14);
     assert!(
         !output.contains("Running"),
-        "exec should finalize after final answer even without TaskComplete:\n{}",
-        output
+        "exec should finalize after final answer even without TaskComplete:\n{output}"
     );
     assert!(
         output.contains("done"),
-        "final answer should be visible in output:\n{}",
-        output
+        "final answer should be visible in output:\n{output}"
     );
 }
 
@@ -194,7 +190,7 @@ fn synthetic_end_clears_cancelled_exec_spinner() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "sleep 5".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -203,20 +199,18 @@ fn synthetic_end_clears_cancelled_exec_spinner() {
     let before = render_chat_widget_to_vt100(&mut harness, 80, 12);
     assert!(
         before.contains("sleep 5"),
-        "exec cell should include command before synthetic end, output:\n{}",
-        before
+        "exec cell should include command before synthetic end, output:\n{before}"
     );
     assert!(
         !before.contains("Command cancelled by user."),
-        "cancellation details should not appear before synthetic end, output:\n{}",
-        before
+        "cancellation details should not appear before synthetic end, output:\n{before}"
     );
 
     harness.handle_event(Event {
-        id: sub_id.clone(),
+        id: sub_id,
         event_seq: 1,
         msg: EventMsg::ExecCommandEnd(ExecCommandEndEvent {
-            call_id: call_id,
+            call_id,
             stdout: String::new(),
             stderr: "Command cancelled by user.".to_string(),
             exit_code: 130,
@@ -228,13 +222,11 @@ fn synthetic_end_clears_cancelled_exec_spinner() {
     let after = render_chat_widget_to_vt100(&mut harness, 80, 12);
     assert!(
         after.contains("✖") || after.contains("exit code"),
-        "synthetic end should mark the exec as finished:\n{}",
-        after
+        "synthetic end should mark the exec as finished:\n{after}"
     );
     assert!(
         after.contains("Command cancelled by user."),
-        "expected cancellation context in output, got:\n{}",
-        after
+        "expected cancellation context in output, got:\n{after}"
     );
 }
 
@@ -252,7 +244,7 @@ fn wait_tool_missing_background_job_clears_exec_wait() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: exec_call_id.to_string(),
             command: vec!["bash".into(), "-lc".into(), "gh run watch".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -287,13 +279,11 @@ fn wait_tool_missing_background_job_clears_exec_wait() {
     let output = render_chat_widget_to_vt100(&mut harness, 80, 14);
     assert!(
         !output.contains("Waiting..."),
-        "wait status should clear when background job is missing:\n{}",
-        output
+        "wait status should clear when background job is missing:\n{output}"
     );
     assert!(
         output.contains("No background job found for call_id=call_wait_missing"),
-        "missing-job note should be visible:\n{}",
-        output
+        "missing-job note should be visible:\n{output}"
     );
 }
 
@@ -311,7 +301,7 @@ fn wait_interrupt_after_exec_end_does_not_mutate_exec() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: exec_call_id.to_string(),
             command: vec!["bash".into(), "-lc".into(), "echo done".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -359,13 +349,11 @@ fn wait_interrupt_after_exec_end_does_not_mutate_exec() {
     let output = render_chat_widget_to_vt100(&mut harness, 80, 14);
     assert!(
         output.contains("done"),
-        "exec output should remain visible:\n{}",
-        output
+        "exec output should remain visible:\n{output}"
     );
     assert!(
         !output.contains("wait ended due to new user message"),
-        "wait interruption text should not overwrite completed exec:\n{}",
-        output
+        "wait interruption text should not overwrite completed exec:\n{output}"
     );
 }
 
@@ -425,7 +413,7 @@ fn wait_missing_job_skips_merged_exec() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: exec_call_id_b.to_string(),
             command: vec!["rg".into(), "foo".into(), ".".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: parsed_search,
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -463,13 +451,11 @@ fn wait_missing_job_skips_merged_exec() {
     let search_count = output.matches("Search foo in /tmp/.").count();
     assert!(
         search_count >= 2,
-        "merged exec should retain both search entries:\n{}",
-        output
+        "merged exec should retain both search entries:\n{output}"
     );
     assert!(
         !output.contains("No background job found"),
-        "wait error should not overwrite merged exec:\n{}",
-        output
+        "wait error should not overwrite merged exec:\n{output}"
     );
 }
 
@@ -500,7 +486,7 @@ fn exec_begin_upgrades_running_tool_cell() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "echo upgraded".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -510,7 +496,7 @@ fn exec_begin_upgrades_running_tool_cell() {
         id: "exec-end-coalesce".to_string(),
         event_seq: 2,
         msg: EventMsg::ExecCommandEnd(ExecCommandEndEvent {
-            call_id: call_id,
+            call_id,
             stdout: "upgraded\n".into(),
             stderr: String::new(),
             exit_code: 0,
@@ -547,9 +533,9 @@ fn stale_exec_is_finalized_on_task_complete() {
         id: "exec-begin-stale".to_string(),
         event_seq: 0,
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
-            call_id: call_id.clone(),
+            call_id: call_id,
             command: vec!["bash".into(), "-lc".into(), "git diff".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -568,8 +554,7 @@ fn stale_exec_is_finalized_on_task_complete() {
     let output = render_chat_widget_to_vt100(&mut harness, 80, 14);
     assert!(
         output.contains("background") || output.contains("turn end"),
-        "stale exec should surface a clear completion notice:\n{}",
-        output
+        "stale exec should surface a clear completion notice:\n{output}"
     );
 }
 
@@ -602,7 +587,7 @@ fn exec_interrupts_flush_when_stream_idles() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "echo idle".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -634,7 +619,7 @@ fn queued_exec_end_flushes_after_stream_clears() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "echo queued".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -655,7 +640,7 @@ fn queued_exec_end_flushes_after_stream_clears() {
         id: "exec-end-flush".to_string(),
         event_seq: 2,
         msg: EventMsg::ExecCommandEnd(ExecCommandEndEvent {
-            call_id: call_id.clone(),
+            call_id: call_id,
             stdout: "queued\n".into(),
             stderr: String::new(),
             exit_code: 0,
@@ -682,13 +667,11 @@ fn queued_exec_end_flushes_after_stream_clears() {
     };
     assert!(
         output.contains("queued"),
-        "exec output should render after the deferred end is delivered:\n{}",
-        output
+        "exec output should render after the deferred end is delivered:\n{output}"
     );
     assert!(
         !output.contains("Running..."),
-        "exec should not stay running after stream clears and the flush timer fires:\n{}",
-        output
+        "exec should not stay running after stream clears and the flush timer fires:\n{output}"
     );
 }
 
@@ -716,7 +699,7 @@ fn background_style_exec_end_with_zero_seq_does_not_get_stuck() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "echo bg".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -727,7 +710,7 @@ fn background_style_exec_end_with_zero_seq_does_not_get_stuck() {
         id: "exec-end-zero".to_string(),
         event_seq: 0,
         msg: EventMsg::ExecCommandEnd(ExecCommandEndEvent {
-            call_id: call_id.clone(),
+            call_id: call_id,
             stdout: "bg\n".into(),
             stderr: String::new(),
             exit_code: 0,
@@ -750,7 +733,7 @@ fn background_style_exec_end_with_zero_seq_does_not_get_stuck() {
             break;
         }
         if Instant::now() >= deadline {
-            panic!("exec with zero seq end should complete after flush:\n{}", output);
+            panic!("exec with zero seq end should complete after flush:\n{output}");
         }
     }
 }
@@ -773,9 +756,9 @@ fn running_exec_is_finalized_when_error_event_arrives() {
         id: "exec-begin-error".to_string(),
         event_seq: 1,
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
-            call_id: call_id.clone(),
+            call_id: call_id,
             command: vec!["bash".into(), "-lc".into(), "pgrep something".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -793,12 +776,10 @@ fn running_exec_is_finalized_when_error_event_arrives() {
     let output = render_chat_widget_to_vt100(&mut harness, 80, 14);
     assert!(
         !output.contains("Running"),
-        "exec cell should not linger after fatal error:\n{}",
-        output
+        "exec cell should not linger after fatal error:\n{output}"
     );
     assert!(
         output.contains("fatal: provider crashed") || output.contains("Cancelled by user."),
-        "error context should be visible after fatal error:\n{}",
-        output
+        "error context should be visible after fatal error:\n{output}"
     );
 }

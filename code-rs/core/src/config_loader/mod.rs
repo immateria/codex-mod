@@ -296,7 +296,7 @@ where
             .spawn(move || run_future(future))
             .map_err(|err| io::Error::other(format!("config loader thread spawn failed: {err}")))?
             .join()
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "config loader thread panicked"))?
+            .map_err(|_| io::Error::other("config loader thread panicked"))?
     } else {
         run_future(future)
     }
@@ -310,7 +310,7 @@ where
     let runtime = RuntimeBuilder::new_current_thread()
         .enable_all()
         .build()
-        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+        .map_err(io::Error::other)?;
     runtime.block_on(future)
 }
 

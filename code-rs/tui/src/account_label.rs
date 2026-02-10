@@ -46,8 +46,8 @@ pub(crate) fn account_display_label(account: &StoredAccount) -> String {
 
 /// Returns the fixed-length suffix used when displaying sensitive tokens.
 pub(crate) fn key_suffix(text: &str) -> String {
-    let tail: Vec<char> = text.chars().rev().take(KEY_SUFFIX_LEN).collect();
-    tail.into_iter().rev().collect()
+    let skip = text.chars().count().saturating_sub(KEY_SUFFIX_LEN);
+    text.chars().skip(skip).collect()
 }
 
 /// Returns an ordering priority for accounts. ChatGPT accounts should appear first.

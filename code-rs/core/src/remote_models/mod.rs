@@ -366,7 +366,7 @@ fn apply_model_info_overrides_with_personality(
 
     if let Some(context_window) = info
         .context_window
-        .and_then(|value| (value > 0).then(|| value as u64))
+        .and_then(|value| (value > 0).then_some(value as u64))
     {
         family.context_window = Some(context_window);
     }

@@ -578,7 +578,9 @@ shell style matches, Code applies these settings to the session:
 
 - Adds `prepend_developer_messages` and `references` content to developer
   instructions.
+- Scans additional `skill_roots` directories for `SKILL.md` entries.
 - Restricts loaded skills to the listed `skills` names (if non-empty).
+- Removes any listed `disabled_skills` from the final set.
 - Filters MCP servers via `mcp_servers.include`/`mcp_servers.exclude`.
 
 ```toml
@@ -587,7 +589,9 @@ references = ["docs/shell/zsh-style.md"]
 prepend_developer_messages = [
   "Write idiomatic zsh; prefer native zsh array forms."
 ]
+skill_roots = ["docs/skills/zsh", "docs/skills/termux"]
 skills = ["zsh-arrays", "termux-zsh"]
+disabled_skills = ["legacy-zsh-skill"]
 
 [shell_style_profiles.zsh.mcp_servers]
 include = ["termux-docs", "shell-lint"]
@@ -600,6 +604,12 @@ Notes:
   directory.
 - `skills` entries match skill names (case-insensitive) from discovered
   `SKILL.md` files.
+- `disabled_skills` uses the same case-insensitive skill-name matching and
+  always wins over `skills` when both mention the same entry.
+- `skill_roots` paths may be absolute or relative to the current working
+  directory and are scanned recursively for `SKILL.md`.
+- Style `skill_roots` are loaded before default repo/user/system roots, so
+  matching skill names take precedence.
 - `include` runs first, then `exclude`.
 
 ## shell_environment_policy
@@ -1057,7 +1067,9 @@ Project commands appear in the TUI via `/cmd <name>` and run through the standar
 | `shell.script_style` | `posix-sh` \| `bash-zsh-compatible` \| `zsh` | Shell-code style preference for prompt guidance and style profiles. |
 | `shell_style_profiles.<style>.references` | array<string> | Style-specific reference file paths to inject into developer context. |
 | `shell_style_profiles.<style>.prepend_developer_messages` | array<string> | Extra developer messages for the active shell style. |
+| `shell_style_profiles.<style>.skill_roots` | array<string> | Additional style-specific directories to scan recursively for `SKILL.md`. |
 | `shell_style_profiles.<style>.skills` | array<string> | When non-empty, keep only these skill names for the active style. |
+| `shell_style_profiles.<style>.disabled_skills` | array<string> | Skill names to remove for the active style (overrides `skills`). |
 | `shell_style_profiles.<style>.mcp_servers.include` | array<string> | Optional MCP server allow-list for the active style. |
 | `shell_style_profiles.<style>.mcp_servers.exclude` | array<string> | Optional MCP server deny-list for the active style. |
 | `instructions` | string | Currently ignored; use `experimental_instructions_file` or `AGENTS.md`. |

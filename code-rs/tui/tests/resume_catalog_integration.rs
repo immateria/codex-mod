@@ -68,7 +68,7 @@ fn write_rollout(
     let user_line = RolloutLine {
         timestamp: last_event_at.to_string(),
         item: RolloutItem::ResponseItem(ResponseItem::Message {
-            id: Some(format!("user-{}", session_id)),
+            id: Some(format!("user-{session_id}")),
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: user_text.to_string(),
@@ -79,10 +79,10 @@ fn write_rollout(
     let assistant_line = RolloutLine {
         timestamp: last_event_at.to_string(),
         item: RolloutItem::ResponseItem(ResponseItem::Message {
-            id: Some(format!("msg-{}", session_id)),
+            id: Some(format!("msg-{session_id}")),
             role: "assistant".to_string(),
             content: vec![ContentItem::OutputText {
-                text: format!("Ack: {}", user_text),
+                text: format!("Ack: {user_text}"),
             }],
         }),
     };

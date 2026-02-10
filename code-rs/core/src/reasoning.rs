@@ -124,7 +124,7 @@ pub fn clamp_reasoning_effort_for_model(
     requested: ReasoningEffort,
 ) -> ReasoningEffort {
     let allowed = supported_reasoning_efforts_for_model(model);
-    if allowed.iter().any(|effort| *effort == requested) {
+    if allowed.contains(&requested) {
         return requested;
     }
 

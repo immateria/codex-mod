@@ -194,8 +194,7 @@ impl RmcpClient {
         if initialize_result.protocol_version != MCP_SCHEMA_VERSION {
             let reported_version = initialize_result.protocol_version.clone();
             return Err(anyhow!(
-                "MCP server reported protocol version {reported_version}, but this client expects {}. Update either side so both speak the same schema.",
-                MCP_SCHEMA_VERSION
+                "MCP server reported protocol version {reported_version}, but this client expects {MCP_SCHEMA_VERSION}. Update either side so both speak the same schema."
             ));
         }
 

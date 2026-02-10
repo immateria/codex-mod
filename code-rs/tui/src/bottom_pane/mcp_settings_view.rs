@@ -5,7 +5,7 @@ use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -81,6 +81,71 @@ impl McpSettingsView {
         }
     }
 
+    fn content_rect(area: Rect) -> Rect {
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        Rect {
+            x: inner.x.saturating_add(1),
+            y: inner.y,
+            width: inner.width.saturating_sub(2),
+            height: inner.height,
+        }
+    }
+
+    fn total_line_count(&self) -> usize {
+        if self.rows.is_empty() {
+            7
+        } else {
+            self.rows.len().saturating_mul(2).saturating_add(5)
+        }
+    }
+
+    fn selection_line_index(&self, selection: usize) -> usize {
+        let row_count = self.rows.len();
+        let prefix = if row_count == 0 { 2 } else { 0 };
+        if selection < row_count {
+            prefix + selection.saturating_mul(2)
+        } else if selection == row_count {
+            prefix + row_count.saturating_mul(2) + 1
+        } else {
+            prefix + row_count.saturating_mul(2) + 2
+        }
+    }
+
+    fn selection_at_line_index(&self, line_index: usize) -> Option<usize> {
+        let row_count = self.rows.len();
+        let prefix = if row_count == 0 { 2 } else { 0 };
+        if line_index < prefix {
+            return None;
+        }
+        let rel = line_index - prefix;
+        let rows_lines = row_count.saturating_mul(2);
+        if rel < rows_lines {
+            return Some(rel / 2);
+        }
+        if rel == rows_lines + 1 {
+            return Some(row_count);
+        }
+        if rel == rows_lines + 2 {
+            return Some(row_count + 1);
+        }
+        None
+    }
+
+    fn scroll_top_for_selected(&self, viewport_height: usize) -> usize {
+        let total_lines = self.total_line_count();
+        let selected_line_index = self.selection_line_index(self.selected);
+        if viewport_height == 0 || total_lines <= viewport_height {
+            return 0;
+        }
+        let half = viewport_height / 2;
+        let mut candidate = selected_line_index.saturating_sub(half);
+        let max_scroll = total_lines - viewport_height;
+        if candidate > max_scroll {
+            candidate = max_scroll;
+        }
+        candidate
+    }
+
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         let handled = matches!(
             key_event,
@@ -89,6 +154,49 @@ impl McpSettingsView {
         );
         self.process_key_event(key_event);
         handled
+    }
+
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let content = Self::content_rect(area);
+        if content.width == 0 || content.height == 0 {
+            return false;
+        }
+
+        match mouse_event.kind {
+            MouseEventKind::Moved => false,
+            MouseEventKind::Down(MouseButton::Left) => {
+                if mouse_event.column < content.x
+                    || mouse_event.column >= content.x.saturating_add(content.width)
+                    || mouse_event.row < content.y
+                    || mouse_event.row >= content.y.saturating_add(content.height)
+                {
+                    return false;
+                }
+                let rel_y = mouse_event.row.saturating_sub(content.y) as usize;
+                let line = self
+                    .scroll_top_for_selected(content.height as usize)
+                    .saturating_add(rel_y);
+                let Some(next) = self.selection_at_line_index(line) else {
+                    return false;
+                };
+                self.selected = next;
+                self.on_enter();
+                true
+            }
+            MouseEventKind::ScrollUp => {
+                if self.selected == 0 {
+                    self.selected = self.len().saturating_sub(1);
+                } else {
+                    self.selected -= 1;
+                }
+                true
+            }
+            MouseEventKind::ScrollDown => {
+                self.selected = (self.selected + 1) % self.len().max(1);
+                true
+            }
+            _ => false,
+        }
     }
 }
 

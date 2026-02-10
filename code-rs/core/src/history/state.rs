@@ -424,6 +424,7 @@ pub enum TextTone {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct TextEmphasis {
     pub bold: bool,
     pub italic: bool,
@@ -432,17 +433,6 @@ pub struct TextEmphasis {
     pub underline: bool,
 }
 
-impl Default for TextEmphasis {
-    fn default() -> Self {
-        Self {
-            bold: false,
-            italic: false,
-            dim: false,
-            strike: false,
-            underline: false,
-        }
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TextEntity {
@@ -756,13 +746,12 @@ fn prune_exec_stream(chunks: &mut Vec<ExecStreamChunk>, max_bytes: usize) {
         chunks.drain(..drop_chunks);
     }
 
-    if bytes_to_drop > 0 {
-        if let Some(first) = chunks.first_mut() {
+    if bytes_to_drop > 0
+        && let Some(first) = chunks.first_mut() {
             let drain = bytes_to_drop.min(first.content.len());
             first.offset = first.offset.saturating_add(drain);
             first.content.drain(..drain);
         }
-    }
 }
 
 fn append_assistant_delta(deltas: &mut Vec<AssistantStreamDelta>, delta: AssistantStreamDelta) -> usize {
@@ -1002,18 +991,15 @@ pub struct NoticeRecord {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ContextDeltaField {
+    #[default]
     Cwd,
     GitBranch,
     ReasoningEffort,
     BrowserSnapshot,
 }
 
-impl Default for ContextDeltaField {
-    fn default() -> Self {
-        ContextDeltaField::Cwd
-    }
-}
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContextDeltaRecord {
@@ -1099,7 +1085,7 @@ pub const MAX_ASSISTANT_STREAM_RETAINED_BYTES: usize = 6 * 1024 * 1024; // 6 MiB
 const ASSISTANT_STREAM_CHUNK_THRESHOLD: usize = 2048;
 const ASSISTANT_STREAM_CHUNK_STEP: usize = 256;
 const ASSISTANT_STREAM_BYTE_THRESHOLD: usize = 6 * 1024 * 1024;
-const ASSISTANT_STREAM_BYTE_STEP: usize = 1 * 1024 * 1024;
+const ASSISTANT_STREAM_BYTE_STEP: usize = 1024 * 1024;
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
 struct StreamLogState {
@@ -1192,20 +1178,16 @@ impl HistoryUsageTracker {
     }
 
     fn restore_snapshot(&mut self, record: &HistoryRecord, snapshot: UsageTrackerSnapshot) {
-        if let Some(state) = snapshot.exec {
-            if let HistoryRecord::Exec(exec_record) = record {
-                if exec_record.id != HistoryId::ZERO {
+        if let Some(state) = snapshot.exec
+            && let HistoryRecord::Exec(exec_record) = record
+                && exec_record.id != HistoryId::ZERO {
                     self.exec.insert(exec_record.id, state);
                 }
-            }
-        }
-        if let Some(state) = snapshot.assistant {
-            if let HistoryRecord::AssistantStream(stream_record) = record {
-                if stream_record.id != HistoryId::ZERO {
+        if let Some(state) = snapshot.assistant
+            && let HistoryRecord::AssistantStream(stream_record) = record
+                && stream_record.id != HistoryId::ZERO {
                     self.assistant.insert(stream_record.id, state);
                 }
-            }
-        }
     }
 
     fn observe_exec(&mut self, record: &ExecRecord, label: &'static str) {
@@ -1334,11 +1316,10 @@ fn assistant_preview(state: &AssistantStreamState) -> String {
     if !state.preview_markdown.trim().is_empty() {
         return truncate_display(state.preview_markdown.trim());
     }
-    if let Some(last) = state.deltas.last() {
-        if !last.delta.trim().is_empty() {
+    if let Some(last) = state.deltas.last()
+        && !last.delta.trim().is_empty() {
             return truncate_display(last.delta.trim());
         }
-    }
     "<empty preview>".to_string()
 }
 
@@ -1403,6 +1384,12 @@ pub struct HistoryState {
 }
 
 #[allow(dead_code)]
+impl Default for HistoryState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HistoryState {
     pub fn new() -> Self {
         Self {
@@ -1456,12 +1443,12 @@ impl HistoryState {
     ) -> AssistantMessageState {
         let mut carried_citations: Vec<String> = Vec::new();
         let mut carried_metadata: Option<MessageMetadata> = None;
-        if let Some(stream_id) = stream_id {
-            if let Some(idx) = self.records.iter().position(|record| match record {
+        if let Some(stream_id) = stream_id
+            && let Some(idx) = self.records.iter().position(|record| match record {
                 HistoryRecord::AssistantStream(state) => state.stream_id == stream_id,
                 _ => false,
-            }) {
-                if let Some(HistoryRecord::AssistantStream(state)) = self.remove(idx) {
+            })
+                && let Some(HistoryRecord::AssistantStream(state)) = self.remove(idx) {
                     if !state.citations.is_empty() {
                         carried_citations = state.citations;
                     }
@@ -1469,8 +1456,6 @@ impl HistoryState {
                         carried_metadata = state.metadata;
                     }
                 }
-            }
-        }
 
         let citations = metadata
             .map(|meta| meta.citations.clone())
@@ -1484,27 +1469,25 @@ impl HistoryState {
         // duplicating an identical assistant message that was already inserted
         // earlier (e.g. during streaming). Instead, refresh the existing record
         // in place so snapshots remain deduplicated.
-        if let Some(stream_id) = stream_id {
-            if let Some(idx) = self.records.iter().rposition(|record| match record {
+        if let Some(stream_id) = stream_id
+            && let Some(idx) = self.records.iter().rposition(|record| match record {
                 HistoryRecord::AssistantMessage(state) => {
                     state.stream_id.as_deref() == Some(stream_id)
                 }
                 _ => false,
-            }) {
-                if let HistoryRecord::AssistantMessage(existing) = &mut self.records[idx] {
+            })
+                && let HistoryRecord::AssistantMessage(existing) = &mut self.records[idx] {
                     existing.markdown = markdown;
-                    existing.citations = citations.clone();
-                    existing.metadata = metadata.clone();
-                    existing.token_usage = token_usage.clone();
+                    existing.citations = citations;
+                    existing.metadata = metadata;
+                    existing.token_usage = token_usage;
                     existing.created_at = SystemTime::now();
                     return existing.clone();
                 }
-            }
-        }
 
         let mut state = AssistantMessageState {
             id: HistoryId::ZERO,
-            stream_id: stream_id.map(|s| s.to_string()),
+            stream_id: stream_id.map(std::string::ToString::to_string),
             markdown,
             citations,
             metadata,
@@ -1757,51 +1740,47 @@ impl HistoryState {
     fn unregister_record(&mut self, record: &HistoryRecord) {
         match record {
             HistoryRecord::Exec(state) => {
-                if let Some(call_id) = state.call_id.as_ref() {
-                    if self
+                if let Some(call_id) = state.call_id.as_ref()
+                    && self
                         .exec_call_lookup
                         .get(call_id)
                         .is_some_and(|id| *id == state.id)
                     {
                         self.exec_call_lookup.remove(call_id);
                     }
-                }
                 self.remove_exec_stream_retained(state.id);
             }
             HistoryRecord::MergedExec(state) => {
                 for segment in &state.segments {
-                    if let Some(call_id) = segment.call_id.as_ref() {
-                        if self
+                    if let Some(call_id) = segment.call_id.as_ref()
+                        && self
                             .exec_call_lookup
                             .get(call_id)
                             .is_some_and(|id| *id == state.id)
                         {
                             self.exec_call_lookup.remove(call_id);
                         }
-                    }
                 }
             }
             HistoryRecord::RunningTool(state) => {
-                if let Some(call_id) = state.call_id.as_ref() {
-                    if self
+                if let Some(call_id) = state.call_id.as_ref()
+                    && self
                         .tool_call_lookup
                         .get(call_id)
                         .is_some_and(|id| *id == state.id)
                     {
                         self.tool_call_lookup.remove(call_id);
                     }
-                }
             }
             HistoryRecord::ToolCall(state) => {
-                if let Some(call_id) = state.call_id.as_ref() {
-                    if self
+                if let Some(call_id) = state.call_id.as_ref()
+                    && self
                         .tool_call_lookup
                         .get(call_id)
                         .is_some_and(|id| *id == state.id)
                     {
                         self.tool_call_lookup.remove(call_id);
                     }
-                }
             }
             HistoryRecord::AssistantStream(state) => {
                 if self
@@ -1960,8 +1939,8 @@ impl HistoryState {
                 if let Some(idx) = self.records.iter().position(|record| {
                     matches!(record,
                         HistoryRecord::AssistantStream(state) if state.stream_id == stream_id)
-                }) {
-                    if let Some(HistoryRecord::AssistantStream(existing)) =
+                })
+                    && let Some(HistoryRecord::AssistantStream(existing)) =
                         self.records.get(idx).cloned()
                     {
                         let mut updated = existing;
@@ -1992,7 +1971,6 @@ impl HistoryState {
                             return mutation;
                         }
                     }
-                }
 
                 let mut deltas = Vec::new();
                 let mut truncated_prefix_bytes = 0usize;
@@ -2100,13 +2078,11 @@ impl HistoryState {
                 stderr_tail,
             } => {
                 let mut target_idx = id.and_then(|hid| self.index_of(hid));
-                if target_idx.is_none() {
-                    if let Some(call_id) = call_id.as_ref() {
-                        if let Some(mapped_id) = self.history_id_for_exec_call(call_id) {
+                if target_idx.is_none()
+                    && let Some(call_id) = call_id.as_ref()
+                        && let Some(mapped_id) = self.history_id_for_exec_call(call_id) {
                             target_idx = self.index_of(mapped_id);
                         }
-                    }
-                }
 
                 if let Some(idx) = target_idx {
                     if let Some(HistoryRecord::Exec(existing)) = self.records.get(idx).cloned() {
@@ -2118,8 +2094,8 @@ impl HistoryState {
                         updated.wait_active = wait_active;
                         updated.wait_notes = wait_notes;
 
-                        if let Some(tail) = stdout_tail {
-                            if !tail.is_empty() {
+                        if let Some(tail) = stdout_tail
+                            && !tail.is_empty() {
                                 let offset = stream_len(&updated.stdout_chunks);
                                 self.usage_tracker
                                     .add_exec_delta(updated.id, 1, tail.len());
@@ -2131,9 +2107,8 @@ impl HistoryState {
                                     },
                                 );
                             }
-                        }
-                        if let Some(tail) = stderr_tail {
-                            if !tail.is_empty() {
+                        if let Some(tail) = stderr_tail
+                            && !tail.is_empty() {
                                 let offset = stream_len(&updated.stderr_chunks);
                                 self.usage_tracker
                                     .add_exec_delta(updated.id, 1, tail.len());
@@ -2145,7 +2120,6 @@ impl HistoryState {
                                     },
                                 );
                             }
-                        }
 
                         self.usage_tracker
                             .observe_exec(&updated, "domain:finish-exec");
@@ -2451,7 +2425,7 @@ mod tests {
 
         let (new_id, index) = match mutation {
             HistoryMutation::Inserted { id, index, .. } => (id, index),
-            other => panic!("unexpected mutation: {:?}", other),
+            other => panic!("unexpected mutation: {other:?}"),
         };
 
         assert_eq!(index, 0);
@@ -2466,7 +2440,7 @@ mod tests {
                 assert_eq!(exec.env, vec![("KEY".into(), "VAL".into())]);
                 assert_eq!(exec.tags, vec![String::from("tag")]);
             }
-            other => panic!("expected exec record, got {:?}", other),
+            other => panic!("expected exec record, got {other:?}"),
         }
     }
 
@@ -2485,7 +2459,7 @@ mod tests {
             tags: Vec::new(),
         }) {
             HistoryMutation::Inserted { id, .. } => id,
-            other => panic!("unexpected mutation: {:?}", other),
+            other => panic!("unexpected mutation: {other:?}"),
         };
 
         let finish = state.apply_domain_event(HistoryDomainEvent::FinishExec {
@@ -2513,12 +2487,12 @@ mod tests {
                 assert_eq!(exec.status, ExecStatus::Success);
                 assert_eq!(exec.exit_code, Some(0));
                 assert_eq!(exec.wait_total, Some(Duration::from_secs(2)));
-                assert_eq!(exec.wait_active, false);
+                assert!(!exec.wait_active);
                 assert_eq!(exec.wait_notes.len(), 1);
                 assert_eq!(exec.stdout_chunks.last().map(|c| c.content.as_str()), Some("output"));
                 assert_eq!(exec.stderr_chunks.last().map(|c| c.content.as_str()), Some("warn"));
             }
-            other => panic!("expected exec record, got {:?}", other),
+            other => panic!("expected exec record, got {other:?}"),
         }
     }
 
@@ -2560,7 +2534,7 @@ mod tests {
         assert_eq!(truncated, oversized.len() - MAX_EXEC_STREAM_RETAINED_BYTES);
 
         let mut flattened = String::new();
-        let mut sorted = exec_record.stdout_chunks.clone();
+        let mut sorted = exec_record.stdout_chunks;
         sorted.sort_by_key(|chunk| chunk.offset);
         for chunk in sorted {
             flattened.push_str(&chunk.content);
@@ -2708,7 +2682,7 @@ mod tests {
             tags: vec![],
         }) {
             HistoryMutation::Inserted { id, .. } => id,
-            other => panic!("unexpected mutation: {:?}", other),
+            other => panic!("unexpected mutation: {other:?}"),
         };
 
         let snapshot = state.snapshot();
@@ -2722,7 +2696,7 @@ mod tests {
                 assert_eq!(exec.working_dir, Some(PathBuf::from("/work")));
                 assert_eq!(exec.env, vec![("PWD".into(), "/work".into())]);
             }
-            other => panic!("expected exec record, got {:?}", other),
+            other => panic!("expected exec record, got {other:?}"),
         }
     }
 
@@ -2760,7 +2734,7 @@ mod tests {
             HistoryRecord::PlainMessage(st) => {
                 assert_eq!(st.lines[0].spans[0].text, "third");
             }
-            other => panic!("unexpected record removed: {:?}", other),
+            other => panic!("unexpected record removed: {other:?}"),
         }
         assert_eq!(state.len(), 2);
         assert_eq!(state.next_id, second_id.0.saturating_add(1));
@@ -3079,7 +3053,7 @@ mod tests {
             markdown: "final".into(),
             citations: vec!["cite".into()],
             metadata: Some(metadata.clone()),
-            token_usage: metadata.token_usage.clone(),
+            token_usage: metadata.token_usage,
             mid_turn: false,
             created_at: now,
         }));
@@ -3163,7 +3137,7 @@ mod tests {
             title: Some("Notice".into()),
             body: vec![MessageLine {
                 kind: MessageLineKind::Paragraph,
-                spans: vec![base_span.clone()],
+                spans: vec![base_span],
             }],
         }));
 
@@ -3177,10 +3151,9 @@ mod tests {
             assert_eq!(
                 discriminant(&record),
                 discriminant(&rebuilt),
-                "variant mismatch at index {}",
-                idx
+                "variant mismatch at index {idx}"
             );
-            assert_eq!(rebuilt, expected, "record mismatch at index {}", idx);
+            assert_eq!(rebuilt, expected, "record mismatch at index {idx}");
         }
     }
 }

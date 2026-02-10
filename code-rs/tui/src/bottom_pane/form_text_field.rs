@@ -1,5 +1,11 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{buffer::Buffer, layout::Rect, style::Style, widgets::StatefulWidgetRef};
+use ratatui::prelude::Widget;
+use ratatui::{
+    buffer::Buffer,
+    layout::Rect,
+    style::Style,
+    widgets::{Paragraph, StatefulWidgetRef, Wrap},
+};
 use std::cell::RefCell;
 
 use super::textarea::{TextArea, TextAreaState};
@@ -24,17 +30,39 @@ pub struct FormTextField {
     state: RefCell<TextAreaState>,
     single_line: bool,
     filter: InputFilter,
+    placeholder: Option<String>,
 }
 
 impl FormTextField {
     pub fn new_single_line() -> Self {
-        Self { textarea: TextArea::new(), state: RefCell::new(TextAreaState::default()), single_line: true, filter: InputFilter::None }
+        Self {
+            textarea: TextArea::new(),
+            state: RefCell::new(TextAreaState::default()),
+            single_line: true,
+            filter: InputFilter::None,
+            placeholder: None,
+        }
     }
     pub fn new_multi_line() -> Self {
-        Self { textarea: TextArea::new(), state: RefCell::new(TextAreaState::default()), single_line: false, filter: InputFilter::None }
+        Self {
+            textarea: TextArea::new(),
+            state: RefCell::new(TextAreaState::default()),
+            single_line: false,
+            filter: InputFilter::None,
+            placeholder: None,
+        }
     }
 
     pub fn set_filter(&mut self, filter: InputFilter) { self.filter = filter; }
+
+    pub fn set_placeholder(&mut self, placeholder: &str) {
+        let trimmed = placeholder.trim();
+        self.placeholder = if trimmed.is_empty() {
+            None
+        } else {
+            Some(placeholder.to_string())
+        };
+    }
 
     fn id_char_allowed(c: char) -> bool {
         c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')
@@ -61,6 +89,9 @@ impl FormTextField {
 
     pub fn cursor_is_at_start(&self) -> bool { self.textarea.cursor() == 0 }
     pub fn cursor_is_at_end(&self) -> bool { self.textarea.cursor() == self.textarea.text().len() }
+
+    #[cfg(test)]
+    pub fn cursor(&self) -> usize { self.textarea.cursor() }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> bool {
         // For single-line inputs, swallow Enter (treat as no-op here; the form
@@ -125,6 +156,21 @@ impl FormTextField {
         self.textarea.handle_mouse_click(screen_x, screen_y, area, *self.state.borrow())
     }
 
+    /// Scrolls multiline fields by one wrapped line in the given direction.
+    /// Returns true when this moved the cursor (and therefore viewport).
+    pub fn handle_mouse_scroll(&mut self, scroll_down: bool) -> bool {
+        if self.single_line {
+            return false;
+        }
+        let before = self.textarea.cursor();
+        if scroll_down {
+            self.textarea.move_cursor_down();
+        } else {
+            self.textarea.move_cursor_up();
+        }
+        self.textarea.cursor() != before
+    }
+
     pub fn desired_height(&self, width: u16) -> u16 {
         if self.single_line { 1 } else { self.textarea.desired_height(width).max(1) }
     }
@@ -138,6 +184,20 @@ impl FormTextField {
         StatefulWidgetRef::render_ref(&(&self.textarea), area, buf, &mut state);
         // Persist any scroll changes made during rendering
         *self.state.borrow_mut() = state;
+
+        if !focused
+            && self.textarea.is_empty()
+            && let Some(placeholder) = self.placeholder.as_deref()
+        {
+            Paragraph::new(placeholder)
+                .wrap(Wrap { trim: false })
+                .style(
+                    Style::default()
+                        .fg(crate::colors::text_dim())
+                        .bg(crate::colors::background()),
+                )
+                .render(area, buf);
+        }
 
         // Draw a pseudo-caret when focused without hiding the underlying glyph.
         // Invert colors on the cursor cell so the character remains visible.
@@ -169,4 +229,44 @@ impl FormTextField {
     // removed to keep builds warning‑free per repo policy. If a future caller
     // needs to preserve state, it can call `render` after cloning and restoring
     // the state across frames.
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn row_text(buf: &Buffer, area: Rect, row: u16) -> String {
+        (0..area.width)
+            .map(|dx| {
+                let x = area.x.saturating_add(dx);
+                let y = area.y.saturating_add(row);
+                buf[(x, y)]
+                    .symbol()
+                    .chars()
+                    .next()
+                    .unwrap_or(' ')
+            })
+            .collect()
+    }
+
+    #[test]
+    fn placeholder_is_visual_only_and_hidden_when_focused() {
+        let mut field = FormTextField::new_single_line();
+        field.set_placeholder("Describe this skill");
+
+        assert_eq!(field.text(), "");
+
+        let area = Rect::new(0, 0, 24, 1);
+        let mut blurred = Buffer::empty(area);
+        field.render(area, &mut blurred, false);
+        let blurred_text = row_text(&blurred, area, 0);
+        assert!(blurred_text.starts_with("Describe this skill"));
+
+        let mut focused = Buffer::empty(area);
+        field.render(area, &mut focused, true);
+        let focused_text = row_text(&focused, area, 0);
+        assert!(!focused_text.starts_with("Describe this skill"));
+
+        assert_eq!(field.text(), "");
+    }
 }

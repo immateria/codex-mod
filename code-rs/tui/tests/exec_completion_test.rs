@@ -32,7 +32,7 @@ fn exec_command_completes_properly() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.to_string(),
             command: vec!["ls".into(), "-la".into()],
-            cwd: cwd.clone(),
+            cwd: cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -41,8 +41,7 @@ fn exec_command_completes_properly() {
     let before = render_chat_widget_to_vt100(&mut harness, 80, 12);
     assert!(
         before.contains("Running") || before.contains("ls"),
-        "exec cell should show running state before end, output:\n{}",
-        before
+        "exec cell should show running state before end, output:\n{before}"
     );
 
     harness.handle_event(Event {
@@ -61,12 +60,10 @@ fn exec_command_completes_properly() {
     let after = render_chat_widget_to_vt100(&mut harness, 80, 14);
     assert!(
         !after.contains("Running..."),
-        "exec cell should NOT show 'Running...' after completion, output:\n{}",
-        after
+        "exec cell should NOT show 'Running...' after completion, output:\n{after}"
     );
     assert!(
         after.contains("total") || after.contains("drwx"),
-        "exec cell should show output after completion, output:\n{}",
-        after
+        "exec cell should show output after completion, output:\n{after}"
     );
 }

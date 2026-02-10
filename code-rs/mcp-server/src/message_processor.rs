@@ -89,7 +89,7 @@ impl MessageProcessor {
             conversation_manager.clone(),
             outgoing.clone(),
             code_linux_sandbox_exe.clone(),
-            config_for_processor.clone(),
+            config_for_processor,
         );
         let session_map: SessionMap = Arc::new(Mutex::new(HashMap::new()));
         Self {
@@ -1015,14 +1015,14 @@ impl MessageProcessor {
         let Some(session_entry) = session_entry else {
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: format!("unknown session id: {}", acp_session_id),
+                message: format!("unknown session id: {acp_session_id}"),
                 data: None,
             };
             self.outgoing.send_error(request_id, error).await;
             return;
         };
 
-        let session = session_entry.conversation.clone();
+        let session = session_entry.conversation;
 
         let outgoing = self.outgoing.clone();
         let requests_code_map = self.running_requests_id_to_code_uuid.clone();
@@ -1035,7 +1035,7 @@ impl MessageProcessor {
                 .insert(request_id.clone(), session_uuid);
 
             let result = crate::acp_tool_runner::prompt(
-                acp_session_id.clone(),
+                acp_session_id,
                 session,
                 prompt_blocks,
                 outgoing.clone(),
@@ -1113,7 +1113,7 @@ impl MessageProcessor {
         let Some(entry) = entry else {
             return Err(JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: format!("unknown session id: {}", session_id),
+                message: format!("unknown session id: {session_id}"),
                 data: None,
             });
         };
@@ -1122,7 +1122,7 @@ impl MessageProcessor {
         let selection = match resolve_model_selection(&model_id, &config_guard) {
             Some(selection) => selection,
             None => {
-                let message = format!("unknown model id: {}", model_id.to_string());
+                let message = format!("unknown model id: {model_id}");
                 return Err(JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
                     message,
@@ -1465,14 +1465,12 @@ fn convert_mcp_servers(
             }
             acp::McpServer::Http { name, .. } => {
                 return Err(anyhow!(
-                    "unsupported MCP transport for server '{}': HTTP servers are not yet supported",
-                    name
+                    "unsupported MCP transport for server '{name}': HTTP servers are not yet supported"
                 ));
             }
             acp::McpServer::Sse { name, .. } => {
                 return Err(anyhow!(
-                    "unsupported MCP transport for server '{}': SSE servers are not yet supported",
-                    name
+                    "unsupported MCP transport for server '{name}': SSE servers are not yet supported"
                 ));
             }
         }
@@ -1542,8 +1540,9 @@ fn session_models_from_config(config: &Config) -> Option<acp::SessionModelState>
         current_model_id = Some(id);
     }
 
+    let current_model_id = current_model_id?;
     Some(acp::SessionModelState {
-        current_model_id: current_model_id.expect("current model id set"),
+        current_model_id,
         available_models,
         meta: None,
     })

@@ -125,10 +125,10 @@ pub fn maybe_run_actionlint(
 
     let mut lines: Vec<String> = Vec::new();
     if !output.stdout.is_empty() {
-        lines.extend(String::from_utf8_lossy(&output.stdout).lines().map(|s| s.to_string()));
+        lines.extend(String::from_utf8_lossy(&output.stdout).lines().map(std::string::ToString::to_string));
     }
     if !output.stderr.is_empty() {
-        lines.extend(String::from_utf8_lossy(&output.stderr).lines().map(|s| s.to_string()));
+        lines.extend(String::from_utf8_lossy(&output.stderr).lines().map(std::string::ToString::to_string));
     }
     if lines.is_empty() {
         None
@@ -163,7 +163,7 @@ fn which(exe: &Path) -> Option<PathBuf> {
     let name = exe.as_os_str();
     let paths: Vec<PathBuf> = std::env::var_os("PATH")
         .map(|paths| std::env::split_paths(&paths).collect())
-        .unwrap_or_else(Vec::new);
+        .unwrap_or_default();
     for dir in paths {
         let candidate = dir.join(name);
         if candidate.is_file() && is_executable(&candidate) {
@@ -192,11 +192,10 @@ fn stage_file_with_contents(temp_root: &Path, cwd: &Path, target: &Path, content
         Err(_) => return false,
     };
     let destination = temp_root.join(relative);
-    if let Some(parent) = destination.parent() {
-        if fs::create_dir_all(parent).is_err() {
+    if let Some(parent) = destination.parent()
+        && fs::create_dir_all(parent).is_err() {
             return false;
         }
-    }
     match fs::File::create(&destination) {
         Ok(mut file) => file.write_all(contents.as_bytes()).is_ok(),
         Err(_) => false,

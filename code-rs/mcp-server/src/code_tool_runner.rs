@@ -274,10 +274,7 @@ async fn run_code_tool_session_inner(
                         }
                     }
                     EventMsg::TaskComplete(TaskCompleteEvent { last_agent_message }) => {
-                        let text = match last_agent_message {
-                            Some(msg) => msg.clone(),
-                            None => "".to_string(),
-                        };
+                        let text = last_agent_message.unwrap_or_default();
                         let result = CallToolResult {
                             content: vec![ContentBlock::TextContent(TextContent {
                                 r#type: "text".to_string(),

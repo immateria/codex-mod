@@ -523,6 +523,13 @@ pub(crate) enum AppEvent {
     /// Preview theme (no history event)
     #[allow(dead_code)]
     PreviewTheme(ThemeName),
+    /// Enable full-frame split theme preview (left=current, right=preview).
+    SetThemeSplitPreview {
+        current: ThemeName,
+        preview: ThemeName,
+    },
+    /// Disable full-frame split theme preview.
+    ClearThemeSplitPreview,
     /// Update the loading spinner style (with history event)
     #[allow(dead_code)]
     UpdateSpinner(String),

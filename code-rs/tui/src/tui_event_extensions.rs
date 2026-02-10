@@ -1,5 +1,4 @@
 //! Fork-specific TUI event helpers kept behind the `code-fork` feature flag.
-#![cfg(feature = "code-fork")]
 
 use crate::app_event_sender::AppEventSender;
 use code_core::protocol::{BrowserScreenshotUpdateEvent, RateLimitSnapshotEvent};

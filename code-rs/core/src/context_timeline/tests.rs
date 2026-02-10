@@ -21,7 +21,7 @@ fn create_test_snapshot(cwd: &str, git_branch: Option<&str>) -> EnvironmentConte
         operating_system: None,
         common_tools: vec![],
         shell: None,
-        git_branch: git_branch.map(|s| s.to_string()),
+        git_branch: git_branch.map(std::string::ToString::to_string),
         reasoning_effort: None,
     }
 }
@@ -161,7 +161,7 @@ fn test_record_snapshot_deduplication() {
 
     // Record the same snapshot twice
     let first = timeline.record_snapshot(snapshot.clone()).unwrap();
-    let second = timeline.record_snapshot(snapshot.clone()).unwrap();
+    let second = timeline.record_snapshot(snapshot).unwrap();
 
     assert!(first); // First time records
     assert!(!second); // Second time deduplicated
@@ -245,17 +245,17 @@ fn test_full_timeline_workflow() {
     timeline.add_baseline_once(baseline.clone()).unwrap();
 
     // 2. Record initial snapshot
-    timeline.record_snapshot(baseline.clone()).unwrap();
+    timeline.record_snapshot(baseline).unwrap();
 
     // 3. Apply deltas
     for i in 1..=5 {
-        let delta = create_test_delta(&format!("fp{}", i), &format!("/repo-{}", i));
+        let delta = create_test_delta(&format!("fp{i}"), &format!("/repo-{i}"));
         timeline.apply_delta(i, delta).unwrap();
     }
 
     // 4. Record more snapshots
     for i in 1..=3 {
-        let snapshot = create_test_snapshot(&format!("/snap-{}", i), Some("feature"));
+        let snapshot = create_test_snapshot(&format!("/snap-{i}"), Some("feature"));
         timeline.record_snapshot(snapshot).unwrap();
     }
 

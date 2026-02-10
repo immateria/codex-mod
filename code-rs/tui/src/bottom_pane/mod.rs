@@ -272,7 +272,63 @@ impl BottomPane<'_> {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
-        self.request_redraw();
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_account_switch_settings(&mut self, view: AccountSwitchSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_update_settings(&mut self, view: UpdateSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_planning_settings(&mut self, view: PlanningSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_review_settings(&mut self, view: ReviewSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_validation_settings(&mut self, view: ValidationSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_prompts_settings(&mut self, view: prompts_settings_view::PromptsSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_skills_settings(&mut self, view: skills_settings_view::SkillsSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_auto_drive_settings_panel(&mut self, view: AutoDriveSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
     }
 
     pub fn show_login_accounts(&mut self, view: LoginAccountsView) {

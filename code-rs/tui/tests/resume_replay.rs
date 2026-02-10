@@ -197,7 +197,7 @@ fn replay_history_handles_prefixed_revisions() {
 fn replay_history_hides_interleaved_reasoning_after_exploring() {
     let mut harness = ChatWidgetHarness::new();
 
-    let snapshot_json = to_value(&interleaved_reasoning_snapshot()).expect("snapshot to json");
+    let snapshot_json = to_value(interleaved_reasoning_snapshot()).expect("snapshot to json");
 
     harness.handle_event(Event {
         id: "resume-replay".to_string(),
@@ -226,7 +226,7 @@ fn replay_history_hides_interleaved_reasoning_after_exploring() {
 fn replay_history_keeps_spacing_before_final_reasoning() {
     let mut harness = ChatWidgetHarness::new();
 
-    let snapshot_json = to_value(&final_reasoning_snapshot()).expect("snapshot to json");
+    let snapshot_json = to_value(final_reasoning_snapshot()).expect("snapshot to json");
 
     harness.handle_event(Event {
         id: "resume-replay".to_string(),

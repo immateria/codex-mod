@@ -1,4 +1,3 @@
-#![cfg(feature = "code-fork")]
 #![allow(unused_imports)]
 
 /// Shared wrappers around upstream helpers so fork-specific code can rely on a

@@ -10,8 +10,10 @@ use crate::AutoTurnAgentsAction;
 use crate::AutoTurnAgentsTiming;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Default)]
 pub enum AutoContinueMode {
     Immediate,
+    #[default]
     TenSeconds,
     SixtySeconds,
     Manual,
@@ -55,18 +57,15 @@ impl AutoContinueMode {
     }
 }
 
-impl Default for AutoContinueMode {
-    fn default() -> Self {
-        Self::TenSeconds
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// High-level Auto Drive run phase. Each variant implies a precise legacy
 /// boolean configuration so older call sites can continue to rely on mirrored
 /// flags during the migration.
+#[derive(Default)]
 pub enum AutoRunPhase {
     /// No run in flight; all transient state must be cleared.
+    #[default]
     Idle,
     /// Goal entry panel is visible; awaiting user input to launch.
     AwaitingGoalEntry,
@@ -159,11 +158,6 @@ impl AutoRunPhase {
     }
 }
 
-impl Default for AutoRunPhase {
-    fn default() -> Self {
-        Self::Idle
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PhaseTransition {
@@ -412,7 +406,7 @@ impl AutoDriveController {
     }
 
     pub fn transition(&mut self, transition: PhaseTransition) -> TransitionEffects {
-        let old_phase = self.phase.clone();
+        let old_phase = self.phase;
         let effects = Vec::new();
 
         match (&self.phase, &transition) {
@@ -628,7 +622,7 @@ impl AutoDriveController {
             "Waiting for connection… retrying in {human_delay} (attempt {pending_attempt})"
         ));
         self.current_display_is_summary = true;
-        self.current_status_title = Some(format!("Retrying after error"));
+        self.current_status_title = Some("Retrying after error".to_string());
         self.current_status_sent_to_user = Some(format!(
             "Encountered an error: {truncated_reason}. Waiting before retrying."
         ));

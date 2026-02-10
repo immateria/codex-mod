@@ -235,7 +235,7 @@ fn normalize_glyph(ch: char) -> char {
 }
 
 fn scrub_intro_art(text: String) -> String {
-    let mut lines: Vec<String> = text.lines().map(|line| line.to_string()).collect();
+    let mut lines: Vec<String> = text.lines().map(std::string::ToString::to_string).collect();
     if let Some(star_idx) = lines
         .iter()
         .position(|line| line.contains("/code - perform a coding task"))

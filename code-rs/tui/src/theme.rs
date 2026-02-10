@@ -140,6 +140,25 @@ pub fn switch_theme(theme_name: ThemeName) {
     *CURRENT_THEME_NAME.write().unwrap() = mapped_name;
 }
 
+/// Resolve a theme as it would appear in this terminal, without mutating global state.
+pub(crate) fn resolved_theme(theme_name: ThemeName) -> Theme {
+    let mapped_name = map_theme_for_palette(theme_name, custom_theme_is_dark());
+    let mut theme = get_predefined_theme(mapped_name);
+
+    if matches!(theme_name, ThemeName::Custom)
+        && matches!(palette_mode(), PaletteMode::Ansi256)
+        && let Some(colors) = custom_theme_colors()
+    {
+        apply_custom_colors(&mut theme, &colors);
+    }
+
+    if needs_ansi256_fallback() {
+        quantize_theme_to_ansi256(&mut theme);
+    }
+
+    theme
+}
+
 /// Parse a color string (hex or named color)
 fn parse_color(color_str: &str) -> Option<Color> {
     if let Some(hex) = color_str.strip_prefix('#') {

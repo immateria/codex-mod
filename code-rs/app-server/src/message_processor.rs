@@ -46,7 +46,7 @@ impl MessageProcessor {
             auth_manager.clone(),
             SessionSource::Mcp,
         ));
-        let config_for_processor = config.clone();
+        let config_for_processor = config;
         let code_message_processor = CodexMessageProcessor::new(
             auth_manager,
             conversation_manager,

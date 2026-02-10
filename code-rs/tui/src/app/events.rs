@@ -36,6 +36,7 @@ use super::state::{
     AppState,
     ChatWidgetArgs,
     LoginFlowState,
+    ThemeSplitPreview,
     BACKPRESSURE_FORCED_DRAW_SKIPS,
     HIGH_EVENT_BURST_MAX,
 };
@@ -75,13 +76,11 @@ impl App<'_> {
             let auth_mode = remote_auth_manager
                 .auth()
                 .map(|auth| auth.mode)
-                .or_else(|| {
-                    if remote_using_chatgpt_hint {
-                        Some(code_protocol::mcp_protocol::AuthMode::ChatGPT)
-                    } else {
-                        Some(code_protocol::mcp_protocol::AuthMode::ApiKey)
-                    }
-                });
+                .or(Some(if remote_using_chatgpt_hint {
+                    code_protocol::mcp_protocol::AuthMode::ChatGPT
+                } else {
+                    code_protocol::mcp_protocol::AuthMode::ApiKey
+                }));
             let presets = code_common::model_presets::builtin_model_presets(auth_mode);
             let presets = crate::remote_model_presets::merge_remote_models(remote_models, presets);
             let default_model = remote_manager.default_model_slug(auth_mode).await;
@@ -716,7 +715,9 @@ impl App<'_> {
                         run.running = false;
                         run.cancel_tx = None;
                         if let Some(writer_shared) = run.writer_tx.take() {
-                            let mut guard = writer_shared.lock().unwrap();
+                            let mut guard = writer_shared
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner);
                             guard.take();
                         }
                         run.pty = None;
@@ -743,7 +744,9 @@ impl App<'_> {
                         run.running = false;
                         run.controller = None;
                         if let Some(writer_shared) = run.writer_tx.take() {
-                            let mut guard = writer_shared.lock().unwrap();
+                            let mut guard = writer_shared
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner);
                             guard.take();
                         }
                         run.pty = None;
@@ -788,7 +791,9 @@ impl App<'_> {
                 AppEvent::TerminalSendInput { id, data } => {
                     if let Some(run) = self.terminal_runs.get_mut(&id) {
                         if let Some(writer_shared) = run.writer_tx.as_ref() {
-                            let mut guard = writer_shared.lock().unwrap();
+                            let mut guard = writer_shared
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner);
                             if let Some(tx) = guard.as_ref() {
                                 if tx.send(data).is_err() {
                                     guard.take();
@@ -1949,6 +1954,24 @@ impl App<'_> {
                         widget.add_diff_output(text);
                     }
                 }
+                AppEvent::SetThemeSplitPreview { current, preview } => {
+                    let next = ThemeSplitPreview { current, preview };
+                    let unchanged = self
+                        .theme_split_preview
+                        .map(|existing| {
+                            existing.current == next.current && existing.preview == next.preview
+                        })
+                        .unwrap_or(false);
+                    if !unchanged {
+                        self.theme_split_preview = Some(next);
+                        self.schedule_redraw();
+                    }
+                }
+                AppEvent::ClearThemeSplitPreview => {
+                    if self.theme_split_preview.take().is_some() {
+                        self.schedule_redraw();
+                    }
+                }
                 AppEvent::UpdateTheme(new_theme) => {
                     // Switch the theme immediately
                     if matches!(new_theme, code_core::config_types::ThemeName::Custom) {
@@ -2307,7 +2330,9 @@ impl App<'_> {
                                 let rt = tokio::runtime::Builder::new_multi_thread()
                                     .enable_all()
                                     .build()
-                                    .expect("build tokio runtime");
+                                    .unwrap_or_else(|err| {
+                                        panic!("build tokio runtime: {err}")
+                                    });
                                 // Clone cfg for the async block to keep original for the event
                                 let cfg_for_rt = cfg.clone();
                                 let result = rt.block_on(async move {

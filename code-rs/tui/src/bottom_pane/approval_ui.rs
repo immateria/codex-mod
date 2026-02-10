@@ -1,5 +1,3 @@
-#![cfg(feature = "code-fork")]
-
 use crate::app_event_sender::AppEventSender;
 use crate::chatwidget::BackgroundOrderTicket;
 use crate::user_approval_widget::{ApprovalRequest, UserApprovalWidget};

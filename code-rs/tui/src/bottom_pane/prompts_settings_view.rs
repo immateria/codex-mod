@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use code_core::config::find_code_home;
 use code_core::protocol::Op;
 use code_protocol::custom_prompts::CustomPrompt;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -17,6 +17,8 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 use crate::slash_command::built_in_slash_commands;
 
+use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::BottomPane;
 use super::form_text_field::{FormTextField, InputFilter};
 // Panel helpers unused now that we render inline
 
@@ -136,6 +138,17 @@ impl PromptsSettingsView {
                     Focus::List => self.handle_list_key(key),
                 },
             },
+        }
+    }
+
+    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        if self.is_complete || area.width == 0 || area.height == 0 {
+            return false;
+        }
+
+        match self.mode {
+            Mode::List => self.handle_list_mouse_event(mouse_event, area),
+            Mode::Edit => self.handle_edit_mouse_event(mouse_event, area),
         }
     }
 
@@ -278,6 +291,197 @@ impl PromptsSettingsView {
             Paragraph::new(Line::from(Span::styled(msg.clone(), *style)))
                 .alignment(Alignment::Left)
                 .render(vertical[3], buf);
+        }
+    }
+
+    fn list_selection_at(&self, area: Rect, mouse_event: MouseEvent) -> Option<usize> {
+        let outer = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().bg(colors::background()));
+        let inner = outer.inner(area);
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(3), Constraint::Min(1)])
+            .split(inner);
+        let list_area = chunks[1];
+
+        if mouse_event.column < list_area.x
+            || mouse_event.column >= list_area.x.saturating_add(list_area.width)
+            || mouse_event.row < list_area.y
+            || mouse_event.row >= list_area.y.saturating_add(list_area.height)
+        {
+            return None;
+        }
+
+        let rel_y = mouse_event.row.saturating_sub(list_area.y) as usize;
+        if self.prompts.is_empty() {
+            if rel_y == 1 { Some(0) } else { None }
+        } else if rel_y < self.prompts.len() {
+            Some(rel_y)
+        } else if rel_y == self.prompts.len() {
+            Some(self.prompts.len())
+        } else {
+            None
+        }
+    }
+
+    fn button_focus_at(&self, buttons_area: Rect, mouse_event: MouseEvent) -> Option<Focus> {
+        if mouse_event.column < buttons_area.x
+            || mouse_event.column >= buttons_area.x.saturating_add(buttons_area.width)
+            || mouse_event.row < buttons_area.y
+            || mouse_event.row >= buttons_area.y.saturating_add(buttons_area.height)
+        {
+            return None;
+        }
+
+        let save_label = if matches!(self.focus, Focus::Save) { "[Save]" } else { "Save" };
+        let delete_label = if matches!(self.focus, Focus::Delete) { "[Delete]" } else { "Delete" };
+        let cancel_label = if matches!(self.focus, Focus::Cancel) { "[Cancel]" } else { "Cancel" };
+
+        let x = mouse_event.column.saturating_sub(buttons_area.x) as usize;
+        let save_start = 0usize;
+        let delete_start = save_label.len().saturating_add(3);
+        let cancel_start = delete_start
+            .saturating_add(delete_label.len())
+            .saturating_add(3);
+
+        if x >= save_start && x < save_start.saturating_add(save_label.len()) {
+            return Some(Focus::Save);
+        }
+        if x >= delete_start && x < delete_start.saturating_add(delete_label.len()) {
+            return Some(Focus::Delete);
+        }
+        if x >= cancel_start && x < cancel_start.saturating_add(cancel_label.len()) {
+            return Some(Focus::Cancel);
+        }
+        None
+    }
+
+    fn handle_list_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                let Some(next) = self.list_selection_at(area, mouse_event) else {
+                    return false;
+                };
+                if self.selected == next {
+                    return false;
+                }
+                self.selected = next;
+                true
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let Some(next) = self.list_selection_at(area, mouse_event) else {
+                    return false;
+                };
+                self.selected = next;
+                self.enter_editor();
+                true
+            }
+            MouseEventKind::ScrollUp => {
+                if self.selected > 0 {
+                    self.selected -= 1;
+                }
+                true
+            }
+            MouseEventKind::ScrollDown => {
+                let max = self.prompts.len();
+                if self.selected < max {
+                    self.selected += 1;
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn handle_edit_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let vertical = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Min(6),
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ])
+            .split(area);
+        let name_rect = vertical[0];
+        let body_rect = vertical[1];
+        let buttons_rect = vertical[2];
+
+        let name_inner = Block::default().borders(Borders::ALL).inner(name_rect);
+        let body_inner = Block::default().borders(Borders::ALL).inner(body_rect);
+
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                if let Some(focus) = self.button_focus_at(buttons_rect, mouse_event) {
+                    if self.focus == focus {
+                        return false;
+                    }
+                    self.focus = focus;
+                    return true;
+                }
+                false
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let col = mouse_event.column;
+                let row = mouse_event.row;
+                if col >= name_rect.x
+                    && col < name_rect.x.saturating_add(name_rect.width)
+                    && row >= name_rect.y
+                    && row < name_rect.y.saturating_add(name_rect.height)
+                {
+                    self.focus = Focus::Name;
+                    let _ = self.name_field.handle_mouse_click(col, row, name_inner);
+                    return true;
+                }
+                if col >= body_rect.x
+                    && col < body_rect.x.saturating_add(body_rect.width)
+                    && row >= body_rect.y
+                    && row < body_rect.y.saturating_add(body_rect.height)
+                {
+                    self.focus = Focus::Body;
+                    let _ = self.body_field.handle_mouse_click(col, row, body_inner);
+                    return true;
+                }
+                if let Some(focus) = self.button_focus_at(buttons_rect, mouse_event) {
+                    self.focus = focus;
+                    match focus {
+                        Focus::Save => self.save_current(),
+                        Focus::Delete => self.delete_current(),
+                        Focus::Cancel => {
+                            self.mode = Mode::List;
+                            self.focus = Focus::List;
+                            self.status = None;
+                        }
+                        Focus::List | Focus::Name | Focus::Body => {}
+                    }
+                    return true;
+                }
+                false
+            }
+            MouseEventKind::ScrollUp => {
+                if mouse_event.column >= body_rect.x
+                    && mouse_event.column < body_rect.x.saturating_add(body_rect.width)
+                    && mouse_event.row >= body_rect.y
+                    && mouse_event.row < body_rect.y.saturating_add(body_rect.height)
+                {
+                    self.focus = Focus::Body;
+                    return self.body_field.handle_mouse_scroll(false);
+                }
+                false
+            }
+            MouseEventKind::ScrollDown => {
+                if mouse_event.column >= body_rect.x
+                    && mouse_event.column < body_rect.x.saturating_add(body_rect.width)
+                    && mouse_event.row >= body_rect.y
+                    && mouse_event.row < body_rect.y.saturating_add(body_rect.height)
+                {
+                    self.focus = Focus::Body;
+                    return self.body_field.handle_mouse_scroll(true);
+                }
+                false
+            }
+            _ => false,
         }
     }
 
@@ -439,5 +643,36 @@ impl PromptsSettingsView {
         self.focus = Focus::List;
         self.status = Some(("Deleted.".to_string(), Style::default().fg(colors::success())));
         self.app_event_tx.send(AppEvent::CodexOp(Op::ListCustomPrompts));
+    }
+}
+
+impl<'a> BottomPaneView<'a> for PromptsSettingsView {
+    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+        let _ = self.handle_key_event_direct(key_event);
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        if self.handle_mouse_event_direct(mouse_event, area) {
+            ConditionalUpdate::NeedsRedraw
+        } else {
+            ConditionalUpdate::NoRedraw
+        }
+    }
+
+    fn is_complete(&self) -> bool {
+        self.is_complete()
+    }
+
+    fn desired_height(&self, _width: u16) -> u16 {
+        20
+    }
+
+    fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.render_body(area, buf);
     }
 }

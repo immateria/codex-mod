@@ -146,7 +146,7 @@ impl EnvironmentContext {
                     if writable_roots.is_empty() {
                         None
                     } else {
-                        Some(writable_roots.clone())
+                        Some(writable_roots)
                     }
                 }
                 _ => None,
@@ -252,15 +252,14 @@ impl EnvironmentContext {
             }
             lines.push("  </operating_system>".to_string());
         }
-        if let Some(common_tools) = self.common_tools {
-            if !common_tools.is_empty() {
+        if let Some(common_tools) = self.common_tools
+            && !common_tools.is_empty() {
                 lines.push("  <common_tools>".to_string());
                 for tool in common_tools {
                     lines.push(format!("    <tool>{tool}</tool>"));
                 }
                 lines.push("  </common_tools>".to_string());
             }
-        }
         if let Some(current_date) = self.current_date {
             lines.push(format!("  <current_date>{current_date}</current_date>"));
         }
@@ -319,8 +318,8 @@ impl EnvironmentContextSnapshot {
         Self {
             version: Self::VERSION,
             cwd: ctx.cwd.as_ref().map(|p| p.display().to_string()),
-            approval_policy: ctx.approval_policy.clone(),
-            sandbox_mode: ctx.sandbox_mode.clone(),
+            approval_policy: ctx.approval_policy,
+            sandbox_mode: ctx.sandbox_mode,
             network_access: ctx.network_access.clone(),
             writable_roots: ctx
                 .writable_roots
@@ -360,7 +359,7 @@ impl EnvironmentContextSnapshot {
             map.insert("reasoning_effort", reasoning.clone());
         }
 
-        let encoded = serde_json::to_vec(&map).expect("serializing fingerprint fields");
+        let encoded = serde_json::to_vec(&map).unwrap_or_default();
         let mut sha = Sha1::new();
         sha.update(encoded);
         format!("{:x}", sha.finalize())
@@ -375,13 +374,13 @@ impl EnvironmentContextSnapshot {
         if self.approval_policy != previous.approval_policy {
             changes.insert(
                 "approval_policy".to_string(),
-                serde_json::to_value(&self.approval_policy).unwrap_or(JsonValue::Null),
+                serde_json::to_value(self.approval_policy).unwrap_or(JsonValue::Null),
             );
         }
         if self.sandbox_mode != previous.sandbox_mode {
             changes.insert(
                 "sandbox_mode".to_string(),
-                serde_json::to_value(&self.sandbox_mode).unwrap_or(JsonValue::Null),
+                serde_json::to_value(self.sandbox_mode).unwrap_or(JsonValue::Null),
             );
         }
         if self.network_access != previous.network_access {
@@ -457,7 +456,7 @@ impl EnvironmentContextSnapshot {
         for (key, value) in &delta.changes {
             match key.as_str() {
                 "cwd" => {
-                    updated.cwd = value.as_str().map(|s| s.to_string());
+                    updated.cwd = value.as_str().map(std::string::ToString::to_string);
                 }
                 "approval_policy" => {
                     if let Ok(policy) = serde_json::from_value::<AskForApproval>(value.clone()) {
@@ -726,12 +725,11 @@ fn snapshot_to_response_item(
 ) -> serde_json::Result<ResponseItem> {
     let json = serde_json::to_string_pretty(snapshot)?;
     Ok(ResponseItem::Message {
-        id: stream_id.map(|id| id.to_string()),
+        id: stream_id.map(std::string::ToString::to_string),
         role: "user".to_string(),
         content: vec![ContentItem::InputText {
             text: format!(
-                "{}\n{}\n{}",
-                ENVIRONMENT_CONTEXT_OPEN_TAG, json, ENVIRONMENT_CONTEXT_CLOSE_TAG
+                "{ENVIRONMENT_CONTEXT_OPEN_TAG}\n{json}\n{ENVIRONMENT_CONTEXT_CLOSE_TAG}"
             ),
         }],
     })
@@ -743,12 +741,11 @@ fn delta_to_response_item(
 ) -> serde_json::Result<ResponseItem> {
     let json = serde_json::to_string_pretty(delta)?;
     Ok(ResponseItem::Message {
-        id: stream_id.map(|id| id.to_string()),
+        id: stream_id.map(std::string::ToString::to_string),
         role: "user".to_string(),
         content: vec![ContentItem::InputText {
             text: format!(
-                "{}\n{}\n{}",
-                ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG, json, ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG
+                "{ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG}\n{json}\n{ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG}"
             ),
         }],
     })
@@ -760,12 +757,11 @@ fn browser_snapshot_to_response_item(
 ) -> serde_json::Result<ResponseItem> {
     let json = serde_json::to_string_pretty(snapshot)?;
     Ok(ResponseItem::Message {
-        id: stream_id.map(|id| id.to_string()),
+        id: stream_id.map(std::string::ToString::to_string),
         role: "user".to_string(),
         content: vec![ContentItem::InputText {
             text: format!(
-                "{}\n{}\n{}",
-                BROWSER_SNAPSHOT_OPEN_TAG, json, BROWSER_SNAPSHOT_CLOSE_TAG
+                "{BROWSER_SNAPSHOT_OPEN_TAG}\n{json}\n{BROWSER_SNAPSHOT_CLOSE_TAG}"
             ),
         }],
     })

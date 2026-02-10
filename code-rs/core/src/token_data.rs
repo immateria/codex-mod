@@ -118,7 +118,7 @@ pub fn parse_id_token(id_token: &str) -> Result<IdTokenInfo, IdTokenInfoError> {
             .auth
             .as_ref()
             .and_then(|a| a.chatgpt_plan_type.as_ref())
-            .map(|plan| plan.as_string());
+            .map(PlanType::as_string);
         tracing::debug!(
             email = claims.email.as_deref().unwrap_or("<missing>"),
             chatgpt_plan_type = plan.as_deref().unwrap_or("unknown"),

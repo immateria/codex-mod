@@ -55,44 +55,43 @@ impl App<'_> {
         // Split queues so interactive input never waits behind bulk updates.
         let (high_tx, app_event_rx_high) = channel();
         let (bulk_tx, app_event_rx_bulk) = channel();
-        let app_event_tx = AppEventSender::new_dual(high_tx.clone(), bulk_tx.clone());
+        let app_event_tx = AppEventSender::new_dual(high_tx, bulk_tx);
 
         {
             let remote_tx = app_event_tx.clone();
-            let remote_auth_manager = auth_manager.clone();
+            let remote_auth_manager = auth_manager;
             let remote_provider = config.model_provider.clone();
             let remote_code_home = config.code_home.clone();
             let remote_using_chatgpt_hint = config.using_chatgpt_auth;
             if !crate::chatwidget::is_test_mode() {
                 tokio::spawn(async move {
+                    let auth_mode = remote_auth_manager
+                        .auth()
+                        .map(|auth| auth.mode)
+                        .or(Some(if remote_using_chatgpt_hint {
+                            code_protocol::mcp_protocol::AuthMode::ChatGPT
+                        } else {
+                            code_protocol::mcp_protocol::AuthMode::ApiKey
+                        }));
                     let remote_manager = code_core::remote_models::RemoteModelsManager::new(
-                        remote_auth_manager.clone(),
+                        remote_auth_manager,
                         remote_provider,
                         remote_code_home,
                     );
-                remote_manager.refresh_remote_models().await;
-                let remote_models = remote_manager.remote_models_snapshot().await;
-                if remote_models.is_empty() {
-                    return;
-                }
+                    remote_manager.refresh_remote_models().await;
+                    let remote_models = remote_manager.remote_models_snapshot().await;
+                    if remote_models.is_empty() {
+                        return;
+                    }
 
-                let auth_mode = remote_auth_manager
-                    .auth()
-                    .map(|auth| auth.mode)
-                    .or_else(|| {
-                        if remote_using_chatgpt_hint {
-                            Some(code_protocol::mcp_protocol::AuthMode::ChatGPT)
-                        } else {
-                            Some(code_protocol::mcp_protocol::AuthMode::ApiKey)
-                        }
+                    let presets = code_common::model_presets::builtin_model_presets(auth_mode);
+                    let presets =
+                        crate::remote_model_presets::merge_remote_models(remote_models, presets);
+                    let default_model = remote_manager.default_model_slug(auth_mode).await;
+                    remote_tx.send(AppEvent::ModelPresetsUpdated {
+                        presets,
+                        default_model,
                     });
-                let presets = code_common::model_presets::builtin_model_presets(auth_mode);
-                let presets = crate::remote_model_presets::merge_remote_models(remote_models, presets);
-                let default_model = remote_manager.default_model_slug(auth_mode).await;
-                remote_tx.send(AppEvent::ModelPresetsUpdated {
-                    presets,
-                    default_model,
-                });
                 });
             }
         }
@@ -331,6 +330,7 @@ impl App<'_> {
             clear_on_first_frame: true,
             pending_jump_back_ghost_state: None,
             pending_jump_back_history_snapshot: None,
+            theme_split_preview: None,
             last_frame_size: None,
             last_esc_time: None,
             timing_enabled: enable_perf,

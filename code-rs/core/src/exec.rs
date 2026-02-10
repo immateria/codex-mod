@@ -661,7 +661,7 @@ async fn read_capped<R: AsyncRead + Unpin + Send + 'static>(
                 if let Some(stream) = &stream {
                     // Update tail buffer if present (keep last ~8 KiB)
                     if let Some(buf_arc) = &stream.tail_buf {
-                        let mut b = buf_arc.lock().unwrap();
+                        let mut b = buf_arc.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
                         const MAX_TAIL: usize = 8 * 1024;
                         b.extend_from_slice(&tmp[..n]);
                         if b.len() > MAX_TAIL {
@@ -745,7 +745,12 @@ struct KillOnDrop {
 
 impl KillOnDrop {
     fn new(child: Child) -> Self { Self { child: Some(child) } }
-    fn as_mut(&mut self) -> &mut Child { self.child.as_mut().expect("child present") }
+    fn as_mut(&mut self) -> &mut Child {
+        match self.child.as_mut() {
+            Some(child) => child,
+            None => panic!("child present"),
+        }
+    }
     fn disarm(&mut self) { self.child = None; }
 }
 

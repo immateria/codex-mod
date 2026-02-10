@@ -21,6 +21,7 @@ use crate::onboarding::onboarding_screen::OnboardingScreen;
 use crate::thread_spawner;
 use crate::tui::TerminalInfo;
 use code_core::config::Config;
+use code_core::config_types::ThemeName;
 use code_core::ConversationManager;
 use code_login::ShutdownHandle;
 use tokio::sync::oneshot;
@@ -65,6 +66,12 @@ pub(super) enum AppState<'a> {
         /// `AppState`.
         widget: Box<ChatWidget<'a>>,
     },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct ThemeSplitPreview {
+    pub(super) current: ThemeName,
+    pub(super) preview: ThemeName,
 }
 
 pub(super) struct TerminalRunState {
@@ -124,7 +131,10 @@ impl FrameTimer {
 
     pub(super) fn schedule(self: &Arc<Self>, duration: Duration, tx: AppEventSender) {
         let deadline = Instant::now() + duration;
-        let mut state = self.state.lock().unwrap();
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.deadlines.push(Reverse(deadline));
         let should_spawn = if !state.worker_running {
             state.worker_running = true;
@@ -139,7 +149,10 @@ impl FrameTimer {
             let timer = Arc::clone(self);
             let tx_for_thread = tx.clone();
             if thread_spawner::spawn_lightweight("frame-timer", move || timer.run(tx_for_thread)).is_none() {
-                let mut state = self.state.lock().unwrap();
+                let mut state = self
+                    .state
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 state.worker_running = false;
                 let drained = state.deadlines.len();
                 state.deadlines.clear();
@@ -153,7 +166,10 @@ impl FrameTimer {
     }
 
     fn run(self: Arc<Self>, tx: AppEventSender) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         loop {
             let deadline = match state.deadlines.peek().copied() {
                 Some(Reverse(deadline)) => deadline,
@@ -168,12 +184,18 @@ impl FrameTimer {
                 state.deadlines.pop();
                 drop(state);
                 tx.send(AppEvent::RequestRedraw);
-                state = self.state.lock().unwrap();
+                state = self
+                    .state
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 continue;
             }
 
             let wait_dur = deadline.saturating_duration_since(now);
-            let (new_state, result) = self.cv.wait_timeout(state, wait_dur).unwrap();
+            let (new_state, result) = self
+                .cv
+                .wait_timeout(state, wait_dur)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             state = new_state;
 
             if result.timed_out() {
@@ -254,6 +276,9 @@ pub(crate) struct App<'a> {
     pub(super) pending_jump_back_ghost_state: Option<GhostState>,
     /// Pending history snapshot to seed the next widget after a jump-back fork.
     pub(super) pending_jump_back_history_snapshot: Option<HistorySnapshot>,
+    /// When set, render the entire frame as a left/right split where each half
+    /// is drawn using a different theme.
+    pub(super) theme_split_preview: Option<ThemeSplitPreview>,
 
     /// Track last known terminal size. If it changes (true resize or a
     /// tab switch that altered the viewport), perform a full clear on the next
@@ -457,18 +482,20 @@ impl BufferDiffProfiler {
                     let mut spans: Vec<(u16, u16)> = Vec::new();
                     if !rows.is_empty() {
                         let mut iter = rows.iter();
-                        let mut start = *iter.next().unwrap();
-                        let mut prev = start;
-                        for &row in iter {
-                            if row == prev + 1 {
+                        if let Some(&mut_start) = iter.next() {
+                            let mut start = mut_start;
+                            let mut prev = start;
+                            for &row in iter {
+                                if row == prev + 1 {
+                                    prev = row;
+                                    continue;
+                                }
+                                spans.push((start, prev));
+                                start = row;
                                 prev = row;
-                                continue;
                             }
                             spans.push((start, prev));
-                            start = row;
-                            prev = row;
                         }
-                        spans.push((start, prev));
                     }
                     spans.sort_by(|(a_start, a_end), (b_start, b_end)| {
                         let a_len = usize::from(*a_end) - usize::from(*a_start) + 1;

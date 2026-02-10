@@ -104,13 +104,12 @@ impl CodexAuth {
                     return self.persist_refresh_response(refresh_response).await
                 }
                 Err(err) => {
-                    if err.is_refresh_token_reused() {
-                        if let Some(access) =
+                    if err.is_refresh_token_reused()
+                        && let Some(access) =
                             self.adopt_rotated_refresh_token_from_disk(&refresh_token)?
                         {
                             return Ok(access);
                         }
-                    }
                     if err.kind == RefreshTokenErrorKind::Transient && attempt < 4 {
                         let delay = backoff(attempt as u64);
                         tokio::time::sleep(delay).await;
@@ -202,7 +201,7 @@ impl CodexAuth {
         .map_err(|_| {
             std::io::Error::other("timed out while refreshing OpenAI API key")
         })?
-        .map_err(|err| std::io::Error::other(err))?;
+        .map_err(std::io::Error::other)?;
 
                     let updated_auth_dot_json = update_tokens(
                         &self.auth_file,
@@ -242,12 +241,12 @@ impl CodexAuth {
 
     pub fn get_account_id(&self) -> Option<String> {
         self.get_current_token_data()
-            .and_then(|t| t.account_id.clone())
+            .and_then(|t| t.account_id)
     }
 
     pub fn get_plan_type(&self) -> Option<String> {
         self.get_current_token_data()
-            .and_then(|t| t.id_token.chatgpt_plan_type.as_ref().map(|p| p.as_string()))
+            .and_then(|t| t.id_token.chatgpt_plan_type.as_ref().map(super::token_data::PlanType::as_string))
     }
 
     fn get_current_auth_json(&self) -> Option<AuthDotJson> {
@@ -256,7 +255,7 @@ impl CodexAuth {
     }
 
     fn get_current_token_data(&self) -> Option<TokenData> {
-        self.get_current_auth_json().and_then(|t| t.tokens.clone())
+        self.get_current_auth_json().and_then(|t| t.tokens)
     }
 
     /// Consider this private to integration tests.
@@ -428,11 +427,10 @@ pub async fn auth_for_stored_account(
                 let refresh_response = match refresh_response {
                     Ok(response) => response,
                     Err(err) => {
-                        if err.is_refresh_token_reused() {
-                            if let Ok(Some(updated)) =
+                        if err.is_refresh_token_reused()
+                            && let Ok(Some(updated)) =
                                 crate::auth_accounts::find_account(code_home, &account.id)
-                            {
-                                if let Some(updated_tokens) = updated.tokens {
+                                && let Some(updated_tokens) = updated.tokens {
                                     return Ok(CodexAuth::from_tokens_with_originator_and_mode(
                                         updated_tokens,
                                         updated.last_refresh,
@@ -440,8 +438,6 @@ pub async fn auth_for_stored_account(
                                         account.mode,
                                     ));
                                 }
-                            }
-                        }
                         return Err(std::io::Error::other(err));
                     }
                 };
@@ -486,7 +482,7 @@ pub fn activate_account(code_home: &Path, account_id: &str) -> std::io::Result<(
     let account_id_owned = account.id.clone();
     match account.mode {
         AuthMode::ApiKey => {
-            let api_key = account.openai_api_key.clone().ok_or_else(|| {
+            let api_key = account.openai_api_key.ok_or_else(|| {
                 std::io::Error::other("stored API key account is missing the key value")
             })?;
             let auth = AuthDotJson {
@@ -563,7 +559,7 @@ fn load_auth(
                 return Ok(Some(CodexAuth::from_api_key_with_client(api_key, client)));
             }
             AuthMode::ChatgptAuthTokens => {
-                let Some(tokens) = tokens.clone() else {
+                let Some(tokens) = tokens else {
                     return Err(std::io::Error::other(
                         "auth.json requests ChatGPT auth tokens but token data is missing",
                     ));
@@ -673,16 +669,16 @@ async fn update_tokens(
     let tokens = auth_dot_json.tokens.get_or_insert_with(TokenData::default);
     tokens.id_token = parse_id_token(&id_token).map_err(std::io::Error::other)?;
     if let Some(access_token) = access_token {
-        tokens.access_token = access_token.to_string();
+        tokens.access_token = access_token;
     }
     if let Some(refresh_token) = refresh_token {
-        tokens.refresh_token = refresh_token.to_string();
+        tokens.refresh_token = refresh_token;
     }
     auth_dot_json.last_refresh = Some(Utc::now());
     write_auth_json(auth_file, &auth_dot_json)?;
 
-    if let Some(code_home) = auth_file.parent() {
-        if let Some(tokens) = auth_dot_json.tokens.clone() {
+    if let Some(code_home) = auth_file.parent()
+        && let Some(tokens) = auth_dot_json.tokens.clone() {
             let last_refresh = auth_dot_json
                 .last_refresh
                 .unwrap_or_else(Utc::now);
@@ -695,7 +691,6 @@ async fn update_tokens(
                 true,
             )?;
         }
-    }
     Ok(auth_dot_json)
 }
 
@@ -768,9 +763,9 @@ struct OpenAiErrorData {
 }
 
 fn classify_refresh_failure(status: StatusCode, body: &str) -> RefreshTokenError {
-    if let Ok(parsed) = serde_json::from_str::<OpenAiErrorWrapper>(body) {
-        if let Some(error) = parsed.error {
-            if error.code.as_deref() == Some("refresh_token_reused") {
+    if let Ok(parsed) = serde_json::from_str::<OpenAiErrorWrapper>(body)
+        && let Some(error) = parsed.error
+            && error.code.as_deref() == Some("refresh_token_reused") {
                 let message = error
                     .message
                     .unwrap_or_else(|| "refresh token already rotated".to_string());
@@ -778,11 +773,9 @@ fn classify_refresh_failure(status: StatusCode, body: &str) -> RefreshTokenError
                     "refresh_token_reused: {message}"
                 ));
             }
-        }
-    }
 
-    if let Ok(parsed) = serde_json::from_str::<OAuthErrorBody>(body) {
-        if let Some(code) = parsed.error.as_deref() {
+    if let Ok(parsed) = serde_json::from_str::<OAuthErrorBody>(body)
+        && let Some(code) = parsed.error.as_deref() {
             let description = parsed
                 .error_description
                 .as_deref()
@@ -809,7 +802,6 @@ fn classify_refresh_failure(status: StatusCode, body: &str) -> RefreshTokenError
                 }
             }
         }
-    }
 
     if status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED {
         return RefreshTokenError::permanent(format!(
@@ -1444,7 +1436,7 @@ impl AuthManager {
     pub async fn refresh_token(&self) -> std::io::Result<Option<String>> {
         self.refresh_token_classified()
             .await
-            .map_err(|err| std::io::Error::other(err))
+            .map_err(std::io::Error::other)
     }
 
     /// Log out by deleting the on‑disk auth.json (if present). Returns Ok(true)

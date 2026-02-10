@@ -7,13 +7,14 @@ use crate::config_types::{
     McpServerTransportConfig,
     ReasoningEffort,
     ShellConfig,
+    ShellScriptStyle,
     ThemeColors,
     ThemeName,
 };
 use crate::protocol::{ApprovedCommandMatchKind, AskForApproval};
 use code_protocol::config_types::SandboxMode;
 use dirs::home_dir;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -178,9 +179,9 @@ pub async fn persist_model_selection(
                     TomlItem::Table(table)
                 });
 
-            let profiles_table = profiles_item
-                .as_table_mut()
-                .expect("profiles table should be a table");
+            let Some(profiles_table) = profiles_item.as_table_mut() else {
+                return Err(anyhow::anyhow!("profiles table should be a table"));
+            };
 
             let profile_item = profiles_table
                 .entry(profile_name)
@@ -190,9 +191,9 @@ pub async fn persist_model_selection(
                     TomlItem::Table(table)
                 });
 
-            let profile_table = profile_item
-                .as_table_mut()
-                .expect("profile entry should be a table");
+            let Some(profile_table) = profile_item.as_table_mut() else {
+                return Err(anyhow::anyhow!("profile entry should be a table"));
+            };
 
             profile_table["model"] = toml_edit::value(model.to_string());
 
@@ -272,9 +273,9 @@ pub async fn persist_shell(code_home: &Path, shell: Option<&ShellConfig>) -> any
                     TomlItem::Table(table)
                 });
 
-            let shell_table = shell_table
-                .as_table_mut()
-                .expect("shell entry should be a table");
+            let Some(shell_table) = shell_table.as_table_mut() else {
+                return Err(anyhow::anyhow!("shell entry should be a table"));
+            };
 
             shell_table["path"] = toml_edit::value(shell_config.path.clone());
             if !shell_config.args.is_empty() {
@@ -302,6 +303,547 @@ pub async fn persist_shell(code_home: &Path, shell: Option<&ShellConfig>) -> any
     fs::rename(&tmp_path, &config_path).await?;
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShellStyleSkillMode {
+    Inherit,
+    Enabled,
+    Disabled,
+}
+
+/// Update the membership of `skill_name` in a shell style profile.
+///
+/// - `Enabled`: add to `shell_style_profiles.<style>.skills` and remove from
+///   `disabled_skills`.
+/// - `Disabled`: add to `disabled_skills` and remove from `skills`.
+/// - `Inherit`: remove from both lists.
+///
+/// Returns `true` when `config.toml` changed.
+pub fn set_shell_style_profile_skill_mode(
+    code_home: &Path,
+    style: ShellScriptStyle,
+    skill_name: &str,
+    mode: ShellStyleSkillMode,
+) -> anyhow::Result<bool> {
+    let normalized_skill = skill_name.trim();
+    if normalized_skill.is_empty() {
+        return Err(anyhow::anyhow!("skill name cannot be empty"));
+    }
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let style_key = style.to_string();
+    let mut changed = false;
+
+    {
+        let root = doc.as_table_mut();
+        match root.get("shell_style_profiles") {
+            Some(item) => {
+                if item.as_table().is_none() {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if matches!(mode, ShellStyleSkillMode::Inherit) {
+                    return Ok(false);
+                }
+                let mut table = TomlTable::new();
+                table.set_implicit(true);
+                root.insert("shell_style_profiles", TomlItem::Table(table));
+                changed = true;
+            }
+        }
+    }
+
+    {
+        let root = doc.as_table_mut();
+        let profiles_table = root
+            .get_mut("shell_style_profiles")
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
+
+        let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
+        match resolved_style_key.as_deref() {
+            Some(existing_key) => {
+                if profiles_table
+                    .get(existing_key)
+                    .and_then(|item| item.as_table())
+                    .is_none()
+                {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles.{existing_key}` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if matches!(mode, ShellStyleSkillMode::Inherit) {
+                    return Ok(changed);
+                }
+                let mut style_table = TomlTable::new();
+                style_table.set_implicit(false);
+                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+                resolved_style_key = Some(style_key.clone());
+                changed = true;
+            }
+        }
+        let resolved_style_key = resolved_style_key
+            .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
+
+        let style_table = profiles_table
+            .get_mut(resolved_style_key.as_str())
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell style profile table"))?;
+
+        let mut skills = read_string_array(style_table, "skills")?;
+        let mut disabled = read_string_array(style_table, "disabled_skills")?;
+        let normalized_target = normalize_skill_name(normalized_skill);
+
+        let removed_from_skills = remove_skill_name(&mut skills, &normalized_target);
+        let removed_from_disabled = remove_skill_name(&mut disabled, &normalized_target);
+        changed |= removed_from_skills || removed_from_disabled;
+
+        match mode {
+            ShellStyleSkillMode::Inherit => {}
+            ShellStyleSkillMode::Enabled => {
+                if push_unique_skill_name(&mut skills, normalized_skill) {
+                    changed = true;
+                }
+            }
+            ShellStyleSkillMode::Disabled => {
+                if push_unique_skill_name(&mut disabled, normalized_skill) {
+                    changed = true;
+                }
+            }
+        }
+
+        changed |= write_string_array(style_table, "skills", &skills)?;
+        changed |= write_string_array(style_table, "disabled_skills", &disabled)?;
+
+        if style_table.is_empty() {
+            profiles_table.remove(resolved_style_key.as_str());
+            changed = true;
+        }
+
+        if profiles_table.is_empty() {
+            root.remove("shell_style_profiles");
+            changed = true;
+        }
+    }
+
+    if changed {
+        std::fs::create_dir_all(code_home)?;
+        let tmp_path = config_path.with_extension("tmp");
+        std::fs::write(&tmp_path, doc.to_string())?;
+        std::fs::rename(&tmp_path, &config_path)?;
+    }
+
+    Ok(changed)
+}
+
+/// Update shell-style profile path lists for `references` and `skill_roots`.
+///
+/// Empty lists remove their corresponding keys. If the resulting style profile
+/// table is empty it is removed.
+pub fn set_shell_style_profile_paths(
+    code_home: &Path,
+    style: ShellScriptStyle,
+    references: &[PathBuf],
+    skill_roots: &[PathBuf],
+) -> anyhow::Result<bool> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let style_key = style.to_string();
+    let mut changed = false;
+
+    {
+        let root = doc.as_table_mut();
+        match root.get("shell_style_profiles") {
+            Some(item) => {
+                if item.as_table().is_none() {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if references.is_empty() && skill_roots.is_empty() {
+                    return Ok(false);
+                }
+                let mut table = TomlTable::new();
+                table.set_implicit(true);
+                root.insert("shell_style_profiles", TomlItem::Table(table));
+                changed = true;
+            }
+        }
+    }
+
+    {
+        let root = doc.as_table_mut();
+        let profiles_table = root
+            .get_mut("shell_style_profiles")
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
+
+        let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
+        match resolved_style_key.as_deref() {
+            Some(existing_key) => {
+                if profiles_table
+                    .get(existing_key)
+                    .and_then(|item| item.as_table())
+                    .is_none()
+                {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles.{existing_key}` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if references.is_empty() && skill_roots.is_empty() {
+                    return Ok(changed);
+                }
+                let mut style_table = TomlTable::new();
+                style_table.set_implicit(false);
+                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+                resolved_style_key = Some(style_key.clone());
+                changed = true;
+            }
+        }
+        let resolved_style_key = resolved_style_key
+            .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
+
+        let style_table = profiles_table
+            .get_mut(resolved_style_key.as_str())
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell style profile table"))?;
+
+        changed |= write_path_array(style_table, "references", references)?;
+        changed |= write_path_array(style_table, "skill_roots", skill_roots)?;
+
+        if style_table.is_empty() {
+            profiles_table.remove(resolved_style_key.as_str());
+            changed = true;
+        }
+
+        if profiles_table.is_empty() {
+            root.remove("shell_style_profiles");
+            changed = true;
+        }
+    }
+
+    if changed {
+        std::fs::create_dir_all(code_home)?;
+        let tmp_path = config_path.with_extension("tmp");
+        std::fs::write(&tmp_path, doc.to_string())?;
+        std::fs::rename(&tmp_path, &config_path)?;
+    }
+
+    Ok(changed)
+}
+
+/// Update shell-style profile MCP server include/exclude filters.
+///
+/// Empty lists remove their corresponding keys. If the resulting `mcp_servers`
+/// table becomes empty it is removed.
+pub fn set_shell_style_profile_mcp_servers(
+    code_home: &Path,
+    style: ShellScriptStyle,
+    include: &[String],
+    exclude: &[String],
+) -> anyhow::Result<bool> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let style_key = style.to_string();
+    let mut changed = false;
+
+    {
+        let root = doc.as_table_mut();
+        match root.get("shell_style_profiles") {
+            Some(item) => {
+                if item.as_table().is_none() {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if include.is_empty() && exclude.is_empty() {
+                    return Ok(false);
+                }
+                let mut table = TomlTable::new();
+                table.set_implicit(true);
+                root.insert("shell_style_profiles", TomlItem::Table(table));
+                changed = true;
+            }
+        }
+    }
+
+    {
+        let root = doc.as_table_mut();
+        let profiles_table = root
+            .get_mut("shell_style_profiles")
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
+
+        let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
+        match resolved_style_key.as_deref() {
+            Some(existing_key) => {
+                if profiles_table
+                    .get(existing_key)
+                    .and_then(|item| item.as_table())
+                    .is_none()
+                {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles.{existing_key}` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if include.is_empty() && exclude.is_empty() {
+                    return Ok(changed);
+                }
+                let mut style_table = TomlTable::new();
+                style_table.set_implicit(false);
+                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+                resolved_style_key = Some(style_key.clone());
+                changed = true;
+            }
+        }
+        let resolved_style_key = resolved_style_key
+            .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
+
+        let style_table = profiles_table
+            .get_mut(resolved_style_key.as_str())
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell style profile table"))?;
+
+        let mcp_key = "mcp_servers";
+        let mut has_mcp_table = false;
+        match style_table.get(mcp_key) {
+            Some(item) => {
+                if item.as_table().is_none() {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles.{resolved_style_key}.{mcp_key}` must be a TOML table"
+                    ));
+                }
+                has_mcp_table = true;
+            }
+            None => {
+                if !include.is_empty() || !exclude.is_empty() {
+                    let mut mcp_table = TomlTable::new();
+                    mcp_table.set_implicit(false);
+                    style_table.insert(mcp_key, TomlItem::Table(mcp_table));
+                    changed = true;
+                    has_mcp_table = true;
+                }
+            }
+        }
+
+        if has_mcp_table {
+            let mcp_table = style_table
+                .get_mut(mcp_key)
+                .and_then(|item| item.as_table_mut())
+                .ok_or_else(|| anyhow::anyhow!("failed to prepare mcp_servers table"))?;
+            changed |= write_string_array(mcp_table, "include", include)?;
+            changed |= write_string_array(mcp_table, "exclude", exclude)?;
+
+            if mcp_table.is_empty() {
+                style_table.remove(mcp_key);
+                changed = true;
+            }
+        }
+
+        if style_table.is_empty() {
+            profiles_table.remove(resolved_style_key.as_str());
+            changed = true;
+        }
+
+        if profiles_table.is_empty() {
+            root.remove("shell_style_profiles");
+            changed = true;
+        }
+    }
+
+    if changed {
+        std::fs::create_dir_all(code_home)?;
+        let tmp_path = config_path.with_extension("tmp");
+        std::fs::write(&tmp_path, doc.to_string())?;
+        std::fs::rename(&tmp_path, &config_path)?;
+    }
+
+    Ok(changed)
+}
+
+fn normalize_skill_name(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
+}
+
+fn find_shell_style_profile_key(
+    table: &TomlTable,
+    style: ShellScriptStyle,
+) -> anyhow::Result<Option<String>> {
+    let mut match_key: Option<String> = None;
+    for (key, _) in table.iter() {
+        if ShellScriptStyle::parse(key) == Some(style) {
+            if let Some(existing) = &match_key {
+                return Err(anyhow::anyhow!(
+                    "multiple shell_style_profiles entries map to `{style}` (`{existing}` and `{key}`); keep only one"
+                ));
+            }
+            match_key = Some(key.to_string());
+        }
+    }
+    Ok(match_key)
+}
+
+fn read_string_array(table: &TomlTable, key: &str) -> anyhow::Result<Vec<String>> {
+    let Some(item) = table.get(key) else {
+        return Ok(Vec::new());
+    };
+    let array = item
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("`{key}` must be a TOML array"))?;
+    let mut out: Vec<String> = Vec::new();
+    for value in array.iter() {
+        let as_str = value
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("`{key}` entries must be TOML strings"))?;
+        let trimmed = as_str.trim();
+        if !trimmed.is_empty() {
+            out.push(trimmed.to_string());
+        }
+    }
+    Ok(out)
+}
+
+fn remove_skill_name(values: &mut Vec<String>, normalized_target: &str) -> bool {
+    let original_len = values.len();
+    values.retain(|entry| normalize_skill_name(entry) != normalized_target);
+    original_len != values.len()
+}
+
+fn push_unique_skill_name(values: &mut Vec<String>, skill_name: &str) -> bool {
+    let normalized_target = normalize_skill_name(skill_name);
+    if values
+        .iter()
+        .any(|entry| normalize_skill_name(entry) == normalized_target)
+    {
+        return false;
+    }
+    values.push(skill_name.trim().to_string());
+    true
+}
+
+fn write_string_array(table: &mut TomlTable, key: &str, values: &[String]) -> anyhow::Result<bool> {
+    if values.is_empty() {
+        return Ok(table.remove(key).is_some());
+    }
+
+    let mut deduped: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    for value in values {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let normalized = normalize_skill_name(trimmed);
+        if seen.insert(normalized) {
+            deduped.push(trimmed.to_string());
+        }
+    }
+
+    if deduped.is_empty() {
+        return Ok(table.remove(key).is_some());
+    }
+
+    let existing = read_string_array(table, key)?;
+    if existing == deduped {
+        return Ok(false);
+    }
+
+    let mut array = TomlArray::new();
+    for value in &deduped {
+        array.push(value.as_str());
+    }
+    table[key] = toml_edit::value(array);
+    Ok(true)
+}
+
+fn read_path_array(table: &TomlTable, key: &str) -> anyhow::Result<Vec<PathBuf>> {
+    let Some(item) = table.get(key) else {
+        return Ok(Vec::new());
+    };
+    let array = item
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("`{key}` must be a TOML array"))?;
+    let mut out: Vec<PathBuf> = Vec::new();
+    for value in array.iter() {
+        let as_str = value
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("`{key}` entries must be TOML strings"))?;
+        let trimmed = as_str.trim();
+        if !trimmed.is_empty() {
+            out.push(PathBuf::from(trimmed));
+        }
+    }
+    Ok(out)
+}
+
+fn write_path_array(table: &mut TomlTable, key: &str, values: &[PathBuf]) -> anyhow::Result<bool> {
+    if values.is_empty() {
+        return Ok(table.remove(key).is_some());
+    }
+
+    let mut deduped: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    for value in values {
+        let rendered = value.to_string_lossy().trim().to_string();
+        if rendered.is_empty() {
+            continue;
+        }
+        if seen.insert(rendered.clone()) {
+            deduped.push(rendered);
+        }
+    }
+
+    if deduped.is_empty() {
+        return Ok(table.remove(key).is_some());
+    }
+
+    let existing = read_path_array(table, key)?
+        .into_iter()
+        .map(|path| path.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+    if existing == deduped {
+        return Ok(false);
+    }
+
+    let mut array = TomlArray::new();
+    for value in &deduped {
+        array.push(value.as_str());
+    }
+    table[key] = toml_edit::value(array);
+    Ok(true)
 }
 
 /// Patch `CODEX_HOME/config.toml` project state.
@@ -383,7 +925,7 @@ fn set_project_trusted_inner(doc: &mut DocumentMut, project_path: &Path) -> anyh
         .get_mut(project_key.as_str())
         .and_then(|i| i.as_table_mut())
     else {
-        return Err(anyhow::anyhow!("project table missing for {}", project_key));
+        return Err(anyhow::anyhow!("project table missing for {project_key}"));
     };
     proj_tbl.set_implicit(false);
     proj_tbl["trust_level"] = toml_edit::value("trusted");
@@ -428,12 +970,11 @@ pub fn set_tui_theme_name(code_home: &Path, theme: ThemeName) -> anyhow::Result<
     doc["tui"]["theme"]["name"] = toml_edit::value(theme_str);
     // When switching away from the Custom theme, clear any lingering custom
     // overrides so built-in themes render true to spec on next startup.
-    if theme != ThemeName::Custom {
-        if let Some(tbl) = doc["tui"]["theme"].as_table_mut() {
+    if theme != ThemeName::Custom
+        && let Some(tbl) = doc["tui"]["theme"].as_table_mut() {
             tbl.remove("label");
             tbl.remove("colors");
         }
-    }
 
     // ensure code_home exists
     std::fs::create_dir_all(code_home)?;
@@ -587,11 +1128,15 @@ pub fn set_custom_theme(
         if !doc["tui"]["theme"].is_table() {
             doc["tui"]["theme"] = It::Table(toml_edit::Table::new());
         }
-        let theme_tbl = doc["tui"]["theme"].as_table_mut().unwrap();
+        let Some(theme_tbl) = doc["tui"]["theme"].as_table_mut() else {
+            return Err(anyhow::anyhow!("tui.theme must be a table"));
+        };
         if !theme_tbl.contains_key("colors") {
             theme_tbl.insert("colors", It::Table(toml_edit::Table::new()));
         }
-    let colors_tbl = theme_tbl["colors"].as_table_mut().unwrap();
+        let Some(colors_tbl) = theme_tbl["colors"].as_table_mut() else {
+            return Err(anyhow::anyhow!("tui.theme.colors must be a table"));
+        };
         macro_rules! set_opt {
             ($key:ident) => {
                 if let Some(ref v) = colors.$key { colors_tbl.insert(stringify!($key), toml_edit::value(v.clone())); }
@@ -1121,16 +1666,16 @@ pub fn set_project_access_mode(
     let proj_tbl = projects_tbl
         .get_mut(project_key.as_str())
         .and_then(|i| i.as_table_mut())
-        .ok_or_else(|| anyhow::anyhow!(format!("failed to create projects.{} table", project_key)))?;
+        .ok_or_else(|| anyhow::anyhow!(format!("failed to create projects.{project_key} table")))?;
 
     // Write fields
     proj_tbl.insert(
         "approval_policy",
-        TomlItem::Value(toml_edit::Value::from(format!("{}", approval))),
+        TomlItem::Value(toml_edit::Value::from(format!("{approval}"))),
     );
     proj_tbl.insert(
         "sandbox_mode",
-        TomlItem::Value(toml_edit::Value::from(format!("{}", sandbox_mode))),
+        TomlItem::Value(toml_edit::Value::from(format!("{sandbox_mode}"))),
     );
 
     // Harmonize trust_level with selected access mode:
@@ -1199,7 +1744,7 @@ pub fn add_project_allowed_command(
     let project_tbl = projects_tbl
         .get_mut(project_key.as_str())
         .and_then(|i| i.as_table_mut())
-        .ok_or_else(|| anyhow::anyhow!(format!("failed to create projects.{} table", project_key)))?;
+        .ok_or_else(|| anyhow::anyhow!(format!("failed to create projects.{project_key} table")))?;
 
     let mut argv_array = TomlArray::new();
     for arg in command {
@@ -1274,7 +1819,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<(
                         .and_then(|v| v.as_array())
                         .map(|arr| {
                             arr.iter()
-                                .filter_map(|i| i.as_str().map(|s| s.to_string()))
+                                .filter_map(|i| i.as_str().map(std::string::ToString::to_string))
                                 .collect()
                         })
                         .unwrap_or_default();
@@ -1289,18 +1834,12 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<(
                                         })
                                         .collect::<HashMap<_, _>>(),
                                 )
-                            } else if let Some(table) = v.as_table() {
-                                Some(
-                                    table
+                            } else { v.as_table().map(|table| table
                                         .iter()
                                         .filter_map(|(k, v)| {
                                             v.as_str().map(|s| (k.to_string(), s.to_string()))
                                         })
-                                        .collect::<HashMap<_, _>>(),
-                                )
-                            } else {
-                                None
-                            }
+                                        .collect::<HashMap<_, _>>()) }
                         });
 
                     McpServerTransportConfig::Stdio {
@@ -1312,7 +1851,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<(
                     let bearer_token = t
                         .get("bearer_token")
                         .and_then(|v| v.as_str())
-                        .map(|s| s.to_string());
+                        .map(std::string::ToString::to_string);
 
                     McpServerTransportConfig::StreamableHttp {
                         url: url.to_string(),
@@ -1334,7 +1873,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<(
                     .flatten()
                     .or_else(|| {
                         t.get("startup_timeout_ms")
-                            .and_then(|v| v.as_integer())
+                            .and_then(toml_edit::Item::as_integer)
                             .map(|ms| Duration::from_millis(ms as u64))
                     });
 
@@ -1389,8 +1928,7 @@ pub fn add_mcp_server(
     // Validate server name for safety and compatibility with MCP tool naming.
     if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
         return Err(anyhow::anyhow!(
-            "invalid server name '{}': must match ^[a-zA-Z0-9_-]+$",
-            name
+            "invalid server name '{name}': must match ^[a-zA-Z0-9_-]+$"
         ));
     }
 
@@ -1406,7 +1944,9 @@ pub fn add_mcp_server(
     if !doc.as_table().contains_key("mcp_servers") {
         doc["mcp_servers"] = TomlItem::Table(toml_edit::Table::new());
     }
-    let tbl = doc["mcp_servers"].as_table_mut().unwrap();
+    let Some(tbl) = doc["mcp_servers"].as_table_mut() else {
+        return Err(anyhow::anyhow!("mcp_servers must be a table"));
+    };
 
     let McpServerConfig {
         transport,
@@ -1485,7 +2025,10 @@ pub fn set_mcp_server_enabled(
         if !doc.as_table().contains_key(key) {
             doc[key] = TomlItem::Table(toml_edit::Table::new());
         }
-        doc[key].as_table_mut().unwrap()
+        match doc[key].as_table_mut() {
+            Some(table) => table,
+            None => panic!("table key '{key}' should be a table"),
+        }
     }
 
     let mut changed = false;
@@ -1564,7 +2107,7 @@ fn compute_legacy_code_home_dir() -> Option<PathBuf> {
 fn legacy_code_home_dir() -> Option<PathBuf> {
     #[cfg(test)]
     {
-        return compute_legacy_code_home_dir();
+        compute_legacy_code_home_dir()
     }
 
     #[cfg(not(test))]
@@ -1593,11 +2136,10 @@ pub fn resolve_code_path_for_read(code_home: &Path, relative: &Path) -> PathBuf 
         return default_path;
     }
 
-    if let Some(default_home) = default_code_home_dir() {
-        if default_home != code_home {
+    if let Some(default_home) = default_code_home_dir()
+        && default_home != code_home {
             return default_path;
         }
-    }
 
     if let Some(legacy) = legacy_code_home_dir() {
         let candidate = legacy.join(relative);

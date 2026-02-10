@@ -47,6 +47,26 @@ All of these scripts use network, so when running in the sandbox, request escala
 - Multiple `--path` values install multiple skills in one run, each named from the path basename unless `--name` is supplied.
 - Options: `--ref <ref>` (default `main`), `--dest <path>`, `--method auto|download|git`.
 
+## Shell-style-aware installs
+
+When users have shell-style profiles configured, do not assume a global install location is correct.
+
+- If the user asks for style-specific behavior, install into the style root referenced by `shell_style_profiles.<style>.skill_roots` (use `--dest`).
+- If no style root exists yet, install to a user-chosen path and provide a config snippet that adds it to `shell_style_profiles.<style>.skill_roots`.
+- If the user wants stricter control, recommend:
+  - `shell_style_profiles.<style>.skills` as an allow-list
+  - `shell_style_profiles.<style>.disabled_skills` for explicit removals
+- Mention precedence clearly: `disabled_skills` overrides allow-list and loaded roots.
+
+Example:
+
+```toml
+[shell_style_profiles.zsh]
+skill_roots = [".codex/skills/zsh"]
+skills = ["termux-zsh", "zsh-arrays"]
+disabled_skills = ["legacy-zsh-skill"]
+```
+
 ## Notes
 
 - Curated listing is fetched from `https://github.com/openai/skills/tree/main/skills/.curated` via the GitHub API. If it is unavailable, explain the error and exit.

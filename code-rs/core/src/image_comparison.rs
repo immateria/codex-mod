@@ -41,13 +41,13 @@ pub fn are_hashes_similar(phash1: &[u8], dhash1: &[u8], phash2: &[u8], dhash2: &
     let phash_dist = phash1
         .iter()
         .zip(phash2.iter())
-        .map(|(a, b)| (a ^ b).count_ones() as u32)
+        .map(|(a, b)| (a ^ b).count_ones())
         .sum::<u32>();
 
     let dhash_dist = dhash1
         .iter()
         .zip(dhash2.iter())
-        .map(|(a, b)| (a ^ b).count_ones() as u32)
+        .map(|(a, b)| (a ^ b).count_ones())
         .sum::<u32>();
 
     // 256 bits → ~5% tolerance (≈13 bits)

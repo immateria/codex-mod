@@ -294,13 +294,11 @@ impl McpConnectionManager {
                         .with_context(|| {
                             if args_for_error.is_empty() {
                                 format!(
-                                    "failed to spawn MCP server `{}` using command `{}`",
-                                    server_name_for_error, command_for_error
+                                    "failed to spawn MCP server `{server_name_for_error}` using command `{command_for_error}`"
                                 )
                             } else {
                                 format!(
-                                    "failed to spawn MCP server `{}` using command `{}` with args {:?}",
-                                    server_name_for_error, command_for_error, args_for_error
+                                    "failed to spawn MCP server `{server_name_for_error}` using command `{command_for_error}` with args {args_for_error:?}"
                                 )
                             }
                         })

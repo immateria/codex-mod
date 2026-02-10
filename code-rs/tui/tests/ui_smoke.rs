@@ -611,7 +611,7 @@ fn assistant_stream_snapshot_round_trip() {
 
     // Serialize/deserialize snapshot to ensure it stays portable.
     let json = serde_json::to_string(&snapshot).expect("serialize snapshot");
-    let restored_snapshot: _ = serde_json::from_str(&json).expect("deserialize snapshot");
+    let restored_snapshot = serde_json::from_str(&json).expect("deserialize snapshot");
 
     let mut restored = HistoryState::new();
     restored.restore(&restored_snapshot);

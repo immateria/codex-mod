@@ -118,13 +118,13 @@ pub(super) struct EnvironmentContextStreamRegistry {
 impl EnvironmentContextStreamRegistry {
     pub(super) fn env_stream_id(&mut self, session_id: Uuid) -> String {
         self.env_stream_id
-            .get_or_insert_with(|| format!("env-context-{}", session_id))
+            .get_or_insert_with(|| format!("env-context-{session_id}"))
             .clone()
     }
 
     pub(super) fn browser_stream_id(&mut self, session_id: Uuid) -> String {
         self.browser_stream_id
-            .get_or_insert_with(|| format!("browser-context-{}", session_id))
+            .get_or_insert_with(|| format!("browser-context-{session_id}"))
             .clone()
     }
 }
@@ -878,11 +878,10 @@ impl Session {
 
     pub fn remove_task(&self, sub_id: &str) {
         let mut state = self.state.lock().unwrap();
-        if let Some(agent) = &state.current_task {
-            if agent.sub_id == sub_id {
+        if let Some(agent) = &state.current_task
+            && agent.sub_id == sub_id {
                 state.current_task.take();
             }
-        }
     }
 
     pub fn has_running_task(&self) -> bool {
@@ -1283,11 +1282,10 @@ impl Session {
             let guard = self.rollout.lock().unwrap();
             guard.as_ref().cloned()
         };
-        if let Some(rec) = recorder {
-            if let Err(e) = rec.record_items(items).await {
+        if let Some(rec) = recorder
+            && let Err(e) = rec.record_items(items).await {
                 error!("failed to record rollout items: {e:#}");
             }
-        }
     }
 
     /// Build the full turn input by concatenating the current conversation
@@ -1331,8 +1329,8 @@ impl Session {
 
         // Helper closure to detect legacy XML environment context items
         let is_legacy_env_context = |item: &ResponseItem| -> bool {
-            if let ResponseItem::Message { role, content, .. } = item {
-                if role == "user" {
+            if let ResponseItem::Message { role, content, .. } = item
+                && role == "user" {
                     return content.iter().any(|c| {
                         if let ContentItem::InputText { text } = c {
                             text.contains("<environment_context>")
@@ -1341,7 +1339,6 @@ impl Session {
                         }
                     });
                 }
-            }
             false
         };
 
@@ -1534,8 +1531,8 @@ impl Session {
             let stream = state.context_stream_ids.env_stream_id(self.id);
             let result = match state.environment_context_tracker.emit_response_items(
                 env_context,
-                git_branch.clone(),
-                reasoning_effort.clone(),
+                git_branch,
+                reasoning_effort,
                 Some(stream.as_str()),
             ) {
                 Ok(Some((emission, items))) => {
@@ -1560,11 +1557,10 @@ impl Session {
                             }
                         }
                         EnvironmentContextEmission::Delta { sequence, delta, snapshot } => {
-                            if state.context_timeline.baseline().is_none() {
-                                if let Err(err) = state.context_timeline.add_baseline_once(snapshot.clone()) {
+                            if state.context_timeline.baseline().is_none()
+                                && let Err(err) = state.context_timeline.add_baseline_once(snapshot.clone()) {
                                     tracing::warn!("env_ctx_v2: failed to seed baseline before delta: {err}");
                                 }
-                            }
                             if let Err(err) = state
                                 .context_timeline
                                 .apply_delta(*sequence, delta.clone())
@@ -1777,8 +1773,8 @@ impl Session {
             }
         }
 
-        if replay_ctx.timeline.baseline().is_none() {
-            if let Some(snapshot) = replay_ctx.legacy_baseline.clone() {
+        if replay_ctx.timeline.baseline().is_none()
+            && let Some(snapshot) = replay_ctx.legacy_baseline.clone() {
                 if let Err(err) = replay_ctx.timeline.add_baseline_once(snapshot.clone()) {
                     tracing::warn!("env_ctx_v2: failed to map legacy status to baseline: {err}");
                 }
@@ -1789,7 +1785,6 @@ impl Session {
                 }
                 replay_ctx.last_snapshot = Some(snapshot);
             }
-        }
 
         let restored_snapshot = replay_ctx.last_snapshot.clone();
         let next_seq_value = replay_ctx.next_sequence;
@@ -2077,15 +2072,12 @@ pub(crate) fn prune_history_items(
     let mut screenshots_to_keep = std::collections::HashSet::new();
     for &user_idx in real_user_messages.iter().rev().take(2) {
         for &status_idx in status_messages.iter() {
-            if status_idx > user_idx {
-                if let Some(ResponseItem::Message { content, .. }) = current_items.get(status_idx)
-                {
-                    if content.iter().any(|c| matches!(c, ContentItem::InputImage { .. })) {
+            if status_idx > user_idx
+                && let Some(ResponseItem::Message { content, .. }) = current_items.get(status_idx)
+                    && content.iter().any(|c| matches!(c, ContentItem::InputImage { .. })) {
                         screenshots_to_keep.insert(status_idx);
                         break;
                     }
-                }
-            }
         }
     }
 
@@ -2242,15 +2234,12 @@ fn prune_history_items_owned(current_items: Vec<ResponseItem>) -> (Vec<ResponseI
     let mut screenshots_to_keep = std::collections::HashSet::new();
     for &user_idx in real_user_messages.iter().rev().take(2) {
         for &status_idx in status_messages.iter() {
-            if status_idx > user_idx {
-                if let Some(ResponseItem::Message { content, .. }) = current_items.get(status_idx)
-                {
-                    if content.iter().any(|c| matches!(c, ContentItem::InputImage { .. })) {
+            if status_idx > user_idx
+                && let Some(ResponseItem::Message { content, .. }) = current_items.get(status_idx)
+                    && content.iter().any(|c| matches!(c, ContentItem::InputImage { .. })) {
                         screenshots_to_keep.insert(status_idx);
                         break;
                     }
-                }
-            }
         }
     }
 

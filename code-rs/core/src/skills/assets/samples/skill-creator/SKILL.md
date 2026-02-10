@@ -31,6 +31,25 @@ skill-name/
 - **Reusability:** Structure scripts and assets so they can be reused across similar tasks.
 - **Maintainability:** Avoid duplicating information across multiple files.
 
+## Shell-style-aware skill design
+
+When a skill is shell-specific (for example, POSIX `sh` vs Bash/Zsh-compatible vs idiomatic Zsh), structure it so users can toggle it cleanly through `shell_style_profiles`.
+
+- Place style-specific skills in dedicated roots and wire those roots through `shell_style_profiles.<style>.skill_roots`.
+- Use `shell_style_profiles.<style>.skills` when users want an allow-list.
+- Use `shell_style_profiles.<style>.disabled_skills` for explicit opt-outs.
+- Treat `disabled_skills` as the highest-priority filter.
+- Prefer explicit, unique skill names unless you intentionally want style-specific skills to override shared defaults.
+
+Example:
+
+```toml
+[shell_style_profiles.zsh]
+skill_roots = [".codex/skills/zsh"]
+skills = ["zsh-arrays", "termux-zsh"]
+disabled_skills = ["bash-compat-fallbacks"]
+```
+
 ## When to create a new skill
 
 - The user wants Codex to perform a specialized or recurring workflow.

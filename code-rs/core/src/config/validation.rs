@@ -53,13 +53,13 @@ fn warn_on_suspicious_cli_overrides(cli_paths: &[String]) {
         if cli_path == "auto_drive.use_chat_model"
             || (cli_path.starts_with("auto_drive.") && cli_path.ends_with(".use_chat_model"))
         {
-            eprintln!(
+            tracing::warn!(
                 "Warning: unknown config override `{cli_path}` (ignored). Did you mean `auto_drive_use_chat_model`?"
             );
         }
 
         if cli_path == "auto_review_enabled" {
-            eprintln!(
+            tracing::warn!(
                 "Warning: unknown config override `{cli_path}` (ignored). Did you mean `tui.auto_review_enabled`?"
             );
         }
@@ -94,7 +94,9 @@ fn warn_on_unknown_cli_overrides(cli_paths: &[String], ignored_paths: &[String])
             continue;
         }
 
-        eprintln!("Warning: unknown config override `{cli_path}` (ignored). See `code exec --help` for valid keys.");
+        tracing::warn!(
+            "Warning: unknown config override `{cli_path}` (ignored). See `code exec --help` for valid keys."
+        );
     }
 }
 
@@ -125,8 +127,8 @@ pub(crate) fn deserialize_config_toml_with_cli_warnings(
 
 pub(crate) fn upgrade_legacy_model_slugs(cfg: &mut ConfigToml) {
     fn maybe_upgrade(field: &mut Option<String>) {
-        if let Some(old) = field.clone() {
-            if let Some(new) = upgrade_legacy_model_slug(&old) {
+        if let Some(old) = field.clone()
+            && let Some(new) = upgrade_legacy_model_slug(&old) {
                 tracing::info!(
                     target: "code.config",
                     old,
@@ -135,7 +137,6 @@ pub(crate) fn upgrade_legacy_model_slugs(cfg: &mut ConfigToml) {
                 );
                 *field = Some(new);
             }
-        }
     }
 
     maybe_upgrade(&mut cfg.model);

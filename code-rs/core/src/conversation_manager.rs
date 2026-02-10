@@ -184,7 +184,7 @@ impl ConversationManager {
             ),
         )
         .await
-        .map_err(|e| CodexErr::Io(e))?;
+        .map_err(CodexErr::Io)?;
 
         // Persist rollout items to seed the resumed conversation.
         let rollout_items = history.get_rollout_items();
@@ -195,7 +195,7 @@ impl ConversationManager {
                 .map_err(CodexErr::Io)?;
         }
         // Ensure data is flushed to disk before resuming.
-        recorder.shutdown().await.map_err(|e| CodexErr::Io(e))?;
+        recorder.shutdown().await.map_err(CodexErr::Io)?;
 
         // Now spawn a conversation resuming from the newly created rollout.
         config.experimental_resume = Some(recorder.rollout_path.clone());
@@ -273,8 +273,7 @@ mod tests {
 
     #[test]
     fn drops_from_last_user_only() {
-        let items = vec![
-            user_msg("u1"),
+        let items = [user_msg("u1"),
             assistant_msg("a1"),
             assistant_msg("a2"),
             user_msg("u2"),
@@ -293,8 +292,7 @@ mod tests {
                 arguments: "{}".to_string(),
                 call_id: "c1".to_string(),
             },
-            assistant_msg("a4"),
-        ];
+            assistant_msg("a4")];
 
         // Wrap as InitialHistory::Forked with response items only.
         let initial: Vec<RolloutItem> = items

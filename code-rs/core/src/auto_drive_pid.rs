@@ -13,7 +13,7 @@ pub enum AutoDriveMode {
 }
 
 impl AutoDriveMode {
-    fn as_str(&self) -> &'static str {
+    fn as_str(self) -> &'static str {
         match self {
             AutoDriveMode::Exec => "exec",
             AutoDriveMode::Tui => "tui",

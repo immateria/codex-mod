@@ -139,7 +139,7 @@ fn estimate_item_size(item: &ResponseItem) -> usize {
         ResponseItem::CustomToolCall { input, .. } => input.len(),
         ResponseItem::CustomToolCallOutput { output, .. } => output.len(),
         ResponseItem::Reasoning { content, .. } => {
-            content.as_ref().map(|c| c.len()).unwrap_or(0)
+            content.as_ref().map(std::vec::Vec::len).unwrap_or(0)
         }
         _ => 0,
     }
@@ -280,9 +280,10 @@ pub fn apply_retention_policy(
 
     // 2. Keep only the latest baseline (immutable)
     if policy.keep_latest_baseline && !env_baselines.is_empty() {
-        let latest = env_baselines.pop().unwrap();
-        stats.bytes_kept += latest.size_bytes;
-        kept_items.push((latest.index, latest.item));
+        if let Some(latest) = env_baselines.pop() {
+            stats.bytes_kept += latest.size_bytes;
+            kept_items.push((latest.index, latest.item));
+        }
     }
 
     // Remove older baselines
@@ -335,10 +336,11 @@ pub fn apply_retention_policy(
 
     // Keep only the most recent screenshot
     if !screenshots.is_empty() {
-        let latest = screenshots.pop().unwrap();
-        stats.kept_recent_screenshots = 1;
-        stats.bytes_kept += latest.size_bytes;
-        kept_items.push((latest.index, latest.item));
+        if let Some(latest) = screenshots.pop() {
+            stats.kept_recent_screenshots = 1;
+            stats.bytes_kept += latest.size_bytes;
+            kept_items.push((latest.index, latest.item));
+        }
 
         for item in screenshots {
             stats.removed_screenshots += 1;
@@ -423,12 +425,11 @@ pub fn apply_retention_policy_owned(
     }
 
     // 2. Keep only the latest baseline (immutable)
-    if policy.keep_latest_baseline {
-        if let Some(latest) = env_baselines.pop() {
+    if policy.keep_latest_baseline
+        && let Some(latest) = env_baselines.pop() {
             stats.bytes_kept += latest.size_bytes;
             kept.push(latest);
         }
-    }
 
     for item in env_baselines {
         stats.removed_env_baselines += 1;
@@ -550,12 +551,10 @@ mod tests {
         let policy = RetentionPolicy::default();
 
         let baseline1 = make_text_message(&format!(
-            "{}\n{{\"version\":1}}\n{}",
-            ENVIRONMENT_CONTEXT_OPEN_TAG, ENVIRONMENT_CONTEXT_CLOSE_TAG
+            "{ENVIRONMENT_CONTEXT_OPEN_TAG}\n{{\"version\":1}}\n{ENVIRONMENT_CONTEXT_CLOSE_TAG}"
         ));
         let baseline2 = make_text_message(&format!(
-            "{}\n{{\"version\":2}}\n{}",
-            ENVIRONMENT_CONTEXT_OPEN_TAG, ENVIRONMENT_CONTEXT_CLOSE_TAG
+            "{ENVIRONMENT_CONTEXT_OPEN_TAG}\n{{\"version\":2}}\n{ENVIRONMENT_CONTEXT_CLOSE_TAG}"
         ));
 
         let items = vec![baseline1.clone(), baseline2.clone()];
@@ -574,16 +573,13 @@ mod tests {
         };
 
         let delta1 = make_text_message(&format!(
-            "{}\n{{\"seq\":1}}\n{}",
-            ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG, ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG
+            "{ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG}\n{{\"seq\":1}}\n{ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG}"
         ));
         let delta2 = make_text_message(&format!(
-            "{}\n{{\"seq\":2}}\n{}",
-            ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG, ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG
+            "{ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG}\n{{\"seq\":2}}\n{ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG}"
         ));
         let delta3 = make_text_message(&format!(
-            "{}\n{{\"seq\":3}}\n{}",
-            ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG, ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG
+            "{ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG}\n{{\"seq\":3}}\n{ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG}"
         ));
 
         let items = vec![delta1.clone(), delta2.clone(), delta3.clone()];
@@ -604,12 +600,10 @@ mod tests {
         };
 
         let snap1 = make_text_message(&format!(
-            "{}\n{{\"url\":\"https://first\"}}\n{}",
-            BROWSER_SNAPSHOT_OPEN_TAG, BROWSER_SNAPSHOT_CLOSE_TAG
+            "{BROWSER_SNAPSHOT_OPEN_TAG}\n{{\"url\":\"https://first\"}}\n{BROWSER_SNAPSHOT_CLOSE_TAG}"
         ));
         let snap2 = make_text_message(&format!(
-            "{}\n{{\"url\":\"https://second\"}}\n{}",
-            BROWSER_SNAPSHOT_OPEN_TAG, BROWSER_SNAPSHOT_CLOSE_TAG
+            "{BROWSER_SNAPSHOT_OPEN_TAG}\n{{\"url\":\"https://second\"}}\n{BROWSER_SNAPSHOT_CLOSE_TAG}"
         ));
 
         let items = vec![snap1.clone(), snap2.clone()];
@@ -701,8 +695,7 @@ mod tests {
 
         let msg1 = make_text_message("First message");
         let delta1 = make_text_message(&format!(
-            "{}\n{{\"seq\":1}}\n{}",
-            ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG, ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG
+            "{ENVIRONMENT_CONTEXT_DELTA_OPEN_TAG}\n{{\"seq\":1}}\n{ENVIRONMENT_CONTEXT_DELTA_CLOSE_TAG}"
         ));
         let msg2 = make_text_message("Second message");
 

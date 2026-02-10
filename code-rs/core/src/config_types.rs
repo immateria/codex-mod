@@ -258,6 +258,16 @@ pub struct ShellStyleProfileConfig {
     #[serde(default)]
     pub skills: Vec<String>,
 
+    /// Optional list of skill names to disable when this style is active.
+    /// These entries override `skills` and any skills loaded from roots.
+    #[serde(default)]
+    pub disabled_skills: Vec<String>,
+
+    /// Additional skill root directories to scan when this style is active.
+    /// Relative paths are resolved against the session cwd.
+    #[serde(default)]
+    pub skill_roots: Vec<PathBuf>,
+
     /// MCP server include/exclude filters applied when this style is active.
     #[serde(default)]
     pub mcp_servers: ShellStyleMcpConfig,
@@ -428,14 +438,13 @@ fn default_confirm_guard_patterns() -> Vec<ConfirmGuardPattern> {
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum AllowedCommandMatchKind {
+    #[default]
     Exact,
     Prefix,
 }
 
-impl Default for AllowedCommandMatchKind {
-    fn default() -> Self { Self::Exact }
-}
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct AllowedCommand {
@@ -578,6 +587,7 @@ pub struct GithubConfig {
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct ValidationConfig {
     /// Legacy master toggle for the validation harness (kept for config compatibility).
     /// `run_patch_harness` now relies solely on the functional/stylistic group toggles.
@@ -601,19 +611,9 @@ pub struct ValidationConfig {
     pub tools: ValidationTools,
 }
 
-impl Default for ValidationConfig {
-    fn default() -> Self {
-        Self {
-            patch_harness: false,
-            tools_allowlist: None,
-            timeout_seconds: None,
-            groups: ValidationGroups::default(),
-            tools: ValidationTools::default(),
-        }
-    }
-}
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct ValidationGroups {
     /// Functional checks catch correctness regressions.
     #[serde(default = "default_true")]
@@ -624,11 +624,6 @@ pub struct ValidationGroups {
     pub stylistic: bool,
 }
 
-impl Default for ValidationGroups {
-    fn default() -> Self {
-        Self { functional: false, stylistic: false }
-    }
-}
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ValidationTools {
@@ -982,8 +977,10 @@ const fn default_auto_drive_reasoning_effort() -> ReasoningEffort {
 
 #[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[derive(Default)]
 pub enum AutoDriveContinueMode {
     Immediate,
+    #[default]
     TenSeconds,
     SixtySeconds,
     Manual,
@@ -1000,11 +997,6 @@ impl AutoDriveContinueMode {
     }
 }
 
-impl Default for AutoDriveContinueMode {
-    fn default() -> Self {
-        Self::TenSeconds
-    }
-}
 
 /// Streaming behavior configuration for the TUI.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
@@ -1065,6 +1057,7 @@ impl Default for StreamConfig {
 
 /// Theme configuration for the TUI
 #[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct ThemeConfig {
     /// Name of the predefined theme to use
     #[serde(default)]
@@ -1087,16 +1080,6 @@ pub struct ThemeConfig {
     pub is_dark: Option<bool>,
 }
 
-impl Default for ThemeConfig {
-    fn default() -> Self {
-        Self {
-            name: ThemeName::default(),
-            colors: ThemeColors::default(),
-            label: None,
-            is_dark: None,
-        }
-    }
-}
 
 /// Selected loading spinner style.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
@@ -1814,6 +1797,8 @@ mod tests {
             references = ["docs/shell/zsh.md"]
             prepend_developer_messages = ["Use idiomatic zsh."]
             skills = ["zsh-arrays"]
+            disabled_skills = ["legacy-zsh-skill"]
+            skill_roots = ["skills/zsh"]
 
             [shell_style_profiles.zsh.mcp_servers]
             include = ["termux"]
@@ -1832,6 +1817,11 @@ mod tests {
             vec!["Use idiomatic zsh.".to_string()]
         );
         assert_eq!(profile.skills, vec!["zsh-arrays".to_string()]);
+        assert_eq!(
+            profile.disabled_skills,
+            vec!["legacy-zsh-skill".to_string()]
+        );
+        assert_eq!(profile.skill_roots, vec![PathBuf::from("skills/zsh")]);
         assert_eq!(profile.mcp_servers.include, vec!["termux".to_string()]);
         assert_eq!(profile.mcp_servers.exclude, vec!["linux-only".to_string()]);
     }

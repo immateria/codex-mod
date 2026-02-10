@@ -55,14 +55,14 @@ impl App<'_> {
         let title = Self::sanitize_notification_text(title);
         let body = body.map(Self::sanitize_notification_text);
         let mut message = match body {
-            Some(ref b) if !b.is_empty() => {
+            Some(b) if !b.is_empty() => {
                 if title.is_empty() {
-                    b.clone()
+                    b
                 } else {
-                    format!("{}: {}", title, b)
+                    format!("{title}: {b}")
                 }
             }
-            _ => title.clone(),
+            _ => title,
         };
 
         if message.is_empty() {
@@ -86,7 +86,7 @@ impl App<'_> {
     }
 
     pub(super) fn emit_osc9_notification(message: &str) {
-        let payload = format!("\u{1b}]9;{}\u{7}", message);
+        let payload = format!("\u{1b}]9;{message}\u{7}");
         let mut stdout = std::io::stdout();
         let _ = stdout.write_all(payload.as_bytes());
         let _ = stdout.flush();
@@ -113,11 +113,11 @@ impl App<'_> {
             return;
         }
 
-        let joined_display = try_join(command.iter().map(|s| s.as_str()))
+        let joined_display = try_join(command.iter().map(String::as_str))
             .ok()
             .unwrap_or_else(|| command.join(" "));
 
-        let display_line = display.clone().unwrap_or_else(|| joined_display.clone());
+        let display_line = display.unwrap_or(joined_display);
 
         if !display_line.trim().is_empty() {
             let line = format!("$ {display_line}\n");
@@ -128,7 +128,7 @@ impl App<'_> {
             });
         }
 
-        let stored_command = command.clone();
+        let stored_command = command;
         let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel();
         let (writer_tx_raw, writer_rx) = channel::<Vec<u8>>();
         let writer_tx_shared = Arc::new(Mutex::new(Some(writer_tx_raw)));
@@ -160,7 +160,7 @@ impl App<'_> {
                 });
                 if let Some(ref ctrl) = controller_tx {
                     let _ = ctrl.send(TerminalRunEvent::Chunk {
-                        data: msg.clone().into_bytes(),
+                        data: msg.into_bytes(),
                         _is_stderr: true,
                     });
                     let _ = ctrl.send(TerminalRunEvent::Exit {
@@ -192,7 +192,7 @@ impl App<'_> {
                     });
                     if let Some(ref ctrl) = controller_tx {
                         let _ = ctrl.send(TerminalRunEvent::Chunk {
-                            data: msg.clone().into_bytes(),
+                            data: msg.into_bytes(),
                             _is_stderr: true,
                         });
                         let _ = ctrl.send(TerminalRunEvent::Exit {
@@ -221,7 +221,7 @@ impl App<'_> {
                     });
                     if let Some(ref ctrl) = controller_tx {
                         let _ = ctrl.send(TerminalRunEvent::Chunk {
-                            data: msg.clone().into_bytes(),
+                            data: msg.into_bytes(),
                             _is_stderr: true,
                         });
                         let _ = ctrl.send(TerminalRunEvent::Exit {
@@ -251,7 +251,7 @@ impl App<'_> {
                     });
                     if let Some(ref ctrl) = controller_tx {
                         let _ = ctrl.send(TerminalRunEvent::Chunk {
-                            data: msg.clone().into_bytes(),
+                            data: msg.into_bytes(),
                             _is_stderr: true,
                         });
                         let _ = ctrl.send(TerminalRunEvent::Exit {
@@ -280,7 +280,7 @@ impl App<'_> {
                     });
                     if let Some(ref ctrl) = controller_tx {
                         let _ = ctrl.send(TerminalRunEvent::Chunk {
-                            data: msg.clone().into_bytes(),
+                            data: msg.into_bytes(),
                             _is_stderr: true,
                         });
                         let _ = ctrl.send(TerminalRunEvent::Exit {
@@ -298,8 +298,8 @@ impl App<'_> {
             }
         };
 
-        let mut command_builder = CommandBuilder::new(command[0].clone());
-        for arg in &command[1..] {
+        let mut command_builder = CommandBuilder::new(stored_command[0].clone());
+        for arg in &stored_command[1..] {
             command_builder.arg(arg);
         }
         command_builder.cwd(&cwd);
@@ -315,7 +315,7 @@ impl App<'_> {
                 });
                 if let Some(ref ctrl) = controller_tx {
                     let _ = ctrl.send(TerminalRunEvent::Chunk {
-                        data: msg.clone().into_bytes(),
+                        data: msg.into_bytes(),
                         _is_stderr: true,
                     });
                     let _ = ctrl.send(TerminalRunEvent::Exit {
@@ -339,7 +339,7 @@ impl App<'_> {
             id,
             TerminalRunState {
                 command: stored_command,
-                display: display_line.clone(),
+                display: display_line,
                 cancel_tx: Some(cancel_tx),
                 running: true,
                 controller: controller_clone,
@@ -349,9 +349,9 @@ impl App<'_> {
         );
 
         let tx = self.app_event_tx.clone();
-        let controller_tx_task = controller_tx.clone();
+        let controller_tx_task = controller_tx;
         let master_for_task = Arc::clone(&master);
-        let writer_tx_for_task = writer_tx_shared.clone();
+        let writer_tx_for_task = writer_tx_shared;
         tokio::spawn(async move {
             let start_time = Instant::now();
             let controller_tx = controller_tx_task;
@@ -427,7 +427,9 @@ impl App<'_> {
             };
 
             {
-                let mut guard = writer_tx_for_task.lock().unwrap();
+                let mut guard = writer_tx_for_task
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 guard.take();
             }
 
@@ -444,8 +446,9 @@ impl App<'_> {
                         _is_stderr: true,
                     });
                     if let Some(ref ctrl) = controller_tx {
+                        let data = msg.into_bytes();
                         let _ = ctrl.send(TerminalRunEvent::Chunk {
-                            data: msg.clone().into_bytes(),
+                            data,
                             _is_stderr: true,
                         });
                     }
@@ -459,8 +462,9 @@ impl App<'_> {
                         _is_stderr: true,
                     });
                     if let Some(ref ctrl) = controller_tx {
+                        let data = msg.into_bytes();
                         let _ = ctrl.send(TerminalRunEvent::Chunk {
-                            data: msg.clone().into_bytes(),
+                            data,
                             _is_stderr: true,
                         });
                     }

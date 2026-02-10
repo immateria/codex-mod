@@ -73,6 +73,9 @@ pub use sources::{
     persist_model_selection,
     persist_shell,
     resolve_code_path_for_read,
+    set_shell_style_profile_mcp_servers,
+    set_shell_style_profile_paths,
+    set_shell_style_profile_skill_mode,
     set_auto_drive_settings,
     set_auto_review_model,
     set_auto_review_resolve_model,
@@ -97,6 +100,7 @@ pub use sources::{
     set_validation_tool_enabled,
     write_global_mcp_servers,
 };
+pub use sources::ShellStyleSkillMode;
 
 #[allow(deprecated)]
 pub use sources::set_tui_auto_drive_settings;
@@ -1039,8 +1043,8 @@ impl Config {
         let history = cfg.history.unwrap_or_default();
 
         let mut always_allow_commands: Vec<ApprovedCommandPattern> = Vec::new();
-        if let Some(project_cfg) = project_override {
-            if let Some(commands) = &project_cfg.always_allow_commands {
+        if let Some(project_cfg) = project_override
+            && let Some(commands) = &project_cfg.always_allow_commands {
                 for cmd in commands {
                     if cmd.argv.is_empty() {
                         continue;
@@ -1061,7 +1065,6 @@ impl Config {
                     ));
                 }
             }
-        }
 
         let project_hooks = project_override
             .map(|cfg| ProjectHooks::from_configs(&cfg.hooks, &resolved_cwd))
@@ -1169,7 +1172,7 @@ impl Config {
 
         let responses_originator_header: String = cfg
             .responses_originator_header_internal_override
-            .unwrap_or_else(|| default_responses_originator());
+            .unwrap_or_else(default_responses_originator);
 
         let agents: Vec<AgentConfig> = merge_with_default_agents(cfg.agents);
 
@@ -1190,7 +1193,7 @@ impl Config {
 
         let mut confirm_guard = ConfirmGuardConfig::default();
         if let Some(mut user_guard) = cfg.confirm_guard {
-            confirm_guard.patterns.extend(user_guard.patterns.drain(..));
+            confirm_guard.patterns.append(&mut user_guard.patterns);
         }
         for pattern in &confirm_guard.patterns {
             if let Err(err) = regex_lite::Regex::new(&pattern.regex) {
@@ -1504,7 +1507,7 @@ impl Config {
             max_run_deadline: None,
             timeboxed_exec_mode: false,
             // Surface TUI notifications preference from config when present.
-            tui_notifications: tui_config.notifications.clone(),
+            tui_notifications: tui_config.notifications,
             auto_drive_observer_cadence: cfg.auto_drive_observer_cadence.unwrap_or(5),
             otel: {
                 let t: OtelConfigToml = cfg.otel.unwrap_or_default();
@@ -2923,6 +2926,262 @@ script_style = "zsh"
             Some("trusted")
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_skill_mode_updates_existing_alias_key() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.bash-zsh]
+skills = ["existing-skill"]
+"#,
+        )?;
+
+        set_shell_style_profile_skill_mode(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::BashZshCompatible,
+            "new-skill",
+            ShellStyleSkillMode::Enabled,
+        )?;
+
+        let written = std::fs::read_to_string(&config_path)?;
+        assert!(written.contains("[shell_style_profiles.bash-zsh]"));
+        assert!(!written.contains("[shell_style_profiles.bash-zsh-compatible]"));
+        assert!(written.contains("new-skill"));
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_skill_mode_errors_on_ambiguous_alias_keys() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.bash-zsh]
+skills = ["alpha"]
+
+[shell_style_profiles.bash-zsh-compatible]
+skills = ["beta"]
+"#,
+        )?;
+
+        let err = set_shell_style_profile_skill_mode(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::BashZshCompatible,
+            "gamma",
+            ShellStyleSkillMode::Enabled,
+        )
+        .expect_err("ambiguous alias keys should fail fast");
+
+        assert!(
+            err.to_string().contains("multiple shell_style_profiles entries"),
+            "unexpected error: {err}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_skill_mode_errors_on_invalid_skills_type() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.zsh]
+skills = "not-an-array"
+"#,
+        )?;
+
+        let err = set_shell_style_profile_skill_mode(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::Zsh,
+            "zsh-skill",
+            ShellStyleSkillMode::Enabled,
+        )
+        .expect_err("invalid skills type should fail fast");
+
+        assert!(
+            err.to_string().contains("`skills` must be a TOML array"),
+            "unexpected error: {err}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_paths_updates_existing_alias_key() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.bash-zsh]
+references = ["docs/old.md"]
+"#,
+        )?;
+
+        set_shell_style_profile_paths(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::BashZshCompatible,
+            &[std::path::PathBuf::from("docs/new.md")],
+            &[std::path::PathBuf::from("skills/zsh")],
+        )?;
+
+        let written = std::fs::read_to_string(&config_path)?;
+        assert!(written.contains("[shell_style_profiles.bash-zsh]"));
+        assert!(!written.contains("[shell_style_profiles.bash-zsh-compatible]"));
+        assert!(written.contains("docs/new.md"));
+        assert!(written.contains("skills/zsh"));
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_paths_error_on_ambiguous_alias_keys() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.bash-zsh]
+references = ["docs/a.md"]
+
+[shell_style_profiles.bash-zsh-compatible]
+references = ["docs/b.md"]
+"#,
+        )?;
+
+        let err = set_shell_style_profile_paths(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::BashZshCompatible,
+            &[std::path::PathBuf::from("docs/c.md")],
+            &[],
+        )
+        .expect_err("ambiguous alias keys should fail fast");
+
+        assert!(
+            err.to_string().contains("multiple shell_style_profiles entries"),
+            "unexpected error: {err}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_paths_error_on_invalid_references_type() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.zsh]
+references = "not-an-array"
+"#,
+        )?;
+
+        let err = set_shell_style_profile_paths(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::Zsh,
+            &[std::path::PathBuf::from("docs/zsh.md")],
+            &[],
+        )
+        .expect_err("invalid references type should fail fast");
+
+        assert!(
+            err.to_string().contains("`references` must be a TOML array"),
+            "unexpected error: {err}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_mcp_servers_updates_existing_alias_key() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.bash-zsh]
+[shell_style_profiles.bash-zsh.mcp_servers]
+include = ["legacy"]
+"#,
+        )?;
+
+        set_shell_style_profile_mcp_servers(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::BashZshCompatible,
+            &["termux".to_string()],
+            &["legacy".to_string()],
+        )?;
+
+        let written = std::fs::read_to_string(&config_path)?;
+        assert!(written.contains("[shell_style_profiles.bash-zsh]"));
+        assert!(!written.contains("[shell_style_profiles.bash-zsh-compatible]"));
+        assert!(written.contains("[shell_style_profiles.bash-zsh.mcp_servers]"));
+        assert!(written.contains("termux"));
+        assert!(written.contains("legacy"));
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_mcp_servers_error_on_ambiguous_alias_keys() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.bash-zsh]
+[shell_style_profiles.bash-zsh.mcp_servers]
+include = ["a"]
+
+[shell_style_profiles.bash-zsh-compatible]
+[shell_style_profiles.bash-zsh-compatible.mcp_servers]
+include = ["b"]
+"#,
+        )?;
+
+        let err = set_shell_style_profile_mcp_servers(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::BashZshCompatible,
+            &["termux".to_string()],
+            &[],
+        )
+        .expect_err("ambiguous alias keys should fail fast");
+
+        assert!(
+            err.to_string().contains("multiple shell_style_profiles entries"),
+            "unexpected error: {err}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_mcp_servers_error_on_invalid_include_type() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.zsh]
+[shell_style_profiles.zsh.mcp_servers]
+include = "not-an-array"
+"#,
+        )?;
+
+        let err = set_shell_style_profile_mcp_servers(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::Zsh,
+            &["termux".to_string()],
+            &[],
+        )
+        .expect_err("invalid include type should fail fast");
+
+        assert!(
+            err.to_string().contains("`include` must be a TOML array"),
+            "unexpected error: {err}"
+        );
         Ok(())
     }
 

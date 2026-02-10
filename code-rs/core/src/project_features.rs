@@ -51,7 +51,7 @@ impl ProjectHooks {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.hooks.values().all(|hooks| hooks.is_empty())
+        self.hooks.values().all(std::vec::Vec::is_empty)
     }
 
     pub fn hooks_for(&self, event: ProjectHookEvent) -> impl Iterator<Item = &ProjectHook> {

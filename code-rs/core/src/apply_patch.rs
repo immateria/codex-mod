@@ -48,12 +48,12 @@ pub(crate) async fn apply_patch(
         let mut status_message: Option<String> = None;
         let validation_cfg = sess.validation_config();
         let github_cfg = sess.get_github_config();
-        if let (Ok(validation_cfg), Ok(github_cfg)) = (validation_cfg.read(), github_cfg.read()) {
-            if let Some((mut findings, mut ran_checks)) = run_patch_harness(
+        if let (Ok(validation_cfg), Ok(github_cfg)) = (validation_cfg.read(), github_cfg.read())
+            && let Some((mut findings, mut ran_checks)) = run_patch_harness(
                 &action,
                 sess.get_cwd(),
-                &*validation_cfg,
-                &*github_cfg,
+                &validation_cfg,
+                &github_cfg,
             ) {
                 const MAX_ISSUES: usize = 12;
                 let total_issues = findings.len();
@@ -109,7 +109,7 @@ pub(crate) async fn apply_patch(
                         let mut msg = finding.message.clone();
                         if msg.len() > 160 {
                             msg.truncate(157);
-                            msg.push_str("…");
+                            msg.push('…');
                         }
                         parts.push(msg);
                         lines.push(format!("• {}", parts.join(" — ")));
@@ -127,7 +127,6 @@ pub(crate) async fn apply_patch(
                 }
                 status_message = Some(lines.join("\n"));
             }
-        }
         (summary_json, status_message)
     };
 
@@ -269,13 +268,12 @@ async fn apply_changes_from_apply_patch(
     for (path, change) in action.changes() {
         match change {
             ApplyPatchFileChange::Add { content } => {
-                if let Some(parent) = path.parent() {
-                    if !parent.as_os_str().is_empty() {
+                if let Some(parent) = path.parent()
+                    && !parent.as_os_str().is_empty() {
                         std::fs::create_dir_all(parent).with_context(|| {
                             format!("Failed to create parent directories for {}", path.display())
                         })?;
                     }
-                }
                 fs.write_text_file(path, content.clone())
                     .await
                     .with_context(|| format!("Failed to write file {}", path.display()))?;
@@ -292,13 +290,12 @@ async fn apply_changes_from_apply_patch(
                 ..
             } => {
                 if let Some(move_path) = move_path {
-                    if let Some(parent) = move_path.parent() {
-                        if !parent.as_os_str().is_empty() {
+                    if let Some(parent) = move_path.parent()
+                        && !parent.as_os_str().is_empty() {
                             std::fs::create_dir_all(parent).with_context(|| {
                                 format!("Failed to create parent directories for {}", move_path.display())
                             })?;
                         }
-                    }
 
                     std::fs::rename(path, move_path)
                         .with_context(|| format!("Failed to rename file {}", path.display()))?;

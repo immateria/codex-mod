@@ -55,13 +55,11 @@ fn lock_path(scope: Option<&Path>) -> std::io::Result<PathBuf> {
 }
 
 fn read_epoch(scope: Option<&Path>) -> u64 {
-    if let Ok(p) = epoch_path(scope) {
-        if let Ok(text) = fs::read_to_string(p) {
-            if let Ok(v) = text.trim().parse::<u64>() {
+    if let Ok(p) = epoch_path(scope)
+        && let Ok(text) = fs::read_to_string(p)
+            && let Ok(v) = text.trim().parse::<u64>() {
                 return v;
             }
-        }
-    }
     0
 }
 
@@ -103,14 +101,12 @@ fn scope_from_current_dir() -> Option<PathBuf> {
         .current_dir(&cwd)
         .args(["rev-parse", "--show-toplevel"])
         .output()
-    {
-        if out.status.success() {
+        && out.status.success() {
             let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
             if !path.is_empty() {
                 return Some(PathBuf::from(path));
             }
         }
-    }
     Some(cwd)
 }
 

@@ -2,7 +2,9 @@ use crate::app_event::{AppEvent, AutoContinueMode};
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
 use code_core::config_types::ReasoningEffort;
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{
+    KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
@@ -63,6 +65,25 @@ impl AutoDriveSettingsView {
 
     fn option_count() -> usize {
         4
+    }
+
+    fn option_at_position(&self, area: Rect, mouse_event: MouseEvent) -> Option<usize> {
+        if area.width == 0 || area.height == 0 {
+            return None;
+        }
+        if mouse_event.column < area.x
+            || mouse_event.column >= area.x.saturating_add(area.width)
+            || mouse_event.row < area.y
+            || mouse_event.row >= area.y.saturating_add(area.height)
+        {
+            return None;
+        }
+        let rel_y = mouse_event.row.saturating_sub(area.y) as usize;
+        if rel_y < Self::option_count() {
+            Some(rel_y)
+        } else {
+            None
+        }
     }
 
     fn send_update(&self) {
@@ -320,13 +341,13 @@ impl AutoDriveSettingsView {
                 self.app_event_tx.send(AppEvent::RequestRedraw);
             }
             KeyCode::Left => {
-                if self.selected_index == 2 {
+                if self.selected_index == 3 {
                     self.cycle_continue_mode(false);
                     self.app_event_tx.send(AppEvent::RequestRedraw);
                 }
             }
             KeyCode::Right => {
-                if self.selected_index == 2 {
+                if self.selected_index == 3 {
                     self.cycle_continue_mode(true);
                     self.app_event_tx.send(AppEvent::RequestRedraw);
                 }
@@ -336,6 +357,43 @@ impl AutoDriveSettingsView {
                 self.app_event_tx.send(AppEvent::RequestRedraw);
             }
             _ => {}
+        }
+    }
+
+    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                let Some(row) = self.option_at_position(area, mouse_event) else {
+                    return false;
+                };
+                if self.selected_index == row {
+                    return false;
+                }
+                self.selected_index = row;
+                true
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let Some(row) = self.option_at_position(area, mouse_event) else {
+                    return false;
+                };
+                self.selected_index = row;
+                self.toggle_selected();
+                self.app_event_tx.send(AppEvent::RequestRedraw);
+                true
+            }
+            MouseEventKind::ScrollUp => {
+                if self.selected_index == 0 {
+                    self.selected_index = Self::option_count() - 1;
+                } else {
+                    self.selected_index -= 1;
+                }
+                true
+            }
+            MouseEventKind::ScrollDown => {
+                self.selected_index = (self.selected_index + 1) % Self::option_count();
+                true
+            }
+            _ => false,
         }
     }
 
@@ -376,13 +434,13 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
                 pane.request_redraw();
             }
             KeyCode::Left => {
-                if self.selected_index == 2 {
+                if self.selected_index == 3 {
                     self.cycle_continue_mode(false);
                     pane.request_redraw();
                 }
             }
             KeyCode::Right => {
-                if self.selected_index == 2 {
+                if self.selected_index == 3 {
                     self.cycle_continue_mode(true);
                     pane.request_redraw();
                 }

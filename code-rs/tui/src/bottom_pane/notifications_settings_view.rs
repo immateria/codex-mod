@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
@@ -154,6 +154,62 @@ impl NotificationsSettingsView {
                 self.is_complete = true;
             }
             _ => {}
+        }
+    }
+
+    fn row_at_position(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
+        if x < area.x
+            || x >= area.x.saturating_add(area.width)
+            || y < area.y
+            || y >= area.y.saturating_add(area.height)
+        {
+            return None;
+        }
+        let rel_y = y.saturating_sub(area.y);
+        match rel_y {
+            2 => Some(0),
+            4 => Some(1),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                let Some(row) =
+                    self.row_at_position(area, mouse_event.column, mouse_event.row)
+                else {
+                    return false;
+                };
+                if self.selected_row == row {
+                    return false;
+                }
+                self.selected_row = row;
+                true
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let Some(row) =
+                    self.row_at_position(area, mouse_event.column, mouse_event.row)
+                else {
+                    return false;
+                };
+                self.selected_row = row;
+                if self.selected_row == 0 {
+                    self.toggle();
+                } else {
+                    self.is_complete = true;
+                }
+                true
+            }
+            MouseEventKind::ScrollUp => {
+                self.selected_row = self.selected_row.saturating_sub(1);
+                true
+            }
+            MouseEventKind::ScrollDown => {
+                self.selected_row = (self.selected_row + 1).min(1);
+                true
+            }
+            _ => false,
         }
     }
 

@@ -4,6 +4,10 @@ use std::time::Duration;
 
 use color_eyre::eyre::Result;
 use crossterm::SynchronizedUpdate;
+use code_core::config_types::ThemeName;
+use ratatui::buffer::Buffer;
+use ratatui::buffer::Cell;
+use ratatui::layout::Rect;
 
 use crate::app_event::AppEvent;
 use crate::thread_spawner;
@@ -124,19 +128,134 @@ impl App<'_> {
         }
         self.last_frame_size = Some(screen_size);
 
+        let split_preview = self
+            .theme_split_preview
+            .filter(|split| split.current != split.preview);
+        let theme_before_split = split_preview.map(|_| crate::theme::current_theme_name());
+
         let completed_frame = terminal.draw(|frame| {
             match &mut self.app_state {
                 AppState::Chat { widget } => {
-                    if let Some((x, y)) = widget.cursor_pos(frame.area()) {
-                        frame.set_cursor_position((x, y));
+                    let area = frame.area();
+                    let cursor_pos = widget.cursor_pos(area);
+                    if let Some(split) = split_preview {
+                        apply_runtime_theme_for_render(split.current);
+                        if let Some((x, y)) = cursor_pos {
+                            frame.set_cursor_position((x, y));
+                        }
+                        frame.render_widget_ref(&**widget, area);
+                        let left_snapshot = snapshot_left_half(frame.buffer_mut(), area);
+
+                        apply_runtime_theme_for_render(split.preview);
+                        if let Some((x, y)) = cursor_pos {
+                            frame.set_cursor_position((x, y));
+                        }
+                        frame.render_widget_ref(&**widget, area);
+                        restore_left_half(frame.buffer_mut(), area, &left_snapshot);
+                    } else {
+                        if let Some((x, y)) = cursor_pos {
+                            frame.set_cursor_position((x, y));
+                        }
+                        frame.render_widget_ref(&**widget, area);
                     }
-                    frame.render_widget_ref(&**widget, frame.area())
                 }
                 AppState::Onboarding { screen } => frame.render_widget_ref(&*screen, frame.area()),
             }
-        })?;
+        });
+
+        if let Some(theme_name) = theme_before_split {
+            apply_runtime_theme_for_render(theme_name);
+        }
+
+        let completed_frame = completed_frame?;
         self.buffer_diff_profiler.record(&completed_frame);
         Ok(())
+    }
+}
+
+fn apply_runtime_theme_for_render(theme_name: ThemeName) {
+    let mapped = crate::theme::map_theme_for_palette(theme_name, crate::theme::custom_theme_is_dark());
+    if crate::theme::current_theme_name() == mapped {
+        return;
+    }
+
+    if matches!(theme_name, ThemeName::Custom) {
+        if let Some(colors) = crate::theme::custom_theme_colors() {
+            crate::theme::init_theme(&code_core::config_types::ThemeConfig {
+                name: ThemeName::Custom,
+                colors,
+                label: crate::theme::custom_theme_label(),
+                is_dark: crate::theme::custom_theme_is_dark(),
+            });
+        } else {
+            crate::theme::switch_theme(theme_name);
+        }
+    } else {
+        crate::theme::switch_theme(theme_name);
+    }
+}
+
+fn snapshot_left_half(buf: &Buffer, area: Rect) -> Vec<Cell> {
+    let left_width = (area.width / 2) as usize;
+    let height = area.height as usize;
+    if left_width == 0 || height == 0 {
+        return Vec::new();
+    }
+
+    let buf_width = buf.area.width as usize;
+    let buf_height = buf.area.height as usize;
+    let x0 = area.x.saturating_sub(buf.area.x) as usize;
+    let y0 = area.y.saturating_sub(buf.area.y) as usize;
+    if x0 >= buf_width || y0 >= buf_height || x0.saturating_add(left_width) > buf_width {
+        return Vec::new();
+    }
+
+    let mut snapshot = Vec::with_capacity(left_width.saturating_mul(height));
+    for row in 0..height {
+        let y = y0.saturating_add(row);
+        if y >= buf_height {
+            break;
+        }
+        let row_start = y.saturating_mul(buf_width).saturating_add(x0);
+        let row_end = row_start.saturating_add(left_width);
+        if row_end > buf.content.len() {
+            break;
+        }
+        snapshot.extend(buf.content[row_start..row_end].iter().cloned());
+    }
+    snapshot
+}
+
+fn restore_left_half(buf: &mut Buffer, area: Rect, snapshot: &[Cell]) {
+    let left_width = (area.width / 2) as usize;
+    let height = area.height as usize;
+    let expected = left_width.saturating_mul(height);
+    if expected == 0 || snapshot.len() < expected {
+        return;
+    }
+
+    let buf_width = buf.area.width as usize;
+    let buf_height = buf.area.height as usize;
+    let x0 = area.x.saturating_sub(buf.area.x) as usize;
+    let y0 = area.y.saturating_sub(buf.area.y) as usize;
+    if x0 >= buf_width || y0 >= buf_height || x0.saturating_add(left_width) > buf_width {
+        return;
+    }
+
+    let mut offset = 0usize;
+    for row in 0..height {
+        let y = y0.saturating_add(row);
+        if y >= buf_height {
+            break;
+        }
+        let row_start = y.saturating_mul(buf_width).saturating_add(x0);
+        let row_end = row_start.saturating_add(left_width);
+        if row_end > buf.content.len() || offset.saturating_add(left_width) > snapshot.len() {
+            break;
+        }
+        buf.content[row_start..row_end]
+            .clone_from_slice(&snapshot[offset..offset + left_width]);
+        offset = offset.saturating_add(left_width);
     }
 }
 
@@ -154,7 +273,7 @@ pub(super) fn flatten_draw_result(res: std::io::Result<Result<()>>) -> std::io::
                 let kind = err
                     .downcast_ref::<std::io::Error>()
                     .or_else(|| err.root_cause().downcast_ref::<std::io::Error>())
-                    .map(|io| io.kind())
+                    .map(std::io::Error::kind)
                     .unwrap_or(std::io::ErrorKind::Other);
                 Err(std::io::Error::new(kind, err))
             }

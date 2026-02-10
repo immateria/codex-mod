@@ -148,30 +148,24 @@ pub struct OpenRouterProviderConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum OpenRouterDataCollectionPolicy {
+    #[default]
     Allow,
     Deny,
 }
 
-impl Default for OpenRouterDataCollectionPolicy {
-    fn default() -> Self {
-        OpenRouterDataCollectionPolicy::Allow
-    }
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum OpenRouterProviderSort {
+    #[default]
     Price,
     Throughput,
     Latency,
 }
 
-impl Default for OpenRouterProviderSort {
-    fn default() -> Self {
-        OpenRouterProviderSort::Price
-    }
-}
 
 /// `max_price` envelope for OpenRouter provider routing controls.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
@@ -365,7 +359,7 @@ impl ModelProviderInfo {
 
         self.base_url
             .as_ref()
-            .map_or(false, |base| base.contains("/backend-api"))
+            .is_some_and(|base| base.contains("/backend-api"))
     }
 
     pub(crate) fn is_public_openai_responses_endpoint(&self) -> bool {
@@ -395,11 +389,10 @@ impl ModelProviderInfo {
 
         if let Some(env_headers) = &self.env_http_headers {
             for (header, env_var) in env_headers {
-                if let Ok(val) = std::env::var(env_var) {
-                    if !val.trim().is_empty() {
+                if let Ok(val) = std::env::var(env_var)
+                    && !val.trim().is_empty() {
                         builder = builder.header(header, val);
                     }
-                }
             }
         }
         builder

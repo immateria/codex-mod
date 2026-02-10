@@ -128,7 +128,7 @@ impl ToolsConfig {
         };
         if matches!(approval_policy, AskForApproval::OnRequest) && !use_streamable_shell_tool {
             shell_type = ConfigShellToolType::ShellWithRequest {
-                sandbox_policy: sandbox_policy.clone(),
+                sandbox_policy,
             }
         }
 
@@ -729,13 +729,12 @@ fn sanitize_json_schema(value: &mut JsonValue) {
         }
         JsonValue::Object(map) => {
             // First, recursively sanitize known nested schema holders
-            if let Some(props) = map.get_mut("properties") {
-                if let Some(props_map) = props.as_object_mut() {
+            if let Some(props) = map.get_mut("properties")
+                && let Some(props_map) = props.as_object_mut() {
                     for (_k, v) in props_map.iter_mut() {
                         sanitize_json_schema(v);
                     }
                 }
-            }
             if let Some(items) = map.get_mut("items") {
                 sanitize_json_schema(items);
             }
@@ -750,21 +749,19 @@ fn sanitize_json_schema(value: &mut JsonValue) {
             let mut ty = map.get("type").and_then(|v| v.as_str()).map(str::to_string);
 
             // If type is an array (union), pick first supported; else leave to inference
-            if ty.is_none() {
-                if let Some(JsonValue::Array(types)) = map.get("type") {
+            if ty.is_none()
+                && let Some(JsonValue::Array(types)) = map.get("type") {
                     for t in types {
-                        if let Some(tt) = t.as_str() {
-                            if matches!(
+                        if let Some(tt) = t.as_str()
+                            && matches!(
                                 tt,
                                 "object" | "array" | "string" | "number" | "integer" | "boolean"
                             ) {
                                 ty = Some(tt.to_string());
                                 break;
                             }
-                        }
                     }
                 }
-            }
 
             // Infer type if still missing
             if ty.is_none() {
@@ -1084,6 +1081,197 @@ pub fn create_bridge_tool() -> OpenAiTool {
         name: "code_bridge".to_string(),
         description:
             "Code Bridge = local Sentry-style event stream + two-way control (errors/console/pageviews/screenshots/control). Actions: subscribe (set level, persists, requests full capabilities), screenshot (ask bridges for a screenshot), javascript (send JS to execute and return result). Examples: {\"action\":\"subscribe\",\"level\":\"trace\"}, {\"action\":\"screenshot\"}, {\"action\":\"javascript\",\"code\":\"window.location.href\"}.".to_string(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties,
+            required: Some(vec!["action".to_string()]),
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
+fn create_browser_tool(browser_enabled: bool) -> OpenAiTool {
+    let mut actions = vec!["open", "status", "fetch"];
+    if browser_enabled {
+        actions.extend([
+            "close",
+            "click",
+            "move",
+            "type",
+            "key",
+            "javascript",
+            "scroll",
+            "history",
+            "inspect",
+            "console",
+            "cleanup",
+            "cdp",
+        ]);
+    }
+
+    let mut properties = BTreeMap::new();
+    properties.insert(
+        "action".to_string(),
+        JsonSchema::String {
+            description: Some(
+                "Required: choose one of the supported browser actions (e.g., 'open', 'click', 'fetch')."
+                    .to_string(),
+            ),
+            allowed_values: Some(actions.iter().map(std::string::ToString::to_string).collect()),
+        },
+    );
+
+    properties.insert(
+        "url".to_string(),
+        JsonSchema::String {
+            description: Some(
+                "For action=open or fetch: URL to navigate to or retrieve (e.g., https://example.com)."
+                    .to_string(),
+            ),
+            allowed_values: None,
+        },
+    );
+    properties.insert(
+        "type".to_string(),
+        JsonSchema::String {
+            description: Some(
+                "For action=click: optional mouse event type ('click', 'mousedown', 'mouseup')."
+                    .to_string(),
+            ),
+            allowed_values: None,
+        },
+    );
+    properties.insert(
+        "x".to_string(),
+        JsonSchema::Number {
+            description: Some(
+                "For actions=click/move/inspect: absolute X coordinate; use with 'y'."
+                    .to_string(),
+            ),
+        },
+    );
+    properties.insert(
+        "y".to_string(),
+        JsonSchema::Number {
+            description: Some(
+                "For actions=click/move/inspect: absolute Y coordinate; use with 'x'."
+                    .to_string(),
+            ),
+        },
+    );
+    properties.insert(
+        "dx".to_string(),
+        JsonSchema::Number {
+            description: Some(
+                "For action=move/scroll: relative X delta in CSS pixels (use with 'dy')."
+                    .to_string(),
+            ),
+        },
+    );
+    properties.insert(
+        "dy".to_string(),
+        JsonSchema::Number {
+            description: Some(
+                "For action=move/scroll: relative Y delta in CSS pixels (use with 'dx')."
+                    .to_string(),
+            ),
+        },
+    );
+    properties.insert(
+        "text".to_string(),
+        JsonSchema::String {
+            description: Some("For action=type: text to send to the focused element.".to_string()),
+            allowed_values: None,
+        },
+    );
+    properties.insert(
+        "key".to_string(),
+        JsonSchema::String {
+            description: Some(
+                "For action=key: key to press (e.g., Enter, Tab, Escape).".to_string(),
+            ),
+            allowed_values: None,
+        },
+    );
+    properties.insert(
+        "code".to_string(),
+        JsonSchema::String {
+            description: Some(
+                "For action=javascript: JavaScript source to execute in the browser context.".to_string(),
+            ),
+            allowed_values: None,
+        },
+    );
+    properties.insert(
+        "direction".to_string(),
+        JsonSchema::String {
+            description: Some("For action=history: history direction ('back' or 'forward').".to_string()),
+            allowed_values: None,
+        },
+    );
+    properties.insert(
+        "id".to_string(),
+        JsonSchema::String {
+            description: Some(
+                "For action=inspect: optional element id (without '#') to inspect.".to_string(),
+            ),
+            allowed_values: None,
+        },
+    );
+    properties.insert(
+        "lines".to_string(),
+        JsonSchema::Number {
+            description: Some(
+                "For action=console: optional number of recent console lines to return.".to_string(),
+            ),
+        },
+    );
+    properties.insert(
+        "method".to_string(),
+        JsonSchema::String {
+            description: Some(
+                "For action=cdp: Chrome DevTools Protocol method name (e.g., 'Page.navigate')."
+                    .to_string(),
+            ),
+            allowed_values: None,
+        },
+    );
+    properties.insert(
+        "params".to_string(),
+        JsonSchema::Object {
+            properties: BTreeMap::new(),
+            required: None,
+            additional_properties: Some(true.into()),
+        },
+    );
+    properties.insert(
+        "target".to_string(),
+        JsonSchema::String {
+            description: Some("For action=cdp: target session ('page' default or 'browser').".to_string()),
+            allowed_values: None,
+        },
+    );
+    properties.insert(
+        "timeout_ms".to_string(),
+        JsonSchema::Number {
+            description: Some(
+                "For action=fetch: optional timeout in milliseconds for the HTTP request.".to_string(),
+            ),
+        },
+    );
+    properties.insert(
+        "mode".to_string(),
+        JsonSchema::String {
+            description: Some(
+                "For action=fetch: optional fetch mode ('auto', 'browser', or 'http').".to_string(),
+            ),
+            allowed_values: None,
+        },
+    );
+
+    OpenAiTool::Function(ResponsesApiTool {
+        name: "browser".to_string(),
+        description: "Unified browser controller for navigation, interaction, console access, DevTools commands, and one-shot fetches. Choose an action and supply the matching fields.".to_string(),
         strict: false,
         parameters: JsonSchema::Object {
             properties,
@@ -1876,195 +2064,4 @@ mod tests {
         assert!(description.starts_with("Runs a shell command and returns its output."));
         assert!(description.contains("Long-running commands may be backgrounded"));
     }
-}
-
-fn create_browser_tool(browser_enabled: bool) -> OpenAiTool {
-    let mut actions = vec!["open", "status", "fetch"];
-    if browser_enabled {
-        actions.extend([
-            "close",
-            "click",
-            "move",
-            "type",
-            "key",
-            "javascript",
-            "scroll",
-            "history",
-            "inspect",
-            "console",
-            "cleanup",
-            "cdp",
-        ]);
-    }
-
-    let mut properties = BTreeMap::new();
-    properties.insert(
-        "action".to_string(),
-        JsonSchema::String {
-            description: Some(
-                "Required: choose one of the supported browser actions (e.g., 'open', 'click', 'fetch')."
-                    .to_string(),
-            ),
-            allowed_values: Some(actions.iter().map(|value| value.to_string()).collect()),
-        },
-    );
-
-    properties.insert(
-        "url".to_string(),
-        JsonSchema::String {
-            description: Some(
-                "For action=open or fetch: URL to navigate to or retrieve (e.g., https://example.com)."
-                    .to_string(),
-            ),
-            allowed_values: None,
-        },
-    );
-    properties.insert(
-        "type".to_string(),
-        JsonSchema::String {
-            description: Some(
-                "For action=click: optional mouse event type ('click', 'mousedown', 'mouseup')."
-                    .to_string(),
-            ),
-            allowed_values: None,
-        },
-    );
-    properties.insert(
-        "x".to_string(),
-        JsonSchema::Number {
-            description: Some(
-                "For actions=click/move/inspect: absolute X coordinate; use with 'y'."
-                    .to_string(),
-            ),
-        },
-    );
-    properties.insert(
-        "y".to_string(),
-        JsonSchema::Number {
-            description: Some(
-                "For actions=click/move/inspect: absolute Y coordinate; use with 'x'."
-                    .to_string(),
-            ),
-        },
-    );
-    properties.insert(
-        "dx".to_string(),
-        JsonSchema::Number {
-            description: Some(
-                "For action=move/scroll: relative X delta in CSS pixels (use with 'dy')."
-                    .to_string(),
-            ),
-        },
-    );
-    properties.insert(
-        "dy".to_string(),
-        JsonSchema::Number {
-            description: Some(
-                "For action=move/scroll: relative Y delta in CSS pixels (use with 'dx')."
-                    .to_string(),
-            ),
-        },
-    );
-    properties.insert(
-        "text".to_string(),
-        JsonSchema::String {
-            description: Some("For action=type: text to send to the focused element.".to_string()),
-            allowed_values: None,
-        },
-    );
-    properties.insert(
-        "key".to_string(),
-        JsonSchema::String {
-            description: Some(
-                "For action=key: key to press (e.g., Enter, Tab, Escape).".to_string(),
-            ),
-            allowed_values: None,
-        },
-    );
-    properties.insert(
-        "code".to_string(),
-        JsonSchema::String {
-            description: Some(
-                "For action=javascript: JavaScript source to execute in the browser context.".to_string(),
-            ),
-            allowed_values: None,
-        },
-    );
-    properties.insert(
-        "direction".to_string(),
-        JsonSchema::String {
-            description: Some("For action=history: history direction ('back' or 'forward').".to_string()),
-            allowed_values: None,
-        },
-    );
-    properties.insert(
-        "id".to_string(),
-        JsonSchema::String {
-            description: Some(
-                "For action=inspect: optional element id (without '#') to inspect.".to_string(),
-            ),
-            allowed_values: None,
-        },
-    );
-    properties.insert(
-        "lines".to_string(),
-        JsonSchema::Number {
-            description: Some(
-                "For action=console: optional number of recent console lines to return.".to_string(),
-            ),
-        },
-    );
-    properties.insert(
-        "method".to_string(),
-        JsonSchema::String {
-            description: Some(
-                "For action=cdp: Chrome DevTools Protocol method name (e.g., 'Page.navigate')."
-                    .to_string(),
-            ),
-            allowed_values: None,
-        },
-    );
-    properties.insert(
-        "params".to_string(),
-        JsonSchema::Object {
-            properties: BTreeMap::new(),
-            required: None,
-            additional_properties: Some(true.into()),
-        },
-    );
-    properties.insert(
-        "target".to_string(),
-        JsonSchema::String {
-            description: Some("For action=cdp: target session ('page' default or 'browser').".to_string()),
-            allowed_values: None,
-        },
-    );
-    properties.insert(
-        "timeout_ms".to_string(),
-        JsonSchema::Number {
-            description: Some(
-                "For action=fetch: optional timeout in milliseconds for the HTTP request.".to_string(),
-            ),
-        },
-    );
-    properties.insert(
-        "mode".to_string(),
-        JsonSchema::String {
-            description: Some(
-                "For action=fetch: optional fetch mode ('auto', 'browser', or 'http').".to_string(),
-            ),
-            allowed_values: None,
-        },
-    );
-
-    OpenAiTool::Function(ResponsesApiTool {
-        name: "browser".to_string(),
-        description: "Unified browser controller for navigation, interaction, console access, DevTools commands, and one-shot fetches. Choose an action and supply the matching fields.".to_string(),
-        strict: false,
-        parameters: JsonSchema::Object {
-            properties,
-            required: Some(vec!["action".to_string()]),
-            additional_properties: Some(false.into()),
-        },
-    })
 }

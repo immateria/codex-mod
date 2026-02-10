@@ -1,5 +1,5 @@
 use code_core::config_types::{AutoResolveAttemptLimit, ReasoningEffort};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
@@ -654,6 +654,110 @@ impl ReviewSettingsView {
         self.handle_key_event_impl(key_event);
     }
 
+    fn activate_selection_kind(&mut self, kind: SelectionKind) {
+        match kind {
+            SelectionKind::ReviewEnabled => self.toggle_review_auto_resolve(),
+            SelectionKind::ReviewAttempts => self.adjust_review_followups(true),
+            SelectionKind::ReviewModel => self.open_review_model_selector(),
+            SelectionKind::ReviewResolveModel => self.open_review_resolve_model_selector(),
+            SelectionKind::AutoReviewEnabled => self.toggle_auto_review(),
+            SelectionKind::AutoReviewModel => self.open_auto_review_model_selector(),
+            SelectionKind::AutoReviewResolveModel => self.open_auto_review_resolve_model_selector(),
+            SelectionKind::AutoReviewAttempts => self.adjust_auto_review_followups(true),
+        }
+    }
+
+    fn selection_index_at(&self, mouse_event: MouseEvent, area: Rect) -> Option<usize> {
+        if area.width == 0 || area.height == 0 {
+            return None;
+        }
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        if inner.width == 0 || inner.height == 0 {
+            return None;
+        }
+        if mouse_event.column < inner.x
+            || mouse_event.column >= inner.x.saturating_add(inner.width)
+            || mouse_event.row < inner.y
+            || mouse_event.row >= inner.y.saturating_add(inner.height)
+        {
+            return None;
+        }
+
+        let header_height = 3usize;
+        let footer_lines = if self.pending_notice.is_some() { 2usize } else { 1usize };
+        let available_height = inner.height as usize;
+        let footer_height = if available_height > header_height {
+            1 + footer_lines
+        } else {
+            0
+        };
+        let list_height = available_height.saturating_sub(header_height + footer_height);
+        if list_height == 0 {
+            return None;
+        }
+
+        let rel_y = mouse_event.row.saturating_sub(inner.y) as usize;
+        if rel_y < header_height || rel_y >= header_height + list_height {
+            return None;
+        }
+        let row_idx = rel_y - header_height;
+        let (_, selection_rows, _) = self.build_rows();
+        selection_rows.iter().position(|&row| row == row_idx)
+    }
+
+    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let (_, _, selection_kinds) = self.build_rows();
+        let total = selection_kinds.len();
+        if total == 0 {
+            return false;
+        }
+
+        if self.state.selected_idx.is_none() {
+            self.state.selected_idx = Some(0);
+        }
+        self.state.clamp_selection(total);
+
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                let Some(next) = self.selection_index_at(mouse_event, area) else {
+                    return false;
+                };
+                if self.state.selected_idx == Some(next) {
+                    return false;
+                }
+                self.state.selected_idx = Some(next);
+                let visible_budget = self.visible_budget(total);
+                self.state.ensure_visible(total, visible_budget);
+                true
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let Some(next) = self.selection_index_at(mouse_event, area) else {
+                    return false;
+                };
+                self.state.selected_idx = Some(next);
+                if let Some(kind) = selection_kinds.get(next).copied() {
+                    self.activate_selection_kind(kind);
+                }
+                let visible_budget = self.visible_budget(total);
+                self.state.ensure_visible(total, visible_budget);
+                true
+            }
+            MouseEventKind::ScrollUp => {
+                self.state.move_up_wrap(total);
+                let visible_budget = self.visible_budget(total);
+                self.state.ensure_visible(total, visible_budget);
+                true
+            }
+            MouseEventKind::ScrollDown => {
+                self.state.move_down_wrap(total);
+                let visible_budget = self.visible_budget(total);
+                self.state.ensure_visible(total, visible_budget);
+                true
+            }
+            _ => false,
+        }
+    }
+
     fn handle_key_event_impl(&mut self, key_event: KeyEvent) {
         let (_, _, selection_kinds) = self.build_rows();
         let mut total = selection_kinds.len();
@@ -717,22 +821,7 @@ impl ReviewSettingsView {
             KeyEvent { code: KeyCode::Char(' '), .. }
             | KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
                 if let Some(kind) = current_kind {
-                    match kind {
-                        SelectionKind::ReviewEnabled => self.toggle_review_auto_resolve(),
-                        SelectionKind::ReviewAttempts => self.adjust_review_followups(true),
-                        SelectionKind::ReviewModel => self.open_review_model_selector(),
-                        SelectionKind::ReviewResolveModel => {
-                            self.open_review_resolve_model_selector()
-                        }
-                        SelectionKind::AutoReviewEnabled => self.toggle_auto_review(),
-                        SelectionKind::AutoReviewModel => self.open_auto_review_model_selector(),
-                        SelectionKind::AutoReviewResolveModel => {
-                            self.open_auto_review_resolve_model_selector()
-                        }
-                        SelectionKind::AutoReviewAttempts => {
-                            self.adjust_auto_review_followups(true)
-                        }
-                    }
+                    self.activate_selection_kind(kind);
                 }
             }
             KeyEvent { code: KeyCode::Esc, .. } => {

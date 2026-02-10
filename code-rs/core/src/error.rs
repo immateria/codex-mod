@@ -41,7 +41,7 @@ pub enum SandboxErr {
     #[error(
         "command exceeded memory limit{}",
         memory_max_bytes
-            .map(|bytes| format!(": {} bytes", bytes))
+            .map(|bytes| format!(": {bytes} bytes"))
             .unwrap_or_default()
     )]
     OutOfMemory {
@@ -73,7 +73,7 @@ impl RetryAfter {
         let delay = clamped
             .signed_duration_since(now)
             .to_std()
-            .unwrap_or_else(|_| Duration::ZERO);
+            .unwrap_or(Duration::ZERO);
         Self {
             delay,
             resume_at: clamped,

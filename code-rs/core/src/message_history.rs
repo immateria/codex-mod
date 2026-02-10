@@ -124,7 +124,7 @@ pub(crate) async fn append_entry(text: &str, session_id: &Uuid, config: &Config)
                         std::thread::sleep(RETRY_SLEEP);
                         continue;
                     }
-                    return Err(e.into());
+                    return Err(e);
                 }
             }
         }

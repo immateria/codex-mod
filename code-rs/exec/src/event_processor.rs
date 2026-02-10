@@ -31,9 +31,8 @@ pub(crate) fn handle_last_message(last_agent_message: Option<&str>, output_file:
 }
 
 fn write_last_message_file(contents: &str, last_message_path: Option<&Path>) {
-    if let Some(path) = last_message_path {
-        if let Err(e) = std::fs::write(path, contents) {
+    if let Some(path) = last_message_path
+        && let Err(e) = std::fs::write(path, contents) {
             eprintln!("Failed to write last message file {path:?}: {e}");
         }
-    }
 }

@@ -679,7 +679,7 @@ index {left_oid}..{right_oid}
         let dest = dir.path().join("dest.txt");
         let mut acc = TurnDiffTracker::new();
         let mv = HashMap::from([(
-            src.clone(),
+            src,
             FileChange::Update {
                 unified_diff: "".into(),
                 move_path: Some(dest.clone()),

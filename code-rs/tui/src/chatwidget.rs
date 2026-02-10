@@ -862,7 +862,6 @@ pub(crate) fn is_test_mode() -> bool {
         })
     }
 }
-use serde_json;
 use tracing::{debug, info, warn};
 // use image::GenericImageView;
 
@@ -4705,7 +4704,7 @@ impl ChatWidget<'_> {
         self.refresh_explore_trailing_flags();
     }
 
-    /// Handle streaming delta for both answer and reasoning
+    // Handle streaming delta for both answer and reasoning.
     // Legacy helper removed: streaming now requires explicit sequence numbers.
     // Call sites should invoke `streaming::delta_text(self, kind, id, delta, seq)` directly.
 
@@ -5486,8 +5485,8 @@ impl ChatWidget<'_> {
         }
     }
 
-    /// If a completed exec cell sits at `idx`, attempt to merge it into the
-    /// previous cell when they represent the same action header (e.g., Search, Read).
+    // If a completed exec cell sits at `idx`, attempt to merge it into the
+    // previous cell when they represent the same action header (e.g., Search, Read).
 
     // MCP tool call handlers now live in chatwidget::tools
 
@@ -17100,16 +17099,19 @@ impl ChatWidget<'_> {
             .map(UpdatesSettingsContent::new)
     }
 
-    fn build_accounts_settings_content(&self) -> AccountsSettingsContent {
-        let view = crate::bottom_pane::AccountSwitchSettingsView::new(
+    fn build_accounts_settings_view(&self) -> crate::bottom_pane::AccountSwitchSettingsView {
+        crate::bottom_pane::AccountSwitchSettingsView::new(
             self.app_event_tx.clone(),
             self.config.auto_switch_accounts_on_rate_limit,
             self.config.api_key_fallback_on_all_accounts_limited,
-        );
-        AccountsSettingsContent::new(view)
+        )
     }
 
-    fn build_validation_settings_content(&mut self) -> ValidationSettingsContent {
+    fn build_accounts_settings_content(&self) -> AccountsSettingsContent {
+        AccountsSettingsContent::new(self.build_accounts_settings_view())
+    }
+
+    fn build_validation_settings_view(&mut self) -> ValidationSettingsView {
         let groups = vec![
             (
                 GroupStatus {
@@ -17140,19 +17142,22 @@ impl ChatWidget<'_> {
             })
             .collect();
 
-        let view = ValidationSettingsView::new(
+        ValidationSettingsView::new(
             groups,
             tool_rows,
             self.app_event_tx.clone(),
-        );
-        ValidationSettingsContent::new(view)
+        )
     }
 
-    fn build_review_settings_content(&mut self) -> ReviewSettingsContent {
+    fn build_validation_settings_content(&mut self) -> ValidationSettingsContent {
+        ValidationSettingsContent::new(self.build_validation_settings_view())
+    }
+
+    fn build_review_settings_view(&mut self) -> ReviewSettingsView {
         let auto_resolve_enabled = self.config.tui.review_auto_resolve;
         let auto_review_enabled = self.config.tui.auto_review_enabled;
         let attempts = self.configured_auto_resolve_re_reviews();
-        let view = ReviewSettingsView::new(
+        ReviewSettingsView::new(
             self.config.review_use_chat_model,
             self.config.review_model.clone(),
             self.config.review_model_reasoning_effort,
@@ -17170,21 +17175,27 @@ impl ChatWidget<'_> {
             self.config.auto_review_resolve_model_reasoning_effort,
             self.config.auto_drive.auto_review_followup_attempts.get(),
             self.app_event_tx.clone(),
-        );
-        ReviewSettingsContent::new(view)
+        )
     }
 
-    fn build_planning_settings_content(&mut self) -> PlanningSettingsContent {
-        let view = PlanningSettingsView::new(
+    fn build_review_settings_content(&mut self) -> ReviewSettingsContent {
+        ReviewSettingsContent::new(self.build_review_settings_view())
+    }
+
+    fn build_planning_settings_view(&mut self) -> PlanningSettingsView {
+        PlanningSettingsView::new(
             self.config.planning_use_chat_model,
             self.config.planning_model.clone(),
             self.config.planning_model_reasoning_effort,
             self.app_event_tx.clone(),
-        );
-        PlanningSettingsContent::new(view)
+        )
     }
 
-    fn build_auto_drive_settings_content(&mut self) -> AutoDriveSettingsContent {
+    fn build_planning_settings_content(&mut self) -> PlanningSettingsContent {
+        PlanningSettingsContent::new(self.build_planning_settings_view())
+    }
+
+    fn build_auto_drive_settings_view(&mut self) -> AutoDriveSettingsView {
         let model = self.config.auto_drive.model.clone();
         let model_effort = self.config.auto_drive.model_reasoning_effort;
         let use_chat_model = self.config.auto_drive_use_chat_model;
@@ -17193,7 +17204,7 @@ impl ChatWidget<'_> {
         let cross = self.auto_state.cross_check_enabled;
         let qa = self.auto_state.qa_automation_enabled;
         let mode = self.auto_state.continue_mode;
-        let view = AutoDriveSettingsView::new(
+        AutoDriveSettingsView::new(
             self.app_event_tx.clone(),
             model,
             model_effort,
@@ -17203,8 +17214,11 @@ impl ChatWidget<'_> {
             cross,
             qa,
             mode,
-        );
-        AutoDriveSettingsContent::new(view)
+        )
+    }
+
+    fn build_auto_drive_settings_content(&mut self) -> AutoDriveSettingsContent {
+        AutoDriveSettingsContent::new(self.build_auto_drive_settings_view())
     }
 
     fn ensure_updates_settings_overlay(&mut self) {
@@ -24209,6 +24223,12 @@ Have we met every part of this goal and is there no further work to do?"#
     }
 
     pub(crate) fn show_settings_overlay(&mut self, section: Option<SettingsSection>) {
+        if let Some(section) = section {
+            if self.open_settings_section_in_bottom_pane(section) {
+                return;
+            }
+        }
+
         let initial_section = section
             .or_else(|| {
                 self.settings
@@ -24266,19 +24286,22 @@ Have we met every part of this goal and is there no further work to do?"#
         }
     }
 
-    fn build_model_settings_content(&self) -> ModelSettingsContent {
+    fn build_model_settings_view(&self) -> ModelSelectionView {
         let presets = self.available_model_presets();
         let current_model = self.config.model.clone();
         let current_effort = self.config.model_reasoning_effort;
-        let view = ModelSelectionView::new(
+        ModelSelectionView::new(
             presets,
             current_model,
             current_effort,
             false,
             ModelSelectionTarget::Session,
             self.app_event_tx.clone(),
-        );
-        ModelSettingsContent::new(view)
+        )
+    }
+
+    fn build_model_settings_content(&self) -> ModelSettingsContent {
+        ModelSettingsContent::new(self.build_model_settings_view())
     }
 
     fn build_theme_settings_content(&mut self) -> ThemeSettingsContent {
@@ -24306,16 +24329,26 @@ Have we met every part of this goal and is there no further work to do?"#
         NotificationsSettingsContent::new(self.build_notifications_settings_view())
     }
 
-    fn build_prompts_settings_content(&mut self) -> PromptsSettingsContent {
+    fn build_prompts_settings_view(&mut self) -> PromptsSettingsView {
         let prompts = self.bottom_pane.custom_prompts().to_vec();
-        let view = PromptsSettingsView::new(prompts, self.app_event_tx.clone());
-        PromptsSettingsContent::new(view)
+        PromptsSettingsView::new(prompts, self.app_event_tx.clone())
+    }
+
+    fn build_prompts_settings_content(&mut self) -> PromptsSettingsContent {
+        PromptsSettingsContent::new(self.build_prompts_settings_view())
+    }
+
+    fn build_skills_settings_view(&mut self) -> SkillsSettingsView {
+        let skills = self.bottom_pane.skills().to_vec();
+        SkillsSettingsView::new(
+            skills,
+            self.config.shell_style_profiles.clone(),
+            self.app_event_tx.clone(),
+        )
     }
 
     fn build_skills_settings_content(&mut self) -> SkillsSettingsContent {
-        let skills = self.bottom_pane.skills().to_vec();
-        let view = SkillsSettingsView::new(skills, self.app_event_tx.clone());
-        SkillsSettingsContent::new(view)
+        SkillsSettingsContent::new(self.build_skills_settings_view())
     }
 
     fn build_chrome_settings_content(&self, port: Option<u16>) -> ChromeSettingsContent {
@@ -24989,6 +25022,122 @@ Have we met every part of this goal and is there no further work to do?"#
         self.request_redraw();
     }
 
+    pub(crate) fn open_settings_section_in_bottom_pane(
+        &mut self,
+        section: SettingsSection,
+    ) -> bool {
+        match section {
+            SettingsSection::Model => {
+                let presets = self.available_model_presets();
+                let current_model = self.config.model.clone();
+                let current_effort = self.config.model_reasoning_effort;
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_model_selection(
+                    presets,
+                    current_model,
+                    current_effort,
+                    false,
+                    ModelSelectionTarget::Session,
+                );
+                true
+            }
+            SettingsSection::Theme => {
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.show_theme_selection();
+                true
+            }
+            SettingsSection::Updates => {
+                let Some(view) = self.prepare_update_settings_view() else {
+                    return false;
+                };
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_update_settings(view);
+                true
+            }
+            SettingsSection::Accounts => {
+                let view = self.build_accounts_settings_view();
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_account_switch_settings(view);
+                true
+            }
+            SettingsSection::Prompts => {
+                let view = self.build_prompts_settings_view();
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_prompts_settings(view);
+                true
+            }
+            SettingsSection::Skills => {
+                let view = self.build_skills_settings_view();
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_skills_settings(view);
+                true
+            }
+            SettingsSection::AutoDrive => {
+                let view = self.build_auto_drive_settings_view();
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_auto_drive_settings_panel(view);
+                true
+            }
+            SettingsSection::Review => {
+                let view = self.build_review_settings_view();
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_review_settings(view);
+                true
+            }
+            SettingsSection::Planning => {
+                let view = self.build_planning_settings_view();
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_planning_settings(view);
+                true
+            }
+            SettingsSection::Validation => {
+                let view = self.build_validation_settings_view();
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_validation_settings(view);
+                true
+            }
+            SettingsSection::Notifications => {
+                let view = self.build_notifications_settings_view();
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_notifications_settings(view);
+                true
+            }
+            SettingsSection::Mcp => {
+                let Some(rows) = self.build_mcp_server_rows() else {
+                    return false;
+                };
+                if self.settings.overlay.is_some() {
+                    self.close_settings_overlay();
+                }
+                self.bottom_pane.show_mcp_settings(rows);
+                true
+            }
+            SettingsSection::Agents | SettingsSection::Limits | SettingsSection::Chrome => false,
+        }
+    }
+
     pub(crate) fn activate_current_settings_section(&mut self) -> bool {
         let section = match self
             .settings
@@ -25000,19 +25149,11 @@ Have we met every part of this goal and is there no further work to do?"#
             None => return false,
         };
 
+        if self.open_settings_section_in_bottom_pane(section) {
+            return true;
+        }
+
         let handled = match section {
-            SettingsSection::Model
-            | SettingsSection::Theme
-            | SettingsSection::Planning
-            | SettingsSection::Updates
-            | SettingsSection::Review
-            | SettingsSection::Validation
-            | SettingsSection::AutoDrive
-            | SettingsSection::Mcp
-            | SettingsSection::Notifications
-            | SettingsSection::Prompts
-            | SettingsSection::Accounts
-            | SettingsSection::Skills => false,
             SettingsSection::Agents => {
                 self.show_agents_overview_ui();
                 false
@@ -25025,6 +25166,18 @@ Have we met every part of this goal and is there no further work to do?"#
                 self.show_chrome_options(None);
                 true
             }
+            SettingsSection::Model
+            | SettingsSection::Theme
+            | SettingsSection::Planning
+            | SettingsSection::Updates
+            | SettingsSection::Review
+            | SettingsSection::Validation
+            | SettingsSection::AutoDrive
+            | SettingsSection::Mcp
+            | SettingsSection::Notifications
+            | SettingsSection::Prompts
+            | SettingsSection::Accounts
+            | SettingsSection::Skills => false,
         };
 
         if handled {
@@ -29382,13 +29535,13 @@ Have we met every part of this goal and is there no further work to do?"#
         lines
     }
 
-    /// Desired bottom pane height (in rows) for a given terminal width.
+    // Desired bottom pane height (in rows) for a given terminal width.
     pub(crate) fn desired_bottom_height(&self, width: u16) -> u16 {
         self.bottom_pane.desired_height(width)
     }
 
-    /// The last bottom pane height (rows) that the layout actually used.
-    /// If not yet set, fall back to a conservative estimate from BottomPane.
+    // The last bottom pane height (rows) that the layout actually used.
+    // If not yet set, fall back to a conservative estimate from BottomPane.
 
     // (Removed) Legacy in-place reset method. The /new command now creates a fresh
     // ChatWidget (new core session) to ensure the agent context is fully reset.

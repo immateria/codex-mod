@@ -352,7 +352,7 @@ fn should_enable_alternate_scroll_mode() -> bool {
     !matches!(env::var("TERM_PROGRAM"), Ok(value) if value.eq_ignore_ascii_case("Apple_Terminal"))
 }
 
-/// Clear the current screen (normal buffer) with the theme background and reset cursor.
+// Clear the current screen (normal buffer) with the theme background and reset cursor.
 // Removed: clear_screen_with_theme — we no longer hard-clear the normal buffer in terminal mode.
 
 /// Determine whether to enable xterm focus change tracking for the current

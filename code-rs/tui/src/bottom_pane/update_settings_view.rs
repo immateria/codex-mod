@@ -8,7 +8,7 @@ use crate::util::buffer::fill_rect;
 use super::bottom_pane_view::BottomPaneView;
 use super::bottom_pane_view::ConditionalUpdate;
 use super::BottomPane;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Margin, Rect};
 use ratatui::prelude::Widget;
@@ -232,6 +232,35 @@ impl UpdateSettingsView {
         lines
     }
 
+    fn selectable_row_at(&self, area: Rect, mouse_event: MouseEvent) -> Option<usize> {
+        if area.width == 0 || area.height == 0 {
+            return None;
+        }
+        if mouse_event.column < area.x
+            || mouse_event.column >= area.x.saturating_add(area.width)
+            || mouse_event.row < area.y
+            || mouse_event.row >= area.y.saturating_add(area.height)
+        {
+            return None;
+        }
+
+        let rel_y = mouse_event.row.saturating_sub(area.y);
+        match rel_y {
+            1 => Some(0),
+            2 => Some(1),
+            3 => Some(2),
+            _ => None,
+        }
+    }
+
+    fn activate_selected(&mut self) {
+        match self.field {
+            0 => self.invoke_run_upgrade(),
+            1 => self.toggle_auto(),
+            _ => self.is_complete = true,
+        }
+    }
+
     pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) {
         const FIELD_COUNT: usize = 3;
 
@@ -258,6 +287,44 @@ impl UpdateSettingsView {
             _ => {}
         }
         self.app_event_tx.send(AppEvent::RequestRedraw);
+    }
+
+    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        const FIELD_COUNT: usize = 3;
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                let Some(row) = self.selectable_row_at(area, mouse_event) else {
+                    return false;
+                };
+                if self.field == row {
+                    return false;
+                }
+                self.field = row;
+                true
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let Some(row) = self.selectable_row_at(area, mouse_event) else {
+                    return false;
+                };
+                self.field = row;
+                self.activate_selected();
+                self.app_event_tx.send(AppEvent::RequestRedraw);
+                true
+            }
+            MouseEventKind::ScrollUp => {
+                if self.field == 0 {
+                    self.field = FIELD_COUNT - 1;
+                } else {
+                    self.field -= 1;
+                }
+                true
+            }
+            MouseEventKind::ScrollDown => {
+                self.field = (self.field + 1) % FIELD_COUNT;
+                true
+            }
+            _ => false,
+        }
     }
 
     pub fn is_view_complete(&self) -> bool {

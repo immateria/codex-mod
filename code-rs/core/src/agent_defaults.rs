@@ -68,11 +68,10 @@ impl AgentModelSpec {
         if self.enabled_by_default {
             return true;
         }
-        if let Some(env) = self.gating_env {
-            if let Ok(value) = std::env::var(env) {
+        if let Some(env) = self.gating_env
+            && let Ok(value) = std::env::var(env) {
                 return matches!(value.as_str(), "1" | "true" | "TRUE" | "True");
             }
-        }
         false
     }
 
@@ -296,7 +295,7 @@ fn model_guide_line(spec: &AgentModelSpec) -> String {
 }
 
 fn custom_model_guide_line(name: &str, description: &str) -> String {
-    format!("- `{}`: {}", name, description)
+    format!("- `{name}`: {description}")
 }
 
 pub fn build_model_guide_description(active_agents: &[String]) -> String {
@@ -388,7 +387,7 @@ pub fn model_guide_markdown_with_custom(configured_agents: &[AgentConfig]) -> Op
 pub fn default_agent_configs() -> Vec<AgentConfig> {
     enabled_agent_model_specs()
         .into_iter()
-        .map(|spec| agent_config_from_spec(spec))
+        .map(agent_config_from_spec)
         .collect()
 }
 

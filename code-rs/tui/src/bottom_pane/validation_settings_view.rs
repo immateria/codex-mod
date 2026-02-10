@@ -1,6 +1,6 @@
 use code_core::config_types::{validation_tool_category, ValidationCategory};
 use code_core::protocol::ValidationGroup;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
@@ -278,8 +278,122 @@ impl ValidationSettingsView {
         }
     }
 
+    fn reconcile_selection_state(&mut self) {
+        let (_, _, selection_kinds) = self.build_rows();
+        let total = selection_kinds.len();
+        if total == 0 {
+            self.state.selected_idx = None;
+            self.state.scroll_top = 0;
+        } else {
+            self.state.clamp_selection(total);
+            self.state.scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+            let visible_budget = self.visible_budget(total);
+            self.state.ensure_visible(total, visible_budget);
+        }
+    }
+
+    fn selection_index_at(&self, mouse_event: MouseEvent, area: Rect) -> Option<usize> {
+        if area.width == 0 || area.height == 0 {
+            return None;
+        }
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        if inner.width == 0 || inner.height == 0 {
+            return None;
+        }
+        if mouse_event.column < inner.x
+            || mouse_event.column >= inner.x.saturating_add(inner.width)
+            || mouse_event.row < inner.y
+            || mouse_event.row >= inner.y.saturating_add(inner.height)
+        {
+            return None;
+        }
+
+        let header_height = self.render_header_lines().len();
+        let footer_height = {
+            let available_height = inner.height as usize;
+            if available_height > header_height {
+                1 + self.render_footer_lines().len()
+            } else {
+                0
+            }
+        };
+        let available_height = inner.height as usize;
+        let list_height = available_height.saturating_sub(header_height + footer_height);
+        if list_height == 0 {
+            return None;
+        }
+
+        let rel_y = mouse_event.row.saturating_sub(inner.y) as usize;
+        if rel_y < header_height || rel_y >= header_height + list_height {
+            return None;
+        }
+        let line_offset = rel_y - header_height;
+
+        let (rows, selection_rows, _) = self.build_rows();
+        let selection_count = selection_rows.len();
+        if selection_count == 0 {
+            return None;
+        }
+
+        let mut start_row = selection_rows
+            .get(self.state.scroll_top.min(selection_count.saturating_sub(1)))
+            .copied()
+            .unwrap_or(0);
+        while start_row > 0 {
+            match rows[start_row - 1] {
+                RowData::Header { .. } => start_row -= 1,
+                RowData::Spacer => start_row -= 1,
+                _ => break,
+            }
+        }
+
+        let row_index = start_row.saturating_add(line_offset);
+        selection_rows.iter().position(|&row| row == row_index)
+    }
+
     pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) {
         self.handle_key_event_internal(None, key_event);
+    }
+
+    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let (_, _, selection_kinds) = self.build_rows();
+        let total = selection_kinds.len();
+        if total == 0 {
+            return false;
+        }
+
+        if self.state.selected_idx.is_none() {
+            self.state.selected_idx = Some(0);
+        }
+        self.state.clamp_selection(total);
+
+        let handled = match mouse_event.kind {
+            MouseEventKind::Moved => false,
+            MouseEventKind::Down(MouseButton::Left) => {
+                let Some(next) = self.selection_index_at(mouse_event, area) else {
+                    return false;
+                };
+                self.state.selected_idx = Some(next);
+                if let Some(kind) = selection_kinds.get(next).copied() {
+                    self.activate_selection(None, kind);
+                }
+                true
+            }
+            MouseEventKind::ScrollUp => {
+                self.state.move_up_wrap(total);
+                true
+            }
+            MouseEventKind::ScrollDown => {
+                self.state.move_down_wrap(total);
+                true
+            }
+            _ => false,
+        };
+
+        if handled {
+            self.reconcile_selection_state();
+        }
+        handled
     }
 
     pub fn is_view_complete(&self) -> bool {

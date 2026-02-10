@@ -107,7 +107,7 @@ fn current_code_binary_path() -> Result<std::path::PathBuf, String> {
         }
         return Ok(p);
     }
-    let exe = std::env::current_exe().map_err(|e| format!("Failed to resolve current executable: {}", e))?;
+    let exe = std::env::current_exe().map_err(|e| format!("Failed to resolve current executable: {e}"))?;
 
     // If the kernel reports the path as "(deleted)", strip the suffix and prefer the live file
     // at the same location (common when a rebuild replaces the inode under a long-running process).
@@ -185,7 +185,7 @@ fn find_repo_root(start: std::path::PathBuf) -> Option<std::path::PathBuf> {
 /// Format a helpful error message when an agent command is not found.
 /// Provides platform-specific guidance for resolving PATH issues.
 fn format_agent_not_found_error(agent_name: &str, command: &str) -> String {
-    let mut msg = format!("Agent '{}' could not be found.", agent_name);
+    let mut msg = format!("Agent '{agent_name}' could not be found.");
 
     #[cfg(target_os = "windows")]
     {
@@ -207,14 +207,13 @@ fn format_agent_not_found_error(agent_name: &str, command: &str) -> String {
     {
         msg.push_str(&format!(
             "\n\nTroubleshooting steps:\n\
-            1. Check if '{}' is installed: which {}\n\
-            2. Verify '{}' is in your PATH: echo $PATH\n\
+            1. Check if '{command}' is installed: which {command}\n\
+            2. Verify '{command}' is in your PATH: echo $PATH\n\
             3. Try using an absolute path in your config.toml:\n\
                [[agents]]\n\
-               name = \"{}\"\n\
-               command = \"/absolute/path/to/{}\"\n\n\
-            For more information, see: https://github.com/just-every/code/blob/main/code-rs/config.md",
-            command, command, command, agent_name, command
+               name = \"{agent_name}\"\n\
+               command = \"/absolute/path/to/{command}\"\n\n\
+            For more information, see: https://github.com/just-every/code/blob/main/code-rs/config.md"
         ));
     }
 
@@ -287,6 +286,12 @@ pub struct AgentStatusUpdatePayload {
     pub agents: Vec<AgentInfo>,
     pub context: Option<String>,
     pub task: Option<String>,
+}
+
+impl Default for AgentManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AgentManager {
@@ -383,7 +388,7 @@ impl AgentManager {
         let file = dir.join("progress.log");
         match OpenOptions::new().create(true).append(true).open(&file) {
             Ok(mut fh) => {
-                if let Err(err) = writeln!(fh, "{}", line) {
+                if let Err(err) = writeln!(fh, "{line}") {
                     warn!("failed to write agent log {:?}: {}", file, err);
                 }
             }
@@ -400,9 +405,7 @@ impl AgentManager {
                 .map(|agent| {
                     // Just show the model name - status provides the useful info
                     let name = agent
-                        .name
-                        .as_ref()
-                        .map(|value| value.clone())
+                        .name.clone()
                         .unwrap_or_else(|| agent.model.clone());
                     let start = agent.started_at.unwrap_or(agent.created_at);
                     let end = agent.completed_at.unwrap_or(now);
@@ -586,7 +589,7 @@ impl AgentManager {
 
         let log_tag = match source_kind {
             Some(AgentSourceKind::AutoReview) => {
-                Some(format!("agents/auto-review/{}", agent_id))
+                Some(format!("agents/auto-review/{agent_id}"))
             }
             _ => None,
         };
@@ -657,21 +660,18 @@ impl AgentManager {
         self.agents
             .values()
             .filter(|agent| {
-                if let Some(ref filter) = status_filter {
-                    if agent.status != *filter {
+                if let Some(ref filter) = status_filter
+                    && agent.status != *filter {
                         return false;
                     }
-                }
-                if let Some(ref batch) = batch_id {
-                    if agent.batch_id.as_ref() != Some(batch) {
+                if let Some(ref batch) = batch_id
+                    && agent.batch_id.as_ref() != Some(batch) {
                         return false;
                     }
-                }
-                if let Some(cutoff) = cutoff {
-                    if agent.created_at < cutoff {
+                if let Some(cutoff) = cutoff
+                    && agent.created_at < cutoff {
                         return false;
                     }
-                }
                 true
             })
             .cloned()
@@ -813,10 +813,10 @@ impl AgentManager {
 
 async fn get_git_root() -> Result<PathBuf, String> {
     let output = Command::new("git")
-        .args(&["rev-parse", "--show-toplevel"])
+        .args(["rev-parse", "--show-toplevel"])
         .output()
         .await
-        .map_err(|e| format!("Git not installed or not in a git repository: {}", e))?;
+        .map_err(|e| format!("Git not installed or not in a git repository: {e}"))?;
 
     if output.status.success() {
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -861,7 +861,7 @@ fn generate_branch_id(model: &str, agent: &str) -> String {
         }
     }
 
-    format!("code-{}-{}", model_s, suffix_s)
+    format!("code-{model_s}-{suffix_s}")
 }
 
 use crate::git_worktree::setup_worktree;
@@ -902,13 +902,11 @@ async fn execute_agent(agent_id: String, config: Option<AgentConfig>) {
     // Build the full prompt with context
     let mut full_prompt = prompt.clone();
     // Prepend any per-agent instructions from config when available
-    if let Some(cfg) = config.as_ref() {
-        if let Some(instr) = cfg.instructions.as_ref() {
-            if !instr.trim().is_empty() {
+    if let Some(cfg) = config.as_ref()
+        && let Some(instr) = cfg.instructions.as_ref()
+            && !instr.trim().is_empty() {
                 full_prompt = format!("{}\n\n{}", instr.trim(), full_prompt);
             }
-        }
-    }
     if let Some(context) = &context {
         let trimmed = full_prompt.trim_start();
         if trimmed.starts_with('/') {
@@ -919,7 +917,7 @@ async fn execute_agent(agent_id: String, config: Option<AgentConfig>) {
         }
     }
     if let Some(output_goal) = &output_goal {
-        full_prompt = format!("{}\n\nDesired output: {}", full_prompt, output_goal);
+        full_prompt = format!("{full_prompt}\n\nDesired output: {output_goal}");
     }
     if !files.is_empty() {
         full_prompt = format!("{}\n\nFiles to consider: {}", full_prompt, files.join(", "));
@@ -951,7 +949,7 @@ async fn execute_agent(agent_id: String, config: Option<AgentConfig>) {
 
                 let mut manager = AGENT_MANAGER.write().await;
                 manager
-                    .add_progress(&agent_id, format!("Creating git worktree: {}", branch_id))
+                    .add_progress(&agent_id, format!("Creating git worktree: {branch_id}"))
                     .await;
                 drop(manager);
 
@@ -978,7 +976,7 @@ async fn execute_agent(agent_id: String, config: Option<AgentConfig>) {
                             .source_kind
                             .as_ref()
                             .and_then(|kind| matches!(kind, AgentSourceKind::AutoReview).then(|| {
-                                let filename = format!("{}.review-output.json", agent_id);
+                                let filename = format!("{agent_id}.review-output.json");
                                 std::env::temp_dir().join(filename)
                             }));
                         review_output_json_path_capture = review_output_json_path.clone();
@@ -1029,16 +1027,15 @@ async fn execute_agent(agent_id: String, config: Option<AgentConfig>) {
                             .await
                         }
                     }
-                    Err(e) => Err(format!("Failed to setup worktree: {}", e)),
+                    Err(e) => Err(format!("Failed to setup worktree: {e}")),
                 }
             }
-            Err(e) => Err(format!("Git is required for non-read-only agents: {}", e)),
+            Err(e) => Err(format!("Git is required for non-read-only agents: {e}")),
         }
     } else {
         // Execute in read-only mode
         full_prompt = format!(
-            "{}\n\n[Running in read-only mode - no modifications allowed]",
-            full_prompt
+            "{full_prompt}\n\n[Running in read-only mode - no modifications allowed]"
         );
         let use_built_in_cloud = config.is_none()
             && model_spec
@@ -1079,11 +1076,10 @@ async fn execute_agent(agent_id: String, config: Option<AgentConfig>) {
 }
 
 fn prefer_json_result(path: Option<&PathBuf>, fallback: Result<String, String>) -> Result<String, String> {
-    if let Some(p) = path {
-        if let Ok(json) = std::fs::read_to_string(p) {
+    if let Some(p) = path
+        && let Ok(json) = std::fs::read_to_string(p) {
             return Ok(json);
         }
-    }
     fallback
 }
 
@@ -1165,12 +1161,11 @@ fn command_exists(cmd: &str) -> bool {
             for dir in std::env::split_paths(&path_os) {
                 if dir.as_os_str().is_empty() { continue; }
                 let candidate = dir.join(cmd);
-                if let Ok(meta) = std::fs::metadata(&candidate) {
-                    if meta.is_file() {
+                if let Ok(meta) = std::fs::metadata(&candidate)
+                    && meta.is_file() {
                         let mode = meta.permissions().mode();
                         if mode & 0o111 != 0 { return true; }
                     }
-                }
             }
             false
         }
@@ -1180,8 +1175,8 @@ fn command_exists(cmd: &str) -> bool {
         .or_else(|| config.as_ref().and_then(|cfg| agent_model_spec(&cfg.name)))
         .or_else(|| config.as_ref().and_then(|cfg| agent_model_spec(&cfg.command)));
 
-    if let Some(spec) = spec_opt {
-        if !spec.is_enabled() {
+    if let Some(spec) = spec_opt
+        && !spec.is_enabled() {
             if let Some(flag) = spec.gating_env {
                 return Err(format!(
                     "agent model '{}' is disabled; set {}=1 to enable it",
@@ -1190,7 +1185,6 @@ fn command_exists(cmd: &str) -> bool {
             }
             return Err(format!("agent model '{}' is disabled", spec.slug));
         }
-    }
 
     // Use config command if provided, otherwise fall back to the spec CLI (or the
     // lowercase model string).
@@ -1389,9 +1383,8 @@ fn command_exists(cmd: &str) -> bool {
     // Build env from current process then overlay any config-provided vars.
     let mut env: std::collections::HashMap<String, String> = std::env::vars().collect();
     let orig_home: Option<String> = env.get("HOME").cloned();
-    if let Some(ref cfg) = config {
-        if let Some(ref e) = cfg.env { for (k, v) in e { env.insert(k.clone(), v.clone()); } }
-    }
+    if let Some(ref cfg) = config
+        && let Some(ref e) = cfg.env { for (k, v) in e { env.insert(k.clone(), v.clone()); } }
 
     if debug_subagent {
         env.entry("CODE_SUBAGENT_DEBUG".to_string())
@@ -1478,7 +1471,7 @@ fn command_exists(cmd: &str) -> bool {
                 if e.kind() == std::io::ErrorKind::NotFound {
                     return Err(format_agent_not_found_error(&command, &command_for_spawn));
                 }
-                return Err(format!("Failed to spawn sandboxed agent: {}", e));
+                return Err(format!("Failed to spawn sandboxed agent: {e}"));
             }
         }
     } else {
@@ -1509,7 +1502,7 @@ fn command_exists(cmd: &str) -> bool {
                     return Err(format_agent_not_found_error(&command, &command_for_spawn));
                 }
 
-                return Err(format!("Failed to execute {}: {}", model, e));
+                return Err(format!("Failed to execute {model}: {e}"));
             }
         }
     };
@@ -1526,9 +1519,9 @@ fn command_exists(cmd: &str) -> bool {
         } else if stdout.is_empty() {
             stderr.to_string()
         } else {
-            format!("{}\n{}", stderr, stdout)
+            format!("{stderr}\n{stdout}")
         };
-        Err(format!("Command failed: {}", combined))
+        Err(format!("Command failed: {combined}"))
     }
 }
 
@@ -1674,11 +1667,10 @@ pub(crate) fn should_use_current_exe_for_agent(
         }
 
         // If the configured command matches the canonical CLI for this spec, prefer self.
-        if let Some(spec) = agent_model_spec(&cfg.name).or_else(|| agent_model_spec(trimmed)) {
-            if trimmed.eq_ignore_ascii_case(spec.cli) {
+        if let Some(spec) = agent_model_spec(&cfg.name).or_else(|| agent_model_spec(trimmed))
+            && trimmed.eq_ignore_ascii_case(spec.cli) {
                 return true;
             }
-        }
 
         // Otherwise assume the user intentionally set a custom command; do not override.
         false
@@ -1727,13 +1719,12 @@ pub fn split_command_and_args(command: &str) -> (String, Vec<String>) {
     if trimmed.is_empty() {
         return (String::new(), Vec::new());
     }
-    if let Some(tokens) = shlex_split(trimmed) {
-        if let Some((first, rest)) = tokens.split_first() {
+    if let Some(tokens) = shlex_split(trimmed)
+        && let Some((first, rest)) = tokens.split_first() {
             return (first.clone(), rest.to_vec());
         }
-    }
 
-    let tokens: Vec<String> = trimmed.split_whitespace().map(|s| s.to_string()).collect();
+    let tokens: Vec<String> = trimmed.split_whitespace().map(std::string::ToString::to_string).collect();
     if tokens.is_empty() {
         (String::new(), Vec::new())
     } else {
@@ -1800,7 +1791,7 @@ fn summarize_agent_output(output: &str) -> String {
             // Fallback: take first char to avoid empty slice
             let mut chars = trimmed.chars();
             if let Some(first) = chars.next() {
-                format!("{}…", first)
+                format!("{first}…")
             } else {
                 "…".to_string()
             }
@@ -1827,7 +1818,7 @@ fn run_smoke_test_with_new_runtime(cfg: AgentConfig) -> Result<(), String> {
     TokioRuntimeBuilder::new_current_thread()
         .enable_all()
         .build()
-        .map_err(|e| format!("failed to build validation runtime: {}", e))?
+        .map_err(|e| format!("failed to build validation runtime: {e}"))?
         .block_on(smoke_test_agent(cfg))
 }
 
@@ -1836,7 +1827,7 @@ pub fn smoke_test_agent_blocking(cfg: AgentConfig) -> Result<(), String> {
         thread::Builder::new()
             .name("agent-smoke-test".into())
             .spawn(move || run_smoke_test_with_new_runtime(cfg))
-            .map_err(|e| format!("failed to spawn agent validation thread: {}", e))?
+            .map_err(|e| format!("failed to spawn agent validation thread: {e}"))?
             .join()
             .map_err(|_| "agent validation thread panicked".to_string())?
     } else {
@@ -1877,7 +1868,7 @@ async fn execute_cloud_built_in_streaming(
         env,
     )
     .await
-    .map_err(|e| format!("Failed to spawn cloud submit: {}", e))?;
+    .map_err(|e| format!("Failed to spawn cloud submit: {e}"))?;
 
     // Stream stderr to HUD
     let stderr_task = if let Some(stderr) = child.stderr.take() {
@@ -1903,10 +1894,10 @@ async fn execute_cloud_built_in_streaming(
         }
     }
 
-    let status = child.wait().await.map_err(|e| format!("Failed to wait: {}", e))?;
+    let status = child.wait().await.map_err(|e| format!("Failed to wait: {e}"))?;
     if let Some(t) = stderr_task { let _ = t.await; }
     if !status.success() {
-        return Err(format!("cloud submit exited with status {}", status));
+        return Err(format!("cloud submit exited with status {status}"));
     }
 
     if let Some(dir) = working_dir.as_ref() {
@@ -1918,8 +1909,8 @@ async fn execute_cloud_built_in_streaming(
                 .map(|idx| stdout_buf[idx + 1..].trim())
         };
 
-        if let Some(diff_text) = diff_text_opt {
-            if !diff_text.is_empty() {
+        if let Some(diff_text) = diff_text_opt
+            && !diff_text.is_empty() {
                 let mut apply = Command::new("git");
                 apply.arg("apply").arg("--whitespace=nowarn");
                 apply.current_dir(dir);
@@ -1927,28 +1918,26 @@ async fn execute_cloud_built_in_streaming(
 
                 let mut child = spawn_tokio_command_with_retry(&mut apply)
                     .await
-                    .map_err(|e| format!("Failed to spawn git apply: {}", e))?;
+                    .map_err(|e| format!("Failed to spawn git apply: {e}"))?;
 
                 if let Some(mut stdin) = child.stdin.take() {
                     stdin
                         .write_all(diff_text.as_bytes())
                         .await
-                        .map_err(|e| format!("Failed to write diff to git apply: {}", e))?;
+                        .map_err(|e| format!("Failed to write diff to git apply: {e}"))?;
                 }
 
                 let status = child
                     .wait()
                     .await
-                    .map_err(|e| format!("Failed to wait for git apply: {}", e))?;
+                    .map_err(|e| format!("Failed to wait for git apply: {e}"))?;
 
                 if !status.success() {
                     return Err(format!(
-                        "git apply exited with status {} while applying cloud diff",
-                        status
+                        "git apply exited with status {status} while applying cloud diff"
                     ));
                 }
             }
-        }
     }
 
     // Truncate large outputs
@@ -1957,7 +1946,7 @@ async fn execute_cloud_built_in_streaming(
         let omitted = stdout_buf.len() - MAX_BYTES;
         let mut truncated = String::with_capacity(MAX_BYTES + 128);
         truncated.push_str(&stdout_buf[..MAX_BYTES]);
-        truncated.push_str(&format!("\n… [truncated: {} bytes omitted]", omitted));
+        truncated.push_str(&format!("\n… [truncated: {omitted} bytes omitted]"));
         Ok(truncated)
     } else {
         Ok(stdout_buf)
@@ -1978,7 +1967,7 @@ pub fn create_agent_tool(allowed_models: &[String]) -> OpenAiTool {
             allowed_values: Some(
                 ["create", "status", "wait", "result", "cancel", "list"]
                     .into_iter()
-                    .map(|value| value.to_string())
+                    .map(std::string::ToString::to_string)
                     .collect(),
             ),
         },
@@ -2014,7 +2003,7 @@ pub fn create_agent_tool(allowed_models: &[String]) -> OpenAiTool {
                 allowed_values: if allowed_models.is_empty() {
                     None
                 } else {
-                    Some(allowed_models.iter().cloned().collect())
+                    Some(allowed_models.to_vec())
                 },
             }),
                 description: Some(
@@ -2325,19 +2314,18 @@ fn canonicalize_agent_word_boundaries(input: &str) -> String {
         let next_char = chars.peek().copied();
         let mut split = false;
 
-        if !current.is_empty() {
-            if let Some(prev) = prev_char {
+        if !current.is_empty()
+            && let Some(prev) = prev_char {
                 if prev.is_ascii_lowercase() && ch.is_ascii_uppercase() {
                     split = true;
                 } else if prev.is_ascii_uppercase()
                     && ch.is_ascii_uppercase()
                     && uppercase_run > 0
-                    && next_char.map_or(false, |c| c.is_ascii_lowercase())
+                    && next_char.is_some_and(|c| c.is_ascii_lowercase())
                 {
                     split = true;
                 }
             }
-        }
 
         if split {
             tokens.push(std::mem::take(&mut current));
@@ -2583,7 +2571,7 @@ mod tests {
         let mut parts: Vec<OsString> = Vec::new();
         parts.push(dir.as_os_str().to_os_string());
         if let Some(orig) = original {
-            parts.extend(std::env::split_paths(&orig).map(|p| p.into_os_string()));
+            parts.extend(std::env::split_paths(&orig).map(std::path::PathBuf::into_os_string));
         }
         std::env::join_paths(parts).expect("join PATH")
     }
