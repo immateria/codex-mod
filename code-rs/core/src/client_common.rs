@@ -546,13 +546,15 @@ mod tests {
     fn prepend_developer_messages_precedes_environment_context() {
         use std::path::PathBuf;
 
-        let mut prompt = Prompt::default();
-        prompt.environment_context = Some(EnvironmentContext::new(
-            Some(PathBuf::from("/workspace")),
-            None,
-            None,
-            None,
-        ));
+        let mut prompt = Prompt {
+            environment_context: Some(EnvironmentContext::new(
+                Some(PathBuf::from("/workspace")),
+                None,
+                None,
+                None,
+            )),
+            ..Prompt::default()
+        };
         let coordinator_text = "Coordinator guidance";
         prompt
             .prepend_developer_messages

@@ -17,12 +17,14 @@ use wiremock::{Match, Mock, MockServer, Request, ResponseTemplate};
 /// temporary directory. Using a per-test directory keeps tests hermetic and
 /// avoids clobbering a developer's real `~/.code` directory.
 pub fn load_default_config_for_test(code_home: &TempDir) -> Config {
-    Config::load_from_base_config_with_overrides(
+    match Config::load_from_base_config_with_overrides(
         ConfigToml::default(),
         default_test_overrides(),
         code_home.path().to_path_buf(),
-    )
-    .expect("defaults for test should always succeed")
+    ) {
+        Ok(config) => config,
+        Err(err) => panic!("defaults for test should always succeed: {err}"),
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -66,16 +68,22 @@ fn default_test_overrides() -> ConfigOverrides {
 /// Builds an SSE stream body from a JSON fixture template, replacing `__ID__`
 /// before parsing so a single template can be reused across tests.
 pub fn load_sse_fixture_with_id(path: impl AsRef<Path>, id: &str) -> String {
-    let raw = std::fs::read_to_string(path).expect("read fixture template");
+    let raw = match std::fs::read_to_string(path) {
+        Ok(contents) => contents,
+        Err(err) => panic!("read fixture template: {err}"),
+    };
     let replaced = raw.replace("__ID__", id);
-    let events: Vec<Value> = serde_json::from_str(&replaced).expect("parse JSON fixture");
+    let events: Vec<Value> = match serde_json::from_str(&replaced) {
+        Ok(parsed) => parsed,
+        Err(err) => panic!("parse JSON fixture: {err}"),
+    };
     events
         .into_iter()
         .map(|event| {
             let kind = event
                 .get("type")
                 .and_then(|v| v.as_str())
-                .expect("fixture event missing type");
+                .unwrap_or_else(|| panic!("fixture event missing type"));
             if event
                 .as_object()
                 .map(|obj| obj.len() == 1)
@@ -96,10 +104,11 @@ where
     F: FnMut(&EventMsg) -> bool,
 {
     loop {
-        let event = timeout(Duration::from_secs(5), conversation.next_event())
-            .await
-            .expect("timeout waiting for event")
-            .expect("event stream ended unexpectedly");
+        let event = match timeout(Duration::from_secs(5), conversation.next_event()).await {
+            Ok(Ok(event)) => event,
+            Ok(Err(err)) => panic!("event stream ended unexpectedly: {err}"),
+            Err(err) => panic!("timeout waiting for event: {err}"),
+        };
         if predicate(&event.msg) {
             return event.msg;
         }
@@ -131,17 +140,30 @@ impl ResponseMock {
     }
 
     fn record(&self, request: Request) {
-        self.requests.lock().unwrap().push(request);
+        let mut requests = self
+            .requests
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        requests.push(request);
     }
 
     /// Returns the JSON body for the only recorded request, panicking if the
     /// mock saw zero or multiple requests.
     pub fn single_body_json(&self) -> Value {
-        let requests = self.requests.lock().unwrap();
+        let requests = self
+            .requests
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if requests.len() != 1 {
             panic!("expected 1 request, got {}", requests.len());
         }
-        requests.first().unwrap().body_json().unwrap()
+        let request = requests
+            .first()
+            .unwrap_or_else(|| panic!("expected 1 request, got 0"));
+        match request.body_json() {
+            Ok(body) => body,
+            Err(err) => panic!("request body was not valid JSON: {err}"),
+        }
     }
 }
 

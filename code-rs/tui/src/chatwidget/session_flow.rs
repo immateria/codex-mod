@@ -391,36 +391,17 @@ impl ChatWidget<'_> {
             show_welcome,
         } = args;
         remember_cwd_history(&config.cwd);
-        let (code_op_tx, mut code_op_rx) = unbounded_channel::<Op>();
+        let (code_op_tx, code_op_rx) = unbounded_channel::<Op>();
 
         let auto_drive_variant = AutoDriveVariant::from_env();
 
-        // Forward events from existing conversation
-        let app_event_tx_clone = app_event_tx.clone();
-        tokio::spawn(async move {
-            // Send the provided SessionConfigured to the UI first
-            let event = Event {
-                id: "fork".to_string(),
-                event_seq: 0,
-                msg: EventMsg::SessionConfigured(session_configured),
-                order: None,
-            };
-            app_event_tx_clone.send(AppEvent::CodexEvent(event));
-
-            let conversation_clone = conversation.clone();
-            tokio::spawn(async move {
-                while let Some(op) = code_op_rx.recv().await {
-                    let id = conversation_clone.submit(op).await;
-                    if let Err(e) = id {
-                        tracing::error!("failed to submit op: {e}");
-                    }
-                }
-            });
-
-            while let Ok(event) = conversation.next_event().await {
-                app_event_tx_clone.send(AppEvent::CodexEvent(event));
-            }
-        });
+        // Forward events from existing conversation.
+        agent::spawn_existing_conversation_runtime(
+            conversation,
+            session_configured,
+            app_event_tx.clone(),
+            code_op_rx,
+        );
 
         // Basic widget state mirrors `new`
         let history_cells: Vec<Box<dyn HistoryCell>> = Vec::new();

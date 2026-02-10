@@ -3,8 +3,8 @@ use code_core::custom_prompts::{default_prompts_dir, discover_prompts_in};
 use once_cell::sync::Lazy;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use tempfile::TempDir;
+use tokio::sync::Mutex;
 
 static ENV_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
@@ -64,7 +64,7 @@ fn normalize_path_for_assertion(path: &Path) -> PathBuf {
 
 #[tokio::test]
 async fn discovers_prompts_from_code_home() -> Result<()> {
-    let _env_lock = ENV_MUTEX.lock().unwrap();
+    let _env_lock = ENV_MUTEX.lock().await;
     let env = EnvBackup::new(&["HOME", "CODE_HOME", "CODEX_HOME"]);
 
     let code_home = TempDir::new()?;
@@ -91,7 +91,7 @@ async fn discovers_prompts_from_code_home() -> Result<()> {
 
 #[tokio::test]
 async fn discovers_prompts_from_legacy_codex_home() -> Result<()> {
-    let _env_lock = ENV_MUTEX.lock().unwrap();
+    let _env_lock = ENV_MUTEX.lock().await;
     let env = EnvBackup::new(&["HOME", "CODE_HOME", "CODEX_HOME"]);
 
     let fake_home = TempDir::new()?;
@@ -119,7 +119,7 @@ async fn discovers_prompts_from_legacy_codex_home() -> Result<()> {
 
 #[tokio::test]
 async fn prefers_code_home_when_both_locations_exist() -> Result<()> {
-    let _env_lock = ENV_MUTEX.lock().unwrap();
+    let _env_lock = ENV_MUTEX.lock().await;
     let env = EnvBackup::new(&["HOME", "CODE_HOME", "CODEX_HOME"]);
 
     let fake_home = TempDir::new()?;
@@ -151,7 +151,7 @@ async fn prefers_code_home_when_both_locations_exist() -> Result<()> {
 
 #[tokio::test]
 async fn ignores_non_markdown_files() -> Result<()> {
-    let _env_lock = ENV_MUTEX.lock().unwrap();
+    let _env_lock = ENV_MUTEX.lock().await;
     let env = EnvBackup::new(&["HOME", "CODE_HOME", "CODEX_HOME"]);
 
     let code_home = TempDir::new()?;

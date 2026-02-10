@@ -170,7 +170,7 @@ mod tests {
     use super::*;
     use std::future::Future;
     use std::sync::LazyLock;
-    use std::sync::Mutex;
+    use tokio::sync::Mutex;
 
     static ORIGINATOR_ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
@@ -187,7 +187,7 @@ mod tests {
     }
 
     fn with_originator_env_cleared<F: FnOnce()>(f: F) {
-        let _lock = ORIGINATOR_ENV_LOCK.lock().expect("originator env lock");
+        let _lock = ORIGINATOR_ENV_LOCK.blocking_lock();
         let previous = std::env::var(CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR).ok();
         remove_originator_env();
         f();
@@ -206,7 +206,7 @@ mod tests {
         F: FnOnce() -> Fut,
         Fut: Future<Output = ()>,
     {
-        let _lock = ORIGINATOR_ENV_LOCK.lock().expect("originator env lock");
+        let _lock = ORIGINATOR_ENV_LOCK.lock().await;
         let previous = std::env::var(CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR).ok();
         remove_originator_env();
         f().await;

@@ -11,12 +11,14 @@ use tempfile::tempdir;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+
 fn skip_if_no_network() -> bool {
     std::env::var(code_core::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok()
 }
 
-fn remote_model(slug: &str, display: &str, priority: i32) -> ModelInfo {
-    serde_json::from_value(serde_json::json!({
+fn remote_model(slug: &str, display: &str, priority: i32) -> TestResult<ModelInfo> {
+    Ok(serde_json::from_value(serde_json::json!({
         "slug": slug,
         "display_name": display,
         "description": format!("{display} desc"),
@@ -39,8 +41,7 @@ fn remote_model(slug: &str, display: &str, priority: i32) -> ModelInfo {
         "supports_parallel_tool_calls": false,
         "context_window": null,
         "experimental_supported_tools": [],
-    }))
-    .expect("valid model")
+    }))?)
 }
 
 fn provider_for(base_url: String) -> ModelProviderInfo {
@@ -75,14 +76,14 @@ fn query_param(url: &str, key: &str) -> Option<String> {
 }
 
 #[tokio::test]
-async fn refresh_remote_models_uses_cache_when_fresh() {
+async fn refresh_remote_models_uses_cache_when_fresh() -> TestResult {
     if skip_if_no_network() {
-        return;
+        return Ok(());
     }
 
     let server = MockServer::start().await;
     let response = ModelsResponse {
-        models: vec![remote_model("cached", "Cached", 1)],
+        models: vec![remote_model("cached", "Cached", 1)?],
     };
 
     Mock::given(method("GET"))
@@ -96,7 +97,7 @@ async fn refresh_remote_models_uses_cache_when_fresh() {
         .mount(&server)
         .await;
 
-    let code_home = tempdir().expect("temp dir");
+    let code_home = tempdir()?;
     let provider = provider_for(server.uri());
     let manager = RemoteModelsManager::new(
         auth_manager_chatgpt(),
@@ -109,10 +110,14 @@ async fn refresh_remote_models_uses_cache_when_fresh() {
     assert_eq!(models.len(), 1);
     assert_eq!(models[0].slug, "cached");
 
-    let requests = server.received_requests().await.expect("requests");
+    let requests = server
+        .received_requests()
+        .await
+        .ok_or_else(|| std::io::Error::other("request log unavailable"))?;
     assert_eq!(requests.len(), 1);
     let request_url = requests[0].url.as_str();
-    let client_version = query_param(request_url, "client_version").expect("client_version query param");
+    let client_version = query_param(request_url, "client_version")
+        .ok_or_else(|| std::io::Error::other("client_version query param missing"))?;
     assert_eq!(
         client_version,
         code_version::wire_compatible_version(),
@@ -121,19 +126,23 @@ async fn refresh_remote_models_uses_cache_when_fresh() {
 
     // Second refresh should hit the fresh in-memory snapshot and avoid the network.
     manager.refresh_remote_models().await;
-    let requests = server.received_requests().await.expect("requests");
+    let requests = server
+        .received_requests()
+        .await
+        .ok_or_else(|| std::io::Error::other("request log unavailable"))?;
     assert_eq!(requests.len(), 1);
+    Ok(())
 }
 
 #[tokio::test]
-async fn refresh_remote_models_refetches_when_cache_stale() {
+async fn refresh_remote_models_refetches_when_cache_stale() -> TestResult {
     if skip_if_no_network() {
-        return;
+        return Ok(());
     }
 
     let server = MockServer::start().await;
     let initial = ModelsResponse {
-        models: vec![remote_model("stale", "Stale", 1)],
+        models: vec![remote_model("stale", "Stale", 1)?],
     };
 
     Mock::given(method("GET"))
@@ -147,7 +156,7 @@ async fn refresh_remote_models_refetches_when_cache_stale() {
         .mount(&server)
         .await;
 
-    let code_home = tempdir().expect("temp dir");
+    let code_home = tempdir()?;
     let provider = provider_for(server.uri());
 
     let manager = RemoteModelsManager::new(
@@ -160,14 +169,14 @@ async fn refresh_remote_models_refetches_when_cache_stale() {
 
     // Rewrite the cache to be stale.
     let cache_path = code_home.path().join("models_cache.json");
-    let contents = std::fs::read_to_string(&cache_path).expect("cache file exists");
-    let mut json: serde_json::Value = serde_json::from_str(&contents).expect("cache json");
+    let contents = std::fs::read_to_string(&cache_path)?;
+    let mut json: serde_json::Value = serde_json::from_str(&contents)?;
     let old = (Utc::now() - chrono::Duration::hours(1)).to_rfc3339();
     json["fetched_at"] = serde_json::Value::String(old);
-    std::fs::write(&cache_path, serde_json::to_vec_pretty(&json).unwrap()).expect("rewrite");
+    std::fs::write(&cache_path, serde_json::to_vec_pretty(&json)?)?;
 
     let updated = ModelsResponse {
-        models: vec![remote_model("fresh", "Fresh", 0)],
+        models: vec![remote_model("fresh", "Fresh", 0)?],
     };
 
     server.reset().await;
@@ -193,20 +202,25 @@ async fn refresh_remote_models_refetches_when_cache_stale() {
     assert_eq!(models.len(), 1);
     assert_eq!(models[0].slug, "fresh");
     assert_eq!(
-        server.received_requests().await.expect("requests").len(),
+        server
+            .received_requests()
+            .await
+            .ok_or_else(|| std::io::Error::other("request log unavailable"))?
+            .len(),
         1
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn refresh_remote_models_sends_if_none_match_and_handles_304() {
+async fn refresh_remote_models_sends_if_none_match_and_handles_304() -> TestResult {
     if skip_if_no_network() {
-        return;
+        return Ok(());
     }
 
     let server = MockServer::start().await;
     let initial = ModelsResponse {
-        models: vec![remote_model("cached", "Cached", 1)],
+        models: vec![remote_model("cached", "Cached", 1)?],
     };
 
     Mock::given(method("GET"))
@@ -220,7 +234,7 @@ async fn refresh_remote_models_sends_if_none_match_and_handles_304() {
         .mount(&server)
         .await;
 
-    let code_home = tempdir().expect("temp dir");
+    let code_home = tempdir()?;
     let provider = provider_for(server.uri());
     let manager = RemoteModelsManager::new(
         auth_manager_chatgpt(),
@@ -231,11 +245,11 @@ async fn refresh_remote_models_sends_if_none_match_and_handles_304() {
 
     // Rewrite cache to be stale.
     let cache_path = code_home.path().join("models_cache.json");
-    let contents = std::fs::read_to_string(&cache_path).expect("cache file exists");
-    let mut json: serde_json::Value = serde_json::from_str(&contents).expect("cache json");
+    let contents = std::fs::read_to_string(&cache_path)?;
+    let mut json: serde_json::Value = serde_json::from_str(&contents)?;
     let old = (Utc::now() - chrono::Duration::hours(1)).to_rfc3339();
     json["fetched_at"] = serde_json::Value::String(old);
-    std::fs::write(&cache_path, serde_json::to_vec_pretty(&json).unwrap()).expect("rewrite");
+    std::fs::write(&cache_path, serde_json::to_vec_pretty(&json)?)?;
 
     server.reset().await;
     Mock::given(method("GET"))
@@ -255,12 +269,13 @@ async fn refresh_remote_models_sends_if_none_match_and_handles_304() {
     let models = manager.remote_models_snapshot().await;
     assert_eq!(models.len(), 1);
     assert_eq!(models[0].slug, "cached");
+    Ok(())
 }
 
 #[tokio::test]
-async fn construct_model_family_applies_remote_overrides() {
+async fn construct_model_family_applies_remote_overrides() -> TestResult {
     if skip_if_no_network() {
-        return;
+        return Ok(());
     }
 
     let server = MockServer::start().await;
@@ -284,8 +299,7 @@ async fn construct_model_family_applies_remote_overrides() {
         "supports_parallel_tool_calls": false,
         "context_window": 12345,
         "experimental_supported_tools": [],
-    }))
-    .expect("model info");
+    }))?;
 
     let response = ModelsResponse {
         models: vec![info],
@@ -298,7 +312,7 @@ async fn construct_model_family_applies_remote_overrides() {
         .mount(&server)
         .await;
 
-    let code_home = tempdir().expect("temp dir");
+    let code_home = tempdir()?;
     let provider = provider_for(server.uri());
     let manager = RemoteModelsManager::new(
         auth_manager_chatgpt(),
@@ -319,4 +333,5 @@ async fn construct_model_family_applies_remote_overrides() {
         family.default_reasoning_effort,
         Some(code_core::config_types::ReasoningEffort::High)
     );
+    Ok(())
 }

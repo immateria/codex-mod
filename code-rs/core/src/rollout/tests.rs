@@ -234,8 +234,10 @@ async fn test_resume_reconstruct_history_drops_user_events() {
     writer.write_all(b"\n").unwrap();
     writer.flush().unwrap();
 
-    let mut overrides = ConfigOverrides::default();
-    overrides.cwd = Some(workspace.clone());
+    let overrides = ConfigOverrides {
+        cwd: Some(workspace.clone()),
+        ..ConfigOverrides::default()
+    };
     let config = Config::load_from_base_config_with_overrides(
         ConfigToml::default(),
         overrides,

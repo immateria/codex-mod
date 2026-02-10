@@ -12,7 +12,10 @@ use code_protocol::protocol::{
 use code_protocol::ConversationId;
 use filetime::{set_file_mtime, FileTime};
 use tempfile::TempDir;
+use uuid::uuid;
 use uuid::Uuid;
+
+type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 fn write_rollout_transcript(
     code_home: &Path,
@@ -22,9 +25,9 @@ fn write_rollout_transcript(
     cwd: &Path,
     source: SessionSource,
     user_message: &str,
-) -> PathBuf {
+) -> TestResult<PathBuf> {
     let sessions_dir = code_home.join("sessions").join("2025").join("11").join("16");
-    fs::create_dir_all(&sessions_dir).unwrap();
+    fs::create_dir_all(&sessions_dir)?;
 
     let filename = format!(
         "rollout-{}-{}.jsonl",
@@ -87,42 +90,42 @@ fn write_rollout_transcript(
         }),
     };
 
-    let mut writer = BufWriter::new(std::fs::File::create(&path).unwrap());
-    serde_json::to_writer(&mut writer, &session_line).unwrap();
-    writer.write_all(b"\n").unwrap();
-    serde_json::to_writer(&mut writer, &user_event).unwrap();
-    writer.write_all(b"\n").unwrap();
-    serde_json::to_writer(&mut writer, &user_line).unwrap();
-    writer.write_all(b"\n").unwrap();
-    serde_json::to_writer(&mut writer, &response_line).unwrap();
-    writer.write_all(b"\n").unwrap();
-    writer.flush().unwrap();
+    let mut writer = BufWriter::new(std::fs::File::create(&path)?);
+    serde_json::to_writer(&mut writer, &session_line)?;
+    writer.write_all(b"\n")?;
+    serde_json::to_writer(&mut writer, &user_event)?;
+    writer.write_all(b"\n")?;
+    serde_json::to_writer(&mut writer, &user_line)?;
+    writer.write_all(b"\n")?;
+    serde_json::to_writer(&mut writer, &response_line)?;
+    writer.write_all(b"\n")?;
+    writer.flush()?;
 
-    path
+    Ok(path)
 }
 
 #[tokio::test]
-async fn query_includes_exec_sessions() {
-    let temp = TempDir::new().unwrap();
+async fn query_includes_exec_sessions() -> TestResult {
+    let temp = TempDir::new()?;
     let cwd = PathBuf::from("/workspace/project");
     write_rollout_transcript(
         temp.path(),
-        Uuid::parse_str("11111111-1111-4111-8111-111111111111").unwrap(),
+        uuid!("11111111-1111-4111-8111-111111111111"),
         "2025-11-15T12:00:00Z",
         "2025-11-15T12:00:10Z",
         &cwd,
         SessionSource::Cli,
         "cli",
-    );
+    )?;
     write_rollout_transcript(
         temp.path(),
-        Uuid::parse_str("22222222-2222-4222-8222-222222222222").unwrap(),
+        uuid!("22222222-2222-4222-8222-222222222222"),
         "2025-11-15T13:00:00Z",
         "2025-11-15T13:00:10Z",
         &cwd,
         SessionSource::Exec,
         "exec",
-    );
+    )?;
 
     let catalog = SessionCatalog::new(temp.path().to_path_buf());
     let query = SessionQuery {
@@ -130,36 +133,37 @@ async fn query_includes_exec_sessions() {
         min_user_messages: 1,
         ..SessionQuery::default()
     };
-    let results = catalog.query(&query).await.unwrap();
+    let results = catalog.query(&query).await?;
 
     assert_eq!(results.len(), 2);
     let sources: Vec<_> = results.iter().map(|e| e.session_source.clone()).collect();
     assert!(sources.contains(&SessionSource::Cli));
     assert!(sources.contains(&SessionSource::Exec));
+    Ok(())
 }
 
 #[tokio::test]
-async fn latest_prefers_newer_timestamp() {
-    let temp = TempDir::new().unwrap();
+async fn latest_prefers_newer_timestamp() -> TestResult {
+    let temp = TempDir::new()?;
     let cwd = PathBuf::from("/workspace/project");
     write_rollout_transcript(
         temp.path(),
-        Uuid::parse_str("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa").unwrap(),
+        uuid!("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
         "2025-11-15T10:00:00Z",
         "2025-11-15T10:00:10Z",
         &cwd,
         SessionSource::Cli,
         "older",
-    );
+    )?;
     write_rollout_transcript(
         temp.path(),
-        Uuid::parse_str("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb").unwrap(),
+        uuid!("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
         "2025-11-16T10:00:00Z",
         "2025-11-16T10:00:10Z",
         &cwd,
         SessionSource::Cli,
         "newer",
-    );
+    )?;
 
     let catalog = SessionCatalog::new(temp.path().to_path_buf());
     let query = SessionQuery {
@@ -167,18 +171,19 @@ async fn latest_prefers_newer_timestamp() {
         min_user_messages: 1,
         ..SessionQuery::default()
     };
-    let result = catalog.get_latest(&query).await.unwrap().unwrap();
-    assert_eq!(
-        result.session_id,
-        Uuid::parse_str("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb").unwrap()
-    );
+    let result = catalog
+        .get_latest(&query)
+        .await?
+        .ok_or_else(|| std::io::Error::other("latest session missing"))?;
+    assert_eq!(result.session_id, uuid!("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));
+    Ok(())
 }
 
 #[tokio::test]
-async fn find_by_prefix_matches_entry() {
-    let temp = TempDir::new().unwrap();
+async fn find_by_prefix_matches_entry() -> TestResult {
+    let temp = TempDir::new()?;
     let cwd = PathBuf::from("/workspace/project");
-    let target_id = Uuid::parse_str("12345678-9abc-4def-8123-456789abcdef").unwrap();
+    let target_id = uuid!("12345678-9abc-4def-8123-456789abcdef");
     write_rollout_transcript(
         temp.path(),
         target_id,
@@ -187,23 +192,23 @@ async fn find_by_prefix_matches_entry() {
         &cwd,
         SessionSource::Cli,
         "prefix target",
-    );
+    )?;
 
     let catalog = SessionCatalog::new(temp.path().to_path_buf());
     let result = catalog
         .find_by_id("12345678")
-        .await
-        .unwrap()
-        .expect("entry should exist");
+        .await?
+        .ok_or_else(|| std::io::Error::other("entry should exist"))?;
     assert_eq!(result.session_id, target_id);
+    Ok(())
 }
 
 #[tokio::test]
-async fn bootstrap_catalog_from_rollouts() {
-    let temp = TempDir::new().unwrap();
+async fn bootstrap_catalog_from_rollouts() -> TestResult {
+    let temp = TempDir::new()?;
     let cwd = PathBuf::from("/workspace/project");
-    let cli_id = Uuid::parse_str("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa").unwrap();
-    let exec_id = Uuid::parse_str("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb").unwrap();
+    let cli_id = uuid!("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    let exec_id = uuid!("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
 
     write_rollout_transcript(
         temp.path(),
@@ -213,7 +218,7 @@ async fn bootstrap_catalog_from_rollouts() {
         &cwd,
         SessionSource::Cli,
         "cli",
-    );
+    )?;
 
     write_rollout_transcript(
         temp.path(),
@@ -223,7 +228,7 @@ async fn bootstrap_catalog_from_rollouts() {
         &cwd,
         SessionSource::Exec,
         "exec",
-    );
+    )?;
 
     let catalog = SessionCatalog::new(temp.path().to_path_buf());
     let query = SessionQuery {
@@ -231,18 +236,19 @@ async fn bootstrap_catalog_from_rollouts() {
         min_user_messages: 1,
         ..SessionQuery::default()
     };
-    let results = catalog.query(&query).await.unwrap();
+    let results = catalog.query(&query).await?;
 
     assert_eq!(results.len(), 2);
     assert_eq!(results[0].session_id, exec_id);
     assert_eq!(results[1].session_id, cli_id);
+    Ok(())
 }
 
 #[tokio::test]
-async fn reconcile_removes_deleted_sessions() {
-    let temp = TempDir::new().unwrap();
+async fn reconcile_removes_deleted_sessions() -> TestResult {
+    let temp = TempDir::new()?;
     let cwd = PathBuf::from("/workspace/project");
-    let session_id = Uuid::parse_str("cccccccc-cccc-4ccc-8ccc-cccccccccccc").unwrap();
+    let session_id = uuid!("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
     let rollout_path = write_rollout_transcript(
         temp.path(),
         session_id,
@@ -251,7 +257,7 @@ async fn reconcile_removes_deleted_sessions() {
         &cwd,
         SessionSource::Cli,
         "delete",
-    );
+    )?;
 
     let catalog = SessionCatalog::new(temp.path().to_path_buf());
     let query = SessionQuery {
@@ -259,18 +265,19 @@ async fn reconcile_removes_deleted_sessions() {
         min_user_messages: 1,
         ..SessionQuery::default()
     };
-    assert_eq!(catalog.query(&query).await.unwrap().len(), 1);
+    assert_eq!(catalog.query(&query).await?.len(), 1);
 
-    fs::remove_file(rollout_path).unwrap();
-    assert_eq!(catalog.query(&query).await.unwrap().len(), 0);
+    fs::remove_file(rollout_path)?;
+    assert_eq!(catalog.query(&query).await?.len(), 0);
+    Ok(())
 }
 
 #[tokio::test]
-async fn reconcile_prefers_last_event_over_mtime() {
-    let temp = TempDir::new().unwrap();
+async fn reconcile_prefers_last_event_over_mtime() -> TestResult {
+    let temp = TempDir::new()?;
     let cwd = PathBuf::from("/workspace/project");
-    let older_id = Uuid::parse_str("dddddddd-dddd-4ddd-8ddd-dddddddddddd").unwrap();
-    let newer_id = Uuid::parse_str("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee").unwrap();
+    let older_id = uuid!("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+    let newer_id = uuid!("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
 
     let older_path = write_rollout_transcript(
         temp.path(),
@@ -280,7 +287,7 @@ async fn reconcile_prefers_last_event_over_mtime() {
         &cwd,
         SessionSource::Cli,
         "old",
-    );
+    )?;
 
     let newer_path = write_rollout_transcript(
         temp.path(),
@@ -290,11 +297,17 @@ async fn reconcile_prefers_last_event_over_mtime() {
         &cwd,
         SessionSource::Exec,
         "new",
-    );
+    )?;
 
     let base = SystemTime::now();
-    set_file_mtime(&older_path, FileTime::from_system_time(base + Duration::from_secs(300))).unwrap();
-    set_file_mtime(&newer_path, FileTime::from_system_time(base + Duration::from_secs(60))).unwrap();
+    set_file_mtime(
+        &older_path,
+        FileTime::from_system_time(base + Duration::from_secs(300)),
+    )?;
+    set_file_mtime(
+        &newer_path,
+        FileTime::from_system_time(base + Duration::from_secs(60)),
+    )?;
 
     let catalog = SessionCatalog::new(temp.path().to_path_buf());
     let latest = catalog
@@ -302,9 +315,9 @@ async fn reconcile_prefers_last_event_over_mtime() {
             min_user_messages: 1,
             ..SessionQuery::default()
         })
-        .await
-        .unwrap()
-        .expect("latest entry");
+        .await?
+        .ok_or_else(|| std::io::Error::other("latest entry missing"))?;
 
     assert_eq!(latest.session_id, newer_id);
+    Ok(())
 }

@@ -62,7 +62,6 @@ use code_login::AuthManager;
 use code_login::AuthMode;
 use code_protocol::mcp_protocol::AuthMode as McpAuthMode;
 use code_protocol::dynamic_tools::DynamicToolResponse;
-use code_protocol::protocol::SessionSource;
 use code_protocol::num_format::format_with_separators;
 use code_core::split_command_and_args;
 use serde_json::Value as JsonValue;
@@ -72,6 +71,7 @@ mod diff_handlers;
 mod agent_summary;
 mod esc;
 mod modals;
+mod agent;
 mod agent_install;
 mod code_event_pipeline;
 mod cloud_workflow;
@@ -207,7 +207,6 @@ use code_core::protocol::TokenUsage;
 use code_core::protocol::TurnDiffEvent;
 use code_core::protocol::ViewImageToolCallEvent;
 use code_core::review_coord::{bump_snapshot_epoch_for, try_acquire_lock, ReviewGuard};
-use code_core::ConversationManager;
 use code_core::codex::compact::COMPACTION_CHECKPOINT_MESSAGE;
 use crate::bottom_pane::{
     AutoActiveViewModel,
@@ -3264,67 +3263,13 @@ impl ChatWidget<'_> {
         code_op_rx: UnboundedReceiver<Op>,
     ) {
         let ticket = self.make_background_tail_ticket();
-        let ticket_for_submit = ticket.clone();
-        let app_event_tx_clone = self.app_event_tx.clone();
-
-        tokio::spawn(async move {
-            let mut code_op_rx = code_op_rx;
-            let conversation_manager = ConversationManager::new(
-                auth_manager.clone(),
-                SessionSource::Cli,
-            );
-            let resume_path = config.experimental_resume.clone();
-            let new_conversation = match resume_path {
-                Some(path) => conversation_manager
-                    .resume_conversation_from_rollout(config.clone(), path, auth_manager.clone())
-                    .await,
-                None => conversation_manager.new_conversation(config).await,
-            };
-
-            let new_conversation = match new_conversation {
-                Ok(conv) => conv,
-                Err(e) => {
-                    tracing::error!("failed to initialize conversation: {e}");
-                    app_event_tx_clone.send_background_event_with_ticket(
-                        &ticket,
-                        format!(
-                            "❌ Failed to initialize model session: {e}.\n• Ensure an OpenAI API key is set (CODE_OPENAI_API_KEY / OPENAI_API_KEY) or run `code login`.\n• Also verify config.cwd is an absolute path."
-                        ),
-                    );
-                    return;
-                }
-            };
-
-            let event = Event {
-                id: new_conversation.conversation_id.to_string(),
-                event_seq: 0,
-                msg: EventMsg::SessionConfigured(new_conversation.session_configured),
-                order: None,
-            };
-            app_event_tx_clone.send(AppEvent::CodexEvent(event));
-
-            let conversation = new_conversation.conversation;
-            let conversation_clone = conversation.clone();
-            let app_event_tx_submit = app_event_tx_clone.clone();
-            let ticket_for_submit = ticket_for_submit.clone();
-
-            tokio::spawn(async move {
-                while let Some(op) = code_op_rx.recv().await {
-                    if let Err(e) = conversation_clone.submit(op).await {
-                        tracing::error!("failed to submit op: {e}");
-                        app_event_tx_submit.send_background_event_with_ticket(
-                            &ticket_for_submit,
-                            format!("⚠️ Failed to submit Op to core: {e}"),
-                        );
-                    }
-                }
-            });
-
-            while let Ok(event) = conversation.next_event().await {
-                app_event_tx_clone.send(AppEvent::CodexEvent(event));
-            }
-            // (debug end notice removed)
-        });
+        agent::spawn_new_conversation_runtime(
+            config,
+            self.app_event_tx.clone(),
+            auth_manager,
+            code_op_rx,
+            ticket,
+        );
     }
 
     fn consume_pending_prompt_for_ui_only_turn(&mut self) {
