@@ -14,6 +14,10 @@ use uuid::Uuid;
 
 use code_tui::resume::discovery::list_sessions_for_cwd;
 
+fn must<T, E: std::fmt::Display>(result: Result<T, E>, context: &str) -> T {
+    result.unwrap_or_else(|err| panic!("{context}: {err}"))
+}
+
 fn write_rollout(
     code_home: &std::path::Path,
     session_id: Uuid,
@@ -24,7 +28,10 @@ fn write_rollout(
     user_text: &str,
 ) -> PathBuf {
     let sessions_dir = code_home.join("sessions").join("2025").join("11").join("16");
-    std::fs::create_dir_all(&sessions_dir).unwrap();
+    must(
+        std::fs::create_dir_all(&sessions_dir),
+        "failed to create session directory",
+    );
 
     let filename = format!(
         "rollout-{}-{}.jsonl",
@@ -87,28 +94,49 @@ fn write_rollout(
         }),
     };
 
-    let mut writer = BufWriter::new(std::fs::File::create(&path).unwrap());
-    serde_json::to_writer(&mut writer, &session_line).unwrap();
-    writer.write_all(b"\n").unwrap();
-    serde_json::to_writer(&mut writer, &event_line).unwrap();
-    writer.write_all(b"\n").unwrap();
-    serde_json::to_writer(&mut writer, &user_line).unwrap();
-    writer.write_all(b"\n").unwrap();
-    serde_json::to_writer(&mut writer, &assistant_line).unwrap();
-    writer.write_all(b"\n").unwrap();
-    writer.flush().unwrap();
+    let mut writer = BufWriter::new(must(
+        std::fs::File::create(&path),
+        "failed to create rollout file",
+    ));
+    must(
+        serde_json::to_writer(&mut writer, &session_line),
+        "failed to write session line",
+    );
+    must(writer.write_all(b"\n"), "failed to write newline after session line");
+    must(
+        serde_json::to_writer(&mut writer, &event_line),
+        "failed to write event line",
+    );
+    must(writer.write_all(b"\n"), "failed to write newline after event line");
+    must(
+        serde_json::to_writer(&mut writer, &user_line),
+        "failed to write user line",
+    );
+    must(writer.write_all(b"\n"), "failed to write newline after user line");
+    must(
+        serde_json::to_writer(&mut writer, &assistant_line),
+        "failed to write assistant line",
+    );
+    must(
+        writer.write_all(b"\n"),
+        "failed to write newline after assistant line",
+    );
+    must(writer.flush(), "failed to flush rollout writer");
 
     path
 }
 
 #[test]
 fn resume_picker_lists_exec_sessions() {
-    let temp = TempDir::new().unwrap();
+    let temp = must(TempDir::new(), "failed to create tempdir");
     let cwd = std::path::PathBuf::from("/project");
 
     write_rollout(
         temp.path(),
-        Uuid::parse_str("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa").unwrap(),
+        must(
+            Uuid::parse_str("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+            "invalid UUID for first session",
+        ),
         "2025-11-15T10:00:00Z",
         "2025-11-15T10:00:10Z",
         &cwd,
@@ -118,7 +146,10 @@ fn resume_picker_lists_exec_sessions() {
 
     write_rollout(
         temp.path(),
-        Uuid::parse_str("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb").unwrap(),
+        must(
+            Uuid::parse_str("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+            "invalid UUID for second session",
+        ),
         "2025-11-15T11:00:00Z",
         "2025-11-15T11:00:10Z",
         &cwd,
@@ -135,12 +166,15 @@ fn resume_picker_lists_exec_sessions() {
 
 #[test]
 fn resume_picker_orders_by_last_event_even_with_mtime_drift() {
-    let temp = TempDir::new().unwrap();
+    let temp = must(TempDir::new(), "failed to create tempdir");
     let cwd = std::path::PathBuf::from("/project");
 
     let old_path = write_rollout(
         temp.path(),
-        Uuid::parse_str("cccccccc-cccc-4ccc-8ccc-cccccccccccc").unwrap(),
+        must(
+            Uuid::parse_str("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
+            "invalid UUID for old session",
+        ),
         "2025-11-01T10:00:00Z",
         "2025-11-01T10:00:05Z",
         &cwd,
@@ -150,7 +184,10 @@ fn resume_picker_orders_by_last_event_even_with_mtime_drift() {
 
     let new_path = write_rollout(
         temp.path(),
-        Uuid::parse_str("dddddddd-dddd-4ddd-8ddd-dddddddddddd").unwrap(),
+        must(
+            Uuid::parse_str("dddddddd-dddd-4ddd-8ddd-dddddddddddd"),
+            "invalid UUID for new session",
+        ),
         "2025-11-16T10:00:00Z",
         "2025-11-16T10:15:00Z",
         &cwd,
@@ -160,8 +197,20 @@ fn resume_picker_orders_by_last_event_even_with_mtime_drift() {
 
     // Simulate sync where the older file has the newest mtime.
     let base = SystemTime::now();
-    set_file_mtime(&old_path, FileTime::from_system_time(base + Duration::from_secs(300))).unwrap();
-    set_file_mtime(&new_path, FileTime::from_system_time(base + Duration::from_secs(60))).unwrap();
+    must(
+        set_file_mtime(
+            &old_path,
+            FileTime::from_system_time(base + Duration::from_secs(300)),
+        ),
+        "failed to set mtime for old path",
+    );
+    must(
+        set_file_mtime(
+            &new_path,
+            FileTime::from_system_time(base + Duration::from_secs(60)),
+        ),
+        "failed to set mtime for new path",
+    );
 
     let results = list_sessions_for_cwd(&cwd, temp.path(), None);
     assert_eq!(results.len(), 2);
@@ -170,12 +219,15 @@ fn resume_picker_orders_by_last_event_even_with_mtime_drift() {
 
 #[test]
 fn resume_picker_excludes_current_path_and_empty_sessions() {
-    let temp = TempDir::new().unwrap();
+    let temp = must(TempDir::new(), "failed to create tempdir");
     let cwd = std::path::PathBuf::from("/project");
 
     let exclude = write_rollout(
         temp.path(),
-        Uuid::parse_str("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee").unwrap(),
+        must(
+            Uuid::parse_str("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+            "invalid UUID for excluded session",
+        ),
         "2025-11-17T10:00:00Z",
         "2025-11-17T10:00:05Z",
         &cwd,
@@ -185,7 +237,10 @@ fn resume_picker_excludes_current_path_and_empty_sessions() {
 
     // Empty session
     let sessions_dir = temp.path().join("sessions").join("2025").join("11").join("18");
-    std::fs::create_dir_all(&sessions_dir).unwrap();
+    must(
+        std::fs::create_dir_all(&sessions_dir),
+        "failed to create empty-session directory",
+    );
     let empty_path = sessions_dir.join("rollout-empty.jsonl");
     let session_meta = SessionMeta {
         id: ConversationId::new(),
@@ -200,14 +255,23 @@ fn resume_picker_excludes_current_path_and_empty_sessions() {
         timestamp: session_meta.timestamp.clone(),
         item: RolloutItem::SessionMeta(SessionMetaLine { meta: session_meta, git: None }),
     };
-    let mut writer = BufWriter::new(std::fs::File::create(&empty_path).unwrap());
-    serde_json::to_writer(&mut writer, &session_line).unwrap();
-    writer.write_all(b"\n").unwrap();
-    writer.flush().unwrap();
+    let mut writer = BufWriter::new(must(
+        std::fs::File::create(&empty_path),
+        "failed to create empty session file",
+    ));
+    must(
+        serde_json::to_writer(&mut writer, &session_line),
+        "failed to write empty session line",
+    );
+    must(writer.write_all(b"\n"), "failed to write empty session newline");
+    must(writer.flush(), "failed to flush empty session writer");
 
     let visible = write_rollout(
         temp.path(),
-        Uuid::parse_str("ffffffff-ffff-4fff-8fff-ffffffffffff").unwrap(),
+        must(
+            Uuid::parse_str("ffffffff-ffff-4fff-8fff-ffffffffffff"),
+            "invalid UUID for visible session",
+        ),
         "2025-11-18T08:00:00Z",
         "2025-11-18T08:05:00Z",
         &cwd,

@@ -692,7 +692,7 @@ mod tests {
     use tokio::time::{sleep, Duration as TokioDuration};
 
     fn write_cache(path: &Path, info: &serde_json::Value) {
-        fs::write(path, format!("{}\n", info)).expect("write version cache");
+        fs::write(path, format!("{info}\n")).expect("write version cache");
     }
 
     #[test]

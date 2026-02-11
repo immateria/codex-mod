@@ -441,6 +441,12 @@ pub(super) async fn submission_loop(
                     );
                 }
 
+                let command_safety_profile = crate::safety::resolve_command_safety_profile(
+                    &resolved_shell,
+                    shell_override.as_ref().or(updated_config.shell.as_ref()),
+                    &updated_config.shell_style_profiles,
+                );
+
                 let mut skills_outcome = if updated_config.skills_enabled {
                     Some(if shell_style_skill_roots.is_empty() {
                         load_skills(&updated_config)
@@ -809,6 +815,10 @@ pub(super) async fn submission_loop(
                     code_linux_sandbox_exe: config.code_linux_sandbox_exe.clone(),
                     disable_response_storage,
                     user_shell: resolved_shell,
+                    dangerous_command_detection_enabled: command_safety_profile
+                        .dangerous_command_detection_enabled,
+                    safe_command_rules: command_safety_profile.safe_rules,
+                    dangerous_command_rules: command_safety_profile.dangerous_rules,
                     shell_style_profile_messages,
                     show_raw_agent_reasoning: config.show_raw_agent_reasoning,
                     pending_browser_screenshots: Mutex::new(Vec::new()),
@@ -8684,8 +8694,18 @@ async fn handle_container_exec_with_params(
 
     let safety = {
         let state = sess.state.lock().unwrap();
+        let command_safety_context =
+            crate::command_safety::context::CommandSafetyContext::from_shell(&sess.user_shell)
+                .with_command_shell(&params.command);
+        let safety_config = crate::safety::CommandSafetyEvaluationConfig {
+            context: command_safety_context,
+            safe_rules: sess.safe_command_rules,
+            dangerous_rules: sess.dangerous_command_rules,
+            dangerous_command_detection_enabled: sess.dangerous_command_detection_enabled,
+        };
         assess_command_safety(
             &params.command,
+            safety_config,
             sess.approval_policy,
             &sess.sandbox_policy,
             &state.approved_commands,

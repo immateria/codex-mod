@@ -110,8 +110,10 @@ async fn mcp_stdio_server_exits_before_next_session() {
     let mut mcp_servers = HashMap::new();
     mcp_servers.insert("stub".to_string(), server_cfg.clone());
 
-    let mut overrides = ConfigOverrides::default();
-    overrides.mcp_servers = Some(mcp_servers);
+    let overrides = ConfigOverrides {
+        mcp_servers: Some(mcp_servers),
+        ..Default::default()
+    };
 
     let config = Config::load_from_base_config_with_overrides(
         ConfigToml::default(),

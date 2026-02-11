@@ -943,76 +943,6 @@ fn compute_grid_state(metrics: &RateLimitMetrics, capacity_fraction: f64) -> Opt
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn plain_text(line: &Line<'static>) -> String {
-        let mut text = String::new();
-        for span in &line.spans {
-            text.push_str(span.content.as_ref());
-        }
-        text
-    }
-
-    fn base_snapshot() -> RateLimitSnapshotEvent {
-        RateLimitSnapshotEvent {
-            primary_used_percent: 10.0,
-            secondary_used_percent: 15.0,
-            primary_to_secondary_ratio_percent: 0.0,
-            primary_window_minutes: 15,
-            secondary_window_minutes: 60,
-            primary_reset_after_seconds: Some(900),
-            secondary_reset_after_seconds: Some(3600),
-        }
-    }
-
-    #[test]
-    fn extract_capacity_fraction_falls_back_to_window_ratio() {
-        let snapshot = base_snapshot();
-        let fraction = extract_capacity_fraction(&snapshot).expect("fraction");
-        assert!((fraction - 0.25).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn compact_limit_uses_context_tokens() {
-        let info = RateLimitResetInfo {
-            auto_compact_limit: Some(350_000),
-            auto_compact_tokens_used: Some(42_972),
-            ..RateLimitResetInfo::default()
-        };
-        let lines = build_compact_lines(&info);
-        assert!(lines.len() >= 3, "expected section header + two rows");
-        let tokens_line = plain_text(&lines[1]);
-        assert!(
-            tokens_line.contains("42,972 / 350,000"),
-            "compact tokens line should show context usage: {tokens_line}"
-        );
-    }
-
-    #[test]
-    fn hides_usage_sections_when_disabled() {
-        let snapshot = base_snapshot();
-        let view = build_limits_view(
-            &snapshot,
-            RateLimitResetInfo::default(),
-            DEFAULT_GRID_CONFIG,
-            RateLimitDisplayConfig {
-                show_usage_sections: false,
-                show_chart: false,
-            },
-        );
-        let rendered: Vec<String> = view
-            .summary_lines
-            .iter()
-            .map(plain_text)
-            .collect();
-        assert!(rendered.iter().all(|line| !line.contains("Hourly Limit")));
-        assert!(rendered.iter().all(|line| !line.contains("Weekly Limit")));
-        assert!(rendered.iter().all(|line| !line.contains("Chart")));
-        assert!(view.gauge_lines(80).is_empty());
-    }
-}
 
 fn scale_grid_state(state: GridState, grid: GridConfig) -> GridState {
     if grid.weekly_slots == 0 {
@@ -1141,4 +1071,75 @@ impl GridLayout {
 struct GridCellCounts {
     dark_cells: isize,
     green_cells: isize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn plain_text(line: &Line<'static>) -> String {
+        let mut text = String::new();
+        for span in &line.spans {
+            text.push_str(span.content.as_ref());
+        }
+        text
+    }
+
+    fn base_snapshot() -> RateLimitSnapshotEvent {
+        RateLimitSnapshotEvent {
+            primary_used_percent: 10.0,
+            secondary_used_percent: 15.0,
+            primary_to_secondary_ratio_percent: 0.0,
+            primary_window_minutes: 15,
+            secondary_window_minutes: 60,
+            primary_reset_after_seconds: Some(900),
+            secondary_reset_after_seconds: Some(3600),
+        }
+    }
+
+    #[test]
+    fn extract_capacity_fraction_falls_back_to_window_ratio() {
+        let snapshot = base_snapshot();
+        let fraction = extract_capacity_fraction(&snapshot).expect("fraction");
+        assert!((fraction - 0.25).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn compact_limit_uses_context_tokens() {
+        let info = RateLimitResetInfo {
+            auto_compact_limit: Some(350_000),
+            auto_compact_tokens_used: Some(42_972),
+            ..RateLimitResetInfo::default()
+        };
+        let lines = build_compact_lines(&info);
+        assert!(lines.len() >= 3, "expected section header + two rows");
+        let tokens_line = plain_text(&lines[1]);
+        assert!(
+            tokens_line.contains("42,972 / 350,000"),
+            "compact tokens line should show context usage: {tokens_line}"
+        );
+    }
+
+    #[test]
+    fn hides_usage_sections_when_disabled() {
+        let snapshot = base_snapshot();
+        let view = build_limits_view(
+            &snapshot,
+            RateLimitResetInfo::default(),
+            DEFAULT_GRID_CONFIG,
+            RateLimitDisplayConfig {
+                show_usage_sections: false,
+                show_chart: false,
+            },
+        );
+        let rendered: Vec<String> = view
+            .summary_lines
+            .iter()
+            .map(plain_text)
+            .collect();
+        assert!(rendered.iter().all(|line| !line.contains("Hourly Limit")));
+        assert!(rendered.iter().all(|line| !line.contains("Weekly Limit")));
+        assert!(rendered.iter().all(|line| !line.contains("Chart")));
+        assert!(view.gauge_lines(80).is_empty());
+    }
 }

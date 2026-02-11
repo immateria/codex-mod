@@ -2743,6 +2743,8 @@ script_style = "zsh"
             path: "/bin/zsh".to_string(),
             args: vec!["-l".to_string()],
             script_style: Some(crate::config_types::ShellScriptStyle::Zsh),
+            command_safety: crate::config_types::CommandSafetyProfileConfig::default(),
+            dangerous_command_detection: None,
         });
 
         let overrides = ConfigOverrides {

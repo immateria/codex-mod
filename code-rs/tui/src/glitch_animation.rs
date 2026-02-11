@@ -698,7 +698,7 @@ mod tests {
         "}
         .replace("{VERSION}", version);
 
-        art.lines().map(|line| line.to_string()).collect()
+        art.lines().map(std::string::ToString::to_string).collect()
     }
 
     fn expected_medium(version: &str) -> Vec<String> {
@@ -727,6 +727,6 @@ mod tests {
         "}
         .replace("{VERSION}", version);
 
-        art.lines().map(|line| line.to_string()).collect()
+        art.lines().map(std::string::ToString::to_string).collect()
     }
 }

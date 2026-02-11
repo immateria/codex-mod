@@ -32,7 +32,7 @@ fn exec_command_completes_properly() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.to_string(),
             command: vec!["ls".into(), "-la".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),

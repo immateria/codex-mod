@@ -22,11 +22,14 @@ use std::time::{Duration, Instant};
 use tokio::runtime::Runtime;
 
 static TEST_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-    tokio::runtime::Builder::new_multi_thread()
+    match tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
         .build()
-        .expect("test runtime")
+    {
+        Ok(runtime) => runtime,
+        Err(err) => panic!("failed to build test runtime: {err}"),
+    }
 });
 
 pub fn enter_test_runtime_guard() -> tokio::runtime::EnterGuard<'static> {
@@ -87,7 +90,7 @@ impl ChatWidgetHarness {
             ConfigOverrides::default(),
             std::env::temp_dir(),
         )
-        .expect("config");
+        .unwrap_or_else(|err| panic!("failed to build test config: {err}"));
 
         let (tx_raw, rx) = mpsc::channel::<AppEvent>();
         let app_event_tx = AppEventSender::new(tx_raw);
@@ -427,7 +430,7 @@ impl ChatWidgetHarness {
             .overlay
             .as_ref()
             .and_then(|overlay| overlay.agents_content())
-            .map(|content| content.is_agent_editor_active())
+            .map(super::settings_overlay::AgentsSettingsContent::is_agent_editor_active)
             .unwrap_or(false)
     }
 
@@ -455,11 +458,10 @@ impl ChatWidgetHarness {
             if let Some(running) = cell
                 .as_any_mut()
                 .downcast_mut::<history_cell::RunningToolCallCell>()
+                && running.state().call_id.as_deref() == Some(call_id)
             {
-                if running.state().call_id.as_deref() == Some(call_id) {
-                    running.override_elapsed_for_testing(duration);
-                    break;
-                }
+                running.override_elapsed_for_testing(duration);
+                break;
             }
         }
     }
@@ -490,7 +492,7 @@ impl ChatWidgetHarness {
         let mut rendered = render_markdown_text(&markdown);
         let mut lines: Vec<Line<'static>> = Vec::with_capacity(rendered.lines.len() + 1);
         lines.push(Line::from("assistant"));
-        lines.extend(rendered.lines.drain(..));
+        lines.append(&mut rendered.lines);
         let state = history_cell::plain_message_state_from_lines(lines, HistoryCellType::Assistant);
         self.chat.history_push_plain_state(state);
     }
@@ -661,7 +663,7 @@ impl ChatWidgetHarness {
                         seconds,
                     );
                 } else {
-                    let _ = chat.auto_handle_countdown(chat.auto_state.countdown_id, 0);
+                    chat.auto_handle_countdown(chat.auto_state.countdown_id, 0);
                 }
                 if countdown == Some(0) {
                     chat.auto_state.on_prompt_submitted();
@@ -787,6 +789,12 @@ impl ChatWidgetHarness {
         let next = self.helper_seq;
         self.helper_seq = self.helper_seq.saturating_add(1);
         next
+    }
+}
+
+impl Default for ChatWidgetHarness {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

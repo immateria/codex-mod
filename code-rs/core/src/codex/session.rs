@@ -357,6 +357,9 @@ pub(crate) struct Session {
     pub(super) state: Mutex<State>,
     pub(super) code_linux_sandbox_exe: Option<PathBuf>,
     pub(super) user_shell: shell::Shell,
+    pub(super) dangerous_command_detection_enabled: bool,
+    pub(super) safe_command_rules: crate::config_types::CommandSafetyRuleset,
+    pub(super) dangerous_command_rules: crate::config_types::CommandSafetyRuleset,
     pub(super) shell_style_profile_messages: Vec<String>,
     pub(super) show_raw_agent_reasoning: bool,
     /// Pending browser screenshots to include in the next model request

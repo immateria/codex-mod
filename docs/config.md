@@ -562,6 +562,14 @@ command used for model-generated shell execution:
 path = "/bin/zsh"
 args = ["-lc"]
 script_style = "zsh"
+dangerous_command_detection = true
+
+[shell.command_safety]
+safe_rules = "auto"       # auto | posix | windows
+dangerous_rules = "auto"  # auto | posix | windows
+
+[shell.command_safety.os.windows]
+dangerous_rules = "windows"
 ```
 
 - `path` is the shell executable.
@@ -570,6 +578,10 @@ script_style = "zsh"
   - Allowed values: `posix-sh`, `bash-zsh-compatible`, `zsh`.
   - If omitted, Code tries to infer style from the shell executable name (`sh`,
     `bash`, `zsh`).
+- `dangerous_command_detection` optionally enables/disables dangerous-command
+  checks for this shell.
+- `command_safety` configures safe/dangerous rulesets for this shell, with
+  optional per-OS overrides.
 
 ## shell_style_profiles
 
@@ -582,6 +594,8 @@ shell style matches, Code applies these settings to the session:
 - Restricts loaded skills to the listed `skills` names (if non-empty).
 - Removes any listed `disabled_skills` from the final set.
 - Filters MCP servers via `mcp_servers.include`/`mcp_servers.exclude`.
+- Can override dangerous-command checks per style via
+  `dangerous_command_detection`.
 
 ```toml
 [shell_style_profiles.zsh]
@@ -592,6 +606,14 @@ prepend_developer_messages = [
 skill_roots = ["docs/skills/zsh", "docs/skills/termux"]
 skills = ["zsh-arrays", "termux-zsh"]
 disabled_skills = ["legacy-zsh-skill"]
+dangerous_command_detection = true
+
+[shell_style_profiles.zsh.command_safety]
+safe_rules = "posix"
+dangerous_rules = "posix"
+
+[shell_style_profiles.zsh.command_safety.os.windows]
+dangerous_rules = "windows"
 
 [shell_style_profiles.zsh.mcp_servers]
 include = ["termux-docs", "shell-lint"]
@@ -611,6 +633,10 @@ Notes:
 - Style `skill_roots` are loaded before default repo/user/system roots, so
   matching skill names take precedence.
 - `include` runs first, then `exclude`.
+- Command-safety precedence supports these combinations (lowest to highest):
+  shell, shell+profile, shell+OS, shell+(profile+OS).
+- Legacy `dangerous_command_detection` remains supported; the newer
+  `command_safety` fields override it when both are set.
 
 ## shell_environment_policy
 
@@ -1065,11 +1091,19 @@ Project commands appear in the TUI via `/cmd <name>` and run through the standar
 | `shell.path` | string | Shell executable override. |
 | `shell.args` | array<string> | Arguments passed with `shell.path`. |
 | `shell.script_style` | `posix-sh` \| `bash-zsh-compatible` \| `zsh` | Shell-code style preference for prompt guidance and style profiles. |
+| `shell.dangerous_command_detection` | boolean | Optional shell-level override for dangerous-command checks. |
+| `shell.command_safety.safe_rules` | `auto` \| `posix` \| `windows` | Shell-level ruleset used for known-safe command classification. |
+| `shell.command_safety.dangerous_rules` | `auto` \| `posix` \| `windows` | Shell-level ruleset used for dangerous-command classification. |
+| `shell.command_safety.os.<os>.*` | same as above | Shell+OS overrides (`windows`, `macos`, `linux`, `other`). |
 | `shell_style_profiles.<style>.references` | array<string> | Style-specific reference file paths to inject into developer context. |
 | `shell_style_profiles.<style>.prepend_developer_messages` | array<string> | Extra developer messages for the active shell style. |
 | `shell_style_profiles.<style>.skill_roots` | array<string> | Additional style-specific directories to scan recursively for `SKILL.md`. |
 | `shell_style_profiles.<style>.skills` | array<string> | When non-empty, keep only these skill names for the active style. |
 | `shell_style_profiles.<style>.disabled_skills` | array<string> | Skill names to remove for the active style (overrides `skills`). |
+| `shell_style_profiles.<style>.dangerous_command_detection` | boolean | Style-level dangerous-command override (takes precedence over `shell.dangerous_command_detection`). |
+| `shell_style_profiles.<style>.command_safety.safe_rules` | `auto` \| `posix` \| `windows` | Shell+profile ruleset override for known-safe command classification. |
+| `shell_style_profiles.<style>.command_safety.dangerous_rules` | `auto` \| `posix` \| `windows` | Shell+profile ruleset override for dangerous-command classification. |
+| `shell_style_profiles.<style>.command_safety.os.<os>.*` | same as above | Shell+(profile+OS) overrides (`windows`, `macos`, `linux`, `other`). |
 | `shell_style_profiles.<style>.mcp_servers.include` | array<string> | Optional MCP server allow-list for the active style. |
 | `shell_style_profiles.<style>.mcp_servers.exclude` | array<string> | Optional MCP server deny-list for the active style. |
 | `instructions` | string | Currently ignored; use `experimental_instructions_file` or `AGENTS.md`. |

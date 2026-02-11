@@ -322,7 +322,7 @@ mod tests {
                 assert!(prompt.contains("Build a release plan"));
                 assert!(prompt.contains("tighten scope"));
             }
-            other => panic!("expected ExpandedPrompt, got {:?}", other),
+            other => panic!("expected ExpandedPrompt, got {other:?}"),
         }
     }
 
@@ -333,7 +333,7 @@ mod tests {
             ProcessedCommand::RegularCommand(SlashCommand::Auto, command_text) => {
                 assert!(command_text.contains("inspect the failing build"));
             }
-            other => panic!("expected RegularCommand, got {:?}", other),
+            other => panic!("expected RegularCommand, got {other:?}"),
         }
     }
 }

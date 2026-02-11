@@ -195,27 +195,29 @@ pub mod test_helpers {
                 harness.flush_into_widget();
 
                 let backend = VT100Backend::new(width, height);
-                let mut terminal = ratatui::Terminal::new(backend).expect("create terminal");
+                let mut terminal = ratatui::Terminal::new(backend)
+                    .unwrap_or_else(|err| panic!("failed to create VT100 terminal: {err}"));
+
+                terminal.draw(|frame| {
+                    let area = frame.area();
+                    let chat_widget = harness.chat();
+                    frame.render_widget_ref(&*chat_widget, area);
+                })
+                .unwrap_or_else(|err| panic!("failed to draw VT100 frame: {err}"));
 
                 terminal
-                    .draw(|frame| {
-                        let area = frame.area();
-                        let chat_widget = harness.chat();
-                        frame.render_widget_ref(&*chat_widget, area);
-                    })
-                    .expect("draw");
-
-                terminal.backend_mut().flush().expect("flush");
+                    .backend_mut()
+                    .flush()
+                    .unwrap_or_else(|err| panic!("failed to flush VT100 backend: {err}"));
 
                 let screen = terminal.backend().vt100().screen();
                 let (rows, cols) = screen.size();
-                let snapshot = screen
+                screen
                     .rows(0, cols)
                     .take(rows.into())
                     .map(|row| row.trim_end().to_string())
                     .collect::<Vec<_>>()
-                    .join("\n");
-                snapshot
+                    .join("\n")
             })
             .collect()
     }
@@ -1350,8 +1352,10 @@ mod tests {
         let code_home = TempDir::new()?;
         let workspace = TempDir::new()?;
 
-        let mut config_toml = ConfigToml::default();
-        config_toml.sandbox_workspace_write = sandbox_workspace_write;
+        let mut config_toml = ConfigToml {
+            sandbox_workspace_write,
+            ..Default::default()
+        };
 
         let mut projects = HashMap::new();
         projects.insert(

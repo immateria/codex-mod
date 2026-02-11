@@ -304,7 +304,6 @@ fn normalize_agent_history_details(text: String) -> String {
         for (token, label) in [("progress:", "detail:"), ("result:", "detail:")] {
             if let Some(idx) = line.find(token) {
                 let prefix = &line[..idx];
-                let label = label;
                 if let Some(tail_start) = line.rfind("| |") {
                     let tail = &line[tail_start..];
                     const DETAIL_FILLER: &str = " ...                     ";
@@ -1144,7 +1143,7 @@ fn scroll_spacing_remains_when_scrolled_up() {
         "scenario must overflow the history viewport to exercise scrolling"
     );
 
-    let offset = metrics.last_max_scroll.min(5).max(1);
+    let offset = metrics.last_max_scroll.clamp(1, 5);
     harness_force_scroll_offset(&mut harness, offset);
     let scrolled = normalize_output(render_chat_widget_to_vt100(&mut harness, 80, 24));
 
@@ -1179,7 +1178,7 @@ fn scroll_position_stable_when_history_grows_scrolled_up() {
         "scenario must overflow the history viewport to exercise scrolling"
     );
 
-    let offset = metrics.last_max_scroll.min(5).max(1);
+    let offset = metrics.last_max_scroll.clamp(1, 5);
     harness_force_scroll_offset(&mut harness, offset);
     let _ = render_chat_widget_to_vt100(&mut harness, 80, 24);
     let before = harness_layout_metrics(&harness);
@@ -1224,7 +1223,7 @@ fn scroll_position_stable_during_streaming_when_scrolled_up() {
         "scenario must overflow the history viewport to exercise scrolling"
     );
 
-    let offset = metrics.last_max_scroll.min(3).max(1);
+    let offset = metrics.last_max_scroll.clamp(1, 3);
     harness_force_scroll_offset(&mut harness, offset);
     let _ = render_chat_widget_to_vt100(&mut harness, 80, 24);
     let before = harness_layout_metrics(&harness);

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Component;
 use std::path::Path;
@@ -7,10 +8,19 @@ use code_apply_patch::ApplyPatchAction;
 use code_apply_patch::ApplyPatchFileChange;
 
 use crate::codex::ApprovedCommandPattern;
+use crate::command_safety::context::CommandSafetyContext;
+use crate::config_types::CommandSafetyOsProfileConfig;
+use crate::config_types::CommandSafetyRuleConfig;
+use crate::config_types::CommandSafetyRuleset;
+use crate::config_types::ShellConfig;
+use crate::config_types::ShellScriptStyle;
+use crate::config_types::ShellStyleProfileConfig;
 use crate::exec::SandboxType;
-use crate::is_safe_command::is_known_safe_command;
+use crate::is_dangerous_command::command_might_be_dangerous_with_context_and_rules;
+use crate::is_safe_command::is_known_safe_command_with_context_and_rules;
 use crate::protocol::AskForApproval;
 use crate::protocol::SandboxPolicy;
+use crate::shell::Shell;
 
 #[derive(Debug, PartialEq)]
 pub enum SafetyCheck {
@@ -20,6 +30,124 @@ pub enum SafetyCheck {
     },
     AskUser,
     Reject { reason: String },
+}
+
+fn default_dangerous_command_detection_for_style(style: Option<ShellScriptStyle>) -> bool {
+    matches!(
+        style,
+        Some(
+            ShellScriptStyle::PosixSh
+                | ShellScriptStyle::BashZshCompatible
+                | ShellScriptStyle::Zsh
+        )
+    )
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResolvedCommandSafetyProfile {
+    pub dangerous_command_detection_enabled: bool,
+    pub safe_rules: CommandSafetyRuleset,
+    pub dangerous_rules: CommandSafetyRuleset,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommandSafetyEvaluationConfig {
+    pub context: CommandSafetyContext,
+    pub safe_rules: CommandSafetyRuleset,
+    pub dangerous_rules: CommandSafetyRuleset,
+    pub dangerous_command_detection_enabled: bool,
+}
+
+fn apply_command_safety_rule_config(
+    source: &CommandSafetyRuleConfig,
+    target: &mut ResolvedCommandSafetyProfile,
+) {
+    if let Some(enabled) = source.dangerous_command_detection {
+        target.dangerous_command_detection_enabled = enabled;
+    }
+    if let Some(rules) = source.safe_rules {
+        target.safe_rules = rules;
+    }
+    if let Some(rules) = source.dangerous_rules {
+        target.dangerous_rules = rules;
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn current_os_command_safety_rule_config(os: &CommandSafetyOsProfileConfig) -> &CommandSafetyRuleConfig {
+    &os.windows
+}
+
+#[cfg(target_os = "macos")]
+fn current_os_command_safety_rule_config(os: &CommandSafetyOsProfileConfig) -> &CommandSafetyRuleConfig {
+    &os.macos
+}
+
+#[cfg(target_os = "linux")]
+fn current_os_command_safety_rule_config(os: &CommandSafetyOsProfileConfig) -> &CommandSafetyRuleConfig {
+    &os.linux
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+fn current_os_command_safety_rule_config(os: &CommandSafetyOsProfileConfig) -> &CommandSafetyRuleConfig {
+    &os.other
+}
+
+/// Resolve command-safety profile for the active shell/style and current OS.
+///
+/// Precedence (later items override earlier items):
+/// 1) style default
+/// 2) legacy `shell.dangerous_command_detection`
+/// 3) legacy `shell_style_profiles.<style>.dangerous_command_detection`
+/// 4) `shell.command_safety`
+/// 5) `shell_style_profiles.<style>.command_safety`
+/// 6) `shell.command_safety.os.<current-os>`
+/// 7) `shell_style_profiles.<style>.command_safety.os.<current-os>`
+pub fn resolve_command_safety_profile(
+    shell: &Shell,
+    shell_config: Option<&ShellConfig>,
+    shell_style_profiles: &HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+) -> ResolvedCommandSafetyProfile {
+    let style = shell.script_style();
+    let mut resolved = ResolvedCommandSafetyProfile {
+        dangerous_command_detection_enabled: default_dangerous_command_detection_for_style(style),
+        safe_rules: CommandSafetyRuleset::Auto,
+        dangerous_rules: CommandSafetyRuleset::Auto,
+    };
+
+    if let Some(shell_legacy_override) = shell_config.and_then(|cfg| cfg.dangerous_command_detection)
+    {
+        resolved.dangerous_command_detection_enabled = shell_legacy_override;
+    }
+
+    let style_profile = style.and_then(|active_style| shell_style_profiles.get(&active_style));
+    if let Some(profile_legacy_override) =
+        style_profile.and_then(|profile| profile.dangerous_command_detection)
+    {
+        resolved.dangerous_command_detection_enabled = profile_legacy_override;
+    }
+
+    if let Some(shell_cfg) = shell_config {
+        apply_command_safety_rule_config(&shell_cfg.command_safety.rules, &mut resolved);
+    }
+    if let Some(profile) = style_profile {
+        apply_command_safety_rule_config(&profile.command_safety.rules, &mut resolved);
+    }
+
+    if let Some(shell_cfg) = shell_config {
+        apply_command_safety_rule_config(
+            current_os_command_safety_rule_config(&shell_cfg.command_safety.os),
+            &mut resolved,
+        );
+    }
+    if let Some(profile) = style_profile {
+        apply_command_safety_rule_config(
+            current_os_command_safety_rule_config(&profile.command_safety.os),
+            &mut resolved,
+        );
+    }
+
+    resolved
 }
 
 pub fn assess_patch_safety(
@@ -98,6 +226,7 @@ pub fn assess_patch_safety(
 /// - `DangerFullAccess` was specified and `UnlessTrusted` was not
 pub fn assess_command_safety(
     command: &[String],
+    safety_config: CommandSafetyEvaluationConfig,
     approval_policy: AskForApproval,
     sandbox_policy: &SandboxPolicy,
     approved: &HashSet<ApprovedCommandPattern>,
@@ -116,7 +245,11 @@ pub fn assess_command_safety(
     // would probably be fine to run the command in a sandbox, but when
     // `approved.contains(command)` is `true`, the user may have approved it for
     // the session _because_ they know it needs to run outside a sandbox.
-    if is_known_safe_command(command)
+    if is_known_safe_command_with_context_and_rules(
+        command,
+        safety_config.context,
+        safety_config.safe_rules,
+    )
         || approved.iter().any(|pattern| pattern.matches(command))
     {
         let user_explicitly_approved = approved
@@ -125,6 +258,22 @@ pub fn assess_command_safety(
         return SafetyCheck::AutoApprove {
             sandbox_type: SandboxType::None,
             user_explicitly_approved,
+        };
+    }
+
+    if safety_config.dangerous_command_detection_enabled
+        && command_might_be_dangerous_with_context_and_rules(
+            command,
+            safety_config.context,
+            safety_config.dangerous_rules,
+        )
+    {
+        return if matches!(approval_policy, AskForApproval::Never) {
+            SafetyCheck::Reject {
+                reason: "auto-rejected because command is considered dangerous".to_string(),
+            }
+        } else {
+            SafetyCheck::AskUser
         };
     }
 
@@ -285,6 +434,28 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    fn set_current_os_override(
+        os_cfg: &mut crate::config_types::CommandSafetyOsProfileConfig,
+        rule: crate::config_types::CommandSafetyRuleConfig,
+    ) {
+        #[cfg(target_os = "windows")]
+        {
+            os_cfg.windows = rule;
+        }
+        #[cfg(target_os = "macos")]
+        {
+            os_cfg.macos = rule;
+        }
+        #[cfg(target_os = "linux")]
+        {
+            os_cfg.linux = rule;
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            os_cfg.other = rule;
+        }
+    }
+
     #[test]
     fn test_writable_roots_constraint() {
         // Use a temporary directory as our workspace to avoid touching
@@ -387,9 +558,17 @@ mod tests {
         let sandbox_policy = SandboxPolicy::ReadOnly;
         let approved: HashSet<ApprovedCommandPattern> = HashSet::new();
         let request_escalated_privileges = true;
+        let command_safety_context = CommandSafetyContext::current().with_command_shell(&command);
+        let safety_config = CommandSafetyEvaluationConfig {
+            context: command_safety_context,
+            safe_rules: CommandSafetyRuleset::Auto,
+            dangerous_rules: CommandSafetyRuleset::Auto,
+            dangerous_command_detection_enabled: true,
+        };
 
         let safety_check = assess_command_safety(
             &command,
+            safety_config,
             approval_policy,
             &sandbox_policy,
             &approved,
@@ -406,9 +585,17 @@ mod tests {
         let sandbox_policy = SandboxPolicy::ReadOnly;
         let approved: HashSet<ApprovedCommandPattern> = HashSet::new();
         let request_escalated_privileges = false;
+        let command_safety_context = CommandSafetyContext::current().with_command_shell(&command);
+        let safety_config = CommandSafetyEvaluationConfig {
+            context: command_safety_context,
+            safe_rules: CommandSafetyRuleset::Auto,
+            dangerous_rules: CommandSafetyRuleset::Auto,
+            dangerous_command_detection_enabled: true,
+        };
 
         let safety_check = assess_command_safety(
             &command,
+            safety_config,
             approval_policy,
             &sandbox_policy,
             &approved,
@@ -423,5 +610,178 @@ mod tests {
             None => SafetyCheck::AskUser,
         };
         assert_eq!(safety_check, expected);
+    }
+
+    #[test]
+    fn dangerous_command_detection_toggle_controls_reject_path() {
+        let command = vec!["git".to_string(), "reset".to_string(), "--hard".to_string()];
+        let approved: HashSet<ApprovedCommandPattern> = HashSet::new();
+        let command_safety_context = CommandSafetyContext::current().with_command_shell(&command);
+        let auto_rules = CommandSafetyRuleset::Auto;
+
+        let with_detection = assess_command_safety(
+            &command,
+            CommandSafetyEvaluationConfig {
+                context: command_safety_context,
+                safe_rules: auto_rules,
+                dangerous_rules: auto_rules,
+                dangerous_command_detection_enabled: true,
+            },
+            AskForApproval::Never,
+            &SandboxPolicy::DangerFullAccess,
+            &approved,
+            false,
+        );
+        assert_eq!(
+            with_detection,
+            SafetyCheck::Reject {
+                reason: "auto-rejected because command is considered dangerous".to_string(),
+            }
+        );
+
+        let without_detection = assess_command_safety(
+            &command,
+            CommandSafetyEvaluationConfig {
+                context: command_safety_context,
+                safe_rules: auto_rules,
+                dangerous_rules: auto_rules,
+                dangerous_command_detection_enabled: false,
+            },
+            AskForApproval::Never,
+            &SandboxPolicy::DangerFullAccess,
+            &approved,
+            false,
+        );
+        assert_eq!(
+            without_detection,
+            SafetyCheck::AutoApprove {
+                sandbox_type: SandboxType::None,
+                user_explicitly_approved: false,
+            }
+        );
+    }
+
+    #[test]
+    fn dangerous_command_detection_resolution_respects_precedence() {
+        use crate::shell::PowerShellConfig;
+
+        let pwsh = Shell::PowerShell(PowerShellConfig {
+            exe: "pwsh".to_string(),
+            bash_exe_fallback: None,
+        });
+        let shell_cfg = ShellConfig {
+            path: "pwsh".to_string(),
+            args: vec!["-NoProfile".to_string()],
+            script_style: None,
+            command_safety: crate::config_types::CommandSafetyProfileConfig::default(),
+            dangerous_command_detection: None,
+        };
+
+        assert!(
+            !resolve_command_safety_profile(&pwsh, None, &HashMap::new())
+                .dangerous_command_detection_enabled
+        );
+
+        let shell_enabled = ShellConfig {
+            dangerous_command_detection: Some(true),
+            ..shell_cfg.clone()
+        };
+        assert!(
+            resolve_command_safety_profile(&pwsh, Some(&shell_enabled), &HashMap::new())
+                .dangerous_command_detection_enabled
+        );
+
+        let zsh = Shell::Generic(crate::shell::GenericShell {
+            command: vec!["zsh".to_string()],
+            script_style: Some(ShellScriptStyle::Zsh),
+        });
+        let mut profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig> = HashMap::new();
+        profiles.insert(
+            ShellScriptStyle::Zsh,
+            ShellStyleProfileConfig {
+                dangerous_command_detection: Some(false),
+                ..Default::default()
+            },
+        );
+
+        assert!(
+            !resolve_command_safety_profile(&zsh, Some(&shell_enabled), &profiles)
+                .dangerous_command_detection_enabled
+        );
+    }
+
+    #[test]
+    fn command_safety_profile_resolution_supports_shell_profile_and_os_matrix() {
+        let shell = Shell::Generic(crate::shell::GenericShell {
+            command: vec!["zsh".to_string()],
+            script_style: Some(ShellScriptStyle::Zsh),
+        });
+
+        let mut shell_cfg = ShellConfig {
+            path: "/bin/zsh".to_string(),
+            args: vec!["-lc".to_string()],
+            script_style: Some(ShellScriptStyle::Zsh),
+            command_safety: crate::config_types::CommandSafetyProfileConfig::default(),
+            dangerous_command_detection: None,
+        };
+
+        // 1) shell
+        shell_cfg.command_safety.rules.safe_rules = Some(CommandSafetyRuleset::Posix);
+        shell_cfg.command_safety.rules.dangerous_rules = Some(CommandSafetyRuleset::Windows);
+        shell_cfg.command_safety.rules.dangerous_command_detection = Some(false);
+
+        let mut profile = ShellStyleProfileConfig::default();
+        let mut profiles = HashMap::new();
+        profiles.insert(ShellScriptStyle::Zsh, profile.clone());
+
+        let shell_only = resolve_command_safety_profile(&shell, Some(&shell_cfg), &profiles);
+        assert!(!shell_only.dangerous_command_detection_enabled);
+        assert_eq!(shell_only.safe_rules, CommandSafetyRuleset::Posix);
+        assert_eq!(shell_only.dangerous_rules, CommandSafetyRuleset::Windows);
+
+        // 2) shell + profile
+        profile.command_safety.rules.safe_rules = Some(CommandSafetyRuleset::Windows);
+        profile.command_safety.rules.dangerous_rules = Some(CommandSafetyRuleset::Posix);
+        profile.command_safety.rules.dangerous_command_detection = Some(true);
+        profiles.insert(ShellScriptStyle::Zsh, profile.clone());
+
+        let shell_and_profile = resolve_command_safety_profile(&shell, Some(&shell_cfg), &profiles);
+        assert!(shell_and_profile.dangerous_command_detection_enabled);
+        assert_eq!(shell_and_profile.safe_rules, CommandSafetyRuleset::Windows);
+        assert_eq!(shell_and_profile.dangerous_rules, CommandSafetyRuleset::Posix);
+
+        // 3) shell + os
+        profile.command_safety.rules = crate::config_types::CommandSafetyRuleConfig::default();
+        profiles.insert(ShellScriptStyle::Zsh, profile.clone());
+
+        set_current_os_override(
+            &mut shell_cfg.command_safety.os,
+            crate::config_types::CommandSafetyRuleConfig {
+                dangerous_command_detection: Some(false),
+                safe_rules: Some(CommandSafetyRuleset::Auto),
+                dangerous_rules: Some(CommandSafetyRuleset::Posix),
+            },
+        );
+        let shell_and_os = resolve_command_safety_profile(&shell, Some(&shell_cfg), &profiles);
+        assert!(!shell_and_os.dangerous_command_detection_enabled);
+        assert_eq!(shell_and_os.safe_rules, CommandSafetyRuleset::Auto);
+        assert_eq!(shell_and_os.dangerous_rules, CommandSafetyRuleset::Posix);
+
+        // 4) shell + (profile + os)
+        set_current_os_override(
+            &mut profile.command_safety.os,
+            crate::config_types::CommandSafetyRuleConfig {
+                dangerous_command_detection: Some(true),
+                safe_rules: Some(CommandSafetyRuleset::Windows),
+                dangerous_rules: Some(CommandSafetyRuleset::Windows),
+            },
+        );
+        profiles.insert(ShellScriptStyle::Zsh, profile);
+
+        let shell_profile_and_os =
+            resolve_command_safety_profile(&shell, Some(&shell_cfg), &profiles);
+        assert!(shell_profile_and_os.dangerous_command_detection_enabled);
+        assert_eq!(shell_profile_and_os.safe_rules, CommandSafetyRuleset::Windows);
+        assert_eq!(shell_profile_and_os.dangerous_rules, CommandSafetyRuleset::Windows);
     }
 }

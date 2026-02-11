@@ -979,6 +979,54 @@ impl TextArea {
     }
 }
 
+
+impl WidgetRef for &TextArea {
+    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
+        let lines = self.wrapped_lines(area.width);
+        self.render_lines(area, buf, &lines, 0..lines.len());
+    }
+}
+
+impl StatefulWidgetRef for &TextArea {
+    type State = TextAreaState;
+
+    fn render_ref(&self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        let lines = self.wrapped_lines(area.width);
+        let scroll = self.effective_scroll(area.height, &lines, state.scroll);
+        state.scroll = scroll;
+
+        let start = scroll as usize;
+        let end = (scroll + area.height).min(lines.len() as u16) as usize;
+        self.render_lines(area, buf, &lines, start..end);
+    }
+}
+
+impl TextArea {
+    fn render_lines(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        lines: &[Range<usize>],
+        range: std::ops::Range<usize>,
+    ) {
+        let bg = crate::colors::background();
+        let fg = crate::colors::text();
+        let line_style = Style::default().bg(bg).fg(fg);
+        for (row, idx) in range.enumerate() {
+            let r = &lines[idx];
+            let y = area.y + row as u16;
+            // Paint the row background in one pass to avoid per-cell index math.
+            fill_rect(buf, Rect::new(area.x, y, area.width, 1), None, line_style);
+
+            // Draw the text on top using theme foreground + background to preserve consistent look.
+            if r.end > r.start {
+                let line_range = r.start..r.end - 1;
+                buf.set_string(area.x, y, &self.text[line_range], line_style);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1066,52 +1114,5 @@ mod tests {
         let ws_index = textarea.text().find('\u{202f}').expect("whitespace");
         let expected = ws_index + '\u{202f}'.len_utf8();
         assert_eq!(cursor, expected, "expected cursor to land after whitespace");
-    }
-}
-
-impl WidgetRef for &TextArea {
-    fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let lines = self.wrapped_lines(area.width);
-        self.render_lines(area, buf, &lines, 0..lines.len());
-    }
-}
-
-impl StatefulWidgetRef for &TextArea {
-    type State = TextAreaState;
-
-    fn render_ref(&self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        let lines = self.wrapped_lines(area.width);
-        let scroll = self.effective_scroll(area.height, &lines, state.scroll);
-        state.scroll = scroll;
-
-        let start = scroll as usize;
-        let end = (scroll + area.height).min(lines.len() as u16) as usize;
-        self.render_lines(area, buf, &lines, start..end);
-    }
-}
-
-impl TextArea {
-    fn render_lines(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        lines: &[Range<usize>],
-        range: std::ops::Range<usize>,
-    ) {
-        let bg = crate::colors::background();
-        let fg = crate::colors::text();
-        let line_style = Style::default().bg(bg).fg(fg);
-        for (row, idx) in range.enumerate() {
-            let r = &lines[idx];
-            let y = area.y + row as u16;
-            // Paint the row background in one pass to avoid per-cell index math.
-            fill_rect(buf, Rect::new(area.x, y, area.width, 1), None, line_style);
-
-            // Draw the text on top using theme foreground + background to preserve consistent look.
-            if r.end > r.start {
-                let line_range = r.start..r.end - 1;
-                buf.set_string(area.x, y, &self.text[line_range], line_style);
-            }
-        }
     }
 }

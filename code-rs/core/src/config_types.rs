@@ -177,6 +177,13 @@ pub struct ShellConfig {
     pub args: Vec<String>,
     #[serde(default)]
     pub script_style: Option<ShellScriptStyle>,
+    /// Command-safety overrides for this shell.
+    #[serde(default)]
+    pub command_safety: CommandSafetyProfileConfig,
+    /// Optional override for dangerous-command detection in command safety.
+    /// When omitted, shell-specific defaults are used.
+    #[serde(default)]
+    pub dangerous_command_detection: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
@@ -234,6 +241,48 @@ impl ShellScriptStyle {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum CommandSafetyRuleset {
+    Auto,
+    Posix,
+    Windows,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+pub struct CommandSafetyRuleConfig {
+    /// Optional override for dangerous-command detection.
+    #[serde(default)]
+    pub dangerous_command_detection: Option<bool>,
+    /// Ruleset used to decide whether a command is "known safe".
+    #[serde(default)]
+    pub safe_rules: Option<CommandSafetyRuleset>,
+    /// Ruleset used to decide whether a command is dangerous.
+    #[serde(default)]
+    pub dangerous_rules: Option<CommandSafetyRuleset>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+pub struct CommandSafetyOsProfileConfig {
+    #[serde(default)]
+    pub windows: CommandSafetyRuleConfig,
+    #[serde(default)]
+    pub macos: CommandSafetyRuleConfig,
+    #[serde(default)]
+    pub linux: CommandSafetyRuleConfig,
+    #[serde(default)]
+    pub other: CommandSafetyRuleConfig,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+pub struct CommandSafetyProfileConfig {
+    #[serde(flatten)]
+    pub rules: CommandSafetyRuleConfig,
+    #[serde(default)]
+    pub os: CommandSafetyOsProfileConfig,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct ShellStyleMcpConfig {
     #[serde(default)]
@@ -271,6 +320,15 @@ pub struct ShellStyleProfileConfig {
     /// MCP server include/exclude filters applied when this style is active.
     #[serde(default)]
     pub mcp_servers: ShellStyleMcpConfig,
+
+    /// Command-safety overrides applied when this style profile is active.
+    #[serde(default)]
+    pub command_safety: CommandSafetyProfileConfig,
+
+    /// Optional override for dangerous-command detection when this style is active.
+    /// This setting takes precedence over shell-level configuration.
+    #[serde(default)]
+    pub dangerous_command_detection: Option<bool>,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]

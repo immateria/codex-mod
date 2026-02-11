@@ -634,8 +634,6 @@ pub(crate) fn new_popular_commands_notice(
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(Line::from(""));
         let legacy_line = "  /code - perform a coding task (multiple agents)";
-        #[cfg(any(test, feature = "test-helpers"))]
-        println!("legacy command line: {legacy_line}");
         lines.push(Line::from(legacy_line));
         return plain_message_state_from_lines(lines, HistoryCellType::Notice);
     }

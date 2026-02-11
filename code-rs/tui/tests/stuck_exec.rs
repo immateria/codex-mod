@@ -46,7 +46,7 @@ fn exec_cell_clears_after_patch_flow() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.to_string(),
             command: vec!["bash".into(), "-lc".into(), "apply_patch".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -106,9 +106,9 @@ fn exec_spinner_clears_after_final_answer() {
         id: "exec-begin-spinner".to_string(),
         event_seq: 0,
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
-            call_id: call_id,
+            call_id,
             command: vec!["bash".into(), "-lc".into(), "echo running".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -148,9 +148,9 @@ fn exec_cell_clears_after_task_started_final_answer_without_task_complete() {
         id: "exec-begin".to_string(),
         event_seq: 1,
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
-            call_id: call_id,
+            call_id,
             command: vec!["bash".into(), "-lc".into(), "echo pending".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -190,7 +190,7 @@ fn synthetic_end_clears_cancelled_exec_spinner() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "sleep 5".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -244,7 +244,7 @@ fn wait_tool_missing_background_job_clears_exec_wait() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: exec_call_id.to_string(),
             command: vec!["bash".into(), "-lc".into(), "gh run watch".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -301,7 +301,7 @@ fn wait_interrupt_after_exec_end_does_not_mutate_exec() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: exec_call_id.to_string(),
             command: vec!["bash".into(), "-lc".into(), "echo done".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -413,7 +413,7 @@ fn wait_missing_job_skips_merged_exec() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: exec_call_id_b.to_string(),
             command: vec!["rg".into(), "foo".into(), ".".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: parsed_search,
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -486,7 +486,7 @@ fn exec_begin_upgrades_running_tool_cell() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "echo upgraded".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -533,9 +533,9 @@ fn stale_exec_is_finalized_on_task_complete() {
         id: "exec-begin-stale".to_string(),
         event_seq: 0,
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
-            call_id: call_id,
+            call_id,
             command: vec!["bash".into(), "-lc".into(), "git diff".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -587,7 +587,7 @@ fn exec_interrupts_flush_when_stream_idles() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "echo idle".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -619,7 +619,7 @@ fn queued_exec_end_flushes_after_stream_clears() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "echo queued".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -640,7 +640,7 @@ fn queued_exec_end_flushes_after_stream_clears() {
         id: "exec-end-flush".to_string(),
         event_seq: 2,
         msg: EventMsg::ExecCommandEnd(ExecCommandEndEvent {
-            call_id: call_id,
+            call_id,
             stdout: "queued\n".into(),
             stderr: String::new(),
             exit_code: 0,
@@ -699,7 +699,7 @@ fn background_style_exec_end_with_zero_seq_does_not_get_stuck() {
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
             call_id: call_id.clone(),
             command: vec!["bash".into(), "-lc".into(), "echo bg".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),
@@ -710,7 +710,7 @@ fn background_style_exec_end_with_zero_seq_does_not_get_stuck() {
         id: "exec-end-zero".to_string(),
         event_seq: 0,
         msg: EventMsg::ExecCommandEnd(ExecCommandEndEvent {
-            call_id: call_id,
+            call_id,
             stdout: "bg\n".into(),
             stderr: String::new(),
             exit_code: 0,
@@ -756,9 +756,9 @@ fn running_exec_is_finalized_when_error_event_arrives() {
         id: "exec-begin-error".to_string(),
         event_seq: 1,
         msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
-            call_id: call_id,
+            call_id,
             command: vec!["bash".into(), "-lc".into(), "pgrep something".into()],
-            cwd: cwd,
+            cwd,
             parsed_cmd: Vec::new(),
         }),
         order: Some(next_order_meta(1, &mut seq)),

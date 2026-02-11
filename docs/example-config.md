@@ -123,6 +123,14 @@ experimental_use_profile = false
 path = "/bin/zsh"
 args = ["-lc"]
 script_style = "zsh" # posix-sh | bash-zsh-compatible | zsh
+dangerous_command_detection = true
+
+[shell.command_safety]
+safe_rules = "auto" # auto | posix | windows
+dangerous_rules = "auto"
+
+[shell.command_safety.os.windows]
+dangerous_rules = "windows"
 
 # Style-scoped resources. The active style comes from shell.script_style or
 # inference from the shell executable name (sh/bash/zsh).
@@ -134,6 +142,14 @@ prepend_developer_messages = [
 skill_roots = ["docs/skills/zsh", "docs/skills/termux"]
 skills = ["zsh-arrays", "termux-zsh"]
 disabled_skills = ["legacy-zsh-skill"]
+dangerous_command_detection = true
+
+[shell_style_profiles.zsh.command_safety]
+safe_rules = "posix"
+dangerous_rules = "posix"
+
+[shell_style_profiles.zsh.command_safety.os.windows]
+dangerous_rules = "windows"
 
 [shell_style_profiles.zsh.mcp_servers]
 # Optional allow-list and deny-list applied in this order.

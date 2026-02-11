@@ -1,5 +1,9 @@
 use crate::bash::try_parse_bash;
 use crate::bash::try_parse_word_only_commands_sequence;
+use crate::command_safety::context::CommandSafetyContext;
+use crate::command_safety::context::CommandSafetyOs;
+use crate::command_safety::context::CommandSafetyShellFamily;
+use crate::config_types::CommandSafetyRuleset;
 use std::path::Path;
 
 fn is_bash(cmd: &str) -> bool {
@@ -15,12 +19,41 @@ fn is_bash(cmd: &str) -> bool {
 }
 
 pub fn is_known_safe_command(command: &[String]) -> bool {
-    #[cfg(target_os = "windows")]
-    {
-        use super::windows_safe_commands::is_safe_command_windows;
-        if is_safe_command_windows(command) {
-            return true;
+    let context = CommandSafetyContext::current().with_command_shell(command);
+    is_known_safe_command_with_context_and_rules(command, context, CommandSafetyRuleset::Auto)
+}
+
+pub fn is_known_safe_command_with_context(
+    command: &[String],
+    context: CommandSafetyContext,
+) -> bool {
+    is_known_safe_command_with_context_and_rules(command, context, CommandSafetyRuleset::Auto)
+}
+
+pub fn is_known_safe_command_with_context_and_rules(
+    command: &[String],
+    context: CommandSafetyContext,
+    ruleset: CommandSafetyRuleset,
+) -> bool {
+    let effective_context = context.with_command_shell(command);
+    match ruleset {
+        CommandSafetyRuleset::Windows => {
+            use super::windows_safe_commands::is_safe_command_windows;
+            return is_safe_command_windows(command);
         }
+        CommandSafetyRuleset::Auto => {
+            let is_windows_shell = matches!(
+                effective_context.shell,
+                CommandSafetyShellFamily::PowerShell | CommandSafetyShellFamily::Cmd
+            );
+            if matches!(effective_context.os, CommandSafetyOs::Windows) || is_windows_shell {
+                use super::windows_safe_commands::is_safe_command_windows;
+                if is_safe_command_windows(command) {
+                    return true;
+                }
+            }
+        }
+        CommandSafetyRuleset::Posix => {}
     }
 
     if is_safe_to_call_with_exec(command) {
@@ -361,5 +394,29 @@ mod tests {
             !is_known_safe_command(&vec_str(&["bash", "-lc", "ls > out.txt"])),
             "> redirection should be rejected"
         );
+    }
+
+    #[test]
+    fn ruleset_allows_posix_or_windows_behavior_to_be_forced() {
+        let windows_context = CommandSafetyContext {
+            os: CommandSafetyOs::Windows,
+            shell: CommandSafetyShellFamily::PowerShell,
+        };
+
+        // Force Windows rules: plain argv `ls` is not a trusted PowerShell
+        // invocation, so it is not auto-approved.
+        assert!(!is_known_safe_command_with_context_and_rules(
+            &vec_str(&["ls"]),
+            windows_context,
+            CommandSafetyRuleset::Windows,
+        ));
+
+        // Force POSIX rules for the same context: plain `ls` remains in the
+        // read-only safelist.
+        assert!(is_known_safe_command_with_context_and_rules(
+            &vec_str(&["ls"]),
+            windows_context,
+            CommandSafetyRuleset::Posix,
+        ));
     }
 }
