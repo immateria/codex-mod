@@ -4,9 +4,9 @@ use ratatui::layout::Margin;
 use ratatui::widgets::WidgetRef;
 
 use super::popup_consts::MAX_POPUP_ROWS;
-use super::scroll_state::ScrollState;
-use super::selection_popup_common::GenericDisplayRow;
-use super::selection_popup_common::render_rows;
+use crate::components::scroll_state::ScrollState;
+use crate::components::selection_popup_common::GenericDisplayRow;
+use crate::components::selection_popup_common::render_rows;
 use crate::slash_command::SlashCommand;
 use crate::slash_command::built_in_slash_commands;
 use code_common::fuzzy_match::fuzzy_match;
@@ -113,7 +113,7 @@ impl CommandPopup {
     /// Determine the preferred height of the popup. This is the number of
     /// rows required to show at most MAX_POPUP_ROWS commands.
     pub(crate) fn calculate_required_height(&self) -> u16 {
-        self.filtered_items().len().clamp(1, MAX_POPUP_ROWS) as u16
+        ScrollState::popup_required_height(self.filtered_items().len(), MAX_POPUP_ROWS)
     }
 
     /// Compute fuzzy-filtered matches over built-in commands and user prompts,
@@ -215,16 +215,14 @@ impl CommandPopup {
     /// Move the selection cursor one step up.
     pub(crate) fn move_up(&mut self) {
         let len = self.filtered_items().len();
-        self.state.move_up_wrap(len);
-        self.state.ensure_visible(len, MAX_POPUP_ROWS.min(len));
+        self.state.move_up_wrap_visible(len, MAX_POPUP_ROWS);
     }
 
     /// Move the selection cursor one step down.
     pub(crate) fn move_down(&mut self) {
         let matches_len = self.filtered_items().len();
-        self.state.move_down_wrap(matches_len);
         self.state
-            .ensure_visible(matches_len, MAX_POPUP_ROWS.min(matches_len));
+            .move_down_wrap_visible(matches_len, MAX_POPUP_ROWS);
     }
 
     /// Return currently selected command, if any.
@@ -237,21 +235,8 @@ impl CommandPopup {
 
     /// Select an item by its visible row index (0-based). Returns true if selection changed.
     pub(crate) fn select_visible_index(&mut self, visible_row: usize) -> bool {
-        let matches_len = self.filtered_items().len();
-        if matches_len == 0 {
-            return false;
-        }
-
-        // Compute actual index from scroll state and visible row
-        let scroll_top = self.state.scroll_top.min(matches_len.saturating_sub(1));
-        let actual_idx = scroll_top + visible_row;
-
-        if actual_idx < matches_len {
-            self.state.selected_idx = Some(actual_idx);
-            true
-        } else {
-            false
-        }
+        self.state
+            .select_visible_row(self.filtered_items().len(), visible_row)
     }
 }
 

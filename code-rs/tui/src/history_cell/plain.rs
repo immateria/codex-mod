@@ -640,8 +640,8 @@ pub(crate) fn new_popular_commands_notice(
     let mut lines: Vec<Line<'static>> = Vec::new();
     lines.push(Line::from("notice".dim()));
     lines.extend(popular_commands_lines(latest_version));
-    // Connecting status is now rendered as a separate BackgroundEvent cell
-    // with its own gutter icon and spacing. Keep this notice focused.
+    // MCP startup status is surfaced outside of history (header/footer) so the
+    // intro animation doesn't jump when MCP connects or fails.
     plain_message_state_from_lines(lines, HistoryCellType::Notice)
 }
 

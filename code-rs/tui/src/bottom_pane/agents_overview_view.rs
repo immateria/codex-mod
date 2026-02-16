@@ -8,7 +8,8 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 
-use super::bottom_pane_view::BottomPaneView;
+use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::ui_interaction::redraw_if;
 use super::BottomPane;
 
 #[derive(Clone, Debug)]
@@ -130,26 +131,36 @@ impl AgentsOverviewView {
 
         lines
     }
-}
 
-impl<'a> BottomPaneView<'a> for AgentsOverviewView {
-    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         match key_event {
-            KeyEvent { code: KeyCode::Esc, .. } => { self.is_complete = true; }
+            KeyEvent { code: KeyCode::Esc, .. } => {
+                self.is_complete = true;
+                true
+            }
             KeyEvent { code: KeyCode::Up, .. } => {
-                if self.total_rows() == 0 { return; }
-                if self.selected == 0 { self.selected = self.total_rows() - 1; } else { self.selected -= 1; }
+                if self.total_rows() == 0 {
+                    return false;
+                }
+                if self.selected == 0 {
+                    self.selected = self.total_rows() - 1;
+                } else {
+                    self.selected -= 1;
+                }
                 self.app_event_tx.send(AppEvent::AgentsOverviewSelectionChanged { index: self.selected });
+                true
             }
             KeyEvent { code: KeyCode::Down, .. } => {
-                if self.total_rows() == 0 { return; }
+                if self.total_rows() == 0 {
+                    return false;
+                }
                 self.selected = (self.selected + 1) % self.total_rows();
                 self.app_event_tx.send(AppEvent::AgentsOverviewSelectionChanged { index: self.selected });
+                true
             }
             KeyEvent { code: KeyCode::Enter, .. } => {
                 let idx = self.selected;
                 if idx < self.agents.len() {
-                    // Open Agent editor
                     let (name, _en, installed, _cmd) = self.agents[idx].clone();
                     if !installed {
                         self.app_event_tx.send(AppEvent::RequestAgentInstall { name, selected_index: idx });
@@ -159,7 +170,6 @@ impl<'a> BottomPaneView<'a> for AgentsOverviewView {
                         self.is_complete = true;
                     }
                 } else {
-                    // Commands region: specific name or Add new…
                     let cmd_idx = idx - self.agents.len();
                     if cmd_idx < self.commands.len() {
                         if let Some(name) = self.commands.get(cmd_idx) {
@@ -171,9 +181,24 @@ impl<'a> BottomPaneView<'a> for AgentsOverviewView {
                         self.is_complete = true;
                     }
                 }
+                true
             }
-            _ => {}
+            _ => false,
         }
+    }
+}
+
+impl<'a> BottomPaneView<'a> for AgentsOverviewView {
+    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+        let _ = self.handle_key_event_direct(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
     }
 
     fn is_complete(&self) -> bool { self.is_complete }

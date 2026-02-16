@@ -9,10 +9,11 @@ use unicode_width::UnicodeWidthStr;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 
-use super::bottom_pane_view::BottomPaneView;
+use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 // list_selection_view no longer used (overview replaces the list)
 use super::BottomPane;
-use super::form_text_field::FormTextField;
+use crate::components::form_text_field::FormTextField;
+use crate::ui_interaction::redraw_if;
 
 // Removed legacy AgentsSettingsView list. Overview replaces it.
 
@@ -54,7 +55,7 @@ impl SubagentEditorView {
         // Always seed the name field with the provided name
         if !name.is_empty() { me.name_field.set_text(name); }
         // Restrict ID field to [A-Za-z0-9_-]
-        me.name_field.set_filter(super::form_text_field::InputFilter::Id);
+        me.name_field.set_filter(crate::components::form_text_field::InputFilter::Id);
         // Seed from existing config if present
         if let Some(cfg) = existing.iter().find(|c| c.name.eq_ignore_ascii_case(name)) {
             me.name_field.set_text(&cfg.name);
@@ -362,11 +363,19 @@ impl<'a> BottomPaneView<'a> for SubagentEditorView {
         let _ = self.handle_key_event_internal(key_event);
     }
 
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_internal(key_event))
+    }
+
     fn is_complete(&self) -> bool { self.is_complete }
 
-    fn handle_paste(&mut self, text: String) -> super::bottom_pane_view::ConditionalUpdate {
+    fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
         match self.field { 0 => self.name_field.handle_paste(text), 3 => self.orch_field.handle_paste(text), _ => {} }
-        super::bottom_pane_view::ConditionalUpdate::NeedsRedraw
+        ConditionalUpdate::NeedsRedraw
     }
 
     fn desired_height(&self, width: u16) -> u16 {

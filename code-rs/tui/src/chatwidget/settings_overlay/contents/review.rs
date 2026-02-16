@@ -67,8 +67,7 @@ impl SettingsContent for ReviewSettingsContent {
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> bool {
-        self.view.handle_key_event_direct(key);
-        true
+        self.view.handle_key_event_direct(key)
     }
 
     fn is_complete(&self) -> bool {

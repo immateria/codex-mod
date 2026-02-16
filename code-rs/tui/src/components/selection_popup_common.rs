@@ -4,7 +4,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Cell, Row, Table, Widget};
 
-use super::scroll_state::ScrollState;
+use crate::components::scroll_state::ScrollState;
 
 /// A generic representation of a display row for selection popups.
 pub(crate) struct GenericDisplayRow {

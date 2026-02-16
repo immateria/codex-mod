@@ -4,8 +4,7 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
-
+use unicode_width::UnicodeWidthStr;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::{
@@ -333,23 +332,7 @@ impl AgentsSettingsContent {
     }
 
     fn truncate_to_width(text: &str, max_width: usize) -> String {
-        if max_width == 0 {
-            return String::new();
-        }
-        let mut width = 0;
-        let mut truncated = String::new();
-        for ch in text.chars() {
-            let ch_width = ch.width().unwrap_or(0);
-            if width + ch_width > max_width {
-                break;
-            }
-            truncated.push(ch);
-            width += ch_width;
-            if width == max_width {
-                break;
-            }
-        }
-        truncated
+        crate::text_formatting::truncate_to_display_width(text, max_width)
     }
 
     fn overview_selection_at(

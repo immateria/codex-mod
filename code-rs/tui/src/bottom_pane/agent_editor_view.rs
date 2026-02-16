@@ -11,7 +11,8 @@ use crate::app_event_sender::AppEventSender;
 use crate::agent_install_helpers::macos_brew_formula_for_command;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::form_text_field::{FormTextField, InputFilter};
+use crate::components::form_text_field::{FormTextField, InputFilter};
+use crate::ui_interaction::redraw_if;
 use super::BottomPane;
 
 #[derive(Debug)]
@@ -586,6 +587,14 @@ impl AgentEditorView {
 impl<'a> BottomPaneView<'a> for AgentEditorView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
         let _ = self.handle_key_internal(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_internal(key_event))
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {

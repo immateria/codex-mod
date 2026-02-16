@@ -22,8 +22,8 @@ use crate::bottom_pane::SelectionAction;
 use super::CancellationEvent;
 use super::bottom_pane_view::BottomPaneView;
 use super::bottom_pane_view::ConditionalUpdate;
-use super::textarea::TextArea;
-use super::textarea::TextAreaState;
+use crate::components::textarea::TextArea;
+use crate::components::textarea::TextAreaState;
 
 /// Callback invoked when the user submits a custom prompt.
 pub(crate) type PromptSubmitted = Box<dyn Fn(String) + Send + Sync>;

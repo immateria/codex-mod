@@ -124,30 +124,14 @@ fn render_exec_stream(chunks: &[ExecStreamChunk], stream_name: &str) -> String {
             let mut notice = String::new();
             notice.push_str(&format!(
                 "… clipped {} from the start of {} (showing last {}).\n\n",
-                format_bytes(first.offset),
+                code_core::util::format_bytes(first.offset),
                 stream_name,
-                format_bytes(MAX_EXEC_STREAM_RETAINED_BYTES),
+                code_core::util::format_bytes(MAX_EXEC_STREAM_RETAINED_BYTES),
             ));
             notice.push_str(&body);
             body = notice;
         }
     body
-}
-
-fn format_bytes(bytes: usize) -> String {
-    const KIB: f64 = 1024.0;
-    const MIB: f64 = KIB * 1024.0;
-    const GIB: f64 = MIB * 1024.0;
-    let bytes_f = bytes as f64;
-    if bytes >= GIB as usize {
-        format!("{:.1} GiB", bytes_f / GIB)
-    } else if bytes >= MIB as usize {
-        format!("{:.1} MiB", bytes_f / MIB)
-    } else if bytes >= KIB as usize {
-        format!("{:.1} KiB", bytes_f / KIB)
-    } else {
-        format!("{bytes} B")
-    }
 }
 
 fn wait_notes_from_record(notes: &[RecordExecWaitNote]) -> Vec<ExecWaitNote> {

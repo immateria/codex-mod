@@ -729,5 +729,26 @@ Options that are specific to the TUI.
 
 ```toml
 [tui]
-# More to come here
+
+[tui.branding]
+# Optional title used for the top header and intro glitch animation.
+# Defaults to "Every Code".
+title = "Code"
+
+[tui.header]
+# Show the primary top header line. Defaults to true.
+show_top_line = true
+# Optional custom text for the primary header line.
+# Supported placeholders:
+# {title} {model} {shell} {reasoning} {directory} {branch} {mcp}
+# top_line_text = "{title} • {model} • {shell}"
+
+# Show a secondary line under the primary header line. Defaults to false.
+show_bottom_line = false
+# Optional custom text for the secondary header line.
+# bottom_line_text = "{directory} • {branch}"
+
+# Hover styling for interactive header segments. Defaults to "background".
+# Allowed values: background | underline | none
+# hover_style = "background"
 ```

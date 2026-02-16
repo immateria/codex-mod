@@ -15,9 +15,9 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 
 use super::bottom_pane_view::BottomPaneView;
-use super::scroll_state::ScrollState;
-use super::selection_popup_common::GenericDisplayRow;
-use super::selection_popup_common::render_rows;
+use crate::components::scroll_state::ScrollState;
+use crate::components::selection_popup_common::GenericDisplayRow;
+use crate::components::selection_popup_common::render_rows;
 use super::{BottomPane, CancellationEvent};
 
 #[derive(Debug, Clone)]

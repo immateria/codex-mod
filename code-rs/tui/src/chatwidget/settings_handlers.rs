@@ -68,11 +68,17 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
                 if chat.open_settings_section_in_bottom_pane(section) {
                     return true;
                 }
-                let Some(overlay) = chat.settings.overlay.as_mut() else {
-                    return true;
-                };
-                overlay.set_mode_section(section);
-                chat.request_redraw();
+                {
+                    let Some(overlay) = chat.settings.overlay.as_mut() else {
+                        return true;
+                    };
+                    overlay.set_mode_section(section);
+                }
+                if section == crate::bottom_pane::SettingsSection::Limits {
+                    chat.show_limits_settings_ui();
+                } else {
+                    chat.request_redraw();
+                }
                 return true;
             }
             KeyCode::Esc => {

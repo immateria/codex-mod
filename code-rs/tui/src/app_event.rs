@@ -395,6 +395,13 @@ pub(crate) enum AppEvent {
     #[allow(dead_code)]
     UpdateMcpServer { name: String, enable: bool },
 
+    /// Enable/disable a specific tool exposed by an MCP server.
+    UpdateMcpServerTool {
+        server_name: String,
+        tool_name: String,
+        enable: bool,
+    },
+
     /// Prefill the composer input with the given text
     #[allow(dead_code)]
     PrefillComposer(String),

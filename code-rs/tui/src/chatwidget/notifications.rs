@@ -134,4 +134,64 @@ impl ChatWidget<'_> {
             }
         }
     }
+
+    pub(crate) fn toggle_mcp_server_tool(
+        &mut self,
+        server_name: &str,
+        tool_name: &str,
+        enable: bool,
+    ) {
+        match code_core::config::find_code_home() {
+            Ok(home) => match code_core::config::set_mcp_server_tool_enabled(
+                &home,
+                server_name,
+                tool_name,
+                enable,
+            ) {
+                Ok(changed) => {
+                    if !changed {
+                        return;
+                    }
+
+                    if let Some(server_cfg) = self.config.mcp_servers.get_mut(server_name) {
+                        if enable {
+                            server_cfg.disabled_tools.retain(|name| name != tool_name);
+                        } else if !server_cfg
+                            .disabled_tools
+                            .iter()
+                            .any(|name| name == tool_name)
+                        {
+                            server_cfg.disabled_tools.push(tool_name.to_string());
+                            server_cfg.disabled_tools.sort();
+                            server_cfg.disabled_tools.dedup();
+                        }
+                    }
+
+                    self.submit_op(Op::SetMcpToolEnabled {
+                        server: server_name.to_string(),
+                        tool: tool_name.to_string(),
+                        enable,
+                    });
+
+                    let msg = format!(
+                        "{} MCP tool '{}::{}'",
+                        if enable { "Enabled" } else { "Disabled" },
+                        server_name,
+                        tool_name
+                    );
+                    self.push_background_tail(msg);
+                }
+                Err(e) => {
+                    let msg = format!(
+                        "Failed to update MCP tool '{server_name}::{tool_name}': {e}"
+                    );
+                    self.history_push_plain_state(history_cell::new_error_event(msg));
+                }
+            },
+            Err(e) => {
+                let msg = format!("Failed to locate CODEX_HOME: {e}");
+                self.history_push_plain_state(history_cell::new_error_event(msg));
+            }
+        }
+    }
 }

@@ -1,301 +1,390 @@
-#![allow(dead_code)]
+use std::collections::BTreeMap;
+use std::cell::Cell;
+use std::time::Duration;
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
-
-use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 
-use super::bottom_pane_view::BottomPaneView;
-use super::BottomPane;
+mod input;
+mod layout;
+mod pane_impl;
+mod presentation;
+mod selection;
+mod state;
+mod summary_scroll;
+mod tool_state;
+use layout::{McpPaneHit, McpViewLayout};
 
 #[derive(Clone, Debug)]
 pub(crate) struct McpServerRow {
     pub name: String,
     pub enabled: bool,
-    pub summary: String,
+    pub transport: String,
+    pub startup_timeout: Option<Duration>,
+    pub tool_timeout: Option<Duration>,
+    pub tools: Vec<String>,
+    pub disabled_tools: Vec<String>,
+    pub tool_definitions: BTreeMap<String, mcp_types::Tool>,
+    pub failure: Option<String>,
+    pub status: String,
 }
 
 pub(crate) type McpServerRows = Vec<McpServerRow>;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum McpSettingsFocus {
+    Servers,
+    Summary,
+    Tools,
+}
+
+#[derive(Clone, Debug)]
+enum McpSelectionKey {
+    Server(String),
+    Refresh,
+    Add,
+    Close,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct McpSettingsViewState {
+    selection: McpSelectionKey,
+    focus: McpSettingsFocus,
+    stacked_scroll_top: usize,
+    summary_scroll_top: usize,
+    summary_hscroll: usize,
+    summary_wrap: bool,
+    tools_selected: usize,
+    expanded_tool_by_server: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Copy)]
+struct McpToolEntry<'a> {
+    name: &'a str,
+    enabled: bool,
+    definition: Option<&'a mcp_types::Tool>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum McpToolHoverPart {
+    Toggle,
+    Expand,
+    Label,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum McpScrollbarTarget {
+    Stacked,
+    Summary,
+    Tools,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct McpScrollbarDragState {
+    target: McpScrollbarTarget,
+    offset_in_thumb: usize,
+}
+
+const SUMMARY_SCROLL_STEP: usize = 2;
+const SUMMARY_PAGE_STEP: usize = 8;
+const SUMMARY_HORIZONTAL_SCROLL_STEP: i32 = 2;
+
+#[derive(Clone, Copy)]
+struct SummaryMetrics {
+    total_lines: usize,
+    max_width: usize,
+    visible_lines: usize,
+}
+
+
 pub(crate) struct McpSettingsView {
     rows: McpServerRows,
     selected: usize,
+    focus: McpSettingsFocus,
+    hovered_pane: McpPaneHit,
+    hovered_list_index: Option<usize>,
+    hovered_tool_index: Option<usize>,
+    hovered_tool_part: Option<McpToolHoverPart>,
+    armed_server_row_click: Option<usize>,
+    stacked_scroll_top: usize,
+    summary_scroll_top: usize,
+    summary_last_max_scroll: Cell<usize>,
+    summary_hscroll: usize,
+    summary_wrap: bool,
+    tools_selected: usize,
+    expanded_tool_by_server: BTreeMap<String, String>,
+    scrollbar_drag: Option<McpScrollbarDragState>,
     is_complete: bool,
     app_event_tx: AppEventSender,
+    last_render_area: Cell<Option<ratatui::layout::Rect>>,
 }
 
 impl McpSettingsView {
     pub fn new(rows: McpServerRows, app_event_tx: AppEventSender) -> Self {
-        Self { rows, selected: 0, is_complete: false, app_event_tx }
-    }
-
-    fn len(&self) -> usize { self.rows.len().saturating_add(2) /* + Add, + Close */ }
-
-    fn on_toggle(&mut self) {
-        if self.selected < self.rows.len() {
-            let row = &mut self.rows[self.selected];
-            let new_enabled = !row.enabled;
-            row.enabled = new_enabled;
-            self.app_event_tx.send(AppEvent::UpdateMcpServer { name: row.name.clone(), enable: new_enabled });
+        Self {
+            rows,
+            selected: 0,
+            focus: McpSettingsFocus::Servers,
+            hovered_pane: McpPaneHit::Outside,
+            hovered_list_index: None,
+            hovered_tool_index: None,
+            hovered_tool_part: None,
+            armed_server_row_click: None,
+            stacked_scroll_top: 0,
+            summary_scroll_top: 0,
+            summary_last_max_scroll: Cell::new(0),
+            summary_hscroll: 0,
+            summary_wrap: true,
+            tools_selected: 0,
+            expanded_tool_by_server: BTreeMap::new(),
+            scrollbar_drag: None,
+            is_complete: false,
+            app_event_tx,
+            last_render_area: Cell::new(None),
         }
     }
 
-    fn on_enter(&mut self) {
-        match self.selected {
-            idx if idx < self.rows.len() => self.on_toggle(),
-            idx if idx == self.rows.len() => {
-                // Add New… row
-                self.app_event_tx.send(AppEvent::PrefillComposer("/mcp add ".to_string()));
-                self.is_complete = true;
-            }
-            _ => { self.is_complete = true; }
-        }
-    }
-
-    fn process_key_event(&mut self, key_event: KeyEvent) {
-        match key_event {
-            KeyEvent { code: KeyCode::Up, .. } => {
-                if self.selected == 0 {
-                    self.selected = self.len().saturating_sub(1);
-                } else {
-                    self.selected -= 1;
-                }
-            }
-            KeyEvent { code: KeyCode::Down, .. } => {
-                self.selected = (self.selected + 1) % self.len().max(1);
-            }
-            KeyEvent { code: KeyCode::Left | KeyCode::Right, .. }
-            | KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. } => {
-                self.on_toggle();
-            }
-            KeyEvent { code: KeyCode::Enter, .. } => self.on_enter(),
-            KeyEvent { code: KeyCode::Esc, .. } => {
-                self.is_complete = true;
-            }
-            _ => {}
-        }
-    }
-
-    fn content_rect(area: Rect) -> Rect {
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        Rect {
-            x: inner.x.saturating_add(1),
-            y: inner.y,
-            width: inner.width.saturating_sub(2),
-            height: inner.height,
-        }
-    }
-
-    fn total_line_count(&self) -> usize {
-        if self.rows.is_empty() {
-            7
-        } else {
-            self.rows.len().saturating_mul(2).saturating_add(5)
-        }
-    }
-
-    fn selection_line_index(&self, selection: usize) -> usize {
-        let row_count = self.rows.len();
-        let prefix = if row_count == 0 { 2 } else { 0 };
-        if selection < row_count {
-            prefix + selection.saturating_mul(2)
-        } else if selection == row_count {
-            prefix + row_count.saturating_mul(2) + 1
-        } else {
-            prefix + row_count.saturating_mul(2) + 2
-        }
-    }
-
-    fn selection_at_line_index(&self, line_index: usize) -> Option<usize> {
-        let row_count = self.rows.len();
-        let prefix = if row_count == 0 { 2 } else { 0 };
-        if line_index < prefix {
-            return None;
-        }
-        let rel = line_index - prefix;
-        let rows_lines = row_count.saturating_mul(2);
-        if rel < rows_lines {
-            return Some(rel / 2);
-        }
-        if rel == rows_lines + 1 {
-            return Some(row_count);
-        }
-        if rel == rows_lines + 2 {
-            return Some(row_count + 1);
-        }
-        None
-    }
-
-    fn scroll_top_for_selected(&self, viewport_height: usize) -> usize {
-        let total_lines = self.total_line_count();
-        let selected_line_index = self.selection_line_index(self.selected);
-        if viewport_height == 0 || total_lines <= viewport_height {
-            return 0;
-        }
-        let half = viewport_height / 2;
-        let mut candidate = selected_line_index.saturating_sub(half);
-        let max_scroll = total_lines - viewport_height;
-        if candidate > max_scroll {
-            candidate = max_scroll;
-        }
-        candidate
-    }
-
-    pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
-        let handled = matches!(
-            key_event,
-            KeyEvent { code: KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right | KeyCode::Enter | KeyCode::Esc, .. }
-                | KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. }
-        );
-        self.process_key_event(key_event);
-        handled
-    }
-
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let content = Self::content_rect(area);
-        if content.width == 0 || content.height == 0 {
-            return false;
-        }
-
-        match mouse_event.kind {
-            MouseEventKind::Moved => false,
-            MouseEventKind::Down(MouseButton::Left) => {
-                if mouse_event.column < content.x
-                    || mouse_event.column >= content.x.saturating_add(content.width)
-                    || mouse_event.row < content.y
-                    || mouse_event.row >= content.y.saturating_add(content.height)
-                {
-                    return false;
-                }
-                let rel_y = mouse_event.row.saturating_sub(content.y) as usize;
-                let line = self
-                    .scroll_top_for_selected(content.height as usize)
-                    .saturating_add(rel_y);
-                let Some(next) = self.selection_at_line_index(line) else {
-                    return false;
-                };
-                self.selected = next;
-                self.on_enter();
-                true
-            }
-            MouseEventKind::ScrollUp => {
-                if self.selected == 0 {
-                    self.selected = self.len().saturating_sub(1);
-                } else {
-                    self.selected -= 1;
-                }
-                true
-            }
-            MouseEventKind::ScrollDown => {
-                self.selected = (self.selected + 1) % self.len().max(1);
-                true
-            }
-            _ => false,
-        }
-    }
 }
 
-impl<'a> BottomPaneView<'a> for McpSettingsView {
-    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        self.process_key_event(key_event);
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use ratatui::layout::Rect;
+
+    use super::{
+        McpPaneHit,
+        McpServerRow,
+        McpSettingsFocus,
+        McpSettingsView,
+        McpToolHoverPart,
+        McpViewLayout,
+    };
+    use crate::app_event_sender::AppEventSender;
+
+    fn make_server_row(name: &str) -> McpServerRow {
+        McpServerRow {
+            name: name.to_string(),
+            enabled: true,
+            transport: "npx -y test-server --transport stdio".to_string(),
+            startup_timeout: Some(Duration::from_secs(30)),
+            tool_timeout: Some(Duration::from_secs(30)),
+            tools: vec!["tool_a".to_string(), "tool_b".to_string()],
+            disabled_tools: Vec::new(),
+            tool_definitions: BTreeMap::new(),
+            failure: Some(
+                "very long failure text that should wrap and produce vertical overflow ".repeat(12),
+            ),
+            status: "Failed to start".to_string(),
+        }
     }
 
-    fn is_complete(&self) -> bool { self.is_complete }
+    fn make_view(rows: Vec<McpServerRow>) -> McpSettingsView {
+        let (tx, _rx) = channel();
+        McpSettingsView::new(rows, AppEventSender::new(tx))
+    }
 
-    fn desired_height(&self, _width: u16) -> u16 { 16 }
-
-    fn render(&self, area: Rect, buf: &mut Buffer) {
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(" MCP Servers ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        let mut selected_line_index: usize = 0;
-
-        if self.rows.is_empty() {
-            lines.push(Line::from(vec![Span::styled("No MCP servers configured.", Style::default().fg(crate::colors::text_dim()))]));
-            lines.push(Line::from(""));
+    fn mouse_event(kind: MouseEventKind, x: u16, y: u16) -> MouseEvent {
+        MouseEvent {
+            kind,
+            column: x,
+            row: y,
+            modifiers: KeyModifiers::NONE,
         }
+    }
 
-        for (i, row) in self.rows.iter().enumerate() {
-            let sel = i == self.selected;
-            let check = if row.enabled { "[on ]" } else { "[off]" };
-            let name = format!("{} {}", check, row.name);
-            let name_style = if sel { Style::default().bg(crate::colors::selection()).add_modifier(Modifier::BOLD) } else { Style::default() };
-            let arrow_line_index = lines.len();
-            lines.push(Line::from(vec![
-                Span::styled(if sel { "› " } else { "  " }, Style::default()),
-                Span::styled(name, name_style),
-            ]));
-            // Summary line
-            let sum_style = if sel { Style::default().bg(crate::colors::selection()).fg(crate::colors::secondary()) } else { Style::default().fg(crate::colors::text_dim()) };
-            lines.push(Line::from(vec![
-                Span::styled("   ", Style::default()),
-                Span::styled(row.summary.clone(), sum_style),
-            ]));
-            if sel {
-                selected_line_index = arrow_line_index;
-            }
-        }
+    #[test]
+    fn key_routing_returns_false_for_unhandled_key() {
+        let mut view = make_view(vec![make_server_row("server_a")]);
+        let handled = view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
+        assert!(!handled);
+    }
 
-        // Add New…
-        let add_sel = self.selected == self.rows.len();
-        let add_style = if add_sel { Style::default().bg(crate::colors::selection()).add_modifier(Modifier::BOLD) } else { Style::default() };
-        lines.push(Line::from(""));
-        let add_line_index = lines.len();
-        lines.push(Line::from(vec![Span::styled(if add_sel { "› " } else { "  " }, Style::default()), Span::styled("Add new server…", add_style)]));
-        if add_sel {
-            selected_line_index = add_line_index;
-        }
+    #[test]
+    fn wheel_over_summary_scrolls_details_and_sets_focus() {
+        let mut view = make_view(vec![make_server_row("server_a")]);
+        let area = Rect::new(0, 0, 100, 24);
+        let layout =
+            McpViewLayout::from_area_with_scroll(area, 0).expect("layout should exist");
 
-        // Close
-        let close_sel = self.selected == self.rows.len().saturating_add(1);
-        let close_style = if close_sel { Style::default().bg(crate::colors::selection()).add_modifier(Modifier::BOLD) } else { Style::default() };
-        let close_line_index = lines.len();
-        lines.push(Line::from(vec![Span::styled(if close_sel { "› " } else { "  " }, Style::default()), Span::styled("Close", close_style)]));
-        if close_sel {
-            selected_line_index = close_line_index;
-        }
+        let event = mouse_event(
+            MouseEventKind::ScrollDown,
+            layout.summary_inner.x.saturating_add(1),
+            layout.summary_inner.y.saturating_add(1),
+        );
 
-        lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled("↑↓/←→", Style::default().fg(crate::colors::function())),
-            Span::styled(" Navigate/Toggle  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Enter", Style::default().fg(crate::colors::success())),
-            Span::styled(" Toggle/Open  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Esc", Style::default().fg(crate::colors::error())),
-            Span::styled(" Close", Style::default().fg(crate::colors::text_dim())),
-        ]));
+        assert!(view.handle_mouse_event_direct(event, area));
+        assert_eq!(view.focus, McpSettingsFocus::Summary);
+        assert!(view.summary_scroll_top > 0);
+    }
 
-        let total_lines = lines.len();
-        let viewport_height = inner.height as usize;
-        let selected_line_index = selected_line_index.min(total_lines.saturating_sub(1));
-        let mut scroll_top = 0usize;
-        if viewport_height > 0 && total_lines > viewport_height {
-            let half = viewport_height / 2;
-            let mut candidate = selected_line_index.saturating_sub(half);
-            let max_scroll = total_lines - viewport_height;
-            if candidate > max_scroll {
-                candidate = max_scroll;
-            }
-            scroll_top = candidate;
-        }
+    #[test]
+    fn stacked_layout_scrolls_focused_pane_into_view() {
+        let mut view = make_view(vec![make_server_row("server_a")]);
+        let area = Rect::new(0, 0, 60, 14);
+        view.last_render_area.set(Some(area));
 
-        let paragraph = Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .scroll((scroll_top as u16, 0));
-        paragraph.render(Rect { x: inner.x.saturating_add(1), y: inner.y, width: inner.width.saturating_sub(2), height: inner.height }, buf);
+        assert_eq!(view.focus, McpSettingsFocus::Servers);
+        assert_eq!(view.stacked_scroll_top, 0);
+
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)));
+        assert_eq!(view.focus, McpSettingsFocus::Summary);
+        assert!(view.stacked_scroll_top > 0);
+
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)));
+        assert_eq!(view.focus, McpSettingsFocus::Tools);
+        assert!(view.stacked_scroll_top > 0);
+
+        let layout =
+            McpViewLayout::from_area_with_scroll(area, view.stacked_scroll_top).expect("layout");
+        assert!(layout.stacked);
+        assert!(layout.tools_rect.height > 0);
+    }
+
+    #[test]
+    fn scrolling_up_from_bottom_sentinel_moves_summary_view() {
+        let mut view = make_view(vec![make_server_row("server_a")]);
+        let viewport = Rect::new(0, 0, 38, 6);
+        let metrics = view.summary_metrics_for_viewport(viewport);
+        let max_scroll = metrics.total_lines.saturating_sub(metrics.visible_lines);
+        assert!(max_scroll > 0);
+
+        view.summary_scroll_top = usize::MAX;
+        view.scroll_summary_lines(-1);
+
+        assert_eq!(view.summary_scroll_top, max_scroll.saturating_sub(1));
+    }
+
+    #[test]
+    fn mouse_move_only_updates_hover_not_focus_or_selection() {
+        let mut view = make_view(vec![make_server_row("server_a")]);
+        let area = Rect::new(0, 0, 100, 24);
+        let layout =
+            McpViewLayout::from_area_with_scroll(area, 0).expect("layout should exist");
+        let initial_focus = view.focus;
+        let initial_selected = view.selected;
+
+        let event = mouse_event(
+            MouseEventKind::Moved,
+            layout.summary_inner.x.saturating_add(1),
+            layout.summary_inner.y.saturating_add(1),
+        );
+
+        assert!(view.handle_mouse_event_direct(event, area));
+        assert_eq!(view.focus, initial_focus);
+        assert_eq!(view.selected, initial_selected);
+        assert_eq!(view.hovered_pane, McpPaneHit::Summary);
+    }
+
+    #[test]
+    fn mouse_move_over_server_row_updates_list_hover() {
+        let mut view = make_view(vec![make_server_row("server_a"), make_server_row("server_b")]);
+        let area = Rect::new(0, 0, 100, 24);
+        let layout =
+            McpViewLayout::from_area_with_scroll(area, 0).expect("layout should exist");
+        let initial_focus = view.focus;
+        let initial_selected = view.selected;
+
+        let hover_y = (layout.list_inner.y..layout.list_inner.y.saturating_add(layout.list_inner.height))
+            .find(|row| view.server_index_at_mouse_row(layout.list_inner, *row) == Some(1))
+            .expect("row hit for second server");
+        let event = mouse_event(
+            MouseEventKind::Moved,
+            layout.list_inner.x.saturating_add(3),
+            hover_y,
+        );
+
+        assert!(view.handle_mouse_event_direct(event, area));
+        assert_eq!(view.focus, initial_focus);
+        assert_eq!(view.selected, initial_selected);
+        assert_eq!(view.hovered_pane, McpPaneHit::Servers);
+        assert_eq!(view.hovered_list_index, Some(1));
+    }
+
+    #[test]
+    fn server_list_is_single_line_per_server_without_summary_row() {
+        let view = make_view(vec![make_server_row("server_a")]);
+        let lines = view.list_lines(80);
+        let line_text: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
+        assert!(line_text.iter().any(|line| line.contains("[on ] server_a")));
+        assert!(
+            !line_text
+                .iter()
+                .any(|line| line.contains("test-server --transport stdio"))
+        );
+    }
+
+    #[test]
+    fn server_row_click_requires_second_click_to_toggle() {
+        let mut view = make_view(vec![make_server_row("server_a")]);
+        let area = Rect::new(0, 0, 100, 24);
+        let layout =
+            McpViewLayout::from_area_with_scroll(area, 0).expect("layout should exist");
+
+        let click_y = (layout.list_inner.y..layout.list_inner.y.saturating_add(layout.list_inner.height))
+            .find(|row| view.server_index_at_mouse_row(layout.list_inner, *row) == Some(0))
+            .expect("row hit for first server");
+        let click_event = mouse_event(
+            MouseEventKind::Down(MouseButton::Left),
+            layout.list_rect.x.saturating_add(1),
+            click_y,
+        );
+
+        assert!(view.rows[0].enabled);
+        assert!(view.handle_mouse_event_direct(click_event, area));
+        assert!(view.rows[0].enabled);
+        assert!(view.handle_mouse_event_direct(click_event, area));
+        assert!(!view.rows[0].enabled);
+    }
+
+    #[test]
+    fn tool_hover_distinguishes_toggle_and_expand_controls() {
+        let mut view = make_view(vec![make_server_row("server_a")]);
+        let area = Rect::new(0, 0, 100, 24);
+        let layout =
+            McpViewLayout::from_area_with_scroll(area, 0).expect("layout should exist");
+
+        let tool_row_y =
+            (layout.tools_inner.y..layout.tools_inner.y.saturating_add(layout.tools_inner.height))
+                .find(|row| view.tool_index_at_mouse_row(layout.tools_inner, *row) == Some(0))
+            .expect("row hit for first tool");
+
+        let toggle_hover = mouse_event(
+            MouseEventKind::Moved,
+            layout.tools_inner.x.saturating_add(2),
+            tool_row_y,
+        );
+        assert!(view.handle_mouse_event_direct(toggle_hover, area));
+        assert_eq!(view.hovered_pane, McpPaneHit::Tools);
+        assert_eq!(view.hovered_tool_index, Some(0));
+        assert_eq!(view.hovered_tool_part, Some(McpToolHoverPart::Toggle));
+
+        let expand_hover = mouse_event(
+            MouseEventKind::Moved,
+            layout.tools_inner.x.saturating_add(6),
+            tool_row_y,
+        );
+        assert!(view.handle_mouse_event_direct(expand_hover, area));
+        assert_eq!(view.hovered_tool_index, Some(0));
+        assert_eq!(view.hovered_tool_part, Some(McpToolHoverPart::Expand));
+    }
+
+    #[test]
+    fn wheel_outside_panes_does_not_mutate_state() {
+        let mut view = make_view(vec![make_server_row("server_a")]);
+        let area = Rect::new(0, 0, 100, 24);
+        let initial_selected = view.selected;
+        let initial_scroll = view.summary_scroll_top;
+
+        let event = mouse_event(
+            MouseEventKind::ScrollDown,
+            area.x.saturating_add(area.width).saturating_add(1),
+            area.y,
+        );
+        assert!(!view.handle_mouse_event_direct(event, area));
+        assert_eq!(view.selected, initial_selected);
+        assert_eq!(view.summary_scroll_top, initial_scroll);
     }
 }

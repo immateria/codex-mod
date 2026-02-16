@@ -1,11 +1,17 @@
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::ui_interaction::{
+    redraw_if,
+    route_selectable_list_mouse_with_config,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+};
 use super::settings_panel::{render_panel, PanelFrameStyle};
 use super::BottomPane;
 use crate::app_event::{AppEvent, ModelSelectionKind};
 use crate::app_event_sender::AppEventSender;
 use code_common::model_presets::ModelPreset;
 use code_core::config_types::ReasoningEffort;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::prelude::Widget;
@@ -665,6 +671,56 @@ impl ModelSelectionView {
 }
 
 impl ModelSelectionView {
+    fn entry_count(&self) -> usize {
+        self.flat_presets.len() + usize::from(self.target.supports_follow_chat())
+    }
+
+    fn handle_mouse_event_shared(&mut self, mouse_event: MouseEvent) -> ConditionalUpdate {
+        let mut selected = self.selected_index;
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            self.entry_count(),
+            |x, y| self.hit_test(x, y),
+            SelectableListMouseConfig {
+                hover_select: false,
+                scroll_select: false,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.selected_index = selected;
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            self.select_item(self.selected_index);
+            return ConditionalUpdate::NeedsRedraw;
+        }
+
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                let new_hover = self.hit_test(mouse_event.column, mouse_event.row);
+                if new_hover != self.hovered_index {
+                    self.hovered_index = new_hover;
+                    return ConditionalUpdate::NeedsRedraw;
+                }
+            }
+            MouseEventKind::ScrollUp => {
+                self.scroll_up();
+                return ConditionalUpdate::NeedsRedraw;
+            }
+            MouseEventKind::ScrollDown => {
+                self.scroll_down();
+                return ConditionalUpdate::NeedsRedraw;
+            }
+            _ => {}
+        }
+
+        if result.handled() {
+            ConditionalUpdate::NeedsRedraw
+        } else {
+            ConditionalUpdate::NoRedraw
+        }
+    }
+
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         match key_event {
             KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
@@ -690,31 +746,7 @@ impl ModelSelectionView {
     /// Handle mouse events directly without needing a BottomPane reference.
     /// Used when embedded in settings overlay.
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, _area: Rect) -> ConditionalUpdate {
-        match mouse_event.kind {
-            MouseEventKind::Down(MouseButton::Left) => {
-                if let Some(idx) = self.hit_test(mouse_event.column, mouse_event.row) {
-                    self.select_item(idx);
-                    return ConditionalUpdate::NeedsRedraw;
-                }
-            }
-            MouseEventKind::Moved => {
-                let new_hover = self.hit_test(mouse_event.column, mouse_event.row);
-                if new_hover != self.hovered_index {
-                    self.hovered_index = new_hover;
-                    return ConditionalUpdate::NeedsRedraw;
-                }
-            }
-            MouseEventKind::ScrollUp => {
-                self.scroll_up();
-                return ConditionalUpdate::NeedsRedraw;
-            }
-            MouseEventKind::ScrollDown => {
-                self.scroll_down();
-                return ConditionalUpdate::NeedsRedraw;
-            }
-            _ => {}
-        }
-        ConditionalUpdate::NoRedraw
+        self.handle_mouse_event_shared(mouse_event)
     }
 
     fn send_closed(&mut self, accepted: bool) {
@@ -983,38 +1015,21 @@ impl<'a> BottomPaneView<'a> for ModelSelectionView {
         let _ = self.handle_key_event_direct(key_event);
     }
 
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
+    }
+
     fn handle_mouse_event(
         &mut self,
         _pane: &mut BottomPane<'a>,
         mouse_event: MouseEvent,
         _area: Rect,
     ) -> ConditionalUpdate {
-        match mouse_event.kind {
-            MouseEventKind::Down(MouseButton::Left) => {
-                if let Some(idx) = self.hit_test(mouse_event.column, mouse_event.row) {
-                    self.select_item(idx);
-                    return ConditionalUpdate::NeedsRedraw;
-                }
-            }
-            MouseEventKind::Moved => {
-                let new_hover = self.hit_test(mouse_event.column, mouse_event.row);
-                if new_hover != self.hovered_index {
-                    self.hovered_index = new_hover;
-                    return ConditionalUpdate::NeedsRedraw;
-                }
-            }
-            MouseEventKind::ScrollUp => {
-                self.scroll_up();
-                return ConditionalUpdate::NeedsRedraw;
-            }
-            MouseEventKind::ScrollDown => {
-                self.scroll_down();
-                return ConditionalUpdate::NeedsRedraw;
-            }
-            _ => {}
-        }
-
-        ConditionalUpdate::NoRedraw
+        self.handle_mouse_event_shared(mouse_event)
     }
 
     fn update_hover(&mut self, mouse_pos: (u16, u16), _area: Rect) -> bool {

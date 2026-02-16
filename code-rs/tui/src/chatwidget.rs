@@ -107,6 +107,8 @@ mod streaming;
 mod terminal_handlers;
 mod terminal;
 mod terminal_flow;
+mod terminal_surface_image;
+mod terminal_surface_header;
 mod terminal_surface_render;
 mod tools;
 mod browser_sessions;
@@ -186,10 +188,8 @@ use code_core::protocol::AgentReasoningEvent;
 use code_core::protocol::AgentReasoningRawContentDeltaEvent;
 use code_core::protocol::AgentReasoningRawContentEvent;
 use code_core::protocol::AgentReasoningSectionBreakEvent;
-use code_core::protocol::AgentStatusUpdateEvent;
 use code_core::protocol::ApplyPatchApprovalRequestEvent;
 use code_core::protocol::BackgroundEventEvent;
-use code_core::protocol::BrowserScreenshotUpdateEvent;
 use code_core::protocol::BrowserSnapshotEvent;
 use code_core::protocol::CustomToolCallBeginEvent;
 use code_core::protocol::CustomToolCallEndEvent;
@@ -592,6 +592,39 @@ impl ChatWidget<'_> {
         });
 
         key
+    }
+
+    pub(super) fn is_startup_mcp_error(&self, message: &str) -> bool {
+        if self.last_seen_request_index != 0 || self.pending_user_prompts_for_next_turn > 0 {
+            return false;
+        }
+
+        let lower = message.to_ascii_lowercase();
+        lower.contains("mcp server")
+            && (lower.contains("failed to start") || lower.contains("failed to list tools"))
+    }
+
+    fn extract_mcp_server_name(message: &str) -> Option<&str> {
+        for (marker, terminator) in [("MCP server `", '`'), ("MCP server '", '\'')] {
+            let start = message.find(marker).map(|idx| idx + marker.len());
+            if let Some(start) = start {
+                let rest = &message[start..];
+                if let Some(end) = rest.find(terminator) {
+                    let name = &rest[..end];
+                    if !name.is_empty() {
+                        return Some(name);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    pub(super) fn summarize_startup_mcp_error(message: &str) -> String {
+        if let Some(name) = Self::extract_mcp_server_name(message) {
+            return format!("❌ MCP server '{name}' failed to initialize. Run /mcp status for diagnostics.");
+        }
+        "❌ MCP server failed to initialize. Run /mcp status for diagnostics.".to_string()
     }
 
     fn background_tail_request_ordinal(&mut self) -> u64 {
@@ -2609,6 +2642,18 @@ impl ChatWidget<'_> {
         );
         self.login_view_state = Some(LoginAccountsState::weak_handle(&state_rc));
         self.login_add_view_state = None;
+
+        let showing_accounts_in_overlay = self.settings.overlay.as_ref().is_some_and(|overlay| {
+            !overlay.is_menu_active() && overlay.active_section() == SettingsSection::Accounts
+        });
+        if showing_accounts_in_overlay
+            && let Some(overlay) = self.settings.overlay.as_mut()
+            && let Some(content) = overlay.accounts_content_mut() {
+                content.show_manage_accounts(state_rc);
+                self.request_redraw();
+                return;
+            }
+
         self.bottom_pane.show_login_accounts(view);
         self.request_redraw();
     }
@@ -2622,6 +2667,18 @@ impl ChatWidget<'_> {
         );
         self.login_add_view_state = Some(LoginAddAccountState::weak_handle(&state_rc));
         self.login_view_state = None;
+
+        let showing_accounts_in_overlay = self.settings.overlay.as_ref().is_some_and(|overlay| {
+            !overlay.is_menu_active() && overlay.active_section() == SettingsSection::Accounts
+        });
+        if showing_accounts_in_overlay
+            && let Some(overlay) = self.settings.overlay.as_mut()
+            && let Some(content) = overlay.accounts_content_mut() {
+                content.show_add_account(state_rc);
+                self.request_redraw();
+                return;
+            }
+
         self.bottom_pane.show_login_add_account(view);
         self.request_redraw();
     }
@@ -2757,16 +2814,12 @@ impl ChatWidget<'_> {
             .map(UpdatesSettingsContent::new)
     }
 
-    fn build_accounts_settings_view(&self) -> crate::bottom_pane::AccountSwitchSettingsView {
-        crate::bottom_pane::AccountSwitchSettingsView::new(
+    fn build_accounts_settings_content(&self) -> AccountsSettingsContent {
+        AccountsSettingsContent::new(
             self.app_event_tx.clone(),
             self.config.auto_switch_accounts_on_rate_limit,
             self.config.api_key_fallback_on_all_accounts_limited,
         )
-    }
-
-    fn build_accounts_settings_content(&self) -> AccountsSettingsContent {
-        AccountsSettingsContent::new(self.build_accounts_settings_view())
     }
 
     fn build_validation_settings_view(&mut self) -> ValidationSettingsView {
@@ -8254,6 +8307,7 @@ fi\n\
                             transport,
                             startup_timeout_sec: None,
                             tool_timeout_sec: None,
+                            disabled_tools: Vec::new(),
                         };
                         match code_core::config::add_mcp_server(&home, &name, cfg.clone()) {
                             Ok(()) => {

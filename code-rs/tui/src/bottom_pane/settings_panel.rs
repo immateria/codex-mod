@@ -99,3 +99,23 @@ where
 
     render_body(content_area, buf);
 }
+
+/// Compute the content rect for a panel frame without rendering.
+///
+/// This uses the same border+margin math as `render_panel`, so mouse hit-testing
+/// can share geometry with draw-time layout.
+pub(crate) fn panel_content_rect(area: Rect, style: PanelFrameStyle) -> Rect {
+    if area.width == 0 || area.height == 0 {
+        return Rect::default();
+    }
+    let inner = Rect {
+        x: area.x.saturating_add(1),
+        y: area.y.saturating_add(1),
+        width: area.width.saturating_sub(2),
+        height: area.height.saturating_sub(2),
+    };
+    if inner.width == 0 || inner.height == 0 {
+        return Rect::default();
+    }
+    inner.inner(style.content_margin)
+}

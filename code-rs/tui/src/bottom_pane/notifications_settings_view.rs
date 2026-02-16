@@ -1,6 +1,4 @@
-#![allow(dead_code)]
-
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
@@ -9,9 +7,19 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
+use crate::ui_interaction::{
+    RelativeHitRegion,
+    redraw_if,
+    route_selectable_regions_mouse_with_config,
+    ScrollSelectionBehavior,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+    wrap_next,
+    wrap_prev,
+};
 use crate::chatwidget::BackgroundOrderTicket;
 
-use super::bottom_pane_view::BottomPaneView;
+use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::BottomPane;
 
 #[derive(Clone)]
@@ -29,6 +37,12 @@ pub(crate) struct NotificationsSettingsView {
 }
 
 impl NotificationsSettingsView {
+    const SELECTABLE_ROWS: usize = 2;
+    const HIT_REGIONS: [RelativeHitRegion; Self::SELECTABLE_ROWS] = [
+        RelativeHitRegion::new(0, 2, 1),
+        RelativeHitRegion::new(1, 4, 1),
+    ];
+
     pub fn new(
         mode: NotificationsMode,
         app_event_tx: AppEventSender,
@@ -120,22 +134,21 @@ impl NotificationsSettingsView {
         }
     }
 
-    fn process_key_event(&mut self, key_event: KeyEvent) {
+    fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
         match key_event {
             KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
-                if self.selected_row > 0 {
-                    self.selected_row -= 1;
-                }
+                self.selected_row = wrap_prev(self.selected_row, Self::SELECTABLE_ROWS);
+                true
             }
             KeyEvent { code: KeyCode::Down, modifiers: KeyModifiers::NONE, .. } => {
-                if self.selected_row < 1 {
-                    self.selected_row += 1;
-                }
+                self.selected_row = wrap_next(self.selected_row, Self::SELECTABLE_ROWS);
+                true
             }
             KeyEvent { code: KeyCode::Left | KeyCode::Right, modifiers: KeyModifiers::NONE, .. } => {
                 if self.selected_row == 0 {
                     self.toggle();
                 }
+                true
             }
             KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
                 if self.selected_row == 0 {
@@ -143,89 +156,64 @@ impl NotificationsSettingsView {
                 } else {
                     self.is_complete = true;
                 }
+                true
             }
             KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. } => {
                 if self.selected_row == 0 {
                     self.toggle();
                 }
+                true
             }
             KeyEvent { code: KeyCode::Esc, .. } => {
                 self.is_complete = true;
-            }
-            _ => {}
-        }
-    }
-
-    fn row_at_position(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        if x < area.x
-            || x >= area.x.saturating_add(area.width)
-            || y < area.y
-            || y >= area.y.saturating_add(area.height)
-        {
-            return None;
-        }
-        let rel_y = y.saturating_sub(area.y);
-        match rel_y {
-            2 => Some(0),
-            4 => Some(1),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        match mouse_event.kind {
-            MouseEventKind::Moved => {
-                let Some(row) =
-                    self.row_at_position(area, mouse_event.column, mouse_event.row)
-                else {
-                    return false;
-                };
-                if self.selected_row == row {
-                    return false;
-                }
-                self.selected_row = row;
-                true
-            }
-            MouseEventKind::Down(MouseButton::Left) => {
-                let Some(row) =
-                    self.row_at_position(area, mouse_event.column, mouse_event.row)
-                else {
-                    return false;
-                };
-                self.selected_row = row;
-                if self.selected_row == 0 {
-                    self.toggle();
-                } else {
-                    self.is_complete = true;
-                }
-                true
-            }
-            MouseEventKind::ScrollUp => {
-                self.selected_row = self.selected_row.saturating_sub(1);
-                true
-            }
-            MouseEventKind::ScrollDown => {
-                self.selected_row = (self.selected_row + 1).min(1);
                 true
             }
             _ => false,
         }
     }
 
-    pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
-        let handled = matches!(
-            key_event,
-            KeyEvent { code: KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right | KeyCode::Enter | KeyCode::Esc, .. }
-                | KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. }
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let mut selected = self.selected_row;
+        let result = route_selectable_regions_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            Self::SELECTABLE_ROWS,
+            area,
+            &Self::HIT_REGIONS,
+            SelectableListMouseConfig {
+                require_pointer_hit_for_scroll: true,
+                scroll_behavior: ScrollSelectionBehavior::Clamp,
+                ..SelectableListMouseConfig::default()
+            },
         );
-        self.process_key_event(key_event);
-        handled
+        self.selected_row = selected;
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            if self.selected_row == 0 {
+                self.toggle();
+            } else {
+                self.is_complete = true;
+            }
+        }
+        result.handled()
+    }
+
+    pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        self.process_key_event(key_event)
     }
 }
 
 impl<'a> BottomPaneView<'a> for NotificationsSettingsView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        self.process_key_event(key_event);
+        let _ = self.process_key_event(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.process_key_event(key_event))
     }
 
     fn is_complete(&self) -> bool {

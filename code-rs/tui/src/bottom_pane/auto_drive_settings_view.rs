@@ -3,7 +3,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 use code_core::config_types::ReasoningEffort;
 use crossterm::event::{
-    KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent,
 };
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -13,6 +13,14 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::ui_interaction::{
+    redraw_if,
+    route_selectable_list_mouse_with_config,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+    wrap_next,
+    wrap_prev,
+};
 use super::BottomPane;
 use super::settings_panel::{render_panel, PanelFrameStyle};
 
@@ -80,18 +88,18 @@ impl AutoDriveSettingsView {
         4
     }
 
-    fn option_at_position(&self, area: Rect, mouse_event: MouseEvent) -> Option<usize> {
+    fn option_at_position(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
         if area.width == 0 || area.height == 0 {
             return None;
         }
-        if mouse_event.column < area.x
-            || mouse_event.column >= area.x.saturating_add(area.width)
-            || mouse_event.row < area.y
-            || mouse_event.row >= area.y.saturating_add(area.height)
+        if x < area.x
+            || x >= area.x.saturating_add(area.width)
+            || y < area.y
+            || y >= area.y.saturating_add(area.height)
         {
             return None;
         }
-        let rel_y = mouse_event.row.saturating_sub(area.y) as usize;
+        let rel_y = y.saturating_sub(area.y) as usize;
         if rel_y < Self::option_count() {
             Some(rel_y)
         } else {
@@ -324,9 +332,9 @@ impl AutoDriveSettingsView {
         lines
     }
 
-    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) {
+    fn handle_key_event_impl(&mut self, key_event: KeyEvent) -> bool {
         if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
-            return;
+            return false;
         }
 
         if key_event.modifiers.contains(KeyModifiers::CONTROL)
@@ -334,81 +342,73 @@ impl AutoDriveSettingsView {
         {
             self.close();
             self.app_event_tx.send(AppEvent::RequestRedraw);
-            return;
+            return true;
         }
 
         match key_event.code {
             KeyCode::Esc => {
                 self.close();
                 self.app_event_tx.send(AppEvent::RequestRedraw);
+                true
             }
             KeyCode::Up => {
-                if self.selected_index == 0 {
-                    self.selected_index = Self::option_count() - 1;
-                } else {
-                    self.selected_index -= 1;
-                }
+                self.selected_index = wrap_prev(self.selected_index, Self::option_count());
                 self.app_event_tx.send(AppEvent::RequestRedraw);
+                true
             }
             KeyCode::Down => {
-                self.selected_index = (self.selected_index + 1) % Self::option_count();
+                self.selected_index = wrap_next(self.selected_index, Self::option_count());
                 self.app_event_tx.send(AppEvent::RequestRedraw);
+                true
             }
             KeyCode::Left => {
                 if self.selected_index == 3 {
                     self.cycle_continue_mode(false);
                     self.app_event_tx.send(AppEvent::RequestRedraw);
+                    true
+                } else {
+                    false
                 }
             }
             KeyCode::Right => {
                 if self.selected_index == 3 {
                     self.cycle_continue_mode(true);
                     self.app_event_tx.send(AppEvent::RequestRedraw);
+                    true
+                } else {
+                    false
                 }
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
                 self.toggle_selected();
                 self.app_event_tx.send(AppEvent::RequestRedraw);
-            }
-            _ => {}
-        }
-    }
-
-    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        match mouse_event.kind {
-            MouseEventKind::Moved => {
-                let Some(row) = self.option_at_position(area, mouse_event) else {
-                    return false;
-                };
-                if self.selected_index == row {
-                    return false;
-                }
-                self.selected_index = row;
-                true
-            }
-            MouseEventKind::Down(MouseButton::Left) => {
-                let Some(row) = self.option_at_position(area, mouse_event) else {
-                    return false;
-                };
-                self.selected_index = row;
-                self.toggle_selected();
-                self.app_event_tx.send(AppEvent::RequestRedraw);
-                true
-            }
-            MouseEventKind::ScrollUp => {
-                if self.selected_index == 0 {
-                    self.selected_index = Self::option_count() - 1;
-                } else {
-                    self.selected_index -= 1;
-                }
-                true
-            }
-            MouseEventKind::ScrollDown => {
-                self.selected_index = (self.selected_index + 1) % Self::option_count();
                 true
             }
             _ => false,
         }
+    }
+
+    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        self.handle_key_event_impl(key_event)
+    }
+
+    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let mut selected = self.selected_index;
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            Self::option_count(),
+            |x, y| self.option_at_position(area, x, y),
+            SelectableListMouseConfig::default(),
+        );
+        self.selected_index = selected;
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            self.toggle_selected();
+            self.app_event_tx.send(AppEvent::RequestRedraw);
+        }
+
+        result.handled()
     }
 
     pub fn is_view_complete(&self) -> bool {
@@ -417,58 +417,29 @@ impl AutoDriveSettingsView {
 }
 
 impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
-    fn handle_key_event(&mut self, pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
-            return;
-        }
+    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+        let _ = self.handle_key_event_impl(key_event);
+    }
 
-        if key_event.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'))
-        {
-            self.close();
-            pane.request_redraw();
-            return;
-        }
-
-        match key_event.code {
-            KeyCode::Esc => {
-                self.close();
-                pane.request_redraw();
-            }
-            KeyCode::Up => {
-                if self.selected_index == 0 {
-                    self.selected_index = Self::option_count() - 1;
-                } else {
-                    self.selected_index -= 1;
-                }
-                pane.request_redraw();
-            }
-            KeyCode::Down => {
-                self.selected_index = (self.selected_index + 1) % Self::option_count();
-                pane.request_redraw();
-            }
-            KeyCode::Left => {
-                if self.selected_index == 3 {
-                    self.cycle_continue_mode(false);
-                    pane.request_redraw();
-                }
-            }
-            KeyCode::Right => {
-                if self.selected_index == 3 {
-                    self.cycle_continue_mode(true);
-                    pane.request_redraw();
-                }
-            }
-            KeyCode::Enter | KeyCode::Char(' ') => {
-                self.toggle_selected();
-                pane.request_redraw();
-            }
-            _ => {}
-        }
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_impl(key_event))
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
         9
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {

@@ -11,6 +11,7 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::ui_interaction::redraw_if;
 use super::{BottomPane, CancellationEvent};
 
 const MAX_VISIBLE_LIST_ROWS: usize = 12;
@@ -484,22 +485,53 @@ impl UndoTimelineView {
             ]),
         ]
     }
-}
 
-impl<'a> BottomPaneView<'a> for UndoTimelineView {
-    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         match key_event.code {
-            KeyCode::Up => self.move_up(),
-            KeyCode::Down => self.move_down(),
-            KeyCode::PageUp => self.page_up(),
-            KeyCode::PageDown => self.page_down(),
-            KeyCode::Home => self.go_home(),
-            KeyCode::End => self.go_end(),
-            KeyCode::Enter => self.confirm(),
-            KeyCode::Esc => self.is_complete = true,
-            KeyCode::Char(' ') => self.toggle_files(),
-            KeyCode::Char('c') | KeyCode::Char('C') => self.toggle_conversation(),
-            KeyCode::Char('f') | KeyCode::Char('F') => self.toggle_files(),
+            KeyCode::Up => {
+                self.move_up();
+                true
+            }
+            KeyCode::Down => {
+                self.move_down();
+                true
+            }
+            KeyCode::PageUp => {
+                self.page_up();
+                true
+            }
+            KeyCode::PageDown => {
+                self.page_down();
+                true
+            }
+            KeyCode::Home => {
+                self.go_home();
+                true
+            }
+            KeyCode::End => {
+                self.go_end();
+                true
+            }
+            KeyCode::Enter => {
+                self.confirm();
+                true
+            }
+            KeyCode::Esc => {
+                self.is_complete = true;
+                true
+            }
+            KeyCode::Char(' ') => {
+                self.toggle_files();
+                true
+            }
+            KeyCode::Char('c') | KeyCode::Char('C') => {
+                self.toggle_conversation();
+                true
+            }
+            KeyCode::Char('f') | KeyCode::Char('F') => {
+                self.toggle_files();
+                true
+            }
             KeyCode::Tab => {
                 if let Some(entry) = self.selected_entry() {
                     if entry.conversation_available && !entry.files_available {
@@ -512,11 +544,32 @@ impl<'a> BottomPaneView<'a> for UndoTimelineView {
                         self.toggle_files();
                     }
                 }
+                true
             }
-            KeyCode::Right if key_event.modifiers.contains(KeyModifiers::CONTROL) => self.toggle_conversation(),
-            KeyCode::Left if key_event.modifiers.contains(KeyModifiers::CONTROL) => self.toggle_files(),
-            _ => {}
+            KeyCode::Right if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.toggle_conversation();
+                true
+            }
+            KeyCode::Left if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.toggle_files();
+                true
+            }
+            _ => false,
         }
+    }
+}
+
+impl<'a> BottomPaneView<'a> for UndoTimelineView {
+    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+        let _ = self.handle_key_event_direct(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
     }
 
     fn is_complete(&self) -> bool {

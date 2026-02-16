@@ -1,4 +1,6 @@
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthChar;
+use unicode_width::UnicodeWidthStr;
 
 /// Truncate a tool result to fit within the given height and width. If the text is valid JSON, we format it in a
 /// compact way before truncating. This is a best-effort approach that may not work perfectly for text where one
@@ -81,5 +83,150 @@ pub(crate) fn truncate_text(text: &str, max_graphemes: usize) -> String {
         text[..byte_index].to_string()
     } else {
         text.to_string()
+    }
+}
+
+/// Truncate by character count and append a single ellipsis when truncated.
+///
+/// Guarantees returned character count is at most `max_chars` unless
+/// `max_chars == 0`, in which case an empty string is returned.
+pub(crate) fn truncate_chars_with_ellipsis(text: &str, max_chars: usize) -> String {
+    if max_chars == 0 {
+        return String::new();
+    }
+
+    let char_count = text.chars().count();
+    if char_count <= max_chars {
+        return text.to_string();
+    }
+
+    if max_chars == 1 {
+        return "…".to_string();
+    }
+
+    let keep = max_chars.saturating_sub(1);
+    let mut out = String::with_capacity(max_chars);
+    out.extend(text.chars().take(keep));
+    out.push('…');
+    out
+}
+
+/// Truncate by character count and append an ellipsis *after* the kept text.
+///
+/// This differs from [`truncate_chars_with_ellipsis`] by keeping up to
+/// `max_chars` characters before appending `…`, so the result can be one
+/// character longer than `max_chars`.
+pub(crate) fn truncate_chars_append_ellipsis(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_string();
+    }
+    let mut out: String = text.chars().take(max_chars).collect();
+    out.push('…');
+    out
+}
+
+/// Truncate to terminal display width (Unicode-aware), without padding.
+pub(crate) fn truncate_to_display_width(text: &str, max_width: usize) -> String {
+    if max_width == 0 {
+        return String::new();
+    }
+
+    if UnicodeWidthStr::width(text) <= max_width {
+        return text.to_string();
+    }
+
+    let mut out = String::new();
+    let mut width = 0usize;
+    for ch in text.chars() {
+        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(1);
+        if width + ch_width > max_width {
+            break;
+        }
+        out.push(ch);
+        width += ch_width;
+        if width == max_width {
+            break;
+        }
+    }
+    out
+}
+
+/// Truncate to display width, appending `suffix` when truncation occurs.
+///
+/// If `max_width` is too small to include `suffix`, this falls back to plain
+/// width truncation without suffix.
+pub(crate) fn truncate_to_display_width_with_suffix(
+    text: &str,
+    max_width: usize,
+    suffix: &str,
+) -> String {
+    if max_width == 0 {
+        return String::new();
+    }
+    if UnicodeWidthStr::width(text) <= max_width {
+        return text.to_string();
+    }
+
+    let suffix_width = UnicodeWidthStr::width(suffix);
+    if suffix_width == 0 || max_width <= suffix_width {
+        return truncate_to_display_width(text, max_width);
+    }
+
+    let mut out = truncate_to_display_width(text, max_width.saturating_sub(suffix_width));
+    out.push_str(suffix);
+    out
+}
+
+/// Pad a string with spaces so its display width is exactly `width`.
+///
+/// If the input is wider than `width`, it is truncated first.
+pub(crate) fn pad_to_display_width(text: &str, width: usize) -> String {
+    if width == 0 {
+        return String::new();
+    }
+
+    let truncated = if UnicodeWidthStr::width(text) > width {
+        truncate_to_display_width(text, width)
+    } else {
+        text.to_string()
+    };
+    let current = UnicodeWidthStr::width(truncated.as_str());
+    if current >= width {
+        return truncated;
+    }
+
+    let mut out = truncated;
+    out.push_str(&" ".repeat(width - current));
+    out
+}
+
+/// Truncate to a UTF-8 byte budget while preserving valid char boundaries.
+///
+/// Appends a Unicode ellipsis when truncation occurs and there is enough room.
+pub(crate) fn truncate_utf8_bytes_with_ellipsis(text: &str, max_bytes: usize) -> String {
+    const ELLIPSIS: &str = "…";
+    let ellipsis_bytes = ELLIPSIS.len();
+
+    if max_bytes == 0 {
+        return String::new();
+    }
+    if text.len() <= max_bytes {
+        return text.to_string();
+    }
+
+    let slice_limit = max_bytes.saturating_sub(ellipsis_bytes);
+    let safe_boundary = text
+        .char_indices()
+        .map(|(idx, _)| idx)
+        .chain(std::iter::once(text.len()))
+        .take_while(|idx| *idx <= slice_limit)
+        .last()
+        .unwrap_or(0);
+
+    let safe_slice = text.get(..safe_boundary).unwrap_or("");
+    if max_bytes < ellipsis_bytes {
+        safe_slice.to_string()
+    } else {
+        format!("{safe_slice}{ELLIPSIS}")
     }
 }

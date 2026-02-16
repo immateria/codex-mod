@@ -1457,6 +1457,7 @@ fn convert_mcp_servers(
                         },
                         startup_timeout_sec: None,
                         tool_timeout_sec: None,
+                        disabled_tools: Vec::new(),
                     },
                 );
             }

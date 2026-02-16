@@ -213,6 +213,17 @@ pub enum Op {
     /// Reply is delivered via `EventMsg::McpListToolsResponse`.
     ListMcpTools,
 
+    /// Refresh MCP tool inventory and exclusions, then return updated tool lists.
+    /// Reply is delivered via `EventMsg::McpListToolsResponse`.
+    RefreshMcpTools,
+
+    /// Update runtime MCP tool enablement for a specific server/tool pair.
+    SetMcpToolEnabled {
+        server: String,
+        tool: String,
+        enable: bool,
+    },
+
     /// Request the list of available custom prompts.
     ListCustomPrompts,
 
@@ -1500,6 +1511,8 @@ pub struct McpListToolsResponseEvent {
     pub tools: std::collections::HashMap<String, McpTool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server_tools: Option<std::collections::HashMap<String, Vec<String>>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub server_disabled_tools: Option<std::collections::HashMap<String, Vec<String>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server_failures: Option<std::collections::HashMap<String, McpServerFailure>>,
 }

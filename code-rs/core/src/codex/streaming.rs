@@ -705,6 +705,11 @@ pub(super) async fn submission_loop(
                         ));
                     }
                 }
+                for (server_name, server_cfg) in &config.mcp_servers {
+                    for tool_name in &server_cfg.disabled_tools {
+                        excluded_tools.insert((server_name.clone(), tool_name.clone()));
+                    }
+                }
 
                 if let Some(old_session_arc) = old_session {
                     old_session_arc.shutdown_mcp_clients().await;
@@ -1202,6 +1207,8 @@ pub(super) async fn submission_loop(
 
                 let tools = sess.mcp_connection_manager.list_all_tools();
                 let server_tools = sess.mcp_connection_manager.list_tools_by_server();
+                let server_disabled_tools =
+                    sess.mcp_connection_manager.list_disabled_tools_by_server();
                 let server_failures = sess.mcp_connection_manager.list_server_failures();
 
                 let event = Event {
@@ -1210,6 +1217,79 @@ pub(super) async fn submission_loop(
                     msg: EventMsg::McpListToolsResponse(McpListToolsResponseEvent {
                         tools,
                         server_tools: Some(server_tools),
+                        server_disabled_tools: Some(server_disabled_tools),
+                        server_failures: Some(server_failures),
+                    }),
+                    order: None,
+                };
+
+                if let Err(e) = tx_event.send(event).await {
+                    warn!("failed to send McpListToolsResponse event: {e}");
+                }
+            }
+            Op::RefreshMcpTools => {
+                let sess = match sess.as_ref() {
+                    Some(sess) => Arc::clone(sess),
+                    None => {
+                        send_no_session_event(sub.id).await;
+                        continue;
+                    }
+                };
+
+                sess.mcp_connection_manager.refresh_tools().await;
+
+                let tools = sess.mcp_connection_manager.list_all_tools();
+                let server_tools = sess.mcp_connection_manager.list_tools_by_server();
+                let server_disabled_tools =
+                    sess.mcp_connection_manager.list_disabled_tools_by_server();
+                let server_failures = sess.mcp_connection_manager.list_server_failures();
+
+                let event = Event {
+                    id: sub.id.clone(),
+                    event_seq: 0,
+                    msg: EventMsg::McpListToolsResponse(McpListToolsResponseEvent {
+                        tools,
+                        server_tools: Some(server_tools),
+                        server_disabled_tools: Some(server_disabled_tools),
+                        server_failures: Some(server_failures),
+                    }),
+                    order: None,
+                };
+
+                if let Err(e) = tx_event.send(event).await {
+                    warn!("failed to send McpListToolsResponse event: {e}");
+                }
+            }
+            Op::SetMcpToolEnabled {
+                server,
+                tool,
+                enable,
+            } => {
+                let sess = match sess.as_ref() {
+                    Some(sess) => Arc::clone(sess),
+                    None => {
+                        send_no_session_event(sub.id).await;
+                        continue;
+                    }
+                };
+
+                sess.mcp_connection_manager
+                    .set_tool_enabled(&server, &tool, enable)
+                    .await;
+
+                let tools = sess.mcp_connection_manager.list_all_tools();
+                let server_tools = sess.mcp_connection_manager.list_tools_by_server();
+                let server_disabled_tools =
+                    sess.mcp_connection_manager.list_disabled_tools_by_server();
+                let server_failures = sess.mcp_connection_manager.list_server_failures();
+
+                let event = Event {
+                    id: sub.id.clone(),
+                    event_seq: 0,
+                    msg: EventMsg::McpListToolsResponse(McpListToolsResponseEvent {
+                        tools,
+                        server_tools: Some(server_tools),
+                        server_disabled_tools: Some(server_disabled_tools),
                         server_failures: Some(server_failures),
                     }),
                     order: None,
@@ -9354,8 +9434,8 @@ fn format_exec_output_str(exec_output: &ExecToolCallOutput) -> String {
     if let Some(truncated_before_bytes) = aggregated_output.truncated_before_bytes {
         let note = format!(
             "… clipped {} from the start of command output (showing last {}).\n\n",
-            format_bytes(truncated_before_bytes),
-            format_bytes(EXEC_CAPTURE_MAX_BYTES),
+            crate::util::format_bytes(truncated_before_bytes),
+            crate::util::format_bytes(EXEC_CAPTURE_MAX_BYTES),
         );
         formatted_output = format!("{note}{formatted_output}");
     }
@@ -9441,22 +9521,6 @@ fn format_exec_output_with_limit(
 
     #[expect(clippy::expect_used)]
     serde_json::to_string(&payload).expect("serialize ExecOutput")
-}
-
-fn format_bytes(bytes: usize) -> String {
-    const KIB: f64 = 1024.0;
-    const MIB: f64 = KIB * 1024.0;
-    const GIB: f64 = MIB * 1024.0;
-    let bytes_f = bytes as f64;
-    if bytes >= GIB as usize {
-        format!("{:.1} GiB", bytes_f / GIB)
-    } else if bytes >= MIB as usize {
-        format!("{:.1} MiB", bytes_f / MIB)
-    } else if bytes >= KIB as usize {
-        format!("{:.1} KiB", bytes_f / KIB)
-    } else {
-        format!("{bytes} B")
-    }
 }
 
 pub(super) fn get_last_assistant_message_from_turn(responses: &[ResponseItem]) -> Option<String> {

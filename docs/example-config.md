@@ -193,6 +193,35 @@ disable_paste_burst = false
 # Track Windows onboarding acknowledgement (Windows only). Default: false
 windows_wsl_setup_acknowledged = false
 
+[tui.branding]
+# Optional custom title shown in the top status header and intro glitch animation.
+# Example: "Immateria CLI" | "Codex Termux"
+title = "Code"
+
+[tui.header]
+# Show the primary top header line. Default: true
+show_top_line = true
+
+# Optional custom text for the primary header line.
+# Supported placeholders:
+# {title} {model} {shell} {reasoning} {directory} {branch} {mcp}
+# top_line_text = "{title} • {model} • {shell}"
+
+# Show the line under the primary header line. Default: false
+show_bottom_line = false
+
+# Optional custom text for the lower line when enabled.
+# bottom_line_text = "{directory} • {branch}"
+
+# Hover styling for interactive header segments. Default: background
+# Allowed values: background | underline | none
+# hover_style = "background"
+
+# Limits panel presentation preferences.
+[tui.limits]
+# auto (default) | single-column
+layout_mode = "auto"
+
 # External notifier program (argv array). When unset: disabled.
 # Example: notify = ["notify-send", "Codex"]
 # notify = [ ]
@@ -221,6 +250,15 @@ chatgpt_base_url = "https://chatgpt.com/backend-api/"
 
 # Preferred store for MCP OAuth credentials: auto (default) | file | keyring
 mcp_oauth_credentials_store = "auto"
+
+# Optional account store path overrides.
+# These control where connected-account records are read/written.
+# Paths can be absolute or relative to CODE_HOME.
+[accounts]
+# Ordered candidate paths used for reads. First existing file wins.
+read_paths = ["auth_accounts.json"]
+# Single path used for writes/updates.
+write_path = "auth_accounts.json"
 
 ################################################################################
 # Project Documentation Controls

@@ -10,6 +10,7 @@ use crate::bottom_pane::{
     SettingsSection,
 };
 use crate::live_wrap::take_prefix_by_width;
+use crate::ui_interaction::ListWindow;
 use crate::util::buffer::fill_rect;
 
 use super::types::{LABEL_COLUMN_WIDTH, SettingsHelpOverlay};
@@ -113,6 +114,9 @@ impl SettingsOverlayView {
         );
 
         if self.overview_rows.is_empty() {
+            *self.last_overview_list_area.borrow_mut() = area;
+            *self.last_overview_line_sections.borrow_mut() = Vec::new();
+            *self.last_overview_scroll.borrow_mut() = 0;
             let line = Line::from(vec![Span::styled(
                 "No settings available.",
                 Style::default().fg(crate::colors::text_dim()),
@@ -126,6 +130,7 @@ impl SettingsOverlayView {
         let active_section = self.active_section();
         let content_width = area.width as usize;
         let mut lines: Vec<Line<'static>> = Vec::new();
+        let mut line_sections: Vec<Option<SettingsSection>> = Vec::new();
         let mut selected_range: Option<(usize, usize)> = None;
 
         for (idx, row) in self.overview_rows.iter().enumerate() {
@@ -136,13 +141,16 @@ impl SettingsOverlayView {
 
             if row.section == SettingsSection::Limits && !lines.is_empty() {
                 lines.push(Line::from(""));
+                line_sections.push(None);
                 let dash_count = content_width.saturating_sub(2);
                 if dash_count > 0 {
                     lines.push(Line::from(vec![Span::styled(
                         format!("  {}", "─".repeat(dash_count)),
                         Style::default().fg(crate::colors::border_dim()),
                     )]));
+                    line_sections.push(None);
                     lines.push(Line::from(""));
+                    line_sections.push(None);
                 }
             }
 
@@ -186,6 +194,7 @@ impl SettingsOverlayView {
                 );
             }
             lines.push(summary_line);
+            line_sections.push(Some(row.section));
 
             let info_text = row.section.help_line();
             let info_trimmed = self.trim_with_ellipsis(info_text, content_width.saturating_sub(8));
@@ -203,6 +212,7 @@ impl SettingsOverlayView {
                 );
             }
             lines.push(info_line);
+            line_sections.push(Some(row.section));
 
             if is_active {
                 let row_end = lines.len().saturating_sub(1);
@@ -211,6 +221,7 @@ impl SettingsOverlayView {
 
             if idx != self.overview_rows.len().saturating_sub(1) {
                 lines.push(Line::from(""));
+                line_sections.push(None);
                 if matches!(row.section, SettingsSection::Updates) {
                     let dash_count = content_width.saturating_sub(2);
                     if dash_count > 0 {
@@ -218,7 +229,9 @@ impl SettingsOverlayView {
                             format!("  {}", "─".repeat(dash_count)),
                             Style::default().fg(crate::colors::border_dim()),
                         )]));
+                        line_sections.push(None);
                         lines.push(Line::from(""));
+                        line_sections.push(None);
                     }
                 }
             }
@@ -249,6 +262,9 @@ impl SettingsOverlayView {
             }
         }
         let scroll = scroll.min(u16::MAX as usize) as u16;
+        *self.last_overview_list_area.borrow_mut() = area;
+        *self.last_overview_line_sections.borrow_mut() = line_sections;
+        *self.last_overview_scroll.borrow_mut() = scroll as usize;
 
         Paragraph::new(lines)
             .alignment(Alignment::Left)
@@ -611,17 +627,9 @@ impl SettingsOverlayView {
             .unwrap_or(0);
 
         let total = sections.len();
-        let mut start = 0usize;
-        if total > visible {
-            let half = visible / 2;
-            if selected_idx > half {
-                start = selected_idx - half;
-            }
-            if start + visible > total {
-                start = total - visible;
-            }
-        }
-        let end = (start + visible).min(total);
+        let window = ListWindow::centered(total, visible, selected_idx);
+        let start = window.start;
+        let end = window.end;
 
         // Get current hover state
         let hovered = *self.hovered_section.borrow();

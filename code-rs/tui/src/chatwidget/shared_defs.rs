@@ -666,7 +666,7 @@ struct RenderRequestSeed {
 }
 
 /// Actions that can be triggered by clicking on UI elements
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum ClickableAction {
     ShowModelSelector,
     ShowShellSelector,
@@ -710,8 +710,13 @@ pub(crate) struct ChatWidget<'a> {
     context_last_sequence: Option<u64>,
     context_browser_sequence: Option<u64>,
     config: Config,
+    mcp_tool_catalog_by_id: HashMap<String, mcp_types::Tool>,
     mcp_tools_by_server: HashMap<String, Vec<String>>,
+    mcp_disabled_tools_by_server: HashMap<String, Vec<String>>,
     mcp_server_failures: HashMap<String, McpServerFailure>,
+    /// Startup-only MCP init error summary. We keep this out of history so the
+    /// welcome intro doesn't jump when MCP status changes.
+    startup_mcp_error_summary: Option<String>,
 
     /// Optional remote-merged presets list delivered asynchronously.
     /// When absent, the TUI falls back to built-in presets.
@@ -991,6 +996,8 @@ pub(crate) struct ChatWidget<'a> {
     resume_picker_loading: bool,
     // Clickable regions for mouse interaction (tracked during render, checked on click)
     clickable_regions: RefCell<Vec<ClickableRegion>>,
+    // Current hovered header action (for hover styling on top status line).
+    hovered_clickable_action: RefCell<Option<ClickableAction>>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -2097,4 +2104,3 @@ pub(crate) struct AgentUpdateRequest {
     pub(crate) description: Option<String>,
     pub(crate) command: String,
 }
-

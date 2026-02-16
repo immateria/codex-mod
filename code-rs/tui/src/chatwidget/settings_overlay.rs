@@ -56,6 +56,12 @@ pub(crate) struct SettingsOverlayView {
     last_content_area: RefCell<Rect>,
     /// Exact sidebar rectangle from the last render pass for hover hit testing.
     last_sidebar_area: RefCell<Rect>,
+    /// Last rendered overview list area for menu-mode mouse hit testing.
+    last_overview_list_area: RefCell<Rect>,
+    /// Section mapping for each rendered overview list line (None for separators).
+    last_overview_line_sections: RefCell<Vec<Option<SettingsSection>>>,
+    /// Vertical scroll offset used for the overview list.
+    last_overview_scroll: RefCell<usize>,
     /// Last panel inner area where content is rendered (for mouse forwarding)
     last_panel_inner_area: RefCell<Rect>,
     /// Currently hovered section in sidebar (for visual feedback)
@@ -87,6 +93,9 @@ impl SettingsOverlayView {
             chrome_content: None,
             last_content_area: RefCell::new(Rect::default()),
             last_sidebar_area: RefCell::new(Rect::default()),
+            last_overview_list_area: RefCell::new(Rect::default()),
+            last_overview_line_sections: RefCell::new(Vec::new()),
+            last_overview_scroll: RefCell::new(0),
             last_panel_inner_area: RefCell::new(Rect::default()),
             hovered_section: RefCell::new(None),
         }
@@ -168,6 +177,10 @@ impl SettingsOverlayView {
         self.accounts_content = Some(content);
     }
 
+    pub(crate) fn accounts_content_mut(&mut self) -> Option<&mut AccountsSettingsContent> {
+        self.accounts_content.as_mut()
+    }
+
     pub(crate) fn set_prompts_content(&mut self, content: PromptsSettingsContent) {
         self.prompts_content = Some(content);
     }
@@ -178,6 +191,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn set_mcp_content(&mut self, content: McpSettingsContent) {
         self.mcp_content = Some(content);
+    }
+
+    pub(crate) fn mcp_content(&self) -> Option<&McpSettingsContent> {
+        self.mcp_content.as_ref()
     }
 
     pub(crate) fn set_agents_content(&mut self, content: AgentsSettingsContent) {
@@ -227,6 +244,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn limits_content_mut(&mut self) -> Option<&mut LimitsSettingsContent> {
         self.limits_content.as_mut()
+    }
+
+    pub(crate) fn limits_content(&self) -> Option<&LimitsSettingsContent> {
+        self.limits_content.as_ref()
     }
 
     pub(crate) fn set_section(&mut self, section: SettingsSection) -> bool {

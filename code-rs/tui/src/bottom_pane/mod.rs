@@ -41,8 +41,6 @@ mod popup_consts;
 pub(crate) mod agent_editor_view;
 pub(crate) mod model_selection_view;
 pub(crate) mod shell_selection_view;
-mod scroll_state;
-mod selection_popup_common;
 pub mod list_selection_view;
 pub(crate) use list_selection_view::SelectionAction;
 pub(crate) use custom_prompt_view::CustomPromptView;
@@ -53,8 +51,6 @@ pub mod agents_settings_view;
 pub mod mcp_settings_view;
 mod login_accounts_view;
 // no direct use of list_selection_view or its items here
-mod textarea;
-pub mod form_text_field;
 pub mod prompts_settings_view;
 pub mod skills_settings_view;
 mod theme_selection_view;
@@ -275,13 +271,6 @@ impl BottomPane<'_> {
         self.request_redraw_with_height_change();
     }
 
-    pub fn show_account_switch_settings(&mut self, view: AccountSwitchSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
-    }
-
     pub fn show_update_settings(&mut self, view: UpdateSettingsView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
@@ -485,7 +474,7 @@ impl BottomPane<'_> {
                 {
                     auto_view.handle_active_key_event(self, key_event)
                 } else {
-                    view.handle_key_event(self, key_event);
+                    let _ = view.handle_key_event_with_result(self, key_event);
                     true
                 };
 
@@ -512,17 +501,21 @@ impl BottomPane<'_> {
                 return self.handle_composer_key_event(key_event);
             }
 
-            view.handle_key_event(self, key_event);
-            if !view.is_complete() {
+            let update = view.handle_key_event_with_result(self, key_event);
+            let is_complete = view.is_complete();
+            if !is_complete {
                 self.active_view = Some(view);
                 self.active_view_kind = kind;
             } else {
                 self.active_view_kind = ActiveViewKind::None;
                 self.set_standard_terminal_hint(None);
             }
-            // Don't create a status view - keep composer visible
-            // Debounce view navigation redraws to reduce render thrash
-            self.request_redraw();
+            let needs_redraw = matches!(update, ConditionalUpdate::NeedsRedraw) || is_complete;
+            if needs_redraw {
+                // Don't create a status view - keep composer visible.
+                // Debounce view navigation redraws to reduce render thrash.
+                self.request_redraw();
+            }
 
             InputResult::None
         } else {

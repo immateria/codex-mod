@@ -2,13 +2,22 @@ use std::sync::{Arc, Mutex};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
+use crate::ui_interaction::{
+    RelativeHitRegion,
+    redraw_if,
+    route_selectable_regions_mouse_with_config,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+    wrap_next,
+    wrap_prev,
+};
 use crate::chatwidget::BackgroundOrderTicket;
 use crate::colors;
 use crate::util::buffer::fill_rect;
 use super::bottom_pane_view::BottomPaneView;
 use super::bottom_pane_view::ConditionalUpdate;
 use super::BottomPane;
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Margin, Rect};
 use ratatui::prelude::Widget;
@@ -51,6 +60,12 @@ pub(crate) struct UpdateSettingsInit {
 
 impl UpdateSettingsView {
     const PANEL_TITLE: &'static str = "Upgrade";
+    const FIELD_COUNT: usize = 3;
+    const HIT_REGIONS: [RelativeHitRegion; Self::FIELD_COUNT] = [
+        RelativeHitRegion::new(0, 1, 1),
+        RelativeHitRegion::new(1, 2, 1),
+        RelativeHitRegion::new(2, 3, 1),
+    ];
 
     pub fn new(init: UpdateSettingsInit) -> Self {
         let UpdateSettingsInit {
@@ -90,35 +105,35 @@ impl UpdateSettingsView {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
 
-            if self.command.is_none() {
-                if let Some(instructions) = &self.manual_instructions {
-                    self.app_event_tx
-                        .send_background_event_with_ticket(&self.ticket, instructions.clone());
-                }
-                return;
+        if self.command.is_none() {
+            if let Some(instructions) = &self.manual_instructions {
+                self.app_event_tx
+                    .send_background_event_with_ticket(&self.ticket, instructions.clone());
             }
+            return;
+        }
 
-            if state.checking {
-                self.app_event_tx.send_background_event_with_ticket(
-                    &self.ticket,
-                    "Still checking for updates…".to_string(),
-                );
-                return;
-            }
-            if let Some(err) = &state.error {
-                self.app_event_tx.send_background_event_with_ticket(
-                    &self.ticket,
-                    format!("❌ /update failed: {err}"),
-                );
-                return;
-            }
-            let Some(latest) = state.latest_version else {
-                self.app_event_tx.send_background_event_with_ticket(
-                    &self.ticket,
-                    "✅ Code is already up to date.".to_string(),
-                );
-                return;
-            };
+        if state.checking {
+            self.app_event_tx.send_background_event_with_ticket(
+                &self.ticket,
+                "Still checking for updates…".to_string(),
+            );
+            return;
+        }
+        if let Some(err) = &state.error {
+            self.app_event_tx.send_background_event_with_ticket(
+                &self.ticket,
+                format!("❌ /update failed: {err}"),
+            );
+            return;
+        }
+        let Some(latest) = state.latest_version else {
+            self.app_event_tx.send_background_event_with_ticket(
+                &self.ticket,
+                "✅ Code is already up to date.".to_string(),
+            );
+            return;
+        };
 
         let Some(command) = self.command.clone() else {
             return;
@@ -245,27 +260,6 @@ impl UpdateSettingsView {
         lines
     }
 
-    fn selectable_row_at(&self, area: Rect, mouse_event: MouseEvent) -> Option<usize> {
-        if area.width == 0 || area.height == 0 {
-            return None;
-        }
-        if mouse_event.column < area.x
-            || mouse_event.column >= area.x.saturating_add(area.width)
-            || mouse_event.row < area.y
-            || mouse_event.row >= area.y.saturating_add(area.height)
-        {
-            return None;
-        }
-
-        let rel_y = mouse_event.row.saturating_sub(area.y);
-        match rel_y {
-            1 => Some(0),
-            2 => Some(1),
-            3 => Some(2),
-            _ => None,
-        }
-    }
-
     fn activate_selected(&mut self) {
         match self.field {
             0 => self.invoke_run_upgrade(),
@@ -274,70 +268,64 @@ impl UpdateSettingsView {
         }
     }
 
-    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) {
-        const FIELD_COUNT: usize = 3;
-
-        match key_event.code {
-            KeyCode::Esc => self.is_complete = true,
+    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        let handled = match key_event.code {
+            KeyCode::Esc => {
+                self.is_complete = true;
+                true
+            }
             KeyCode::Tab | KeyCode::Down => {
-                self.field = (self.field + 1) % FIELD_COUNT;
+                self.field = wrap_next(self.field, Self::FIELD_COUNT);
+                true
             }
             KeyCode::BackTab | KeyCode::Up => {
-                if self.field == 0 {
-                    self.field = FIELD_COUNT - 1;
-                } else {
-                    self.field -= 1;
-                }
+                self.field = wrap_prev(self.field, Self::FIELD_COUNT);
+                true
             }
             KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if self.field == 1 => {
                 self.toggle_auto();
+                true
             }
             KeyCode::Enter => match self.field {
-                0 => self.invoke_run_upgrade(),
-                1 => self.toggle_auto(),
-                _ => self.is_complete = true,
+                0 => {
+                    self.invoke_run_upgrade();
+                    true
+                }
+                1 => {
+                    self.toggle_auto();
+                    true
+                }
+                _ => {
+                    self.is_complete = true;
+                    true
+                }
             },
-            _ => {}
+            _ => false,
+        };
+        if handled {
+            self.app_event_tx.send(AppEvent::RequestRedraw);
         }
-        self.app_event_tx.send(AppEvent::RequestRedraw);
+        handled
     }
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        const FIELD_COUNT: usize = 3;
-        match mouse_event.kind {
-            MouseEventKind::Moved => {
-                let Some(row) = self.selectable_row_at(area, mouse_event) else {
-                    return false;
-                };
-                if self.field == row {
-                    return false;
-                }
-                self.field = row;
-                true
-            }
-            MouseEventKind::Down(MouseButton::Left) => {
-                let Some(row) = self.selectable_row_at(area, mouse_event) else {
-                    return false;
-                };
-                self.field = row;
-                self.activate_selected();
-                self.app_event_tx.send(AppEvent::RequestRedraw);
-                true
-            }
-            MouseEventKind::ScrollUp => {
-                if self.field == 0 {
-                    self.field = FIELD_COUNT - 1;
-                } else {
-                    self.field -= 1;
-                }
-                true
-            }
-            MouseEventKind::ScrollDown => {
-                self.field = (self.field + 1) % FIELD_COUNT;
-                true
-            }
-            _ => false,
+        let mut selected = self.field;
+        let result = route_selectable_regions_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            Self::FIELD_COUNT,
+            area,
+            &Self::HIT_REGIONS,
+            SelectableListMouseConfig::default(),
+        );
+        self.field = selected;
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            self.activate_selected();
+            self.app_event_tx.send(AppEvent::RequestRedraw);
         }
+
+        result.handled()
     }
 
     pub fn is_view_complete(&self) -> bool {
@@ -368,7 +356,24 @@ impl UpdateSettingsView {
 
 impl<'a> BottomPaneView<'a> for UpdateSettingsView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        self.handle_key_event_direct(key_event);
+        let _ = self.handle_key_event_direct(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {

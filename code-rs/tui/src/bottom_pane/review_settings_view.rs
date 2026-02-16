@@ -1,5 +1,5 @@
 use code_core::config_types::{AutoResolveAttemptLimit, ReasoningEffort};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
@@ -11,8 +11,14 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
 
-use super::bottom_pane_view::BottomPaneView;
-use super::scroll_state::ScrollState;
+use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::ui_interaction::{
+    redraw_if,
+    route_selectable_list_mouse_with_config,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+};
+use crate::components::scroll_state::ScrollState;
 use super::BottomPane;
 
 const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -650,8 +656,8 @@ impl ReviewSettingsView {
         }
     }
 
-    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) {
-        self.handle_key_event_impl(key_event);
+    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        self.handle_key_event_impl(key_event)
     }
 
     fn activate_selection_kind(&mut self, kind: SelectionKind) {
@@ -667,7 +673,7 @@ impl ReviewSettingsView {
         }
     }
 
-    fn selection_index_at(&self, mouse_event: MouseEvent, area: Rect) -> Option<usize> {
+    fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
         if area.width == 0 || area.height == 0 {
             return None;
         }
@@ -675,10 +681,10 @@ impl ReviewSettingsView {
         if inner.width == 0 || inner.height == 0 {
             return None;
         }
-        if mouse_event.column < inner.x
-            || mouse_event.column >= inner.x.saturating_add(inner.width)
-            || mouse_event.row < inner.y
-            || mouse_event.row >= inner.y.saturating_add(inner.height)
+        if x < inner.x
+            || x >= inner.x.saturating_add(inner.width)
+            || y < inner.y
+            || y >= inner.y.saturating_add(inner.height)
         {
             return None;
         }
@@ -696,7 +702,7 @@ impl ReviewSettingsView {
             return None;
         }
 
-        let rel_y = mouse_event.row.saturating_sub(inner.y) as usize;
+        let rel_y = y.saturating_sub(inner.y) as usize;
         if rel_y < header_height || rel_y >= header_height + list_height {
             return None;
         }
@@ -717,55 +723,37 @@ impl ReviewSettingsView {
         }
         self.state.clamp_selection(total);
 
-        match mouse_event.kind {
-            MouseEventKind::Moved => {
-                let Some(next) = self.selection_index_at(mouse_event, area) else {
-                    return false;
-                };
-                if self.state.selected_idx == Some(next) {
-                    return false;
-                }
-                self.state.selected_idx = Some(next);
-                let visible_budget = self.visible_budget(total);
-                self.state.ensure_visible(total, visible_budget);
-                true
+        let mut selected = self.state.selected_idx.unwrap_or(0);
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            total,
+            |x, y| self.selection_index_at(area, x, y),
+            SelectableListMouseConfig::default(),
+        );
+        self.state.selected_idx = Some(selected);
+
+        if matches!(result, SelectableListMouseResult::Activated)
+            && let Some(kind) = selection_kinds.get(selected).copied() {
+                self.activate_selection_kind(kind);
             }
-            MouseEventKind::Down(MouseButton::Left) => {
-                let Some(next) = self.selection_index_at(mouse_event, area) else {
-                    return false;
-                };
-                self.state.selected_idx = Some(next);
-                if let Some(kind) = selection_kinds.get(next).copied() {
-                    self.activate_selection_kind(kind);
-                }
-                let visible_budget = self.visible_budget(total);
-                self.state.ensure_visible(total, visible_budget);
-                true
-            }
-            MouseEventKind::ScrollUp => {
-                self.state.move_up_wrap(total);
-                let visible_budget = self.visible_budget(total);
-                self.state.ensure_visible(total, visible_budget);
-                true
-            }
-            MouseEventKind::ScrollDown => {
-                self.state.move_down_wrap(total);
-                let visible_budget = self.visible_budget(total);
-                self.state.ensure_visible(total, visible_budget);
-                true
-            }
-            _ => false,
+        if result.handled() {
+            let visible_budget = self.visible_budget(total);
+            self.state.ensure_visible(total, visible_budget);
         }
+
+        result.handled()
     }
 
-    fn handle_key_event_impl(&mut self, key_event: KeyEvent) {
+    fn handle_key_event_impl(&mut self, key_event: KeyEvent) -> bool {
         let (_, _, selection_kinds) = self.build_rows();
         let mut total = selection_kinds.len();
         if total == 0 {
             if matches!(key_event.code, KeyCode::Esc) {
                 self.is_complete = true;
+                return true;
             }
-            return;
+            return false;
         }
         if self.state.selected_idx.is_none() {
             self.state.selected_idx = Some(0);
@@ -778,13 +766,14 @@ impl ReviewSettingsView {
             .selected_idx
             .and_then(|sel| selection_kinds.get(sel))
             .copied();
-
-        match key_event {
+        let handled = match key_event {
             KeyEvent { code: KeyCode::Up, .. } => {
                 self.state.move_up_wrap(total);
+                true
             }
             KeyEvent { code: KeyCode::Down, .. } => {
                 self.state.move_down_wrap(total);
+                true
             }
             KeyEvent { code: KeyCode::Left, .. } => {
                 if let Some(kind) = current_kind {
@@ -801,6 +790,7 @@ impl ReviewSettingsView {
                         | SelectionKind::AutoReviewResolveModel => {}
                     }
                 }
+                true
             }
             KeyEvent { code: KeyCode::Right, .. } => {
                 if let Some(kind) = current_kind {
@@ -817,18 +807,21 @@ impl ReviewSettingsView {
                         | SelectionKind::AutoReviewResolveModel => {}
                     }
                 }
+                true
             }
             KeyEvent { code: KeyCode::Char(' '), .. }
             | KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
                 if let Some(kind) = current_kind {
                     self.activate_selection_kind(kind);
                 }
+                true
             }
             KeyEvent { code: KeyCode::Esc, .. } => {
                 self.is_complete = true;
+                true
             }
-            _ => {}
-        }
+            _ => false,
+        };
 
         let (_, _, selection_kinds) = self.build_rows();
         total = selection_kinds.len();
@@ -840,12 +833,30 @@ impl ReviewSettingsView {
             let visible_budget = self.visible_budget(total);
             self.state.ensure_visible(total, visible_budget);
         }
+        handled
     }
 }
 
 impl<'a> BottomPaneView<'a> for ReviewSettingsView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        self.handle_key_event_impl(key_event);
+        let _ = self.handle_key_event_impl(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_impl(key_event))
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {

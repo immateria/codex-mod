@@ -2,7 +2,7 @@ use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-use crate::bottom_pane::{BottomPaneView, McpSettingsView};
+use crate::bottom_pane::{BottomPaneView, McpSettingsView, mcp_settings_view::McpSettingsViewState};
 
 use super::super::SettingsContent;
 
@@ -13,6 +13,14 @@ pub(crate) struct McpSettingsContent {
 impl McpSettingsContent {
     pub(crate) fn new(view: McpSettingsView) -> Self {
         Self { view }
+    }
+
+    pub(crate) fn snapshot_state(&self) -> McpSettingsViewState {
+        self.view.snapshot_state()
+    }
+
+    pub(crate) fn restore_state(&mut self, state: &McpSettingsViewState) {
+        self.view.restore_state(state);
     }
 }
 

@@ -21,6 +21,26 @@ pub(crate) fn backoff(attempt: u64) -> Duration {
     Duration::from_millis((base as f64 * jitter) as u64)
 }
 
+/// Format byte counts with binary units (`KiB`, `MiB`, `GiB`).
+pub fn format_bytes(bytes: usize) -> String {
+    const KIB: usize = 1024;
+    const MIB: usize = KIB * 1024;
+    const GIB: usize = MIB * 1024;
+
+    if bytes >= GIB {
+        let gib = bytes as f64 / GIB as f64;
+        format!("{gib:.1} GiB")
+    } else if bytes >= MIB {
+        let mib = bytes as f64 / MIB as f64;
+        format!("{mib:.1} MiB")
+    } else if bytes >= KIB {
+        let kib = bytes as f64 / KIB as f64;
+        format!("{kib:.1} KiB")
+    } else {
+        format!("{bytes} B")
+    }
+}
+
 /// Blocks until the given endpoint responds, pausing between attempts with
 /// exponential backoff (capped). Used to pause retries while the user is
 /// offline so we resume immediately once connectivity returns.

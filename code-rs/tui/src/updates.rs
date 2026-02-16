@@ -478,24 +478,7 @@ fn sudo_requires_manual_intervention(stderr: &str, status: Option<i32>) -> bool 
 
 fn truncate_for_log(text: &str) -> String {
     const LIMIT: usize = 256;
-    const ELLIPSIS_BYTES: usize = '…'.len_utf8();
-    if text.len() <= LIMIT {
-        return text.replace('\n', " ");
-    }
-
-    let slice_limit = LIMIT.saturating_sub(ELLIPSIS_BYTES);
-    let safe_boundary = text
-        .char_indices()
-        .map(|(idx, _)| idx)
-        .chain(std::iter::once(text.len()))
-        .take_while(|idx| *idx <= slice_limit)
-        .last()
-        .unwrap_or(0);
-
-    let safe_slice = text.get(..safe_boundary).unwrap_or("");
-    let mut truncated = safe_slice.to_string();
-    truncated.push('…');
-    truncated.replace('\n', " ")
+    crate::text_formatting::truncate_utf8_bytes_with_ellipsis(text, LIMIT).replace('\n', " ")
 }
 
 

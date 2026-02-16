@@ -1,4 +1,6 @@
 use super::*;
+use crate::bottom_pane::bottom_pane_view::ConditionalUpdate;
+use crate::ui_interaction::redraw_if;
 
 impl<'a> BottomPaneView<'a> for ThemeSelectionView {
     fn handle_paste(
@@ -62,7 +64,24 @@ impl<'a> BottomPaneView<'a> for ThemeSelectionView {
     }
 
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        self.process_key_event(key_event);
+        let _ = self.handle_key_event_direct(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {

@@ -19,7 +19,8 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 
 use super::BottomPane;
-use super::bottom_pane_view::BottomPaneView;
+use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::ui_interaction::redraw_if;
 
 /// Interactive UI for selecting text verbosity level
 pub(crate) struct VerbositySelectionView {
@@ -83,10 +84,8 @@ impl VerbositySelectionView {
         self.app_event_tx
             .send(AppEvent::UpdateTextVerbosity(self.selected_verbosity));
     }
-}
 
-impl<'a> BottomPaneView<'a> for VerbositySelectionView {
-    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         match key_event {
             KeyEvent {
                 code: KeyCode::Up,
@@ -94,6 +93,7 @@ impl<'a> BottomPaneView<'a> for VerbositySelectionView {
                 ..
             } => {
                 self.move_selection_up();
+                true
             }
             KeyEvent {
                 code: KeyCode::Down,
@@ -101,6 +101,7 @@ impl<'a> BottomPaneView<'a> for VerbositySelectionView {
                 ..
             } => {
                 self.move_selection_down();
+                true
             }
             KeyEvent {
                 code: KeyCode::Enter,
@@ -109,6 +110,7 @@ impl<'a> BottomPaneView<'a> for VerbositySelectionView {
             } => {
                 self.confirm_selection();
                 self.is_complete = true;
+                true
             }
             KeyEvent {
                 code: KeyCode::Esc,
@@ -116,9 +118,24 @@ impl<'a> BottomPaneView<'a> for VerbositySelectionView {
                 ..
             } => {
                 self.is_complete = true;
+                true
             }
-            _ => {}
+            _ => false,
         }
+    }
+}
+
+impl<'a> BottomPaneView<'a> for VerbositySelectionView {
+    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+        let _ = self.handle_key_event_direct(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
     }
 
     fn is_complete(&self) -> bool {

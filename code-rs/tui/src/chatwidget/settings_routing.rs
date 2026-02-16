@@ -1,6 +1,41 @@
 use super::*;
 
 impl ChatWidget<'_> {
+    fn mcp_tool_definition_for(
+        &self,
+        server_name: &str,
+        tool_name: &str,
+    ) -> Option<mcp_types::Tool> {
+        if let Some(tool) = self.mcp_tool_catalog_by_id.get(tool_name) {
+            return Some(tool.clone());
+        }
+
+        let fully_qualified = format!("{server_name}.{tool_name}");
+        if let Some(tool) = self.mcp_tool_catalog_by_id.get(&fully_qualified) {
+            return Some(tool.clone());
+        }
+
+        self.mcp_tool_catalog_by_id.iter().find_map(|(id, tool)| {
+            let id_tool_name = id.rsplit('.').next().unwrap_or(id.as_str());
+            let id_server = id
+                .split_once('.')
+                .map(|(server, _)| server)
+                .or_else(|| id.split_once("__").map(|(server, _)| server));
+            let id_has_tool_suffix = id.ends_with(tool_name)
+                || id.ends_with(&format!("__{tool_name}"))
+                || id.ends_with(&format!(".{tool_name}"));
+
+            if tool.name == tool_name
+                || (id_tool_name == tool_name && id_server.is_some_and(|server| server == server_name))
+                || (id_has_tool_suffix && id_server.is_some_and(|server| server == server_name))
+            {
+                Some(tool.clone())
+            } else {
+                None
+            }
+        })
+    }
+
     #[allow(dead_code)]
     pub(crate) fn show_theme_selection(&mut self) {
         let tail_ticket = self.make_background_tail_ticket();
@@ -10,6 +45,54 @@ impl ChatWidget<'_> {
             tail_ticket,
             before_ticket,
         );
+    }
+
+    fn close_settings_overlay_if_open(&mut self) {
+        if self.settings.overlay.is_some() {
+            self.close_settings_overlay();
+        }
+    }
+
+    fn open_bottom_pane_settings<F>(&mut self, show: F) -> bool
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.close_settings_overlay_if_open();
+        show(self);
+        true
+    }
+
+    fn populate_settings_overlay_content(&mut self, overlay: &mut SettingsOverlayView) {
+        overlay.set_model_content(self.build_model_settings_content());
+        overlay.set_planning_content(self.build_planning_settings_content());
+        overlay.set_theme_content(self.build_theme_settings_content());
+        if let Some(update_content) = self.build_updates_settings_content() {
+            overlay.set_updates_content(update_content);
+        }
+        overlay.set_accounts_content(self.build_accounts_settings_content());
+        overlay.set_notifications_content(self.build_notifications_settings_content());
+        overlay.set_prompts_content(self.build_prompts_settings_content());
+        overlay.set_skills_content(self.build_skills_settings_content());
+        if let Some(mcp_content) = self.build_mcp_settings_content() {
+            overlay.set_mcp_content(mcp_content);
+        }
+        overlay.set_agents_content(self.build_agents_settings_content());
+        overlay.set_auto_drive_content(self.build_auto_drive_settings_content());
+        overlay.set_review_content(self.build_review_settings_content());
+        overlay.set_validation_content(self.build_validation_settings_content());
+        overlay.set_limits_content(self.build_limits_settings_content());
+        overlay.set_chrome_content(self.build_chrome_settings_content(None));
+        overlay.set_overview_rows(self.build_settings_overview_rows());
+    }
+
+    fn apply_settings_overlay_mode(
+        overlay: &mut SettingsOverlayView,
+        section: Option<SettingsSection>,
+    ) {
+        match section {
+            Some(section) => overlay.set_mode_section(section),
+            None => overlay.set_mode_menu(None),
+        }
     }
 
     pub(crate) fn show_settings_overlay(&mut self, section: Option<SettingsSection>) {
@@ -32,32 +115,8 @@ impl ChatWidget<'_> {
             .unwrap_or(SettingsSection::Model);
 
         let mut overlay = SettingsOverlayView::new(initial_section);
-        overlay.set_model_content(self.build_model_settings_content());
-        overlay.set_planning_content(self.build_planning_settings_content());
-        overlay.set_theme_content(self.build_theme_settings_content());
-        if let Some(update_content) = self.build_updates_settings_content() {
-            overlay.set_updates_content(update_content);
-        }
-        overlay.set_accounts_content(self.build_accounts_settings_content());
-        overlay.set_notifications_content(self.build_notifications_settings_content());
-        overlay.set_prompts_content(self.build_prompts_settings_content());
-        overlay.set_skills_content(self.build_skills_settings_content());
-        if let Some(mcp_content) = self.build_mcp_settings_content() {
-            overlay.set_mcp_content(mcp_content);
-        }
-        overlay.set_agents_content(self.build_agents_settings_content());
-        overlay.set_auto_drive_content(self.build_auto_drive_settings_content());
-        overlay.set_review_content(self.build_review_settings_content());
-        overlay.set_validation_content(self.build_validation_settings_content());
-        overlay.set_limits_content(self.build_limits_settings_content());
-        overlay.set_chrome_content(self.build_chrome_settings_content(None));
-        let overview_rows = self.build_settings_overview_rows();
-        overlay.set_overview_rows(overview_rows);
-
-        match section {
-            Some(section) => overlay.set_mode_section(section),
-            None => overlay.set_mode_menu(None),
-        }
+        self.populate_settings_overlay_content(&mut overlay);
+        Self::apply_settings_overlay_mode(&mut overlay, section);
 
         self.settings.overlay = Some(overlay);
         self.request_redraw();
@@ -168,21 +227,54 @@ impl ChatWidget<'_> {
         };
 
         let mut rows: McpServerRows = Vec::new();
-        for (name, cfg) in enabled.into_iter() {
-            let summary = self.format_mcp_server_summary(&name, &cfg, true);
+        let mut push_row = |name: String,
+                            cfg: code_core::config_types::McpServerConfig,
+                            enabled: bool| {
+            let transport = Self::format_mcp_summary(&cfg);
+            let status = self.format_mcp_tool_status(&name, enabled);
+            let failure = self
+                .mcp_server_failures
+                .get(&name)
+                .map(|entry| self.format_mcp_failure(entry));
+            let mut tools = if enabled {
+                self.mcp_tools_by_server
+                    .get(&name)
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+            tools.sort_unstable();
+            let mut disabled_tools = cfg.disabled_tools.clone();
+            if let Some(runtime_disabled) = self.mcp_disabled_tools_by_server.get(&name) {
+                disabled_tools.extend(runtime_disabled.clone());
+            }
+            disabled_tools.sort();
+            disabled_tools.dedup();
+            let mut tool_definitions = std::collections::BTreeMap::new();
+            for tool_name in tools.iter().chain(disabled_tools.iter()) {
+                if let Some(tool) = self.mcp_tool_definition_for(&name, tool_name) {
+                    tool_definitions.insert(tool_name.clone(), tool);
+                }
+            }
             rows.push(McpServerRow {
                 name,
-                enabled: true,
-                summary,
+                enabled,
+                transport,
+                startup_timeout: cfg.startup_timeout_sec,
+                tool_timeout: cfg.tool_timeout_sec,
+                tools,
+                disabled_tools,
+                tool_definitions,
+                failure,
+                status,
             });
+        };
+        for (name, cfg) in enabled.into_iter() {
+            push_row(name, cfg, true);
         }
         for (name, cfg) in disabled.into_iter() {
-            let summary = self.format_mcp_server_summary(&name, &cfg, false);
-            rows.push(McpServerRow {
-                name,
-                enabled: false,
-                summary,
-            });
+            push_row(name, cfg, false);
         }
         rows.sort_by(|a, b| a.name.cmp(&b.name));
         Some(rows)
@@ -397,7 +489,29 @@ impl ChatWidget<'_> {
             self.request_latest_rate_limits(snapshot.is_none());
         }
 
-        LimitsSettingsContent::new(content)
+        LimitsSettingsContent::new(content, self.config.tui.limits.layout_mode)
+    }
+
+    pub(super) fn sync_limits_layout_mode_preference(&mut self) {
+        let Some(overlay) = self.settings.overlay.as_ref() else {
+            return;
+        };
+        let Some(limits) = overlay.limits_content() else {
+            return;
+        };
+
+        let layout_mode = limits.layout_mode_config();
+        if self.config.tui.limits.layout_mode == layout_mode {
+            return;
+        }
+
+        self.config.tui.limits.layout_mode = layout_mode;
+        if let Err(err) = code_core::config::set_tui_limits_layout_mode(
+            &self.config.code_home,
+            layout_mode,
+        ) {
+            tracing::warn!("Failed to persist limits layout mode: {err}");
+        }
     }
 
     pub(super) fn build_settings_overview_rows(&mut self) -> Vec<SettingsOverviewRow> {
@@ -406,21 +520,21 @@ impl ChatWidget<'_> {
             .copied()
             .map(|section| {
                 let summary = match section {
-                    SettingsSection::Model => self.settings_summary_model(),
-                    SettingsSection::Theme => self.settings_summary_theme(),
-                    SettingsSection::Planning => self.settings_summary_planning(),
-                    SettingsSection::Updates => self.settings_summary_updates(),
-                    SettingsSection::Accounts => self.settings_summary_accounts(),
-                    SettingsSection::Agents => self.settings_summary_agents(),
-                    SettingsSection::Prompts => self.settings_summary_prompts(),
-                    SettingsSection::Skills => self.settings_summary_skills(),
-                    SettingsSection::AutoDrive => self.settings_summary_auto_drive(),
-                    SettingsSection::Review => self.settings_summary_review(),
-                    SettingsSection::Validation => self.settings_summary_validation(),
-                    SettingsSection::Chrome => self.settings_summary_chrome(),
-                    SettingsSection::Mcp => self.settings_summary_mcp(),
+                    SettingsSection::Model         => self.settings_summary_model(),
+                    SettingsSection::Theme         => self.settings_summary_theme(),
+                    SettingsSection::Planning      => self.settings_summary_planning(),
+                    SettingsSection::Updates       => self.settings_summary_updates(),
+                    SettingsSection::Accounts      => self.settings_summary_accounts(),
+                    SettingsSection::Agents        => self.settings_summary_agents(),
+                    SettingsSection::Prompts       => self.settings_summary_prompts(),
+                    SettingsSection::Skills        => self.settings_summary_skills(),
+                    SettingsSection::AutoDrive     => self.settings_summary_auto_drive(),
+                    SettingsSection::Review        => self.settings_summary_review(),
+                    SettingsSection::Validation    => self.settings_summary_validation(),
+                    SettingsSection::Chrome        => self.settings_summary_chrome(),
+                    SettingsSection::Mcp           => self.settings_summary_mcp(),
                     SettingsSection::Notifications => self.settings_summary_notifications(),
-                    SettingsSection::Limits => self.settings_summary_limits(),
+                    SettingsSection::Limits        => self.settings_summary_limits(),
                 };
                 SettingsOverviewRow::new(section, summary)
             })
@@ -660,10 +774,21 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn refresh_mcp_settings_overlay(&mut self) {
-        let content = self.build_mcp_settings_content();
-        let Some(content) = content else {
+        let prior_state = self
+            .settings
+            .overlay
+            .as_ref()
+            .and_then(|overlay| overlay.mcp_content().map(crate::chatwidget::McpSettingsContent::snapshot_state));
+
+        let mut content = self.build_mcp_settings_content();
+        let Some(mut content) = content.take() else {
             return;
         };
+
+        if let Some(state) = prior_state.as_ref() {
+            content.restore_state(state);
+        }
+
         let Some(overlay) = self.settings.overlay.as_mut() else {
             return;
         };
@@ -796,118 +921,98 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    fn open_model_settings_section(&mut self) -> bool {
+        let presets = self.available_model_presets();
+        let current_model = self.config.model.clone();
+        let current_effort = self.config.model_reasoning_effort;
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_model_selection(
+                presets,
+                current_model,
+                current_effort,
+                false,
+                ModelSelectionTarget::Session,
+            );
+        })
+    }
+
+    fn open_theme_settings_section(&mut self) -> bool {
+        self.open_bottom_pane_settings(Self::show_theme_selection)
+    }
+
+    fn open_updates_settings_section(&mut self) -> bool {
+        let Some(view) = self.prepare_update_settings_view() else {
+            return false;
+        };
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_update_settings(view))
+    }
+
+    fn open_prompts_settings_section(&mut self) -> bool {
+        let view = self.build_prompts_settings_view();
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_prompts_settings(view))
+    }
+
+    fn open_skills_settings_section(&mut self) -> bool {
+        let view = self.build_skills_settings_view();
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_skills_settings(view))
+    }
+
+    fn open_auto_drive_settings_section(&mut self) -> bool {
+        let view = self.build_auto_drive_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_auto_drive_settings_panel(view);
+        })
+    }
+
+    fn open_review_settings_section(&mut self) -> bool {
+        let view = self.build_review_settings_view();
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_review_settings(view))
+    }
+
+    fn open_planning_settings_section(&mut self) -> bool {
+        let view = self.build_planning_settings_view();
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_planning_settings(view))
+    }
+
+    fn open_validation_settings_section(&mut self) -> bool {
+        let view = self.build_validation_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_validation_settings(view);
+        })
+    }
+
+    fn open_notifications_settings_section(&mut self) -> bool {
+        let view = self.build_notifications_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_notifications_settings(view);
+        })
+    }
+
+    fn open_mcp_settings_section(&mut self) -> bool {
+        let Some(rows) = self.build_mcp_server_rows() else {
+            return false;
+        };
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_mcp_settings(rows))
+    }
+
     pub(crate) fn open_settings_section_in_bottom_pane(
         &mut self,
         section: SettingsSection,
     ) -> bool {
         match section {
-            SettingsSection::Model => {
-                let presets = self.available_model_presets();
-                let current_model = self.config.model.clone();
-                let current_effort = self.config.model_reasoning_effort;
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_model_selection(
-                    presets,
-                    current_model,
-                    current_effort,
-                    false,
-                    ModelSelectionTarget::Session,
-                );
-                true
-            }
-            SettingsSection::Theme => {
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.show_theme_selection();
-                true
-            }
-            SettingsSection::Updates => {
-                let Some(view) = self.prepare_update_settings_view() else {
-                    return false;
-                };
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_update_settings(view);
-                true
-            }
-            SettingsSection::Accounts => {
-                let view = self.build_accounts_settings_view();
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_account_switch_settings(view);
-                true
-            }
-            SettingsSection::Prompts => {
-                let view = self.build_prompts_settings_view();
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_prompts_settings(view);
-                true
-            }
-            SettingsSection::Skills => {
-                let view = self.build_skills_settings_view();
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_skills_settings(view);
-                true
-            }
-            SettingsSection::AutoDrive => {
-                let view = self.build_auto_drive_settings_view();
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_auto_drive_settings_panel(view);
-                true
-            }
-            SettingsSection::Review => {
-                let view = self.build_review_settings_view();
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_review_settings(view);
-                true
-            }
-            SettingsSection::Planning => {
-                let view = self.build_planning_settings_view();
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_planning_settings(view);
-                true
-            }
-            SettingsSection::Validation => {
-                let view = self.build_validation_settings_view();
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_validation_settings(view);
-                true
-            }
-            SettingsSection::Notifications => {
-                let view = self.build_notifications_settings_view();
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_notifications_settings(view);
-                true
-            }
-            SettingsSection::Mcp => {
-                let Some(rows) = self.build_mcp_server_rows() else {
-                    return false;
-                };
-                if self.settings.overlay.is_some() {
-                    self.close_settings_overlay();
-                }
-                self.bottom_pane.show_mcp_settings(rows);
-                true
-            }
+            SettingsSection::Model                              => self.open_model_settings_section(),
+            SettingsSection::Theme                              => self.open_theme_settings_section(),
+            SettingsSection::Updates                            => self.open_updates_settings_section(),
+            SettingsSection::Accounts                           => false,
+            SettingsSection::Prompts                            => self.open_prompts_settings_section(),
+            SettingsSection::Skills                             => self.open_skills_settings_section(),
+            SettingsSection::AutoDrive                          => self.open_auto_drive_settings_section(),
+            SettingsSection::Review                             => self.open_review_settings_section(),
+            SettingsSection::Planning                           => self.open_planning_settings_section(),
+            SettingsSection::Validation                         => self.open_validation_settings_section(),
+            SettingsSection::Notifications                      => self.open_notifications_settings_section(),
+            SettingsSection::Mcp                                => self.open_mcp_settings_section(),
+
             SettingsSection::Agents | SettingsSection::Limits | SettingsSection::Chrome => false,
         }
     }

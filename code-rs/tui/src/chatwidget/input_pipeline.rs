@@ -5,6 +5,7 @@ type NumstatRow = (Option<u32>, Option<u32>, String);
 impl ChatWidget<'_> {
     pub(crate) fn handle_key_event(&mut self, key_event: KeyEvent) {
         if settings_handlers::handle_settings_key(self, key_event) {
+            self.sync_limits_layout_mode_preference();
             return;
         }
         if self.settings.overlay.is_some() {
@@ -709,7 +710,10 @@ impl ChatWidget<'_> {
             if let Some(view) = overlay.limits_content_mut() {
                 view.set_content(content);
             } else {
-                overlay.set_limits_content(LimitsSettingsContent::new(content));
+                overlay.set_limits_content(LimitsSettingsContent::new(
+                    content,
+                    self.config.tui.limits.layout_mode,
+                ));
             }
             self.request_redraw();
             true
@@ -3042,43 +3046,6 @@ impl ChatWidget<'_> {
         // Animation cleanup is now handled differently
     }
 
-    /// Replace the initial Popular Commands notice that includes
-    /// the transient "Connecting MCP servers…" line with a version
-    /// that omits it.
-    pub(super) fn remove_connecting_mcp_notice(&mut self) {
-        if self.test_mode {
-            return;
-        }
-        let needle = "Connecting MCP servers…";
-        if let Some((idx, cell)) = self.history_cells.iter().enumerate().find(|(idx, cell)| {
-            self.cell_lines_for_index(*idx, cell.as_ref()).iter().any(|line| {
-                line.spans
-                    .iter()
-                    .any(|span| span.content.as_ref() == needle)
-            })
-        }) {
-            match cell.kind() {
-                crate::history_cell::HistoryCellType::Notice => {
-                    // Older layout: status was inside the notice cell — replace it
-                    let state = history_cell::new_popular_commands_notice(
-                        false,
-                        self.latest_upgrade_version.as_deref(),
-                    );
-                    let cell = crate::history_cell::PlainHistoryCell::from_state(state.clone());
-                    self.history_replace_with_record(
-                        idx,
-                        Box::new(cell),
-                        HistoryDomainRecord::Plain(state),
-                    );
-                }
-                _ => {
-                    // New layout: status is a separate BackgroundEvent cell — remove it
-                    self.history_remove_at(idx);
-                }
-            }
-        }
-    }
-
     pub(super) fn refresh_explore_trailing_flags(&mut self) -> bool {
         let mut updated = false;
         for idx in 0..self.history_cells.len() {
@@ -4712,11 +4679,7 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn truncate_preview_text(text: String, limit: usize) -> String {
-        if text.chars().count() <= limit {
-            return text;
-        }
-        let truncated: String = text.chars().take(limit.saturating_sub(1)).collect();
-        format!("{truncated}…")
+        crate::text_formatting::truncate_chars_with_ellipsis(&text, limit)
     }
 
     pub(super) fn timeline_file_lines_for_commit(&self, commit_id: &str) -> Vec<Line<'static>> {
@@ -5310,7 +5273,8 @@ impl ChatWidget<'_> {
             return;
         }
 
-        // Check if settings overlay is visible - it should intercept mouse events
+        // Settings overlay is modal: while visible, mouse input must be consumed
+        // by the overlay layer and must not leak to global history/pane scrolling.
         if let Some(overlay) = self.settings.overlay.as_mut() {
             // Settings overlay covers the full screen - compute terminal area from layout
             let terminal_area = Rect {
@@ -5319,10 +5283,12 @@ impl ChatWidget<'_> {
                 width: self.layout.last_frame_width.get(),
                 height: self.layout.last_frame_height.get(),
             };
-            if overlay.handle_mouse_event(mouse_event, terminal_area) {
+            let changed = overlay.handle_mouse_event(mouse_event, terminal_area);
+            if changed {
+                self.sync_limits_layout_mode_preference();
                 self.request_redraw();
-                return;
             }
+            return;
         }
 
         let bottom_pane_area = self.layout.last_bottom_pane_area.get();
@@ -5373,11 +5339,19 @@ impl ChatWidget<'_> {
                 self.handle_click(mouse_pos);
             }
             MouseEventKind::Moved => {
-                // Update hover state in bottom pane
+                let mut needs_redraw = false;
+                if self.update_header_hover_state(mouse_pos) {
+                    needs_redraw = true;
+                }
+                // Update hover state in bottom pane.
                 if in_bottom_pane
-                    && self.bottom_pane.update_hover(mouse_pos, bottom_pane_area) {
-                        self.request_redraw();
-                    }
+                    && self.bottom_pane.update_hover(mouse_pos, bottom_pane_area)
+                {
+                    needs_redraw = true;
+                }
+                if needs_redraw {
+                    self.request_redraw();
+                }
             }
             _ => {
                 // Ignore other mouse events for now
@@ -5462,6 +5436,31 @@ impl ChatWidget<'_> {
                     }
                 }
             }
+        }
+    }
+
+    fn update_header_hover_state(&mut self, pos: (u16, u16)) -> bool {
+        let (x, y) = pos;
+        let hovered = {
+            let regions = self.clickable_regions.borrow();
+            regions.iter().find_map(|region| {
+                if x >= region.rect.x
+                    && x < region.rect.x + region.rect.width
+                    && y >= region.rect.y
+                    && y < region.rect.y + region.rect.height
+                {
+                    Some(region.action.clone())
+                } else {
+                    None
+                }
+            })
+        };
+        let mut current = self.hovered_clickable_action.borrow_mut();
+        if *current == hovered {
+            false
+        } else {
+            *current = hovered;
+            true
         }
     }
 }

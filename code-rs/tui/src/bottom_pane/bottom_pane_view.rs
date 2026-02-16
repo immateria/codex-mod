@@ -17,10 +17,30 @@ pub(crate) enum ConditionalUpdate {
 }
 
 /// Trait implemented by every view that can be shown in the bottom pane.
+///
+/// Implementation guidance for consistent settings behavior:
+/// - Keep input handling in local `*_direct` helpers that return `bool` to indicate
+///   whether the event changed view state.
+/// - Implement `handle_key_event_with_result` / `handle_mouse_event` using
+///   `ui_interaction::redraw_if(handled)` so redraw requests stay explicit.
+/// - Let each view own its own scroll/focus state instead of mutating outer
+///   container state from within child widgets.
 pub(crate) trait BottomPaneView<'a> {
     /// Handle a key event while the view is active. A redraw is always
     /// scheduled after this call.
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, _key_event: KeyEvent) {}
+
+    /// Handle a key event while surfacing whether a redraw is needed.
+    /// Default behavior preserves historical semantics by delegating to
+    /// `handle_key_event` and requesting redraw.
+    fn handle_key_event_with_result(
+        &mut self,
+        pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        self.handle_key_event(pane, key_event);
+        ConditionalUpdate::NeedsRedraw
+    }
 
     /// Handle a mouse event while the view is active. Return whether a redraw
     /// is needed. Default: ignore mouse events.

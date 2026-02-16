@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
@@ -8,9 +8,19 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 
-use super::bottom_pane_view::BottomPaneView;
+use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::ui_interaction::{
+    RelativeHitRegion,
+    redraw_if,
+    route_selectable_regions_mouse_with_config,
+    ScrollSelectionBehavior,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+    wrap_next,
+    wrap_prev,
+};
 use super::BottomPane;
-
+// TODO - This is currently unlinked here, on the official CODEX side, etc. figure out what to do later.
 /// Interactive UI for GitHub workflow monitoring settings.
 /// Shows token status and allows toggling the watcher on/off.
 pub(crate) struct GithubSettingsView {
@@ -24,6 +34,10 @@ pub(crate) struct GithubSettingsView {
 }
 
 impl GithubSettingsView {
+    const TOGGLE_ROW: usize = 0;
+    const CLOSE_ROW: usize = 1;
+    const ROW_COUNT: usize = 2;
+
     pub fn new(watcher_enabled: bool, token_status: String, ready: bool, app_event_tx: AppEventSender) -> Self {
         Self {
             watcher_enabled,
@@ -41,40 +55,91 @@ impl GithubSettingsView {
             .send(AppEvent::UpdateGithubWatcher(self.watcher_enabled));
     }
 
-    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) {
+    fn activate_selected_row(&mut self) {
+        if self.selected_row == Self::TOGGLE_ROW {
+            self.toggle();
+        } else {
+            self.is_complete = true;
+        }
+    }
+
+    fn content_area(area: Rect) -> Rect {
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        Rect {
+            x: inner.x.saturating_add(1),
+            y: inner.y,
+            width: inner.width.saturating_sub(2),
+            height: inner.height,
+        }
+    }
+
+    fn selectable_regions() -> [RelativeHitRegion; 2] {
+        [
+            // See render() line layout: status, blank, toggle, blank, close, ...
+            RelativeHitRegion::new(Self::TOGGLE_ROW, 2, 1),
+            RelativeHitRegion::new(Self::CLOSE_ROW, 4, 1),
+        ]
+    }
+
+    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         match key_event {
             KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
-                if self.selected_row > 0 {
-                    self.selected_row -= 1;
-                }
+                self.selected_row = wrap_prev(self.selected_row, Self::ROW_COUNT);
+                true
             }
             KeyEvent { code: KeyCode::Down, modifiers: KeyModifiers::NONE, .. } => {
-                if self.selected_row < 1 {
-                    self.selected_row += 1;
-                }
+                self.selected_row = wrap_next(self.selected_row, Self::ROW_COUNT);
+                true
             }
             KeyEvent { code: KeyCode::Left | KeyCode::Right, modifiers: KeyModifiers::NONE, .. } => {
-                if self.selected_row == 0 {
+                if self.selected_row == Self::TOGGLE_ROW {
                     self.toggle();
+                    true
+                } else {
+                    false
                 }
             }
             KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
-                if self.selected_row == 0 {
-                    self.toggle();
-                } else {
-                    self.is_complete = true;
-                }
+                self.activate_selected_row();
+                true
             }
             KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. } => {
-                if self.selected_row == 0 {
+                if self.selected_row == Self::TOGGLE_ROW {
                     self.toggle();
+                    true
+                } else {
+                    false
                 }
             }
             KeyEvent { code: KeyCode::Esc, .. } => {
                 self.is_complete = true;
+                true
             }
-            _ => {}
+            _ => false,
         }
+    }
+
+    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let content_area = Self::content_area(area);
+        let mut selected = self.selected_row;
+        let result = route_selectable_regions_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            Self::ROW_COUNT,
+            content_area,
+            &Self::selectable_regions(),
+            SelectableListMouseConfig {
+                scroll_behavior: ScrollSelectionBehavior::Wrap,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.selected_row = selected;
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            self.activate_selected_row();
+        }
+
+        result.handled()
     }
 
     pub fn is_view_complete(&self) -> bool {
@@ -84,7 +149,24 @@ impl GithubSettingsView {
 
 impl<'a> BottomPaneView<'a> for GithubSettingsView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        self.handle_key_event_direct(key_event);
+        let _ = self.handle_key_event_direct(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool { self.is_complete }

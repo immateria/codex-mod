@@ -1,8 +1,9 @@
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
 use std::thread;
 use std::time::{Duration, Instant};
+#[cfg(debug_assertions)]
+use std::path::PathBuf;
 
 use color_eyre::eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
@@ -12,7 +13,9 @@ use crossterm::SynchronizedUpdate;
 use code_cloud_tasks_client::{CloudTaskError, TaskId};
 use code_core::config::add_project_allowed_command;
 use code_core::config_types::Notifications;
-use code_core::protocol::{Event, Op, SandboxPolicy};
+#[cfg(debug_assertions)]
+use code_core::protocol::Event;
+use code_core::protocol::{Op, SandboxPolicy};
 use code_core::SessionCatalog;
 use code_login::{AuthManager, AuthMode, ServerOptions};
 use portable_pty::PtySize;
@@ -1186,6 +1189,11 @@ impl App<'_> {
                                 widget.handle_login_command();
                             }
                         }
+                        SlashCommand::Accounts => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.show_settings_overlay(Some(SettingsSection::Accounts));
+                            }
+                        }
                         SlashCommand::Logout => {
                             if let Err(e) = code_login::logout(&self.config.code_home) { tracing::error!("failed to logout: {e}"); }
                             break 'main;
@@ -1589,6 +1597,15 @@ impl App<'_> {
                 AppEvent::UpdateMcpServer { name, enable } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.toggle_mcp_server(&name, enable);
+                    }
+                }
+                AppEvent::UpdateMcpServerTool {
+                    server_name,
+                    tool_name,
+                    enable,
+                } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.toggle_mcp_server_tool(&server_name, &tool_name, enable);
                     }
                 }
                 AppEvent::UpdateSubagentCommand(cmd) => {

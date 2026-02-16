@@ -1,4 +1,11 @@
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::ui_interaction::{
+    redraw_if,
+    route_selectable_list_mouse_with_config,
+    ScrollSelectionBehavior,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+};
 use super::settings_panel::{render_panel, PanelFrameStyle};
 use super::BottomPane;
 use crate::app_event::AppEvent;
@@ -6,7 +13,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 use code_common::shell_presets::ShellPreset;
 use code_core::config_types::ShellConfig;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::prelude::Widget;
@@ -100,6 +107,18 @@ impl ShellSelectionView {
         }
     }
 
+    fn item_count(&self) -> usize {
+        self.shells.len() + 1
+    }
+
+    fn set_hovered_index(&mut self, hovered: Option<usize>) -> bool {
+        if self.hovered_index == hovered {
+            return false;
+        }
+        self.hovered_index = hovered;
+        true
+    }
+
     fn move_selection_up(&mut self) {
         if self.selected_index == 0 {
             self.selected_index = self.shells.len();
@@ -179,45 +198,55 @@ impl ShellSelectionView {
 
         None
     }
+
+    fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent) -> bool {
+        if self.custom_input_mode {
+            return false;
+        }
+
+        let mut selected = self.selected_index;
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            self.item_count(),
+            |x, y| self.hit_test(x, y),
+            SelectableListMouseConfig {
+                hover_select: false,
+                scroll_behavior: ScrollSelectionBehavior::Wrap,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+
+        let mut handled = false;
+        if selected != self.selected_index {
+            self.selected_index = selected;
+            handled = true;
+        }
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            self.select_item(self.selected_index);
+            handled = true;
+        }
+
+        if matches!(mouse_event.kind, MouseEventKind::Moved) {
+            handled |= self.set_hovered_index(self.hit_test(mouse_event.column, mouse_event.row));
+        }
+
+        handled || result.handled()
+    }
 }
 
 impl<'a> BottomPaneView<'a> for ShellSelectionView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        if self.custom_input_mode {
-            match (key_event.code, key_event.modifiers) {
-                (KeyCode::Esc, _) => {
-                    self.custom_input_mode = false;
-                    self.custom_input.clear();
-                }
-                (KeyCode::Enter, _) => {
-                    self.submit_custom_path();
-                }
-                (KeyCode::Backspace, _) => {
-                    self.custom_input.pop();
-                }
-                (KeyCode::Char(c), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
-                    self.custom_input.push(c);
-                }
-                _ => {}
-            }
-            return;
-        }
+        let _ = self.handle_key_event_direct(key_event);
+    }
 
-        match (key_event.code, key_event.modifiers) {
-            (KeyCode::Esc, _) | (KeyCode::Char('q'), KeyModifiers::NONE) => {
-                self.send_closed(false);
-            }
-            (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
-                self.move_selection_up();
-            }
-            (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
-                self.move_selection_down();
-            }
-            (KeyCode::Enter, _) => {
-                self.confirm_selection();
-            }
-            _ => {}
-        }
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
     }
 
     fn handle_mouse_event(
@@ -226,28 +255,7 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
         mouse_event: MouseEvent,
         _area: Rect,
     ) -> ConditionalUpdate {
-        if self.custom_input_mode {
-            return ConditionalUpdate::NoRedraw;
-        }
-
-        match mouse_event.kind {
-            MouseEventKind::Down(MouseButton::Left) => {
-                if let Some(idx) = self.hit_test(mouse_event.column, mouse_event.row) {
-                    self.select_item(idx);
-                    return ConditionalUpdate::NeedsRedraw;
-                }
-            }
-            MouseEventKind::Moved => {
-                let new_hover = self.hit_test(mouse_event.column, mouse_event.row);
-                if new_hover != self.hovered_index {
-                    self.hovered_index = new_hover;
-                    return ConditionalUpdate::NeedsRedraw;
-                }
-            }
-            _ => {}
-        }
-
-        ConditionalUpdate::NoRedraw
+        redraw_if(self.handle_mouse_event_direct(mouse_event))
     }
 
     fn update_hover(&mut self, mouse_pos: (u16, u16), _area: Rect) -> bool {
@@ -255,13 +263,7 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
             return false;
         }
 
-        let new_hover = self.hit_test(mouse_pos.0, mouse_pos.1);
-        if new_hover != self.hovered_index {
-            self.hovered_index = new_hover;
-            true
-        } else {
-            false
-        }
+        self.set_hovered_index(self.hit_test(mouse_pos.0, mouse_pos.1))
     }
 
     fn is_complete(&self) -> bool {
@@ -295,6 +297,51 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
 }
 
 impl ShellSelectionView {
+    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        if self.custom_input_mode {
+            return match (key_event.code, key_event.modifiers) {
+                (KeyCode::Esc, _) => {
+                    self.custom_input_mode = false;
+                    self.custom_input.clear();
+                    true
+                }
+                (KeyCode::Enter, _) => {
+                    self.submit_custom_path();
+                    true
+                }
+                (KeyCode::Backspace, _) => {
+                    self.custom_input.pop();
+                    true
+                }
+                (KeyCode::Char(c), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
+                    self.custom_input.push(c);
+                    true
+                }
+                _ => false,
+            };
+        }
+
+        match (key_event.code, key_event.modifiers) {
+            (KeyCode::Esc, _) | (KeyCode::Char('q'), KeyModifiers::NONE) => {
+                self.send_closed(false);
+                true
+            }
+            (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
+                self.move_selection_up();
+                true
+            }
+            (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
+                self.move_selection_down();
+                true
+            }
+            (KeyCode::Enter, _) => {
+                self.confirm_selection();
+                true
+            }
+            _ => false,
+        }
+    }
+
     fn render_custom_input(&self, area: Rect, buf: &mut Buffer) {
         let prompt_line = Line::from(vec![
             Span::styled("Enter shell path: ", Style::default()),

@@ -7,6 +7,7 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
+use crate::ui_interaction::{hit_test_repeating_rows, wrap_next, wrap_prev};
 use crate::chrome_launch::{CHROME_LAUNCH_CHOICES, ChromeLaunchOption};
 use super::SettingsContent;
 
@@ -33,18 +34,12 @@ impl ChromeSettingsContent {
 
     fn move_up(&mut self) {
         let len = Self::options().len();
-        if self.selected_index == 0 {
-            self.selected_index = len.saturating_sub(1);
-        } else {
-            self.selected_index -= 1;
-        }
+        self.selected_index = wrap_prev(self.selected_index, len);
     }
 
     fn move_down(&mut self) {
         let len = Self::options().len();
-        if len > 0 {
-            self.selected_index = (self.selected_index + 1) % len;
-        }
+        self.selected_index = wrap_next(self.selected_index, len);
     }
 
     fn confirm(&mut self) {
@@ -84,16 +79,15 @@ impl ChromeSettingsContent {
         }
 
         // Header uses 4 lines, each option consumes 3 lines (title + description + spacer).
-        let rel_y = mouse_event.row.saturating_sub(content_area.y) as usize;
-        if rel_y < 4 {
-            return None;
-        }
-        let option_index = (rel_y - 4) / 3;
-        if option_index < Self::options().len() {
-            Some(option_index)
-        } else {
-            None
-        }
+        hit_test_repeating_rows(
+            content_area,
+            mouse_event.column,
+            mouse_event.row,
+            4,
+            3,
+            3,
+            Self::options().len(),
+        )
     }
 }
 

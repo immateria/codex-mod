@@ -73,8 +73,11 @@ impl ChatWidget<'_> {
             active_exec_cell: None,
             history_cells,
             config: config.clone(),
+            mcp_tool_catalog_by_id: HashMap::new(),
             mcp_tools_by_server: HashMap::new(),
+            mcp_disabled_tools_by_server: HashMap::new(),
             mcp_server_failures: HashMap::new(),
+            startup_mcp_error_summary: None,
             remote_model_presets: None,
             allow_remote_default_at_startup: !config.model_explicit,
             chat_model_selected_explicitly: false,
@@ -306,6 +309,7 @@ impl ChatWidget<'_> {
             resume_placeholder_visible: false,
             resume_picker_loading: false,
             clickable_regions: RefCell::new(Vec::new()),
+            hovered_clickable_action: RefCell::new(None),
         };
         new_widget.load_auto_review_baseline_marker();
         new_widget.spawn_conversation_runtime(config.clone(), auth_manager, code_op_rx);
@@ -331,9 +335,11 @@ impl ChatWidget<'_> {
         w.auto_state.reset_countdown();
         w.auto_goal_escape_state = AutoGoalEscState::Inactive;
         w.set_standard_terminal_mode(!config.tui.alternate_screen);
+        let welcome_brand_title = w.config.tui.branding.title.as_deref();
         if config.experimental_resume.is_none() {
-            w.history_push_top_next_req(history_cell::new_animated_welcome()); // tag: prelude
-            let connecting_mcp = !w.config.mcp_servers.is_empty();
+            w.history_push_top_next_req(history_cell::new_animated_welcome(
+                welcome_brand_title,
+            )); // tag: prelude
             if !w.config.auto_upgrade_enabled
                 && let Some(upgrade_cell) =
                     history_cell::new_upgrade_prelude(w.latest_upgrade_version.as_deref())
@@ -346,19 +352,6 @@ impl ChatWidget<'_> {
             );
             let notice_key = w.next_req_key_top();
             let _ = w.history_insert_plain_state_with_key(notice_state, notice_key, "prelude");
-            if connecting_mcp && !w.test_mode {
-                // Render connecting status as a separate cell with standard gutter and spacing
-                let cell = history_cell::new_connecting_mcp_status();
-                let record = HistoryDomainRecord::BackgroundEvent(cell.state().clone());
-                w.push_system_cell(
-                    Box::new(cell),
-                    SystemPlacement::Early,
-                    None,
-                    None,
-                    "background",
-                    Some(record),
-                );
-            }
             // Mark welcome as shown to avoid duplicating the Popular commands section
             // when SessionConfigured arrives shortly after.
             w.welcome_shown = true;
@@ -424,8 +417,11 @@ impl ChatWidget<'_> {
             active_exec_cell: None,
             history_cells,
             config: config.clone(),
+            mcp_tool_catalog_by_id: HashMap::new(),
             mcp_tools_by_server: HashMap::new(),
+            mcp_disabled_tools_by_server: HashMap::new(),
             mcp_server_failures: HashMap::new(),
+            startup_mcp_error_summary: None,
             remote_model_presets: None,
             allow_remote_default_at_startup: !config.model_explicit,
             chat_model_selected_explicitly: false,
@@ -671,6 +667,7 @@ impl ChatWidget<'_> {
             resume_placeholder_visible: false,
             resume_picker_loading: false,
             clickable_regions: RefCell::new(Vec::new()),
+            hovered_clickable_action: RefCell::new(None),
         };
         w.load_auto_review_baseline_marker();
         if let Ok(Some(active_id)) = auth_accounts::get_active_account_id(&config.code_home)
@@ -681,8 +678,11 @@ impl ChatWidget<'_> {
                     w.maybe_schedule_rate_limit_refresh();
                 }
         w.set_standard_terminal_mode(!config.tui.alternate_screen);
+        let welcome_brand_title = w.config.tui.branding.title.as_deref();
         if show_welcome {
-            w.history_push_top_next_req(history_cell::new_animated_welcome());
+            w.history_push_top_next_req(history_cell::new_animated_welcome(
+                welcome_brand_title,
+            ));
         }
         if w.test_mode {
             w.bottom_pane.set_task_running(false);

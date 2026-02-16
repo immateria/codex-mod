@@ -6,8 +6,8 @@ use code_cloud_tasks_client::TaskSummary;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::bottom_pane_view::BottomPaneView;
-use crate::bottom_pane::scroll_state::ScrollState;
-use crate::bottom_pane::selection_popup_common::{render_rows, GenericDisplayRow};
+use crate::components::scroll_state::ScrollState;
+use crate::components::selection_popup_common::{render_rows, GenericDisplayRow};
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;

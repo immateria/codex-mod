@@ -15,7 +15,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, WidgetRef, Wrap};
 use std::borrow::Cow;
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_width::UnicodeWidthStr;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use super::{
@@ -23,6 +23,7 @@ use super::{
     chat_composer::ChatComposer,
     BottomPane,
 };
+use crate::ui_interaction::redraw_if;
 
 #[derive(Clone, Debug)]
 pub(crate) struct CountdownState {
@@ -817,22 +818,7 @@ impl AutoCoordinatorView {
     }
 
     fn truncate_to_width(text: &str, width: usize) -> String {
-        if UnicodeWidthStr::width(text) <= width {
-            return text.to_string();
-        }
-
-        let mut result = String::new();
-        let mut current_width = 0usize;
-        for ch in text.chars() {
-            let char_width = UnicodeWidthChar::width(ch).unwrap_or(1);
-            if current_width + char_width > width {
-                break;
-            }
-            result.push(ch);
-            current_width += char_width;
-        }
-
-        result
+        crate::text_formatting::truncate_to_display_width(text, width)
     }
 
     fn pad_to_width(text: &str, width: usize) -> String {
@@ -1568,17 +1554,15 @@ impl<'a> BottomPaneView<'a> for AutoCoordinatorView {
     }
 
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
-            return;
-        }
+        let _ = self.handle_key_event_direct(key_event);
+    }
 
-        if key_event
-            .modifiers
-            .contains(KeyModifiers::CONTROL)
-            && matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'))
-        {
-            self.app_event_tx.send(AppEvent::ShowAutoDriveSettings);
-        }
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
     }
 
     fn desired_height(&self, width: u16) -> u16 {
@@ -1632,6 +1616,24 @@ fn handle_paste_with_composer(
 
     fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
         Some(self)
+    }
+}
+
+impl AutoCoordinatorView {
+    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
+            return false;
+        }
+
+        if key_event
+            .modifiers
+            .contains(KeyModifiers::CONTROL)
+            && matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'))
+        {
+            self.app_event_tx.send(AppEvent::ShowAutoDriveSettings);
+            return true;
+        }
+        false
     }
 }
 

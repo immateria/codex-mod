@@ -8,7 +8,7 @@ use ratatui::{
 };
 use std::cell::RefCell;
 
-use super::textarea::{TextArea, TextAreaState};
+use crate::components::textarea::{TextArea, TextAreaState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputFilter {

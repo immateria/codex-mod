@@ -1,5 +1,5 @@
 use code_core::config_types::ReasoningEffort;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
@@ -10,8 +10,14 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
 
-use super::bottom_pane_view::BottomPaneView;
-use super::scroll_state::ScrollState;
+use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::ui_interaction::{
+    redraw_if,
+    route_selectable_list_mouse_with_config,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+};
+use crate::components::scroll_state::ScrollState;
 use super::BottomPane;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -56,8 +62,8 @@ impl PlanningSettingsView {
         self.use_chat_model = use_chat;
     }
 
-    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) {
-        self.handle_key(key_event);
+    pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        self.handle_key(key_event)
     }
 
     fn rows(&self) -> Vec<PlanningRow> {
@@ -166,7 +172,7 @@ impl PlanningSettingsView {
         parts.join("-")
     }
 
-    fn handle_key(&mut self, key: KeyEvent) {
+    fn handle_key(&mut self, key: KeyEvent) -> bool {
         let rows = self.rows();
         if self.state.selected_idx.is_none() {
             self.state.selected_idx = Some(0);
@@ -175,54 +181,77 @@ impl PlanningSettingsView {
         self.state.ensure_visible(total, 4);
 
         match key.code {
-            KeyCode::Up => self.state.move_up_wrap(total),
-            KeyCode::Down => self.state.move_down_wrap(total),
+            KeyCode::Up => {
+                self.state.move_up_wrap(total);
+                true
+            }
+            KeyCode::Down => {
+                self.state.move_down_wrap(total);
+                true
+            }
             KeyCode::Char(' ') | KeyCode::Enter => {
                 if let Some(sel) = self.state.selected_idx
                     && let Some(row) = rows.get(sel).copied() {
                         self.handle_enter(row);
                     }
+                true
             }
             KeyCode::Esc => {
                 self.is_complete = true;
-            }
-            _ => {}
-        }
-    }
-
-    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        if area.width == 0 || area.height == 0 {
-            return false;
-        }
-
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return false;
-        }
-
-        let is_inside_inner = mouse_event.column >= inner.x
-            && mouse_event.column < inner.x.saturating_add(inner.width)
-            && mouse_event.row >= inner.y
-            && mouse_event.row < inner.y.saturating_add(inner.height);
-
-        if !is_inside_inner {
-            return false;
-        }
-
-        // Header consumes three lines; the first selectable row starts after that.
-        let row_y = inner.y.saturating_add(3);
-        match mouse_event.kind {
-            MouseEventKind::Moved => false,
-            MouseEventKind::Down(MouseButton::Left) => {
-                if mouse_event.row != row_y {
-                    return false;
-                }
-                self.state.selected_idx = Some(0);
-                self.handle_enter(PlanningRow::CustomModel);
                 true
             }
             _ => false,
         }
+    }
+
+    fn row_at_position(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
+        if area.width == 0 || area.height == 0 {
+            return None;
+        }
+
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        if inner.width == 0 || inner.height == 0 {
+            return None;
+        }
+
+        let is_inside_inner = x >= inner.x
+            && x < inner.x.saturating_add(inner.width)
+            && y >= inner.y
+            && y < inner.y.saturating_add(inner.height);
+
+        if !is_inside_inner {
+            return None;
+        }
+
+        // Header consumes three lines; the first selectable row starts after that.
+        let row_y = inner.y.saturating_add(3);
+        if y == row_y {
+            Some(0)
+        } else {
+            None
+        }
+    }
+
+    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let rows = self.rows();
+        let mut selected = self.state.selected_idx.unwrap_or(0);
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            rows.len(),
+            |x, y| self.row_at_position(area, x, y),
+            SelectableListMouseConfig {
+                hover_select: false,
+                scroll_select: false,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.state.selected_idx = Some(selected);
+        if matches!(result, SelectableListMouseResult::Activated)
+            && let Some(row) = rows.get(selected).copied() {
+                self.handle_enter(row);
+            }
+        result.handled()
     }
 }
 
@@ -231,7 +260,27 @@ impl<'a> BottomPaneView<'a> for PlanningSettingsView {
         if !matches!(key_event.modifiers, KeyModifiers::NONE) {
             return;
         }
-        self.handle_key(key_event);
+        let _ = self.handle_key(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        if !matches!(key_event.modifiers, KeyModifiers::NONE) {
+            return ConditionalUpdate::NoRedraw;
+        }
+        redraw_if(self.handle_key(key_event))
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {

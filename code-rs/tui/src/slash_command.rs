@@ -85,6 +85,8 @@ pub enum SlashCommand {
     Resume,
     Rename,
     Login,
+    #[strum(serialize = "account", serialize = "accounts")]
+    Accounts,
     // Prompt-expanding commands
     Plan,
     Solve,
@@ -140,6 +142,7 @@ impl SlashCommand {
             SlashCommand::Perf => "performance tracing (on/off/show/reset)",
             SlashCommand::Demo => "populate history with demo cells (dev/perf only)",
             SlashCommand::Login => "manage Code sign-ins (add/select/disconnect)",
+            SlashCommand::Accounts => "manage account switching settings",
             SlashCommand::Logout => "log out of Code",
             #[cfg(debug_assertions)]
             SlashCommand::TestApproval => "test approval request",

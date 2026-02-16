@@ -12,14 +12,66 @@ impl ChatWidget<'_> {
         self.render_request_cache_dirty.set(true);
     }
 
-    pub(super) fn update_welcome_height_hint(&self, height: u16) {
+    pub(super) fn update_welcome_height_hint(&self, width: u16, height: u16) {
+        if width == 0 || height == 0 {
+            return;
+        }
+
+        // The welcome animation shares viewport with startup prelude content
+        // (popular commands / notices). Reserve a small fixed row budget so
+        // the intro doesn't consume the entire history viewport on short
+        // terminals and get pushed out of view immediately.
+
+        // When we're on the prelude screen (first request), absorb *all* remaining
+        // viewport height into the welcome cell so the intro uses otherwise-empty
+        // rows above the "Popular commands" section. This keeps the commands pinned
+        // near the composer (bottom-aligned history) without wasting blank lines at
+        // the top of the viewport.
+        let (has_welcome, non_welcome_count, non_welcome_height) =
+            if self.last_seen_request_index == 0 && self.history_cells.len() > 1 {
+                let mut has_welcome = false;
+                let mut count = 0u16;
+                let mut height_sum = 0u16;
+                for cell in self.history_cells.iter() {
+                    if cell
+                        .as_any()
+                        .downcast_ref::<crate::history_cell::AnimatedWelcomeCell>()
+                        .is_some()
+                    {
+                        has_welcome = true;
+                        continue;
+                    }
+                    count = count.saturating_add(1);
+                    height_sum = height_sum.saturating_add(cell.desired_height(width));
+                }
+                (has_welcome, count, height_sum)
+            } else {
+                (false, 0u16, 0u16)
+            };
+
+        let reserve_rows = if has_welcome && non_welcome_count > 0 {
+            // The history scroller inserts a 1-row spacer between each cell.
+            let spacer_rows = non_welcome_count;
+            non_welcome_height
+                .saturating_add(spacer_rows)
+                .min(height.saturating_sub(1))
+        } else {
+            0
+        };
+
+        let welcome_height_hint = height.saturating_sub(reserve_rows).max(1);
+        let mut changed = false;
         for cell in self.history_cells.iter() {
             if let Some(welcome) = cell
                 .as_any()
                 .downcast_ref::<crate::history_cell::AnimatedWelcomeCell>()
             {
-                welcome.set_available_height(height);
+                changed |= welcome.set_available_height(welcome_height_hint);
             }
+        }
+        if changed {
+            self.history_render.invalidate_height_cache();
+            self.mark_render_requests_dirty();
         }
     }
 

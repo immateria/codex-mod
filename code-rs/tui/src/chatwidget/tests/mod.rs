@@ -115,6 +115,7 @@
             },
             startup_timeout_sec: None,
             tool_timeout_sec: None,
+            disabled_tools: Vec::new(),
         };
         let fail_cfg = McpServerConfig {
             transport: McpServerTransportConfig::Stdio {
@@ -124,6 +125,7 @@
             },
             startup_timeout_sec: None,
             tool_timeout_sec: None,
+            disabled_tools: Vec::new(),
         };
     
         let ok_summary = chat.format_mcp_server_summary("alpha", &ok_cfg, true);
@@ -857,14 +859,39 @@
     fn transient_error_sets_reconnect_ui() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
-    
+
     harness
         .chat()
         .on_error("stream error: retrying 1/5".to_string());
-    
+
     assert!(harness.chat().reconnect_notice_active);
     harness.chat().clear_reconnecting();
     assert!(!harness.chat().reconnect_notice_active);
+    }
+
+    #[test]
+    fn startup_mcp_errors_do_not_push_history() {
+    let mut harness = ChatWidgetHarness::new();
+    let chat = harness.chat();
+    reset_history(chat);
+    chat.system_cell_by_id.clear();
+    chat.startup_mcp_error_summary = None;
+
+    chat.on_error(
+        "MCP server `sequential-thinking` failed to start: failed to spawn MCP server".to_string(),
+    );
+    assert!(chat.history_cells.is_empty());
+    let first = chat.startup_mcp_error_summary.clone().unwrap_or_default();
+    assert!(first.contains("sequential-thinking"));
+    assert!(first.contains("Run /mcp status"));
+
+    chat.on_error(
+        "MCP server `brave_search` failed to list tools: timed out".to_string(),
+    );
+    assert!(chat.history_cells.is_empty());
+    let second = chat.startup_mcp_error_summary.clone().unwrap_or_default();
+    assert!(second.contains("brave_search"));
+    assert!(second.contains("Run /mcp status"));
     }
     use ratatui::backend::TestBackend;
     use ratatui::text::Line;

@@ -805,10 +805,5 @@ fn format_warning_line(line: &str) -> String {
 }
 
 fn truncate(input: &str, max: usize) -> String {
-    if input.chars().count() <= max {
-        input.to_string()
-    } else {
-        let truncated: String = input.chars().take(max).collect();
-        format!("{truncated}…")
-    }
+    crate::text_formatting::truncate_chars_append_ellipsis(input, max)
 }

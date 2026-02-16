@@ -9,6 +9,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::OsString;
+use std::sync::RwLock as StdRwLock;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -23,7 +24,7 @@ use mcp_types::Tool;
 use serde_json::json;
 use sha1::Digest;
 use sha1::Sha1;
-use tokio::sync::RwLock;
+use tokio::sync::RwLock as TokioRwLock;
 use tokio::task::JoinSet;
 use tracing::info;
 use tracing::warn;
@@ -132,6 +133,7 @@ struct ToolInfo {
     tool: Tool,
 }
 
+#[derive(Clone)]
 struct ManagedClient {
     client: McpClientAdapter,
     startup_timeout: Duration,
@@ -207,12 +209,13 @@ pub struct McpConnectionManager {
     ///
     /// The server name originates from the keys of the `mcp_servers` map in
     /// the user configuration.
-    clients: RwLock<HashMap<String, ManagedClient>>,
+    clients: TokioRwLock<HashMap<String, ManagedClient>>,
 
     /// Fully qualified tool name -> tool instance.
-    tools: HashMap<String, ToolInfo>,
+    tools: StdRwLock<HashMap<String, ToolInfo>>,
+    excluded_tools: StdRwLock<HashSet<(String, String)>>,
     server_names: Vec<String>,
-    failures: HashMap<String, McpServerFailure>,
+    failures: StdRwLock<HashMap<String, McpServerFailure>>,
 }
 
 impl McpConnectionManager {
@@ -363,17 +366,84 @@ impl McpConnectionManager {
         let failures = errors.clone();
 
         Ok((Self {
-            clients: RwLock::new(clients),
-            tools,
+            clients: TokioRwLock::new(clients),
+            tools: StdRwLock::new(tools),
+            excluded_tools: StdRwLock::new(excluded_tools),
             server_names,
-            failures,
+            failures: StdRwLock::new(failures),
         }, errors))
+    }
+
+    fn tools_read(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, ToolInfo>> {
+        match self.tools.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP tools lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn tools_write(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, ToolInfo>> {
+        match self.tools.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP tools lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn excluded_tools_read(
+        &self,
+    ) -> std::sync::RwLockReadGuard<'_, HashSet<(String, String)>> {
+        match self.excluded_tools.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP excluded-tools lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn excluded_tools_write(
+        &self,
+    ) -> std::sync::RwLockWriteGuard<'_, HashSet<(String, String)>> {
+        match self.excluded_tools.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP excluded-tools lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn failures_read(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, McpServerFailure>> {
+        match self.failures.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP failures lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn failures_write(
+        &self,
+    ) -> std::sync::RwLockWriteGuard<'_, HashMap<String, McpServerFailure>> {
+        match self.failures.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP failures lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
     }
 
     /// Returns a single map that contains **all** tools. Each key is the
     /// fully-qualified name for the tool.
     pub fn list_all_tools(&self) -> HashMap<String, Tool> {
-        self.tools
+        self.tools_read()
             .iter()
             .map(|(name, tool)| (name.clone(), tool.tool.clone()))
             .collect()
@@ -381,7 +451,7 @@ impl McpConnectionManager {
 
     pub fn list_tools_by_server(&self) -> HashMap<String, Vec<String>> {
         let mut tools_by_server: HashMap<String, Vec<String>> = HashMap::new();
-        for tool in self.tools.values() {
+        for tool in self.tools_read().values() {
             tools_by_server
                 .entry(tool.server_name.clone())
                 .or_default()
@@ -400,8 +470,29 @@ impl McpConnectionManager {
         tools_by_server
     }
 
+    pub fn list_disabled_tools_by_server(&self) -> HashMap<String, Vec<String>> {
+        let mut disabled_by_server: HashMap<String, Vec<String>> = HashMap::new();
+        for (server, tool) in self.excluded_tools_read().iter() {
+            disabled_by_server
+                .entry(server.clone())
+                .or_default()
+                .push(tool.clone());
+        }
+
+        for server_name in &self.server_names {
+            disabled_by_server.entry(server_name.clone()).or_default();
+        }
+
+        for tools in disabled_by_server.values_mut() {
+            tools.sort();
+            tools.dedup();
+        }
+
+        disabled_by_server
+    }
+
     pub fn list_server_failures(&self) -> HashMap<String, McpServerFailure> {
-        self.failures.clone()
+        self.failures_read().clone()
     }
 
     /// Invoke the tool indicated by the (server, tool) pair.
@@ -428,7 +519,7 @@ impl McpConnectionManager {
     }
 
     pub fn parse_tool_name(&self, tool_name: &str) -> Option<(String, String)> {
-        self.tools
+        self.tools_read()
             .get(tool_name)
             .map(|tool| (tool.server_name.clone(), tool.tool_name.clone()))
     }
@@ -441,6 +532,36 @@ impl McpConnectionManager {
         for managed in drained {
             managed.shutdown().await;
         }
+    }
+
+    pub async fn refresh_tools(&self) {
+        let clients_snapshot = {
+            let clients = self.clients.read().await;
+            clients.clone()
+        };
+        let excluded_tools = self.excluded_tools_read().clone();
+        let mut errors = HashMap::new();
+        let all_tools = list_all_tools(&clients_snapshot, &excluded_tools, &mut errors).await;
+        let tools = qualify_tools(all_tools);
+        *self.tools_write() = tools;
+        *self.failures_write() = errors;
+    }
+
+    pub async fn set_tool_enabled(&self, server: &str, tool: &str, enable: bool) -> bool {
+        let key = (server.to_string(), tool.to_string());
+        let changed = {
+            let mut excluded = self.excluded_tools_write();
+            if enable {
+                excluded.remove(&key)
+            } else {
+                excluded.insert(key)
+            }
+        };
+
+        if changed {
+            self.refresh_tools().await;
+        }
+        changed
     }
 
 }
@@ -650,6 +771,7 @@ mod tests {
                 },
                 startup_timeout_sec: None,
                 tool_timeout_sec: None,
+                disabled_tools: Vec::new(),
             },
         );
 

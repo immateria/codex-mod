@@ -9,12 +9,14 @@ pub(crate) struct AnimatedWelcomeCell {
     faded_out: Cell<bool>,
     available_height: Cell<Option<u16>>,
     variant: Cell<Option<crate::glitch_animation::IntroArtSize>>,
+    brand_title: String,
     version_label: String,
     hidden: Cell<bool>,
 }
 
 impl AnimatedWelcomeCell {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(brand_title: Option<&str>) -> Self {
+        let brand_title = crate::glitch_animation::resolve_brand_title(brand_title);
         Self {
             start_time: Instant::now(),
             completed: Cell::new(false),
@@ -22,16 +24,18 @@ impl AnimatedWelcomeCell {
             faded_out: Cell::new(false),
             available_height: Cell::new(None),
             variant: Cell::new(None),
+            brand_title,
             version_label: format!("v{}", code_version::version()),
             hidden: Cell::new(false),
         }
     }
 
-    pub(crate) fn set_available_height(&self, height: u16) {
-        let prev = self.available_height.get();
-        if prev.is_none_or(|current| height > current) {
-            self.available_height.set(Some(height));
+    pub(crate) fn set_available_height(&self, height: u16) -> bool {
+        if self.available_height.get() == Some(height) {
+            return false;
         }
+        self.available_height.set(Some(height));
+        true
     }
 
     fn fade_start(&self) -> Option<Instant> {
@@ -69,18 +73,40 @@ impl HistoryCell for AnimatedWelcomeCell {
     }
 
     fn display_lines(&self) -> Vec<Line<'static>> {
+        let welcome_title = if self
+            .brand_title
+            .eq_ignore_ascii_case(crate::glitch_animation::DEFAULT_BRAND_TITLE)
+        {
+            "Code"
+        } else {
+            self.brand_title.as_str()
+        };
         vec![
             Line::from(""),
-            Line::from("Welcome to Code"),
+            Line::from(format!("Welcome to {welcome_title}")),
             Line::from(crate::greeting::greeting_placeholder()),
             Line::from(""),
         ]
     }
 
     fn desired_height(&self, width: u16) -> u16 {
-        let variant_for_width = crate::glitch_animation::intro_art_size_for_width(width);
-        let h = crate::glitch_animation::intro_art_height(variant_for_width);
-        h.saturating_add(3)
+        let variant = if let Some(available_height) = self.available_height.get() {
+            crate::glitch_animation::intro_art_size_for_area(
+                width,
+                available_height,
+            )
+        } else {
+            crate::glitch_animation::intro_art_size_for_width(width)
+        };
+        if let Some(available_height) = self.available_height.get() {
+            // Use the full requested height so the welcome cell can absorb
+            // extra viewport rows (reducing blank space above the intro on
+            // the prelude screen). The art itself is clipped to its own
+            // variant height during rendering.
+            available_height.max(1)
+        } else {
+            crate::glitch_animation::intro_art_height(variant)
+        }
     }
 
     fn has_custom_render(&self) -> bool {
@@ -111,7 +137,7 @@ impl HistoryCell for AnimatedWelcomeCell {
         let height_hint = self.available_height.get().unwrap_or(area.height);
         let current_variant = crate::glitch_animation::intro_art_size_for_area(
             area.width,
-            height_hint.saturating_sub(3),
+            height_hint,
         );
         let previous_variant = self.variant.get();
         let variant_changed = previous_variant.is_some_and(|v| v != current_variant);
@@ -128,13 +154,9 @@ impl HistoryCell for AnimatedWelcomeCell {
         let variant_for_render = current_variant;
 
         let art_height = crate::glitch_animation::intro_art_height(current_variant);
-        let full_height = art_height.saturating_add(3);
-        // Prefer the logo low in the cell so spare lines sit above it. Keep a
-        // small bottom gap (up to 2 rows) when there's room; otherwise center.
-        let slack = full_height.saturating_sub(art_height);
-        let bottom_pad = slack.min(2);
-        let top_pad = slack.saturating_sub(bottom_pad);
-        let art_top = top_pad;
+        // Anchor the art at the top of the cell; extra slack (if any) should
+        // go below so we don't waste precious rows above the logo.
+        let art_top = 0u16;
         let art_bottom = art_top.saturating_add(art_height);
         let vis_top = skip_rows;
         let vis_bottom = skip_rows.saturating_add(area.height);
@@ -166,6 +188,7 @@ impl HistoryCell for AnimatedWelcomeCell {
                     1.0,
                     alpha,
                     current_variant,
+                    &self.brand_title,
                     &self.version_label,
                     row_offset,
                 );
@@ -193,6 +216,7 @@ impl HistoryCell for AnimatedWelcomeCell {
             progress,
             1.0,
             variant_for_render,
+            &self.brand_title,
             &self.version_label,
             row_offset,
         );
@@ -227,6 +251,6 @@ impl HistoryCell for AnimatedWelcomeCell {
     }
 }
 
-pub(crate) fn new_animated_welcome() -> AnimatedWelcomeCell {
-    AnimatedWelcomeCell::new()
+pub(crate) fn new_animated_welcome(brand_title: Option<&str>) -> AnimatedWelcomeCell {
+    AnimatedWelcomeCell::new(brand_title)
 }

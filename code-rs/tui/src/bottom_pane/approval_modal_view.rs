@@ -1,4 +1,5 @@
 use crossterm::event::KeyEvent;
+use crossterm::event::KeyEventKind;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::WidgetRef;
@@ -11,6 +12,8 @@ use crate::user_approval_widget::UserApprovalWidget;
 use super::BottomPane;
 use super::BottomPaneView;
 use super::CancellationEvent;
+use super::bottom_pane_view::ConditionalUpdate;
+use crate::ui_interaction::redraw_if;
 use std::collections::VecDeque;
 
 /// Modal overlay asking the user to approve/deny a sequence of requests.
@@ -53,8 +56,15 @@ impl ApprovalModalView<'_> {
 
 impl<'a> BottomPaneView<'a> for ApprovalModalView<'a> {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        self.current.handle_key_event(key_event);
-        self.maybe_advance();
+        let _ = self.handle_key_event_direct(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
     }
 
     fn on_ctrl_c(&mut self, _pane: &mut BottomPane<'a>) -> CancellationEvent {
@@ -82,5 +92,13 @@ impl<'a> BottomPaneView<'a> for ApprovalModalView<'a> {
     ) -> Option<(ApprovalRequest, BackgroundOrderTicket)> {
         self.enqueue_request(req, ticket);
         None
+    }
+}
+
+impl ApprovalModalView<'_> {
+    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        self.current.handle_key_event(key_event);
+        self.maybe_advance();
+        matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat)
     }
 }

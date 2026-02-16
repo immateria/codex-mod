@@ -80,6 +80,10 @@ pub struct McpServerConfig {
     /// Default timeout for MCP tool calls initiated via this server.
     #[serde(default, with = "option_duration_secs")]
     pub tool_timeout_sec: Option<Duration>,
+
+    /// Optional list of tool names disabled for this server.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub disabled_tools: Vec<String>,
 }
 
 impl<'de> Deserialize<'de> for McpServerConfig {
@@ -104,6 +108,8 @@ impl<'de> Deserialize<'de> for McpServerConfig {
             startup_timeout_ms: Option<u64>,
             #[serde(default, with = "option_duration_secs")]
             tool_timeout_sec: Option<Duration>,
+            #[serde(default)]
+            disabled_tools: Vec<String>,
         }
 
         let raw = RawMcpServerConfig::deserialize(deserializer)?;
@@ -166,6 +172,7 @@ impl<'de> Deserialize<'de> for McpServerConfig {
             transport,
             startup_timeout_sec,
             tool_timeout_sec: raw.tool_timeout_sec,
+            disabled_tools: raw.disabled_tools,
         })
     }
 }
@@ -830,6 +837,14 @@ pub struct Tui {
     #[serde(default)]
     pub theme: ThemeConfig,
 
+    /// Branding text shown in the top header and intro animation.
+    #[serde(default)]
+    pub branding: BrandingConfig,
+
+    /// Header display options for the top status area.
+    #[serde(default)]
+    pub header: HeaderConfig,
+
     /// Auto Drive behavioral defaults (legacy location; prefer top-level `[auto_drive]`).
     #[serde(default)]
     pub auto_drive: Option<AutoDriveSettings>,
@@ -882,6 +897,87 @@ pub struct Tui {
     /// Relative paths are resolved against the session cwd.
     #[serde(default)]
     pub shell_presets_file: Option<PathBuf>,
+
+    /// Rate-limit panel layout preferences for the settings overlay.
+    #[serde(default)]
+    pub limits: LimitsUiConfig,
+}
+
+/// Branding options under `[tui.branding]`.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
+pub struct BrandingConfig {
+    /// Optional title shown in the TUI header and intro animation.
+    /// When unset or empty, Codex falls back to its built-in title.
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
+/// Hover styling options for interactive segments in the TUI header.
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum HeaderHoverStyle {
+    /// Highlight interactive segments with a background fill (and emphasis).
+    #[default]
+    Background,
+    /// Only underline interactive segments on hover.
+    Underline,
+    /// Disable hover styling for interactive segments.
+    None,
+}
+
+/// Header options under `[tui.header]`.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct HeaderConfig {
+    /// Show the primary header line.
+    #[serde(default = "default_true")]
+    pub show_top_line: bool,
+
+    /// Optional custom text for the primary header line.
+    /// When unset, Codex renders its default dynamic status content.
+    #[serde(default)]
+    pub top_line_text: Option<String>,
+
+    /// Show the optional secondary line under the primary header line.
+    #[serde(default)]
+    pub show_bottom_line: bool,
+
+    /// Optional custom text for the secondary header line.
+    /// When unset and `show_bottom_line = true`, the line is rendered empty.
+    #[serde(default)]
+    pub bottom_line_text: Option<String>,
+
+    /// Hover styling for interactive header segments (model/shell/reasoning).
+    #[serde(default)]
+    pub hover_style: HeaderHoverStyle,
+}
+
+impl Default for HeaderConfig {
+    fn default() -> Self {
+        Self {
+            show_top_line: true,
+            top_line_text: None,
+            show_bottom_line: false,
+            bottom_line_text: None,
+            hover_style: HeaderHoverStyle::default(),
+        }
+    }
+}
+
+/// Limits panel settings under `[tui.limits]`.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
+pub struct LimitsUiConfig {
+    /// Preferred layout mode for the limits settings panel.
+    #[serde(default)]
+    pub layout_mode: LimitsLayoutMode,
+}
+
+/// Available layout modes for the limits settings panel.
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum LimitsLayoutMode {
+    #[default]
+    Auto,
+    SingleColumn,
 }
 
 // Important: Provide a manual Default so that when no config file exists and we
@@ -893,6 +989,8 @@ impl Default for Tui {
     fn default() -> Self {
         Self {
             theme: ThemeConfig::default(),
+            branding: BrandingConfig::default(),
+            header: HeaderConfig::default(),
             auto_drive: None,
             cached_terminal_background: None,
             highlight: HighlightConfig::default(),
@@ -905,6 +1003,7 @@ impl Default for Tui {
             auto_review_enabled: true,
             shell_presets: Vec::new(),
             shell_presets_file: None,
+            limits: LimitsUiConfig::default(),
         }
     }
 }

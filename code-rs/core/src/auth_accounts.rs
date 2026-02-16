@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use code_app_server_protocol::AuthMode;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{self, Read, Write};
@@ -10,6 +11,9 @@ use uuid::Uuid;
 use crate::token_data::TokenData;
 
 const ACCOUNTS_FILE_NAME: &str = "auth_accounts.json";
+const ACCOUNTS_CONFIG_TABLE: &str = "accounts";
+const ACCOUNTS_READ_PATHS_KEY: &str = "read_paths";
+const ACCOUNTS_WRITE_PATH_KEY: &str = "write_path";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StoredAccount {
@@ -61,21 +65,108 @@ fn default_version() -> u32 {
     1
 }
 
-fn accounts_file_path(code_home: &Path) -> PathBuf {
-    code_home.join(ACCOUNTS_FILE_NAME)
+#[derive(Debug, Clone)]
+struct AccountStorePaths {
+    read_paths: Vec<PathBuf>,
+    write_path: PathBuf,
 }
 
-fn read_accounts_file(path: &Path) -> io::Result<AccountsFile> {
+fn resolve_store_path(code_home: &Path, path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        code_home.join(path)
+    }
+}
+
+fn configured_account_store_paths(code_home: &Path) -> Option<AccountStorePaths> {
+    let root = match crate::config::load_config_as_toml(code_home) {
+        Ok(value) => value,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return None,
+        Err(err) => {
+            tracing::warn!("failed to read config while resolving account store paths: {err}");
+            return None;
+        }
+    };
+
+    let accounts = root
+        .get(ACCOUNTS_CONFIG_TABLE)
+        .and_then(toml::Value::as_table)?;
+
+    let read_paths = accounts
+        .get(ACCOUNTS_READ_PATHS_KEY)
+        .and_then(toml::Value::as_array)
+        .into_iter()
+        .flat_map(|items| items.iter())
+        .filter_map(toml::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .map(|path| resolve_store_path(code_home, &path))
+        .collect::<Vec<_>>();
+
+    let write_path = accounts
+        .get(ACCOUNTS_WRITE_PATH_KEY)
+        .and_then(toml::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .map(|path| resolve_store_path(code_home, &path));
+
+    if read_paths.is_empty() && write_path.is_none() {
+        return None;
+    }
+
+    let write_path = write_path.unwrap_or_else(|| code_home.join(ACCOUNTS_FILE_NAME));
+    Some(AccountStorePaths {
+        read_paths,
+        write_path,
+    })
+}
+
+fn account_store_paths(code_home: &Path) -> AccountStorePaths {
+    let default_write_path = code_home.join(ACCOUNTS_FILE_NAME);
+    let default_read_path =
+        crate::config::resolve_code_path_for_read(code_home, Path::new(ACCOUNTS_FILE_NAME));
+
+    let mut paths = configured_account_store_paths(code_home).unwrap_or(AccountStorePaths {
+        read_paths: vec![default_read_path.clone()],
+        write_path: default_write_path,
+    });
+
+    if paths.read_paths.is_empty() {
+        paths.read_paths.push(default_read_path);
+    }
+
+    if !paths.read_paths.iter().any(|path| path == &paths.write_path) {
+        paths.read_paths.insert(0, paths.write_path.clone());
+    }
+
+    let mut seen = HashSet::new();
+    paths.read_paths.retain(|path| seen.insert(path.clone()));
+    paths
+}
+
+fn read_accounts_file(path: &Path) -> io::Result<Option<AccountsFile>> {
     match File::open(path) {
         Ok(mut file) => {
             let mut contents = String::new();
             file.read_to_string(&mut contents)?;
             let parsed: AccountsFile = serde_json::from_str(&contents)?;
-            Ok(parsed)
+            Ok(Some(parsed))
         }
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(AccountsFile::default()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(e),
     }
+}
+
+fn load_accounts_file(paths: &AccountStorePaths) -> io::Result<AccountsFile> {
+    for path in &paths.read_paths {
+        if let Some(data) = read_accounts_file(path)? {
+            return Ok(data);
+        }
+    }
+    Ok(AccountsFile::default())
 }
 
 fn write_accounts_file(path: &Path, data: &AccountsFile) -> io::Result<()> {
@@ -195,20 +286,20 @@ fn upsert_account(mut data: AccountsFile, mut new_account: StoredAccount) -> (Ac
 }
 
 pub fn list_accounts(code_home: &Path) -> io::Result<Vec<StoredAccount>> {
-    let path = accounts_file_path(code_home);
-    let data = read_accounts_file(&path)?;
+    let paths = account_store_paths(code_home);
+    let data = load_accounts_file(&paths)?;
     Ok(data.accounts)
 }
 
 pub fn get_active_account_id(code_home: &Path) -> io::Result<Option<String>> {
-    let path = accounts_file_path(code_home);
-    let data = read_accounts_file(&path)?;
+    let paths = account_store_paths(code_home);
+    let data = load_accounts_file(&paths)?;
     Ok(data.active_account_id)
 }
 
 pub fn find_account(code_home: &Path, account_id: &str) -> io::Result<Option<StoredAccount>> {
-    let path = accounts_file_path(code_home);
-    let data = read_accounts_file(&path)?;
+    let paths = account_store_paths(code_home);
+    let data = load_accounts_file(&paths)?;
     Ok(data
         .accounts
         .into_iter()
@@ -219,8 +310,8 @@ pub fn set_active_account_id(
     code_home: &Path,
     account_id: Option<String>,
 ) -> io::Result<Option<StoredAccount>> {
-    let path = accounts_file_path(code_home);
-    let mut data = read_accounts_file(&path)?;
+    let paths = account_store_paths(code_home);
+    let mut data = load_accounts_file(&paths)?;
 
     data.active_account_id = account_id.clone();
 
@@ -228,20 +319,20 @@ pub fn set_active_account_id(
         if let Some(account) = data.accounts.iter_mut().find(|acc| acc.id == id) {
             touch_account(account, true);
             let updated = account.clone();
-            write_accounts_file(&path, &data)?;
+            write_accounts_file(&paths.write_path, &data)?;
             return Ok(Some(updated));
         }
-        write_accounts_file(&path, &data)?;
+        write_accounts_file(&paths.write_path, &data)?;
         Ok(None)
     } else {
-        write_accounts_file(&path, &data)?;
+        write_accounts_file(&paths.write_path, &data)?;
         Ok(None)
     }
 }
 
 pub fn remove_account(code_home: &Path, account_id: &str) -> io::Result<Option<StoredAccount>> {
-    let path = accounts_file_path(code_home);
-    let mut data = read_accounts_file(&path)?;
+    let paths = account_store_paths(code_home);
+    let mut data = load_accounts_file(&paths)?;
 
     let removed = if let Some(pos) = data.accounts.iter().position(|acc| acc.id == account_id) {
         Some(data.accounts.remove(pos))
@@ -257,7 +348,7 @@ pub fn remove_account(code_home: &Path, account_id: &str) -> io::Result<Option<S
         data.active_account_id = None;
     }
 
-    write_accounts_file(&path, &data)?;
+    write_accounts_file(&paths.write_path, &data)?;
     Ok(removed)
 }
 
@@ -267,8 +358,8 @@ pub fn upsert_api_key_account(
     label: Option<String>,
     make_active: bool,
 ) -> io::Result<StoredAccount> {
-    let path = accounts_file_path(code_home);
-    let data = read_accounts_file(&path)?;
+    let paths = account_store_paths(code_home);
+    let data = load_accounts_file(&paths)?;
 
     let new_account = StoredAccount {
         id: next_id(),
@@ -295,7 +386,7 @@ pub fn upsert_api_key_account(
         }
     }
 
-    write_accounts_file(&path, &data)?;
+    write_accounts_file(&paths.write_path, &data)?;
     Ok(stored)
 }
 
@@ -306,8 +397,8 @@ pub fn upsert_chatgpt_account(
     label: Option<String>,
     make_active: bool,
 ) -> io::Result<StoredAccount> {
-    let path = accounts_file_path(code_home);
-    let data = read_accounts_file(&path)?;
+    let paths = account_store_paths(code_home);
+    let data = load_accounts_file(&paths)?;
 
     let new_account = StoredAccount {
         id: next_id(),
@@ -334,7 +425,7 @@ pub fn upsert_chatgpt_account(
         }
     }
 
-    write_accounts_file(&path, &data)?;
+    write_accounts_file(&paths.write_path, &data)?;
     Ok(stored)
 }
 
@@ -343,6 +434,7 @@ mod tests {
     use super::*;
     use base64::Engine;
     use crate::token_data::{IdTokenInfo, TokenData};
+    use std::fs;
     use tempfile::tempdir;
 
     fn make_chatgpt_tokens(account_id: Option<&str>, email: Option<&str>) -> TokenData {
@@ -385,6 +477,62 @@ mod tests {
             refresh_token: "refresh".to_string(),
             account_id: account_id.map(std::string::ToString::to_string),
         }
+    }
+
+    fn write_accounts_store(path: &Path, accounts: Vec<StoredAccount>) {
+        let data = AccountsFile {
+            version: 1,
+            active_account_id: accounts.first().map(|account| account.id.clone()),
+            accounts,
+        };
+        write_accounts_file(path, &data).expect("write accounts store");
+    }
+
+    #[test]
+    fn uses_configured_account_store_paths() {
+        let home = tempdir().expect("tempdir");
+        let custom_store = home.path().join("custom/accounts_store.json");
+        let existing = StoredAccount {
+            id: "existing-account".to_string(),
+            mode: AuthMode::ApiKey,
+            label: Some("existing".to_string()),
+            openai_api_key: Some("sk-existing".to_string()),
+            tokens: None,
+            last_refresh: None,
+            created_at: Some(Utc::now()),
+            last_used_at: Some(Utc::now()),
+        };
+        write_accounts_store(&custom_store, vec![existing.clone()]);
+
+        fs::write(
+            home.path().join("config.toml"),
+            r#"
+[accounts]
+read_paths = ["custom/accounts_store.json"]
+write_path = "custom/accounts_store.json"
+"#,
+        )
+        .expect("write config");
+
+        let loaded = list_accounts(home.path()).expect("list configured accounts");
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].id, existing.id);
+
+        upsert_api_key_account(home.path(), "sk-new".to_string(), None, false)
+            .expect("upsert to configured path");
+
+        let custom_contents =
+            fs::read_to_string(&custom_store).expect("read configured store");
+        assert!(
+            custom_contents.contains("sk-new"),
+            "new account should be written to configured path"
+        );
+
+        let default_store = home.path().join(ACCOUNTS_FILE_NAME);
+        assert!(
+            !default_store.exists(),
+            "default account store should remain unused when write_path is configured"
+        );
     }
 
     #[test]

@@ -1,6 +1,7 @@
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 use code_core::config::{
     find_code_home,
     set_shell_style_profile_mcp_servers,
@@ -25,7 +26,19 @@ use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::BottomPane;
-use super::form_text_field::{FormTextField, InputFilter};
+use crate::components::form_text_field::{FormTextField, InputFilter};
+use crate::ui_interaction::{
+    clipped_vertical_rect_with_scroll,
+    next_scroll_top_with_delta,
+    redraw_if,
+    render_vertical_scrollbar,
+    route_selectable_list_mouse_with_config,
+    scroll_top_to_keep_visible,
+    split_pinned_footer_layout,
+    ScrollSelectionBehavior,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Focus {
@@ -73,23 +86,66 @@ impl ActionButton {
 
 #[derive(Clone, Copy)]
 struct SkillsFormLayout {
+    viewport_inner: Rect,
+    scroll_top: usize,
+    max_scroll: usize,
+    status_row: Rect,
     name_field: Rect,
+    name_top: usize,
+    name_h: usize,
     description_field: Rect,
+    description_top: usize,
+    description_h: usize,
     style_field: Rect,
+    style_top: usize,
+    style_h: usize,
     style_profile_row: Rect,
+    style_profile_top: usize,
+    style_profile_h: usize,
     style_references_outer: Rect,
     style_references_inner: Rect,
+    style_references_top: usize,
+    style_references_h: usize,
     style_skill_roots_outer: Rect,
     style_skill_roots_inner: Rect,
+    style_skill_roots_top: usize,
+    style_skill_roots_h: usize,
     style_mcp_include_outer: Rect,
     style_mcp_include_inner: Rect,
+    style_mcp_include_top: usize,
+    style_mcp_include_h: usize,
     style_mcp_exclude_outer: Rect,
     style_mcp_exclude_inner: Rect,
+    style_mcp_exclude_top: usize,
+    style_mcp_exclude_h: usize,
     examples_outer: Rect,
     examples_inner: Rect,
+    examples_top: usize,
+    examples_h: usize,
     body_outer: Rect,
     body_inner: Rect,
+    body_top: usize,
+    body_h: usize,
     buttons_row: Rect,
+}
+
+impl SkillsFormLayout {
+    fn focus_bounds(self, focus: Focus) -> Option<(usize, usize)> {
+        match focus {
+            Focus::Name => Some((self.name_top, self.name_h)),
+            Focus::Description => Some((self.description_top, self.description_h)),
+            Focus::Style => Some((self.style_top, self.style_h)),
+            Focus::StyleProfile => Some((self.style_profile_top, self.style_profile_h)),
+            Focus::StyleReferences => Some((self.style_references_top, self.style_references_h)),
+            Focus::StyleSkillRoots => Some((self.style_skill_roots_top, self.style_skill_roots_h)),
+            Focus::StyleMcpInclude => Some((self.style_mcp_include_top, self.style_mcp_include_h)),
+            Focus::StyleMcpExclude => Some((self.style_mcp_exclude_top, self.style_mcp_exclude_h)),
+            Focus::Examples => Some((self.examples_top, self.examples_h)),
+            Focus::Body => Some((self.body_top, self.body_h)),
+            Focus::Generate | Focus::Save | Focus::Delete | Focus::Cancel => None,
+            Focus::List => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -165,6 +221,8 @@ pub(crate) struct SkillsSettingsView {
     app_event_tx: AppEventSender,
     is_complete: bool,
     mode: Mode,
+    edit_scroll_top: usize,
+    last_render_area: Cell<Option<Rect>>,
 }
 
 impl SkillsSettingsView {
@@ -213,6 +271,8 @@ impl SkillsSettingsView {
             app_event_tx,
             is_complete: false,
             mode: Mode::List,
+            edit_scroll_top: 0,
+            last_render_area: Cell::new(None),
         }
     }
 
@@ -220,7 +280,7 @@ impl SkillsSettingsView {
         if self.is_complete {
             return true;
         }
-        match self.mode {
+        let handled = match self.mode {
             Mode::List => match key {
                 KeyEvent { code: KeyCode::Esc, .. } => {
                     self.is_complete = true;
@@ -377,7 +437,13 @@ impl SkillsSettingsView {
                     Focus::List => self.handle_list_key(key),
                 },
             },
+        };
+
+        if handled && matches!(self.mode, Mode::Edit) {
+            self.ensure_edit_focus_visible_from_last_render();
         }
+
+        handled
     }
 
     pub fn handle_paste_direct(&mut self, text: String) -> bool {
@@ -460,43 +526,86 @@ impl SkillsSettingsView {
         }
     }
 
+    fn scroll_edit_container_by(&mut self, delta: isize, max_scroll: usize) -> bool {
+        if max_scroll == 0 || delta == 0 {
+            return false;
+        }
+        let next = next_scroll_top_with_delta(self.edit_scroll_top, max_scroll, delta);
+        if next == self.edit_scroll_top {
+            false
+        } else {
+            self.edit_scroll_top = next;
+            true
+        }
+    }
+
+    fn ensure_edit_focus_visible(&mut self, layout: SkillsFormLayout) -> bool {
+        if layout.max_scroll == 0 || layout.viewport_inner.height == 0 {
+            return false;
+        }
+        let Some((focus_top, focus_h)) = layout.focus_bounds(self.focus) else {
+            return false;
+        };
+        if focus_h == 0 {
+            return false;
+        }
+
+        let viewport_h = layout.viewport_inner.height as usize;
+        let next = scroll_top_to_keep_visible(
+            self.edit_scroll_top,
+            layout.max_scroll,
+            viewport_h,
+            focus_top,
+            focus_h,
+        );
+        if next == self.edit_scroll_top {
+            false
+        } else {
+            self.edit_scroll_top = next;
+            true
+        }
+    }
+
+    fn ensure_edit_focus_visible_from_last_render(&mut self) -> bool {
+        let Some(area) = self.last_render_area.get() else {
+            return false;
+        };
+        let Some(layout) = self.compute_form_layout(area) else {
+            return false;
+        };
+        self.edit_scroll_top = layout.scroll_top;
+        self.ensure_edit_focus_visible(layout)
+    }
+
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        if self.mode == Mode::List {
+            return self.handle_list_mouse_event(mouse_event, area);
+        }
+
         match mouse_event.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 if !point_in_rect(area, mouse_event.column, mouse_event.row) {
                     return false;
                 }
-                match self.mode {
-                    Mode::List => self.handle_list_click(mouse_event, area),
-                    Mode::Edit => self.handle_edit_click(mouse_event, area),
-                }
+                self.handle_edit_click(mouse_event, area)
             }
             MouseEventKind::Moved => {
                 if !point_in_rect(area, mouse_event.column, mouse_event.row) {
                     return self.set_hovered_button(None);
                 }
-                match self.mode {
-                    Mode::List => self.set_hovered_button(None),
-                    Mode::Edit => self.handle_edit_mouse_move(mouse_event, area),
-                }
+                self.handle_edit_mouse_move(mouse_event, area)
             }
             MouseEventKind::ScrollUp => {
                 if !point_in_rect(area, mouse_event.column, mouse_event.row) {
                     return false;
                 }
-                match self.mode {
-                    Mode::List => false,
-                    Mode::Edit => self.handle_edit_scroll(mouse_event, area, false),
-                }
+                self.handle_edit_scroll(mouse_event, area, false)
             }
             MouseEventKind::ScrollDown => {
                 if !point_in_rect(area, mouse_event.column, mouse_event.row) {
                     return false;
                 }
-                match self.mode {
-                    Mode::List => false,
-                    Mode::Edit => self.handle_edit_scroll(mouse_event, area, true),
-                }
+                self.handle_edit_scroll(mouse_event, area, true)
             }
             _ => false,
         }
@@ -510,6 +619,7 @@ impl SkillsSettingsView {
         if area.width == 0 || area.height == 0 {
             return;
         }
+        self.last_render_area.set(Some(area));
         self.render_body(area, buf);
     }
 
@@ -588,86 +698,78 @@ impl SkillsSettingsView {
             .borders(Borders::ALL)
             .title("Skill Creator / Editor")
             .style(Style::default().bg(colors::background()));
-        let inner = outer.inner(area);
         outer.render(area, buf);
+        let Some(layout) = self.compute_form_layout(area) else {
+            return;
+        };
 
-        let vertical = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(4),
-                Constraint::Length(4),
-                Constraint::Length(4),
-                Constraint::Length(4),
-                Constraint::Length(5),
-                Constraint::Min(5),
-                Constraint::Length(2),
-                Constraint::Length(1),
-            ])
-            .split(inner);
+        let label_style = Style::default().fg(colors::text_dim());
 
-        let field_rows = [vertical[0], vertical[1], vertical[2], vertical[3]];
-        let labels = [
+        render_labeled_row(
+            buf,
+            layout.viewport_inner,
+            label_style,
             "Name (slug)",
+            layout.name_field,
+        );
+        self.name_field
+            .render(layout.name_field, buf, matches!(self.focus, Focus::Name));
+
+        render_labeled_row(
+            buf,
+            layout.viewport_inner,
+            label_style,
             "Description",
+            layout.description_field,
+        );
+        self.description_field.render(
+            layout.description_field,
+            buf,
+            matches!(self.focus, Focus::Description),
+        );
+
+        render_labeled_row(
+            buf,
+            layout.viewport_inner,
+            label_style,
             "Shell style (optional)",
+            layout.style_field,
+        );
+        self.style_field
+            .render(layout.style_field, buf, matches!(self.focus, Focus::Style));
+
+        render_labeled_row(
+            buf,
+            layout.viewport_inner,
+            label_style,
             "Style profile behavior",
-        ];
-        for (idx, row) in field_rows.iter().enumerate() {
-            let chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Length(24), Constraint::Min(1)])
-                .split(*row);
-
-            Paragraph::new(Line::from(Span::styled(
-                labels[idx],
-                Style::default().fg(colors::text_dim()),
-            )))
-            .render(chunks[0], buf);
-
-            match idx {
-                0 => self
-                    .name_field
-                    .render(chunks[1], buf, matches!(self.focus, Focus::Name)),
-                1 => self.description_field.render(
-                    chunks[1],
-                    buf,
-                    matches!(self.focus, Focus::Description),
-                ),
-                2 => self
-                    .style_field
-                    .render(chunks[1], buf, matches!(self.focus, Focus::Style)),
-                3 => {
-                    let focused = matches!(self.focus, Focus::StyleProfile);
-                    let mode_style = if focused {
-                        Style::default()
-                            .fg(colors::background())
-                            .bg(colors::primary())
-                            .add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default()
-                            .fg(colors::text())
-                            .add_modifier(Modifier::BOLD)
-                    };
-                    let hint_style = Style::default().fg(colors::text_dim());
-                    let mode_text = self.style_profile_mode.label().to_string();
-                    let hint_text = if self.style_field.text().trim().is_empty() {
-                        "Set shell style first".to_string()
-                    } else {
-                        self.style_profile_mode.hint().to_string()
-                    };
-                    Paragraph::new(Line::from(vec![
-                        Span::styled(mode_text, mode_style),
-                        Span::raw("  "),
-                        Span::styled(hint_text, hint_style),
-                    ]))
-                    .render(chunks[1], buf);
-                }
-                _ => {}
-            }
+            layout.style_profile_row,
+        );
+        if layout.style_profile_row.height > 0 {
+            let focused = matches!(self.focus, Focus::StyleProfile);
+            let mode_style = if focused {
+                Style::default()
+                    .fg(colors::background())
+                    .bg(colors::primary())
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+                    .fg(colors::text())
+                    .add_modifier(Modifier::BOLD)
+            };
+            let hint_style = Style::default().fg(colors::text_dim());
+            let mode_text = self.style_profile_mode.label().to_string();
+            let hint_text = if self.style_field.text().trim().is_empty() {
+                "Set shell style first".to_string()
+            } else {
+                self.style_profile_mode.hint().to_string()
+            };
+            Paragraph::new(Line::from(vec![
+                Span::styled(mode_text, mode_style),
+                Span::raw("  "),
+                Span::styled(hint_text, hint_style),
+            ]))
+            .render(layout.style_profile_row, buf);
         }
 
         let references_title = if self.style_references_dirty {
@@ -681,10 +783,12 @@ impl SkillsSettingsView {
         if matches!(self.focus, Focus::StyleReferences) {
             references_block = references_block.border_style(Style::default().fg(colors::primary()));
         }
-        let references_inner = references_block.inner(vertical[4]);
-        references_block.render(vertical[4], buf);
-        self.style_references_field
-            .render(references_inner, buf, matches!(self.focus, Focus::StyleReferences));
+        references_block.render(layout.style_references_outer, buf);
+        self.style_references_field.render(
+            layout.style_references_inner,
+            buf,
+            matches!(self.focus, Focus::StyleReferences),
+        );
 
         let skill_roots_title = if self.style_skill_roots_dirty {
             "Style skill roots [edited]"
@@ -697,10 +801,12 @@ impl SkillsSettingsView {
         if matches!(self.focus, Focus::StyleSkillRoots) {
             skill_roots_block = skill_roots_block.border_style(Style::default().fg(colors::primary()));
         }
-        let skill_roots_inner = skill_roots_block.inner(vertical[5]);
-        skill_roots_block.render(vertical[5], buf);
-        self.style_skill_roots_field
-            .render(skill_roots_inner, buf, matches!(self.focus, Focus::StyleSkillRoots));
+        skill_roots_block.render(layout.style_skill_roots_outer, buf);
+        self.style_skill_roots_field.render(
+            layout.style_skill_roots_inner,
+            buf,
+            matches!(self.focus, Focus::StyleSkillRoots),
+        );
 
         let mcp_include_title = if self.style_mcp_include_dirty {
             "Style MCP include [edited]"
@@ -713,10 +819,12 @@ impl SkillsSettingsView {
         if matches!(self.focus, Focus::StyleMcpInclude) {
             mcp_include_block = mcp_include_block.border_style(Style::default().fg(colors::primary()));
         }
-        let mcp_include_inner = mcp_include_block.inner(vertical[6]);
-        mcp_include_block.render(vertical[6], buf);
-        self.style_mcp_include_field
-            .render(mcp_include_inner, buf, matches!(self.focus, Focus::StyleMcpInclude));
+        mcp_include_block.render(layout.style_mcp_include_outer, buf);
+        self.style_mcp_include_field.render(
+            layout.style_mcp_include_inner,
+            buf,
+            matches!(self.focus, Focus::StyleMcpInclude),
+        );
 
         let mcp_exclude_title = if self.style_mcp_exclude_dirty {
             "Style MCP exclude [edited]"
@@ -729,10 +837,12 @@ impl SkillsSettingsView {
         if matches!(self.focus, Focus::StyleMcpExclude) {
             mcp_exclude_block = mcp_exclude_block.border_style(Style::default().fg(colors::primary()));
         }
-        let mcp_exclude_inner = mcp_exclude_block.inner(vertical[7]);
-        mcp_exclude_block.render(vertical[7], buf);
-        self.style_mcp_exclude_field
-            .render(mcp_exclude_inner, buf, matches!(self.focus, Focus::StyleMcpExclude));
+        mcp_exclude_block.render(layout.style_mcp_exclude_outer, buf);
+        self.style_mcp_exclude_field.render(
+            layout.style_mcp_exclude_inner,
+            buf,
+            matches!(self.focus, Focus::StyleMcpExclude),
+        );
 
         let mut examples_block = Block::default()
             .borders(Borders::ALL)
@@ -740,19 +850,17 @@ impl SkillsSettingsView {
         if matches!(self.focus, Focus::Examples) {
             examples_block = examples_block.border_style(Style::default().fg(colors::primary()));
         }
-        let examples_inner = examples_block.inner(vertical[8]);
-        examples_block.render(vertical[8], buf);
+        examples_block.render(layout.examples_outer, buf);
         self.examples_field
-            .render(examples_inner, buf, matches!(self.focus, Focus::Examples));
+            .render(layout.examples_inner, buf, matches!(self.focus, Focus::Examples));
 
         let mut body_block = Block::default().borders(Borders::ALL).title("SKILL.md Body");
         if matches!(self.focus, Focus::Body) {
             body_block = body_block.border_style(Style::default().fg(colors::primary()));
         }
-        let body_inner = body_block.inner(vertical[9]);
-        body_block.render(vertical[9], buf);
+        body_block.render(layout.body_outer, buf);
         self.body_field
-            .render(body_inner, buf, matches!(self.focus, Focus::Body));
+            .render(layout.body_inner, buf, matches!(self.focus, Focus::Body));
 
         let generate_label = "Generate draft";
         let save_label = "Save";
@@ -788,12 +896,25 @@ impl SkillsSettingsView {
             btn_span(cancel_label, Focus::Cancel, Style::default().fg(colors::text_dim()).add_modifier(Modifier::BOLD)),
             Span::raw("    Tab cycle - Enter activates - <-/-> mode - Ctrl+G generate"),
         ]);
-        Paragraph::new(line).render(vertical[10], buf);
+        Paragraph::new(line).render(layout.buttons_row, buf);
 
-        if let Some((msg, style)) = &self.status {
+        if layout.status_row.height > 0
+            && let Some((msg, style)) = &self.status
+        {
             Paragraph::new(Line::from(Span::styled(msg.clone(), *style)))
                 .alignment(Alignment::Left)
-                .render(vertical[11], buf);
+                .render(layout.status_row, buf);
+        }
+
+        if layout.max_scroll > 0 {
+            let viewport_len = layout.viewport_inner.height as usize;
+            render_vertical_scrollbar(
+                buf,
+                layout.viewport_inner,
+                layout.scroll_top,
+                layout.max_scroll,
+                viewport_len,
+            );
         }
     }
 
@@ -808,26 +929,108 @@ impl SkillsSettingsView {
             return None;
         }
 
-        let vertical = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(4),
-                Constraint::Length(4),
-                Constraint::Length(4),
-                Constraint::Length(4),
-                Constraint::Length(5),
-                Constraint::Min(5),
-                Constraint::Length(2),
-                Constraint::Length(1),
-            ])
-            .split(inner);
-        if vertical.len() < 12 {
-            return None;
-        }
+        const BASIC_ROW_H: usize = 3;
+        const PATH_BLOCK_H: usize = 4;
+        const PATH_BLOCK_H_FOCUSED: usize = 7;
+        const EXAMPLES_H: usize = 5;
+        const EXAMPLES_H_FOCUSED: usize = 8;
+        const BODY_MIN_H: usize = 10;
+        const BODY_MIN_H_FOCUSED: usize = 14;
+
+        let footer_layout = split_pinned_footer_layout(inner, 1, 1, 4);
+        let viewport_inner = footer_layout.viewport;
+        let viewport_h = viewport_inner.height as usize;
+
+        let low_height = viewport_h > 0 && viewport_h <= 24;
+        let style_references_section_h = if low_height && matches!(self.focus, Focus::StyleReferences) {
+            PATH_BLOCK_H_FOCUSED
+        } else {
+            PATH_BLOCK_H
+        };
+        let style_skill_roots_section_h = if low_height && matches!(self.focus, Focus::StyleSkillRoots) {
+            PATH_BLOCK_H_FOCUSED
+        } else {
+            PATH_BLOCK_H
+        };
+        let style_mcp_include_section_h = if low_height && matches!(self.focus, Focus::StyleMcpInclude) {
+            PATH_BLOCK_H_FOCUSED
+        } else {
+            PATH_BLOCK_H
+        };
+        let style_mcp_exclude_section_h = if low_height && matches!(self.focus, Focus::StyleMcpExclude) {
+            PATH_BLOCK_H_FOCUSED
+        } else {
+            PATH_BLOCK_H
+        };
+        let examples_section_h = if low_height && matches!(self.focus, Focus::Examples) {
+            EXAMPLES_H_FOCUSED
+        } else {
+            EXAMPLES_H
+        };
+        let body_min_h = if low_height && matches!(self.focus, Focus::Body) {
+            BODY_MIN_H_FOCUSED
+        } else {
+            BODY_MIN_H
+        };
+
+        let static_without_body = (BASIC_ROW_H * 4)
+            + style_references_section_h
+            + style_skill_roots_section_h
+            + style_mcp_include_section_h
+            + style_mcp_exclude_section_h
+            + examples_section_h;
+        let base_total = static_without_body + body_min_h;
+        let body_h = body_min_h + viewport_h.saturating_sub(base_total);
+        let content_h = static_without_body + body_h;
+        let max_scroll = content_h.saturating_sub(viewport_h);
+        let scroll_top = self.edit_scroll_top.min(max_scroll);
+
+        let mut top = 0usize;
+        let mut next_section = |h: usize| {
+            let section_top = top;
+            top = top.saturating_add(h);
+            (section_top, h)
+        };
+
+        let (name_top, name_h) = next_section(BASIC_ROW_H);
+        let (description_top, description_h) = next_section(BASIC_ROW_H);
+        let (style_top, style_h) = next_section(BASIC_ROW_H);
+        let (style_profile_top, style_profile_h) = next_section(BASIC_ROW_H);
+        let (style_references_top, style_references_h) = next_section(style_references_section_h);
+        let (style_skill_roots_top, style_skill_roots_h) = next_section(style_skill_roots_section_h);
+        let (style_mcp_include_top, style_mcp_include_h) = next_section(style_mcp_include_section_h);
+        let (style_mcp_exclude_top, style_mcp_exclude_h) = next_section(style_mcp_exclude_section_h);
+        let (examples_top, examples_h) = next_section(examples_section_h);
+        let (body_top, body_h_section) = next_section(body_h);
+
+        let name_row = clipped_vertical_rect_with_scroll(viewport_inner, name_top, name_h, scroll_top);
+        let description_row = clipped_vertical_rect_with_scroll(
+            viewport_inner,
+            description_top,
+            description_h,
+            scroll_top,
+        );
+        let style_row = clipped_vertical_rect_with_scroll(viewport_inner, style_top, style_h, scroll_top);
+        let style_profile_row_full = clipped_vertical_rect_with_scroll(
+            viewport_inner,
+            style_profile_top,
+            style_profile_h,
+            scroll_top,
+        );
+        let style_references_outer =
+            clipped_vertical_rect_with_scroll(viewport_inner, style_references_top, style_references_h, scroll_top);
+        let style_skill_roots_outer =
+            clipped_vertical_rect_with_scroll(viewport_inner, style_skill_roots_top, style_skill_roots_h, scroll_top);
+        let style_mcp_include_outer =
+            clipped_vertical_rect_with_scroll(viewport_inner, style_mcp_include_top, style_mcp_include_h, scroll_top);
+        let style_mcp_exclude_outer =
+            clipped_vertical_rect_with_scroll(viewport_inner, style_mcp_exclude_top, style_mcp_exclude_h, scroll_top);
+        let examples_outer =
+            clipped_vertical_rect_with_scroll(viewport_inner, examples_top, examples_h, scroll_top);
+        let body_outer = clipped_vertical_rect_with_scroll(viewport_inner, body_top, body_h_section, scroll_top);
+
+        let buttons_row = footer_layout.action_row;
+        let status_row = footer_layout.status_row;
 
         let split_row = |row: Rect| {
             Layout::default()
@@ -836,40 +1039,57 @@ impl SkillsSettingsView {
                 .split(row)
         };
 
-        let name_chunks = split_row(vertical[0]);
-        let description_chunks = split_row(vertical[1]);
-        let style_chunks = split_row(vertical[2]);
-        let style_profile_chunks = split_row(vertical[3]);
-
-        let style_references_outer = vertical[4];
-        let style_skill_roots_outer = vertical[5];
-        let style_mcp_include_outer = vertical[6];
-        let style_mcp_exclude_outer = vertical[7];
-        let examples_outer = vertical[8];
-        let body_outer = vertical[9];
+        let name_chunks = split_row(name_row);
+        let description_chunks = split_row(description_row);
+        let style_chunks = split_row(style_row);
+        let style_profile_chunks = split_row(style_profile_row_full);
 
         Some(SkillsFormLayout {
+            viewport_inner,
+            scroll_top,
+            max_scroll,
+            status_row,
             name_field: name_chunks[1],
+            name_top,
+            name_h,
             description_field: description_chunks[1],
+            description_top,
+            description_h,
             style_field: style_chunks[1],
+            style_top,
+            style_h,
             style_profile_row: style_profile_chunks[1],
+            style_profile_top,
+            style_profile_h,
             style_references_outer,
             style_references_inner: Block::default().borders(Borders::ALL).inner(style_references_outer),
+            style_references_top,
+            style_references_h,
             style_skill_roots_outer,
             style_skill_roots_inner: Block::default().borders(Borders::ALL).inner(style_skill_roots_outer),
+            style_skill_roots_top,
+            style_skill_roots_h,
             style_mcp_include_outer,
             style_mcp_include_inner: Block::default().borders(Borders::ALL).inner(style_mcp_include_outer),
+            style_mcp_include_top,
+            style_mcp_include_h,
             style_mcp_exclude_outer,
             style_mcp_exclude_inner: Block::default().borders(Borders::ALL).inner(style_mcp_exclude_outer),
+            style_mcp_exclude_top,
+            style_mcp_exclude_h,
             examples_outer,
             examples_inner: Block::default().borders(Borders::ALL).inner(examples_outer),
+            examples_top,
+            examples_h,
             body_outer,
             body_inner: Block::default().borders(Borders::ALL).inner(body_outer),
-            buttons_row: vertical[10],
+            body_top,
+            body_h: body_h_section,
+            buttons_row,
         })
     }
 
-    fn handle_list_click(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn list_selection_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
         let outer = Block::default().borders(Borders::ALL);
         let inner = outer.inner(area);
         let chunks = Layout::default()
@@ -877,21 +1097,42 @@ impl SkillsSettingsView {
             .constraints([Constraint::Length(3), Constraint::Min(1)])
             .split(inner);
         let list_area = chunks[1];
-        if !point_in_rect(list_area, mouse_event.column, mouse_event.row) {
-            return false;
+        if !point_in_rect(list_area, x, y) {
+            return None;
         }
 
-        let row = mouse_event.row.saturating_sub(list_area.y) as usize;
+        let row = y.saturating_sub(list_area.y) as usize;
         if row < self.skills.len() {
-            self.selected = row;
-            self.enter_editor();
-            return true;
+            return Some(row);
         }
         if row == self.skills.len() {
-            self.start_new_skill();
-            return true;
+            return Some(self.skills.len());
         }
-        false
+        None
+    }
+
+    fn handle_list_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let mut selected = self.selected;
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            self.skills.len().saturating_add(1),
+            |x, y| self.list_selection_at(area, x, y),
+            SelectableListMouseConfig {
+                require_pointer_hit_for_scroll: true,
+                scroll_behavior: ScrollSelectionBehavior::Clamp,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.selected = selected;
+        if matches!(result, SelectableListMouseResult::Activated) {
+            if self.selected < self.skills.len() {
+                self.enter_editor();
+            } else {
+                self.start_new_skill();
+            }
+        }
+        result.handled()
     }
 
     fn handle_edit_click(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -1011,45 +1252,58 @@ impl SkillsSettingsView {
         let Some(layout) = self.compute_form_layout(area) else {
             return false;
         };
+        let container_delta = if scroll_down { 3 } else { -3 };
 
         if point_in_rect(layout.style_references_outer, mouse_event.column, mouse_event.row) {
             let previous_focus = self.focus;
             self.focus = Focus::StyleReferences;
             let moved = self.style_references_field.handle_mouse_scroll(scroll_down);
-            return moved || previous_focus != self.focus;
+            return moved
+                || previous_focus != self.focus
+                || self.scroll_edit_container_by(container_delta, layout.max_scroll);
         }
         if point_in_rect(layout.style_skill_roots_outer, mouse_event.column, mouse_event.row) {
             let previous_focus = self.focus;
             self.focus = Focus::StyleSkillRoots;
             let moved = self.style_skill_roots_field.handle_mouse_scroll(scroll_down);
-            return moved || previous_focus != self.focus;
+            return moved
+                || previous_focus != self.focus
+                || self.scroll_edit_container_by(container_delta, layout.max_scroll);
         }
         if point_in_rect(layout.style_mcp_include_outer, mouse_event.column, mouse_event.row) {
             let previous_focus = self.focus;
             self.focus = Focus::StyleMcpInclude;
             let moved = self.style_mcp_include_field.handle_mouse_scroll(scroll_down);
-            return moved || previous_focus != self.focus;
+            return moved
+                || previous_focus != self.focus
+                || self.scroll_edit_container_by(container_delta, layout.max_scroll);
         }
         if point_in_rect(layout.style_mcp_exclude_outer, mouse_event.column, mouse_event.row) {
             let previous_focus = self.focus;
             self.focus = Focus::StyleMcpExclude;
             let moved = self.style_mcp_exclude_field.handle_mouse_scroll(scroll_down);
-            return moved || previous_focus != self.focus;
+            return moved
+                || previous_focus != self.focus
+                || self.scroll_edit_container_by(container_delta, layout.max_scroll);
         }
         if point_in_rect(layout.examples_outer, mouse_event.column, mouse_event.row) {
             let previous_focus = self.focus;
             self.focus = Focus::Examples;
             let moved = self.examples_field.handle_mouse_scroll(scroll_down);
-            return moved || previous_focus != self.focus;
+            return moved
+                || previous_focus != self.focus
+                || self.scroll_edit_container_by(container_delta, layout.max_scroll);
         }
         if point_in_rect(layout.body_outer, mouse_event.column, mouse_event.row) {
             let previous_focus = self.focus;
             self.focus = Focus::Body;
             let moved = self.body_field.handle_mouse_scroll(scroll_down);
-            return moved || previous_focus != self.focus;
+            return moved
+                || previous_focus != self.focus
+                || self.scroll_edit_container_by(container_delta, layout.max_scroll);
         }
 
-        false
+        self.scroll_edit_container_by(container_delta, layout.max_scroll)
     }
 
     fn handle_edit_button_click(&mut self, mouse_event: MouseEvent, row: Rect) -> bool {
@@ -1158,6 +1412,7 @@ impl SkillsSettingsView {
         self.examples_field.set_text("");
         self.body_field.set_text("");
         self.focus = Focus::Name;
+        self.edit_scroll_top = 0;
         self.hovered_button = None;
         self.status = Some((
             "New skill. Fill fields, then Generate draft or Save.".to_string(),
@@ -1179,6 +1434,7 @@ impl SkillsSettingsView {
             self.examples_field.set_text("");
             self.body_field.set_text(&strip_frontmatter(&skill.content));
             self.focus = Focus::Name;
+            self.edit_scroll_top = 0;
             self.hovered_button = None;
         }
     }
@@ -1962,6 +2218,26 @@ fn parse_string_list(text: &str) -> Vec<String> {
         .collect()
 }
 
+fn render_labeled_row(
+    buf: &mut Buffer,
+    viewport_inner: Rect,
+    label_style: Style,
+    label: &str,
+    field_rect: Rect,
+) {
+    if field_rect.height == 0 || viewport_inner.width == 0 {
+        return;
+    }
+    let label_w = 24u16.min(viewport_inner.width);
+    let label_rect = Rect {
+        x: viewport_inner.x,
+        y: field_rect.y,
+        width: label_w,
+        height: field_rect.height,
+    };
+    Paragraph::new(Line::from(Span::styled(label, label_style))).render(label_rect, buf);
+}
+
 fn point_in_rect(rect: Rect, x: u16, y: u16) -> bool {
     if rect.width == 0 || rect.height == 0 {
         return false;
@@ -2003,17 +2279,21 @@ impl<'a> BottomPaneView<'a> for SkillsSettingsView {
         let _ = self.handle_key_event_direct(key_event);
     }
 
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
+    }
+
     fn handle_mouse_event(
         &mut self,
         _pane: &mut BottomPane<'a>,
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        if self.handle_mouse_event_direct(mouse_event, area) {
-            ConditionalUpdate::NeedsRedraw
-        } else {
-            ConditionalUpdate::NoRedraw
-        }
+        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {
@@ -2034,7 +2314,7 @@ mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;
-    use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use std::sync::mpsc::channel;
 
     fn make_view(
@@ -2259,5 +2539,24 @@ mod tests {
         );
         assert!(view.handle_mouse_event_direct(hover_body, area));
         assert_eq!(view.hovered_button, None);
+    }
+
+    #[test]
+    fn short_height_editor_scrolls_focus_into_view() {
+        let mut view = make_view(HashMap::new());
+        view.start_new_skill();
+        let area = Rect::new(0, 0, 80, 14);
+        view.last_render_area.set(Some(area));
+        assert_eq!(view.edit_scroll_top, 0);
+
+        for _ in 0..9 {
+            assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)));
+        }
+
+        assert!(matches!(view.focus, Focus::Body));
+        assert!(view.edit_scroll_top > 0);
+
+        let layout = view.compute_form_layout(area).expect("layout should exist");
+        assert!(layout.body_outer.height > 0);
     }
 }

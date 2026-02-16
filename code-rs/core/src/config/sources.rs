@@ -3,6 +3,7 @@ use crate::config_types::{
     AutoDriveContinueMode,
     AutoDriveSettings,
     CachedTerminalBackground,
+    LimitsLayoutMode,
     McpServerConfig,
     McpServerTransportConfig,
     ReasoningEffort,
@@ -1200,6 +1201,33 @@ pub fn set_tui_alternate_screen(code_home: &Path, enabled: bool) -> anyhow::Resu
     Ok(())
 }
 
+/// Persist the limits layout mode into `CODEX_HOME/config.toml` at `[tui.limits].layout_mode`.
+pub fn set_tui_limits_layout_mode(
+    code_home: &Path,
+    layout_mode: LimitsLayoutMode,
+) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let mode = match layout_mode {
+        LimitsLayoutMode::Auto => "auto",
+        LimitsLayoutMode::SingleColumn => "single-column",
+    };
+    doc["tui"]["limits"]["layout_mode"] = toml_edit::value(mode);
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+
+    Ok(())
+}
+
 /// Persist the TUI notifications preference into `CODEX_HOME/config.toml` at `[tui].notifications`.
 pub fn set_tui_notifications(
     code_home: &Path,
@@ -1225,6 +1253,73 @@ pub fn set_tui_notifications(
                 array.push(value);
             }
             doc["tui"]["notifications"] = TomlItem::Value(array.into());
+        }
+    }
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+
+    Ok(())
+}
+
+/// Persist account-store path preferences into `CODEX_HOME/config.toml` at `[accounts]`.
+///
+/// - `read_paths` is an ordered list of candidate files to read from.
+/// - `write_path` is the file used for writes/updates.
+/// - If both are empty/unset, the `[accounts]` table is removed so defaults apply.
+pub fn set_account_store_paths(
+    code_home: &Path,
+    read_paths: &[String],
+    write_path: Option<&str>,
+) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let normalized_read_paths = read_paths
+        .iter()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(std::string::ToString::to_string)
+        .collect::<Vec<_>>();
+
+    let normalized_write_path = write_path
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(std::string::ToString::to_string);
+
+    if normalized_read_paths.is_empty() && normalized_write_path.is_none() {
+        doc.as_table_mut().remove("accounts");
+    } else {
+        if !doc["accounts"].is_table() {
+            doc["accounts"] = TomlItem::Table(TomlTable::new());
+        }
+        let Some(accounts_table) = doc["accounts"].as_table_mut() else {
+            return Err(anyhow::anyhow!(
+                "failed to configure account store paths: [accounts] is not a table"
+            ));
+        };
+
+        if normalized_read_paths.is_empty() {
+            accounts_table.remove("read_paths");
+        } else {
+            let mut array = TomlArray::new();
+            for path in normalized_read_paths {
+                array.push(path);
+            }
+            accounts_table["read_paths"] = TomlItem::Value(array.into());
+        }
+
+        if let Some(path) = normalized_write_path {
+            accounts_table["write_path"] = toml_edit::value(path);
+        } else {
+            accounts_table.remove("write_path");
         }
     }
 
@@ -1888,12 +1983,27 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                     })
                     .flatten();
 
+                let mut disabled_tools: Vec<String> = t
+                    .get("disabled_tools")
+                    .and_then(toml_edit::Item::as_array)
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|item| item.as_str().map(str::trim))
+                            .filter(|name| !name.is_empty())
+                            .map(std::string::ToString::to_string)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                disabled_tools.sort();
+                disabled_tools.dedup();
+
                 out.push((
                     name.to_string(),
                     McpServerConfig {
                         transport,
                         startup_timeout_sec,
                         tool_timeout_sec,
+                        disabled_tools,
                     },
                 ));
             }
@@ -1952,6 +2062,7 @@ pub fn add_mcp_server(
         transport,
         startup_timeout_sec,
         tool_timeout_sec,
+        disabled_tools,
     } = cfg;
 
     // Build table for this server
@@ -1987,6 +2098,16 @@ pub fn add_mcp_server(
     }
     if let Some(duration) = tool_timeout_sec {
         server_tbl.insert("tool_timeout_sec", toml_edit::value(duration.as_secs_f64()));
+    }
+    if !disabled_tools.is_empty() {
+        let mut arr = toml_edit::Array::new();
+        for tool in disabled_tools {
+            arr.push(toml_edit::Value::from(tool));
+        }
+        server_tbl.insert(
+            "disabled_tools",
+            TomlItem::Value(toml_edit::Value::Array(arr)),
+        );
     }
 
     // Write into enabled table
@@ -2066,6 +2187,111 @@ pub fn set_mcp_server_enabled(
     Ok(changed)
 }
 
+/// Enable/disable a specific MCP tool for a named server.
+/// Returns `true` when the persisted config changed.
+pub fn set_mcp_server_tool_enabled(
+    code_home: &Path,
+    server_name: &str,
+    tool_name: &str,
+    enabled: bool,
+) -> anyhow::Result<bool> {
+    let normalized_tool = tool_name.trim();
+    if normalized_tool.is_empty() {
+        return Err(anyhow::anyhow!("tool name cannot be empty"));
+    }
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    fn find_server_table_mut<'a>(
+        doc: &'a mut DocumentMut,
+        server_name: &str,
+    ) -> Option<&'a mut toml_edit::Table> {
+        let section_key = if doc
+            .as_table()
+            .get("mcp_servers")
+            .and_then(toml_edit::Item::as_table)
+            .and_then(|table| table.get(server_name))
+            .is_some()
+        {
+            Some("mcp_servers")
+        } else if doc
+            .as_table()
+            .get("mcp_servers_disabled")
+            .and_then(toml_edit::Item::as_table)
+            .and_then(|table| table.get(server_name))
+            .is_some()
+        {
+            Some("mcp_servers_disabled")
+        } else {
+            None
+        }?;
+
+        doc.as_table_mut()
+            .get_mut(section_key)
+            .and_then(toml_edit::Item::as_table_mut)
+            .and_then(|section| section.get_mut(server_name))
+            .and_then(toml_edit::Item::as_table_mut)
+    }
+
+    let Some(server_table) = find_server_table_mut(&mut doc, server_name) else {
+        return Err(anyhow::anyhow!("MCP server '{server_name}' not found"));
+    };
+
+    let mut disabled_tools: Vec<String> = server_table
+        .get("disabled_tools")
+        .and_then(toml_edit::Item::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|item| item.as_str().map(str::trim))
+                .filter(|name| !name.is_empty())
+                .map(std::string::ToString::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let mut changed = false;
+    if enabled {
+        let prev_len = disabled_tools.len();
+        disabled_tools.retain(|name| name != normalized_tool);
+        changed = prev_len != disabled_tools.len();
+    } else if !disabled_tools
+        .iter()
+        .any(|name| name == normalized_tool)
+    {
+        disabled_tools.push(normalized_tool.to_string());
+        changed = true;
+    }
+
+    if !changed {
+        return Ok(false);
+    }
+
+    disabled_tools.sort();
+    disabled_tools.dedup();
+    if disabled_tools.is_empty() {
+        server_table.remove("disabled_tools");
+    } else {
+        let mut arr = toml_edit::Array::new();
+        for tool in disabled_tools {
+            arr.push(toml_edit::Value::from(tool));
+        }
+        server_table["disabled_tools"] = TomlItem::Value(toml_edit::Value::Array(arr));
+    }
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp.path(), doc.to_string())?;
+    tmp.persist(config_path)?;
+
+    Ok(true)
+}
+
 /// Apply a single dotted-path override onto a TOML value.
 fn env_path(var: &str) -> std::io::Result<Option<PathBuf>> {
     match std::env::var(var) {
@@ -2120,6 +2346,25 @@ fn path_exists(path: &Path) -> bool {
     std::fs::metadata(path).is_ok()
 }
 
+fn find_repo_dev_code_home() -> Option<PathBuf> {
+    let cwd = std::env::current_dir().ok()?;
+    for ancestor in cwd.ancestors() {
+        // Limit this fallback to local source checkouts so regular users are
+        // unaffected unless they intentionally run from the codebase.
+        let repo_marker = ancestor.join("code-rs/Cargo.toml");
+        if !path_exists(&repo_marker) {
+            continue;
+        }
+
+        let dev_code_home = ancestor.join(".code");
+        let dev_config = dev_code_home.join(CONFIG_TOML_FILE);
+        if path_exists(&dev_config) {
+            return Some(dev_code_home);
+        }
+    }
+    None
+}
+
 /// Resolve the filesystem path used for *reading* Codex state that may live in
 /// a legacy `~/.codex` directory. Writes should continue targeting `code_home`.
 pub fn resolve_code_path_for_read(code_home: &Path, relative: &Path) -> PathBuf {
@@ -2162,6 +2407,10 @@ pub fn find_code_home() -> std::io::Result<PathBuf> {
 
     if let Some(path) = env_path("CODEX_HOME")? {
         return Ok(path);
+    }
+
+    if let Some(dev_code_home) = find_repo_dev_code_home() {
+        return Ok(dev_code_home);
     }
 
     let home = home_dir().ok_or_else(|| {

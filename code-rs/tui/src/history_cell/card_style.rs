@@ -1,7 +1,7 @@
 use ratatui::buffer::Buffer;
 use ratatui::prelude::*;
 use ratatui::style::Color;
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_width::UnicodeWidthStr;
 
 use crate::card_theme;
 use crate::card_theme::{CardThemeDefinition, GradientSpec};
@@ -238,54 +238,17 @@ pub(crate) fn pad_icon(icon: &str, width: usize) -> String {
 }
 
 pub(crate) fn truncate_to_width(text: &str, width: usize) -> String {
-    if width == 0 {
-        return String::new();
-    }
-    let mut result = String::new();
-    let mut used = 0;
-    for ch in text.chars() {
-        let w = UnicodeWidthChar::width(ch).unwrap_or(1);
-        if used + w > width {
-            break;
-        }
-        result.push(ch);
-        used += w;
-    }
-    if used < width {
-        result.push_str(&" ".repeat(width - used));
-    }
-    result
+    crate::text_formatting::pad_to_display_width(
+        &crate::text_formatting::truncate_to_display_width(text, width),
+        width,
+    )
 }
 
 pub(crate) fn truncate_with_ellipsis(text: &str, width: usize) -> String {
-    if width == 0 {
-        return String::new();
-    }
-    if UnicodeWidthStr::width(text) <= width {
-        return truncate_to_width(text, width);
-    }
-    let ellipsis = "...";
-    let ellipsis_width = UnicodeWidthStr::width(ellipsis);
-    if width <= ellipsis_width {
-        return truncate_to_width(text, width);
-    }
-    let mut result = String::new();
-    let mut used = 0;
-    let limit = width - ellipsis_width;
-    for ch in text.chars() {
-        let w = UnicodeWidthChar::width(ch).unwrap_or(1);
-        if used + w > limit {
-            break;
-        }
-        result.push(ch);
-        used += w;
-    }
-    result.push_str(ellipsis);
-    let current = UnicodeWidthStr::width(result.as_str());
-    if current < width {
-        result.push_str(&" ".repeat(width - current));
-    }
-    result
+    crate::text_formatting::pad_to_display_width(
+        &crate::text_formatting::truncate_to_display_width_with_suffix(text, width, "..."),
+        width,
+    )
 }
 
 pub(crate) fn rows_to_lines(rows: &[CardRow], _style: &CardStyle, total_width: u16) -> Vec<Line<'static>> {

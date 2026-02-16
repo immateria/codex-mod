@@ -21,9 +21,10 @@ Notes
 - `/quit`: exit Code.
 - `/logout`: log out of Code.
 - `/login`: manage Code sign-ins (select, add, or disconnect accounts).
+- `/accounts`: open account switching settings.
 - `/settings [section]`: open the settings panel. Optional section argument
-  jumps directly to `model`, `theme`, `agents`, `skills`, `auto`, `review`,
-  `validation`, `limits`, `chrome`, `mcp`, or `notifications`.
+  jumps directly to `model`, `theme`, `accounts`, `agents`, `skills`, `auto`,
+  `review`, `validation`, `limits`, `chrome`, `mcp`, or `notifications`.
 - `/shell [path]`: configure the shell used for command execution. Without
   arguments, shows the current shell. With arguments, sets the shell path and
   any flags. Use `/shell -` to clear the setting and use auto-detection.

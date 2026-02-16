@@ -274,6 +274,17 @@ pub enum Op {
     /// Reply is delivered via `EventMsg::McpListToolsResponse`.
     ListMcpTools,
 
+    /// Refresh MCP tool inventory and exclusions, then return updated tool lists.
+    /// Reply is delivered via `EventMsg::McpListToolsResponse`.
+    RefreshMcpTools,
+
+    /// Update runtime MCP tool enablement for a specific server/tool pair.
+    SetMcpToolEnabled {
+        server: String,
+        tool: String,
+        enable: bool,
+    },
+
     /// Request the list of available custom prompts.
     /// Reply is delivered via `EventMsg::ListCustomPromptsResponse`.
     ListCustomPrompts,

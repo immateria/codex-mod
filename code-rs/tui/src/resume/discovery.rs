@@ -36,7 +36,10 @@ pub fn list_sessions_for_cwd(
             cwd: Some(cwd),
             git_root: None,
             sources: vec![SessionSource::Cli, SessionSource::VSCode, SessionSource::Exec],
-            min_user_messages: 1,
+            // Keep broad retrieval and apply a richer eligibility check below:
+            // sessions with explicit nicknames should remain resumable even when
+            // user-message counting misses newer rollout formats.
+            min_user_messages: 0,
             include_archived: false,
             include_deleted: false,
             limit: Some(MAX_RESULTS),
@@ -47,6 +50,21 @@ pub fn list_sessions_for_cwd(
                 .into_iter()
                 .filter(|entry| {
                     if entry.session_source == SessionSource::Mcp {
+                        return false;
+                    }
+                    let has_nickname = entry
+                        .nickname
+                        .as_deref()
+                        .map(str::trim)
+                        .is_some_and(|value| !value.is_empty());
+                    let has_snippet = entry
+                        .last_user_snippet
+                        .as_deref()
+                        .map(str::trim)
+                        .is_some_and(|value| !value.is_empty());
+                    if entry.user_message_count == 0 && !has_nickname && !has_snippet {
+                        // Preserve the existing "event-only noise" suppression,
+                        // but allow explicitly renamed sessions through.
                         return false;
                     }
                     if let Some(exclude) = exclude_path.as_deref()

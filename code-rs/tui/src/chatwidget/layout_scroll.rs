@@ -193,7 +193,7 @@ pub(super) fn layout_areas(chat: &ChatWidget<'_>, area: Rect) -> Vec<Rect> {
         bottom_desired,
         font_cell,
         None,
-        // Disable status bar when in standard terminal mode
-        !chat.standard_terminal_mode,
+        // Status bar rows are configurable.
+        chat.status_bar_height_rows(),
     )
 }

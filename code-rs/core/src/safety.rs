@@ -684,7 +684,7 @@ mod tests {
 
         let shell_enabled = ShellConfig {
             dangerous_command_detection: Some(true),
-            ..shell_cfg.clone()
+            ..shell_cfg
         };
         assert!(
             resolve_command_safety_profile(&pwsh, Some(&shell_enabled), &HashMap::new())

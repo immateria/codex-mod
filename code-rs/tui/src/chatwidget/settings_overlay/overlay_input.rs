@@ -1,7 +1,15 @@
-use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::SettingsSection;
+use crate::ui_interaction::{
+    contains_point,
+    ListWindow,
+    route_selectable_list_mouse_with_config,
+    ScrollSelectionBehavior,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+};
 
 use super::SettingsOverlayView;
 
@@ -9,11 +17,8 @@ impl SettingsOverlayView {
     /// Handle mouse events in the settings overlay.
     /// Returns true if the event was handled and requires a redraw.
     pub(crate) fn handle_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let x: u16 = mouse_event.column;
-        let y: u16 = mouse_event.row;
-
         // Check if mouse is within overlay area
-        if x < area.x || x >= area.x + area.width || y < area.y || y >= area.y + area.height {
+        if !contains_point(area, mouse_event.column, mouse_event.row) {
             if self.hovered_section.borrow().is_some() {
                 *self.hovered_section.borrow_mut() = None;
                 return true;
@@ -21,83 +26,131 @@ impl SettingsOverlayView {
             return false;
         }
 
-        match mouse_event.kind {
-            MouseEventKind::Down(MouseButton::Left) => {
-                if self.is_menu_active() {
-                    // In menu mode - the content area is within the overlay block
-                    let content_area = *self.last_content_area.borrow();
-                    if content_area.width == 0 || content_area.height == 0 {
-                        return false;
-                    }
+        if self.is_menu_active() {
+            self.handle_menu_mouse_event(mouse_event)
+        } else {
+            self.handle_section_mouse_event(mouse_event)
+        }
+    }
 
-                    // Check if click is within the list area (not the footer hint)
-                    if y < content_area.y
-                        || y >= content_area.y + content_area.height.saturating_sub(1)
-                    {
-                        return false;
-                    }
+    fn handle_menu_mouse_event(&mut self, mouse_event: MouseEvent) -> bool {
+        let item_count = self.sidebar_section_count();
+        if item_count == 0 {
+            return false;
+        }
 
-                    // Each menu item takes ~3 lines on average
-                    let rel_y: usize = y.saturating_sub(content_area.y) as usize;
-                    let approx_section_idx: usize = rel_y / 3;
+        let mut selected_idx = self.sidebar_selected_index().unwrap_or(0);
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected_idx,
+            item_count,
+            |x, y| self.hit_test_menu_index(x, y),
+            SelectableListMouseConfig {
+                require_pointer_hit_for_scroll: true,
+                scroll_behavior: ScrollSelectionBehavior::Clamp,
+                ..SelectableListMouseConfig::default()
+            },
+        );
 
-                    if approx_section_idx < self.overview_rows.len() {
-                        let section: SettingsSection = self.overview_rows[approx_section_idx].section;
-                        return self.set_section(section);
-                    }
-                } else {
-                    // In section mode - check sidebar clicks first
-                    if let Some(section) = self.hit_test_sidebar(x, y) {
-                        if section != self.active_section() {
-                            self.set_mode_section(section);
-                            return true;
-                        }
-                        return false;
-                    }
-                    // Not in sidebar - forward to content
-                    return self.forward_mouse_to_content(mouse_event);
-                }
-                false
+        match result {
+            SelectableListMouseResult::Ignored => false,
+            SelectableListMouseResult::SelectionChanged | SelectableListMouseResult::Activated => {
+                let Some(section) = self.sidebar_section_at(selected_idx) else {
+                    return false;
+                };
+                self.set_section(section)
+                    || matches!(result, SelectableListMouseResult::Activated)
             }
-            MouseEventKind::Moved => {
-                if !self.is_menu_active() {
-                    // Ignore movement in the sidebar itself to avoid expensive
-                    // full-overlay redraws from hover-only state churn.
-                    let new_hover = self.hit_test_sidebar(x, y);
-                    let current_hover = *self.hovered_section.borrow();
-                    if new_hover.is_some() {
-                        if new_hover != current_hover {
-                            *self.hovered_section.borrow_mut() = new_hover;
-                            return true;
-                        }
-                        return false;
-                    }
+        }
+    }
 
-                    // Cursor moved out of sidebar: clear hover state once.
-                    if current_hover.is_some() {
-                        *self.hovered_section.borrow_mut() = None;
+    fn handle_section_mouse_event(&mut self, mouse_event: MouseEvent) -> bool {
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                // Ignore movement in the sidebar itself to avoid expensive
+                // full-overlay redraws from hover-only state churn.
+                let new_hover = self.hit_test_sidebar(mouse_event.column, mouse_event.row);
+                let current_hover = *self.hovered_section.borrow();
+                if new_hover.is_some() {
+                    if new_hover != current_hover {
+                        *self.hovered_section.borrow_mut() = new_hover;
                         return true;
                     }
-                    // Forward move events only when cursor is in content panel.
-                    return self.forward_mouse_to_content(mouse_event);
+                    return false;
                 }
-                false
+
+                // Cursor moved out of sidebar: clear hover state once.
+                if current_hover.is_some() {
+                    *self.hovered_section.borrow_mut() = None;
+                    return true;
+                }
+                // Forward move events only when cursor is in content panel.
+                self.forward_mouse_to_content(mouse_event)
             }
-            MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {
-                // Forward scroll to content if in section mode
-                if !self.is_menu_active() {
-                    return self.forward_mouse_to_content(mouse_event);
+            MouseEventKind::Down(_) | MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {
+                let item_count = self.sidebar_section_count();
+                let mut selected_idx = self.sidebar_selected_index().unwrap_or(0);
+                let result = route_selectable_list_mouse_with_config(
+                    mouse_event,
+                    &mut selected_idx,
+                    item_count,
+                    |x, y| self.hit_test_sidebar_index(x, y),
+                    SelectableListMouseConfig {
+                        hover_select: false,
+                        require_pointer_hit_for_scroll: true,
+                        scroll_behavior: ScrollSelectionBehavior::Clamp,
+                        ..SelectableListMouseConfig::default()
+                    },
+                );
+
+                match result {
+                    SelectableListMouseResult::Ignored => self.forward_mouse_to_content(mouse_event),
+                    SelectableListMouseResult::SelectionChanged
+                    | SelectableListMouseResult::Activated => {
+                        let Some(section) = self.sidebar_section_at(selected_idx) else {
+                            return false;
+                        };
+                        if section != self.active_section() {
+                            self.set_mode_section(section);
+                            true
+                        } else {
+                            matches!(result, SelectableListMouseResult::Activated)
+                        }
+                    }
                 }
-                // In menu mode, consume scroll to prevent outer scroll
-                true
             }
             _ => false,
         }
     }
 
+    fn hit_test_menu_index(&self, x: u16, y: u16) -> Option<usize> {
+        let overview_area = *self.last_overview_list_area.borrow();
+        if overview_area.width == 0 || overview_area.height == 0 {
+            return None;
+        }
+        if !contains_point(overview_area, x, y) {
+            return None;
+        }
+
+        let rel_y = y.saturating_sub(overview_area.y) as usize;
+        let abs_y = rel_y.saturating_add(*self.last_overview_scroll.borrow());
+        let section = self
+            .last_overview_line_sections
+            .borrow()
+            .get(abs_y)
+            .copied()
+            .flatten()?;
+        self.sidebar_index_for_section(section)
+    }
+
     /// Hit test the sidebar to find which section is at the given coordinates.
     /// Returns None if not in sidebar area or no section at that position.
     fn hit_test_sidebar(&self, x: u16, y: u16) -> Option<SettingsSection> {
+        self.hit_test_sidebar_index(x, y)
+            .and_then(|idx| self.sidebar_section_at(idx))
+    }
+
+    fn hit_test_sidebar_index(&self, x: u16, y: u16) -> Option<usize> {
         let sidebar_area = *self.last_sidebar_area.borrow();
         if sidebar_area.width == 0 || sidebar_area.height == 0 {
             return None;
@@ -116,22 +169,10 @@ impl SettingsOverlayView {
         if total == 0 {
             return None;
         }
-
         let visible = sidebar_area.height as usize;
         let selected_idx = self.sidebar_selected_index().unwrap_or(0);
-        let mut start = 0usize;
-        if total > visible && visible > 0 {
-            let half = visible / 2;
-            if selected_idx > half {
-                start = selected_idx - half;
-            }
-            if start + visible > total {
-                start = total - visible;
-            }
-        }
-
-        let clicked_idx = start + (rel_y as usize);
-        self.sidebar_section_at(clicked_idx)
+        let window = ListWindow::centered(total, visible, selected_idx);
+        window.index_for_relative_row(rel_y as usize)
     }
 
     /// Forward mouse event to the active content view.
@@ -158,6 +199,16 @@ impl SettingsOverlayView {
             SettingsSection::ALL.get(idx).copied()
         } else {
             self.overview_rows.get(idx).map(|row| row.section)
+        }
+    }
+
+    fn sidebar_index_for_section(&self, section: SettingsSection) -> Option<usize> {
+        if self.overview_rows.is_empty() {
+            SettingsSection::ALL.iter().position(|candidate| *candidate == section)
+        } else {
+            self.overview_rows
+                .iter()
+                .position(|row| row.section == section)
         }
     }
 

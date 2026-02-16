@@ -6,9 +6,9 @@ use ratatui::widgets::WidgetRef;
 use ratatui::prelude::Stylize;
 
 use super::popup_consts::MAX_POPUP_ROWS;
-use super::scroll_state::ScrollState;
-use super::selection_popup_common::GenericDisplayRow;
-use super::selection_popup_common::render_rows;
+use crate::components::scroll_state::ScrollState;
+use crate::components::selection_popup_common::GenericDisplayRow;
+use crate::components::selection_popup_common::render_rows;
 
 /// Visual state for the file-search popup.
 pub(crate) struct FileSearchPopup {
@@ -100,15 +100,13 @@ impl FileSearchPopup {
     /// Move selection cursor up.
     pub(crate) fn move_up(&mut self) {
         let len = self.matches.len();
-        self.state.move_up_wrap(len);
-        self.state.ensure_visible(len, len.min(MAX_POPUP_ROWS));
+        self.state.move_up_wrap_visible(len, MAX_POPUP_ROWS);
     }
 
     /// Move selection cursor down.
     pub(crate) fn move_down(&mut self) {
         let len = self.matches.len();
-        self.state.move_down_wrap(len);
-        self.state.ensure_visible(len, len.min(MAX_POPUP_ROWS));
+        self.state.move_down_wrap_visible(len, MAX_POPUP_ROWS);
     }
 
     pub(crate) fn selected_match(&self) -> Option<&str> {
@@ -125,7 +123,7 @@ impl FileSearchPopup {
         // up to MAX_RESULTS regardless of the waiting flag so the list
         // remains stable while a newer search is in-flight.
 
-        self.matches.len().clamp(1, MAX_POPUP_ROWS) as u16
+        ScrollState::popup_required_height(self.matches.len(), MAX_POPUP_ROWS)
     }
 
     /// Return the number of current matches shown in the popup.
@@ -135,21 +133,7 @@ impl FileSearchPopup {
 
     /// Select an item by its visible row index (0-based). Returns true if selection changed.
     pub(crate) fn select_visible_index(&mut self, visible_row: usize) -> bool {
-        let matches_len = self.matches.len();
-        if matches_len == 0 {
-            return false;
-        }
-
-        // Compute actual index from scroll state and visible row
-        let scroll_top = self.state.scroll_top.min(matches_len.saturating_sub(1));
-        let actual_idx = scroll_top + visible_row;
-
-        if actual_idx < matches_len {
-            self.state.selected_idx = Some(actual_idx);
-            true
-        } else {
-            false
-        }
+        self.state.select_visible_row(self.matches.len(), visible_row)
     }
 }
 

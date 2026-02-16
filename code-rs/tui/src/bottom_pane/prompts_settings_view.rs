@@ -18,8 +18,15 @@ use crate::colors;
 use crate::slash_command::built_in_slash_commands;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use crate::components::form_text_field::{FormTextField, InputFilter};
+use crate::ui_interaction::{
+    redraw_if,
+    route_selectable_list_mouse_with_config,
+    ScrollSelectionBehavior,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+};
 use super::BottomPane;
-use super::form_text_field::{FormTextField, InputFilter};
 // Panel helpers unused now that we render inline
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -294,7 +301,7 @@ impl PromptsSettingsView {
         }
     }
 
-    fn list_selection_at(&self, area: Rect, mouse_event: MouseEvent) -> Option<usize> {
+    fn list_selection_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
         let outer = Block::default()
             .borders(Borders::ALL)
             .style(Style::default().bg(colors::background()));
@@ -305,15 +312,15 @@ impl PromptsSettingsView {
             .split(inner);
         let list_area = chunks[1];
 
-        if mouse_event.column < list_area.x
-            || mouse_event.column >= list_area.x.saturating_add(list_area.width)
-            || mouse_event.row < list_area.y
-            || mouse_event.row >= list_area.y.saturating_add(list_area.height)
+        if x < list_area.x
+            || x >= list_area.x.saturating_add(list_area.width)
+            || y < list_area.y
+            || y >= list_area.y.saturating_add(list_area.height)
         {
             return None;
         }
 
-        let rel_y = mouse_event.row.saturating_sub(list_area.y) as usize;
+        let rel_y = y.saturating_sub(list_area.y) as usize;
         if self.prompts.is_empty() {
             if rel_y == 1 { Some(0) } else { None }
         } else if rel_y < self.prompts.len() {
@@ -358,40 +365,22 @@ impl PromptsSettingsView {
     }
 
     fn handle_list_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        match mouse_event.kind {
-            MouseEventKind::Moved => {
-                let Some(next) = self.list_selection_at(area, mouse_event) else {
-                    return false;
-                };
-                if self.selected == next {
-                    return false;
-                }
-                self.selected = next;
-                true
-            }
-            MouseEventKind::Down(MouseButton::Left) => {
-                let Some(next) = self.list_selection_at(area, mouse_event) else {
-                    return false;
-                };
-                self.selected = next;
-                self.enter_editor();
-                true
-            }
-            MouseEventKind::ScrollUp => {
-                if self.selected > 0 {
-                    self.selected -= 1;
-                }
-                true
-            }
-            MouseEventKind::ScrollDown => {
-                let max = self.prompts.len();
-                if self.selected < max {
-                    self.selected += 1;
-                }
-                true
-            }
-            _ => false,
+        let mut selected = self.selected;
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            self.prompts.len().saturating_add(1),
+            |x, y| self.list_selection_at(area, x, y),
+            SelectableListMouseConfig {
+                scroll_behavior: ScrollSelectionBehavior::Clamp,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.selected = selected;
+        if matches!(result, SelectableListMouseResult::Activated) {
+            self.enter_editor();
         }
+        result.handled()
     }
 
     fn handle_edit_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -652,17 +641,21 @@ impl<'a> BottomPaneView<'a> for PromptsSettingsView {
         let _ = self.handle_key_event_direct(key_event);
     }
 
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
+    }
+
     fn handle_mouse_event(
         &mut self,
         _pane: &mut BottomPane<'a>,
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        if self.handle_mouse_event_direct(mouse_event, area) {
-            ConditionalUpdate::NeedsRedraw
-        } else {
-            ConditionalUpdate::NoRedraw
-        }
+        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {

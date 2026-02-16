@@ -7,6 +7,7 @@ use std::path::Path;
 use tempfile::TempDir;
 use uuid::Uuid;
 
+use code_core::SessionCatalog;
 use code_protocol::ConversationId;
 use code_protocol::protocol::{
     EventMsg as ProtoEventMsg,
@@ -18,6 +19,33 @@ use code_protocol::protocol::{
     SessionSource,
     UserMessageEvent,
 };
+use tokio::runtime::Builder;
+
+fn write_meta_only_session(path: &Path, cwd: &Path, session_id: Uuid) {
+    let file = File::create(path).unwrap();
+    let mut writer = BufWriter::new(file);
+
+    let session_meta = SessionMeta {
+        id: ConversationId::from(session_id),
+        timestamp: "2025-10-06T12:00:00.000Z".to_string(),
+        cwd: cwd.to_path_buf(),
+        originator: "resume-test".to_string(),
+        cli_version: "0.0.0-test".to_string(),
+        instructions: None,
+        source: SessionSource::Cli,
+    };
+
+    let meta_line = RolloutLine {
+        timestamp: "2025-10-06T12:00:00.000Z".to_string(),
+        item: RolloutItem::SessionMeta(SessionMetaLine {
+            meta: session_meta,
+            git: None,
+        }),
+    };
+    serde_json::to_writer(&mut writer, &meta_line).unwrap();
+    writer.write_all(b"\n").unwrap();
+    writer.flush().unwrap();
+}
 
 fn write_event_only_session(path: &Path, cwd: &Path) {
     let file = File::create(path).unwrap();
@@ -84,5 +112,45 @@ fn event_only_sessions_are_dropped_by_resume_discovery() {
     assert!(
         results.is_empty(),
         "event-only sessions should be excluded from the resume picker"
+    );
+}
+
+#[test]
+fn renamed_zero_user_sessions_are_included_in_resume_discovery() {
+    let temp = TempDir::new().unwrap();
+    let code_home = temp.path();
+    let project_cwd = code_home.join("project");
+    fs::create_dir_all(&project_cwd).unwrap();
+
+    let sessions_dir = code_home
+        .join("sessions")
+        .join("2025")
+        .join("10")
+        .join("06");
+    fs::create_dir_all(&sessions_dir).unwrap();
+
+    let session_id = Uuid::new_v4();
+    let rollout_path = sessions_dir.join(format!("rollout-2025-10-06T12-00-00-{session_id}.jsonl"));
+    write_meta_only_session(&rollout_path, &project_cwd, session_id);
+
+    let rt = Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(async {
+        let catalog = SessionCatalog::new(code_home.to_path_buf());
+        let updated = catalog
+            .set_nickname(session_id, Some("Launch checklist".to_string()))
+            .await
+            .unwrap();
+        assert!(updated, "nickname update should apply to discovered session");
+    });
+
+    let results = super::discovery::list_sessions_for_cwd(&project_cwd, code_home, None);
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].nickname.as_deref(),
+        Some("Launch checklist"),
+        "renamed session should remain discoverable even with zero counted user messages",
     );
 }

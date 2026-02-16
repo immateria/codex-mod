@@ -5,6 +5,8 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Tabs, Widget};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 
+use super::bottom_pane_view::ConditionalUpdate;
+use crate::ui_interaction::redraw_if;
 use super::{BottomPane, BottomPaneView, CancellationEvent};
 
 #[allow(dead_code)]
@@ -23,20 +25,15 @@ impl DiffPopupView {
 
 impl<'a> BottomPaneView<'a> for DiffPopupView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        if key_event.kind == KeyEventKind::Press || key_event.kind == KeyEventKind::Repeat {
-            match key_event.code {
-                KeyCode::Left => {
-                    if self.selected > 0 { self.selected -= 1; }
-                }
-                KeyCode::Right => {
-                    if self.selected + 1 < self.tabs.len() { self.selected += 1; }
-                }
-                KeyCode::Esc => {
-                    self.complete = true;
-                }
-                _ => {}
-            }
-        }
+        let _ = self.handle_key_event_direct(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.handle_key_event_direct(key_event))
     }
 
     fn is_complete(&self) -> bool { self.complete }
@@ -107,5 +104,32 @@ impl<'a> BottomPaneView<'a> for DiffPopupView {
                 .wrap(ratatui::widgets::Wrap { trim: false });
             Widget::render(paragraph, body_area, buf);
         }
+    }
+}
+
+impl DiffPopupView {
+    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        if key_event.kind == KeyEventKind::Press || key_event.kind == KeyEventKind::Repeat {
+            match key_event.code {
+                KeyCode::Left => {
+                    if self.selected > 0 {
+                        self.selected -= 1;
+                        return true;
+                    }
+                }
+                KeyCode::Right => {
+                    if self.selected + 1 < self.tabs.len() {
+                        self.selected += 1;
+                        return true;
+                    }
+                }
+                KeyCode::Esc => {
+                    self.complete = true;
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        false
     }
 }
