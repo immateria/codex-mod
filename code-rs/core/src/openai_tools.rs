@@ -1410,16 +1410,16 @@ mod tests {
     #[test]
     fn test_web_search_defaults_to_external_access_enabled() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let mut config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            false,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: false,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
         apply_default_agent_models(&mut config);
 
         let tools = get_openai_tools(&config, Some(HashMap::new()), false, false, &[]);
@@ -1437,16 +1437,16 @@ mod tests {
     #[test]
     fn test_web_search_external_access_can_be_disabled() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let mut config = ToolsConfig::new(
-            &model_family,
-            AskForApproval::Never,
-            SandboxPolicy::ReadOnly,
-            false,
-            false,
-            true,
-            /*use_experimental_streamable_shell_tool*/ false,
-            false,
-        );
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: false,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: false,
+        });
         config.web_search_external = false;
         config.web_search_allowed_domains = Some(vec!["openai.com".to_string()]);
         apply_default_agent_models(&mut config);

@@ -51,6 +51,7 @@
     TaskCompleteEvent,
     };
     use code_core::protocol::AgentInfo as CoreAgentInfo;
+    use code_protocol::protocol::ReviewTarget;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::process::Command;
     use tempfile::tempdir;
@@ -1025,6 +1026,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     
     fn make_pending_fix_state(review: ReviewOutputEvent) -> AutoResolveState {
     AutoResolveState {
+        target: ReviewTarget::UncommittedChanges,
         prompt: "prompt".to_string(),
         hint: "hint".to_string(),
         metadata: None,
@@ -1066,36 +1068,32 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     
-    let (prompt, hint, preparation_label, metadata, auto_resolve) = harness
+    let (target, prompt, hint, preparation_label, auto_resolve) = harness
         .drain_events()
         .into_iter()
         .find_map(|event| match event {
             AppEvent::RunReviewWithScope {
+                target,
                 prompt,
                 hint,
                 preparation_label,
-                metadata,
                 auto_resolve,
-            } => Some((prompt, hint, preparation_label, metadata, auto_resolve)),
+            } => Some((target, prompt, hint, preparation_label, auto_resolve)),
             _ => None,
         })
         .expect("uncommitted preset should dispatch a workspace review");
     
+    assert_eq!(target, ReviewTarget::UncommittedChanges);
     assert_eq!(
         prompt,
         "Review the current workspace changes (staged, unstaged, and untracked files) and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_string()
     );
-    assert_eq!(hint, "current workspace changes");
+    assert_eq!(hint.as_deref(), Some("current workspace changes"));
     assert_eq!(
         preparation_label.as_deref(),
         Some("Preparing code review for current changes")
     );
     assert!(auto_resolve, "auto resolve now defaults to on for workspace reviews");
-    
-    let metadata = metadata.expect("workspace scope metadata");
-    assert_eq!(metadata.scope.as_deref(), Some("workspace"));
-    assert!(metadata.base_branch.is_none());
-    assert!(metadata.current_branch.is_none());
     }
     
     #[test]
@@ -1613,6 +1611,8 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
                 prompt: "echo ready".to_string(),
                 context: None,
                 suppress_ui_context: false,
+                model_override: None,
+                reasoning_effort_override: None,
             }),
             agents_timing: None,
             agents: Vec::new(),
@@ -1649,6 +1649,8 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
                 prompt: "echo start".to_string(),
                 context: None,
                 suppress_ui_context: false,
+                model_override: None,
+                reasoning_effort_override: None,
             }),
             agents_timing: None,
             agents: Vec::new(),
@@ -1736,6 +1738,8 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
                 prompt: "echo work".to_string(),
                 context: None,
                 suppress_ui_context: false,
+                model_override: None,
+                reasoning_effort_override: None,
             }),
             agents_timing: None,
             agents: Vec::new(),
@@ -2260,10 +2264,10 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
         AutoResolveAttemptLimit::try_new(0).unwrap();
     
     chat.start_review_with_scope(
+        ReviewTarget::UncommittedChanges,
         "Review workspace".to_string(),
-        "workspace".to_string(),
+        Some("workspace".to_string()),
         Some("Preparing code review request...".to_string()),
-        None,
         true,
     );
     
@@ -2358,10 +2362,10 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
         AutoResolveAttemptLimit::try_new(1).unwrap();
     
     chat.start_review_with_scope(
+        ReviewTarget::UncommittedChanges,
         "Review workspace".to_string(),
-        "workspace".to_string(),
+        Some("workspace".to_string()),
         Some("Preparing code review request...".to_string()),
-        None,
         true,
     );
     
@@ -2462,6 +2466,8 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
             prompt: "Run cargo test".to_string(),
             context: Some("use --all-features".to_string()),
             suppress_ui_context: false,
+            model_override: None,
+            reasoning_effort_override: None,
         }),
         agents_timing: Some(AutoTurnAgentsTiming::Parallel),
         agents: vec![AutoTurnAgentsAction {

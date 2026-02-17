@@ -384,11 +384,13 @@ impl ChatWidget<'_> {
         scope: Option<AutoReviewCommitScope>,
         descriptor: Option<&TurnDescriptor>,
     ) {
+        use code_protocol::protocol::ReviewTarget;
+
         if !self.auto_state.review_enabled {
             return;
         }
         let strategy = descriptor.and_then(|d| d.review_strategy.as_ref());
-        let (mut prompt, mut hint, mut auto_metadata, mut review_metadata, preparation) = match scope {
+        let (target, mut prompt, mut hint, preparation) = match scope {
             Some(scope) => {
                 let commit_id = scope.commit;
                 let commit_for_prompt = commit_id.clone();
@@ -403,32 +405,14 @@ impl ChatWidget<'_> {
                 );
                 let hint = format!("auto turn changes — {short_sha} ({file_label})");
                 let preparation = format!("Preparing code review for commit {short_sha}");
-                let review_metadata = Some(ReviewContextMetadata {
-                    scope: Some("commit".to_string()),
-                    commit: Some(commit_id),
-                    ..Default::default()
-                });
-                let auto_metadata = Some(ReviewContextMetadata {
-                    scope: Some("workspace".to_string()),
-                    ..Default::default()
-                });
-                (prompt, hint, auto_metadata, review_metadata, preparation)
+                let target = ReviewTarget::Commit { sha: commit_id, title: None };
+                (target, prompt, hint, preparation)
             }
             None => {
                 let prompt = "Review the current workspace changes and highlight bugs, regressions, risky patterns, and missing tests before merge.".to_string();
                 let hint = "current workspace changes".to_string();
-                let review_metadata = Some(ReviewContextMetadata {
-                    scope: Some("workspace".to_string()),
-                    ..Default::default()
-                });
                 let preparation = "Preparing code review request...".to_string();
-                (
-                    prompt,
-                    hint,
-                    review_metadata.clone(),
-                    review_metadata,
-                    preparation,
-                )
+                (ReviewTarget::UncommittedChanges, prompt, hint, preparation)
             }
         };
 
@@ -453,45 +437,23 @@ impl ChatWidget<'_> {
                 })
             {
                 hint = scope_hint.to_string();
-
-                let apply_scope = |meta: &mut ReviewContextMetadata| {
-                    meta.scope = Some(scope_hint.to_string());
-                };
-
-                match review_metadata.as_mut() {
-                    Some(meta) => apply_scope(meta),
-                    None => {
-                        review_metadata = Some(ReviewContextMetadata {
-                            scope: Some(scope_hint.to_string()),
-                            ..Default::default()
-                        });
-                    }
-                }
-
-                match auto_metadata.as_mut() {
-                    Some(meta) => apply_scope(meta),
-                    None => {
-                        auto_metadata = Some(ReviewContextMetadata {
-                            scope: Some(scope_hint.to_string()),
-                            ..Default::default()
-                        });
-                    }
-                }
             }
         }
 
         if self.config.tui.review_auto_resolve {
             let max_re_reviews = self.configured_auto_resolve_re_reviews();
             self.auto_resolve_state = Some(AutoResolveState::new_with_limit(
+                target.clone(),
                 prompt.clone(),
                 hint.clone(),
-                auto_metadata.clone(),
+                None,
                 max_re_reviews,
             ));
         } else {
             self.auto_resolve_state = None;
         }
-        self.begin_review(prompt, hint, Some(preparation), review_metadata);
+        let hint_opt = (!hint.trim().is_empty()).then(|| hint.clone());
+        self.begin_review(target, prompt, hint_opt, Some(preparation));
     }
 
 }
