@@ -203,6 +203,7 @@ use code_core::protocol::ExecOutputStream;
 use code_core::protocol::EnvironmentContextDeltaEvent;
 use code_core::protocol::EnvironmentContextFullEvent;
 use code_core::protocol::InputItem;
+use code_core::protocol::McpAuthStatus;
 use code_core::protocol::McpServerFailure;
 use code_core::protocol::McpServerFailurePhase;
 use code_core::protocol::SessionConfiguredEvent;

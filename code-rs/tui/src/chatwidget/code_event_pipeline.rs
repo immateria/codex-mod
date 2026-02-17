@@ -136,6 +136,7 @@ impl ChatWidget<'_> {
                 self.mcp_tools_by_server.clear();
                 self.mcp_disabled_tools_by_server.clear();
                 self.mcp_server_failures.clear();
+                self.mcp_auth_statuses.clear();
                 if !self.config.mcp_servers.is_empty() {
                     self.submit_op(Op::ListMcpTools);
                 }
@@ -441,6 +442,7 @@ impl ChatWidget<'_> {
                 self.mcp_disabled_tools_by_server =
                     ev.server_disabled_tools.unwrap_or_default();
                 self.mcp_server_failures = ev.server_failures.unwrap_or_default();
+                self.mcp_auth_statuses = ev.auth_statuses;
                 if self.mcp_server_failures.is_empty() {
                     self.startup_mcp_error_summary = None;
                 }

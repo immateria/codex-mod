@@ -3,6 +3,7 @@ use std::cell::Cell;
 use std::time::Duration;
 
 use crate::app_event_sender::AppEventSender;
+use code_core::protocol::McpAuthStatus;
 
 mod input;
 mod layout;
@@ -19,6 +20,7 @@ pub(crate) struct McpServerRow {
     pub name: String,
     pub enabled: bool,
     pub transport: String,
+    pub auth_status: McpAuthStatus,
     pub startup_timeout: Option<Duration>,
     pub tool_timeout: Option<Duration>,
     pub tools: Vec<String>,

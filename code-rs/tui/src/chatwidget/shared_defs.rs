@@ -714,6 +714,7 @@ pub(crate) struct ChatWidget<'a> {
     mcp_tools_by_server: HashMap<String, Vec<String>>,
     mcp_disabled_tools_by_server: HashMap<String, Vec<String>>,
     mcp_server_failures: HashMap<String, McpServerFailure>,
+    mcp_auth_statuses: HashMap<String, McpAuthStatus>,
     /// Startup-only MCP init error summary. We keep this out of history so the
     /// welcome intro doesn't jump when MCP status changes.
     startup_mcp_error_summary: Option<String>,

@@ -43,6 +43,7 @@ pub use code_protocol::protocol::GitInfo;
 pub use code_protocol::protocol::RolloutItem;
 pub use code_protocol::protocol::RolloutLine;
 pub use code_protocol::protocol::ConversationPathResponseEvent;
+pub use code_protocol::protocol::McpAuthStatus;
 pub use code_protocol::protocol::McpListToolsResponseEvent;
 pub use code_protocol::protocol::McpServerFailure;
 pub use code_protocol::protocol::McpServerFailurePhase;

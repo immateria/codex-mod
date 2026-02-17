@@ -3,6 +3,8 @@ use std::time::Duration;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
+use code_core::protocol::McpAuthStatus;
+
 use super::{McpPaneHit, McpSettingsFocus, McpSettingsView, McpToolEntry, McpToolHoverPart};
 
 impl McpSettingsView {
@@ -250,6 +252,18 @@ impl McpSettingsView {
                         value_style
                     },
                 );
+                let auth_style = match row.auth_status {
+                    McpAuthStatus::OAuth | McpAuthStatus::BearerToken => ok_style,
+                    McpAuthStatus::NotLoggedIn => err_style,
+                    McpAuthStatus::Unsupported => dim_style,
+                };
+                Self::push_key_value_line(
+                    &mut lines,
+                    "Auth: ",
+                    row.auth_status.to_string(),
+                    key_style,
+                    auth_style,
+                );
                 if let Some(timeout) = row.startup_timeout {
                     Self::push_key_value_line(
                         &mut lines,
@@ -267,6 +281,16 @@ impl McpSettingsView {
                         key_style,
                         value_style,
                     );
+                }
+                if row.auth_status == McpAuthStatus::NotLoggedIn {
+                    lines.push(Line::from(""));
+                    lines.push(Line::from(vec![Span::styled(
+                        format!(
+                            "Login required. Run `code mcp login {}` (or add a bearer token).",
+                            row.name
+                        ),
+                        dim_style,
+                    )]));
                 }
                 if let Some(failure) = &row.failure {
                     lines.push(Line::from(""));

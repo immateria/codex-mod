@@ -232,6 +232,11 @@ impl ChatWidget<'_> {
                             enabled: bool| {
             let transport = Self::format_mcp_summary(&cfg);
             let status = self.format_mcp_tool_status(&name, enabled);
+            let auth_status = self
+                .mcp_auth_statuses
+                .get(&name)
+                .copied()
+                .unwrap_or(McpAuthStatus::Unsupported);
             let failure = self
                 .mcp_server_failures
                 .get(&name)
@@ -261,6 +266,7 @@ impl ChatWidget<'_> {
                 name,
                 enabled,
                 transport,
+                auth_status,
                 startup_timeout: cfg.startup_timeout_sec,
                 tool_timeout: cfg.tool_timeout_sec,
                 tools,
