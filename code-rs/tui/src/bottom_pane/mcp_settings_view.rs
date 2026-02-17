@@ -171,6 +171,7 @@ mod tests {
             name: name.to_string(),
             enabled: true,
             transport: "npx -y test-server --transport stdio".to_string(),
+            auth_status: super::McpAuthStatus::Unsupported,
             startup_timeout: Some(Duration::from_secs(30)),
             tool_timeout: Some(Duration::from_secs(30)),
             tools: vec!["tool_a".to_string(), "tool_b".to_string()],

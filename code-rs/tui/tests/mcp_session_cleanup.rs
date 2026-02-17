@@ -125,7 +125,12 @@ async fn mcp_stdio_server_exits_before_next_session() {
 
     let servers_map = config.mcp_servers.clone();
 
-    let (manager1, _) = McpConnectionManager::new(servers_map.clone(), HashSet::new())
+    let (manager1, _) = McpConnectionManager::new(
+        config.code_home.clone(),
+        config.mcp_oauth_credentials_store_mode,
+        servers_map.clone(),
+        HashSet::new(),
+    )
     .await
     .expect("start first MCP manager");
 
@@ -142,9 +147,14 @@ async fn mcp_stdio_server_exits_before_next_session() {
         std::fs::read_to_string(&log_path).unwrap_or_default()
     );
 
-    let (_manager2, _) = McpConnectionManager::new(servers_map, HashSet::new())
-        .await
-        .expect("start second MCP manager");
+    let (_manager2, _) = McpConnectionManager::new(
+        config.code_home.clone(),
+        config.mcp_oauth_credentials_store_mode,
+        servers_map,
+        HashSet::new(),
+    )
+    .await
+    .expect("start second MCP manager");
 }
 
 fn parse_log(log: &str, prefix: &str) -> Vec<u32> {
