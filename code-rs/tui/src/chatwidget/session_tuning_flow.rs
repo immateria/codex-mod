@@ -9,7 +9,7 @@ impl ChatWidget<'_> {
             .auth_manager
             .auth()
             .map(|auth| auth.mode)
-            .or_else(|| {
+            .or({
                 if self.config.using_chatgpt_auth {
                     Some(AuthMode::ChatGPT)
                 } else {

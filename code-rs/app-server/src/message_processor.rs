@@ -482,9 +482,11 @@ impl MessageProcessor {
     }
 
     fn load_effective_config(&self, cwd: Option<&str>) -> Result<Config, JSONRPCErrorError> {
-        let mut overrides = code_core::config::ConfigOverrides::default();
-        overrides.code_linux_sandbox_exe = self.base_config.code_linux_sandbox_exe.clone();
-        overrides.cwd = cwd.map(PathBuf::from);
+        let overrides = code_core::config::ConfigOverrides {
+            code_linux_sandbox_exe: self.base_config.code_linux_sandbox_exe.clone(),
+            cwd: cwd.map(PathBuf::from),
+            ..Default::default()
+        };
 
         Config::load_with_cli_overrides(self.cli_overrides.clone(), overrides).map_err(|err| {
             JSONRPCErrorError {
@@ -730,9 +732,12 @@ fn set_toml_path(root: &mut TomlValue, key_path: &str, value: TomlValue) -> Resu
         if !current.is_table() {
             *current = TomlValue::Table(Default::default());
         }
-        let table = current
-            .as_table_mut()
-            .expect("table should exist after conversion");
+        let Some(table) = current.as_table_mut() else {
+            return Err(config_write_error(
+                ConfigWriteErrorCode::ConfigValidationError,
+                format!("Failed to apply config edit: expected table for '{key_path}'"),
+            ));
+        };
         current = table
             .entry((*segment).to_string())
             .or_insert_with(|| TomlValue::Table(Default::default()));
@@ -741,16 +746,19 @@ fn set_toml_path(root: &mut TomlValue, key_path: &str, value: TomlValue) -> Resu
     if !current.is_table() {
         *current = TomlValue::Table(Default::default());
     }
-    let table = current
-        .as_table_mut()
-        .expect("table should exist after conversion");
-    table.insert(
-        segments
-            .last()
-            .expect("segments cannot be empty")
-            .to_string(),
-        value,
-    );
+    let Some(table) = current.as_table_mut() else {
+        return Err(config_write_error(
+            ConfigWriteErrorCode::ConfigValidationError,
+            format!("Failed to apply config edit: expected table for '{key_path}'"),
+        ));
+    };
+    let Some(key) = segments.last() else {
+        return Err(config_write_error(
+            ConfigWriteErrorCode::ConfigPathNotFound,
+            "Config key path must not be empty",
+        ));
+    };
+    table.insert((*key).to_string(), value);
 
     Ok(())
 }
@@ -773,9 +781,12 @@ fn upsert_toml_path(
         if !current.is_table() {
             *current = TomlValue::Table(Default::default());
         }
-        let table = current
-            .as_table_mut()
-            .expect("table should exist after conversion");
+        let Some(table) = current.as_table_mut() else {
+            return Err(config_write_error(
+                ConfigWriteErrorCode::ConfigValidationError,
+                format!("Failed to apply config edit: expected table for '{key_path}'"),
+            ));
+        };
         current = table
             .entry((*segment).to_string())
             .or_insert_with(|| TomlValue::Table(Default::default()));
@@ -785,13 +796,19 @@ fn upsert_toml_path(
         *current = TomlValue::Table(Default::default());
     }
 
-    let table = current
-        .as_table_mut()
-        .expect("table should exist after conversion");
-    let key = segments
-        .last()
-        .expect("segments cannot be empty")
-        .to_string();
+    let Some(table) = current.as_table_mut() else {
+        return Err(config_write_error(
+            ConfigWriteErrorCode::ConfigValidationError,
+            format!("Failed to apply config edit: expected table for '{key_path}'"),
+        ));
+    };
+    let Some(key) = segments.last() else {
+        return Err(config_write_error(
+            ConfigWriteErrorCode::ConfigPathNotFound,
+            "Config key path must not be empty",
+        ));
+    };
+    let key = (*key).to_string();
     if let Some(existing) = table.get_mut(&key) {
         merge_toml_values(existing, value);
     } else {

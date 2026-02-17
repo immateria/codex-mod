@@ -79,7 +79,7 @@ impl App<'_> {
             let auth_mode = remote_auth_manager
                 .auth()
                 .map(|auth| auth.mode)
-                .or_else(|| {
+                .or({
                     if remote_using_chatgpt_hint {
                         Some(AuthMode::ChatGPT)
                     } else {
@@ -893,25 +893,9 @@ impl App<'_> {
                         widget.close_auto_drive_settings();
                     }
                 }
-                AppEvent::AutoDriveSettingsChanged {
-                    review_enabled,
-                    agents_enabled,
-                    cross_check_enabled,
-                    qa_automation_enabled,
-                    model_routing_enabled,
-                    model_routing_entries,
-                    continue_mode,
-                } => {
+                AppEvent::AutoDriveSettingsChanged(update) => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.apply_auto_drive_settings(
-                            review_enabled,
-                            agents_enabled,
-                            cross_check_enabled,
-                            qa_automation_enabled,
-                            model_routing_enabled,
-                            model_routing_entries,
-                            continue_mode,
-                        );
+                        widget.apply_auto_drive_settings(update);
                     }
                 }
                 AppEvent::RequestAgentInstall { name, selected_index } => {

@@ -1,6 +1,5 @@
 use super::*;
-
-use code_core::config_types::AutoDriveModelRoutingEntry;
+use crate::app_event::AutoDriveSettingsUpdate;
 
 mod decision_runtime;
 mod review_runtime;
@@ -369,16 +368,16 @@ impl ChatWidget<'_> {
         self.bottom_pane.ensure_input_focus();
     }
 
-    pub(crate) fn apply_auto_drive_settings(
-        &mut self,
-        review_enabled: bool,
-        agents_enabled: bool,
-        cross_check_enabled: bool,
-        qa_automation_enabled: bool,
-        model_routing_enabled: bool,
-        model_routing_entries: Vec<AutoDriveModelRoutingEntry>,
-        continue_mode: AutoContinueMode,
-    ) {
+    pub(crate) fn apply_auto_drive_settings(&mut self, update: AutoDriveSettingsUpdate) {
+        let AutoDriveSettingsUpdate {
+            review_enabled,
+            agents_enabled,
+            cross_check_enabled,
+            qa_automation_enabled,
+            model_routing_enabled,
+            model_routing_entries,
+            continue_mode,
+        } = update;
         let mut changed = false;
         if self.auto_state.review_enabled != review_enabled {
             self.auto_state.review_enabled = review_enabled;

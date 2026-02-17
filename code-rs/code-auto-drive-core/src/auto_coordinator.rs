@@ -268,7 +268,9 @@ fn resolve_auto_drive_cli_routing_entries(
     available_models: &[String],
 ) -> Vec<AutoDriveCliRoutingEntry> {
     let mut entries = normalize_auto_drive_cli_routing_entries(&settings.model_routing_entries);
-    if !auth_mode.is_some_and(|mode| mode.is_chatgpt()) || !supports_pro_only_models {
+    if !auth_mode.is_some_and(code_app_server_protocol::AuthMode::is_chatgpt)
+        || !supports_pro_only_models
+    {
         entries.retain(|entry| !entry.model.eq_ignore_ascii_case(AUTO_DRIVE_CLI_MODEL_SPARK));
     }
     entries.retain(|entry| {
@@ -3929,34 +3931,32 @@ fn classify_recoverable_decision_error(err: &anyhow::Error) -> Option<Recoverabl
         });
     }
 
-    if lower.contains(" is empty")
-        && let Some((field, _)) = text.split_once(" is empty") {
-            let field_trimmed = field.trim().trim_matches('`');
-            if !field_trimmed.is_empty() {
-                let summary = format!("`{field_trimmed}` was empty");
-                let guidance = format!(
-                    "Provide a meaningful value for `{field_trimmed}` instead of leaving it blank."
-                );
-                return Some(RecoverableDecisionError {
-                    summary,
-                    guidance: Some(guidance),
-                });
-            }
+    if lower.contains(" is empty") && let Some((field, _)) = text.split_once(" is empty") {
+        let field_trimmed = field.trim().trim_matches('`');
+        if !field_trimmed.is_empty() {
+            let summary = format!("`{field_trimmed}` was empty");
+            let guidance = format!(
+                "Provide a meaningful value for `{field_trimmed}` instead of leaving it blank."
+            );
+            return Some(RecoverableDecisionError {
+                summary,
+                guidance: Some(guidance),
+            });
         }
+    }
 
-    if lower.contains(" is missing") {
-        if let Some((field, _)) = text.split_once(" is missing") {
-            let field_trimmed = field.trim().trim_matches('`');
-            if !field_trimmed.is_empty() {
-                let summary = format!("`{field_trimmed}` was missing");
-                let guidance = format!(
-                    "Include `{field_trimmed}` with a meaningful value before retrying."
-                );
-                return Some(RecoverableDecisionError {
-                    summary,
-                    guidance: Some(guidance),
-                });
-            }
+    if lower.contains(" is missing")
+        && let Some((field, _)) = text.split_once(" is missing")
+    {
+        let field_trimmed = field.trim().trim_matches('`');
+        if !field_trimmed.is_empty() {
+            let summary = format!("`{field_trimmed}` was missing");
+            let guidance =
+                format!("Include `{field_trimmed}` with a meaningful value before retrying.");
+            return Some(RecoverableDecisionError {
+                summary,
+                guidance: Some(guidance),
+            });
         }
     }
 
@@ -4359,8 +4359,7 @@ fn normalize_cli_model(
             .join(", ")
     };
     Err(anyhow!(
-        "unsupported cli_model '{trimmed}'; expected one of: {}",
-        expected_models
+        "unsupported cli_model '{trimmed}'; expected one of: {expected_models}"
     ))
 }
 

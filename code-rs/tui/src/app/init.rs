@@ -78,7 +78,7 @@ impl App<'_> {
                     let auth_mode = remote_auth_manager
                         .auth()
                         .map(|auth| auth.mode)
-                        .or_else(|| {
+                        .or({
                             if remote_using_chatgpt_hint {
                                 Some(AuthMode::ChatGPT)
                             } else {

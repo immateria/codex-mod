@@ -262,7 +262,7 @@ fn discover_skills_under_root(root: &Path, scope: SkillScope, outcome: &mut Skil
 
     let mut visited_dirs: HashSet<PathBuf> = HashSet::new();
     visited_dirs.insert(root.clone());
-    let mut queue: VecDeque<PathBuf> = VecDeque::from([root.clone()]);
+    let mut queue: VecDeque<PathBuf> = VecDeque::from([root]);
 
     while let Some(dir) = queue.pop_front() {
         let entries = match fs::read_dir(&dir) {
@@ -274,7 +274,7 @@ fn discover_skills_under_root(root: &Path, scope: SkillScope, outcome: &mut Skil
         };
 
         let mut entries: Vec<fs::DirEntry> = entries.flatten().collect();
-        entries.sort_by_key(|entry| entry.file_name());
+        entries.sort_by_key(std::fs::DirEntry::file_name);
 
         for entry in entries {
             let path = entry.path();

@@ -934,25 +934,25 @@ pub async fn run_main(cli: Cli, code_linux_sandbox_exe: Option<PathBuf>) -> anyh
                                     continue;
                                 }
                                 // stale epoch check
-                                if let Some(state) = auto_resolve_state.as_ref() {
-                                    if let Some(baseline) = state.snapshot_epoch
-                                        && current_epoch > baseline {
-                                            eprintln!("Auto-resolve: snapshot epoch advanced; aborting follow-up review.");
-                                            auto_resolve_state = None;
-                                            auto_resolve_base_snapshot = None;
-                                            auto_resolve_followup_guard = None;
-                                            auto_resolve_fix_guard = None;
-                                            request_shutdown(
-                                                &conversation,
-                                                &auto_review_tracker,
-                                                &mut shutdown_pending,
-                                                &mut shutdown_sent,
-                                                &mut shutdown_deadline,
-                                                auto_review_grace_enabled,
-                                            )
-                                            .await?;
-                                            continue;
-                                        }
+                                if let Some(state) = auto_resolve_state.as_ref()
+                                    && let Some(baseline) = state.snapshot_epoch
+                                    && current_epoch > baseline
+                                {
+                                    eprintln!("Auto-resolve: snapshot epoch advanced; aborting follow-up review.");
+                                    auto_resolve_state = None;
+                                    auto_resolve_base_snapshot = None;
+                                    auto_resolve_followup_guard = None;
+                                    auto_resolve_fix_guard = None;
+                                    request_shutdown(
+                                        &conversation,
+                                        &auto_review_tracker,
+                                        &mut shutdown_pending,
+                                        &mut shutdown_sent,
+                                        &mut shutdown_deadline,
+                                        auto_review_grace_enabled,
+                                    )
+                                    .await?;
+                                    continue;
                                 }
                                 match capture_snapshot_against_base(
                                     &config.cwd,

@@ -1496,10 +1496,9 @@ impl Config {
                 .model_routing_entries
                 .iter()
                 .any(|entry| entry.enabled)
+            && let Some(first_entry) = auto_drive.model_routing_entries.first_mut()
         {
-            if let Some(first_entry) = auto_drive.model_routing_entries.first_mut() {
-                first_entry.enabled = true;
-            }
+            first_entry.enabled = true;
         }
         if auto_drive_use_chat_model {
             auto_drive.model = model.clone();

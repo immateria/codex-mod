@@ -1,4 +1,4 @@
-use crate::app_event::{AppEvent, AutoContinueMode};
+use crate::app_event::{AppEvent, AutoContinueMode, AutoDriveSettingsUpdate};
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
 use crate::ui_interaction::{
@@ -420,15 +420,16 @@ impl AutoDriveSettingsView {
     }
 
     fn send_update(&self) {
-        self.app_event_tx.send(AppEvent::AutoDriveSettingsChanged {
-            review_enabled: self.review_enabled,
-            agents_enabled: self.agents_enabled,
-            cross_check_enabled: self.cross_check_enabled,
-            qa_automation_enabled: self.qa_automation_enabled,
-            model_routing_enabled: self.model_routing_enabled,
-            model_routing_entries: self.model_routing_entries.clone(),
-            continue_mode: self.continue_mode,
-        });
+        self.app_event_tx
+            .send(AppEvent::AutoDriveSettingsChanged(AutoDriveSettingsUpdate {
+                review_enabled: self.review_enabled,
+                agents_enabled: self.agents_enabled,
+                cross_check_enabled: self.cross_check_enabled,
+                qa_automation_enabled: self.qa_automation_enabled,
+                model_routing_enabled: self.model_routing_enabled,
+                model_routing_entries: self.model_routing_entries.clone(),
+                continue_mode: self.continue_mode,
+            }));
     }
 
     pub fn set_model(&mut self, model: String, effort: ReasoningEffort) {
@@ -655,7 +656,7 @@ impl AutoDriveSettingsView {
                     }
                 }
             }
-            1 | 2 | 3 => {
+            1..=3 => {
                 let checkbox = if enabled { "[x]" } else { "[ ]" };
                 spans.push(Span::styled(format!("{checkbox} {label}"), label_style));
             }

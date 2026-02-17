@@ -331,7 +331,7 @@ async fn run_websocket_connection(
                 let Some(json) = serialize_outgoing_message(outgoing_message) else {
                     continue;
                 };
-                let send = websocket_writer.send(WebSocketMessage::Text(json.into()));
+                let send = websocket_writer.send(WebSocketMessage::Text(json));
                 tokio::pin!(send);
                 let send_result = tokio::select! {
                     result = &mut send => Some(result),

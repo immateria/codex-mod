@@ -118,8 +118,10 @@ pub async fn run_main_with_transport(
             format!("error parsing -c overrides: {e}"),
         )
     })?;
-    let mut config_overrides = ConfigOverrides::default();
-    config_overrides.code_linux_sandbox_exe = code_linux_sandbox_exe.clone();
+    let config_overrides = ConfigOverrides {
+        code_linux_sandbox_exe: code_linux_sandbox_exe.clone(),
+        ..Default::default()
+    };
     let mut config_warnings = Vec::<serde_json::Value>::new();
 
     let config = match Config::load_with_cli_overrides(cli_kv_overrides.clone(), config_overrides.clone()) {

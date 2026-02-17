@@ -1487,7 +1487,8 @@ impl Session {
             .get_auth_manager()
             .and_then(|manager| manager.auth())
             .map(|auth| auth.mode);
-        let sanitize_encrypted_reasoning = !current_auth_mode.is_some_and(|mode| mode.is_chatgpt());
+        let sanitize_encrypted_reasoning =
+            !current_auth_mode.is_some_and(code_app_server_protocol::AuthMode::is_chatgpt);
 
         if sanitize_encrypted_reasoning {
             let mut stripped = 0usize;

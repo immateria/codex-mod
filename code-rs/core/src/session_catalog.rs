@@ -222,7 +222,7 @@ impl SessionCatalog {
                 snapshot_new_abs
                     .strip_prefix(code_home)
                     .ok()
-                    .map(|p| p.to_path_buf())
+                    .map(std::path::Path::to_path_buf)
             })
             .flatten();
 

@@ -185,12 +185,14 @@ impl HistoryCell for AnimatedWelcomeCell {
                 crate::glitch_animation::render_intro_animation_with_size_and_alpha_offset(
                     positioned_area,
                     buf,
-                    1.0,
-                    alpha,
-                    current_variant,
-                    &self.brand_title,
-                    &self.version_label,
-                    row_offset,
+                    crate::glitch_animation::IntroAnimationRenderParams {
+                        t: 1.0,
+                        alpha,
+                        size: current_variant,
+                        brand_title: &self.brand_title,
+                        version: &self.version_label,
+                        row_offset,
+                    },
                 );
             } else {
                 self.faded_out.set(true);
@@ -213,12 +215,14 @@ impl HistoryCell for AnimatedWelcomeCell {
         crate::glitch_animation::render_intro_animation_with_size_and_alpha_offset(
             positioned_area,
             buf,
-            progress,
-            1.0,
-            variant_for_render,
-            &self.brand_title,
-            &self.version_label,
-            row_offset,
+            crate::glitch_animation::IntroAnimationRenderParams {
+                t: progress,
+                alpha: 1.0,
+                size: variant_for_render,
+                brand_title: &self.brand_title,
+                version: &self.version_label,
+                row_offset,
+            },
         );
     }
 

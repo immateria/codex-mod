@@ -425,7 +425,7 @@ const SPARK_IMAGE_PLACEHOLDER: &str =
 
 /// Replace `input_image` payloads with text placeholders for models that are
 /// known not to accept image inputs.
-pub(crate) fn replace_image_payloads_for_model(input: &mut Vec<ResponseItem>, model_slug: &str) {
+pub(crate) fn replace_image_payloads_for_model(input: &mut [ResponseItem], model_slug: &str) {
     if !model_slug.to_ascii_lowercase().contains("-spark") {
         return;
     }

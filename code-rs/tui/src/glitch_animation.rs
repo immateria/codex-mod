@@ -42,6 +42,16 @@ struct OverlayRenderState {
     alpha: Option<f32>,
 }
 
+#[derive(Copy, Clone)]
+pub(crate) struct IntroAnimationRenderParams<'a> {
+    pub t: f32,
+    pub alpha: f32,
+    pub size: IntroArtSize,
+    pub brand_title: &'a str,
+    pub version: &'a str,
+    pub row_offset: u16,
+}
+
 pub fn intro_art_size_for_width(width: u16) -> IntroArtSize {
     if width >= LARGE_MIN_WIDTH {
         IntroArtSize::Large
@@ -78,17 +88,20 @@ pub fn intro_art_height(size: IntroArtSize) -> u16 {
 pub(crate) fn render_intro_animation_with_size_and_alpha_offset(
     area: Rect,
     buf: &mut Buffer,
-    t: f32,
-    alpha: f32,
-    size: IntroArtSize,
-    brand_title: &str,
-    version: &str,
-    row_offset: u16,
+    params: IntroAnimationRenderParams<'_>,
 ) {
     if area.width == 0 || area.height == 0 {
         return;
     }
 
+    let IntroAnimationRenderParams {
+        t,
+        alpha,
+        size,
+        brand_title,
+        version,
+        row_offset,
+    } = params;
     let t = t.clamp(0.0, 1.0);
     let alpha = alpha.clamp(0.0, 1.0);
     let outline_p = smoothstep(0.00, 0.60, t);
@@ -906,12 +919,14 @@ mod tests {
         render_intro_animation_with_size_and_alpha_offset(
             rect,
             &mut buf,
-            1.0,
-            1.0,
-            IntroArtSize::Large,
-            DEFAULT_BRAND_TITLE,
-            &version,
-            0,
+            IntroAnimationRenderParams {
+                t: 1.0,
+                alpha: 1.0,
+                size: IntroArtSize::Large,
+                brand_title: DEFAULT_BRAND_TITLE,
+                version: &version,
+                row_offset: 0,
+            },
         );
 
         let rendered = buffer_to_strings(&buf, rect);
@@ -937,12 +952,14 @@ mod tests {
         render_intro_animation_with_size_and_alpha_offset(
             rect,
             &mut buf,
-            1.0,
-            1.0,
-            IntroArtSize::Medium,
-            custom_title,
-            &version,
-            0,
+            IntroAnimationRenderParams {
+                t: 1.0,
+                alpha: 1.0,
+                size: IntroArtSize::Medium,
+                brand_title: custom_title,
+                version: &version,
+                row_offset: 0,
+            },
         );
 
         let rendered = buffer_to_strings(&buf, rect);
@@ -966,12 +983,14 @@ mod tests {
         render_intro_animation_with_size_and_alpha_offset(
             full_rect,
             &mut full_buf,
-            1.0,
-            1.0,
-            IntroArtSize::Medium,
-            "Offset Test",
-            &version,
-            0,
+            IntroAnimationRenderParams {
+                t: 1.0,
+                alpha: 1.0,
+                size: IntroArtSize::Medium,
+                brand_title: "Offset Test",
+                version: &version,
+                row_offset: 0,
+            },
         );
         let full = buffer_to_strings(&full_buf, full_rect);
 
@@ -981,12 +1000,14 @@ mod tests {
         render_intro_animation_with_size_and_alpha_offset(
             window_rect,
             &mut window_buf,
-            1.0,
-            1.0,
-            IntroArtSize::Medium,
-            "Offset Test",
-            &version,
-            offset,
+            IntroAnimationRenderParams {
+                t: 1.0,
+                alpha: 1.0,
+                size: IntroArtSize::Medium,
+                brand_title: "Offset Test",
+                version: &version,
+                row_offset: offset,
+            },
         );
         let window = buffer_to_strings(&window_buf, window_rect);
         assert_eq!(window[0], full[offset as usize]);
@@ -1002,12 +1023,14 @@ mod tests {
         render_intro_animation_with_size_and_alpha_offset(
             rect,
             &mut buf,
-            1.0,
-            1.0,
-            IntroArtSize::Tiny,
-            custom_title,
-            &version,
-            0,
+            IntroAnimationRenderParams {
+                t: 1.0,
+                alpha: 1.0,
+                size: IntroArtSize::Tiny,
+                brand_title: custom_title,
+                version: &version,
+                row_offset: 0,
+            },
         );
 
         let rendered = buffer_to_strings(&buf, rect);
@@ -1027,12 +1050,14 @@ mod tests {
         render_intro_animation_with_size_and_alpha_offset(
             rect,
             &mut buf,
-            1.0,
-            1.0,
-            IntroArtSize::Tiny,
-            custom_title,
-            &version,
-            0,
+            IntroAnimationRenderParams {
+                t: 1.0,
+                alpha: 1.0,
+                size: IntroArtSize::Tiny,
+                brand_title: custom_title,
+                version: &version,
+                row_offset: 0,
+            },
         );
 
         let rendered = buffer_to_strings(&buf, rect);

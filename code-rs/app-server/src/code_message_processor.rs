@@ -874,7 +874,7 @@ impl CodexMessageProcessor {
         let next_cursor = page.next_cursor.and_then(|cursor| {
             serde_json::to_value(cursor)
                 .ok()
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .and_then(|v| v.as_str().map(str::to_owned))
         });
 
         self.outgoing
@@ -1104,14 +1104,12 @@ impl CodexMessageProcessor {
 
         if !requires_openai_auth {
             auth_method = None;
-        } else if params.include_token.unwrap_or(false) {
-            if let Some(auth) = auth.as_ref() {
-                if let Ok(token) = auth.get_token().await {
-                    if !token.trim().is_empty() {
-                        auth_token = Some(token);
-                    }
-                }
-            }
+        } else if params.include_token.unwrap_or(false)
+            && let Some(auth) = auth.as_ref()
+            && let Ok(token) = auth.get_token().await
+            && !token.trim().is_empty()
+        {
+            auth_token = Some(token);
         }
 
         self.outgoing
@@ -1246,14 +1244,12 @@ impl CodexMessageProcessor {
 
     async fn user_info(&self, request_id: RequestId) {
         let mut alleged_user_email = None;
-        if let Some(auth) = self.auth_manager.auth() {
-            if auth.mode.is_chatgpt() {
-                alleged_user_email = auth
-                    .get_token_data()
-                    .await
-                    .ok()
-                    .and_then(|t| t.id_token.email);
-            }
+        if let Some(auth) = self.auth_manager.auth() && auth.mode.is_chatgpt() {
+            alleged_user_email = auth
+                .get_token_data()
+                .await
+                .ok()
+                .and_then(|t| t.id_token.email);
         }
         self.outgoing
             .send_response(request_id, UserInfoResponse { alleged_user_email })
@@ -2243,12 +2239,10 @@ fn snippet_from_rollout_tail(tail: &[serde_json::Value]) -> Option<String> {
             code_protocol::models::ResponseItem::Message { role, content, .. },
         ) = item
             && role.eq_ignore_ascii_case("user")
+            && let Some(snippet) = snippet_from_content(&content)
+            && !snippet.starts_with("== System Status ==")
         {
-            if let Some(snippet) = snippet_from_content(&content)
-                && !snippet.starts_with("== System Status ==")
-            {
-                return Some(snippet);
-            }
+            return Some(snippet);
         }
     }
     None

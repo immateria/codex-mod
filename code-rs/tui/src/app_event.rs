@@ -109,6 +109,17 @@ pub(crate) use code_auto_drive_core::{
     AutoTurnCliAction,
 };
 
+#[derive(Debug, Clone)]
+pub(crate) struct AutoDriveSettingsUpdate {
+    pub review_enabled: bool,
+    pub agents_enabled: bool,
+    pub cross_check_enabled: bool,
+    pub qa_automation_enabled: bool,
+    pub model_routing_enabled: bool,
+    pub model_routing_entries: Vec<AutoDriveModelRoutingEntry>,
+    pub continue_mode: AutoContinueMode,
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub(crate) enum AppEvent {
@@ -236,15 +247,7 @@ pub(crate) enum AppEvent {
     },
     ShowAutoDriveSettings,
     CloseAutoDriveSettings,
-    AutoDriveSettingsChanged {
-        review_enabled: bool,
-        agents_enabled: bool,
-        cross_check_enabled: bool,
-        qa_automation_enabled: bool,
-        model_routing_enabled: bool,
-        model_routing_entries: Vec<AutoDriveModelRoutingEntry>,
-        continue_mode: AutoContinueMode,
-    },
+    AutoDriveSettingsChanged(AutoDriveSettingsUpdate),
 
     /// Dispatch a recognized slash command from the UI (composer) to the app
     /// layer so it can be handled centrally. Includes the full command text.
