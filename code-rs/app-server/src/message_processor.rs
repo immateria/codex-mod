@@ -18,6 +18,7 @@ use code_app_server_protocol::CancelLoginAccountParams;
 use code_app_server_protocol::Config as V2Config;
 use code_app_server_protocol::ConfigBatchWriteParams;
 use code_app_server_protocol::ConfigEdit;
+use code_app_server_protocol::ConfigLayer;
 use code_app_server_protocol::ConfigReadParams;
 use code_app_server_protocol::ConfigReadResponse;
 use code_app_server_protocol::ConfigRequirementsReadResponse;
@@ -27,6 +28,7 @@ use code_app_server_protocol::ConfigWriteResponse;
 use code_app_server_protocol::GetAccountParams;
 use code_app_server_protocol::LoginAccountParams;
 use code_app_server_protocol::MergeStrategy;
+use code_app_server_protocol::OverriddenMetadata;
 use code_app_server_protocol::ToolsV2;
 use code_app_server_protocol::AskForApproval as V2AskForApproval;
 use code_app_server_protocol::WriteStatus;
@@ -49,8 +51,6 @@ use mcp_types::JSONRPCResponse;
 use code_utils_absolute_path::AbsolutePathBuf;
 use code_utils_json_to_toml::json_to_toml;
 use serde_json::json;
-use sha1::Digest;
-use sha1::Sha1;
 use toml::Value as TomlValue;
 
 pub(crate) struct MessageProcessor {
@@ -310,14 +310,66 @@ impl MessageProcessor {
                     }
                 };
 
+                let layers_cwd = params
+                    .cwd
+                    .as_deref()
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| self.base_config.cwd.clone());
+
+                let layers_state = match code_core::config_loader::load_config_layers_state_with_cwd(
+                    &self.base_config.code_home,
+                    Some(layers_cwd.as_path()),
+                    &self.cli_overrides,
+                    code_core::config_loader::LoaderOverrides::default(),
+                )
+                .await {
+                    Ok(state) => state,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("Unable to load config layers: {err}"),
+                            data: None,
+                        };
+                        self.outgoing.send_error(request_id, error).await;
+                        return true;
+                    }
+                };
+
+                let origins = layers_state.origins();
+                let layers = if params.include_layers {
+                    let mut layers = Vec::<ConfigLayer>::new();
+                    for layer in layers_state.layers_high_to_low() {
+                        let config_json = match serde_json::to_value(&layer.config) {
+                            Ok(value) => value,
+                            Err(err) => {
+                                let error = JSONRPCErrorError {
+                                    code: INTERNAL_ERROR_CODE,
+                                    message: format!(
+                                        "Unable to serialize config layer {:?}: {err}",
+                                        layer.name
+                                    ),
+                                    data: None,
+                                };
+                                self.outgoing.send_error(request_id, error).await;
+                                return true;
+                            }
+                        };
+                        layers.push(ConfigLayer {
+                            name: layer.name.clone(),
+                            version: layer.version.clone(),
+                            config: config_json,
+                            disabled_reason: layer.disabled_reason.clone(),
+                        });
+                    }
+                    Some(layers)
+                } else {
+                    None
+                };
+
                 let response = ConfigReadResponse {
                     config: self.v2_config_snapshot_from(&config),
-                    origins: HashMap::new(),
-                    layers: if params.include_layers {
-                        Some(Vec::new())
-                    } else {
-                        None
-                    },
+                    origins,
+                    layers,
                 };
                 self.outgoing.send_response(request_id, response).await;
                 true
@@ -593,15 +645,6 @@ impl MessageProcessor {
                 ));
             }
         };
-        let current_version = config_version(&current_contents);
-        if let Some(expected_version) = expected_version
-            && expected_version != current_version
-        {
-            return Err(config_write_error(
-                ConfigWriteErrorCode::ConfigVersionConflict,
-                "Config version conflict",
-            ));
-        }
 
         let mut root = if current_contents.trim().is_empty() {
             TomlValue::Table(Default::default())
@@ -614,7 +657,19 @@ impl MessageProcessor {
             })?
         };
 
+        let current_version = code_core::config_loader::version_for_toml(&root);
+        if let Some(expected_version) = expected_version
+            && expected_version != current_version
+        {
+            return Err(config_write_error(
+                ConfigWriteErrorCode::ConfigVersionConflict,
+                "Config version conflict",
+            ));
+        }
+
+        let mut edited_paths = Vec::<String>::new();
         for edit in edits {
+            edited_paths.push(edit.key_path.clone());
             apply_toml_edit(
                 &mut root,
                 edit.key_path.as_str(),
@@ -653,11 +708,61 @@ impl MessageProcessor {
             )
         })?;
 
+        let mut status = WriteStatus::Ok;
+        let mut overridden_metadata: Option<OverriddenMetadata> = None;
+
+        // Best-effort: if the value the user wrote is overridden by a higher-precedence
+        // config layer (session flags, managed config), report that in the response so
+        // callers can explain why the write didn't take effect.
+        if !edited_paths.is_empty() {
+            if let Ok(state) = code_core::config_loader::load_config_layers_state_blocking_with_cwd(
+                &self.base_config.code_home,
+                Some(self.base_config.cwd.as_path()),
+                &self.cli_overrides,
+                code_core::config_loader::LoaderOverrides::default(),
+            ) {
+                let effective = state.effective_config();
+                let origins = state.origins();
+
+                for key_path in edited_paths {
+                    let user_value = toml_value_at_path(&root, &key_path);
+                    let effective_value = toml_value_at_path(&effective, &key_path);
+                    if user_value == effective_value {
+                        continue;
+                    }
+
+                    let Some(origin) = origins.get(&key_path) else {
+                        continue;
+                    };
+
+                    if matches!(
+                        &origin.name,
+                        code_app_server_protocol::ConfigLayerSource::User { .. }
+                    ) {
+                        continue;
+                    }
+
+                    let overriding_layer = format_layer_source_for_override(&origin.name);
+                    status = WriteStatus::OkOverridden;
+                    overridden_metadata = Some(OverriddenMetadata {
+                        message: format!("Value is overridden by {overriding_layer}."),
+                        overriding_layer: origin.clone(),
+                        effective_value: match effective_value {
+                            Some(value) => serde_json::to_value(value)
+                                .unwrap_or_else(|_| serde_json::Value::Null),
+                            None => serde_json::Value::Null,
+                        },
+                    });
+                    break;
+                }
+            }
+        }
+
         Ok(ConfigWriteResponse {
-            status: WriteStatus::Ok,
-            version: config_version(serialized.as_str()),
+            status,
+            version: code_core::config_loader::version_for_toml(&root),
             file_path: absolute_file_path,
-            overridden_metadata: None,
+            overridden_metadata,
         })
     }
 
@@ -835,10 +940,41 @@ fn merge_toml_values(target: &mut TomlValue, incoming: TomlValue) {
     }
 }
 
-fn config_version(contents: &str) -> String {
-    let mut hasher = Sha1::new();
-    hasher.update(contents.as_bytes());
-    format!("{:x}", hasher.finalize())
+fn toml_value_at_path<'a>(root: &'a TomlValue, key_path: &str) -> Option<&'a TomlValue> {
+    let mut current = root;
+    for segment in key_path.split('.').filter(|segment| !segment.is_empty()) {
+        let table = current.as_table()?;
+        current = table.get(segment)?;
+    }
+    Some(current)
+}
+
+fn format_layer_source_for_override(source: &code_app_server_protocol::ConfigLayerSource) -> String {
+    match source {
+        code_app_server_protocol::ConfigLayerSource::Mdm { domain, key } => {
+            format!("MDM ({domain}:{key})")
+        }
+        code_app_server_protocol::ConfigLayerSource::System { file } => {
+            let path = file.as_ref().display();
+            format!("system config ({path})")
+        }
+        code_app_server_protocol::ConfigLayerSource::User { file } => {
+            let path = file.as_ref().display();
+            format!("user config ({path})")
+        }
+        code_app_server_protocol::ConfigLayerSource::Project { dot_codex_folder } => {
+            let path = dot_codex_folder.as_ref().display();
+            format!("project config ({path})")
+        }
+        code_app_server_protocol::ConfigLayerSource::SessionFlags => "session overrides".to_string(),
+        code_app_server_protocol::ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => {
+            let path = file.as_ref().display();
+            format!("managed config ({path})")
+        }
+        code_app_server_protocol::ConfigLayerSource::LegacyManagedConfigTomlFromMdm => {
+            "MDM managed config".to_string()
+        }
+    }
 }
 
 fn to_absolute_path_buf(path: &Path) -> std::io::Result<AbsolutePathBuf> {

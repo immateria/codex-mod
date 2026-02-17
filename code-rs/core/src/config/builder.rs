@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use toml::Value as TomlValue;
 
 use super::sources;
-use super::validation::{apply_toml_override, deserialize_config_toml_with_cli_warnings};
+use super::validation::deserialize_config_toml_with_cli_warnings;
 use super::{Config, ConfigOverrides, ConfigToml};
 
 #[derive(Default, Debug, Clone)]
@@ -39,11 +39,20 @@ impl ConfigBuilder {
             None => sources::find_code_home()?,
         };
 
-        let mut root_value = sources::load_config_as_toml(&code_home)?;
         let cli_paths: Vec<String> = self.cli_overrides.iter().map(|(path, _)| path.clone()).collect();
-        for (path, value) in self.cli_overrides.into_iter() {
-            apply_toml_override(&mut root_value, &path, value);
-        }
+        // The config stack is sensitive to the current working directory because
+        // project layers can be applied between the repo root and cwd.
+        let layers_cwd = match self.overrides.cwd.as_ref() {
+            Some(path) => path.clone(),
+            None => std::env::current_dir()?,
+        };
+        let layers = crate::config_loader::load_config_layers_state_blocking_with_cwd(
+            &code_home,
+            Some(layers_cwd.as_path()),
+            &self.cli_overrides,
+            LoaderOverrides::default(),
+        )?;
+        let root_value = layers.effective_config();
 
         let cfg = deserialize_config_toml_with_cli_warnings(&root_value, &cli_paths)?;
         let mut config = Config::load_from_base_config_with_overrides(cfg, self.overrides, code_home)?;
@@ -68,11 +77,18 @@ impl ConfigBuilder {
             None => sources::find_code_home()?,
         };
 
-        let mut root_value = sources::load_config_as_toml(&code_home)?;
         let cli_paths: Vec<String> = self.cli_overrides.iter().map(|(path, _)| path.clone()).collect();
-        for (path, value) in self.cli_overrides.into_iter() {
-            apply_toml_override(&mut root_value, &path, value);
-        }
+        let layers_cwd = match self.overrides.cwd.as_ref() {
+            Some(path) => path.clone(),
+            None => std::env::current_dir()?,
+        };
+        let layers = crate::config_loader::load_config_layers_state_blocking_with_cwd(
+            &code_home,
+            Some(layers_cwd.as_path()),
+            &self.cli_overrides,
+            LoaderOverrides::default(),
+        )?;
+        let root_value = layers.effective_config();
 
         deserialize_config_toml_with_cli_warnings(&root_value, &cli_paths)
     }

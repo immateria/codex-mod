@@ -29,7 +29,7 @@ mod config_constraint;
 pub mod config_edit;
 pub mod config_profile;
 pub mod config_types;
-mod config_loader;
+pub mod config_loader;
 mod conversation_history;
 pub mod context_timeline;
 pub mod acp;
