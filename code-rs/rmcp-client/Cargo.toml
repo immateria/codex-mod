@@ -48,6 +48,7 @@ tracing = { version = "0.1.41", features = ["log"] }
 url = { workspace = true }
 urlencoding = { workspace = true }
 webbrowser = { workspace = true }
+which = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"

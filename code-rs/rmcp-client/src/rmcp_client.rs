@@ -84,6 +84,8 @@ impl RmcpClient {
         env: Option<HashMap<String, String>>,
     ) -> io::Result<Self> {
         let program_name = program.to_string_lossy().into_owned();
+        let mcp_env = create_env_for_mcp_server(env);
+        let program = crate::program_resolver::resolve(program, &mcp_env)?;
         let mut last_err: Option<io::Error> = None;
         let mut spawned: Option<(TokioChildProcess, Option<tokio::process::ChildStderr>)> = None;
 
@@ -94,7 +96,7 @@ impl RmcpClient {
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .env_clear()
-                .envs(create_env_for_mcp_server(env.clone()))
+                .envs(mcp_env.clone())
                 .args(&args);
 
             match TokioChildProcess::builder(command)
