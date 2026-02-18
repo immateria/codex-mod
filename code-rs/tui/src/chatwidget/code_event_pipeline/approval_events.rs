@@ -33,7 +33,12 @@ impl ChatWidget<'_> {
     ) {
         let key = self.near_time_key_current_req(order);
         let mut lines: Vec<String> = Vec::new();
-        lines.push("Model requested user input".to_string());
+        let is_mcp_access_prompt = ev.call_id.starts_with("mcp_access:");
+        if is_mcp_access_prompt {
+            lines.push("Permission requested: MCP access".to_string());
+        } else {
+            lines.push("Model requested user input".to_string());
+        }
 
         for question in &ev.questions {
             let header = &question.header;
@@ -49,11 +54,18 @@ impl ChatWidget<'_> {
                 }
             }
         }
-        let auto_answer = self.auto_state.is_active() && !self.auto_state.is_paused_manual();
+        let auto_answer =
+            !is_mcp_access_prompt && self.auto_state.is_active() && !self.auto_state.is_paused_manual();
         if auto_answer {
             lines.push("\nAuto Drive is active; continuing automatically.".to_string());
         } else {
-            lines.push("\nUse the picker below to continue (Esc to type in the composer).".to_string());
+            if is_mcp_access_prompt {
+                lines.push("\nUse the picker below to continue (Esc cancels).".to_string());
+            } else {
+                lines.push(
+                    "\nUse the picker below to continue (Esc to type in the composer).".to_string(),
+                );
+            }
         }
 
         let role = history_cell::plain_role_for_kind(PlainMessageKind::Notice);
@@ -103,6 +115,7 @@ impl ChatWidget<'_> {
             self.bottom_pane
                 .show_request_user_input(crate::bottom_pane::RequestUserInputView::new(
                     ev.turn_id.clone(),
+                    ev.call_id.clone(),
                     ev.questions,
                     self.app_event_tx.clone(),
                 ));

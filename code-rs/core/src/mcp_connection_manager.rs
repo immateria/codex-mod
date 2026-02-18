@@ -256,7 +256,7 @@ pub struct McpConnectionManager {
     /// Directory containing all Code state (used for MCP OAuth token storage).
     code_home: PathBuf,
     mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode,
-    server_transports: HashMap<String, McpServerTransportConfig>,
+    server_transports: StdRwLock<HashMap<String, McpServerTransportConfig>>,
 
     /// Server-name -> client instance.
     ///
@@ -267,7 +267,7 @@ pub struct McpConnectionManager {
     /// Fully qualified tool name -> tool instance.
     tools: StdRwLock<HashMap<String, ToolInfo>>,
     excluded_tools: StdRwLock<HashSet<(String, String)>>,
-    server_names: Vec<String>,
+    server_names: StdRwLock<Vec<String>>,
     failures: StdRwLock<HashMap<String, McpServerFailure>>,
 }
 
@@ -292,11 +292,11 @@ impl McpConnectionManager {
                 Self {
                     code_home,
                     mcp_oauth_credentials_store_mode,
-                    server_transports: HashMap::new(),
+                    server_transports: StdRwLock::new(HashMap::new()),
                     clients: TokioRwLock::new(HashMap::new()),
                     tools: StdRwLock::new(HashMap::new()),
                     excluded_tools: StdRwLock::new(excluded_tools),
-                    server_names: Vec::new(),
+                    server_names: StdRwLock::new(Vec::new()),
                     failures: StdRwLock::new(HashMap::new()),
                 },
                 ClientStartErrors::default(),
@@ -457,16 +457,63 @@ impl McpConnectionManager {
         server_names.sort();
         let failures = errors.clone();
 
-        Ok((Self {
+        Ok((
+            Self {
             code_home,
             mcp_oauth_credentials_store_mode,
-            server_transports,
+            server_transports: StdRwLock::new(server_transports),
             clients: TokioRwLock::new(clients),
             tools: StdRwLock::new(tools),
             excluded_tools: StdRwLock::new(excluded_tools),
-            server_names,
+            server_names: StdRwLock::new(server_names),
             failures: StdRwLock::new(failures),
-        }, errors))
+        },
+            errors,
+        ))
+    }
+
+    fn server_transports_read(
+        &self,
+    ) -> std::sync::RwLockReadGuard<'_, HashMap<String, McpServerTransportConfig>> {
+        match self.server_transports.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP server transports lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn server_transports_write(
+        &self,
+    ) -> std::sync::RwLockWriteGuard<'_, HashMap<String, McpServerTransportConfig>> {
+        match self.server_transports.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP server transports lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn server_names_read(&self) -> std::sync::RwLockReadGuard<'_, Vec<String>> {
+        match self.server_names.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP server names lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn server_names_write(&self) -> std::sync::RwLockWriteGuard<'_, Vec<String>> {
+        match self.server_names.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP server names lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
     }
 
     fn tools_read(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, ToolInfo>> {
@@ -566,7 +613,7 @@ impl McpConnectionManager {
                 .push(tool.tool_name.clone());
         }
 
-        for server_name in &self.server_names {
+        for server_name in self.server_names_read().iter() {
             tools_by_server.entry(server_name.clone()).or_default();
         }
 
@@ -587,7 +634,7 @@ impl McpConnectionManager {
                 .push(tool.clone());
         }
 
-        for server_name in &self.server_names {
+        for server_name in self.server_names_read().iter() {
             disabled_by_server.entry(server_name.clone()).or_default();
         }
 
@@ -607,9 +654,13 @@ impl McpConnectionManager {
         let store_mode = self.mcp_oauth_credentials_store_mode;
         let code_home = self.code_home.clone();
 
-        let futures = self.server_transports.iter().map(|(server_name, transport)| {
-            let server_name = server_name.clone();
-            let transport = transport.clone();
+        let transports: Vec<(String, McpServerTransportConfig)> = self
+            .server_transports_read()
+            .iter()
+            .map(|(server_name, transport)| (server_name.clone(), transport.clone()))
+            .collect();
+
+        let futures = transports.into_iter().map(|(server_name, transport)| {
             let code_home = code_home.clone();
             async move {
                 let status = match transport {
@@ -646,6 +697,135 @@ impl McpConnectionManager {
         });
 
         join_all(futures).await.into_iter().collect()
+    }
+
+    /// Start an MCP server on-demand when it is needed for the current session.
+    ///
+    /// Returns `true` when a new client was started, `false` when the server was already running.
+    pub async fn ensure_server_started(
+        &self,
+        server_name: &str,
+        cfg: &McpServerConfig,
+    ) -> Result<bool> {
+        if !is_valid_mcp_server_name(server_name) {
+            return Err(anyhow!(
+                "invalid server name '{server_name}': must match pattern ^[a-zA-Z0-9_-]+$"
+            ));
+        }
+
+        {
+            let clients = self.clients.read().await;
+            if clients.contains_key(server_name) {
+                return Ok(false);
+            }
+        }
+
+        let cfg = cfg.clone();
+        let startup_timeout = cfg.startup_timeout_sec.unwrap_or(DEFAULT_STARTUP_TIMEOUT);
+        let tool_timeout = cfg.tool_timeout_sec;
+
+        let params = mcp_types::InitializeRequestParams {
+            capabilities: ClientCapabilities {
+                experimental: None,
+                roots: None,
+                sampling: None,
+                elicitation: Some(json!({})),
+            },
+            client_info: Implementation {
+                name: "codex-mcp-client".to_owned(),
+                version: env!("CARGO_PKG_VERSION").to_owned(),
+                title: Some("Codex".into()),
+                user_agent: None,
+            },
+            protocol_version: mcp_types::MCP_SCHEMA_VERSION.to_owned(),
+        };
+
+        let transport = cfg.transport.clone();
+        {
+            let mut transports = self.server_transports_write();
+            transports.insert(server_name.to_string(), transport.clone());
+        }
+
+        let code_home = self.code_home.clone();
+        let oauth_store_mode = self.mcp_oauth_credentials_store_mode;
+
+        let client = match transport {
+            McpServerTransportConfig::Stdio { command, args, env } => {
+                let command_os: OsString = command.into();
+                let args_os: Vec<OsString> = args.into_iter().map(Into::into).collect();
+                McpClientAdapter::new_stdio_client(
+                    command_os,
+                    args_os,
+                    env,
+                    params,
+                    startup_timeout,
+                )
+                .await?
+            }
+            McpServerTransportConfig::StreamableHttp {
+                url,
+                bearer_token,
+                bearer_token_env_var,
+                http_headers,
+                env_http_headers,
+            } => {
+                let bearer_token = resolve_streamable_http_bearer_token(
+                    server_name,
+                    bearer_token,
+                    bearer_token_env_var.as_deref(),
+                )?;
+                McpClientAdapter::new_streamable_http_client(
+                    code_home,
+                    server_name,
+                    url,
+                    bearer_token,
+                    http_headers,
+                    env_http_headers,
+                    oauth_store_mode,
+                    params,
+                    startup_timeout,
+                )
+                .await?
+            }
+        };
+
+        let managed = ManagedClient {
+            client,
+            startup_timeout,
+            tool_timeout,
+        };
+
+        let inserted = {
+            let mut clients = self.clients.write().await;
+            if clients.contains_key(server_name) {
+                false
+            } else {
+                clients.insert(server_name.to_string(), managed.clone());
+                true
+            }
+        };
+
+        if !inserted {
+            managed.shutdown().await;
+            return Ok(false);
+        }
+
+        {
+            let mut names = self.server_names_write();
+            if !names.iter().any(|name| name.eq_ignore_ascii_case(server_name)) {
+                names.push(server_name.to_string());
+                names.sort_by_key(|name| name.to_ascii_lowercase());
+                names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+            }
+        }
+
+        {
+            let mut failures = self.failures_write();
+            failures.remove(server_name);
+        }
+
+        self.refresh_tools().await;
+        Ok(true)
     }
 
     /// Invoke the tool indicated by the (server, tool) pair.

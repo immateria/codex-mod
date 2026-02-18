@@ -3,8 +3,6 @@ use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::config::Config;
-use crate::config_types::ShellScriptStyle;
 use crate::mcp_connection_manager::McpConnectionManager;
 use crate::protocol::McpServerFailure;
 use crate::protocol::McpServerFailurePhase;
@@ -13,8 +11,9 @@ use crate::skills::injection::SkillMcpDependency;
 pub(crate) fn build_skill_mcp_dependency_warnings(
     deps: &[SkillMcpDependency],
     mcp: &McpConnectionManager,
-    config: &Config,
-    style: Option<ShellScriptStyle>,
+    style_label: Option<&str>,
+    include_servers: &HashSet<String>,
+    exclude_servers: &HashSet<String>,
 ) -> Vec<String> {
     if deps.is_empty() {
         return Vec::new();
@@ -29,12 +28,6 @@ pub(crate) fn build_skill_mcp_dependency_warnings(
         tool_names_by_server_lower,
         disabled_tool_names_by_server_lower,
     } = build_server_maps(&tools_by_server, &disabled_by_server, &failures);
-
-    let StyleFilters {
-        style_label,
-        include_servers,
-        exclude_servers,
-    } = build_style_filters(config, style);
 
     let mut grouped: BTreeMap<(String, Option<String>), BTreeSet<String>> = BTreeMap::new();
     for dep in deps {
@@ -61,9 +54,9 @@ pub(crate) fn build_skill_mcp_dependency_warnings(
             warnings.push(missing_server_warning(
                 &skill_list,
                 server_lower.as_str(),
-                style_label.as_deref(),
-                &include_servers,
-                &exclude_servers,
+                style_label,
+                include_servers,
+                exclude_servers,
             ));
             continue;
         };
@@ -123,11 +116,7 @@ fn build_server_maps(
     failures: &HashMap<String, McpServerFailure>,
 ) -> ServerMaps {
     let mut server_name_by_lower: HashMap<String, String> = HashMap::new();
-    for name in tools_by_server
-        .keys()
-        .chain(disabled_by_server.keys())
-        .chain(failures.keys())
-    {
+    for name in tools_by_server.keys().chain(failures.keys()) {
         server_name_by_lower
             .entry(name.to_ascii_lowercase())
             .or_insert_with(|| name.clone());
@@ -155,52 +144,6 @@ fn build_server_maps(
         server_name_by_lower,
         tool_names_by_server_lower,
         disabled_tool_names_by_server_lower,
-    }
-}
-
-struct StyleFilters {
-    style_label: Option<String>,
-    include_servers: HashSet<String>,
-    exclude_servers: HashSet<String>,
-}
-
-fn build_style_filters(config: &Config, style: Option<ShellScriptStyle>) -> StyleFilters {
-    let Some(style) = style else {
-        return StyleFilters {
-            style_label: None,
-            include_servers: HashSet::new(),
-            exclude_servers: HashSet::new(),
-        };
-    };
-
-    let Some(profile) = config.shell_style_profiles.get(&style) else {
-        return StyleFilters {
-            style_label: Some(style.to_string()),
-            include_servers: HashSet::new(),
-            exclude_servers: HashSet::new(),
-        };
-    };
-
-    let include_servers: HashSet<String> = profile
-        .mcp_servers
-        .include
-        .iter()
-        .map(|name| name.trim().to_ascii_lowercase())
-        .filter(|name| !name.is_empty())
-        .collect();
-
-    let exclude_servers: HashSet<String> = profile
-        .mcp_servers
-        .exclude
-        .iter()
-        .map(|name| name.trim().to_ascii_lowercase())
-        .filter(|name| !name.is_empty())
-        .collect();
-
-    StyleFilters {
-        style_label: Some(style.to_string()),
-        include_servers,
-        exclude_servers,
     }
 }
 
@@ -279,4 +222,3 @@ fn server_failed_warning(skills: &str, server: &str, failure: &McpServerFailure)
         failure.message
     )
 }
-

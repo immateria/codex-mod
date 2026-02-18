@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Style, Stylize};
@@ -23,12 +23,14 @@ use super::{BottomPane, CancellationEvent};
 #[derive(Debug, Clone)]
 struct AnswerState {
     option_state: ScrollState,
+    hover_option_idx: Option<usize>,
     freeform: String,
 }
 
 pub(crate) struct RequestUserInputView {
     app_event_tx: AppEventSender,
     turn_id: String,
+    call_id: String,
     questions: Vec<RequestUserInputQuestion>,
     answers: Vec<AnswerState>,
     current_idx: usize,
@@ -39,6 +41,7 @@ pub(crate) struct RequestUserInputView {
 impl RequestUserInputView {
     pub(crate) fn new(
         turn_id: String,
+        call_id: String,
         questions: Vec<RequestUserInputQuestion>,
         app_event_tx: AppEventSender,
     ) -> Self {
@@ -55,6 +58,7 @@ impl RequestUserInputView {
                 }
                 AnswerState {
                     option_state,
+                    hover_option_idx: None,
                     freeform: String::new(),
                 }
             })
@@ -63,12 +67,17 @@ impl RequestUserInputView {
         Self {
             app_event_tx,
             turn_id,
+            call_id,
             questions,
             answers,
             current_idx: 0,
             submitting: false,
             complete: false,
         }
+    }
+
+    fn is_mcp_access_prompt(&self) -> bool {
+        self.call_id.starts_with("mcp_access:")
     }
 
     fn question_count(&self) -> usize {
@@ -146,6 +155,9 @@ impl RequestUserInputView {
         } else {
             answer.option_state.move_down_wrap(options_len);
         }
+        answer
+            .option_state
+            .ensure_visible(options_len, options_len.min(6).max(1));
     }
 
     fn push_freeform_char(&mut self, ch: char) {
@@ -173,6 +185,113 @@ impl RequestUserInputView {
         } else {
             self.current_idx = self.current_idx.saturating_add(1);
         }
+    }
+
+    fn select_current_option_by_label(&mut self, desired_label: &str) -> bool {
+        let idx = self
+            .current_question()
+            .and_then(|question| question.options.as_ref())
+            .and_then(|options| options.iter().position(|opt| opt.label.trim() == desired_label));
+        let Some(answer) = self.current_answer_mut() else {
+            return false;
+        };
+        if let Some(idx) = idx {
+            answer.option_state.selected_idx = Some(idx);
+            return true;
+        }
+        false
+    }
+
+    fn option_hit_test(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
+        if area.width == 0 || area.height == 0 {
+            return None;
+        }
+        if !crate::ui_interaction::contains_point(area, x, y) {
+            return None;
+        }
+        if !self.current_has_options() {
+            return None;
+        }
+
+        let options_len = self.current_total_options_len();
+        if options_len == 0 {
+            return None;
+        }
+
+        let inner = Rect {
+            x: area.x.saturating_add(1),
+            y: area.y.saturating_add(1),
+            width: area.width.saturating_sub(2),
+            height: area.height.saturating_sub(2),
+        };
+        if inner.width == 0 || inner.height == 0 {
+            return None;
+        }
+
+        let question = self.current_question();
+        let prompt = question.map(|q| q.question.as_str()).unwrap_or("");
+
+        let mut content_y = inner.y.saturating_add(2);
+        let footer_height = 1u16;
+        let available = inner
+            .height
+            .saturating_sub((content_y - inner.y).saturating_add(footer_height));
+        if available == 0 {
+            return None;
+        }
+
+        let desired_prompt_height = if prompt.trim().is_empty() {
+            0u16
+        } else {
+            let wrapped = textwrap::wrap(prompt, inner.width.max(1) as usize);
+            u16::try_from(wrapped.len()).unwrap_or(u16::MAX).clamp(1, 3)
+        };
+
+        let (prompt_height, content_height) = if available <= 2 {
+            (0, available)
+        } else {
+            let prompt_budget = available.saturating_sub(2);
+            let prompt_height = desired_prompt_height.min(prompt_budget);
+            let content_height = available.saturating_sub(prompt_height);
+            (prompt_height, content_height)
+        };
+
+        content_y = content_y.saturating_add(prompt_height);
+        if content_height == 0 {
+            return None;
+        }
+
+        let content_rect = Rect {
+            x: inner.x,
+            y: content_y,
+            width: inner.width,
+            height: content_height,
+        };
+        if !crate::ui_interaction::contains_point(content_rect, x, y) {
+            return None;
+        }
+
+        let state = self.current_answer().map(|answer| answer.option_state)?;
+        let visible_rows = (content_rect.height as usize).min(options_len).max(1);
+        let mut start_idx = state.scroll_top.min(options_len.saturating_sub(1));
+        if let Some(sel) = state.selected_idx {
+            if sel < start_idx {
+                start_idx = sel;
+            } else {
+                let bottom = start_idx.saturating_add(visible_rows).saturating_sub(1);
+                if sel > bottom {
+                    start_idx = sel.saturating_add(1).saturating_sub(visible_rows);
+                }
+            }
+        }
+
+        let rel_y = y.saturating_sub(content_rect.y) as usize;
+        if rel_y >= visible_rows {
+            return None;
+        }
+
+        let idx = start_idx.saturating_add(rel_y);
+        (idx < options_len).then_some(idx)
     }
 
     fn submit(&mut self) {
@@ -246,8 +365,16 @@ impl BottomPaneView<'_> for RequestUserInputView {
 
         match key_event.code {
             KeyCode::Esc => {
-                // Close this UI and fall back to the composer for manual input.
-                self.complete = true;
+                if self.is_mcp_access_prompt() && self.current_has_options() {
+                    let has_cancel = self.select_current_option_by_label("Cancel");
+                    if !has_cancel {
+                        let _ = self.select_current_option_by_label("Deny");
+                    }
+                    self.submit();
+                } else {
+                    // Close this UI and fall back to the composer for manual input.
+                    self.complete = true;
+                }
             }
             KeyCode::Enter => {
                 self.go_next_or_submit();
@@ -285,6 +412,77 @@ impl BottomPaneView<'_> for RequestUserInputView {
             }
             _ => {}
         }
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'_>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> super::bottom_pane_view::ConditionalUpdate {
+        if self.submitting {
+            return super::bottom_pane_view::ConditionalUpdate::NoRedraw;
+        }
+
+        match mouse_event.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                let x = mouse_event.column;
+                let y = mouse_event.row;
+                let Some(hit_idx) = self.option_hit_test(area, x, y) else {
+                    return super::bottom_pane_view::ConditionalUpdate::NoRedraw;
+                };
+                let Some(answer) = self.current_answer_mut() else {
+                    return super::bottom_pane_view::ConditionalUpdate::NoRedraw;
+                };
+                let prev = answer.option_state.selected_idx;
+                answer.option_state.selected_idx = Some(hit_idx);
+                if prev == Some(hit_idx) {
+                    self.go_next_or_submit();
+                }
+                super::bottom_pane_view::ConditionalUpdate::NeedsRedraw
+            }
+            MouseEventKind::ScrollUp => {
+                if self.current_has_options() {
+                    self.move_selection(true);
+                    super::bottom_pane_view::ConditionalUpdate::NeedsRedraw
+                } else {
+                    super::bottom_pane_view::ConditionalUpdate::NoRedraw
+                }
+            }
+            MouseEventKind::ScrollDown => {
+                if self.current_has_options() {
+                    self.move_selection(false);
+                    super::bottom_pane_view::ConditionalUpdate::NeedsRedraw
+                } else {
+                    super::bottom_pane_view::ConditionalUpdate::NoRedraw
+                }
+            }
+            _ => super::bottom_pane_view::ConditionalUpdate::NoRedraw,
+        }
+    }
+
+    fn update_hover(&mut self, mouse_pos: (u16, u16), area: Rect) -> bool {
+        if self.submitting {
+            return false;
+        }
+        if !self.current_has_options() {
+            if let Some(answer) = self.current_answer_mut() {
+                if answer.hover_option_idx.take().is_some() {
+                    return true;
+                }
+            }
+            return false;
+        }
+        let (x, y) = mouse_pos;
+        let hover_idx = self.option_hit_test(area, x, y);
+        let Some(answer) = self.current_answer_mut() else {
+            return false;
+        };
+        if answer.hover_option_idx != hover_idx {
+            answer.hover_option_idx = hover_idx;
+            return true;
+        }
+        false
     }
 
     fn is_complete(&self) -> bool {
@@ -453,6 +651,9 @@ impl BottomPaneView<'_> for RequestUserInputView {
                     .map(|answer| answer.option_state)
                     .unwrap_or_default();
                 let selected = state.selected_idx;
+                let hovered = self
+                    .current_answer()
+                    .and_then(|answer| answer.hover_option_idx);
                 let mut rows = options
                     .iter()
                     .enumerate()
@@ -466,7 +667,7 @@ impl BottomPaneView<'_> for RequestUserInputView {
                             name: format!("{prefix} {}", opt.label),
                             description: Some(opt.description.clone()),
                             match_indices: None,
-                            is_current: false,
+                            is_current: hovered.is_some_and(|hovered| hovered == idx),
                             name_color: None,
                         }
                     })
@@ -493,7 +694,7 @@ impl BottomPaneView<'_> for RequestUserInputView {
                         name: format!("{prefix} {other_label}"),
                         description: Some("Provide a custom answer".to_string()),
                         match_indices: None,
-                        is_current: false,
+                        is_current: hovered.is_some_and(|hovered| hovered == other_idx),
                         name_color: None,
                     });
                 }

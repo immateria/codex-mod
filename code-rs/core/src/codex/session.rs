@@ -14,6 +14,7 @@ use super::streaming::{
     truncate_middle_bytes,
     write_agent_file,
 };
+use std::sync::RwLock as StdRwLock;
 
 pub(super) const MAX_EVENT_SEQ_SUB_IDS: usize = 1024;
 pub(super) const MAX_BACKGROUND_SEQ_SUB_IDS: usize = 1024;
@@ -251,6 +252,20 @@ pub(super) struct AccountUsageContext {
     pub(super) plan: Option<String>,
 }
 
+#[derive(Clone, Debug, Default)]
+pub(super) struct McpAccessState {
+    pub(super) style: Option<crate::config_types::ShellScriptStyle>,
+    pub(super) style_label: Option<String>,
+    pub(super) style_include_servers: HashSet<String>,
+    pub(super) style_exclude_servers: HashSet<String>,
+    pub(super) session_allow_servers: HashSet<String>,
+    pub(super) session_deny_servers: HashSet<String>,
+    /// Per-turn allow list for MCP servers. Only applied when `turn_id` matches
+    /// the active turn being processed.
+    pub(super) turn_id: Option<String>,
+    pub(super) turn_allow_servers: HashSet<String>,
+}
+
 type ScreenshotHashInfo = (PathBuf, Vec<u8>, Vec<u8>);
 type LastScreenshotInfo = Option<ScreenshotHashInfo>;
 
@@ -398,6 +413,7 @@ pub(crate) struct Session {
     pub(super) env_ctx_v2: bool,
     pub(super) retention_config: crate::config_types::RetentionConfig,
     pub(super) model_descriptions: Option<String>,
+    pub(super) mcp_access: StdRwLock<McpAccessState>,
 }
 pub(super) struct HookGuard<'a> {
     flag: &'a AtomicBool,
@@ -448,6 +464,88 @@ impl Session {
 
     pub(crate) fn is_dynamic_tool(&self, name: &str) -> bool {
         self.dynamic_tools.iter().any(|tool| tool.name == name)
+    }
+
+    fn mcp_access_read(&self) -> std::sync::RwLockReadGuard<'_, McpAccessState> {
+        match self.mcp_access.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP access lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn mcp_access_write(&self) -> std::sync::RwLockWriteGuard<'_, McpAccessState> {
+        match self.mcp_access.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP access lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    pub(super) fn mcp_access_snapshot(&self) -> McpAccessState {
+        self.mcp_access_read().clone()
+    }
+
+    pub(crate) fn set_mcp_style_filters(
+        &self,
+        style: Option<crate::config_types::ShellScriptStyle>,
+        style_label: Option<String>,
+        include_servers: HashSet<String>,
+        exclude_servers: HashSet<String>,
+    ) {
+        let mut state = self.mcp_access_write();
+        state.style = style;
+        state.style_label = style_label;
+        state.style_include_servers = include_servers;
+        state.style_exclude_servers = exclude_servers;
+    }
+
+    pub(super) fn set_mcp_turn_allow_servers(
+        &self,
+        turn_id: &str,
+        allow_servers: HashSet<String>,
+    ) {
+        let mut state = self.mcp_access_write();
+        state.turn_id = Some(turn_id.to_string());
+        state.turn_allow_servers = allow_servers;
+    }
+
+    pub(super) fn allow_mcp_server_for_turn(&self, turn_id: &str, server_lower: &str) {
+        let mut state = self.mcp_access_write();
+        if state.turn_id.as_deref() != Some(turn_id) {
+            state.turn_id = Some(turn_id.to_string());
+            state.turn_allow_servers.clear();
+        }
+        state.turn_allow_servers.insert(server_lower.to_string());
+    }
+
+    pub(super) fn clear_mcp_turn_allow_servers(&self, turn_id: &str) {
+        let mut state = self.mcp_access_write();
+        if state.turn_id.as_deref() == Some(turn_id) {
+            state.turn_id = None;
+            state.turn_allow_servers.clear();
+        }
+    }
+
+    pub(crate) fn allow_mcp_server_for_session(&self, server_lower: &str) {
+        let mut state = self.mcp_access_write();
+        state.session_deny_servers.remove(server_lower);
+        state.session_allow_servers.insert(server_lower.to_string());
+    }
+
+    pub(crate) fn deny_mcp_server_for_session(&self, server_lower: &str) {
+        let mut state = self.mcp_access_write();
+        state.session_allow_servers.remove(server_lower);
+        state.session_deny_servers.insert(server_lower.to_string());
+    }
+
+    pub(crate) fn session_mcp_overrides_snapshot(&self) -> (HashSet<String>, HashSet<String>) {
+        let state = self.mcp_access_read();
+        (state.session_allow_servers.clone(), state.session_deny_servers.clone())
     }
 
     fn next_background_sequence(&self, sub_id: &str) -> u64 {
