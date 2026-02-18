@@ -1,4 +1,5 @@
 mod config_requirements;
+mod diagnostics;
 mod macos;
 
 use crate::config::CONFIG_TOML_FILE;
@@ -461,7 +462,12 @@ async fn read_config_from_path(
             Ok(value) => Ok(Some(value)),
             Err(err) => {
                 tracing::error!("Failed to parse {}: {err}", path.display());
-                Err(io::Error::new(io::ErrorKind::InvalidData, err))
+                let config_error = diagnostics::config_error_from_toml(path, &contents, err.clone());
+                Err(diagnostics::io_error_from_config_error(
+                    io::ErrorKind::InvalidData,
+                    config_error,
+                    Some(err),
+                ))
             }
         },
         Err(err) if err.kind() == io::ErrorKind::NotFound => {
@@ -476,6 +482,28 @@ async fn read_config_from_path(
             tracing::error!("Failed to read {}: {err}", path.display());
             Err(err)
         }
+    }
+}
+
+pub(crate) fn rewrite_config_deserialize_error(
+    err: io::Error,
+    layers: &ConfigLayerStack,
+) -> io::Error {
+    if err.kind() != io::ErrorKind::InvalidData {
+        return err;
+    }
+
+    let layers = layers.layers_low_to_high.clone();
+    let maybe_error = block_on_loader(async move {
+        Ok(diagnostics::first_layer_config_error_from_entries(&layers).await)
+    });
+    match maybe_error {
+        Ok(Some((config_error, source))) => diagnostics::io_error_from_config_error(
+            io::ErrorKind::InvalidData,
+            config_error,
+            source,
+        ),
+        Ok(None) | Err(_) => err,
     }
 }
 

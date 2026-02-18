@@ -54,7 +54,8 @@ impl ConfigBuilder {
         )?;
         let root_value = layers.effective_config();
 
-        let cfg = deserialize_config_toml_with_cli_warnings(&root_value, &cli_paths)?;
+        let cfg = deserialize_config_toml_with_cli_warnings(&root_value, &cli_paths)
+            .map_err(|err| crate::config_loader::rewrite_config_deserialize_error(err, &layers))?;
         let mut config = Config::load_from_base_config_with_overrides(cfg, self.overrides, code_home)?;
 
         let requirements = crate::config_loader::load_config_requirements_blocking(
@@ -91,5 +92,6 @@ impl ConfigBuilder {
         let root_value = layers.effective_config();
 
         deserialize_config_toml_with_cli_warnings(&root_value, &cli_paths)
+            .map_err(|err| crate::config_loader::rewrite_config_deserialize_error(err, &layers))
     }
 }
