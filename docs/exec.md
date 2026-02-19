@@ -1,6 +1,6 @@
 # Non-interactive mode
 
-Use Every Code in non-interactive mode to automate common workflows.
+Use Code in non-interactive mode to automate common workflows.
 
 ```shell
 code exec "count the total number of lines of code in this project"
@@ -76,7 +76,7 @@ Sample schema:
 code exec "Extract details of the project" --output-schema ~/schema.json
 ...
 
-{"project_name":"Every Code CLI","programming_languages":["Rust","TypeScript","Shell"]}
+{"project_name":"Code CLI","programming_languages":["Rust","TypeScript","Shell"]}
 ```
 
 Combine `--output-schema` with `-o` to only print the final JSON output. You can also pass a file path to `-o` to save the JSON output to a file.
@@ -84,6 +84,32 @@ Combine `--output-schema` with `-o` to only print the final JSON output. You can
 ### Git repository requirement
 
 Code requires a Git repository to avoid destructive changes. To disable this check, use `code exec --skip-git-repo-check`.
+
+### Non-interactive code review
+
+Use `code review` for dedicated repository review runs without opening the TUI.
+
+```shell
+code review --base main
+```
+
+`code review` forwards the same automation flags as `code exec`, including output and runtime controls:
+
+```shell
+code review --base main \
+  --json \
+  --model gpt-5.3-codex \
+  --sandbox workspace-write \
+  --max-seconds 120 \
+  --output-last-message last.txt \
+  --review-output-json review.json
+```
+
+You can also combine it with `--auto` at the top level to run review/resolve flows in headless automation:
+
+```shell
+code --auto review --uncommitted --full-auto
+```
 
 ### Resuming non-interactive sessions
 

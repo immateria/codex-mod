@@ -519,7 +519,7 @@ mod tests {
         let duplicate_reply = make_assistant_message("Duplicate reply");
 
         history.replace_converted(vec![goal.clone(), first_reply.clone()]);
-        history.append_raw(&[duplicate_reply.clone()]);
+        history.append_raw(std::slice::from_ref(&duplicate_reply));
 
         // Introducing a new tail that begins with a user message followed by the duplicate.
         let new_history = vec![

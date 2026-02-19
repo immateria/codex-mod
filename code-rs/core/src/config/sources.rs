@@ -9,6 +9,7 @@ use crate::config_types::{
     ReasoningEffort,
     ShellConfig,
     ShellScriptStyle,
+    StatusLineLane,
     ThemeColors,
     ThemeName,
 };
@@ -1236,6 +1237,26 @@ pub fn set_tui_alternate_screen(code_home: &Path, enabled: bool) -> anyhow::Resu
     Ok(())
 }
 
+/// Persist the lower header-line visibility flag into
+/// `CODEX_HOME/config.toml` at `[tui.header].show_bottom_line`.
+pub fn set_tui_header_show_bottom_line(code_home: &Path, enabled: bool) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    doc["tui"]["header"]["show_bottom_line"] = toml_edit::value(enabled);
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+    Ok(())
+}
+
 /// Persist the limits layout mode into `CODEX_HOME/config.toml` at `[tui.limits].layout_mode`.
 pub fn set_tui_limits_layout_mode(
     code_home: &Path,
@@ -1296,6 +1317,93 @@ pub fn set_tui_notifications(
     std::fs::write(tmp_file.path(), doc.to_string())?;
     tmp_file.persist(config_path)?;
 
+    Ok(())
+}
+
+/// Persist top status-line item ids into `CODEX_HOME/config.toml` at
+/// `[tui].status_line_top`.
+///
+/// Item order is preserved. Empty or whitespace-only ids are dropped.
+/// Passing an empty list removes `[tui].status_line_top`, reverting to the
+/// built-in dynamic top-line layout.
+pub fn set_tui_status_line(code_home: &Path, item_ids: &[String]) -> anyhow::Result<()> {
+    set_tui_status_line_layout(code_home, item_ids, &[], StatusLineLane::Top)
+}
+
+/// Persist split status-line layout into `CODEX_HOME/config.toml`.
+///
+/// - top lane: `[tui].status_line_top`
+/// - bottom lane: `[tui].status_line_bottom`
+/// - default `/statusline` lane: `[tui].status_line_primary`
+pub fn set_tui_status_line_layout(
+    code_home: &Path,
+    top_item_ids: &[String],
+    bottom_item_ids: &[String],
+    primary_lane: StatusLineLane,
+) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let normalized_top = top_item_ids
+        .iter()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(std::string::ToString::to_string)
+        .collect::<Vec<_>>();
+
+    let normalized_bottom = bottom_item_ids
+        .iter()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(std::string::ToString::to_string)
+        .collect::<Vec<_>>();
+
+    if normalized_top.is_empty() {
+        if let Some(tui_table) = doc["tui"].as_table_mut() {
+            tui_table.remove("status_line_top");
+            tui_table.remove("status_line");
+        }
+    } else {
+        let mut array = TomlArray::default();
+        for id in normalized_top {
+            array.push(id);
+        }
+        doc["tui"]["status_line_top"] = TomlItem::Value(array.into());
+    }
+
+    if normalized_bottom.is_empty() {
+        if let Some(tui_table) = doc["tui"].as_table_mut() {
+            tui_table.remove("status_line_bottom");
+        }
+    } else {
+        let mut array = TomlArray::default();
+        for id in normalized_bottom {
+            array.push(id);
+        }
+        doc["tui"]["status_line_bottom"] = TomlItem::Value(array.into());
+    }
+
+    doc["tui"]["status_line_primary"] = toml_edit::value(match primary_lane {
+        StatusLineLane::Top => "top",
+        StatusLineLane::Bottom => "bottom",
+    });
+
+    if let Some(tui_table) = doc["tui"].as_table_mut() {
+        tui_table.remove("status_line");
+        if tui_table.is_empty() {
+            doc.as_table_mut().remove("tui");
+        }
+    }
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
     Ok(())
 }
 

@@ -68,6 +68,9 @@ Notes
 - `/prompts`: manage custom prompts.
 - `/skills`: manage skills.
 - `/status`: show current session configuration and token usage.
+- `/statusline [primary|secondary|top|bottom]`: choose and reorder built-in
+  status fields. Uses the configured primary lane by default and supports
+  explicit top/bottom deep links.
 - `/limits`: adjust session limits and visualize hourly and weekly rate-limit
   usage.
 - `/update`: check the installed version, detect available upgrades, and open a

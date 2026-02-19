@@ -61,6 +61,7 @@ mod update_settings_view;
 mod undo_timeline_view;
 mod notifications_settings_view;
 mod settings_overlay;
+mod status_line_setup;
 mod request_user_input_view;
 pub(crate) use settings_overlay::SettingsSection;
 pub(crate) mod review_settings_view;
@@ -95,6 +96,7 @@ pub(crate) use notifications_settings_view::{NotificationsMode, NotificationsSet
 pub(crate) use validation_settings_view::ValidationSettingsView;
 pub(crate) use review_settings_view::ReviewSettingsView;
 pub(crate) use planning_settings_view::PlanningSettingsView;
+pub(crate) use status_line_setup::{StatusLineItem, StatusLineSetupView};
 use approval_modal_view::ApprovalModalView;
 #[cfg(feature = "code-fork")]
 use approval_ui::ApprovalUi;
@@ -143,6 +145,10 @@ pub(crate) struct BottomPane<'a> {
     /// the chat history is scrolled up to allow history to reclaim that row.
     top_spacer_enabled: bool,
 
+    /// When true, always reserve the spacer row so higher-level UI (e.g. a
+    /// bottom status line) can reliably render into it.
+    force_top_spacer: bool,
+
     pub(crate) using_chatgpt_auth: bool,
 
     auto_drive_variant: AutoDriveVariant,
@@ -183,6 +189,7 @@ impl BottomPane<'_> {
             ctrl_c_quit_hint: false,
             status_view_active: false,
             top_spacer_enabled: true,
+            force_top_spacer: false,
             using_chatgpt_auth: params.using_chatgpt_auth,
             auto_drive_variant: params.auto_drive_variant,
             auto_drive_active: false,
@@ -272,6 +279,13 @@ impl BottomPane<'_> {
     }
 
     pub fn show_update_settings(&mut self, view: UpdateSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_status_line_setup(&mut self, view: StatusLineSetupView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
@@ -677,11 +691,26 @@ impl BottomPane<'_> {
     /// above the input composer is removed so the history can scroll into that
     /// row. This is typically toggled when the user scrolls up.
     pub(crate) fn set_compact_compose(&mut self, compact: bool) {
-        let new_enabled = !compact;
+        let new_enabled = if self.force_top_spacer { true } else { !compact };
         if self.top_spacer_enabled != new_enabled {
             self.top_spacer_enabled = new_enabled;
             self.request_redraw();
         }
+    }
+
+    pub(crate) fn set_force_top_spacer(&mut self, enabled: bool) {
+        if self.force_top_spacer == enabled {
+            return;
+        }
+        self.force_top_spacer = enabled;
+        if enabled && !self.top_spacer_enabled {
+            self.top_spacer_enabled = true;
+            self.request_redraw();
+        }
+    }
+
+    pub(crate) fn top_spacer_enabled(&self) -> bool {
+        self.top_spacer_enabled
     }
 
     /// Update the status indicator text. Shows status as overlay above composer

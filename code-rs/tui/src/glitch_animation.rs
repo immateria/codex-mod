@@ -19,7 +19,7 @@ const LARGE_MIN_HEIGHT: u16 = 28;
 const MEDIUM_MIN_HEIGHT: u16 = 21;
 const SMALL_MIN_HEIGHT: u16 = 19;
 const ANIMATED_CHARS: &[char] = &['█'];
-pub(crate) const DEFAULT_BRAND_TITLE: &str = "Every Code";
+pub(crate) const DEFAULT_BRAND_TITLE: &str = "Code";
 
 type CharGrid = Vec<Vec<char>>;
 type BoolGrid = Vec<Vec<bool>>;
@@ -1018,7 +1018,7 @@ mod tests {
         let version = format!("v{}", code_version::version());
         let rect = Rect::new(0, 0, 40, intro_art_height(IntroArtSize::Tiny));
         let mut buf = Buffer::empty(rect);
-        let custom_title = "Every Code";
+        let custom_title = "Code Runner";
 
         render_intro_animation_with_size_and_alpha_offset(
             rect,
@@ -1045,7 +1045,7 @@ mod tests {
         let version = format!("v{}", code_version::version());
         let rect = Rect::new(0, 0, 74, intro_art_height(IntroArtSize::Tiny));
         let mut buf = Buffer::empty(rect);
-        let custom_title = "Every Code";
+        let custom_title = "Code Runner";
 
         render_intro_animation_with_size_and_alpha_offset(
             rect,

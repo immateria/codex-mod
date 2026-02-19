@@ -51,6 +51,7 @@ use code_app_server_protocol::AuthMode;
 use code_protocol::config_types::SandboxMode;
 use code_protocol::dynamic_tools::DynamicToolSpec;
 use code_rmcp_client::OAuthCredentialsStoreMode;
+use schemars::JsonSchema;
 use std::time::Instant;
 use serde::Deserialize;
 use serde::de::{self, Unexpected};
@@ -60,6 +61,8 @@ use toml::Value as TomlValue;
 
 mod builder;
 mod defaults;
+pub mod schema;
+pub mod service;
 mod sources;
 mod validation;
 
@@ -98,8 +101,11 @@ pub use sources::{
     set_review_resolve_model,
     set_tui_alternate_screen,
     set_tui_auto_review_enabled,
+    set_tui_header_show_bottom_line,
     set_tui_limits_layout_mode,
     set_tui_notifications,
+    set_tui_status_line,
+    set_tui_status_line_layout,
     set_tui_review_auto_resolve,
     set_tui_spinner_name,
     set_tui_theme_name,
@@ -602,7 +608,8 @@ pub fn load_allowed_approval_policies(
 }
 
 /// Base config deserialized from ~/.code/config.toml (legacy ~/.codex/config.toml is still read).
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ConfigToml {
     /// Optional override of model selection.
     pub model: Option<String>,
@@ -703,6 +710,7 @@ pub struct ConfigToml {
 
     /// Definition for MCP servers that Codex can reach out to for tool calls.
     #[serde(default)]
+    #[schemars(schema_with = "crate::config::schema::mcp_servers_schema")]
     pub mcp_servers: HashMap<String, McpServerConfig>,
 
     /// Preferred store for MCP OAuth credentials (used by streamable HTTP MCP servers).
@@ -888,7 +896,8 @@ where
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ProjectConfig {
     pub trust_level: Option<String>,
     pub approval_policy: Option<AskForApproval>,
@@ -901,7 +910,8 @@ pub struct ProjectConfig {
     pub commands: Vec<ProjectCommandConfig>,
 }
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct ToolsToml {
     #[serde(default, alias = "web_search_request")]
     pub web_search: Option<bool>,
@@ -929,7 +939,8 @@ pub struct ToolsToml {
     pub view_image: Option<bool>,
 }
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct FeaturesToml {
     /// Enable discovery and injection of skills.
     #[serde(default)]

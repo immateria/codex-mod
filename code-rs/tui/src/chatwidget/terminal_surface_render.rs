@@ -121,7 +121,7 @@ impl ChatWidget<'_> {
         })
     }
 
-    fn get_git_branch(&self) -> Option<String> {
+    pub(super) fn get_git_branch(&self) -> Option<String> {
         use std::fs;
         use std::path::Path;
 
@@ -177,13 +177,21 @@ impl ChatWidget<'_> {
             return 0;
         }
         let header = &self.config.tui.header;
-        if !header.show_top_line && !header.show_bottom_line {
-            return 0;
-        }
-        if header.show_top_line && header.show_bottom_line {
-            4
+        let show_top = header.show_top_line;
+        let show_bottom = header.show_bottom_line
+            && header
+                .bottom_line_text
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .is_some();
+
+        let line_count = u16::from(show_top) + u16::from(show_bottom);
+        if line_count == 0 {
+            0
         } else {
-            3
+            // +2 for the bordered header block.
+            line_count.saturating_add(2)
         }
     }
 
@@ -246,7 +254,7 @@ impl ChatWidget<'_> {
             .as_deref()
             .map(str::trim)
             .filter(|title| !title.is_empty())
-            .unwrap_or("Every Code");
+            .unwrap_or(crate::glitch_animation::DEFAULT_BRAND_TITLE);
 
         let mcp_indicator: Option<(McpHeaderIndicatorKind, String)> =
             if self.startup_mcp_error_summary.is_some() || !self.mcp_server_failures.is_empty() {
@@ -354,12 +362,25 @@ impl ChatWidget<'_> {
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(|value| render_styled_header_template(value, &header_template_ctx));
+        let top_status_line_items = self.status_line_top_items();
+        let has_selected_status_line =
+            top_text_with_regions.is_none() && !top_status_line_items.is_empty();
+        let selected_status_line = if has_selected_status_line {
+            Some(self.render_selected_status_line(
+                &top_status_line_items,
+                header_template_ctx.hovered_action.clone(),
+                hover_style,
+            ))
+        } else {
+            None
+        };
         let bottom_text = header_cfg
             .bottom_line_text
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(|value| render_plain_header_template(value, &header_template_ctx));
+        let show_bottom_line = header_cfg.show_bottom_line && bottom_text.is_some();
 
         let mut status_lines: Vec<Line<'static>> = Vec::new();
         let mut custom_top_line_regions: Option<Vec<(std::ops::Range<usize>, ClickableAction)>> =
@@ -370,13 +391,18 @@ impl ChatWidget<'_> {
                 custom_top_line_width = custom_top.width;
                 custom_top_line_regions = Some(custom_top.clickable_ranges);
                 status_lines.push(custom_top.line);
+            } else if let Some(selected_top) = selected_status_line {
+                custom_top_line_width = selected_top.width;
+                custom_top_line_regions = Some(selected_top.clickable_ranges);
+                status_lines.push(selected_top.line);
             } else {
                 custom_top_line_width = dynamic_header.width;
                 custom_top_line_regions = Some(dynamic_header.clickable_ranges.clone());
                 status_lines.push(dynamic_header.line.clone());
             }
         }
-        if header_cfg.show_bottom_line {
+        if show_bottom_line {
+            // Safe unwrap: gated on bottom_text.is_some().
             status_lines.push(Line::from(bottom_text.unwrap_or_default()));
         }
 
@@ -420,5 +446,142 @@ impl ChatWidget<'_> {
     ) {
         let mut regions = self.clickable_regions.borrow_mut();
         *regions = centered_clickable_regions_from_char_ranges(ranges, area, total_width);
+    }
+
+    fn render_selected_status_line(
+        &self,
+        items: &[crate::bottom_pane::StatusLineItem],
+        hovered_action: Option<ClickableAction>,
+        hover_style: code_core::config_types::HeaderHoverStyle,
+    ) -> super::terminal_surface_header::HeaderTemplateRender {
+        use ratatui::style::Style;
+        use ratatui::text::{Line, Span};
+
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut ranges: Vec<(std::ops::Range<usize>, ClickableAction)> = Vec::new();
+        let mut width = 0usize;
+        let mut added_any = false;
+
+        for item in items {
+            let Some(value) = self.status_line_value_for_item(*item) else {
+                continue;
+            };
+
+            if added_any {
+                spans.push(Span::styled(
+                    " • ".to_string(),
+                    Style::default().fg(crate::colors::text_dim()),
+                ));
+                width += 3;
+            }
+            added_any = true;
+
+            let click_action = match item {
+                crate::bottom_pane::StatusLineItem::ModelName => {
+                    Some(ClickableAction::ShowModelSelector)
+                }
+                crate::bottom_pane::StatusLineItem::ModelWithReasoning => {
+                    Some(ClickableAction::ShowReasoningSelector)
+                }
+                _ => None,
+            };
+
+            let segment_width = value.chars().count();
+            let mut style = Style::default().fg(crate::colors::text());
+            if let Some(action) = click_action.clone() {
+                style = super::terminal_surface_header::apply_hover_style(
+                    style,
+                    hover_style,
+                    hovered_action.as_ref() == Some(&action),
+                );
+                ranges.push((width..width + segment_width, action));
+            }
+            spans.push(Span::styled(value, style));
+            width += segment_width;
+        }
+
+        if !added_any {
+            let fallback = "Status line configured with no available values".to_string();
+            width = fallback.chars().count();
+            spans.push(Span::styled(
+                fallback,
+                Style::default().fg(crate::colors::text_dim()),
+            ));
+        }
+
+        super::terminal_surface_header::HeaderTemplateRender {
+            line: Line::from(spans),
+            clickable_ranges: ranges,
+            width,
+        }
+    }
+
+    pub(super) fn render_plain_status_line(
+        &self,
+        items: &[crate::bottom_pane::StatusLineItem],
+    ) -> Line<'static> {
+        use ratatui::style::Style;
+        use ratatui::text::Span;
+
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut added_any = false;
+
+        for item in items {
+            let Some(value) = self.status_line_value_for_item(*item) else {
+                continue;
+            };
+
+            if added_any {
+                spans.push(Span::styled(
+                    " • ".to_string(),
+                    Style::default().fg(crate::colors::text_dim()),
+                ));
+            }
+            spans.push(Span::styled(value, Style::default().fg(crate::colors::text())));
+            added_any = true;
+        }
+
+        if !added_any {
+            return Line::from("");
+        }
+
+        Line::from(spans)
+    }
+
+    pub(super) fn render_bottom_status_line(&self, bottom_pane_area: Rect, buf: &mut Buffer) {
+        use ratatui::layout::Alignment;
+        use ratatui::style::Style;
+        use ratatui::widgets::Paragraph;
+
+        if self.standard_terminal_mode
+            || bottom_pane_area.width == 0
+            || bottom_pane_area.height == 0
+            || self.bottom_pane.has_active_view()
+            || !self.bottom_pane.top_spacer_enabled()
+        {
+            return;
+        }
+
+        let bottom_items = self.status_line_bottom_items();
+        if bottom_items.is_empty() {
+            return;
+        }
+
+        let horizontal_padding = 1u16;
+        let line_area = Rect {
+            x: bottom_pane_area.x.saturating_add(horizontal_padding),
+            y: bottom_pane_area.y,
+            width: bottom_pane_area.width.saturating_sub(horizontal_padding * 2),
+            height: 1,
+        };
+        if line_area.width == 0 {
+            return;
+        }
+
+        let line = self.render_plain_status_line(&bottom_items);
+        let widget = Paragraph::new(vec![line])
+            .alignment(Alignment::Center)
+            .style(Style::default().fg(crate::colors::text_dim()));
+        ratatui::widgets::Widget::render(widget, line_area, buf);
     }
 }

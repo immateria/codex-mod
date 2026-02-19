@@ -32,6 +32,7 @@ use code_core::default_client::USER_AGENT_SUFFIX;
 use code_core::default_client::get_code_user_agent_default;
 use code_core::model_family::{derive_default_model_family, find_family_for_model};
 use code_core::protocol::Submission;
+use code_core::protocol::CollaborationModeKind;
 use code_core::protocol::Op;
 use code_app_server_protocol::AuthMode;
 use mcp_types::CallToolRequestParams;
@@ -1653,6 +1654,7 @@ fn configure_session_op_from_config(config: &Config) -> Op {
         demo_developer_message: config.demo_developer_message.clone(),
         dynamic_tools: config.dynamic_tools.clone(),
         shell: config.shell.clone(),
+        collaboration_mode: CollaborationModeKind::from_sandbox_policy(&config.sandbox_policy),
     }
 }
 

@@ -7,15 +7,22 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use crate::agent_tool::create_agent_tool;
-use crate::model_family::ModelFamily;
 use crate::plan_tool::PLAN_TOOL;
-use crate::protocol::AskForApproval;
 use crate::protocol::SandboxPolicy;
+#[cfg(test)]
+use crate::protocol::AskForApproval;
+pub use crate::tools::spec::ConfigShellToolType;
+pub use crate::tools::spec::ToolsConfig;
+pub use crate::tools::spec::ToolsConfigParams;
 use code_protocol::dynamic_tools::DynamicToolSpec;
 use crate::tool_apply_patch::{
     create_apply_patch_freeform_tool, create_apply_patch_json_tool, ApplyPatchToolType,
 };
 // apply_patch tools are not currently surfaced; keep imports out to avoid warnings.
+
+const SEARCH_TOOL_DESCRIPTION_TEMPLATE: &str =
+    include_str!("../templates/search_tool/tool_description.md");
+pub(crate) const SEARCH_TOOL_BM25_TOOL_NAME: &str = "search_tool_bm25";
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct ResponsesApiTool {
@@ -72,127 +79,6 @@ pub struct WebSearchTool {
 pub struct WebSearchFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_domains: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ConfigShellToolType {
-    DefaultShell,
-    ShellWithRequest { sandbox_policy: SandboxPolicy },
-    LocalShell,
-    StreamableShell,
-}
-
-#[derive(Debug, Clone)]
-pub struct ToolsConfig {
-    pub shell_type: ConfigShellToolType,
-    pub plan_tool: bool,
-    #[allow(dead_code)]
-    pub apply_patch_tool_type: Option<ApplyPatchToolType>,
-    pub web_search_request: bool,
-    pub web_search_external: bool,
-    pub search_tool: bool,
-    #[allow(dead_code)]
-    pub include_view_image_tool: bool,
-    pub web_search_allowed_domains: Option<Vec<String>>,
-    pub agent_model_allowed_values: Vec<String>,
-}
-
-#[allow(dead_code)]
-pub struct ToolsConfigParams<'a> {
-    pub model_family: &'a ModelFamily,
-    pub approval_policy: AskForApproval,
-    pub sandbox_policy: SandboxPolicy,
-    pub include_plan_tool: bool,
-    pub include_apply_patch_tool: bool,
-    pub include_web_search_request: bool,
-    pub use_streamable_shell_tool: bool,
-    pub include_view_image_tool: bool,
-}
-
-impl ToolsConfig {
-    pub fn new(params: ToolsConfigParams<'_>) -> Self {
-        let ToolsConfigParams {
-            model_family,
-            approval_policy,
-            sandbox_policy,
-            include_plan_tool,
-            include_apply_patch_tool,
-            include_web_search_request,
-            use_streamable_shell_tool: _use_streamable_shell_tool,
-            include_view_image_tool,
-        } = params;
-        // TODO
-        // Our fork does not yet enable the experimental streamable shell tool
-        // in the tool selection phase. Default to the existing behaviors.
-        let use_streamable_shell_tool = false;
-        let mut shell_type = if use_streamable_shell_tool {
-            ConfigShellToolType::StreamableShell
-        } else if model_family.uses_local_shell_tool {
-            ConfigShellToolType::LocalShell
-        } else {
-            ConfigShellToolType::DefaultShell
-        };
-        if matches!(approval_policy, AskForApproval::OnRequest) && !use_streamable_shell_tool {
-            shell_type = ConfigShellToolType::ShellWithRequest {
-                sandbox_policy,
-            }
-        }
-
-        let apply_patch_tool_type = if include_apply_patch_tool {
-            // On Windows, grammar-based apply_patch invocations rely on heredocs
-            // the shell cannot parse. Force the JSON/function variant instead.
-            #[cfg(target_os = "windows")]
-            {
-                model_family
-                    .apply_patch_tool_type
-                    .clone()
-                    .map(|_| ApplyPatchToolType::Function)
-            }
-            #[cfg(not(target_os = "windows"))]
-            {
-                model_family.apply_patch_tool_type.clone()
-            }
-        } else {
-            None
-        };
-
-        Self {
-            shell_type,
-            plan_tool: include_plan_tool,
-            apply_patch_tool_type,
-            web_search_request: include_web_search_request,
-            web_search_external: true,
-            search_tool: false,
-            include_view_image_tool,
-            web_search_allowed_domains: None,
-            agent_model_allowed_values: Vec::new(),
-        }
-    }
-
-    // Compatibility constructor used by some tests/upstream calls.
-    #[allow(dead_code)]
-    pub(crate) fn new_from_params(p: &ToolsConfigParams) -> Self {
-        Self::new(ToolsConfigParams {
-            model_family: p.model_family,
-            approval_policy: p.approval_policy,
-            sandbox_policy: p.sandbox_policy.clone(),
-            include_plan_tool: p.include_plan_tool,
-            include_apply_patch_tool: p.include_apply_patch_tool,
-            include_web_search_request: p.include_web_search_request,
-            use_streamable_shell_tool: p.use_streamable_shell_tool,
-            include_view_image_tool: p.include_view_image_tool,
-        })
-    }
-}
-
-impl ToolsConfig {
-    pub fn set_agent_models(&mut self, models: Vec<String>) {
-        self.agent_model_allowed_values = models;
-    }
-
-    pub fn agent_models(&self) -> &[String] {
-        &self.agent_model_allowed_values
-    }
 }
 
 /// Whether additional properties are allowed, and if so, any required schema
@@ -517,9 +403,8 @@ fn create_search_tool_bm25_tool() -> OpenAiTool {
     );
 
     OpenAiTool::Function(ResponsesApiTool {
-        name: "search_tool_bm25".to_string(),
-        description: "Searches MCP tool metadata with BM25 and exposes matching tools for the current session/thread."
-            .to_string(),
+        name: SEARCH_TOOL_BM25_TOOL_NAME.to_string(),
+        description: render_search_tool_description(),
         strict: false,
         parameters: JsonSchema::Object {
             properties,
@@ -527,6 +412,13 @@ fn create_search_tool_bm25_tool() -> OpenAiTool {
             additional_properties: Some(false.into()),
         },
     })
+}
+
+fn render_search_tool_description() -> String {
+    // Keep this list human-readable in the tool schema. It may be dynamic in the
+    // future if per-session app exposure changes.
+    SEARCH_TOOL_DESCRIPTION_TEMPLATE
+        .replace("{{app_names}}", "Codex Apps MCP servers")
 }
 
 fn create_shell_tool_for_sandbox(sandbox_policy: &SandboxPolicy) -> OpenAiTool {
@@ -1405,6 +1297,53 @@ mod tests {
                 "web_search",
             ],
         );
+    }
+
+    #[test]
+    fn test_get_openai_tools_streamable_shell() {
+        let model_family = find_family_for_model("codex-mini-latest")
+            .expect("codex-mini-latest should be a valid model family");
+        let mut config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: true,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: true,
+            include_view_image_tool: false,
+        });
+        apply_default_agent_models(&mut config);
+        let tools = get_openai_tools(&config, Some(HashMap::new()), false, false, &[]);
+
+        assert_eq_tool_names(
+            &tools,
+            &[
+                "exec_command",
+                "write_stdin",
+                "update_plan",
+                "request_user_input",
+                "browser",
+                "agent",
+                "wait",
+                "kill",
+                "gh_run_wait",
+                "code_bridge",
+                "web_search",
+            ],
+        );
+    }
+
+    #[test]
+    fn test_search_tool_description_template_is_rendered() {
+        let tool = create_search_tool_bm25_tool();
+        let OpenAiTool::Function(tool_spec) = tool else {
+            panic!("search tool should be a function tool");
+        };
+        assert_eq!(tool_spec.name, SEARCH_TOOL_BM25_TOOL_NAME);
+        assert!(!tool_spec.description.contains("{{app_names}}"));
+        assert!(tool_spec.description.contains("Codex Apps MCP servers"));
+        assert!(tool_spec.description.contains("Searches over apps tool metadata with BM25"));
     }
 
     #[test]

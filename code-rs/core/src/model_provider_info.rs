@@ -8,6 +8,7 @@
 
 use crate::CodexAuth;
 use crate::error::CodexErr;
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
@@ -29,7 +30,7 @@ const MAX_REQUEST_MAX_RETRIES: u64 = 100;
 /// *Responses* API. The two protocols use different request/response shapes
 /// and *cannot* be auto-detected at runtime, therefore each provider entry
 /// must declare which one it expects.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum WireApi {
     /// The Responses API exposed by OpenAI at `/v1/responses`.
@@ -45,7 +46,7 @@ pub enum WireApi {
 }
 
 /// Serializable representation of a provider definition.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct ModelProviderInfo {
     /// Friendly display name.
     pub name: String,
@@ -100,7 +101,7 @@ pub struct ModelProviderInfo {
 }
 
 /// OpenRouter-specific configuration, allowing users to control routing and pricing metadata.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, JsonSchema)]
 #[serde(default)]
 pub struct OpenRouterConfig {
     /// Provider-level routing preferences forwarded to OpenRouter.
@@ -117,7 +118,7 @@ pub struct OpenRouterConfig {
 }
 
 /// Provider routing preferences supported by OpenRouter.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, JsonSchema)]
 #[serde(default)]
 pub struct OpenRouterProviderConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -146,9 +147,8 @@ pub struct OpenRouterProviderConfig {
     pub extra: BTreeMap<String, Value>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default, JsonSchema)]
 #[serde(rename_all = "lowercase")]
-#[derive(Default)]
 pub enum OpenRouterDataCollectionPolicy {
     #[default]
     Allow,
@@ -156,9 +156,8 @@ pub enum OpenRouterDataCollectionPolicy {
 }
 
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default, JsonSchema)]
 #[serde(rename_all = "lowercase")]
-#[derive(Default)]
 pub enum OpenRouterProviderSort {
     #[default]
     Price,
@@ -168,7 +167,7 @@ pub enum OpenRouterProviderSort {
 
 
 /// `max_price` envelope for OpenRouter provider routing controls.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, JsonSchema)]
 #[serde(default)]
 pub struct OpenRouterMaxPrice {
     #[serde(skip_serializing_if = "Option::is_none")]

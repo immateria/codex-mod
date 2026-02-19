@@ -58,14 +58,10 @@ impl ChatWidget<'_> {
             !is_mcp_access_prompt && self.auto_state.is_active() && !self.auto_state.is_paused_manual();
         if auto_answer {
             lines.push("\nAuto Drive is active; continuing automatically.".to_string());
+        } else if is_mcp_access_prompt {
+            lines.push("\nUse the picker below to continue (Esc cancels).".to_string());
         } else {
-            if is_mcp_access_prompt {
-                lines.push("\nUse the picker below to continue (Esc cancels).".to_string());
-            } else {
-                lines.push(
-                    "\nUse the picker below to continue (Esc to type in the composer).".to_string(),
-                );
-            }
+            lines.push("\nUse the picker below to continue (Esc to type in the composer).".to_string());
         }
 
         let role = history_cell::plain_role_for_kind(PlainMessageKind::Notice);

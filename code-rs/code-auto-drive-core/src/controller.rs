@@ -989,9 +989,11 @@ mod tests {
 
     #[test]
     fn transient_failure_enters_recovery_and_schedules_restart() {
-        let mut controller = AutoDriveController::default();
-        controller.goal = Some("Investigate outage".to_string());
-        controller.started_at = Some(Instant::now());
+        let mut controller = AutoDriveController {
+            goal: Some("Investigate outage".to_string()),
+            started_at: Some(Instant::now()),
+            ..Default::default()
+        };
 
         let effects = controller.pause_for_transient_failure(
             Instant::now(),

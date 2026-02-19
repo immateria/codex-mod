@@ -276,83 +276,6 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn add_with_url_defaults_to_streamable_http() {
-        let transport = build_mcp_transport_for_add(
-            Some("https://mcp.example.com/mcp".to_string()),
-            None,
-            None,
-            None,
-            Vec::new(),
-        )
-        .expect("transport");
-
-        match transport {
-            McpServerTransportConfig::StreamableHttp {
-                url,
-                bearer_token,
-                bearer_token_env_var,
-                ..
-            } => {
-                assert_eq!(url, "https://mcp.example.com/mcp");
-                assert!(bearer_token.is_none());
-                assert!(bearer_token_env_var.is_none());
-            }
-            _ => panic!("expected streamable http transport"),
-        }
-    }
-
-    #[test]
-    fn add_with_url_and_bearer_token_uses_streamable_http() {
-        let transport = build_mcp_transport_for_add(
-            Some("https://mcp.example.com/mcp".to_string()),
-            Some("token".to_string()),
-            None,
-            None,
-            Vec::new(),
-        )
-        .expect("transport");
-
-        match transport {
-            McpServerTransportConfig::StreamableHttp { url, bearer_token, .. } => {
-                assert_eq!(url, "https://mcp.example.com/mcp");
-                assert_eq!(bearer_token.as_deref(), Some("token"));
-            }
-            _ => panic!("expected streamable http transport"),
-        }
-    }
-
-    #[test]
-    fn add_with_url_and_bearer_token_env_var_uses_streamable_http() {
-        let transport = build_mcp_transport_for_add(
-            Some("https://mcp.example.com/mcp".to_string()),
-            None,
-            Some("MCP_BEARER_TOKEN".to_string()),
-            None,
-            Vec::new(),
-        )
-        .expect("transport");
-
-        match transport {
-            McpServerTransportConfig::StreamableHttp {
-                url,
-                bearer_token,
-                bearer_token_env_var,
-                ..
-            } => {
-                assert_eq!(url, "https://mcp.example.com/mcp");
-                assert!(bearer_token.is_none());
-                assert_eq!(bearer_token_env_var.as_deref(), Some("MCP_BEARER_TOKEN"));
-            }
-            _ => panic!("expected streamable http transport"),
-        }
-    }
-}
-
 fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveArgs) -> Result<()> {
     config_overrides.parse_overrides().map_err(|e| anyhow!(e))?;
 
@@ -764,5 +687,82 @@ fn validate_server_name(name: &str) -> Result<()> {
         Ok(())
     } else {
         bail!("invalid server name '{name}' (use letters, numbers, '-', '_')");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_with_url_defaults_to_streamable_http() {
+        let transport = build_mcp_transport_for_add(
+            Some("https://mcp.example.com/mcp".to_string()),
+            None,
+            None,
+            None,
+            Vec::new(),
+        )
+        .expect("transport");
+
+        match transport {
+            McpServerTransportConfig::StreamableHttp {
+                url,
+                bearer_token,
+                bearer_token_env_var,
+                ..
+            } => {
+                assert_eq!(url, "https://mcp.example.com/mcp");
+                assert!(bearer_token.is_none());
+                assert!(bearer_token_env_var.is_none());
+            }
+            _ => panic!("expected streamable http transport"),
+        }
+    }
+
+    #[test]
+    fn add_with_url_and_bearer_token_uses_streamable_http() {
+        let transport = build_mcp_transport_for_add(
+            Some("https://mcp.example.com/mcp".to_string()),
+            Some("token".to_string()),
+            None,
+            None,
+            Vec::new(),
+        )
+        .expect("transport");
+
+        match transport {
+            McpServerTransportConfig::StreamableHttp { url, bearer_token, .. } => {
+                assert_eq!(url, "https://mcp.example.com/mcp");
+                assert_eq!(bearer_token.as_deref(), Some("token"));
+            }
+            _ => panic!("expected streamable http transport"),
+        }
+    }
+
+    #[test]
+    fn add_with_url_and_bearer_token_env_var_uses_streamable_http() {
+        let transport = build_mcp_transport_for_add(
+            Some("https://mcp.example.com/mcp".to_string()),
+            None,
+            Some("MCP_BEARER_TOKEN".to_string()),
+            None,
+            Vec::new(),
+        )
+        .expect("transport");
+
+        match transport {
+            McpServerTransportConfig::StreamableHttp {
+                url,
+                bearer_token,
+                bearer_token_env_var,
+                ..
+            } => {
+                assert_eq!(url, "https://mcp.example.com/mcp");
+                assert!(bearer_token.is_none());
+                assert_eq!(bearer_token_env_var.as_deref(), Some("MCP_BEARER_TOKEN"));
+            }
+            _ => panic!("expected streamable http transport"),
+        }
     }
 }

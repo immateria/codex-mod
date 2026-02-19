@@ -69,6 +69,7 @@ pub(crate) struct EventProcessorWithHumanOutput {
     raw_reasoning_started: bool,
     last_message_path: Option<PathBuf>,
     last_turn_diff: Option<String>,
+    final_message: Option<String>,
 
     /// If true, stop after the first TaskComplete event (default exec mode).
     /// Auto Drive sessions keep running across multiple turns, so they leave
@@ -106,6 +107,7 @@ impl EventProcessorWithHumanOutput {
                 raw_reasoning_started: false,
                 last_message_path,
                 last_turn_diff: None,
+                final_message: None,
                 stop_on_task_complete,
             }
         } else {
@@ -128,6 +130,7 @@ impl EventProcessorWithHumanOutput {
                 raw_reasoning_started: false,
                 last_message_path,
                 last_turn_diff: None,
+                final_message: None,
                 stop_on_task_complete,
             }
         }
@@ -150,8 +153,8 @@ macro_rules! ts_println {
     ($self:ident, $($arg:tt)*) => {{
         let now = chrono::Utc::now();
         let formatted = now.format("[%Y-%m-%dT%H:%M:%S]");
-        print!("{} ", formatted.style($self.dimmed));
-        println!($($arg)*);
+        eprint!("{} ", formatted.style($self.dimmed));
+        eprintln!($($arg)*);
     }};
 }
 
@@ -174,15 +177,15 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             .unwrap_or_else(|_| "<unknown>".to_string());
         ts_println!(self, "binary: {}", exe_path);
 
-        println!("--------");
+        eprintln!("--------");
 
         let entries = create_config_summary_entries(config);
 
         for (key, value) in entries {
-            println!("{} {}", format!("{key}:").style(self.bold), value);
+            eprintln!("{} {}", format!("{key}:").style(self.bold), value);
         }
 
-        println!("--------");
+        eprintln!("--------");
 
         // Echo the prompt that will be sent to the agent so it is visible in the
         // transcript/logs before any events come in. Note the prompt may have been
@@ -241,6 +244,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 self.reasoning_streams_started.clear();
             }
             EventMsg::TaskComplete(TaskCompleteEvent { last_agent_message }) => {
+                self.final_message = last_agent_message.clone();
                 if let Some(output_file) = self.last_message_path.as_deref() {
                     handle_last_message(last_agent_message.as_deref(), output_file);
                 }
@@ -263,9 +267,9 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     ts_println!(self, "{}\n", "codex".style(self.italic).style(self.magenta));
                     self.answer_started = true;
                 }
-                print!("{delta}");
+                eprint!("{delta}");
                 #[expect(clippy::expect_used)]
-                std::io::stdout().flush().expect("could not flush stdout");
+                std::io::stderr().flush().expect("could not flush stderr");
             }
             EventMsg::AgentReasoningDelta(AgentReasoningDeltaEvent { delta }) => {
                 if !self.show_agent_reasoning {
@@ -280,28 +284,28 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     self.reasoning_started = true;
                 }
                 self.reasoning_streams_started.insert(id.clone());
-                print!("{delta}");
+                eprint!("{delta}");
                 #[expect(clippy::expect_used)]
-                std::io::stdout().flush().expect("could not flush stdout");
+                std::io::stderr().flush().expect("could not flush stderr");
             }
             EventMsg::AgentReasoningSectionBreak(_) => {
                 if !self.show_agent_reasoning {
                     return CodexStatus::Running;
                 }
-                println!();
+                eprintln!();
                 #[expect(clippy::expect_used)]
-                std::io::stdout().flush().expect("could not flush stdout");
+                std::io::stderr().flush().expect("could not flush stderr");
             }
             EventMsg::AgentReasoningRawContent(AgentReasoningRawContentEvent { text }) => {
                 if !self.show_raw_agent_reasoning {
                     return CodexStatus::Running;
                 }
                 if !self.raw_reasoning_started {
-                    print!("{text}");
+                    eprint!("{text}");
                     #[expect(clippy::expect_used)]
-                    std::io::stdout().flush().expect("could not flush stdout");
+                    std::io::stderr().flush().expect("could not flush stderr");
                 } else {
-                    println!();
+                    eprintln!();
                     self.raw_reasoning_started = false;
                 }
             }
@@ -314,11 +318,12 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 if !self.raw_reasoning_started {
                     self.raw_reasoning_started = true;
                 }
-                print!("{delta}");
+                eprint!("{delta}");
                 #[expect(clippy::expect_used)]
-                std::io::stdout().flush().expect("could not flush stdout");
+                std::io::stderr().flush().expect("could not flush stderr");
             }
             EventMsg::AgentMessage(AgentMessageEvent { message }) => {
+                self.final_message = Some(message.clone());
                 // if answer_started is false, this means we haven't received any
                 // delta. Thus, we need to print the message as a new answer.
                 if !self.answer_started {
@@ -329,7 +334,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                         message,
                     );
                 } else {
-                    println!();
+                    eprintln!();
                     self.answer_started = false;
                 }
             }
@@ -381,19 +386,19 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                         let title = format!("{call} succeeded{duration}:");
                         ts_println!(self, "{}", title.style(self.green));
                         if !truncated_stdout.is_empty() {
-                            println!("{}", truncated_stdout.style(self.dimmed));
+                            eprintln!("{}", truncated_stdout.style(self.dimmed));
                         }
                     }
                     _ => {
                         let title = format!("{call} exited {exit_code}{duration}:");
                         ts_println!(self, "{}", title.style(self.red));
                         if !truncated_stdout.is_empty() {
-                            println!("{}", truncated_stdout.style(self.dimmed));
-                            println!();
+                            eprintln!("{}", truncated_stdout.style(self.dimmed));
+                            eprintln!();
                         }
-                        println!("ERROR");
+                        eprintln!("ERROR");
                         if !truncated_stderr.is_empty() {
-                            println!("{truncated_stderr}");
+                            eprintln!("{truncated_stderr}");
                         }
                     }
                 }
@@ -435,7 +440,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                         serde_json::to_string_pretty(&val).unwrap_or_else(|_| val.to_string());
 
                     for line in pretty.lines().take(MAX_OUTPUT_LINES_FOR_EXEC_TOOL_CALL) {
-                        println!("{}", line.style(self.dimmed));
+                        eprintln!("{}", line.style(self.dimmed));
                     }
                 }
             }
@@ -477,9 +482,9 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                                 format_file_change(change),
                                 path.to_string_lossy()
                             );
-                            println!("{}", header.style(self.magenta));
+                            eprintln!("{}", header.style(self.magenta));
                             for line in content.lines() {
-                                println!("{}", line.style(self.green));
+                                eprintln!("{}", line.style(self.green));
                             }
                         }
                         FileChange::Delete => {
@@ -488,7 +493,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                                 format_file_change(change),
                                 path.to_string_lossy()
                             );
-                            println!("{}", header.style(self.magenta));
+                            eprintln!("{}", header.style(self.magenta));
                         }
                         FileChange::Update {
                             unified_diff,
@@ -505,20 +510,20 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                             } else {
                                 format!("{} {}", format_file_change(change), path.to_string_lossy())
                             };
-                            println!("{}", header.style(self.magenta));
+                            eprintln!("{}", header.style(self.magenta));
 
                             // Colorize diff lines. We keep file header lines
                             // (--- / +++) without extra coloring so they are
                             // still readable.
                             for diff_line in unified_diff.lines() {
                                 if diff_line.starts_with('+') && !diff_line.starts_with("+++") {
-                                    println!("{}", diff_line.style(self.green));
+                                    eprintln!("{}", diff_line.style(self.green));
                                 } else if diff_line.starts_with('-')
                                     && !diff_line.starts_with("---")
                                 {
-                                    println!("{}", diff_line.style(self.red));
+                                    eprintln!("{}", diff_line.style(self.red));
                                 } else {
-                                    println!("{diff_line}");
+                                    eprintln!("{diff_line}");
                                 }
                             }
                         }
@@ -557,7 +562,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 let title = format!("{label} exited {exit_code}{duration}:");
                 ts_println!(self, "{}", title.style(title_style));
                 for line in output.lines() {
-                    println!("{}", line.style(self.dimmed));
+                    eprintln!("{}", line.style(self.dimmed));
                 }
             }
             EventMsg::TurnDiff(TurnDiffEvent { unified_diff }) => {
@@ -567,7 +572,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 }
                 self.last_turn_diff = Some(unified_diff.clone());
                 ts_println!(self, "{}", "turn diff:".style(self.magenta));
-                println!("{unified_diff}");
+                eprintln!("{unified_diff}");
             }
             EventMsg::ExecApprovalRequest(_) => {
                 // Should we exit?
@@ -578,7 +583,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             EventMsg::AgentReasoning(agent_reasoning_event) => {
                 if self.show_agent_reasoning {
                     if self.reasoning_streams_started.remove(&id) {
-                        println!();
+                        eprintln!();
                         if self.reasoning_streams_started.is_empty() {
                             self.reasoning_started = false;
                         }
@@ -590,7 +595,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                             agent_reasoning_event.text,
                         );
                     } else {
-                        println!();
+                        eprintln!();
                         ts_println!(
                             self,
                             "{}\n{}",
@@ -611,7 +616,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 );
 
                 ts_println!(self, "model: {}", model);
-                println!();
+                eprintln!();
             }
             EventMsg::PlanUpdate(plan_update_event) => {
                 let UpdatePlanArgs { name, plan, .. } = plan_update_event;
@@ -640,7 +645,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 if let Some(params) = &event.parameters
                     && let Ok(formatted) = serde_json::to_string_pretty(params) {
                         for line in formatted.lines() {
-                            println!("{}", line.style(self.dimmed));
+                            eprintln!("{}", line.style(self.dimmed));
                         }
                     }
             }
@@ -664,14 +669,14 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     Ok(content) => {
                         if !content.is_empty() {
                             for line in content.lines() {
-                                println!("{}", line.style(self.dimmed));
+                                eprintln!("{}", line.style(self.dimmed));
                             }
                         }
                     }
                     Err(err) => {
                         if !err.is_empty() {
                             for line in err.lines() {
-                                println!("{}", line.style(self.red));
+                                eprintln!("{}", line.style(self.red));
                             }
                         }
                     }
@@ -701,7 +706,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 if let Some(hint) = request.user_facing_hint.as_deref() {
                     let trimmed = hint.trim();
                     if !trimmed.is_empty() {
-                        println!("{}", trimmed.style(self.dimmed));
+                        eprintln!("{}", trimmed.style(self.dimmed));
                     }
                 }
             }
@@ -714,52 +719,63 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 );
                 if let Some(snapshot) = &event.snapshot {
                     if let Some(branch) = &snapshot.branch {
-                        println!("{} {}", "branch:".style(self.dimmed), branch);
+                        eprintln!("{} {}", "branch:".style(self.dimmed), branch);
                     }
                     if let Some(path) = &snapshot.worktree_path {
-                        println!("{} {}", "worktree:".style(self.dimmed), path.display());
+                        eprintln!("{} {}", "worktree:".style(self.dimmed), path.display());
                     }
                     if let Some(commit) = &snapshot.snapshot_commit {
                         let short = commit.chars().take(12).collect::<String>();
-                        println!("{} {}", "snapshot:".style(self.dimmed), short);
+                        eprintln!("{} {}", "snapshot:".style(self.dimmed), short);
                     }
                 }
                 match &event.review_output {
                     Some(output) => {
                         if !output.overall_explanation.trim().is_empty() {
-                            println!("{}", output.overall_explanation.trim());
+                            eprintln!("{}", output.overall_explanation.trim());
                         }
 
                         if output.findings.is_empty() {
-                            println!("{}", "no findings reported".style(self.dimmed));
+                            eprintln!("{}", "no findings reported".style(self.dimmed));
                         } else {
                             for (idx, finding) in output.findings.iter().enumerate() {
-                                println!(
+                                eprintln!(
                                     "{} {}",
                                     format!("#{}", idx + 1).style(self.bold),
                                     finding.title.trim(),
                                 );
                                 if !finding.body.trim().is_empty() {
                                     for line in finding.body.lines() {
-                                        println!("  {}", line.trim());
+                                        eprintln!("  {}", line.trim());
                                     }
                                 }
                             }
                         }
 
                         if output.overall_confidence_score > 0.0 {
-                            println!(
+                            eprintln!(
                                 "confidence: {:.1}",
                                 output.overall_confidence_score,
                             );
                         }
                     }
-                    None => println!("{}", "review ended without results".style(self.dimmed)),
+                    None => eprintln!("{}", "review ended without results".style(self.dimmed)),
                 }
             }
             EventMsg::CompactionCheckpointWarning(_) => {}
         }
         CodexStatus::Running
+    }
+
+    fn print_final_output(&mut self) {
+        #[allow(clippy::print_stdout)]
+        if let Some(message) = &self.final_message {
+            if message.ends_with('\n') {
+                print!("{message}");
+            } else {
+                println!("{message}");
+            }
+        }
     }
 }
 
@@ -802,10 +818,18 @@ fn format_mcp_invocation(invocation: &McpInvocation) -> String {
 mod tests {
     use super::*;
     use code_core::protocol::AgentReasoningEvent;
+    use code_core::protocol::TaskCompleteEvent;
+    #[cfg(unix)]
+    use std::fs::File;
+    #[cfg(unix)]
+    use std::io::Read;
+    #[cfg(unix)]
+    use std::io::Write;
+    #[cfg(unix)]
+    use std::os::fd::FromRawFd;
 
-    #[test]
-    fn reasoning_streams_do_not_reset_mid_stream() {
-        let mut proc = EventProcessorWithHumanOutput {
+    fn make_test_processor() -> EventProcessorWithHumanOutput {
+        EventProcessorWithHumanOutput {
             call_id_to_command: HashMap::new(),
             call_id_to_patch: HashMap::new(),
             bold: Style::new(),
@@ -824,8 +848,55 @@ mod tests {
             raw_reasoning_started: false,
             last_message_path: None,
             last_turn_diff: None,
+            final_message: None,
             stop_on_task_complete: false,
-        };
+        }
+    }
+
+    #[cfg(unix)]
+    fn capture_stdout<F: FnOnce()>(func: F) -> String {
+        let mut fds = [0_i32; 2];
+        // SAFETY: `pipe` initializes both fds on success.
+        let pipe_result = unsafe { libc::pipe(fds.as_mut_ptr()) };
+        assert_eq!(pipe_result, 0, "pipe failed");
+        let read_fd = fds[0];
+        let write_fd = fds[1];
+
+        // SAFETY: duplicating stdout fd for restoration.
+        let saved_stdout_fd = unsafe { libc::dup(libc::STDOUT_FILENO) };
+        assert!(saved_stdout_fd >= 0, "dup stdout failed");
+
+        // SAFETY: redirect stdout to write end of pipe.
+        let redirect_result = unsafe { libc::dup2(write_fd, libc::STDOUT_FILENO) };
+        assert!(redirect_result >= 0, "dup2 redirect failed");
+
+        // SAFETY: write end no longer needed as a separate fd after dup2.
+        unsafe {
+            libc::close(write_fd);
+        }
+
+        func();
+        std::io::stdout().flush().expect("flush stdout");
+
+        // SAFETY: restore original stdout.
+        let restore_result = unsafe { libc::dup2(saved_stdout_fd, libc::STDOUT_FILENO) };
+        assert!(restore_result >= 0, "dup2 restore failed");
+        // SAFETY: close saved fd after restore.
+        unsafe {
+            libc::close(saved_stdout_fd);
+        }
+
+        let mut output = String::new();
+        // SAFETY: ownership of read_fd transferred to File; not used after this.
+        let mut file = unsafe { File::from_raw_fd(read_fd) };
+        file.read_to_string(&mut output)
+            .expect("read captured stdout");
+        output
+    }
+
+    #[test]
+    fn reasoning_streams_do_not_reset_mid_stream() {
+        let mut proc = make_test_processor();
 
         // Two separate reasoning streams interleave deltas before either one finalizes.
         proc.process_event(Event {
@@ -871,5 +942,34 @@ mod tests {
         });
         assert!(!proc.reasoning_started);
         assert!(proc.reasoning_streams_started.is_empty());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn final_output_prints_message_to_stdout() {
+        let mut proc = make_test_processor();
+        proc.process_event(Event {
+            id: "final-message".to_string(),
+            event_seq: 0,
+            msg: EventMsg::TaskComplete(TaskCompleteEvent {
+                last_agent_message: Some("done".to_string()),
+            }),
+            order: None,
+        });
+
+        let output = capture_stdout(|| {
+            EventProcessor::print_final_output(&mut proc);
+        });
+        assert_eq!(output, "done\n");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn final_output_empty_when_no_message() {
+        let mut proc = make_test_processor();
+        let output = capture_stdout(|| {
+            EventProcessor::print_final_output(&mut proc);
+        });
+        assert!(output.is_empty());
     }
 }

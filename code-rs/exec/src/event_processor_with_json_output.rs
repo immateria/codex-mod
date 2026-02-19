@@ -24,6 +24,7 @@ impl EventProcessorWithJsonOutput {
 }
 
 impl EventProcessor for EventProcessorWithJsonOutput {
+    #[allow(clippy::print_stdout)]
     fn print_config_summary(&mut self, config: &Config, prompt: &str) {
         let entries = create_config_summary_entries(config)
             .into_iter()
@@ -40,6 +41,7 @@ impl EventProcessor for EventProcessorWithJsonOutput {
         println!("{prompt_json}");
     }
 
+    #[allow(clippy::print_stdout)]
     fn process_event(&mut self, event: Event) -> CodexStatus {
         match event.msg {
             EventMsg::Error(_) => { self.had_error = true; CodexStatus::Running }

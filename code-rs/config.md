@@ -732,7 +732,7 @@ Options that are specific to the TUI.
 
 [tui.branding]
 # Optional title used for the top header and intro glitch animation.
-# Defaults to "Every Code".
+# Defaults to "Code".
 title = "Code"
 
 [tui.header]

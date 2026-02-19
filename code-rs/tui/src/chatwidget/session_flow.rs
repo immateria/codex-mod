@@ -56,13 +56,19 @@ impl ChatWidget<'_> {
         let auto_drive_variant = AutoDriveVariant::from_env();
         let test_mode = is_test_mode();
 
-        let bottom_pane = BottomPane::new(BottomPaneParams {
+        let mut bottom_pane = BottomPane::new(BottomPaneParams {
             app_event_tx: app_event_tx.clone(),
             has_input_focus: true,
             enhanced_keys_supported,
             using_chatgpt_auth: config.using_chatgpt_auth,
             auto_drive_variant,
         });
+        let bottom_status_line_enabled = config
+            .tui
+            .status_line_bottom
+            .as_ref()
+            .is_some_and(|ids| !ids.is_empty());
+        bottom_pane.set_force_top_spacer(bottom_status_line_enabled);
 
         let mut new_widget = Self {
             app_event_tx,
@@ -83,6 +89,9 @@ impl ChatWidget<'_> {
             remote_model_presets: None,
             allow_remote_default_at_startup: !config.model_explicit,
             chat_model_selected_explicitly: false,
+            collaboration_mode: code_core::protocol::CollaborationModeKind::from_sandbox_policy(
+                &config.sandbox_policy,
+            ),
             planning_restore: None,
             history_debug_events: if history_cell_logging_enabled() {
                 Some(RefCell::new(Vec::new()))
@@ -428,6 +437,9 @@ impl ChatWidget<'_> {
             remote_model_presets: None,
             allow_remote_default_at_startup: !config.model_explicit,
             chat_model_selected_explicitly: false,
+            collaboration_mode: code_core::protocol::CollaborationModeKind::from_sandbox_policy(
+                &config.sandbox_policy,
+            ),
             planning_restore: None,
             history_debug_events: if history_cell_logging_enabled() {
                 Some(RefCell::new(Vec::new()))

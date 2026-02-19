@@ -16,6 +16,7 @@ impl ChatWidget<'_> {
             // Render the bottom pane directly without a border for now
             // The composer has its own layout with hints at the bottom
             (&self.bottom_pane).render(bottom_pane_area, buf);
+            self.render_bottom_status_line(bottom_pane_area, buf);
         }
 
         if let Some(overlay) = self.terminal.overlay() {

@@ -1,6 +1,6 @@
 # Sample configuration
 
-Use this example configuration as a starting point. For an explanation of each field and additional context, see [Configuration](./config.md). Copy the snippet below to `~/.codex/config.toml` and adjust values as needed.
+Use this example configuration as a starting point. For an explanation of each field and additional context, see [Configuration](./config.md). Copy the snippet below to `$CODE_HOME/config.toml` (defaults to `~/.code/config.toml`) and adjust values as needed.
 
 ```toml
 # Codex example configuration (config.toml)
@@ -216,6 +216,22 @@ show_bottom_line = false
 # Hover styling for interactive header segments. Default: background
 # Allowed values: background | underline | none
 # hover_style = "background"
+
+# Optional ordered list of built-in status line item ids used by the default
+# top header renderer. Ignored when `tui.header.top_line_text` is set.
+# Use `/statusline` in the TUI to edit this interactively.
+# Example:
+# status_line_top = ["model-with-reasoning", "current-dir"]
+#
+# Optional ordered list of built-in status line item ids used by the default
+# bottom header renderer when `show_bottom_line = true` and `bottom_line_text`
+# is not set.
+# Example:
+# status_line_bottom = ["git-branch", "used-tokens"]
+#
+# Which lane `/statusline` edits by default.
+# Allowed values: top | bottom
+# status_line_primary = "top"
 
 # Limits panel presentation preferences.
 [tui.limits]

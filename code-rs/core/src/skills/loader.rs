@@ -65,6 +65,26 @@ pub fn load_skills(config: &Config) -> SkillLoadOutcome {
     load_skills_with_additional_roots(config, std::iter::empty::<PathBuf>())
 }
 
+/// Return the set of skill roots that should be watched for changes.
+///
+/// This includes the default repo/user/system/admin roots plus any shell-style profile roots
+/// so editors can hot-reload skill changes without requiring a full session reconfigure.
+pub(crate) fn skill_root_paths_for_watcher(config: &Config) -> Vec<PathBuf> {
+    let mut roots = skill_roots(config);
+
+    for profile in config.shell_style_profiles.values() {
+        for path in &profile.skill_roots {
+            if path.as_os_str().is_empty() {
+                continue;
+            }
+            roots.push(skill_root_from_config_path(path.clone(), &config.cwd));
+        }
+    }
+
+    dedupe_skill_roots_by_path(&mut roots);
+    roots.into_iter().map(|root| root.path).collect()
+}
+
 /// Load skills from optional caller-provided roots plus the standard repo/user/system
 /// roots. Earlier roots win when duplicate skill names are discovered.
 pub fn load_skills_with_additional_roots<I>(config: &Config, additional_roots: I) -> SkillLoadOutcome

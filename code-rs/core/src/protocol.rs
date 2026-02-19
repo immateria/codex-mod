@@ -11,6 +11,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use mcp_types::CallToolResult;
+use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
@@ -72,6 +73,24 @@ pub struct Submission {
 pub enum ValidationGroup {
     Functional,
     Stylistic,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CollaborationModeKind {
+    #[default]
+    Default,
+    Plan,
+}
+
+impl CollaborationModeKind {
+    pub fn from_sandbox_policy(policy: &SandboxPolicy) -> Self {
+        if matches!(policy, SandboxPolicy::ReadOnly) {
+            Self::Plan
+        } else {
+            Self::Default
+        }
+    }
 }
 
 /// Submission operation
@@ -152,6 +171,11 @@ pub enum Op {
         #[serde(skip_serializing_if = "Option::is_none")]
         #[serde(default)]
         shell: Option<ShellConfig>,
+
+        /// Session collaboration mode controls additional developer
+        /// instructions and behavior contracts for the model.
+        #[serde(default)]
+        collaboration_mode: CollaborationModeKind,
     },
 
     /// Abort current task.
@@ -309,7 +333,19 @@ pub enum Op {
 
 /// Determines the conditions under which the user is consulted to approve
 /// running the command proposed by Codex.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Display,
+    JsonSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum AskForApproval {

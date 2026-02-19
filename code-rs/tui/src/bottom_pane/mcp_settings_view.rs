@@ -310,7 +310,7 @@ mod tests {
     fn server_list_is_single_line_per_server_without_summary_row() {
         let view = make_view(vec![make_server_row("server_a")]);
         let lines = view.list_lines(80);
-        let line_text: Vec<String> = lines.iter().map(|line| line.to_string()).collect();
+        let line_text: Vec<String> = lines.iter().map(ToString::to_string).collect();
         assert!(line_text.iter().any(|line| line.contains("[on ] server_a")));
         assert!(
             !line_text

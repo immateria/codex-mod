@@ -41,7 +41,10 @@ fn write_rollout(
     let path = sessions_dir.join(filename);
 
     let session_meta = SessionMeta {
-        id: ThreadId::from_string(&session_id.to_string()).unwrap(),
+        id: must(
+            ThreadId::from_string(&session_id.to_string()),
+            "failed to parse ThreadId",
+        ),
         timestamp: created_at.to_string(),
         cwd: cwd.to_path_buf(),
         originator: "test".to_string(),

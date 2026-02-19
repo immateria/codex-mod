@@ -1,5 +1,6 @@
 mod config_requirements;
 mod diagnostics;
+mod layer_io;
 mod macos;
 
 use crate::config::CONFIG_TOML_FILE;
@@ -9,6 +10,10 @@ use config_requirements::LegacyManagedConfigToml;
 use code_app_server_protocol::ConfigLayerMetadata;
 use code_app_server_protocol::ConfigLayerSource;
 use code_utils_absolute_path::AbsolutePathBuf;
+use layer_io::load_legacy_managed_config;
+use layer_io::read_config_from_path;
+use layer_io::requirements_default_path;
+use layer_io::system_config_default_path;
 use macos::load_managed_admin_config_layer;
 use sha1::Digest;
 use sha1::Sha1;
@@ -16,18 +21,8 @@ use std::collections::HashMap;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
-use tokio::fs;
 use tokio::runtime::{Builder as RuntimeBuilder, Handle};
 use toml::Value as TomlValue;
-
-#[cfg(unix)]
-const CODE_MANAGED_CONFIG_SYSTEM_PATH: &str = "/etc/code/managed_config.toml";
-
-#[cfg(unix)]
-const CODE_REQUIREMENTS_SYSTEM_PATH: &str = "/etc/code/requirements.toml";
-
-#[cfg(unix)]
-const CODE_SYSTEM_CONFIG_SYSTEM_PATH: &str = "/etc/code/config.toml";
 
 #[derive(Debug, Default, Clone)]
 pub struct LoaderOverrides {
@@ -236,8 +231,6 @@ pub async fn load_config_layers_state_with_cwd(
     } = overrides;
 
     let system_config_path = system_config_path.unwrap_or_else(|| system_config_default_path(code_home));
-    let managed_config_path =
-        managed_config_path.unwrap_or_else(|| managed_config_default_path(code_home));
 
     let system_config = read_config_from_path(&system_config_path, false)
         .await?
@@ -254,7 +247,8 @@ pub async fn load_config_layers_state_with_cwd(
         Some(build_cli_overrides_layer(cli_overrides))
     };
 
-    let managed_config = read_config_from_path(&managed_config_path, false).await?;
+    let (managed_config_path, managed_config) =
+        load_legacy_managed_config(code_home, managed_config_path).await?;
 
     #[cfg(target_os = "macos")]
     let managed_preferences =
@@ -400,8 +394,8 @@ async fn load_config_requirements_internal(
         requirements_path,
     } = overrides;
 
-    let managed_config_path =
-        managed_config_path.unwrap_or_else(|| managed_config_default_path(code_home));
+    let (_managed_config_path, managed_config) =
+        load_legacy_managed_config(code_home, managed_config_path).await?;
     let requirements_path = requirements_path.unwrap_or_else(|| requirements_default_path(code_home));
 
     let mut requirements = if let Some(value) = read_config_from_path(&requirements_path, false).await? {
@@ -417,8 +411,6 @@ async fn load_config_requirements_internal(
     } else {
         ConfigRequirements::default()
     };
-
-    let managed_config = read_config_from_path(&managed_config_path, false).await?;
 
     #[cfg(target_os = "macos")]
     let managed_preferences =
@@ -451,38 +443,6 @@ async fn load_config_requirements_internal(
     }
 
     Ok(requirements)
-}
-
-async fn read_config_from_path(
-    path: &Path,
-    log_missing_as_info: bool,
-) -> io::Result<Option<TomlValue>> {
-    match fs::read_to_string(path).await {
-        Ok(contents) => match toml::from_str::<TomlValue>(&contents) {
-            Ok(value) => Ok(Some(value)),
-            Err(err) => {
-                tracing::error!("Failed to parse {}: {err}", path.display());
-                let config_error = diagnostics::config_error_from_toml(path, &contents, err.clone());
-                Err(diagnostics::io_error_from_config_error(
-                    io::ErrorKind::InvalidData,
-                    config_error,
-                    Some(err),
-                ))
-            }
-        },
-        Err(err) if err.kind() == io::ErrorKind::NotFound => {
-            if log_missing_as_info {
-                tracing::info!("{} not found, using defaults", path.display());
-            } else {
-                tracing::debug!("{} not found", path.display());
-            }
-            Ok(None)
-        }
-        Err(err) => {
-            tracing::error!("Failed to read {}: {err}", path.display());
-            Err(err)
-        }
-    }
 }
 
 pub(crate) fn rewrite_config_deserialize_error(
@@ -628,45 +588,6 @@ fn hash_toml_value(hasher: &mut Sha1, value: &TomlValue) {
                 }
             }
         }
-    }
-}
-
-fn managed_config_default_path(code_home: &Path) -> PathBuf {
-    #[cfg(unix)]
-    {
-        let _ = code_home;
-        PathBuf::from(CODE_MANAGED_CONFIG_SYSTEM_PATH)
-    }
-
-    #[cfg(not(unix))]
-    {
-        code_home.join("managed_config.toml")
-    }
-}
-
-fn requirements_default_path(code_home: &Path) -> PathBuf {
-    #[cfg(unix)]
-    {
-        let _ = code_home;
-        PathBuf::from(CODE_REQUIREMENTS_SYSTEM_PATH)
-    }
-
-    #[cfg(not(unix))]
-    {
-        code_home.join("requirements.toml")
-    }
-}
-
-fn system_config_default_path(code_home: &Path) -> PathBuf {
-    #[cfg(unix)]
-    {
-        let _ = code_home;
-        PathBuf::from(CODE_SYSTEM_CONFIG_SYSTEM_PATH)
-    }
-
-    #[cfg(not(unix))]
-    {
-        code_home.join("system_config.toml")
     }
 }
 

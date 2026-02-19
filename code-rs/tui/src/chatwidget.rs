@@ -102,6 +102,7 @@ mod review_flow;
 mod session_flow;
 mod shell_config_flow;
 mod session_tuning_flow;
+mod status_line_flow;
 mod streaming;
 mod terminal_handlers;
 mod terminal;
@@ -190,6 +191,7 @@ use code_core::protocol::AgentReasoningSectionBreakEvent;
 use code_core::protocol::ApplyPatchApprovalRequestEvent;
 use code_core::protocol::BackgroundEventEvent;
 use code_core::protocol::BrowserSnapshotEvent;
+use code_core::protocol::CollaborationModeKind;
 use code_core::protocol::CustomToolCallBeginEvent;
 use code_core::protocol::CustomToolCallEndEvent;
 use code_core::protocol::CustomToolCallUpdateEvent;
@@ -231,6 +233,8 @@ use crate::bottom_pane::{
     ModelSelectionView,
     NotificationsMode,
     NotificationsSettingsView,
+    StatusLineItem,
+    StatusLineSetupView,
     SettingsSection,
     ThemeSelectionView,
     agent_editor_view::{AgentEditorInit, AgentEditorView},
@@ -4863,6 +4867,10 @@ fi\n\
         self.bottom_pane.set_access_mode_label(label);
     }
 
+    pub(crate) fn current_collaboration_mode(&self) -> CollaborationModeKind {
+        self.collaboration_mode
+    }
+
     /// Rotate the access preset: Read Only (Plan Mode) → Write with Approval → Full Access
     pub(crate) fn cycle_access_mode(&mut self) {
         use code_core::config::set_project_access_mode;
@@ -4883,6 +4891,11 @@ fi\n\
             _ => 0,
         };
         let next = (idx + 1) % 3;
+        self.collaboration_mode = if next == 0 {
+            CollaborationModeKind::Plan
+        } else {
+            CollaborationModeKind::Default
+        };
 
         // Apply mapping
         let (label, approval, sandbox) = match next {
@@ -4934,6 +4947,7 @@ fi\n\
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            collaboration_mode: self.current_collaboration_mode(),
         };
         self.submit_op(op);
 

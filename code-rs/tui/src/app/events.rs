@@ -881,6 +881,55 @@ impl App<'_> {
                         self.config.auto_upgrade_enabled = enabled;
                     }
                 }
+                AppEvent::StatusLineSetup {
+                    top_items,
+                    bottom_items,
+                    primary,
+                } => {
+                    let top_ids = top_items.iter().map(ToString::to_string).collect::<Vec<_>>();
+                    let bottom_ids = bottom_items
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>();
+                    match code_core::config::set_tui_status_line_layout(
+                        &self.config.code_home,
+                        &top_ids,
+                        &bottom_ids,
+                        primary,
+                    ) {
+                        Ok(()) => {
+                            self.config.tui.status_line_top = if top_ids.is_empty() {
+                                None
+                            } else {
+                                Some(top_ids)
+                            };
+                            self.config.tui.status_line_bottom = if bottom_ids.is_empty() {
+                                None
+                            } else {
+                                Some(bottom_ids)
+                            };
+                            self.config.tui.status_line_primary = primary;
+                            self.config.tui.status_line = self.config.tui.status_line_top.clone();
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.setup_status_line(top_items, bottom_items, primary);
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to persist status line config: {err}",
+                                ));
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::StatusLineSetupCancelled => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.cancel_status_line_setup();
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::SetAutoSwitchAccountsOnRateLimit(enabled) => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.set_auto_switch_accounts_on_rate_limit(enabled);
@@ -1359,6 +1408,14 @@ impl App<'_> {
                                 widget.add_status_output();
                             }
                         }
+                        SlashCommand::Statusline => {
+                            if let AppState::Chat { widget } = &mut self.app_state
+                                && let Err(msg) =
+                                    widget.open_status_line_setup_from_args(&command_args)
+                            {
+                                widget.debug_notice(msg);
+                            }
+                        }
                         SlashCommand::Limits => {
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.handle_limits_command(command_args);
@@ -1409,6 +1466,11 @@ impl App<'_> {
                                 } else {
                                     widget.handle_model_command(command_args);
                                 }
+                            }
+                        }
+                        SlashCommand::Mode => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.handle_mode_command(command_args);
                             }
                         }
                         SlashCommand::Reasoning => {

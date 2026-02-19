@@ -51,7 +51,7 @@ use code_protocol::protocol::TurnAbortReason;
 use code_protocol::protocol::TurnAbortedEvent;
 use futures::prelude::*;
 use code_protocol::mcp::CallToolResult;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::oneshot;
 use tokio::task::AbortHandle;
@@ -258,6 +258,7 @@ pub(crate) struct TurnContext {
     pub(crate) approval_policy: AskForApproval,
     pub(crate) sandbox_policy: SandboxPolicy,
     pub(crate) shell_environment_policy: ShellEnvironmentPolicy,
+    pub(crate) collaboration_mode: crate::protocol::CollaborationModeKind,
     pub(crate) is_review_mode: bool,
     pub(crate) text_format_override: Option<TextFormat>,
     pub(crate) final_output_json_schema: Option<Value>,
@@ -879,7 +880,6 @@ use crate::exec::ExecToolCallOutput;
 use crate::exec::SandboxType;
 use crate::exec::StdoutStream;
 use crate::exec::StreamOutput;
-use crate::exec::EXEC_CAPTURE_MAX_BYTES;
 use crate::exec::process_exec_tool_call;
 use crate::review_format::format_review_findings_block;
 use crate::exec_env::create_env;
@@ -1035,6 +1035,9 @@ impl Codex {
             demo_developer_message: config.demo_developer_message.clone(),
             dynamic_tools: config.dynamic_tools.clone(),
             shell: config.shell.clone(),
+            collaboration_mode: crate::protocol::CollaborationModeKind::from_sandbox_policy(
+                &config.sandbox_policy,
+            ),
         };
 
         let config = Arc::new(config);

@@ -33,10 +33,13 @@ impl ChatWidget<'_> {
         let composer_rows = self.layout.last_bottom_reserved_rows.get();
         let ensure_footer_space = self.layout.scroll_offset.get() == 0
             && composer_rows > 0
-            && base_total_height >= viewport_rows
+            && base_total_height == viewport_rows
             && request_count > 0;
         if ensure_footer_space {
-            requested_spacer_lines = requested_spacer_lines.max(1);
+            // The command composer/header consumes several rows at the bottom of
+            // the frame. When the history fits exactly, keep a small overscan
+            // buffer so the last content row is never flush against the bottom.
+            requested_spacer_lines = requested_spacer_lines.max(4);
         }
 
         let (spacer_lines, spacer_pending_shrink) = self

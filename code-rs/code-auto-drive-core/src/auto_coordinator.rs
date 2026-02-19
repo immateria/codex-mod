@@ -1068,8 +1068,10 @@ mod tests {
 
     #[test]
     fn schema_marks_goal_required_with_bootstrap_description() {
-        let mut features = SchemaFeatures::default();
-        features.include_goal_field = true;
+        let features = SchemaFeatures {
+            include_goal_field: true,
+            ..Default::default()
+        };
         let schema = build_schema(&Vec::new(), features, &default_auto_drive_cli_routing_entries());
         let required = schema
             .get("required")
@@ -1273,13 +1275,15 @@ mod tests {
 
     #[test]
     fn resolve_cli_routing_entries_falls_back_when_enabled_entries_missing() {
-        let mut settings = AutoDriveSettings::default();
-        settings.model_routing_entries = vec![AutoDriveModelRoutingEntry {
-            model: "gpt-5.3-codex".to_string(),
-            enabled: false,
-            reasoning_levels: vec![ReasoningEffort::High],
-            description: "disabled".to_string(),
-        }];
+        let settings = AutoDriveSettings {
+            model_routing_entries: vec![AutoDriveModelRoutingEntry {
+                model: "gpt-5.3-codex".to_string(),
+                enabled: false,
+                reasoning_levels: vec![ReasoningEffort::High],
+                description: "disabled".to_string(),
+            }],
+            ..Default::default()
+        };
 
         let available_models = vec![
             AUTO_DRIVE_CLI_MODEL_PRIMARY.to_string(),

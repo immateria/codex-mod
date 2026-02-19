@@ -24,6 +24,8 @@ use code_core::spawn::spawn_std_command_with_retry;
 use code_protocol::protocol::SessionSource;
 use code_cloud_tasks::Cli as CloudTasksCli;
 use code_exec::Cli as ExecCli;
+use code_exec::Command as ExecCommand;
+use code_exec::ReviewArgs;
 use code_responses_api_proxy::Args as ResponsesApiProxyArgs;
 use code_tui::Cli as TuiCli;
 use code_tui::ExitSummary;
@@ -36,8 +38,10 @@ use std::process;
 use tokio::runtime::{Builder as TokioRuntimeBuilder, Handle as TokioHandle};
 
 mod mcp_cmd;
+mod config_cmd;
 
 use crate::mcp_cmd::McpCli;
+use crate::config_cmd::ConfigCli;
 
 const CLI_COMMAND_NAME: &str = "code";
 pub(crate) const CODEX_SECURE_MODE_ENV_VAR: &str = "CODEX_SECURE_MODE";
@@ -101,6 +105,9 @@ enum Subcommand {
     #[clap(visible_alias = "e")]
     Exec(ExecCli),
 
+    /// Run a code review non-interactively.
+    Review(ReviewCommand),
+
     /// Run Auto Drive in headless mode (alias for `exec --auto --full-auto`).
     #[clap(name = "auto")]
     Auto(ExecCli),
@@ -152,6 +159,9 @@ enum Subcommand {
     /// Diagnose PATH, binary collisions, and versions.
     Doctor,
 
+    /// Inspect and validate configuration files.
+    Config(ConfigCli),
+
     /// Download and run preview artifact by slug.
     Preview(PreviewArgs),
 
@@ -182,6 +192,108 @@ struct ResumeCommand {
 
     #[clap(flatten)]
     config_overrides: TuiCli,
+}
+
+#[derive(Debug, Parser)]
+struct ReviewCommand {
+    #[clap(flatten)]
+    review_args: ReviewArgs,
+
+    #[clap(flatten)]
+    exec_options: ReviewExecOptions,
+}
+
+#[derive(Debug, Parser)]
+struct ReviewExecOptions {
+    /// Optional image(s) to attach to the initial prompt.
+    #[arg(
+        long = "image",
+        short = 'i',
+        value_name = "FILE",
+        value_delimiter = ',',
+        num_args = 1..
+    )]
+    images: Vec<PathBuf>,
+
+    /// Model the agent should use.
+    #[arg(long, short = 'm')]
+    model: Option<String>,
+
+    #[arg(long = "oss", default_value_t = false)]
+    oss: bool,
+
+    /// Select the sandbox policy to use when executing model-generated shell commands.
+    #[arg(long = "sandbox", short = 's', value_enum)]
+    sandbox_mode: Option<code_common::SandboxModeCliArg>,
+
+    /// Configuration profile from config.toml to specify default options.
+    #[arg(long = "profile", short = 'p')]
+    config_profile: Option<String>,
+
+    /// Convenience alias for low-friction sandboxed automatic execution.
+    #[arg(long = "full-auto", default_value_t = false)]
+    full_auto: bool,
+
+    /// Skip all confirmation prompts and execute commands without sandboxing.
+    #[arg(
+        long = "dangerously-bypass-approvals-and-sandbox",
+        alias = "yolo",
+        default_value_t = false,
+        conflicts_with = "full_auto"
+    )]
+    dangerously_bypass_approvals_and_sandbox: bool,
+
+    /// Tell the agent to use the specified directory as its working root.
+    #[clap(long = "cd", short = 'C', value_name = "DIR")]
+    cwd: Option<PathBuf>,
+
+    /// Enable debug logging of all LLM requests and responses to files.
+    #[clap(long = "debug", short = 'd', default_value_t = false)]
+    debug: bool,
+
+    /// Allow running Codex outside a Git repository.
+    #[arg(long = "skip-git-repo-check", default_value_t = false)]
+    skip_git_repo_check: bool,
+
+    /// Use Auto Review models and limits for /review runs.
+    #[arg(long = "auto-review", default_value_t = false)]
+    auto_review: bool,
+
+    /// Path to a JSON Schema file describing the model's final response shape.
+    #[arg(long = "output-schema", value_name = "FILE")]
+    output_schema: Option<PathBuf>,
+
+    /// Print events to stdout as JSONL.
+    #[arg(
+        long = "json",
+        alias = "experimental-json",
+        default_value_t = false
+    )]
+    json: bool,
+
+    /// Maximum wall-clock time budget (seconds) before aborting the run.
+    #[arg(
+        long = "max-seconds",
+        value_name = "SECONDS",
+        value_parser = clap::value_parser!(u64).range(1..)
+    )]
+    max_seconds: Option<u64>,
+
+    /// Maximum number of Auto Drive coordinator turns before stopping (0 = unlimited).
+    #[arg(long = "turn-cap", value_name = "TURNS")]
+    turn_cap: Option<u32>,
+
+    /// Whether to include the plan tool in the conversation.
+    #[arg(long = "include-plan-tool", default_value_t = false)]
+    include_plan_tool: bool,
+
+    /// Specifies file where the last message from the agent should be written.
+    #[arg(long = "output-last-message", short = 'o', value_name = "FILE")]
+    last_message_file: Option<PathBuf>,
+
+    /// When running /review, write the structured review output JSON to this file.
+    #[arg(long = "review-output-json", value_name = "FILE")]
+    review_output_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Parser)]
@@ -418,7 +530,7 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
     // The TUI already runs housekeeping. For headless `exec` sessions, kick off
     // housekeeping early so stale worktrees/branches don't accumulate.
     let housekeeping_handle = match &subcommand {
-        Some(Subcommand::Exec(_)) | Some(Subcommand::Auto(_)) => {
+        Some(Subcommand::Exec(_)) | Some(Subcommand::Auto(_)) | Some(Subcommand::Review(_)) => {
             match code_core::config::find_code_home() {
                 Ok(code_home) => Some(std::thread::spawn(move || {
                     if let Err(err) = code_core::run_housekeeping_if_due(&code_home) {
@@ -462,11 +574,20 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
             if auto_drive {
                 exec_cli.auto_drive = true;
             }
-            exec_cli.demo_developer_message = demo_developer_message.clone();
-            prepend_config_flags(
-                &mut exec_cli.config_overrides,
+            prepare_headless_exec_cli(
+                &mut exec_cli,
+                demo_developer_message.clone(),
                 root_config_overrides.clone(),
             );
+            code_exec::run_main(exec_cli, code_linux_sandbox_exe).await?;
+        }
+        Some(Subcommand::Review(review_command)) => {
+            let exec_cli = build_exec_cli_for_review_command(
+                review_command,
+                auto_drive,
+                demo_developer_message.clone(),
+                root_config_overrides.clone(),
+            )?;
             code_exec::run_main(exec_cli, code_linux_sandbox_exe).await?;
         }
         Some(Subcommand::Auto(mut exec_cli)) => {
@@ -474,9 +595,9 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
             if !exec_cli.full_auto && !exec_cli.dangerously_bypass_approvals_and_sandbox {
                 exec_cli.full_auto = true;
             }
-            exec_cli.demo_developer_message = demo_developer_message.clone();
-            prepend_config_flags(
-                &mut exec_cli.config_overrides,
+            prepare_headless_exec_cli(
+                &mut exec_cli,
+                demo_developer_message.clone(),
                 root_config_overrides.clone(),
             );
             code_exec::run_main(exec_cli, code_linux_sandbox_exe).await?;
@@ -615,6 +736,9 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
         Some(Subcommand::Doctor) => {
             doctor_main().await?;
         }
+        Some(Subcommand::Config(config_cli)) => {
+            config_cli.run().await?;
+        }
         Some(Subcommand::Preview(args)) => {
             preview_main(args).await?;
         }
@@ -646,6 +770,62 @@ fn prepend_config_flags(
     subcommand_config_overrides
         .raw_overrides
         .splice(0..0, cli_config_overrides.raw_overrides);
+}
+
+fn prepare_headless_exec_cli(
+    exec_cli: &mut ExecCli,
+    demo_developer_message: Option<String>,
+    root_config_overrides: CliConfigOverrides,
+) {
+    exec_cli.demo_developer_message = demo_developer_message;
+    prepend_config_flags(&mut exec_cli.config_overrides, root_config_overrides);
+}
+
+fn apply_review_exec_options(mut exec_cli: ExecCli, options: ReviewExecOptions) -> ExecCli {
+    exec_cli.images = options.images;
+    exec_cli.model = options.model;
+    exec_cli.oss = options.oss;
+    exec_cli.sandbox_mode = options.sandbox_mode;
+    exec_cli.config_profile = options.config_profile;
+    exec_cli.full_auto = options.full_auto;
+    exec_cli.dangerously_bypass_approvals_and_sandbox =
+        options.dangerously_bypass_approvals_and_sandbox;
+    exec_cli.cwd = options.cwd;
+    exec_cli.debug = options.debug;
+    exec_cli.skip_git_repo_check = options.skip_git_repo_check;
+    exec_cli.auto_review = options.auto_review;
+    exec_cli.output_schema = options.output_schema;
+    exec_cli.json = options.json;
+    exec_cli.max_seconds = options.max_seconds;
+    exec_cli.turn_cap = options.turn_cap;
+    exec_cli.include_plan_tool = options.include_plan_tool;
+    exec_cli.last_message_file = options.last_message_file;
+    exec_cli.review_output_json = options.review_output_json;
+    exec_cli
+}
+
+fn build_exec_cli_for_review_command(
+    review_command: ReviewCommand,
+    auto_drive: bool,
+    demo_developer_message: Option<String>,
+    root_config_overrides: CliConfigOverrides,
+) -> anyhow::Result<ExecCli> {
+    let ReviewCommand {
+        review_args,
+        exec_options,
+    } = review_command;
+    let mut exec_cli = ExecCli::try_parse_from(["code-exec"])?;
+    if auto_drive {
+        exec_cli.auto_drive = true;
+    }
+    let mut exec_cli = apply_review_exec_options(exec_cli, exec_options);
+    exec_cli.command = Some(ExecCommand::Review(review_args));
+    prepare_headless_exec_cli(
+        &mut exec_cli,
+        demo_developer_message,
+        root_config_overrides,
+    );
+    Ok(exec_cli)
 }
 
 async fn run_bridge_command(cmd: BridgeCommand) -> anyhow::Result<()> {
@@ -1613,6 +1793,196 @@ mod tests {
         assert!(!script.contains("_codex()"), "bash completion output should not use legacy codex prefix");
     }
 
+    #[test]
+    fn review_subcommand_parses_base_scope() {
+        let cli =
+            MultitoolCli::try_parse_from(["code", "review", "--base", "main"]).expect("parse");
+        let Some(Subcommand::Review(ReviewCommand {
+            review_args,
+            exec_options,
+        })) = cli.subcommand
+        else {
+            panic!("expected review subcommand");
+        };
+        assert_eq!(review_args.base.as_deref(), Some("main"));
+        assert!(!review_args.uncommitted);
+        assert_eq!(review_args.commit, None);
+        assert!(!exec_options.json);
+        assert_eq!(exec_options.max_seconds, None);
+    }
+
+    #[test]
+    fn review_subcommand_parses_headless_exec_flags() {
+        let cli = MultitoolCli::try_parse_from([
+            "code",
+            "review",
+            "--base",
+            "main",
+            "--json",
+            "--model",
+            "gpt-5.3-codex",
+            "--sandbox",
+            "workspace-write",
+            "--max-seconds",
+            "30",
+            "--output-last-message",
+            "last.txt",
+            "--review-output-json",
+            "review.json",
+        ])
+        .expect("parse");
+        let Some(Subcommand::Review(ReviewCommand {
+            review_args,
+            exec_options,
+        })) = cli.subcommand
+        else {
+            panic!("expected review subcommand");
+        };
+        assert_eq!(review_args.base.as_deref(), Some("main"));
+        assert!(exec_options.json);
+        assert_eq!(exec_options.model.as_deref(), Some("gpt-5.3-codex"));
+        assert!(matches!(
+            exec_options.sandbox_mode,
+            Some(code_common::SandboxModeCliArg::WorkspaceWrite)
+        ));
+        assert_eq!(exec_options.max_seconds, Some(30));
+        assert_eq!(
+            exec_options.last_message_file,
+            Some(PathBuf::from("last.txt"))
+        );
+        assert_eq!(
+            exec_options.review_output_json,
+            Some(PathBuf::from("review.json"))
+        );
+    }
+
+    fn build_review_exec_cli_from_args(args: &[&str]) -> ExecCli {
+        let cli = MultitoolCli::try_parse_from(args).expect("parse");
+        let MultitoolCli {
+            config_overrides: root_overrides,
+            auto_drive,
+            demo_developer_message,
+            subcommand,
+            ..
+        } = cli;
+        let Some(Subcommand::Review(review_command)) = subcommand else {
+            panic!("expected review subcommand");
+        };
+        build_exec_cli_for_review_command(
+            review_command,
+            auto_drive,
+            demo_developer_message,
+            root_overrides,
+        )
+        .expect("build review exec cli")
+    }
+
+    #[test]
+    fn review_exec_builder_forwards_flags_into_exec_cli() {
+        let exec_cli = build_review_exec_cli_from_args(&[
+            "code",
+            "--auto",
+            "--demo",
+            "demo-msg",
+            "-c",
+            "model=\"root\"",
+            "review",
+            "--base",
+            "main",
+            "--json",
+            "--model",
+            "gpt-5.3-codex",
+            "--sandbox",
+            "workspace-write",
+            "--max-seconds",
+            "30",
+            "--output-last-message",
+            "last.txt",
+            "--review-output-json",
+            "review.json",
+            "--full-auto",
+            "--include-plan-tool",
+        ]);
+
+        assert!(exec_cli.auto_drive);
+        assert_eq!(exec_cli.demo_developer_message.as_deref(), Some("demo-msg"));
+        assert_eq!(
+            exec_cli.config_overrides.raw_overrides,
+            vec!["model=\"root\"".to_string()]
+        );
+        assert!(exec_cli.json);
+        assert_eq!(exec_cli.model.as_deref(), Some("gpt-5.3-codex"));
+        assert!(matches!(
+            exec_cli.sandbox_mode,
+            Some(code_common::SandboxModeCliArg::WorkspaceWrite)
+        ));
+        assert_eq!(exec_cli.max_seconds, Some(30));
+        assert_eq!(exec_cli.last_message_file, Some(PathBuf::from("last.txt")));
+        assert_eq!(
+            exec_cli.review_output_json,
+            Some(PathBuf::from("review.json"))
+        );
+        assert!(exec_cli.full_auto);
+        assert!(exec_cli.include_plan_tool);
+        let Some(ExecCommand::Review(review_args)) = exec_cli.command else {
+            panic!("expected review command");
+        };
+        assert_eq!(review_args.base.as_deref(), Some("main"));
+    }
+
+    #[test]
+    fn apply_review_exec_options_only_changes_review_fields() {
+        let exec_cli = ExecCli::try_parse_from(["code-exec"]).expect("parse defaults");
+        let options = ReviewExecOptions {
+            images: vec![PathBuf::from("/tmp/a.png"), PathBuf::from("/tmp/b.png")],
+            model: Some("gpt-5.3-codex".to_string()),
+            oss: true,
+            sandbox_mode: Some(code_common::SandboxModeCliArg::WorkspaceWrite),
+            config_profile: Some("work".to_string()),
+            full_auto: true,
+            dangerously_bypass_approvals_and_sandbox: false,
+            cwd: Some(PathBuf::from("/tmp")),
+            debug: true,
+            skip_git_repo_check: true,
+            auto_review: true,
+            output_schema: Some(PathBuf::from("schema.json")),
+            json: true,
+            max_seconds: Some(45),
+            turn_cap: Some(9),
+            include_plan_tool: true,
+            last_message_file: Some(PathBuf::from("last.txt")),
+            review_output_json: Some(PathBuf::from("review.json")),
+        };
+
+        let exec_cli = apply_review_exec_options(exec_cli, options);
+        assert_eq!(
+            exec_cli.images,
+            vec![PathBuf::from("/tmp/a.png"), PathBuf::from("/tmp/b.png")]
+        );
+        assert_eq!(exec_cli.model.as_deref(), Some("gpt-5.3-codex"));
+        assert!(exec_cli.oss);
+        assert!(matches!(
+            exec_cli.sandbox_mode,
+            Some(code_common::SandboxModeCliArg::WorkspaceWrite)
+        ));
+        assert_eq!(exec_cli.config_profile.as_deref(), Some("work"));
+        assert!(exec_cli.full_auto);
+        assert!(exec_cli.debug);
+        assert!(exec_cli.skip_git_repo_check);
+        assert!(exec_cli.auto_review);
+        assert_eq!(exec_cli.output_schema, Some(PathBuf::from("schema.json")));
+        assert!(exec_cli.json);
+        assert_eq!(exec_cli.max_seconds, Some(45));
+        assert_eq!(exec_cli.turn_cap, Some(9));
+        assert!(exec_cli.include_plan_tool);
+        assert_eq!(exec_cli.last_message_file, Some(PathBuf::from("last.txt")));
+        assert_eq!(
+            exec_cli.review_output_json,
+            Some(PathBuf::from("review.json"))
+        );
+        assert!(exec_cli.command.is_none());
+    }
+
     fn finalize_from_args(args: &[&str]) -> TuiCli {
         let cli = MultitoolCli::try_parse_from(args).expect("parse");
         let MultitoolCli {
@@ -1661,26 +2031,26 @@ where
 {
     let _guard = CODE_HOME_MUTEX
         .lock()
-        .unwrap_or_else(|poison| poison.into_inner());
-        let temp_home = TempDir::new().expect("temp code home");
-        let prev_code_home = std::env::var("CODE_HOME").ok();
-        let prev_codex_home = std::env::var("CODEX_HOME").ok();
-        set_env_var("CODE_HOME", temp_home.path());
-        remove_env_var("CODEX_HOME");
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let temp_home = TempDir::new().expect("temp code home");
+    let prev_code_home = std::env::var("CODE_HOME").ok();
+    let prev_codex_home = std::env::var("CODEX_HOME").ok();
+    set_env_var("CODE_HOME", temp_home.path());
+    remove_env_var("CODEX_HOME");
 
-        let result = f(temp_home.path());
+    let result = f(temp_home.path());
 
-        match prev_code_home {
-            Some(val) => set_env_var("CODE_HOME", val),
-            None => remove_env_var("CODE_HOME"),
-        }
-        match prev_codex_home {
-            Some(val) => set_env_var("CODEX_HOME", val),
-            None => remove_env_var("CODEX_HOME"),
-        }
-
-        result
+    match prev_code_home {
+        Some(val) => set_env_var("CODE_HOME", val),
+        None => remove_env_var("CODE_HOME"),
     }
+    match prev_codex_home {
+        Some(val) => set_env_var("CODEX_HOME", val),
+        None => remove_env_var("CODEX_HOME"),
+    }
+
+    result
+}
 
     fn set_env_var<K: AsRef<std::ffi::OsStr>, V: AsRef<std::ffi::OsStr>>(key: K, value: V) {
         unsafe { std::env::set_var(key, value) }
@@ -1764,7 +2134,7 @@ where
         let user_line = RolloutLine {
             timestamp: last_event_at.to_string(),
             item: RolloutItem::ResponseItem(ResponseItem::Message {
-                id: Some(format!("user-{}", id)),
+                id: Some(format!("user-{id}")),
                 role: "user".to_string(),
                 content: vec![ContentItem::InputText {
                     text: user_message.to_string(),
@@ -1777,10 +2147,10 @@ where
         let response_line = RolloutLine {
             timestamp: last_event_at.to_string(),
             item: RolloutItem::ResponseItem(ResponseItem::Message {
-                id: Some(format!("msg-{}", id)),
+                id: Some(format!("msg-{id}")),
                 role: "assistant".to_string(),
                 content: vec![ContentItem::OutputText {
-                    text: format!("Ack: {}", user_message),
+                    text: format!("Ack: {user_message}"),
                 }],
                 end_turn: None,
                 phase: None,
@@ -1821,7 +2191,7 @@ where
             let session_id_str = session_id.to_string();
             create_session_fixture(code_home, &session_id);
 
-            let args = vec![
+            let args = [
                 "codex".to_string(),
                 "resume".to_string(),
                 session_id_str.clone(),
@@ -1865,8 +2235,7 @@ where
             let path_str = path.to_string_lossy();
             assert!(
                 path_str.contains("22222222-2222-4222-8222-222222222222"),
-                "path resolved to {}",
-                path_str
+                "path resolved to {path_str}"
             );
         });
     }
@@ -1892,8 +2261,7 @@ where
             let result_str = result.to_string_lossy();
             assert!(
                 result_str.contains("33333333-3333-4333-8333-333333333333"),
-                "path resolved to {}",
-                result_str
+                "path resolved to {result_str}"
             );
         });
     }
@@ -1932,8 +2300,7 @@ where
             let path_str = path.to_string_lossy();
             assert!(
                 path_str.contains("55555555-5555-4555-8555-555555555555"),
-                "path resolved to {}",
-                path_str
+                "path resolved to {path_str}"
             );
         });
     }

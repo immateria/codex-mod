@@ -2,6 +2,7 @@ use code_core::config_types::AutoDriveModelRoutingEntry;
 use code_core::config_types::AuthCredentialsStoreMode;
 use code_core::config_types::ReasoningEffort;
 use code_core::config_types::ShellConfig;
+use code_core::config_types::StatusLineLane;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
 use code_core::protocol::Event;
@@ -37,6 +38,7 @@ use code_cloud_tasks_client::{ApplyOutcome, CloudTaskError, CreatedTask, TaskSum
 
 use crate::app::ChatWidgetArgs;
 use crate::chrome_launch::ChromeLaunchOption;
+use crate::bottom_pane::StatusLineItem;
 use crate::slash_command::SlashCommand;
 use code_protocol::models::ResponseItem;
 use code_protocol::request_user_input::RequestUserInputResponse;
@@ -714,6 +716,12 @@ pub(crate) enum AppEvent {
         latest_version: Option<String>,
     },
     SetAutoUpgradeEnabled(bool),
+    StatusLineSetup {
+        top_items: Vec<StatusLineItem>,
+        bottom_items: Vec<StatusLineItem>,
+        primary: StatusLineLane,
+    },
+    StatusLineSetupCancelled,
     SetAutoSwitchAccountsOnRateLimit(bool),
     SetApiKeyFallbackOnAllAccountsLimited(bool),
     RequestSetAuthCredentialsStoreMode {

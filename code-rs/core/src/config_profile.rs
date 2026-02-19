@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use schemars::JsonSchema;
 use std::path::PathBuf;
 
 use crate::config_types::ReasoningEffort;
@@ -10,6 +11,7 @@ use crate::protocol::AskForApproval;
 /// Collection of common configuration options that a user can define as a unit
 /// in `config.toml`.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[derive(JsonSchema)]
 pub struct ConfigProfile {
     pub model: Option<String>,
     pub planning_model: Option<String>,

@@ -61,6 +61,7 @@ pub enum SlashCommand {
     Mention,
     Cmd,
     Status,
+    Statusline,
     Limits,
     #[strum(serialize = "update", serialize = "upgrade")]
     Update,
@@ -68,6 +69,7 @@ pub enum SlashCommand {
     Theme,
     Settings,
     Shell,
+    Mode,
     Model,
     Reasoning,
     Verbosity,
@@ -121,6 +123,9 @@ impl SlashCommand {
             SlashCommand::Mention => "mention a file",
             SlashCommand::Cmd => "run a project command",
             SlashCommand::Status => "show current session configuration and token usage",
+            SlashCommand::Statusline => {
+                "configure status line fields (/statusline [primary|secondary|top|bottom])"
+            }
             SlashCommand::Limits => "adjust session limits",
             SlashCommand::Update => "check for updates and optionally upgrade",
             SlashCommand::Notifications => "manage notification settings",
@@ -130,6 +135,7 @@ impl SlashCommand {
             SlashCommand::Prompts => "manage custom prompts",
             SlashCommand::Skills => "manage skills",
             SlashCommand::Model => "choose your default model",
+            SlashCommand::Mode => "set collaboration mode (default/plan)",
             SlashCommand::Agents => "configure agents",
             SlashCommand::Auto => "work autonomously on long tasks with Auto Drive",
             SlashCommand::Branch => {
@@ -337,6 +343,16 @@ mod tests {
                 assert!(command_text.contains("inspect the failing build"));
             }
             other => panic!("expected RegularCommand, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn statusline_command_is_recognized() {
+        match process_slash_command_message("/statusline") {
+            ProcessedCommand::RegularCommand(SlashCommand::Statusline, command_text) => {
+                assert_eq!(command_text, "/statusline");
+            }
+            other => panic!("expected /statusline command, got {other:?}"),
         }
     }
 }

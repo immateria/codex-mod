@@ -74,10 +74,7 @@ fn bottom_spacer_skips_when_history_fits() {
 
 #[test]
 fn bottom_spacer_hysteresis_requests_followup_frame() {
-    // First known viewport combo that reliably triggers the hysteresis path
-    // without exhausting file descriptors by brute-force searching.
-    let activate_h = 32;
-    let release_h = 18;
+    let (activate_h, release_h) = discover_hysteresis_viewports();
 
     let mut harness = ChatWidgetHarness::new();
     seed_overflow_wrapped_transcript(&mut harness);
@@ -85,7 +82,7 @@ fn bottom_spacer_hysteresis_requests_followup_frame() {
     let _ = render_chat_widget_to_vt100(&mut harness, 100, activate_h);
     assert!(
         harness.bottom_spacer_lines() > 0,
-        "spacer should activate for the overflowing transcript"
+        "activate viewport {activate_h} should enable the spacer"
     );
 
     harness.take_scheduled_frame_events();
@@ -93,7 +90,7 @@ fn bottom_spacer_hysteresis_requests_followup_frame() {
     let _ = render_chat_widget_to_vt100(&mut harness, 100, release_h);
     let target = harness
         .pending_bottom_spacer_request()
-        .expect("release viewport should request a follow-up frame");
+        .unwrap_or_else(|| panic!("release viewport {release_h} should request a follow-up frame"));
 
     let scheduled = harness.take_scheduled_frame_events();
     assert!(
@@ -106,6 +103,61 @@ fn bottom_spacer_hysteresis_requests_followup_frame() {
         harness.bottom_spacer_lines(),
         target,
         "follow-up frame should settle spacer height"
+    );
+}
+
+fn discover_hysteresis_viewports() -> (u16, u16) {
+    const WIDTH: u16 = 100;
+    const HEIGHT_RANGE: std::ops::RangeInclusive<u16> = 14..=44;
+
+    let mut measurements: Vec<(u16, u16)> = Vec::new();
+    for height in HEIGHT_RANGE {
+        let mut harness = ChatWidgetHarness::new();
+        seed_overflow_wrapped_transcript(&mut harness);
+        let _ = render_chat_widget_to_vt100(&mut harness, WIDTH, height);
+        measurements.push((height, harness.bottom_spacer_lines()));
+    }
+
+    // Prefer activate heights that already request the largest spacer since that is most likely to
+    // shrink on the release render (triggering the hysteresis + follow-up-frame path).
+    let mut activates: Vec<(u16, u16)> = measurements
+        .iter()
+        .copied()
+        .filter(|&(_height, spacer)| spacer > 0)
+        .collect();
+    activates.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| b.0.cmp(&a.0)));
+
+    for (activate_h, _activate_spacer) in activates.iter().take(8) {
+        let mut releases: Vec<(u16, u16)> = measurements
+            .iter()
+            .copied()
+            .filter(|(height, _spacer)| height < activate_h)
+            .collect();
+
+        // Try release heights that start with a smaller (or zero) spacer request first.
+        releases.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+
+        for (release_h, _release_spacer) in releases.iter().take(12) {
+            let mut harness = ChatWidgetHarness::new();
+            seed_overflow_wrapped_transcript(&mut harness);
+
+            let _ = render_chat_widget_to_vt100(&mut harness, WIDTH, *activate_h);
+            if harness.bottom_spacer_lines() == 0 {
+                continue;
+            }
+
+            harness.take_scheduled_frame_events();
+
+            let _ = render_chat_widget_to_vt100(&mut harness, WIDTH, *release_h);
+            let scheduled = harness.take_scheduled_frame_events();
+            if harness.pending_bottom_spacer_request().is_some() && scheduled > 0 {
+                return (*activate_h, *release_h);
+            }
+        }
+    }
+
+    panic!(
+        "failed to find viewport pair that triggers spacer hysteresis; measured (height->spacer): {measurements:?}"
     );
 }
 

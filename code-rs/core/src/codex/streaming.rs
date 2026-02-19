@@ -18,7 +18,15 @@ use super::session::{
 use crate::auth;
 use crate::auth_accounts;
 use crate::account_switching::RateLimitSwitchState;
+use crate::collaboration_mode_instructions::{
+    render_collaboration_mode_instructions,
+};
+use crate::openai_tools::OpenAiTool;
+use crate::openai_tools::ResponsesApiTool;
+use crate::openai_tools::SEARCH_TOOL_BM25_TOOL_NAME;
 use crate::protocol::McpListToolsResponseEvent;
+use crate::tools::output_format::format_exec_output_payload;
+use crate::tools::output_format::format_exec_output_str;
 use code_app_server_protocol::AuthMode as AppAuthMode;
 use code_protocol::models::{FunctionCallOutputBody, FunctionCallOutputContentItem};
 
@@ -132,6 +140,134 @@ impl AgentTask {
     }
 }
 
+async fn load_skills_inventory_and_refresh_session(
+    sess: &Arc<Session>,
+    config_snapshot: Arc<Config>,
+) -> crate::skills::model::SkillLoadOutcome {
+    let skills_enabled = config_snapshot.skills_enabled;
+    let active_shell_style = sess.user_shell.script_style();
+    let active_shell_style_label = active_shell_style.map(|style| style.to_string());
+
+    let mut shell_style_skill_filter: Option<HashSet<String>> = None;
+    let mut shell_style_disabled_skills: HashSet<String> = HashSet::new();
+    let mut shell_style_skill_roots: Vec<PathBuf> = Vec::new();
+    if let Some(style) = active_shell_style
+        && let Some(profile) = config_snapshot.shell_style_profiles.get(&style)
+    {
+        let requested_skills: HashSet<String> = profile
+            .skills
+            .iter()
+            .map(|name| name.trim().to_ascii_lowercase())
+            .filter(|name| !name.is_empty())
+            .collect();
+        if !requested_skills.is_empty() {
+            shell_style_skill_filter = Some(requested_skills);
+        }
+
+        shell_style_disabled_skills.extend(
+            profile
+                .disabled_skills
+                .iter()
+                .map(|name| name.trim().to_ascii_lowercase())
+                .filter(|name| !name.is_empty()),
+        );
+
+        shell_style_skill_roots.extend(
+            profile
+                .skill_roots
+                .iter()
+                .filter(|path| !path.as_os_str().is_empty())
+                .cloned(),
+        );
+    }
+
+    let config_for_load = Arc::clone(&config_snapshot);
+    let inventory = match tokio::task::spawn_blocking(move || {
+        if !skills_enabled {
+            return crate::skills::model::SkillLoadOutcome::default();
+        }
+
+        if shell_style_skill_roots.is_empty() {
+            crate::skills::loader::load_skills(config_for_load.as_ref())
+        } else {
+            crate::skills::loader::load_skills_with_additional_roots(
+                config_for_load.as_ref(),
+                shell_style_skill_roots.into_iter(),
+            )
+        }
+    })
+    .await
+    {
+        Ok(outcome) => outcome,
+        Err(err) => {
+            warn!("failed to load skills: {err}");
+            crate::skills::model::SkillLoadOutcome::default()
+        }
+    };
+
+    for err in &inventory.errors {
+        warn!("invalid skill {}: {}", err.path.display(), err.message);
+    }
+
+    if skills_enabled {
+        let available_skill_names: HashSet<String> = inventory
+            .skills
+            .iter()
+            .map(|skill| skill.name.trim().to_ascii_lowercase())
+            .collect();
+
+        let mut matched_skills: HashSet<String> = HashSet::new();
+        let mut active_skills: Vec<crate::skills::model::SkillMetadata> = Vec::new();
+        for skill in &inventory.skills {
+            let normalized = skill.name.trim().to_ascii_lowercase();
+            if let Some(skill_filter) = shell_style_skill_filter.as_ref() {
+                if !skill_filter.contains(&normalized) {
+                    continue;
+                }
+                matched_skills.insert(normalized.clone());
+            }
+
+            if shell_style_disabled_skills.contains(&normalized) {
+                continue;
+            }
+
+            active_skills.push(crate::skills::model::SkillMetadata {
+                name: skill.name.clone(),
+                description: skill.description.clone(),
+                path: skill.path.clone(),
+                scope: skill.scope,
+                content: String::new(),
+            });
+        }
+
+        if let Some(style_label) = active_shell_style_label.as_deref()
+            && let Some(skill_filter) = shell_style_skill_filter.as_ref()
+        {
+            for requested in skill_filter {
+                if !matched_skills.contains(requested) {
+                    warn!("shell style profile `{style_label}` requested unknown skill `{requested}`");
+                }
+            }
+        }
+
+        if let Some(style_label) = active_shell_style_label.as_deref() {
+            for requested in &shell_style_disabled_skills {
+                if !available_skill_names.contains(requested) {
+                    warn!(
+                        "shell style profile `{style_label}` requested unknown disabled skill `{requested}`"
+                    );
+                }
+            }
+        }
+
+        *sess.skills.write().await = active_skills;
+    } else {
+        sess.skills.write().await.clear();
+    }
+
+    inventory
+}
+
 pub(super) async fn submission_loop(
     mut session_id: Uuid,
     config: Arc<Config>,
@@ -142,6 +278,15 @@ pub(super) async fn submission_loop(
     let mut config = config;
     let mut sess: Option<Arc<Session>> = None;
     let mut agent_manager_initialized = false;
+
+    let file_watcher = crate::file_watcher::FileWatcher::new(config.code_home.clone())
+        .unwrap_or_else(|err| {
+            warn!("failed to start file watcher: {err}");
+            crate::file_watcher::FileWatcher::noop()
+        });
+    file_watcher.register_config(config.as_ref());
+    let mut file_watcher_rx = file_watcher.subscribe();
+    let mut file_watcher_enabled = true;
     // shorthand - send an event when there is no active session
     let send_no_session_event = |sub_id: String| async {
         let event = Event {
@@ -154,9 +299,16 @@ pub(super) async fn submission_loop(
     };
 
     // To break out of this loop, send Op::Shutdown.
-    while let Ok(sub) = rx_sub.recv().await {
-        debug!(?sub, "Submission");
-        match sub.op {
+    loop {
+        tokio::select! {
+            sub = rx_sub.recv() => {
+                let sub = match sub {
+                    Ok(sub) => sub,
+                    Err(_) => break,
+                };
+
+                debug!(?sub, "Submission");
+                match sub.op {
             Op::Interrupt => {
                 let sess = match sess.as_ref() {
                     Some(sess) => sess.clone(),
@@ -259,6 +411,7 @@ pub(super) async fn submission_loop(
                 demo_developer_message,
                 dynamic_tools,
                 shell: shell_override,
+                collaboration_mode,
             } => {
                 debug!(
                     "Configuring session: model={model}; provider={provider:?}; resume={resume_path:?}"
@@ -571,6 +724,7 @@ pub(super) async fn submission_loop(
                     }
 
                 config = Arc::clone(&new_config);
+                file_watcher.register_config(config.as_ref());
 
                 let rollout_recorder = match rollout_recorder {
                     Some(rec) => Some(rec),
@@ -842,6 +996,7 @@ pub(super) async fn submission_loop(
                     approval_policy,
                     sandbox_policy,
                     shell_environment_policy: config.shell_environment_policy.clone(),
+                    collaboration_mode,
                     cwd,
                     _writable_roots: writable_roots,
                     mcp_connection_manager,
@@ -1452,130 +1607,8 @@ pub(super) async fn submission_loop(
                     }
                 };
 
-                let config_snapshot = Arc::clone(&config);
-                let skills_enabled = config_snapshot.skills_enabled;
-                let active_shell_style = sess.user_shell.script_style();
-                let active_shell_style_label =
-                    active_shell_style.map(|style| style.to_string());
-
-                let mut shell_style_skill_filter: Option<HashSet<String>> = None;
-                let mut shell_style_disabled_skills: HashSet<String> = HashSet::new();
-                let mut shell_style_skill_roots: Vec<PathBuf> = Vec::new();
-                if let Some(style) = active_shell_style
-                    && let Some(profile) = config_snapshot.shell_style_profiles.get(&style)
-                {
-                    let requested_skills: HashSet<String> = profile
-                        .skills
-                        .iter()
-                        .map(|name| name.trim().to_ascii_lowercase())
-                        .filter(|name| !name.is_empty())
-                        .collect();
-                    if !requested_skills.is_empty() {
-                        shell_style_skill_filter = Some(requested_skills);
-                    }
-
-                    shell_style_disabled_skills.extend(
-                        profile
-                            .disabled_skills
-                            .iter()
-                            .map(|name| name.trim().to_ascii_lowercase())
-                            .filter(|name| !name.is_empty()),
-                    );
-
-                    shell_style_skill_roots.extend(
-                        profile
-                            .skill_roots
-                            .iter()
-                            .filter(|path| !path.as_os_str().is_empty())
-                            .cloned(),
-                    );
-                }
-
-                let inventory = match tokio::task::spawn_blocking(move || {
-                    if !skills_enabled {
-                        return crate::skills::model::SkillLoadOutcome::default();
-                    }
-
-                    if shell_style_skill_roots.is_empty() {
-                        crate::skills::loader::load_skills(config_snapshot.as_ref())
-                    } else {
-                        crate::skills::loader::load_skills_with_additional_roots(
-                            config_snapshot.as_ref(),
-                            shell_style_skill_roots.into_iter(),
-                        )
-                    }
-                })
-                .await
-                {
-                    Ok(outcome) => outcome,
-                    Err(err) => {
-                        warn!("failed to list skills: {err}");
-                        crate::skills::model::SkillLoadOutcome::default()
-                    }
-                };
-
-                for err in &inventory.errors {
-                    warn!("invalid skill {}: {}", err.path.display(), err.message);
-                }
-
-                // Refresh the active session skill set for per-turn injection.
-                if skills_enabled {
-                    let available_skill_names: HashSet<String> = inventory
-                        .skills
-                        .iter()
-                        .map(|skill| skill.name.trim().to_ascii_lowercase())
-                        .collect();
-
-                    let mut matched_skills: HashSet<String> = HashSet::new();
-                    let mut active_skills: Vec<crate::skills::model::SkillMetadata> = Vec::new();
-                    for skill in &inventory.skills {
-                        let normalized = skill.name.trim().to_ascii_lowercase();
-                        if let Some(skill_filter) = shell_style_skill_filter.as_ref() {
-                            if !skill_filter.contains(&normalized) {
-                                continue;
-                            }
-                            matched_skills.insert(normalized.clone());
-                        }
-
-                        if shell_style_disabled_skills.contains(&normalized) {
-                            continue;
-                        }
-
-                        active_skills.push(crate::skills::model::SkillMetadata {
-                            name: skill.name.clone(),
-                            description: skill.description.clone(),
-                            path: skill.path.clone(),
-                            scope: skill.scope,
-                            content: String::new(),
-                        });
-                    }
-
-                    if let Some(style_label) = active_shell_style_label.as_deref()
-                        && let Some(skill_filter) = shell_style_skill_filter.as_ref()
-                    {
-                        for requested in skill_filter {
-                            if !matched_skills.contains(requested) {
-                                warn!(
-                                    "shell style profile `{style_label}` requested unknown skill `{requested}`"
-                                );
-                            }
-                        }
-                    }
-
-                    if let Some(style_label) = active_shell_style_label.as_deref() {
-                        for requested in &shell_style_disabled_skills {
-                            if !available_skill_names.contains(requested) {
-                                warn!(
-                                    "shell style profile `{style_label}` requested unknown disabled skill `{requested}`"
-                                );
-                            }
-                        }
-                    }
-
-                    *sess.skills.write().await = active_skills;
-                } else {
-                    sess.skills.write().await.clear();
-                }
+                let inventory =
+                    load_skills_inventory_and_refresh_session(&sess, Arc::clone(&config)).await;
 
                 let skills: Vec<code_protocol::skills::Skill> = inventory
                     .skills
@@ -1710,6 +1743,31 @@ pub(super) async fn submission_loop(
                 }
                 break;
             }
+                }
+            }
+            watcher_event = file_watcher_rx.recv(), if file_watcher_enabled => {
+                match watcher_event {
+                    Ok(crate::file_watcher::FileWatcherEvent::SkillsChanged { .. }) => {
+                        let Some(sess_arc) = sess.as_ref() else {
+                            continue;
+                        };
+                        let sess_arc = Arc::clone(sess_arc);
+                        let config_snapshot = Arc::clone(&config);
+                        tokio::spawn(async move {
+                            let _ = load_skills_inventory_and_refresh_session(
+                                &sess_arc,
+                                config_snapshot,
+                            )
+                            .await;
+                        });
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        warn!("file watcher channel closed; disabling");
+                        file_watcher_enabled = false;
+                    }
+                }
+            }
         }
     }
     debug!("Agent loop exited");
@@ -1818,6 +1876,7 @@ async fn spawn_review_thread(
         approval_policy: parent_turn_context.approval_policy,
         sandbox_policy: parent_turn_context.sandbox_policy.clone(),
         shell_environment_policy: parent_turn_context.shell_environment_policy.clone(),
+        collaboration_mode: parent_turn_context.collaboration_mode,
         is_review_mode: true,
         text_format_override: None,
         final_output_json_schema: None,
@@ -2465,6 +2524,8 @@ async fn run_turn(
 
     let mut retries = 0;
     let mut rate_limit_switch_state = RateLimitSwitchState::default();
+    let collaboration_mode_instructions =
+        render_collaboration_mode_instructions(tc.collaboration_mode);
     // Ensure we only auto-compact once per turn to avoid loops
     let mut did_auto_compact = false;
     // Attempt input starts as the provided input, and may be augmented with
@@ -2497,6 +2558,10 @@ async fn run_turn(
             .clone()
             .into_iter()
             .collect();
+        let trimmed_mode_instructions = collaboration_mode_instructions.trim();
+        if !trimmed_mode_instructions.is_empty() {
+            prepend_developer_messages.push(trimmed_mode_instructions.to_string());
+        }
         if let Some(shell_style) = sess.user_shell.script_style() {
             prepend_developer_messages.push(shell_style.developer_instruction().to_string());
         }
@@ -2560,6 +2625,19 @@ async fn run_turn(
             agents_active,
             sess.dynamic_tools.as_slice(),
         );
+        if should_inject_search_tool_developer_instructions(&prompt.tools) {
+            let search_tool_instructions = SEARCH_TOOL_DEVELOPER_INSTRUCTIONS.trim();
+            if !search_tool_instructions.is_empty()
+                && !prompt
+                    .prepend_developer_messages
+                    .iter()
+                    .any(|message| message.trim() == search_tool_instructions)
+            {
+                prompt
+                    .prepend_developer_messages
+                    .push(search_tool_instructions.to_string());
+            }
+        }
 
         // Start a new scratchpad for this HTTP attempt
         sess.begin_attempt_scratchpad();
@@ -2918,6 +2996,8 @@ async fn run_turn(
 
 const HTML_SANITIZER_GUARDRAILS_MESSAGE: &str =
     "TB2 HTML/XSS guardrails:\n- Do NOT use DOTALL/full-document regex (e.g. `<script.*?>.*?</script>`); catastrophic backtracking risk.\n- Prefer linear-time scanning with quote/state tracking; if using regex, only on bounded substrings (single tags).\n- Perf smoke test: write malformed `/tmp/stress.html` and run `timeout 5s python3 /app/filter.py /tmp/stress.html` (or equivalent). If it times out, rewrite for linear-time behavior.";
+const SEARCH_TOOL_DEVELOPER_INSTRUCTIONS: &str =
+    include_str!("../../templates/search_tool/developer_instructions.md");
 
 fn should_inject_html_sanitizer_guardrails(input: &[ResponseItem]) -> bool {
     let mut user_messages_seen = 0u32;
@@ -2964,6 +3044,47 @@ fn should_inject_html_sanitizer_guardrails(input: &[ResponseItem]) -> bool {
         lower.contains("filter") || lower.contains("strip") || lower.contains("remove");
 
     has_xss || has_sanitize || has_filter_js_from_html || (has_html && has_script_tag && has_filtering)
+}
+
+fn should_inject_search_tool_developer_instructions(tools: &[OpenAiTool]) -> bool {
+    tools.iter().any(|tool| {
+        matches!(tool, OpenAiTool::Function(ResponsesApiTool { name, .. }) if name == SEARCH_TOOL_BM25_TOOL_NAME)
+    })
+}
+
+#[cfg(test)]
+mod search_tool_instructions_tests {
+    use super::*;
+
+    #[test]
+    fn detects_search_tool_presence() {
+        let tools = vec![OpenAiTool::Function(ResponsesApiTool {
+            name: SEARCH_TOOL_BM25_TOOL_NAME.to_string(),
+            description: "search".to_string(),
+            strict: false,
+            parameters: crate::openai_tools::JsonSchema::Object {
+                properties: Default::default(),
+                required: None,
+                additional_properties: None,
+            },
+        })];
+        assert!(should_inject_search_tool_developer_instructions(&tools));
+    }
+
+    #[test]
+    fn ignores_non_search_tools() {
+        let tools = vec![OpenAiTool::Function(ResponsesApiTool {
+            name: "not_search_tool".to_string(),
+            description: "other".to_string(),
+            strict: false,
+            parameters: crate::openai_tools::JsonSchema::Object {
+                properties: Default::default(),
+                required: None,
+                additional_properties: None,
+            },
+        })];
+        assert!(!should_inject_search_tool_developer_instructions(&tools));
+    }
 }
 
 fn reconcile_pending_tool_outputs(
@@ -9884,40 +10005,6 @@ pub(super) fn truncate_middle_bytes(s: &str, max_bytes: usize) -> (String, bool,
     (out, true, prefix_end, suffix_start)
 }
 
-fn format_exec_output_str(exec_output: &ExecToolCallOutput) -> String {
-    let ExecToolCallOutput {
-        aggregated_output,
-        duration,
-        timed_out,
-        ..
-    } = exec_output;
-
-    // Always use the aggregated (stdout + stderr interleaved) stream so the
-    // model sees the full build log regardless of which stream a tool used.
-    let mut formatted_output = aggregated_output.text.clone();
-    if let Some(truncated_before_bytes) = aggregated_output.truncated_before_bytes {
-        let note = format!(
-            "… clipped {} from the start of command output (showing last {}).\n\n",
-            crate::util::format_bytes(truncated_before_bytes),
-            crate::util::format_bytes(EXEC_CAPTURE_MAX_BYTES),
-        );
-        formatted_output = format!("{note}{formatted_output}");
-    }
-
-    if *timed_out {
-        let timeout_ms = duration.as_millis();
-        formatted_output =
-            format!("command timed out after {timeout_ms} milliseconds\n{formatted_output}");
-    }
-    if let Some(truncated_after_lines) = aggregated_output.truncated_after_lines {
-        formatted_output.push_str(&format!(
-            "\n\n[Output truncated after {truncated_after_lines} lines: too many lines or bytes.]",
-        ));
-    }
-
-    formatted_output
-}
-
 fn truncate_exec_output_for_storage(
     cwd: &Path,
     sub_id: &str,
@@ -9953,38 +10040,10 @@ fn format_exec_output_with_limit(
     exec_output: &ExecToolCallOutput,
     max_tool_output_bytes: usize,
 ) -> String {
-    let ExecToolCallOutput {
-        exit_code,
-        duration,
-        ..
-    } = exec_output;
-
-    #[derive(Serialize)]
-    struct ExecMetadata {
-        exit_code: i32,
-        duration_seconds: f32,
-    }
-
-    #[derive(Serialize)]
-    struct ExecOutput<'a> { output: &'a str, metadata: ExecMetadata }
-
-    // round to 1 decimal place
-    let duration_seconds = ((duration.as_secs_f32()) * 10.0).round() / 10.0;
-
     let full = format_exec_output_str(exec_output);
     let final_output =
         truncate_exec_output_for_storage(cwd, sub_id, call_id, &full, max_tool_output_bytes);
-
-    let payload = ExecOutput {
-        output: &final_output,
-        metadata: ExecMetadata {
-            exit_code: *exit_code,
-            duration_seconds,
-        },
-    };
-
-    #[expect(clippy::expect_used)]
-    serde_json::to_string(&payload).expect("serialize ExecOutput")
+    format_exec_output_payload(exec_output, &final_output)
 }
 
 pub(super) fn get_last_assistant_message_from_turn(responses: &[ResponseItem]) -> Option<String> {

@@ -22,6 +22,8 @@ use code_core::config::ConfigToml;
 use code_core::config::find_code_home;
 use code_core::config::load_config_as_toml;
 use code_core::config::load_config_as_toml_with_cli_overrides;
+use code_core::personality_migration::PersonalityMigrationStatus;
+use code_core::personality_migration::maybe_migrate_model_personality;
 use code_core::protocol::AskForApproval;
 use code_core::protocol::SandboxPolicy;
 use code_core::config_types::CachedTerminalBackground;
@@ -545,6 +547,42 @@ pub async fn run_main(
     };
 
     config.demo_developer_message = cli.demo_developer_message.clone();
+
+    let cli_personality_override = cli_kv_overrides.iter().any(|(path, _)| {
+        matches!(path.as_str(), "model_personality" | "model-personality")
+            || path.ends_with(".model_personality")
+            || path.ends_with(".model-personality")
+    });
+    if !cli_personality_override && !cli.oss {
+        match maybe_migrate_model_personality(
+            &code_home,
+            config.active_profile.as_deref(),
+            config.model_personality,
+        )
+        .await
+        {
+            Ok(PersonalityMigrationStatus::Applied) => {
+                match Config::load_with_cli_overrides(cli_kv_overrides.clone(), overrides.clone()) {
+                    Ok(updated) => {
+                        config = updated;
+                        config.demo_developer_message = cli.demo_developer_message.clone();
+                    }
+                    Err(err) => {
+                        tracing::error!("Error reloading configuration: {err}");
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Ok(
+                PersonalityMigrationStatus::SkippedMarker
+                | PersonalityMigrationStatus::SkippedExplicitPersonality
+                | PersonalityMigrationStatus::SkippedNoSessions,
+            ) => {}
+            Err(err) => {
+                tracing::warn!("failed to run personality migration: {err}");
+            }
+        }
+    }
 
     let cli_model_override = cli.model.is_some()
         || cli_kv_overrides

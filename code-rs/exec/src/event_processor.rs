@@ -16,6 +16,10 @@ pub(crate) trait EventProcessor {
     /// Handle a single event emitted by the agent.
     fn process_event(&mut self, event: Event) -> CodexStatus;
 
+    /// Emit final user-facing output once the run has completed.
+    /// Default no-op for processors that do not have a final-output concept.
+    fn print_final_output(&mut self) {}
+
     // No exit_code method; CLI controls process exit based on core events.
 }
 

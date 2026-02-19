@@ -36,6 +36,12 @@ use code_core::protocol::EventMsg;
 use code_core::protocol::ExecApprovalRequestEvent;
 use code_protocol::mcp_protocol::FuzzyFileSearchParams;
 use code_protocol::mcp_protocol::FuzzyFileSearchResponse;
+use code_protocol::mcp_protocol::FuzzyFileSearchSessionStartParams;
+use code_protocol::mcp_protocol::FuzzyFileSearchSessionStartResponse;
+use code_protocol::mcp_protocol::FuzzyFileSearchSessionStopParams;
+use code_protocol::mcp_protocol::FuzzyFileSearchSessionStopResponse;
+use code_protocol::mcp_protocol::FuzzyFileSearchSessionUpdateParams;
+use code_protocol::mcp_protocol::FuzzyFileSearchSessionUpdateResponse;
 use code_protocol::protocol::ReviewDecision;
 use mcp_types::JSONRPCErrorError;
 use mcp_types::RequestId;
@@ -56,7 +62,9 @@ use code_utils_json_to_toml::json_to_toml;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::OutgoingNotification;
+use crate::fuzzy_file_search::FuzzyFileSearchSession;
 use crate::fuzzy_file_search::run_fuzzy_file_search;
+use crate::fuzzy_file_search::start_fuzzy_file_search_session;
 use code_protocol::protocol::TurnAbortReason;
 use code_protocol::dynamic_tools::DynamicToolResponse as CoreDynamicToolResponse;
 use code_core::protocol::InputItem as CoreInputItem;
@@ -145,8 +153,8 @@ pub struct CodexMessageProcessor {
     active_login: Arc<Mutex<Option<ActiveLogin>>>,
     // Queue of pending interrupt requests per conversation. We reply when TurnAborted arrives.
     pending_interrupts: Arc<Mutex<HashMap<Uuid, Vec<RequestId>>>>,
-    #[allow(dead_code)]
     pending_fuzzy_searches: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
+    fuzzy_search_sessions: Arc<Mutex<HashMap<String, Arc<FuzzyFileSearchSession>>>>,
 }
 
 impl CodexMessageProcessor {
@@ -167,6 +175,7 @@ impl CodexMessageProcessor {
             active_login: Arc::new(Mutex::new(None)),
             pending_interrupts: Arc::new(Mutex::new(HashMap::new())),
             pending_fuzzy_searches: Arc::new(Mutex::new(HashMap::new())),
+            fuzzy_search_sessions: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -223,6 +232,15 @@ impl CodexMessageProcessor {
             }
             ClientRequest::FuzzyFileSearch { request_id, params } => {
                 self.fuzzy_file_search(request_id, params).await;
+            }
+            ClientRequest::FuzzyFileSearchSessionStart { request_id, params } => {
+                self.fuzzy_file_search_session_start(request_id, params).await;
+            }
+            ClientRequest::FuzzyFileSearchSessionUpdate { request_id, params } => {
+                self.fuzzy_file_search_session_update(request_id, params).await;
+            }
+            ClientRequest::FuzzyFileSearchSessionStop { request_id, params } => {
+                self.fuzzy_file_search_session_stop(request_id, params).await;
             }
             ClientRequest::LoginChatGpt { request_id, .. } => {
                 self.login_chatgpt_v1(request_id).await;
@@ -613,56 +631,6 @@ impl CodexMessageProcessor {
         // Acknowledge with an empty result.
         self.outgoing
             .send_response(request_id, SendUserMessageResponse {})
-            .await;
-    }
-
-    #[allow(dead_code)]
-    async fn send_user_turn(&self, request_id: RequestId, params: SendUserTurnParams) {
-        let SendUserTurnParams {
-            conversation_id,
-            items,
-            cwd: _,
-            approval_policy: _,
-            sandbox_policy: _,
-            model: _,
-            effort: _,
-            summary: _,
-        } = params;
-
-        let Ok(conversation) = self
-            .conversation_manager
-            .get_conversation(conversation_id)
-            .await
-        else {
-            let error = JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: format!("conversation not found: {conversation_id}"),
-                data: None,
-            };
-            self.outgoing.send_error(request_id, error).await;
-            return;
-        };
-
-        let mapped_items: Vec<CoreInputItem> = items
-            .into_iter()
-            .map(|item| match item {
-                WireInputItem::Text { text } => CoreInputItem::Text { text },
-                WireInputItem::Image { image_url } => CoreInputItem::Image { image_url },
-                WireInputItem::LocalImage { path } => CoreInputItem::LocalImage { path },
-            })
-            .collect();
-
-        // Core protocol compatibility: older cores do not support per-turn overrides.
-        // Submit only the user input items.
-        let _ = conversation
-            .submit(Op::UserInput {
-                items: mapped_items,
-                final_output_json_schema: None,
-            })
-            .await;
-
-        self.outgoing
-            .send_response(request_id, SendUserTurnResponse {})
             .await;
     }
 
@@ -1359,7 +1327,6 @@ impl CodexMessageProcessor {
         }
     }
 
-    #[allow(dead_code)]
     async fn fuzzy_file_search(&mut self, request_id: RequestId, params: FuzzyFileSearchParams) {
         let FuzzyFileSearchParams {
             query,
@@ -1398,6 +1365,82 @@ impl CodexMessageProcessor {
 
         let response = FuzzyFileSearchResponse { files: results };
         self.outgoing.send_response(request_id, response).await;
+    }
+
+    async fn fuzzy_file_search_session_start(
+        &mut self,
+        request_id: RequestId,
+        params: FuzzyFileSearchSessionStartParams,
+    ) {
+        let FuzzyFileSearchSessionStartParams { session_id, roots } = params;
+        if session_id.is_empty() {
+            let error = JSONRPCErrorError {
+                code: INVALID_REQUEST_ERROR_CODE,
+                message: "sessionId must not be empty".to_string(),
+                data: None,
+            };
+            self.outgoing.send_error(request_id, error).await;
+            return;
+        }
+
+        match start_fuzzy_file_search_session(session_id.clone(), roots, self.outgoing.clone()) {
+            Ok(session) => {
+                let mut sessions = self.fuzzy_search_sessions.lock().await;
+                sessions.insert(session_id, Arc::new(session));
+                self.outgoing
+                    .send_response(request_id, FuzzyFileSearchSessionStartResponse {})
+                    .await;
+            }
+            Err(err) => {
+                let error = JSONRPCErrorError {
+                    code: INTERNAL_ERROR_CODE,
+                    message: format!("failed to start fuzzy file search session: {err}"),
+                    data: None,
+                };
+                self.outgoing.send_error(request_id, error).await;
+            }
+        }
+    }
+
+    async fn fuzzy_file_search_session_update(
+        &mut self,
+        request_id: RequestId,
+        params: FuzzyFileSearchSessionUpdateParams,
+    ) {
+        let FuzzyFileSearchSessionUpdateParams { session_id, query } = params;
+        let session = {
+            let sessions = self.fuzzy_search_sessions.lock().await;
+            sessions.get(&session_id).cloned()
+        };
+
+        let Some(session) = session else {
+            let error = JSONRPCErrorError {
+                code: INVALID_REQUEST_ERROR_CODE,
+                message: format!("fuzzy file search session not found: {session_id}"),
+                data: None,
+            };
+            self.outgoing.send_error(request_id, error).await;
+            return;
+        };
+
+        session.update_query(query).await;
+        self.outgoing
+            .send_response(request_id, FuzzyFileSearchSessionUpdateResponse {})
+            .await;
+    }
+
+    async fn fuzzy_file_search_session_stop(
+        &mut self,
+        request_id: RequestId,
+        params: FuzzyFileSearchSessionStopParams,
+    ) {
+        let FuzzyFileSearchSessionStopParams { session_id } = params;
+        if let Some(session) = self.fuzzy_search_sessions.lock().await.remove(&session_id) {
+            session.stop().await;
+        }
+        self.outgoing
+            .send_response(request_id, FuzzyFileSearchSessionStopResponse {})
+            .await;
     }
 }
 
@@ -1899,200 +1942,6 @@ impl IntoWireAuthMode for code_app_server_protocol::AuthMode {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use code_app_server_protocol::AuthMode;
-    use code_core::config::ConfigOverrides;
-    use code_protocol::mcp_protocol::RemoveConversationListenerParams;
-    use code_protocol::protocol::SessionSource;
-    use mcp_types::RequestId;
-    use tokio::sync::mpsc;
-
-    fn make_processor_for_tests() -> (CodexMessageProcessor, mpsc::UnboundedReceiver<crate::outgoing_message::OutgoingMessage>) {
-        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
-        let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
-        let config = Arc::new(
-            Config::load_with_cli_overrides(Vec::new(), ConfigOverrides::default())
-                .expect("load default config"),
-        );
-        let auth_manager = AuthManager::shared_with_mode_and_originator(
-            config.code_home.clone(),
-            AuthMode::ApiKey,
-            config.responses_originator_header.clone(),
-            config.cli_auth_credentials_store_mode,
-        );
-        let conversation_manager = Arc::new(ConversationManager::new(
-            auth_manager.clone(),
-            SessionSource::Mcp,
-        ));
-
-        (
-            CodexMessageProcessor::new(
-                auth_manager,
-                conversation_manager,
-                outgoing,
-                None,
-                config,
-            ),
-            outgoing_rx,
-        )
-    }
-
-    #[tokio::test]
-    async fn remove_conversation_listener_enforces_owner_connection() {
-        let (mut processor, mut outgoing_rx) = make_processor_for_tests();
-
-        let subscription_id = Uuid::new_v4();
-        let (cancel_tx, mut cancel_rx) = oneshot::channel();
-        processor.conversation_listeners.insert(
-            subscription_id,
-            ConversationListenerRegistration {
-                owner_connection_id: ConnectionId(1),
-                cancel_tx,
-            },
-        );
-
-        processor
-            .remove_conversation_listener(
-                ConnectionId(2),
-                RequestId::Integer(10),
-                RemoveConversationListenerParams { subscription_id },
-            )
-            .await;
-
-        let message = outgoing_rx
-            .recv()
-            .await
-            .expect("error response should be sent");
-        match message {
-            crate::outgoing_message::OutgoingMessage::Error(err) => {
-                assert_eq!(err.id, RequestId::Integer(10));
-                assert!(err.error.message.contains("subscription not found"));
-            }
-            _ => panic!("expected error response"),
-        }
-
-        assert!(
-            processor.conversation_listeners.contains_key(&subscription_id),
-            "listener should remain registered for original owner"
-        );
-
-        processor
-            .remove_conversation_listener(
-                ConnectionId(1),
-                RequestId::Integer(11),
-                RemoveConversationListenerParams { subscription_id },
-            )
-            .await;
-
-        let message = outgoing_rx
-            .recv()
-            .await
-            .expect("success response should be sent");
-        match message {
-            crate::outgoing_message::OutgoingMessage::Response(response) => {
-                assert_eq!(response.id, RequestId::Integer(11));
-            }
-            _ => panic!("expected success response"),
-        }
-
-        assert!(
-            processor.conversation_listeners.get(&subscription_id).is_none(),
-            "listener should be removed by owner"
-        );
-        assert_eq!(cancel_rx.try_recv(), Ok(()));
-    }
-
-    #[test]
-    fn parse_plan_type_is_case_insensitive() {
-        assert_eq!(parse_plan_type(Some("Pro".to_string())), PlanType::Pro);
-        assert_eq!(
-            parse_plan_type(Some("BUSINESS".to_string())),
-            PlanType::Business
-        );
-        assert_eq!(parse_plan_type(Some("mystery".to_string())), PlanType::Unknown);
-        assert_eq!(parse_plan_type(None), PlanType::Unknown);
-    }
-
-    #[test]
-    fn select_rate_limit_snapshot_prefers_matching_account() {
-        let snapshots = vec![
-            code_core::account_usage::StoredRateLimitSnapshot {
-                account_id: "acct-a".to_string(),
-                plan: Some("pro".to_string()),
-                snapshot: None,
-                observed_at: None,
-                primary_next_reset_at: None,
-                secondary_next_reset_at: None,
-                last_usage_limit_hit_at: None,
-            },
-            code_core::account_usage::StoredRateLimitSnapshot {
-                account_id: "acct-b".to_string(),
-                plan: Some("plus".to_string()),
-                snapshot: None,
-                observed_at: None,
-                primary_next_reset_at: None,
-                secondary_next_reset_at: None,
-                last_usage_limit_hit_at: None,
-            },
-        ];
-
-        let selected = select_rate_limit_snapshot(Some("acct-b".to_string()), snapshots)
-            .expect("snapshot should be selected");
-        assert_eq!(selected.account_id, "acct-b");
-    }
-
-    #[test]
-    fn rate_limit_snapshot_from_event_maps_windows() {
-        let event = code_core::protocol::RateLimitSnapshotEvent {
-            primary_used_percent: 11.0,
-            secondary_used_percent: 22.0,
-            primary_to_secondary_ratio_percent: 50.0,
-            primary_window_minutes: 60,
-            secondary_window_minutes: 1440,
-            primary_reset_after_seconds: Some(12),
-            secondary_reset_after_seconds: Some(34),
-        };
-
-        let snapshot = rate_limit_snapshot_from_event(&event, Some(PlanType::Pro));
-        assert_eq!(snapshot.plan_type, Some(PlanType::Pro));
-        assert_eq!(
-            snapshot.primary.as_ref().and_then(|window| window.window_minutes),
-            Some(60)
-        );
-        assert_eq!(
-            snapshot
-                .secondary
-                .as_ref()
-                .and_then(|window| window.window_minutes),
-            Some(1440)
-        );
-    }
-
-    #[test]
-    fn map_tool_request_user_input_response_preserves_answers() {
-        let response = ToolRequestUserInputResponse {
-            answers: std::collections::HashMap::from([(
-                "question_id".to_string(),
-                code_app_server_protocol::ToolRequestUserInputAnswer {
-                    answers: vec!["selected".to_string()],
-                },
-            )]),
-        };
-
-        let mapped = map_tool_request_user_input_response(response);
-        assert_eq!(
-            mapped
-                .answers
-                .get("question_id")
-                .expect("question_id should exist")
-                .answers,
-            vec!["selected".to_string()]
-        );
-    }
-}
-
 impl IntoWireAuthMode for code_protocol::mcp_protocol::AuthMode {
     fn into_wire(self) -> code_protocol::mcp_protocol::AuthMode {
         self
@@ -2273,3 +2122,199 @@ fn snippet_from_content(content: &[code_protocol::models::ContentItem]) -> Optio
 }
 
 // Unused legacy mappers removed to avoid warnings.
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use code_app_server_protocol::AuthMode;
+    use code_core::config::ConfigOverrides;
+    use code_protocol::mcp_protocol::RemoveConversationListenerParams;
+    use code_protocol::protocol::SessionSource;
+    use mcp_types::RequestId;
+    use tokio::sync::mpsc;
+
+    fn make_processor_for_tests(
+    ) -> (
+        CodexMessageProcessor,
+        mpsc::UnboundedReceiver<crate::outgoing_message::OutgoingMessage>,
+    ) {
+        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
+        let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
+        let config = Arc::new(
+            Config::load_with_cli_overrides(Vec::new(), ConfigOverrides::default())
+                .expect("load default config"),
+        );
+        let auth_manager = AuthManager::shared_with_mode_and_originator(
+            config.code_home.clone(),
+            AuthMode::ApiKey,
+            config.responses_originator_header.clone(),
+            config.cli_auth_credentials_store_mode,
+        );
+        let conversation_manager =
+            Arc::new(ConversationManager::new(auth_manager.clone(), SessionSource::Mcp));
+
+        (
+            CodexMessageProcessor::new(
+                auth_manager,
+                conversation_manager,
+                outgoing,
+                None,
+                config,
+            ),
+            outgoing_rx,
+        )
+    }
+
+    #[tokio::test]
+    async fn remove_conversation_listener_enforces_owner_connection() {
+        let (mut processor, mut outgoing_rx) = make_processor_for_tests();
+
+        let subscription_id = Uuid::new_v4();
+        let (cancel_tx, mut cancel_rx) = oneshot::channel();
+        processor.conversation_listeners.insert(
+            subscription_id,
+            ConversationListenerRegistration {
+                owner_connection_id: ConnectionId(1),
+                cancel_tx,
+            },
+        );
+
+        processor
+            .remove_conversation_listener(
+                ConnectionId(2),
+                RequestId::Integer(10),
+                RemoveConversationListenerParams { subscription_id },
+            )
+            .await;
+
+        let message = outgoing_rx
+            .recv()
+            .await
+            .expect("error response should be sent");
+        match message {
+            crate::outgoing_message::OutgoingMessage::Error(err) => {
+                assert_eq!(err.id, RequestId::Integer(10));
+                assert!(err.error.message.contains("subscription not found"));
+            }
+            _ => panic!("expected error response"),
+        }
+
+        assert!(
+            processor.conversation_listeners.contains_key(&subscription_id),
+            "listener should remain registered for original owner"
+        );
+
+        processor
+            .remove_conversation_listener(
+                ConnectionId(1),
+                RequestId::Integer(11),
+                RemoveConversationListenerParams { subscription_id },
+            )
+            .await;
+
+        let message = outgoing_rx
+            .recv()
+            .await
+            .expect("success response should be sent");
+        match message {
+            crate::outgoing_message::OutgoingMessage::Response(response) => {
+                assert_eq!(response.id, RequestId::Integer(11));
+            }
+            _ => panic!("expected success response"),
+        }
+
+        assert!(
+            !processor.conversation_listeners.contains_key(&subscription_id),
+            "listener should be removed by owner"
+        );
+        assert_eq!(cancel_rx.try_recv(), Ok(()));
+    }
+
+    #[test]
+    fn parse_plan_type_is_case_insensitive() {
+        assert_eq!(parse_plan_type(Some("Pro".to_string())), PlanType::Pro);
+        assert_eq!(
+            parse_plan_type(Some("BUSINESS".to_string())),
+            PlanType::Business
+        );
+        assert_eq!(parse_plan_type(Some("mystery".to_string())), PlanType::Unknown);
+        assert_eq!(parse_plan_type(None), PlanType::Unknown);
+    }
+
+    #[test]
+    fn select_rate_limit_snapshot_prefers_matching_account() {
+        let snapshots = vec![
+            code_core::account_usage::StoredRateLimitSnapshot {
+                account_id: "acct-a".to_string(),
+                plan: Some("pro".to_string()),
+                snapshot: None,
+                observed_at: None,
+                primary_next_reset_at: None,
+                secondary_next_reset_at: None,
+                last_usage_limit_hit_at: None,
+            },
+            code_core::account_usage::StoredRateLimitSnapshot {
+                account_id: "acct-b".to_string(),
+                plan: Some("plus".to_string()),
+                snapshot: None,
+                observed_at: None,
+                primary_next_reset_at: None,
+                secondary_next_reset_at: None,
+                last_usage_limit_hit_at: None,
+            },
+        ];
+
+        let selected = select_rate_limit_snapshot(Some("acct-b".to_string()), snapshots)
+            .expect("snapshot should be selected");
+        assert_eq!(selected.account_id, "acct-b");
+    }
+
+    #[test]
+    fn rate_limit_snapshot_from_event_maps_windows() {
+        let event = code_core::protocol::RateLimitSnapshotEvent {
+            primary_used_percent: 11.0,
+            secondary_used_percent: 22.0,
+            primary_to_secondary_ratio_percent: 50.0,
+            primary_window_minutes: 60,
+            secondary_window_minutes: 1440,
+            primary_reset_after_seconds: Some(12),
+            secondary_reset_after_seconds: Some(34),
+        };
+
+        let snapshot = rate_limit_snapshot_from_event(&event, Some(PlanType::Pro));
+        assert_eq!(snapshot.plan_type, Some(PlanType::Pro));
+        assert_eq!(
+            snapshot.primary.as_ref().and_then(|window| window.window_minutes),
+            Some(60)
+        );
+        assert_eq!(
+            snapshot
+                .secondary
+                .as_ref()
+                .and_then(|window| window.window_minutes),
+            Some(1440)
+        );
+    }
+
+    #[test]
+    fn map_tool_request_user_input_response_preserves_answers() {
+        let response = ToolRequestUserInputResponse {
+            answers: std::collections::HashMap::from([(
+                "question_id".to_string(),
+                code_app_server_protocol::ToolRequestUserInputAnswer {
+                    answers: vec!["selected".to_string()],
+                },
+            )]),
+        };
+
+        let mapped = map_tool_request_user_input_response(response);
+        assert_eq!(
+            mapped
+                .answers
+                .get("question_id")
+                .expect("question_id should exist")
+                .answers,
+            vec!["selected".to_string()]
+        );
+    }
+}

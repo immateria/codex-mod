@@ -131,6 +131,101 @@ impl ChatWidget<'_> {
         candidate_collapsed == collapsed_input
     }
 
+    fn collaboration_mode_display_name(mode: CollaborationModeKind) -> &'static str {
+        match mode {
+            CollaborationModeKind::Default => "default",
+            CollaborationModeKind::Plan => "plan",
+        }
+    }
+
+    fn parse_collaboration_mode(value: &str) -> Option<CollaborationModeKind> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "default" | "normal" => Some(CollaborationModeKind::Default),
+            "plan" | "planning" => Some(CollaborationModeKind::Plan),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn handle_mode_command(&mut self, command_args: String) {
+        if self.is_task_running() {
+            let message = "'/mode' is disabled while a task is in progress.".to_string();
+            self.history_push_plain_state(history_cell::new_error_event(message));
+            return;
+        }
+
+        let trimmed = command_args.trim();
+        if trimmed.is_empty() {
+            let mode = Self::collaboration_mode_display_name(self.current_collaboration_mode());
+            self.push_background_tail(format!(
+                "Collaboration mode: {mode} (use /mode <default|plan>)"
+            ));
+            return;
+        }
+
+        let Some(mode) = Self::parse_collaboration_mode(trimmed) else {
+            let message = format!(
+                "Invalid mode: '{trimmed}'. Use /mode <default|plan>."
+            );
+            self.history_push_plain_state(history_cell::new_error_event(message));
+            return;
+        };
+
+        self.set_collaboration_mode(mode, true);
+    }
+
+    pub(crate) fn set_collaboration_mode(
+        &mut self,
+        mode: CollaborationModeKind,
+        announce: bool,
+    ) {
+        let previous = self.collaboration_mode;
+        if previous == mode {
+            if announce {
+                let label = Self::collaboration_mode_display_name(mode);
+                self.bottom_pane
+                    .flash_footer_notice(format!("Collaboration mode already set to {label}."));
+            }
+            return;
+        }
+
+        self.collaboration_mode = mode;
+        if matches!(mode, CollaborationModeKind::Plan) {
+            self.apply_planning_session_model();
+        } else if matches!(previous, CollaborationModeKind::Plan) {
+            self.restore_planning_session_model();
+        }
+
+        let op = Op::ConfigureSession {
+            provider: self.config.model_provider.clone(),
+            model: self.config.model.clone(),
+            model_explicit: self.config.model_explicit,
+            model_reasoning_effort: self.config.model_reasoning_effort,
+            preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
+            model_reasoning_summary: self.config.model_reasoning_summary,
+            model_text_verbosity: self.config.model_text_verbosity,
+            user_instructions: self.config.user_instructions.clone(),
+            base_instructions: self.config.base_instructions.clone(),
+            approval_policy: self.config.approval_policy,
+            sandbox_policy: self.config.sandbox_policy.clone(),
+            disable_response_storage: self.config.disable_response_storage,
+            notify: self.config.notify.clone(),
+            cwd: self.config.cwd.clone(),
+            resume_path: None,
+            demo_developer_message: self.config.demo_developer_message.clone(),
+            dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
+            collaboration_mode: self.current_collaboration_mode(),
+        };
+        self.submit_op(op);
+        self.refresh_settings_overview_rows();
+
+        if announce {
+            let label = Self::collaboration_mode_display_name(mode);
+            self.push_background_tail(format!("Collaboration mode set to {label}."));
+        }
+        self.request_redraw();
+    }
+
     pub(crate) fn handle_model_command(&mut self, command_args: String) {
         if self.is_task_running() {
             let message = "'/model' is disabled while a task is in progress.".to_string();
@@ -485,6 +580,7 @@ impl ChatWidget<'_> {
                 demo_developer_message: self.config.demo_developer_message.clone(),
                 dynamic_tools: Vec::new(),
                 shell: self.config.shell.clone(),
+                collaboration_mode: self.current_collaboration_mode(),
             };
             self.submit_op(op);
 
@@ -1064,7 +1160,7 @@ impl ChatWidget<'_> {
         self.refresh_settings_overview_rows();
         self.update_planning_settings_model_row();
         // If we're currently in plan mode, switch the session model immediately.
-        if matches!(self.config.sandbox_policy, code_core::protocol::SandboxPolicy::ReadOnly) {
+        if self.current_collaboration_mode() == CollaborationModeKind::Plan {
             self.apply_planning_session_model();
         }
         self.request_redraw();
@@ -1111,6 +1207,7 @@ impl ChatWidget<'_> {
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            collaboration_mode: self.current_collaboration_mode(),
         };
         self.submit_op(op);
     }
@@ -1139,6 +1236,7 @@ impl ChatWidget<'_> {
                 demo_developer_message: self.config.demo_developer_message.clone(),
                 dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            collaboration_mode: self.current_collaboration_mode(),
             };
             self.submit_op(op);
         }
@@ -1343,6 +1441,7 @@ impl ChatWidget<'_> {
                 demo_developer_message: self.config.demo_developer_message.clone(),
                 dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            collaboration_mode: self.current_collaboration_mode(),
             };
             let _ = self.code_op_tx.send(op);
         } else {
@@ -1488,6 +1587,7 @@ impl ChatWidget<'_> {
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            collaboration_mode: self.current_collaboration_mode(),
         };
 
         self.submit_op(op);
@@ -1531,6 +1631,7 @@ impl ChatWidget<'_> {
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            collaboration_mode: self.current_collaboration_mode(),
         };
 
         self.submit_op(op);

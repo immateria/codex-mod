@@ -3,8 +3,11 @@ source: tui/tests/vt100_chatwidget_snapshot.rs
 expression: output
 ---
  +----------------------------------------------------------------------------+
- |                                 Every Code                                 |
+ |                                    Code                                    |
  +----------------------------------------------------------------------------+
+
+
+
  • I can help with various tasks including:
 
    - Writing code
@@ -13,9 +16,6 @@ expression: output
 
 
  › /agents
-
- ✖ ⚠️  status_update: missing agent batch_id. tool=agent_status
-   agents=orphan-agent
 
  +----------------------------- ✶ Using tools... -----------------------------+
  | What can I code for you today?                                             |

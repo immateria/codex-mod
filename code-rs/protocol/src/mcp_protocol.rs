@@ -238,6 +238,27 @@ pub enum ClientRequest {
         request_id: RequestId,
         params: FuzzyFileSearchParams,
     },
+    #[serde(rename = "fuzzyFileSearch/sessionStart")]
+    #[ts(rename = "fuzzyFileSearch/sessionStart")]
+    FuzzyFileSearchSessionStart {
+        #[serde(rename = "id")]
+        request_id: RequestId,
+        params: FuzzyFileSearchSessionStartParams,
+    },
+    #[serde(rename = "fuzzyFileSearch/sessionUpdate")]
+    #[ts(rename = "fuzzyFileSearch/sessionUpdate")]
+    FuzzyFileSearchSessionUpdate {
+        #[serde(rename = "id")]
+        request_id: RequestId,
+        params: FuzzyFileSearchSessionUpdateParams,
+    },
+    #[serde(rename = "fuzzyFileSearch/sessionStop")]
+    #[ts(rename = "fuzzyFileSearch/sessionStop")]
+    FuzzyFileSearchSessionStop {
+        #[serde(rename = "id")]
+        request_id: RequestId,
+        params: FuzzyFileSearchSessionStopParams,
+    },
     /// Execute a command (argv vector) under the server's sandbox.
     ExecOneOffCommand {
         #[serde(rename = "id")]
@@ -805,6 +826,38 @@ pub struct FuzzyFileSearchResult {
 pub struct FuzzyFileSearchResponse {
     pub files: Vec<FuzzyFileSearchResult>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct FuzzyFileSearchSessionStartParams {
+    pub session_id: String,
+    pub roots: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS, Default)]
+pub struct FuzzyFileSearchSessionStartResponse {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct FuzzyFileSearchSessionUpdateParams {
+    pub session_id: String,
+    pub query: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS, Default)]
+pub struct FuzzyFileSearchSessionUpdateResponse {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct FuzzyFileSearchSessionStopParams {
+    pub session_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS, Default)]
+pub struct FuzzyFileSearchSessionStopResponse {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]

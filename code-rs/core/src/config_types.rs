@@ -33,14 +33,14 @@ pub enum AuthCredentialsStoreMode {
     Ephemeral,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum OtelHttpProtocol {
     Binary,
     Json,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum OtelExporterKind {
     None,
@@ -55,7 +55,7 @@ pub enum OtelExporterKind {
     },
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct OtelConfigToml {
     pub log_user_prompt: Option<bool>,
     pub environment: Option<String>,
@@ -101,35 +101,43 @@ pub struct McpServerConfig {
     pub disabled_tools: Vec<String>,
 }
 
+// Raw MCP config shape used for deserialization and JSON Schema generation.
+// Keep this in sync with the validation logic in `McpServerConfig`.
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub(crate) struct RawMcpServerConfig {
+    // stdio
+    pub command: Option<String>,
+    #[serde(default)]
+    pub args: Option<Vec<String>>,
+    #[serde(default)]
+    pub env: Option<HashMap<String, String>>,
+
+    // streamable_http
+    pub url: Option<String>,
+    pub bearer_token: Option<String>,
+    pub bearer_token_env_var: Option<String>,
+    pub http_headers: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub env_http_headers: Option<HashMap<String, String>>,
+
+    // shared
+    #[serde(default)]
+    pub startup_timeout_sec: Option<f64>,
+    #[serde(default)]
+    pub startup_timeout_ms: Option<u64>,
+    #[serde(default, with = "option_duration_secs")]
+    #[schemars(with = "Option<f64>")]
+    pub tool_timeout_sec: Option<Duration>,
+    #[serde(default)]
+    pub disabled_tools: Vec<String>,
+}
+
 impl<'de> Deserialize<'de> for McpServerConfig {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        #[derive(Deserialize)]
-        struct RawMcpServerConfig {
-            command: Option<String>,
-            #[serde(default)]
-            args: Option<Vec<String>>,
-            #[serde(default)]
-            env: Option<HashMap<String, String>>,
-
-            url: Option<String>,
-            bearer_token: Option<String>,
-            bearer_token_env_var: Option<String>,
-            http_headers: Option<HashMap<String, String>>,
-            env_http_headers: Option<HashMap<String, String>>,
-
-            #[serde(default)]
-            startup_timeout_sec: Option<f64>,
-            #[serde(default)]
-            startup_timeout_ms: Option<u64>,
-            #[serde(default, with = "option_duration_secs")]
-            tool_timeout_sec: Option<Duration>,
-            #[serde(default)]
-            disabled_tools: Vec<String>,
-        }
-
         let raw = RawMcpServerConfig::deserialize(deserializer)?;
 
         let startup_timeout_sec = match (raw.startup_timeout_sec, raw.startup_timeout_ms) {
@@ -214,7 +222,7 @@ impl<'de> Deserialize<'de> for McpServerConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct ShellConfig {
     pub path: String,
     #[serde(default)]
@@ -230,7 +238,7 @@ pub struct ShellConfig {
     pub dangerous_command_detection: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Display, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum ShellScriptStyle {
@@ -285,7 +293,7 @@ impl ShellScriptStyle {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Display, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum CommandSafetyRuleset {
@@ -294,7 +302,7 @@ pub enum CommandSafetyRuleset {
     Windows,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct CommandSafetyRuleConfig {
     /// Optional override for dangerous-command detection.
     #[serde(default)]
@@ -307,7 +315,7 @@ pub struct CommandSafetyRuleConfig {
     pub dangerous_rules: Option<CommandSafetyRuleset>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct CommandSafetyOsProfileConfig {
     #[serde(default)]
     pub windows: CommandSafetyRuleConfig,
@@ -319,7 +327,7 @@ pub struct CommandSafetyOsProfileConfig {
     pub other: CommandSafetyRuleConfig,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct CommandSafetyProfileConfig {
     #[serde(flatten)]
     pub rules: CommandSafetyRuleConfig,
@@ -327,7 +335,7 @@ pub struct CommandSafetyProfileConfig {
     pub os: CommandSafetyOsProfileConfig,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct ShellStyleMcpConfig {
     #[serde(default)]
     pub include: Vec<String>,
@@ -335,7 +343,7 @@ pub struct ShellStyleMcpConfig {
     pub exclude: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct ShellStyleProfileConfig {
     /// Additional style-specific reference files to load into model context.
     /// Relative paths are resolved against the session cwd.
@@ -375,7 +383,7 @@ pub struct ShellStyleProfileConfig {
     pub dangerous_command_detection: Option<bool>,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct ShellPresetConfig {
     pub id: String,
     pub command: String,
@@ -393,7 +401,7 @@ fn default_shell_preset_show_in_picker() -> bool {
     true
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged, deny_unknown_fields, rename_all = "snake_case")]
 pub enum McpServerTransportConfig {
     /// https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#stdio
@@ -454,7 +462,7 @@ mod option_duration_secs {
 }
 
 /// Configuration for commands that require an explicit `confirm:` prefix.
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct ConfirmGuardConfig {
     /// List of regex patterns applied to the raw command (joined argv or shell script).
@@ -468,7 +476,7 @@ impl Default for ConfirmGuardConfig {
     }
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct ConfirmGuardPattern {
     /// ECMA-style regular expression matched against the command string.
     pub regex: String,
@@ -550,17 +558,15 @@ fn default_confirm_guard_patterns() -> Vec<ConfirmGuardPattern> {
     ]
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
-#[derive(Default)]
 pub enum AllowedCommandMatchKind {
     #[default]
     Exact,
     Prefix,
 }
 
-
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct AllowedCommand {
     #[serde(default)]
     pub argv: Vec<String>,
@@ -569,7 +575,7 @@ pub struct AllowedCommand {
 }
 
 /// Configuration for a subagent slash command (e.g., plan/solve/code or custom)
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct SubagentCommandConfig {
     /// Name of the command (e.g., "plan", "solve", "code", or custom)
@@ -596,7 +602,7 @@ pub struct SubagentCommandConfig {
 }
 
 /// Top-level subagents section containing a list of commands.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct SubagentsToml {
     #[serde(default)]
@@ -624,7 +630,7 @@ pub struct McpToolId {
 }
 
 /// Configuration for external agent models
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub struct AgentConfig {
     /// Name of the agent (e.g., "claude", "gemini", "gpt-4")
@@ -678,7 +684,7 @@ fn default_true() -> bool {
 }
 
 /// GitHub integration settings.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct GithubConfig {
     /// When true, Codex watches for GitHub Actions workflow runs after a
     /// successful `git push` and reports failures as background messages.
@@ -700,8 +706,7 @@ pub struct GithubConfig {
     pub actionlint_strict: bool,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct ValidationConfig {
     /// Legacy master toggle for the validation harness (kept for config compatibility).
     /// `run_patch_harness` now relies solely on the functional/stylistic group toggles.
@@ -725,9 +730,7 @@ pub struct ValidationConfig {
     pub tools: ValidationTools,
 }
 
-
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct ValidationGroups {
     /// Functional checks catch correctness regressions.
     #[serde(default = "default_true")]
@@ -738,8 +741,7 @@ pub struct ValidationGroups {
     pub stylistic: bool,
 }
 
-
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct ValidationTools {
     pub shellcheck: Option<bool>,
     pub markdownlint: Option<bool>,
@@ -796,7 +798,7 @@ pub fn validation_tool_category(name: &str) -> ValidationCategory {
     }
 }
 
-#[derive(Deserialize, Debug, Copy, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Copy, Clone, PartialEq, JsonSchema)]
 pub enum UriBasedFileOpener {
     #[serde(rename = "vscode")]
     VsCode,
@@ -829,7 +831,7 @@ impl UriBasedFileOpener {
 
 /// Settings that govern if and what will be written to `~/.code/history.jsonl`
 /// (Code still reads legacy `~/.codex/history.jsonl`).
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct History {
     /// If true, history entries will not be written to disk.
     pub persistence: HistoryPersistence,
@@ -839,7 +841,7 @@ pub struct History {
     pub max_bytes: Option<usize>,
 }
 
-#[derive(Deserialize, Debug, Copy, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Copy, Clone, PartialEq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum HistoryPersistence {
     /// Save all history entries to disk.
@@ -849,7 +851,7 @@ pub enum HistoryPersistence {
     None,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum Notifications {
     Enabled(bool),
@@ -863,7 +865,7 @@ impl Default for Notifications {
 }
 
 /// Collection of settings that are specific to the TUI.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct CachedTerminalBackground {
     pub is_dark: bool,
     #[serde(default)]
@@ -880,7 +882,7 @@ pub struct CachedTerminalBackground {
     pub rgb: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct Tui {
     /// Theme configuration for the TUI
     #[serde(default)]
@@ -893,6 +895,33 @@ pub struct Tui {
     /// Header display options for the top status area.
     #[serde(default)]
     pub header: HeaderConfig,
+
+    /// Ordered list of status line item identifiers for the top header line.
+    ///
+    /// When set, the built-in top-line renderer uses these items (in order)
+    /// instead of the legacy fixed layout. Custom templates in
+    /// `tui.header.top_line_text` still take precedence when present.
+    #[serde(default)]
+    pub status_line_top: Option<Vec<String>>,
+
+    /// Ordered list of status line item identifiers for the bottom header line.
+    ///
+    /// Used when `tui.header.show_bottom_line = true` and
+    /// `tui.header.bottom_line_text` is unset.
+    #[serde(default)]
+    pub status_line_bottom: Option<Vec<String>>,
+
+    /// Which status line lane `/statusline` opens by default.
+    #[serde(default)]
+    pub status_line_primary: StatusLineLane,
+
+    /// Legacy alias for pre-split status line configuration.
+    ///
+    /// Kept for backward compatibility; new writes should target
+    /// `status_line_top`.
+    #[serde(default)]
+    #[schemars(skip)]
+    pub status_line: Option<Vec<String>>,
 
     /// Auto Drive behavioral defaults (legacy location; prefer top-level `[auto_drive]`).
     #[serde(default)]
@@ -953,7 +982,7 @@ pub struct Tui {
 }
 
 /// Branding options under `[tui.branding]`.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct BrandingConfig {
     /// Optional title shown in the TUI header and intro animation.
     /// When unset or empty, Codex falls back to its built-in title.
@@ -962,7 +991,7 @@ pub struct BrandingConfig {
 }
 
 /// Hover styling options for interactive segments in the TUI header.
-#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum HeaderHoverStyle {
     /// Highlight interactive segments with a background fill (and emphasis).
@@ -974,8 +1003,16 @@ pub enum HeaderHoverStyle {
     None,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum StatusLineLane {
+    #[default]
+    Top,
+    Bottom,
+}
+
 /// Header options under `[tui.header]`.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct HeaderConfig {
     /// Show the primary header line.
     #[serde(default = "default_true")]
@@ -1013,7 +1050,7 @@ impl Default for HeaderConfig {
 }
 
 /// Limits panel settings under `[tui.limits]`.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct LimitsUiConfig {
     /// Preferred layout mode for the limits settings panel.
     #[serde(default)]
@@ -1021,7 +1058,7 @@ pub struct LimitsUiConfig {
 }
 
 /// Available layout modes for the limits settings panel.
-#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum LimitsLayoutMode {
     #[default]
@@ -1040,6 +1077,10 @@ impl Default for Tui {
             theme: ThemeConfig::default(),
             branding: BrandingConfig::default(),
             header: HeaderConfig::default(),
+            status_line_top: None,
+            status_line_bottom: None,
+            status_line_primary: StatusLineLane::default(),
+            status_line: None,
             auto_drive: None,
             cached_terminal_background: None,
             highlight: HighlightConfig::default(),
@@ -1058,7 +1099,7 @@ impl Default for Tui {
 }
 
 /// User acknowledgements for in-product notices (distinct from notifications).
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct Notice {
     pub hide_full_access_warning: Option<bool>,
     pub hide_gpt5_1_migration_prompt: Option<bool>,
@@ -1068,7 +1109,7 @@ pub struct Notice {
     pub hide_gpt5_2_codex_migration_prompt: Option<bool>,
 }
 
-#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
 #[serde(transparent)]
 pub struct AutoResolveAttemptLimit(u32);
 
@@ -1105,7 +1146,7 @@ impl<'de> Deserialize<'de> for AutoResolveAttemptLimit {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct AutoDriveModelRoutingEntry {
     pub model: String,
 
@@ -1141,7 +1182,7 @@ pub fn default_auto_drive_model_routing_entries() -> Vec<AutoDriveModelRoutingEn
 }
 
 /// Auto Drive behavioral defaults persisted via `config.toml`.
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct AutoDriveSettings {
     #[serde(default = "default_true")]
     pub review_enabled: bool,
@@ -1226,9 +1267,8 @@ const fn default_auto_drive_reasoning_effort() -> ReasoningEffort {
     ReasoningEffort::High
 }
 
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
-#[derive(Default)]
 pub enum AutoDriveContinueMode {
     Immediate,
     #[default]
@@ -1250,7 +1290,7 @@ impl AutoDriveContinueMode {
 
 
 /// Streaming behavior configuration for the TUI.
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct StreamConfig {
     /// Emit the Answer header immediately when a stream begins (before first newline).
     #[serde(default)]
@@ -1307,8 +1347,7 @@ impl Default for StreamConfig {
 }
 
 /// Theme configuration for the TUI
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct ThemeConfig {
     /// Name of the predefined theme to use
     #[serde(default)]
@@ -1333,7 +1372,7 @@ pub struct ThemeConfig {
 
 
 /// Selected loading spinner style.
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct SpinnerSelection {
     /// Name of the spinner to use. Accepts one of the names from
     /// sindresorhus/cli-spinners (kebab-case), or custom names supported
@@ -1354,7 +1393,7 @@ impl Default for SpinnerSelection {
 }
 
 /// User-defined custom spinner
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct CustomSpinner {
     pub interval: u64,
     pub frames: Vec<String>,
@@ -1369,7 +1408,7 @@ pub struct CustomSpinner {
 /// - "auto" (default): choose a sensible built-in syntect theme based on
 ///   whether the current UI theme is light or dark.
 /// - "<name>": use a specific syntect theme by name from the default ThemeSet.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct HighlightConfig {
     /// Theme selection preference (see docstring for accepted values)
     #[serde(default)]
@@ -1377,7 +1416,7 @@ pub struct HighlightConfig {
 }
 
 /// Available predefined themes
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ThemeName {
     // Light themes (at top)
@@ -1403,7 +1442,7 @@ pub enum ThemeName {
 }
 
 /// Theme colors that can be customized
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct ThemeColors {
     // Primary colors
     pub primary: Option<String>,
@@ -1440,7 +1479,7 @@ pub struct ThemeColors {
 }
 
 /// Browser configuration for integrated screenshot capabilities.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct BrowserConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -1464,7 +1503,7 @@ pub struct BrowserConfig {
     pub format: Option<BrowserImageFormat>,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct BrowserViewportConfig {
     pub width: u32,
     pub height: u32,
@@ -1476,21 +1515,21 @@ pub struct BrowserViewportConfig {
     pub mobile: bool,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 pub enum BrowserWaitStrategy {
     Event(String),
     Delay { delay_ms: u64 },
 }
 
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum BrowserImageFormat {
     Png,
     Webp,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct SandboxWorkspaceWrite {
     #[serde(default)]
     pub writable_roots: Vec<PathBuf>,
@@ -1509,7 +1548,7 @@ pub struct SandboxWorkspaceWrite {
 // Serde helper: default to true for `allow_git_writes` when omitted.
 pub(crate) const fn default_true_bool() -> bool { true }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ShellEnvironmentPolicyInherit {
     /// "Core" environment variables for the platform. On UNIX, this would
@@ -1526,7 +1565,7 @@ pub enum ShellEnvironmentPolicyInherit {
 
 /// Policy for building the `env` when spawning a process via either the
 /// `shell` or `local_shell` tool.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 pub struct ShellEnvironmentPolicyToml {
     pub inherit: Option<ShellEnvironmentPolicyInherit>,
 
@@ -1619,7 +1658,9 @@ impl From<ShellEnvironmentPolicyToml> for ShellEnvironmentPolicy {
 }
 
 /// See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning
-#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display, Hash)]
+#[derive(
+    Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display, Hash, JsonSchema,
+)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum ReasoningEffort {
@@ -1633,13 +1674,14 @@ pub enum ReasoningEffort {
     XHigh,
     /// Deprecated: previously disabled reasoning. Kept for internal use only.
     #[serde(skip)]
+    #[schemars(skip)]
     None,
 }
 
 /// A summary of the reasoning performed by the model. This can be useful for
 /// debugging and understanding the model's reasoning process.
 /// See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries
-#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum ReasoningSummary {
@@ -1653,7 +1695,7 @@ pub enum ReasoningSummary {
 
 /// Text verbosity level for OpenAI API responses.
 /// Controls the level of detail in the model's text responses.
-#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum TextVerbosity {
@@ -1663,7 +1705,7 @@ pub enum TextVerbosity {
     High,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum Personality {
     None,
@@ -1696,7 +1738,7 @@ where
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProjectHookEvent {
     #[serde(rename = "session.start")]
@@ -1737,7 +1779,7 @@ impl ProjectHookEvent {
     }
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct ProjectHookConfig {
     pub event: ProjectHookEvent,
     #[serde(default)]
@@ -1754,7 +1796,7 @@ pub struct ProjectHookConfig {
     pub run_in_background: Option<bool>,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct ProjectCommandConfig {
     pub name: String,
     #[serde(alias = "run", deserialize_with = "deserialize_command_vec")]

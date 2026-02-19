@@ -11,6 +11,7 @@ pub struct ConfigBuilder {
     cli_overrides: Vec<(String, TomlValue)>,
     overrides: ConfigOverrides,
     code_home: Option<PathBuf>,
+    loader_overrides: LoaderOverrides,
 }
 
 impl ConfigBuilder {
@@ -33,6 +34,11 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn with_loader_overrides(mut self, loader_overrides: LoaderOverrides) -> Self {
+        self.loader_overrides = loader_overrides;
+        self
+    }
+
     pub fn load(self) -> std::io::Result<Config> {
         let code_home = match self.code_home {
             Some(path) => path,
@@ -50,7 +56,7 @@ impl ConfigBuilder {
             &code_home,
             Some(layers_cwd.as_path()),
             &self.cli_overrides,
-            LoaderOverrides::default(),
+            self.loader_overrides.clone(),
         )?;
         let root_value = layers.effective_config();
 
@@ -60,7 +66,7 @@ impl ConfigBuilder {
 
         let requirements = crate::config_loader::load_config_requirements_blocking(
             &config.code_home,
-            LoaderOverrides::default(),
+            self.loader_overrides,
         )?;
 
         let mut constrained_approval_policy = requirements.approval_policy;
@@ -87,7 +93,7 @@ impl ConfigBuilder {
             &code_home,
             Some(layers_cwd.as_path()),
             &self.cli_overrides,
-            LoaderOverrides::default(),
+            self.loader_overrides,
         )?;
         let root_value = layers.effective_config();
 

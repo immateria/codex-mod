@@ -157,7 +157,7 @@ impl RequestUserInputView {
         }
         answer
             .option_state
-            .ensure_visible(options_len, options_len.min(6).max(1));
+            .ensure_visible(options_len, options_len.clamp(1, 6));
     }
 
     fn push_freeform_char(&mut self, ch: char) {
@@ -466,10 +466,10 @@ impl BottomPaneView<'_> for RequestUserInputView {
             return false;
         }
         if !self.current_has_options() {
-            if let Some(answer) = self.current_answer_mut() {
-                if answer.hover_option_idx.take().is_some() {
-                    return true;
-                }
+            if let Some(answer) = self.current_answer_mut()
+                && answer.hover_option_idx.take().is_some()
+            {
+                return true;
             }
             return false;
         }
