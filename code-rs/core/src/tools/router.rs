@@ -16,6 +16,30 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ToolDispatchMeta<'a> {
+    pub(crate) sub_id: &'a str,
+    pub(crate) seq_hint: Option<u64>,
+    pub(crate) output_index: Option<u32>,
+    pub(crate) attempt_req: u64,
+}
+
+impl<'a> ToolDispatchMeta<'a> {
+    pub(crate) fn new(
+        sub_id: &'a str,
+        seq_hint: Option<u64>,
+        output_index: Option<u32>,
+        attempt_req: u64,
+    ) -> Self {
+        Self {
+            sub_id,
+            seq_hint,
+            output_index,
+            attempt_req,
+        }
+    }
+}
+
 pub(crate) struct ToolRouter {
     registry: ToolRegistry,
     dynamic_handler: Arc<dyn ToolHandler>,
@@ -71,11 +95,8 @@ impl ToolRouter {
         &self,
         sess: &Session,
         turn_diff_tracker: &mut TurnDiffTracker,
-        sub_id: &str,
+        meta: ToolDispatchMeta<'_>,
         item: ResponseItem,
-        seq_hint: Option<u64>,
-        output_index: Option<u32>,
-        attempt_req: u64,
     ) -> Option<ResponseInputItem> {
         match item {
             ResponseItem::FunctionCall {
@@ -84,9 +105,21 @@ impl ToolRouter {
                 call_id,
                 ..
             } => {
-                let ctx = ToolCallCtx::new(sub_id.to_string(), call_id, seq_hint, output_index);
+                let ctx = ToolCallCtx::new(
+                    meta.sub_id.to_string(),
+                    call_id,
+                    meta.seq_hint,
+                    meta.output_index,
+                );
                 Some(
-                    self.dispatch_function_call(sess, turn_diff_tracker, ctx, name, arguments, attempt_req)
+                    self.dispatch_function_call(
+                        sess,
+                        turn_diff_tracker,
+                        ctx,
+                        name,
+                        arguments,
+                        meta.attempt_req,
+                    )
                         .await,
                 )
             }
@@ -123,16 +156,39 @@ impl ToolRouter {
                     }
                 };
 
-                let ctx = ToolCallCtx::new(sub_id.to_string(), effective_call_id, seq_hint, output_index);
+                let ctx = ToolCallCtx::new(
+                    meta.sub_id.to_string(),
+                    effective_call_id,
+                    meta.seq_hint,
+                    meta.output_index,
+                );
                 Some(
-                    self.dispatch_local_shell_call(sess, turn_diff_tracker, ctx, params, attempt_req)
+                    self.dispatch_local_shell_call(
+                        sess,
+                        turn_diff_tracker,
+                        ctx,
+                        params,
+                        meta.attempt_req,
+                    )
                         .await,
                 )
             }
             ResponseItem::CustomToolCall { call_id, name, input, .. } => {
-                let ctx = ToolCallCtx::new(sub_id.to_string(), call_id, seq_hint, output_index);
+                let ctx = ToolCallCtx::new(
+                    meta.sub_id.to_string(),
+                    call_id,
+                    meta.seq_hint,
+                    meta.output_index,
+                );
                 Some(
-                    self.dispatch_custom_tool_call(sess, turn_diff_tracker, ctx, name, input, attempt_req)
+                    self.dispatch_custom_tool_call(
+                        sess,
+                        turn_diff_tracker,
+                        ctx,
+                        name,
+                        input,
+                        meta.attempt_req,
+                    )
                         .await,
                 )
             }

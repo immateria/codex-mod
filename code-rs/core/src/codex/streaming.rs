@@ -3172,6 +3172,285 @@ struct ProcessedResponseItem {
     response: Option<ResponseInputItem>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ToolCallParallelism {
+    Parallel,
+    Exclusive,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct PendingToolCall {
+    output_pos: usize,
+    seq_hint: Option<u64>,
+    output_index: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ToolCallBatch {
+    Parallel(Vec<PendingToolCall>),
+    Exclusive(PendingToolCall),
+}
+
+fn build_tool_call_batches(
+    calls: impl IntoIterator<Item = (ToolCallParallelism, PendingToolCall)>,
+) -> Vec<ToolCallBatch> {
+    let mut batches: Vec<ToolCallBatch> = Vec::new();
+    let mut pending_parallel: Vec<PendingToolCall> = Vec::new();
+
+    for (parallelism, call) in calls {
+        match parallelism {
+            ToolCallParallelism::Parallel => pending_parallel.push(call),
+            ToolCallParallelism::Exclusive => {
+                if !pending_parallel.is_empty() {
+                    batches.push(ToolCallBatch::Parallel(std::mem::take(
+                        &mut pending_parallel,
+                    )));
+                }
+                batches.push(ToolCallBatch::Exclusive(call));
+            }
+        }
+    }
+
+    if !pending_parallel.is_empty() {
+        batches.push(ToolCallBatch::Parallel(pending_parallel));
+    }
+
+    batches
+}
+
+fn classify_tool_call_parallelism(sess: &Session, item: &ResponseItem) -> ToolCallParallelism {
+    let ResponseItem::FunctionCall { name, .. } = item else {
+        return ToolCallParallelism::Exclusive;
+    };
+    let tool_name = name.as_str();
+
+    // Conservative allowlist:
+    // - Anything that can mutate the working tree or depends on strict in-order execution stays
+    //   Exclusive.
+    // - Only a small set of non-mutating tools are Parallel for now.
+    if tool_name == "shell" || tool_name == "container.exec" {
+        return ToolCallParallelism::Exclusive;
+    }
+
+    if sess.is_dynamic_tool(tool_name) {
+        return ToolCallParallelism::Exclusive;
+    }
+
+    if sess
+        .mcp_connection_manager()
+        .parse_tool_name(tool_name)
+        .is_some()
+    {
+        return ToolCallParallelism::Exclusive;
+    }
+
+    match tool_name {
+        "web_fetch" | "wait" | "gh_run_wait" => ToolCallParallelism::Parallel,
+        _ => ToolCallParallelism::Exclusive,
+    }
+}
+
+async fn dispatch_pending_tool_calls(
+    sess: &Session,
+    turn_diff_tracker: &mut TurnDiffTracker,
+    sub_id: &str,
+    attempt_req: u64,
+    output: &mut [ProcessedResponseItem],
+    pending_calls: &[PendingToolCall],
+) {
+    let router = crate::tools::router::ToolRouter::global();
+    let calls_with_parallelism = pending_calls.iter().filter_map(|call| {
+        let cell = output.get(call.output_pos)?;
+        let mut parallelism = classify_tool_call_parallelism(sess, &cell.item);
+
+        // If the provider did not supply any ordering metadata, avoid parallel execution
+        // so tool-call begin/end events remain deterministic for the TUI.
+        if parallelism == ToolCallParallelism::Parallel
+            && call.seq_hint.is_none()
+            && call.output_index.is_none()
+        {
+            parallelism = ToolCallParallelism::Exclusive;
+        }
+
+        Some((parallelism, *call))
+    });
+
+    for batch in build_tool_call_batches(calls_with_parallelism) {
+        match batch {
+            ToolCallBatch::Parallel(calls) => {
+                let mut futures = Vec::with_capacity(calls.len());
+                for call in calls {
+                    let Some(item) = output.get(call.output_pos).map(|cell| cell.item.clone()) else {
+                        continue;
+                    };
+                    futures.push(async move {
+                        let mut scratch = TurnDiffTracker::new();
+                        let resp = router
+                            .dispatch_response_item(
+                                sess,
+                                &mut scratch,
+                                crate::tools::router::ToolDispatchMeta::new(
+                                    sub_id,
+                                    call.seq_hint,
+                                    call.output_index,
+                                    attempt_req,
+                                ),
+                                item,
+                            )
+                            .await;
+                        (call.output_pos, resp)
+                    });
+                }
+
+                let results = futures::future::join_all(futures).await;
+                for (pos, resp) in results {
+                    if let Some(cell) = output.get_mut(pos) {
+                        cell.response = resp;
+                        sess.scratchpad_push(&cell.item, &cell.response, sub_id);
+                    }
+                }
+            }
+            ToolCallBatch::Exclusive(call) => {
+                let Some(cell) = output.get_mut(call.output_pos) else {
+                    continue;
+                };
+                let item = cell.item.clone();
+                let resp = router
+                    .dispatch_response_item(
+                        sess,
+                        turn_diff_tracker,
+                        crate::tools::router::ToolDispatchMeta::new(
+                            sub_id,
+                            call.seq_hint,
+                            call.output_index,
+                            attempt_req,
+                        ),
+                        item,
+                    )
+                    .await;
+                cell.response = resp;
+                sess.scratchpad_push(&cell.item, &cell.response, sub_id);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tool_call_batch_tests {
+    use super::build_tool_call_batches;
+    use super::PendingToolCall;
+    use super::ToolCallBatch;
+    use super::ToolCallParallelism;
+
+    #[test]
+    fn groups_parallel_calls_and_preserves_order() {
+        let calls = vec![
+            (
+                ToolCallParallelism::Parallel,
+                PendingToolCall {
+                    output_pos: 0,
+                    seq_hint: None,
+                    output_index: None,
+                },
+            ),
+            (
+                ToolCallParallelism::Parallel,
+                PendingToolCall {
+                    output_pos: 1,
+                    seq_hint: Some(10),
+                    output_index: Some(2),
+                },
+            ),
+            (
+                ToolCallParallelism::Exclusive,
+                PendingToolCall {
+                    output_pos: 2,
+                    seq_hint: Some(11),
+                    output_index: Some(3),
+                },
+            ),
+            (
+                ToolCallParallelism::Parallel,
+                PendingToolCall {
+                    output_pos: 3,
+                    seq_hint: Some(12),
+                    output_index: Some(4),
+                },
+            ),
+            (
+                ToolCallParallelism::Exclusive,
+                PendingToolCall {
+                    output_pos: 4,
+                    seq_hint: None,
+                    output_index: None,
+                },
+            ),
+            (
+                ToolCallParallelism::Parallel,
+                PendingToolCall {
+                    output_pos: 5,
+                    seq_hint: Some(13),
+                    output_index: None,
+                },
+            ),
+            (
+                ToolCallParallelism::Parallel,
+                PendingToolCall {
+                    output_pos: 6,
+                    seq_hint: None,
+                    output_index: Some(5),
+                },
+            ),
+        ];
+
+        let batches = build_tool_call_batches(calls);
+        assert_eq!(
+            batches,
+            vec![
+                ToolCallBatch::Parallel(vec![
+                    PendingToolCall {
+                        output_pos: 0,
+                        seq_hint: None,
+                        output_index: None,
+                    },
+                    PendingToolCall {
+                        output_pos: 1,
+                        seq_hint: Some(10),
+                        output_index: Some(2),
+                    },
+                ]),
+                ToolCallBatch::Exclusive(PendingToolCall {
+                    output_pos: 2,
+                    seq_hint: Some(11),
+                    output_index: Some(3),
+                }),
+                ToolCallBatch::Parallel(vec![PendingToolCall {
+                    output_pos: 3,
+                    seq_hint: Some(12),
+                    output_index: Some(4),
+                }]),
+                ToolCallBatch::Exclusive(PendingToolCall {
+                    output_pos: 4,
+                    seq_hint: None,
+                    output_index: None,
+                }),
+                ToolCallBatch::Parallel(vec![
+                    PendingToolCall {
+                        output_pos: 5,
+                        seq_hint: Some(13),
+                        output_index: None,
+                    },
+                    PendingToolCall {
+                        output_pos: 6,
+                        seq_hint: None,
+                        output_index: Some(5),
+                    },
+                ]),
+            ]
+        );
+    }
+}
+
 struct TurnLatencyGuard<'a> {
     sess: &'a Session,
     attempt_req: u64,
@@ -3279,6 +3558,13 @@ async fn try_run_turn(
         })
     };
 
+    let enable_parallel_tool_calls = prompt
+        .as_ref()
+        .model_family_override
+        .as_ref()
+        .unwrap_or_else(|| sess.client.default_model_family())
+        .supports_parallel_tool_calls;
+
     let mut turn_latency_guard = TurnLatencyGuard::new(sess, attempt_req, prompt.as_ref());
     let mut stream = match sess.client.clone().stream(&prompt).await {
         Ok(stream) => stream,
@@ -3295,6 +3581,7 @@ async fn try_run_turn(
     };
 
     let mut output = Vec::new();
+    let mut pending_tool_calls: Vec<PendingToolCall> = Vec::new();
     loop {
         // Poll the next item from the model stream. We must inspect *both* Ok and Err
         // cases so that transient stream failures (e.g., dropped SSE connection before
@@ -3326,18 +3613,46 @@ async fn try_run_turn(
             ResponseEvent::Created { .. } => {}
             ResponseEvent::ServerReasoningIncluded(_included) => {}
             ResponseEvent::OutputItemDone { item, sequence_number, output_index } => {
-                let response =
-                    handle_response_item(sess, turn_diff_tracker, sub_id, item.clone(), sequence_number, output_index, attempt_req).await?;
+                let is_tool_call = matches!(
+                    item,
+                    ResponseItem::FunctionCall { .. }
+                        | ResponseItem::LocalShellCall { .. }
+                        | ResponseItem::CustomToolCall { .. }
+                );
 
-                // Save into scratchpad so we can seed a retry if the stream drops later.
-                sess.scratchpad_push(&item, &response, sub_id);
+                if enable_parallel_tool_calls && is_tool_call {
+                    let output_pos = output.len();
+                    output.push(ProcessedResponseItem {
+                        item,
+                        response: None,
+                    });
+                    pending_tool_calls.push(PendingToolCall {
+                        output_pos,
+                        seq_hint: sequence_number,
+                        output_index,
+                    });
+                } else {
+                    let response = handle_response_item(
+                        sess,
+                        turn_diff_tracker,
+                        sub_id,
+                        item.clone(),
+                        sequence_number,
+                        output_index,
+                        attempt_req,
+                    )
+                    .await?;
 
-                // If this was a finalized assistant message, clear partial text buffer
-                if let ResponseItem::Message { .. } = &item {
-                    sess.scratchpad_clear_partial_message();
+                    // Save into scratchpad so we can seed a retry if the stream drops later.
+                    sess.scratchpad_push(&item, &response, sub_id);
+
+                    // If this was a finalized assistant message, clear partial text buffer
+                    if let ResponseItem::Message { .. } = &item {
+                        sess.scratchpad_clear_partial_message();
+                    }
+
+                    output.push(ProcessedResponseItem { item, response });
                 }
-
-                output.push(ProcessedResponseItem { item, response });
             }
             ResponseEvent::WebSearchCallBegin { call_id } => {
                 // Stamp OrderMeta so the TUI can place the search block within
@@ -3412,6 +3727,18 @@ async fn try_run_turn(
                             }
                         });
                     }
+
+                if enable_parallel_tool_calls && !pending_tool_calls.is_empty() {
+                    dispatch_pending_tool_calls(
+                        sess,
+                        turn_diff_tracker,
+                        sub_id,
+                        attempt_req,
+                        &mut output,
+                        &pending_tool_calls,
+                    )
+                    .await;
+                }
 
                 let unified_diff = turn_diff_tracker.get_unified_diff();
                 if let Ok(Some(unified_diff)) = unified_diff {
@@ -3566,11 +3893,13 @@ async fn handle_response_item(
                 .dispatch_response_item(
                     sess,
                     turn_diff_tracker,
-                    sub_id,
+                    crate::tools::router::ToolDispatchMeta::new(
+                        sub_id,
+                        seq_hint,
+                        output_index,
+                        attempt_req,
+                    ),
                     tool_item,
-                    seq_hint,
-                    output_index,
-                    attempt_req,
                 )
                 .await
         }

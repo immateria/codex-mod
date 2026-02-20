@@ -44,11 +44,11 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
     let mut params_for_event = serde_json::from_str::<serde_json::Value>(&arguments).ok();
     // If call_id is provided, include a friendly "for" string with the command we are waiting on
     if let Some(serde_json::Value::Object(map)) = params_for_event.as_mut()
-        && let Some(serde_json::Value::String(cid)) = map.get("call_id") {
-            if let Some(display) = sess.background_exec_cmd_display(cid) {
-                map.insert("for".to_string(), serde_json::Value::String(display));
-            }
-        }
+        && let Some(serde_json::Value::String(cid)) = map.get("call_id")
+        && let Some(display) = sess.background_exec_cmd_display(cid)
+    {
+        map.insert("for".to_string(), serde_json::Value::String(display));
+    }
     let arguments_clone = arguments.clone();
     let call_id_clone = ctx.call_id.clone();
 

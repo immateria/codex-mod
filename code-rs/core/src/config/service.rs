@@ -351,7 +351,7 @@ impl ConfigService {
                     overriding_layer: origin.clone(),
                     effective_value: match effective_value {
                         Some(value) => serde_json::to_value(value)
-                            .unwrap_or_else(|_| serde_json::Value::Null),
+                            .unwrap_or(serde_json::Value::Null),
                         None => serde_json::Value::Null,
                     },
                 });

@@ -49,7 +49,7 @@ impl ToolRegistry {
                 return unsupported_tool_call_output(
                     &ctx.call_id,
                     outputs_custom,
-                    format!("unsupported call: {}", tool_name),
+                    format!("unsupported call: {tool_name}"),
                 );
             }
         };

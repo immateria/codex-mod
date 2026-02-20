@@ -291,13 +291,9 @@ pub(crate) async fn handle_gh_run_wait(
                 .or_else(|| std::env::var("GITHUB_REPO").ok());
 
             let mut run_id = parsed.run_id.and_then(|v| {
-                if let Some(id) = v.as_i64() {
-                    Some(id.to_string())
-                } else if let Some(id) = v.as_str() {
-                    Some(id.to_string())
-                } else {
-                    None
-                }
+                v.as_i64()
+                    .map(|id| id.to_string())
+                    .or_else(|| v.as_str().map(str::to_owned))
             });
 
             if run_id.as_ref().is_some_and(|id| id.trim().is_empty()) {
@@ -545,8 +541,10 @@ pub(crate) async fn handle_gh_run_wait(
                     .cloned()
                     .unwrap_or_default();
 
-                let mut job_summary = JobSummary::default();
-                job_summary.total = jobs_array.len();
+                let mut job_summary = JobSummary {
+                    total: jobs_array.len(),
+                    ..Default::default()
+                };
 
                 for job in jobs_array {
                     let name = job
