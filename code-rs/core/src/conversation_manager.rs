@@ -165,6 +165,14 @@ impl ConversationManager {
     ) -> CodexResult<NewConversation> {
         // Compute the prefix up to the cut point.
         let history = RolloutRecorder::get_rollout_history(&path).await?;
+        let source_thread_id = match &history {
+            InitialHistory::Resumed(resumed) => Some(resumed.conversation_id),
+            InitialHistory::Forked(items) => items.iter().find_map(|item| match item {
+                RolloutItem::SessionMeta(meta_line) => Some(meta_line.meta.id),
+                _ => None,
+            }),
+            InitialHistory::New => None,
+        };
         let history = truncate_after_dropping_last_messages(history, num_messages_to_drop);
 
         // If there is no prior history to seed, just start a fresh conversation.
@@ -175,19 +183,30 @@ impl ConversationManager {
         // Otherwise, create a temporary rollout with the truncated items and resume from it.
         let convo_id = code_protocol::ConversationId::new();
         let instructions = config.user_instructions.clone();
-        let recorder = RolloutRecorder::new(
-            &config,
-            crate::rollout::recorder::RolloutRecorderParams::new(
+        let recorder_params = match source_thread_id {
+            Some(thread_id) => crate::rollout::recorder::RolloutRecorderParams::new_with_forked_from(
+                convo_id,
+                instructions,
+                self.session_source.clone(),
+                thread_id,
+            ),
+            None => crate::rollout::recorder::RolloutRecorderParams::new(
                 convo_id,
                 instructions,
                 self.session_source.clone(),
             ),
+        };
+        let recorder = RolloutRecorder::new(
+            &config,
+            recorder_params,
         )
         .await
         .map_err(CodexErr::Io)?;
 
         // Persist rollout items to seed the resumed conversation.
-        let rollout_items = history.get_rollout_items();
+        let mut rollout_items = history.get_rollout_items();
+        // The new rollout recorder writes its own SessionMeta; avoid duplicating it.
+        rollout_items.retain(|item| !matches!(item, RolloutItem::SessionMeta(_)));
         if !rollout_items.is_empty() {
             recorder
                 .record_items(&rollout_items)

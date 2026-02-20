@@ -115,6 +115,17 @@ pub struct Cli {
     /// Resume a specific session id when provided.
     #[clap(skip)]
     pub resume_session_id: Option<String>,
+
+    /// Start in fork picker mode when true (used by `code fork`).
+    #[clap(skip)]
+    pub fork_picker: bool,
+
+    /// Fork a specific rollout path when provided.
+    ///
+    /// We resolve `SESSION_ID` / `--last` into an explicit path in the CLI so
+    /// the TUI can fork asynchronously after config has loaded.
+    #[clap(skip)]
+    pub fork_source_path: Option<PathBuf>,
 }
 
 impl Cli {

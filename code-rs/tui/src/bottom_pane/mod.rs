@@ -996,9 +996,16 @@ impl BottomPane<'_> {
         title: String,
         subtitle: Option<String>,
         rows: Vec<resume_selection_view::ResumeRow>,
+        action: crate::app_event::SessionPickerAction,
     ) {
         use resume_selection_view::ResumeSelectionView;
-        let view = ResumeSelectionView::new(title, subtitle.unwrap_or_default(), rows, self.app_event_tx.clone());
+        let view = ResumeSelectionView::new(
+            title,
+            subtitle.unwrap_or_default(),
+            rows,
+            action,
+            self.app_event_tx.clone(),
+        );
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;

@@ -8,6 +8,7 @@ use ratatui::widgets::Widget;
 use std::cell::Cell;
 
 use crate::app_event::AppEvent;
+use crate::app_event::SessionPickerAction;
 use crate::app_event_sender::AppEventSender;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
@@ -33,11 +34,18 @@ pub struct ResumeSelectionView {
     top: usize,
     viewport_rows: Cell<usize>,
     complete: bool,
+    action: SessionPickerAction,
     app_event_tx: AppEventSender,
 }
 
 impl ResumeSelectionView {
-    pub fn new(title: String, subtitle: String, rows: Vec<ResumeRow>, app_event_tx: AppEventSender) -> Self {
+    pub fn new(
+        title: String,
+        subtitle: String,
+        rows: Vec<ResumeRow>,
+        action: SessionPickerAction,
+        app_event_tx: AppEventSender,
+    ) -> Self {
         Self {
             title,
             subtitle,
@@ -46,6 +54,7 @@ impl ResumeSelectionView {
             top: 0,
             viewport_rows: Cell::new(RESUME_POPUP_ROWS),
             complete: false,
+            action,
             app_event_tx,
         }
     }
@@ -116,7 +125,14 @@ impl BottomPaneView<'_> for ResumeSelectionView {
             KeyCode::End => self.go_end(),
             KeyCode::Enter => {
                 if let Some(row) = self.rows.get(self.selected) {
-                    self.app_event_tx.send(AppEvent::ResumeFrom(row.path.clone()));
+                    match self.action {
+                        SessionPickerAction::Resume => {
+                            self.app_event_tx.send(AppEvent::ResumeFrom(row.path.clone()));
+                        }
+                        SessionPickerAction::Fork => {
+                            self.app_event_tx.send(AppEvent::ForkFrom(row.path.clone()));
+                        }
+                    }
                     self.complete = true;
                 }
             }
@@ -269,6 +285,7 @@ mod tests {
             "Resume".to_string(),
             String::new(),
             rows,
+            SessionPickerAction::Resume,
             AppEventSender::new(tx),
         );
 

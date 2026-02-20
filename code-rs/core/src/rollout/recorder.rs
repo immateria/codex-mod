@@ -77,6 +77,7 @@ pub enum RolloutRecorderParams {
         conversation_id: ConversationId,
         instructions: Option<String>,
         source: SessionSource,
+        forked_from_id: Option<ThreadId>,
     },
     Resume {
         path: PathBuf,
@@ -107,6 +108,21 @@ impl RolloutRecorderParams {
             conversation_id,
             instructions,
             source,
+            forked_from_id: None,
+        }
+    }
+
+    pub fn new_with_forked_from(
+        conversation_id: ConversationId,
+        instructions: Option<String>,
+        source: SessionSource,
+        forked_from_id: ThreadId,
+    ) -> Self {
+        Self::Create {
+            conversation_id,
+            instructions,
+            source,
+            forked_from_id: Some(forked_from_id),
         }
     }
 
@@ -133,6 +149,7 @@ impl RolloutRecorder {
                 conversation_id,
                 instructions,
                 source,
+                forked_from_id,
             } => {
                 let LogFileInfo {
                     file,
@@ -156,7 +173,7 @@ impl RolloutRecorder {
                         id: ThreadId::from_string(&session_id.to_string()).map_err(|e| {
                             IoError::other(format!("failed to convert session ID: {e}"))
                         })?,
-                        forked_from_id: None,
+                        forked_from_id,
                         timestamp,
                         cwd: config.cwd.clone(),
                         originator: DEFAULT_ORIGINATOR.to_string(),

@@ -79,6 +79,12 @@ pub(crate) enum TerminalRunEvent {
     Exit { exit_code: Option<i32>, _duration: Duration },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SessionPickerAction {
+    Resume,
+    Fork,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum TerminalCommandGate {
     Run(String),
@@ -269,13 +275,17 @@ pub(crate) enum AppEvent {
     SwitchCwd(std::path::PathBuf, Option<String>),
 
     /// Resume picker data finished loading
-    ResumePickerLoaded {
+    SessionPickerLoaded {
+        action: SessionPickerAction,
         cwd: std::path::PathBuf,
         candidates: Vec<ResumeCandidate>,
     },
 
     /// Resume picker failed to load
-    ResumePickerLoadFailed { message: String },
+    SessionPickerLoadFailed {
+        action: SessionPickerAction,
+        message: String,
+    },
 
     /// Session nickname update finished
     SessionRenameCompleted { message: String },
@@ -636,6 +646,9 @@ pub(crate) enum AppEvent {
 
     /// Start a new chat session by resuming from the given rollout file
     ResumeFrom(std::path::PathBuf),
+
+    /// Fork a rollout into a new session file and resume it.
+    ForkFrom(std::path::PathBuf),
 
     /// Begin jump-back to the Nth last user message (1 = latest).
     /// Trims visible history up to that point and pre-fills the composer.

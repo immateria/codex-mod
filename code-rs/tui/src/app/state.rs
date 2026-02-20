@@ -320,6 +320,8 @@ pub(crate) struct ChatWidgetArgs {
     pub(crate) show_order_overlay: bool,
     pub(crate) enable_perf: bool,
     pub(crate) resume_picker: bool,
+    pub(crate) fork_picker: bool,
+    pub(crate) fork_source_path: Option<PathBuf>,
     pub(crate) latest_upgrade_version: Option<String>,
 }
 
@@ -334,6 +336,8 @@ pub(crate) struct AppInitArgs {
     pub(crate) terminal_info: TerminalInfo,
     pub(crate) enable_perf: bool,
     pub(crate) resume_picker: bool,
+    pub(crate) fork_picker: bool,
+    pub(crate) fork_source_path: Option<PathBuf>,
     pub(crate) startup_footer_notice: Option<String>,
     pub(crate) latest_upgrade_version: Option<String>,
 }

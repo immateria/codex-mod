@@ -1,7 +1,16 @@
 use super::*;
+use crate::app_event::SessionPickerAction;
 
 impl ChatWidget<'_> {
     pub(crate) fn show_resume_picker(&mut self) {
+        self.show_session_picker(SessionPickerAction::Resume);
+    }
+
+    pub(crate) fn show_fork_picker(&mut self) {
+        self.show_session_picker(SessionPickerAction::Fork);
+    }
+
+    fn show_session_picker(&mut self, action: SessionPickerAction) {
         if self.resume_picker_loading {
             self.bottom_pane
                 .flash_footer_notice("Still loading past sessions…".to_string());
@@ -34,10 +43,15 @@ impl ChatWidget<'_> {
 
             match result {
                 Ok(candidates) => {
-                    tx.send(AppEvent::ResumePickerLoaded { cwd, candidates });
+                    tx.send(AppEvent::SessionPickerLoaded {
+                        action,
+                        cwd,
+                        candidates,
+                    });
                 }
                 Err(err) => {
-                    tx.send(AppEvent::ResumePickerLoadFailed {
+                    tx.send(AppEvent::SessionPickerLoadFailed {
+                        action,
                         message: format!("Failed to load past sessions: {err}"),
                     });
                 }
@@ -112,8 +126,9 @@ impl ChatWidget<'_> {
             .collect()
     }
 
-    pub(crate) fn present_resume_picker(
+    pub(crate) fn present_session_picker(
         &mut self,
+        action: SessionPickerAction,
         cwd: std::path::PathBuf,
         candidates: Vec<crate::resume::discovery::ResumeCandidate>,
     ) {
@@ -126,15 +141,18 @@ impl ChatWidget<'_> {
         }
         let rows = Self::resume_rows_from_candidates(candidates);
         let count = rows.len();
-        let title = format!("Resume Session — {}", cwd.display());
+        let title = match action {
+            SessionPickerAction::Resume => format!("Resume Session — {}", cwd.display()),
+            SessionPickerAction::Fork => format!("Fork Session — {}", cwd.display()),
+        };
         self.bottom_pane
-            .show_resume_selection(title, Some(String::new()), rows);
+            .show_resume_selection(title, Some(String::new()), rows, action);
         self.bottom_pane
             .flash_footer_notice(format!("Loaded {count} past sessions."));
         self.request_redraw();
     }
 
-    pub(crate) fn handle_resume_picker_load_failed(&mut self, message: String) {
+    pub(crate) fn handle_session_picker_load_failed(&mut self, message: String) {
         self.resume_picker_loading = false;
         self.bottom_pane.flash_footer_notice(message);
         self.request_redraw();

@@ -145,6 +145,12 @@ enum Subcommand {
     /// Resume a previous interactive session (picker by default; use --last to continue the most recent).
     Resume(ResumeCommand),
 
+    /// Fork a previous interactive session (picker by default; use --last to fork the most recent).
+    Fork(ForkCommand),
+
+    /// Run a command under a Codex sandbox.
+    Sandbox(SandboxArgs),
+
     /// Internal: generate TypeScript protocol bindings.
     #[clap(hide = true)]
     GenerateTs(GenerateTsCommand),
@@ -187,6 +193,21 @@ struct ResumeCommand {
     session_id: Option<String>,
 
     /// Continue the most recent session without showing the picker.
+    #[arg(long = "last", default_value_t = false, conflicts_with = "session_id")]
+    last: bool,
+
+    #[clap(flatten)]
+    config_overrides: TuiCli,
+}
+
+#[derive(Debug, Parser)]
+struct ForkCommand {
+    /// Conversation/session id (UUID). When provided, forks this session.
+    /// If omitted, use --last to pick the most recent recorded session.
+    #[arg(value_name = "SESSION_ID")]
+    session_id: Option<String>,
+
+    /// Fork the most recent session without showing the picker.
     #[arg(long = "last", default_value_t = false, conflicts_with = "session_id")]
     last: bool,
 
@@ -300,6 +321,23 @@ struct ReviewExecOptions {
 struct DebugArgs {
     #[command(subcommand)]
     cmd: DebugCommand,
+}
+
+#[derive(Debug, Parser)]
+struct SandboxArgs {
+    #[command(subcommand)]
+    cmd: SandboxCommand,
+}
+
+#[derive(Debug, clap::Subcommand)]
+enum SandboxCommand {
+    /// Run a command under Seatbelt (macOS only).
+    #[clap(visible_alias = "seatbelt")]
+    Macos(SeatbeltCommand),
+
+    /// Run a command under Landlock+seccomp (Linux only).
+    #[clap(visible_alias = "landlock")]
+    Linux(LandlockCommand),
 }
 
 #[derive(Debug, Parser)]
@@ -644,6 +682,37 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
                 );
             }
         }
+        Some(Subcommand::Fork(ForkCommand {
+            session_id,
+            last,
+            mut config_overrides,
+        })) => {
+            config_overrides.finalize_defaults();
+            interactive = finalize_fork_interactive(
+                interactive,
+                root_config_overrides.clone(),
+                session_id,
+                last,
+                config_overrides,
+            );
+            let ExitSummary {
+                token_usage,
+                session_id,
+            } = code_tui::run_main(interactive, code_linux_sandbox_exe).await?;
+            if !token_usage.is_zero() {
+                println!(
+                    "{}",
+                    code_core::protocol::FinalOutput::from(token_usage)
+                );
+            }
+            if let Some(session_id) = session_id {
+                println!(
+                    "To continue this session, run {} resume {}",
+                    resume_command_name(),
+                    session_id
+                );
+            }
+        }
         Some(Subcommand::Login(mut login_cli)) => {
             prepend_config_flags(
                 &mut login_cli.config_overrides,
@@ -705,6 +774,30 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
                 .await?;
             }
             DebugCommand::Landlock(mut landlock_cli) => {
+                prepend_config_flags(
+                    &mut landlock_cli.config_overrides,
+                    root_config_overrides.clone(),
+                );
+                code_cli::debug_sandbox::run_command_under_landlock(
+                    landlock_cli,
+                    code_linux_sandbox_exe,
+                )
+                .await?;
+            }
+        },
+        Some(Subcommand::Sandbox(sandbox_args)) => match sandbox_args.cmd {
+            SandboxCommand::Macos(mut seatbelt_cli) => {
+                prepend_config_flags(
+                    &mut seatbelt_cli.config_overrides,
+                    root_config_overrides.clone(),
+                );
+                code_cli::debug_sandbox::run_command_under_seatbelt(
+                    seatbelt_cli,
+                    code_linux_sandbox_exe,
+                )
+                .await?;
+            }
+            SandboxCommand::Linux(mut landlock_cli) => {
                 prepend_config_flags(
                     &mut landlock_cli.config_overrides,
                     root_config_overrides.clone(),
@@ -1179,8 +1272,36 @@ fn finalize_resume_interactive(
     interactive
 }
 
+/// Build the final `TuiCli` for a `code fork` invocation.
+fn finalize_fork_interactive(
+    mut interactive: TuiCli,
+    root_config_overrides: CliConfigOverrides,
+    session_id: Option<String>,
+    last: bool,
+    mut fork_cli: TuiCli,
+) -> TuiCli {
+    // Our fork does not expose explicit fork fields on the TUI CLI.
+    // We resolve fork targets here and ask the TUI to fork asynchronously.
+
+    interactive.finalize_defaults();
+    fork_cli.finalize_defaults();
+
+    // Merge fork-scoped flags and overrides with highest precedence.
+    merge_resume_cli_flags(&mut interactive, fork_cli);
+
+    if let Err(err) = apply_fork_directives(&mut interactive, session_id, last) {
+        eprintln!("{err}");
+        process::exit(1);
+    }
+
+    // Propagate any root-level config overrides (e.g. `-c key=value`).
+    prepend_config_flags(&mut interactive.config_overrides, root_config_overrides);
+
+    interactive
+}
+
 /// Merge flags provided to `codex resume` so they take precedence over any
-/// root-level flags. Only overrides fields explicitly set on the resume-scoped
+/// root-level flags. Only overrides fields explicitly set on the subcommand-scoped
 /// CLI. Also appends `-c key=value` overrides with highest precedence.
 fn merge_resume_cli_flags(interactive: &mut TuiCli, resume_cli: TuiCli) {
     if let Some(model) = resume_cli.model {
@@ -1250,6 +1371,33 @@ fn apply_resume_directives(
         }
         (None, false) => {
             interactive.resume_picker = true;
+        }
+    }
+
+    Ok(())
+}
+
+fn apply_fork_directives(
+    interactive: &mut TuiCli,
+    session_id: Option<String>,
+    last: bool,
+) -> anyhow::Result<()> {
+    interactive.fork_picker = false;
+    interactive.fork_source_path = None;
+
+    match (session_id, last) {
+        (Some(id), _) => {
+            let path = resolve_resume_path(Some(id.as_str()), false)?
+                .ok_or_else(|| anyhow!("No recorded session found with id {id}"))?;
+            interactive.fork_source_path = Some(path);
+        }
+        (None, true) => {
+            let path = resolve_resume_path(None, true)?
+                .ok_or_else(|| anyhow!("No recent sessions found to fork. Start a session with `code` first."))?;
+            interactive.fork_source_path = Some(path);
+        }
+        (None, false) => {
+            interactive.fork_picker = true;
         }
     }
 
@@ -2005,6 +2153,28 @@ mod tests {
         finalize_resume_interactive(interactive, root_overrides, session_id, last, resume_cli)
     }
 
+    fn finalize_fork_from_args(args: &[&str]) -> TuiCli {
+        let cli = MultitoolCli::try_parse_from(args).expect("parse");
+        let MultitoolCli {
+            interactive,
+            config_overrides: root_overrides,
+            auto_drive: _,
+            subcommand,
+            ..
+        } = cli;
+
+        let Subcommand::Fork(ForkCommand {
+            session_id,
+            last,
+            config_overrides: fork_cli,
+        }) = subcommand.expect("fork present")
+        else {
+            unreachable!()
+        };
+
+        finalize_fork_interactive(interactive, root_overrides, session_id, last, fork_cli)
+    }
+
     #[test]
     fn resume_model_flag_applies_when_no_root_flags() {
         let interactive = finalize_from_args(["codex", "resume", "-m", "gpt-5.1-test"].as_ref());
@@ -2021,6 +2191,21 @@ mod tests {
         assert!(interactive.resume_picker);
         assert!(!interactive.resume_last);
         assert_eq!(interactive.resume_session_id, None);
+    }
+
+    #[test]
+    fn fork_picker_logic_none_and_not_last() {
+        let interactive = finalize_fork_from_args(["codex", "fork"].as_ref());
+        assert!(interactive.fork_picker);
+        assert!(interactive.fork_source_path.is_none());
+        assert!(
+            !interactive
+                .config_overrides
+                .raw_overrides
+                .iter()
+                .any(|raw| raw.contains("experimental_resume=")),
+            "fork should not inject experimental_resume overrides",
+        );
     }
 
     static CODE_HOME_MUTEX: Mutex<()> = Mutex::new(());
@@ -2185,6 +2370,31 @@ where
     }
 
     #[test]
+    fn fork_picker_logic_last_sets_source_path() {
+        with_temp_code_home(|code_home| {
+            let session_id = Uuid::new_v4();
+            create_session_fixture(code_home, &session_id);
+
+            let interactive = finalize_fork_from_args(["codex", "fork", "--last"].as_ref());
+            assert!(!interactive.fork_picker);
+            let path = interactive.fork_source_path.expect("fork source path");
+            let path_str = path.to_string_lossy();
+            assert!(
+                path_str.contains(session_id.to_string().as_str()),
+                "fork path resolved to {path_str}"
+            );
+            assert!(
+                !interactive
+                    .config_overrides
+                    .raw_overrides
+                    .iter()
+                    .any(|raw| raw.contains("experimental_resume=")),
+                "fork should not inject experimental_resume overrides",
+            );
+        });
+    }
+
+    #[test]
     fn resume_picker_logic_with_session_id() {
         with_temp_code_home(|code_home| {
             let session_id = Uuid::new_v4();
@@ -2202,6 +2412,39 @@ where
             assert!(!interactive.resume_picker);
             assert!(!interactive.resume_last);
             assert_eq!(interactive.resume_session_id.as_deref(), Some(session_id_str.as_str()));
+        });
+    }
+
+    #[test]
+    fn fork_picker_logic_with_session_id_sets_source_path() {
+        with_temp_code_home(|code_home| {
+            let session_id = Uuid::new_v4();
+            let session_id_str = session_id.to_string();
+            create_session_fixture(code_home, &session_id);
+
+            let args = [
+                "codex".to_string(),
+                "fork".to_string(),
+                session_id_str.clone(),
+            ];
+            let arg_refs = args.iter().map(String::as_str).collect::<Vec<_>>();
+
+            let interactive = finalize_fork_from_args(&arg_refs);
+            assert!(!interactive.fork_picker);
+            let path = interactive.fork_source_path.expect("fork source path");
+            let path_str = path.to_string_lossy();
+            assert!(
+                path_str.contains(session_id_str.as_str()),
+                "fork path resolved to {path_str}"
+            );
+            assert!(
+                !interactive
+                    .config_overrides
+                    .raw_overrides
+                    .iter()
+                    .any(|raw| raw.contains("experimental_resume=")),
+                "fork should not inject experimental_resume overrides",
+            );
         });
     }
 

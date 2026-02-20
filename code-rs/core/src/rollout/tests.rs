@@ -22,7 +22,7 @@ use crate::rollout::list::Cursor;
 use crate::rollout::list::get_conversation;
 use crate::rollout::list::get_conversations;
 use std::time::{Duration, SystemTime};
-use code_protocol::models::{ContentItem, ResponseItem};
+use code_protocol::models::{BaseInstructions, ContentItem, ResponseItem};
 use code_protocol::ThreadId;
 use code_protocol::protocol::{
     EventMsg as ProtoEventMsg,
@@ -280,6 +280,118 @@ async fn test_resume_reconstruct_history_drops_user_events() {
         user_messages,
         1,
         "expected one user message to survive resume replay"
+    );
+}
+
+#[tokio::test]
+async fn test_fork_rollout_writes_single_meta_and_sets_forked_from_id() {
+    let temp = TempDir::new().unwrap();
+    let code_home = temp.path();
+    let workspace = code_home.join("workspace");
+    fs::create_dir_all(&workspace).unwrap();
+
+    let sessions_dir = code_home
+        .join("sessions")
+        .join("2025")
+        .join("10")
+        .join("06");
+    fs::create_dir_all(&sessions_dir).unwrap();
+
+    let rollout_ts = "2025-10-06T09-00-00";
+    let session_uuid = Uuid::from_u128(0x1234_5678_u128);
+    let rollout_path = sessions_dir.join(format!(
+        "rollout-{rollout_ts}-{session_uuid}.jsonl"
+    ));
+
+    let mut writer = BufWriter::new(File::create(&rollout_path).unwrap());
+
+    let source_thread_id = ThreadId::from_string(&session_uuid.to_string()).unwrap();
+    let session_meta = SessionMeta {
+        id: source_thread_id,
+        timestamp: "2025-10-06T09:00:00.000Z".to_string(),
+        cwd: workspace.clone(),
+        originator: "fork-test".to_string(),
+        cli_version: "0.0.0-test".to_string(),
+        source: SessionSource::Cli,
+        model_provider: None,
+        base_instructions: Some(BaseInstructions {
+            text: "base instructions".to_string(),
+        }),
+        dynamic_tools: None,
+        forked_from_id: None,
+    };
+    serde_json::to_writer(
+        &mut writer,
+        &RolloutLine {
+            timestamp: session_meta.timestamp.clone(),
+            item: RolloutItem::SessionMeta(SessionMetaLine {
+                meta: session_meta,
+                git: None,
+            }),
+        },
+    )
+    .unwrap();
+    writer.write_all(b"\n").unwrap();
+
+    let assistant_response = ResponseItem::Message {
+        id: Some("msg-assistant-0".to_string()),
+        role: "assistant".to_string(),
+        content: vec![ContentItem::OutputText {
+            text: "hello".to_string(),
+        }],
+        end_turn: None,
+        phase: None,
+    };
+    serde_json::to_writer(
+        &mut writer,
+        &RolloutLine {
+            timestamp: "2025-10-06T09:00:01.000Z".to_string(),
+            item: RolloutItem::ResponseItem(assistant_response),
+        },
+    )
+    .unwrap();
+    writer.write_all(b"\n").unwrap();
+    writer.flush().unwrap();
+
+    let overrides = ConfigOverrides {
+        cwd: Some(workspace),
+        ..ConfigOverrides::default()
+    };
+    let config = Config::load_from_base_config_with_overrides(
+        ConfigToml::default(),
+        overrides,
+        code_home.to_path_buf(),
+    )
+    .unwrap();
+
+    let forked_path = crate::rollout::fork::fork_rollout(&config, &rollout_path)
+        .await
+        .expect("fork should succeed");
+
+    let forked_contents = tokio::fs::read_to_string(&forked_path)
+        .await
+        .expect("forked rollout readable");
+    let mut meta_lines = Vec::new();
+    for line in forked_contents.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let rollout_line: RolloutLine = serde_json::from_str(line).expect("valid rollout line");
+        if let RolloutItem::SessionMeta(meta) = rollout_line.item {
+            meta_lines.push(meta.meta);
+        }
+    }
+
+    assert_eq!(meta_lines.len(), 1);
+    let fork_meta = meta_lines.pop().unwrap();
+    assert_ne!(fork_meta.id, source_thread_id);
+    assert_eq!(fork_meta.forked_from_id, Some(source_thread_id));
+    assert_eq!(
+        fork_meta
+            .base_instructions
+            .as_ref()
+            .map(|instr| instr.text.as_str()),
+        Some("base instructions")
     );
 }
 

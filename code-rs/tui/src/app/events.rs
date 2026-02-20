@@ -21,7 +21,7 @@ use code_core::SessionCatalog;
 use code_login::{AuthManager, AuthMode, ServerOptions};
 use portable_pty::PtySize;
 
-use crate::app_event::AppEvent;
+use crate::app_event::{AppEvent, SessionPickerAction};
 use crate::bottom_pane::SettingsSection;
 use crate::chatwidget::ChatWidget;
 use crate::cloud_tasks_service;
@@ -1590,14 +1590,24 @@ impl App<'_> {
                         widget.switch_cwd(target, initial_prompt);
                     }
                 }
-                AppEvent::ResumePickerLoaded { cwd, candidates } => {
+                AppEvent::SessionPickerLoaded {
+                    action,
+                    cwd,
+                    candidates,
+                } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.present_resume_picker(cwd, candidates);
+                        widget.present_session_picker(action, cwd, candidates);
                     }
                 }
-                AppEvent::ResumePickerLoadFailed { message } => {
+                AppEvent::SessionPickerLoadFailed { action, message } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.handle_resume_picker_load_failed(message);
+                        let action_label = match action {
+                            SessionPickerAction::Resume => "resume",
+                            SessionPickerAction::Fork => "fork",
+                        };
+                        widget.handle_session_picker_load_failed(format!(
+                            "Failed to load {action_label} sessions: {message}"
+                        ));
                     }
                 }
                 AppEvent::SessionRenameCompleted { message } => {
@@ -1625,6 +1635,26 @@ impl App<'_> {
                         self.terminal_runs.clear();
                         self.app_event_tx.send(AppEvent::RequestRedraw);
                     }
+                }
+                AppEvent::ForkFrom(path) => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.flash_footer_notice("Forking session…".to_string());
+                    }
+
+                    let cfg = self.config.clone();
+                    let tx = self.app_event_tx.clone();
+                    tokio::spawn(async move {
+                        match code_core::fork_rollout(&cfg, &path).await {
+                            Ok(new_path) => {
+                                tx.send(AppEvent::ResumeFrom(new_path));
+                            }
+                            Err(err) => {
+                                tx.send(AppEvent::SessionRenameCompleted {
+                                    message: format!("Failed to fork session: {err}"),
+                                });
+                            }
+                        }
+                    });
                 }
                 AppEvent::PrepareAgents => {
                     if let AppState::Chat { widget } = &mut self.app_state {
@@ -2447,6 +2477,8 @@ impl App<'_> {
                     show_order_overlay,
                     enable_perf,
                     resume_picker,
+                    fork_picker,
+                    fork_source_path,
                     latest_upgrade_version,
                 }) => {
                     let mut w = ChatWidget::new(crate::chatwidget::ChatWidgetInit {
@@ -2463,8 +2495,14 @@ impl App<'_> {
                     if resume_picker {
                         w.show_resume_picker();
                     }
+                    if fork_picker {
+                        w.show_fork_picker();
+                    }
                     self.app_state = AppState::Chat { widget: Box::new(w) };
                     self.terminal_runs.clear();
+                    if let Some(path) = fork_source_path {
+                        self.app_event_tx.send(AppEvent::ForkFrom(path));
+                    }
                 }
                 AppEvent::StartFileSearch(query) => {
                     if !query.is_empty() {

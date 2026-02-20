@@ -874,6 +874,8 @@ fn run_ratatui_app(
         order,
         timing,
         resume_picker,
+        fork_picker,
+        fork_source_path,
         resume_last: _,
         resume_session_id: _,
         ..
@@ -888,6 +890,8 @@ fn run_ratatui_app(
         terminal_info,
         enable_perf: timing,
         resume_picker,
+        fork_picker,
+        fork_source_path,
         startup_footer_notice,
         latest_upgrade_version,
     });

@@ -38,6 +38,8 @@ impl App<'_> {
             terminal_info,
             enable_perf,
             resume_picker,
+            fork_picker,
+            fork_source_path,
             startup_footer_notice,
             latest_upgrade_version,
         } = args;
@@ -274,6 +276,8 @@ impl App<'_> {
                 show_order_overlay,
                 enable_perf,
                 resume_picker,
+                fork_picker,
+                fork_source_path: fork_source_path.clone(),
                 latest_upgrade_version: latest_upgrade_version.clone(),
             };
             AppState::Onboarding {
@@ -302,10 +306,16 @@ impl App<'_> {
             if resume_picker {
                 chat_widget.show_resume_picker();
             }
+            if fork_picker {
+                chat_widget.show_fork_picker();
+            }
             // Check for initial animations after widget is created
             chat_widget.check_for_initial_animations();
             if let Some(notice) = startup_footer_notice {
                 chat_widget.debug_notice(notice);
+            }
+            if let Some(path) = fork_source_path {
+                app_event_tx.send(AppEvent::ForkFrom(path));
             }
             AppState::Chat {
                 widget: Box::new(chat_widget),
