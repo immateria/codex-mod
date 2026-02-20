@@ -1,29 +1,47 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use code_app_server_protocol::AskForApproval;
 use code_app_server_protocol::ListMcpServerStatusParams;
 use code_app_server_protocol::ListMcpServerStatusResponse;
+use code_app_server_protocol::CommandAction;
+use code_app_server_protocol::CommandExecutionOutputDeltaNotification;
+use code_app_server_protocol::CommandExecutionStatus;
 use code_app_server_protocol::McpServerStatus;
 use code_app_server_protocol::Model;
 use code_app_server_protocol::ModelListParams;
 use code_app_server_protocol::ModelListResponse;
 use code_app_server_protocol::ReasoningEffortOption;
+use code_app_server_protocol::SandboxMode;
+use code_app_server_protocol::SandboxPolicy;
+use code_app_server_protocol::ServerNotification;
 use code_app_server_protocol::Thread;
 use code_app_server_protocol::ThreadItem;
 use code_app_server_protocol::ThreadListParams;
 use code_app_server_protocol::ThreadListResponse;
+use code_app_server_protocol::ThreadStartedNotification;
+use code_app_server_protocol::ThreadStartParams;
+use code_app_server_protocol::ThreadStartResponse;
 use code_app_server_protocol::ThreadReadParams;
 use code_app_server_protocol::ThreadReadResponse;
 use code_app_server_protocol::ThreadSortKey;
 use code_app_server_protocol::ThreadSourceKind;
 use code_app_server_protocol::Turn;
+use code_app_server_protocol::TurnCompletedNotification;
+use code_app_server_protocol::TurnStartParams;
+use code_app_server_protocol::TurnStartResponse;
+use code_app_server_protocol::TurnStartedNotification;
 use code_app_server_protocol::TurnStatus;
 use code_app_server_protocol::UserInput;
+use chrono::Utc;
 use code_common::model_presets;
 use code_core::SessionCatalog;
 use code_core::SessionIndexEntry;
 use code_core::SessionQuery;
+use code_core::config::ConfigBuilder;
+use code_core::config::ConfigOverrides;
 use code_core::entry_to_rollout_path;
 use code_core::mcp_connection_manager::McpConnectionManager;
 use code_core::mcp_snapshot::collect_runtime_snapshot;
@@ -46,6 +64,10 @@ use uuid::Uuid;
 use super::MessageProcessor;
 use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
+use crate::outgoing_message::ConnectionId;
+use crate::outgoing_message::OutgoingMessageSender;
+use crate::outgoing_message::OutgoingNotification;
+use crate::thread_state::ThreadState;
 
 mod status_conversion;
 
@@ -446,6 +468,631 @@ impl MessageProcessor {
         self.outgoing
             .send_response(request_id, ListMcpServerStatusResponse { data, next_cursor })
             .await;
+    }
+
+    pub(super) async fn thread_start_v2(
+        &mut self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: ThreadStartParams,
+    ) {
+        let ThreadStartParams {
+            model,
+            model_provider,
+            cwd,
+            approval_policy,
+            sandbox,
+            config,
+            base_instructions,
+            developer_instructions,
+            personality,
+            dynamic_tools,
+            ..
+        } = params;
+
+        let thread_cwd = cwd
+            .as_deref()
+            .map(PathBuf::from)
+            .map(|path| {
+                if path.is_absolute() {
+                    path
+                } else {
+                    self.base_config.cwd.join(path)
+                }
+            })
+            .unwrap_or_else(|| self.base_config.cwd.clone());
+
+        let dynamic_tools = dynamic_tools.map(|specs| {
+            specs
+                .into_iter()
+                .map(v2_dynamic_tool_spec_to_protocol)
+                .collect()
+        });
+
+        let overrides = ConfigOverrides {
+            model,
+            model_provider,
+            approval_policy: approval_policy.map(v2_approval_policy_to_core),
+            sandbox_mode: sandbox.map(SandboxMode::to_core),
+            cwd: Some(thread_cwd),
+            base_instructions,
+            code_linux_sandbox_exe: self.code_linux_sandbox_exe.clone(),
+            dynamic_tools,
+            ..Default::default()
+        };
+
+        let mut cli_overrides = self.cli_overrides.clone();
+        if let Some(config_overrides) = config {
+            for (key, value) in config_overrides {
+                cli_overrides.push((key, code_utils_json_to_toml::json_to_toml(value)));
+            }
+        }
+
+        let mut config = match ConfigBuilder::new()
+            .with_code_home(self.base_config.code_home.clone())
+            .with_cli_overrides(cli_overrides)
+            .with_overrides(overrides)
+            .with_loader_overrides(code_core::config_loader::LoaderOverrides::default())
+            .load()
+        {
+            Ok(config) => config,
+            Err(err) => {
+                self.outgoing
+                    .send_error(
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("failed to load thread config: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        // V2-specific fields that aren't part of the core config builder yet.
+        config.demo_developer_message = developer_instructions;
+        config.model_personality = personality.map(protocol_personality_to_core);
+
+        let model = config.model.clone();
+        let model_provider = config.model_provider_id.clone();
+        let cwd = config.cwd.clone();
+        let approval_policy = config.approval_policy;
+        let sandbox_policy = config.sandbox_policy.clone();
+        let reasoning_effort = Some(map_core_reasoning_effort(config.model_reasoning_effort.into()));
+
+        let new_conversation = match self.conversation_manager.new_conversation(config).await {
+            Ok(new_conversation) => new_conversation,
+            Err(err) => {
+                self.outgoing
+                    .send_error(
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to start thread: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let thread_id = new_conversation.conversation_id;
+        let thread = Thread {
+            id: thread_id.to_string(),
+            preview: String::new(),
+            model_provider: model_provider.clone(),
+            created_at: Utc::now().timestamp(),
+            updated_at: Utc::now().timestamp(),
+            path: None,
+            cwd: cwd.clone(),
+            cli_version: env!("CARGO_PKG_VERSION").to_string(),
+            source: code_app_server_protocol::SessionSource::AppServer,
+            git_info: None,
+            turns: Vec::new(),
+        };
+
+        let thread_state = self
+            .thread_state_manager
+            .ensure_connection_subscribed(thread_id, connection_id)
+            .await;
+        self.ensure_thread_listener(
+            thread_id.to_string(),
+            new_conversation.conversation,
+            thread_state,
+        )
+        .await;
+
+        self.outgoing
+            .send_response(
+                request_id,
+                ThreadStartResponse {
+                    thread: thread.clone(),
+                    model,
+                    model_provider,
+                    cwd,
+                    approval_policy: core_approval_policy_to_v2(approval_policy),
+                    sandbox: core_sandbox_policy_to_v2(sandbox_policy),
+                    reasoning_effort,
+                },
+            )
+            .await;
+
+        send_server_notification_to_connection(
+            self.outgoing.as_ref(),
+            connection_id,
+            ServerNotification::ThreadStarted(ThreadStartedNotification { thread }),
+        )
+        .await;
+    }
+
+    pub(super) async fn turn_start_v2(
+        &mut self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: TurnStartParams,
+    ) {
+        let thread_id = match code_protocol::ConversationId::from_string(&params.thread_id) {
+            Ok(id) => id,
+            Err(err) => {
+                self.outgoing
+                    .send_error(
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("invalid thread id: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let conversation = match self.conversation_manager.get_conversation(thread_id).await {
+            Ok(conversation) => conversation,
+            Err(err) => {
+                self.outgoing
+                    .send_error(
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("thread not found: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let thread_state = self
+            .thread_state_manager
+            .ensure_connection_subscribed(thread_id, connection_id)
+            .await;
+        self.ensure_thread_listener(thread_id.to_string(), Arc::clone(&conversation), thread_state)
+            .await;
+
+        let mut items = Vec::with_capacity(params.input.len());
+        for input in params.input {
+            match v2_user_input_to_core_input_item(input) {
+                Ok(item) => items.push(item),
+                Err(message) => {
+                    self.outgoing
+                        .send_error(
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message,
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+            }
+        }
+
+        let turn_id = match conversation
+            .submit(code_core::protocol::Op::UserInput {
+                items,
+                final_output_json_schema: params.output_schema.clone(),
+            })
+            .await
+        {
+            Ok(turn_id) => turn_id,
+            Err(err) => {
+                self.outgoing
+                    .send_error(
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to submit turn: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        self.outgoing
+            .send_response(
+                request_id,
+                TurnStartResponse {
+                    turn: Turn {
+                        id: turn_id,
+                        items: Vec::new(),
+                        status: TurnStatus::InProgress,
+                        error: None,
+                    },
+                },
+            )
+            .await;
+    }
+
+    async fn ensure_thread_listener(
+        &self,
+        thread_id: String,
+        conversation: Arc<code_core::CodexConversation>,
+        thread_state: Arc<tokio::sync::Mutex<ThreadState>>,
+    ) {
+        let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel();
+        let should_spawn = {
+            let mut guard = thread_state.lock().await;
+            if guard.listener_matches(&conversation) {
+                false
+            } else {
+                guard.set_listener(cancel_tx, &conversation);
+                true
+            }
+        };
+
+        if !should_spawn {
+            return;
+        }
+
+        let outgoing = Arc::clone(&self.outgoing);
+        tokio::spawn(async move {
+            run_thread_event_loop(thread_id, conversation, thread_state, outgoing, cancel_rx).await;
+        });
+    }
+}
+
+#[derive(Clone)]
+struct CommandExecutionInfo {
+    command: String,
+    cwd: PathBuf,
+    command_actions: Vec<CommandAction>,
+}
+
+async fn run_thread_event_loop(
+    thread_id: String,
+    conversation: Arc<code_core::CodexConversation>,
+    thread_state: Arc<tokio::sync::Mutex<ThreadState>>,
+    outgoing: Arc<OutgoingMessageSender>,
+    mut cancel_rx: tokio::sync::oneshot::Receiver<()>,
+) {
+    let mut agent_message_item_id_by_turn = HashMap::<String, String>::new();
+    let mut agent_message_text_by_turn = HashMap::<String, String>::new();
+    let mut started_agent_message_turns = HashSet::<String>::new();
+    let mut command_exec_by_call_id = HashMap::<String, CommandExecutionInfo>::new();
+
+    loop {
+        tokio::select! {
+            _ = &mut cancel_rx => break,
+            event = conversation.next_event() => {
+                let event = match event {
+                    Ok(event) => event,
+                    Err(err) => {
+                        tracing::warn!("thread listener exited: {err}");
+                        break;
+                    }
+                };
+
+                let turn_id = event.id.clone();
+                match event.msg {
+                    code_core::protocol::EventMsg::TaskStarted => {
+                        let turn = Turn { id: turn_id.clone(), items: Vec::new(), status: TurnStatus::InProgress, error: None };
+                        broadcast_server_notification(
+                            outgoing.as_ref(),
+                            &thread_state,
+                            ServerNotification::TurnStarted(TurnStartedNotification { thread_id: thread_id.clone(), turn }),
+                        ).await;
+                    }
+                    code_core::protocol::EventMsg::AgentMessageDelta(delta) => {
+                        let item_id = agent_message_item_id_by_turn
+                            .entry(turn_id.clone())
+                            .or_insert_with(|| format!("{turn_id}:agentMessage"))
+                            .clone();
+                        let text = agent_message_text_by_turn.entry(turn_id.clone()).or_default();
+                        text.push_str(&delta.delta);
+
+                        if started_agent_message_turns.insert(turn_id.clone()) {
+                            broadcast_server_notification(
+                                outgoing.as_ref(),
+                                &thread_state,
+                                ServerNotification::ItemStarted(code_app_server_protocol::ItemStartedNotification {
+                                    item: ThreadItem::AgentMessage { id: item_id.clone(), text: String::new() },
+                                    thread_id: thread_id.clone(),
+                                    turn_id: turn_id.clone(),
+                                }),
+                            ).await;
+                        }
+
+                        broadcast_server_notification(
+                            outgoing.as_ref(),
+                            &thread_state,
+                            ServerNotification::AgentMessageDelta(code_app_server_protocol::AgentMessageDeltaNotification {
+                                thread_id: thread_id.clone(),
+                                turn_id: turn_id.clone(),
+                                item_id,
+                                delta: delta.delta,
+                            }),
+                        ).await;
+                    }
+                    code_core::protocol::EventMsg::ExecCommandBegin(begin) => {
+                        let command = begin.command.join(" ");
+                        let command_actions: Vec<CommandAction> = begin
+                            .parsed_cmd
+                            .into_iter()
+                            .map(|parsed| code_protocol::parse_command::ParsedCommand::from(parsed).into())
+                            .collect();
+                        let info = CommandExecutionInfo { command: command.clone(), cwd: begin.cwd.clone(), command_actions: command_actions.clone() };
+                        command_exec_by_call_id.insert(begin.call_id.clone(), info.clone());
+
+                        broadcast_server_notification(
+                            outgoing.as_ref(),
+                            &thread_state,
+                            ServerNotification::ItemStarted(code_app_server_protocol::ItemStartedNotification {
+                                item: ThreadItem::CommandExecution {
+                                    id: begin.call_id.clone(),
+                                    command,
+                                    cwd: begin.cwd,
+                                    process_id: None,
+                                    status: CommandExecutionStatus::InProgress,
+                                    command_actions,
+                                    aggregated_output: None,
+                                    exit_code: None,
+                                    duration_ms: None,
+                                },
+                                thread_id: thread_id.clone(),
+                                turn_id: turn_id.clone(),
+                            }),
+                        ).await;
+                    }
+                    code_core::protocol::EventMsg::ExecCommandOutputDelta(delta) => {
+                        let delta_text = String::from_utf8_lossy(&delta.chunk).to_string();
+                        broadcast_server_notification(
+                            outgoing.as_ref(),
+                            &thread_state,
+                            ServerNotification::CommandExecutionOutputDelta(CommandExecutionOutputDeltaNotification {
+                                thread_id: thread_id.clone(),
+                                turn_id: turn_id.clone(),
+                                item_id: delta.call_id,
+                                delta: delta_text,
+                            }),
+                        ).await;
+                    }
+                    code_core::protocol::EventMsg::ExecCommandEnd(end) => {
+                        let info = command_exec_by_call_id.remove(&end.call_id);
+                        let (command, cwd, command_actions) = match info {
+                            Some(info) => (info.command, info.cwd, info.command_actions),
+                            None => (String::new(), PathBuf::new(), Vec::new()),
+                        };
+
+                        let (status, exit_code) = if end.exit_code == 0 {
+                            (CommandExecutionStatus::Completed, Some(0))
+                        } else {
+                            (CommandExecutionStatus::Failed, Some(end.exit_code))
+                        };
+
+                        let aggregated_output = if end.stdout.is_empty() && end.stderr.is_empty() {
+                            None
+                        } else {
+                            Some(format!("{}{}", end.stdout, end.stderr))
+                        };
+
+                        broadcast_server_notification(
+                            outgoing.as_ref(),
+                            &thread_state,
+                            ServerNotification::ItemCompleted(code_app_server_protocol::ItemCompletedNotification {
+                                item: ThreadItem::CommandExecution {
+                                    id: end.call_id,
+                                    command,
+                                    cwd,
+                                    process_id: None,
+                                    status,
+                                    command_actions,
+                                    aggregated_output,
+                                    exit_code,
+                                    duration_ms: Some(end.duration.as_millis() as i64),
+                                },
+                                thread_id: thread_id.clone(),
+                                turn_id: turn_id.clone(),
+                            }),
+                        ).await;
+                    }
+                    code_core::protocol::EventMsg::TaskComplete(complete) => {
+                        if let Some(final_message) = complete.last_agent_message {
+                            let item_id = agent_message_item_id_by_turn
+                                .entry(turn_id.clone())
+                                .or_insert_with(|| format!("{turn_id}:agentMessage"))
+                                .clone();
+                            let text = agent_message_text_by_turn.entry(turn_id.clone()).or_default();
+                            if text.is_empty() {
+                                text.push_str(&final_message);
+                            }
+                            if started_agent_message_turns.insert(turn_id.clone()) {
+                                broadcast_server_notification(
+                                    outgoing.as_ref(),
+                                    &thread_state,
+                                    ServerNotification::ItemStarted(code_app_server_protocol::ItemStartedNotification {
+                                        item: ThreadItem::AgentMessage { id: item_id.clone(), text: String::new() },
+                                        thread_id: thread_id.clone(),
+                                        turn_id: turn_id.clone(),
+                                    }),
+                                ).await;
+                            }
+                            let final_text = agent_message_text_by_turn.get(&turn_id).cloned().unwrap_or_default();
+                            broadcast_server_notification(
+                                outgoing.as_ref(),
+                                &thread_state,
+                                ServerNotification::ItemCompleted(code_app_server_protocol::ItemCompletedNotification {
+                                    item: ThreadItem::AgentMessage { id: item_id, text: final_text },
+                                    thread_id: thread_id.clone(),
+                                    turn_id: turn_id.clone(),
+                                }),
+                            ).await;
+                        } else if started_agent_message_turns.contains(&turn_id) {
+                            let item_id = agent_message_item_id_by_turn
+                            .entry(turn_id.clone())
+                            .or_insert_with(|| format!("{turn_id}:agentMessage"))
+                            .clone();
+                            let final_text = agent_message_text_by_turn.get(&turn_id).cloned().unwrap_or_default();
+                            broadcast_server_notification(
+                                outgoing.as_ref(),
+                                &thread_state,
+                                ServerNotification::ItemCompleted(code_app_server_protocol::ItemCompletedNotification {
+                                    item: ThreadItem::AgentMessage { id: item_id, text: final_text },
+                                    thread_id: thread_id.clone(),
+                                    turn_id: turn_id.clone(),
+                                }),
+                            ).await;
+                        }
+
+                        let turn = Turn { id: turn_id.clone(), items: Vec::new(), status: TurnStatus::Completed, error: None };
+                        broadcast_server_notification(
+                            outgoing.as_ref(),
+                            &thread_state,
+                            ServerNotification::TurnCompleted(TurnCompletedNotification { thread_id: thread_id.clone(), turn }),
+                        ).await;
+                    }
+                    code_core::protocol::EventMsg::TurnAborted(_) => {
+                        let turn = Turn { id: turn_id.clone(), items: Vec::new(), status: TurnStatus::Interrupted, error: None };
+                        broadcast_server_notification(
+                            outgoing.as_ref(),
+                            &thread_state,
+                            ServerNotification::TurnCompleted(TurnCompletedNotification { thread_id: thread_id.clone(), turn }),
+                        ).await;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+async fn broadcast_server_notification(
+    outgoing: &OutgoingMessageSender,
+    thread_state: &Arc<tokio::sync::Mutex<ThreadState>>,
+    notification: ServerNotification,
+) {
+    let connection_ids = thread_state.lock().await.subscribed_connection_ids();
+    for connection_id in connection_ids {
+        send_server_notification_to_connection(outgoing, connection_id, notification.clone()).await;
+    }
+}
+
+async fn send_server_notification_to_connection(
+    outgoing: &OutgoingMessageSender,
+    connection_id: ConnectionId,
+    notification: ServerNotification,
+) {
+    let method = notification.to_string();
+    let params = match notification.to_params() {
+        Ok(params) => Some(params),
+        Err(err) => {
+            tracing::warn!("failed to serialize notification params: {err}");
+            None
+        }
+    };
+    outgoing
+        .send_notification_to_connection(
+            connection_id,
+            OutgoingNotification {
+                method,
+                params,
+            },
+        )
+        .await;
+}
+
+fn v2_approval_policy_to_core(policy: AskForApproval) -> code_core::protocol::AskForApproval {
+    match policy {
+        AskForApproval::UnlessTrusted => code_core::protocol::AskForApproval::UnlessTrusted,
+        AskForApproval::OnFailure => code_core::protocol::AskForApproval::OnFailure,
+        AskForApproval::OnRequest => code_core::protocol::AskForApproval::OnRequest,
+        AskForApproval::Never => code_core::protocol::AskForApproval::Never,
+    }
+}
+
+fn core_approval_policy_to_v2(policy: code_core::protocol::AskForApproval) -> AskForApproval {
+    match policy {
+        code_core::protocol::AskForApproval::UnlessTrusted => AskForApproval::UnlessTrusted,
+        code_core::protocol::AskForApproval::OnFailure => AskForApproval::OnFailure,
+        code_core::protocol::AskForApproval::OnRequest => AskForApproval::OnRequest,
+        code_core::protocol::AskForApproval::Never => AskForApproval::Never,
+    }
+}
+
+fn core_sandbox_policy_to_v2(policy: code_core::protocol::SandboxPolicy) -> SandboxPolicy {
+    match policy {
+        code_core::protocol::SandboxPolicy::DangerFullAccess => SandboxPolicy::DangerFullAccess,
+        code_core::protocol::SandboxPolicy::ReadOnly => SandboxPolicy::ReadOnly,
+        code_core::protocol::SandboxPolicy::WorkspaceWrite {
+            writable_roots,
+            network_access,
+            exclude_tmpdir_env_var,
+            exclude_slash_tmp,
+            ..
+        } => SandboxPolicy::WorkspaceWrite {
+            writable_roots: writable_roots
+                .into_iter()
+                .filter_map(|path| code_utils_absolute_path::AbsolutePathBuf::try_from(path).ok())
+                .collect(),
+            network_access,
+            exclude_tmpdir_env_var,
+            exclude_slash_tmp,
+        },
+    }
+}
+
+fn protocol_personality_to_core(
+    personality: code_protocol::config_types::Personality,
+) -> code_core::config_types::Personality {
+    match personality {
+        code_protocol::config_types::Personality::None => code_core::config_types::Personality::None,
+        code_protocol::config_types::Personality::Friendly => {
+            code_core::config_types::Personality::Friendly
+        }
+        code_protocol::config_types::Personality::Pragmatic => {
+            code_core::config_types::Personality::Pragmatic
+        }
+    }
+}
+
+fn v2_dynamic_tool_spec_to_protocol(
+    spec: code_app_server_protocol::DynamicToolSpec,
+) -> code_protocol::dynamic_tools::DynamicToolSpec {
+    code_protocol::dynamic_tools::DynamicToolSpec {
+        name: spec.name,
+        description: spec.description,
+        input_schema: spec.input_schema,
+    }
+}
+
+fn v2_user_input_to_core_input_item(
+    input: UserInput,
+) -> Result<code_core::protocol::InputItem, String> {
+    match input {
+        UserInput::Text { text, .. } => Ok(code_core::protocol::InputItem::Text { text }),
+        UserInput::Image { url } => Ok(code_core::protocol::InputItem::Image { image_url: url }),
+        UserInput::LocalImage { path } => Ok(code_core::protocol::InputItem::LocalImage { path }),
+        UserInput::Skill { .. } => Err("skill inputs are not supported by turn/start yet".to_string()),
+        UserInput::Mention { .. } => Err("mention inputs are not supported by turn/start yet".to_string()),
     }
 }
 

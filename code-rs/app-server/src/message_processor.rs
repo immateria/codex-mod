@@ -10,6 +10,7 @@ use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
+use crate::thread_state::ThreadStateManager;
 use code_app_server_protocol::AuthMode;
 use code_app_server_protocol::CancelLoginAccountParams;
 use code_app_server_protocol::ClientRequest as ApiClientRequest;
@@ -41,8 +42,12 @@ pub(crate) struct MessageProcessor {
     code_message_processor: CodexMessageProcessor,
     base_config: Arc<Config>,
     auth_manager: Arc<AuthManager>,
+    conversation_manager: Arc<ConversationManager>,
     config_warnings: Arc<Vec<serde_json::Value>>,
     config_service: ConfigService,
+    thread_state_manager: ThreadStateManager,
+    cli_overrides: Vec<(String, TomlValue)>,
+    code_linux_sandbox_exe: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -82,7 +87,7 @@ impl MessageProcessor {
             .or_else(|| config_for_processor.code_linux_sandbox_exe.clone());
         let code_message_processor = CodexMessageProcessor::new(
             auth_manager.clone(),
-            conversation_manager,
+            conversation_manager.clone(),
             outgoing.clone(),
             code_linux_sandbox_exe,
             config_for_processor.clone(),
@@ -93,14 +98,18 @@ impl MessageProcessor {
             code_message_processor,
             base_config: config_for_processor,
             auth_manager,
+            conversation_manager,
             config_warnings: Arc::new(config_warnings),
             config_service: ConfigService::new(
                 config_home,
                 config_cwd,
-                sandbox_exe,
-                cli_overrides,
+                sandbox_exe.clone(),
+                cli_overrides.clone(),
                 code_core::config_loader::LoaderOverrides::default(),
             ),
+            thread_state_manager: ThreadStateManager::default(),
+            cli_overrides,
+            code_linux_sandbox_exe: sandbox_exe,
         }
     }
 
@@ -210,7 +219,7 @@ impl MessageProcessor {
         }
 
         if self
-            .try_process_v2_request(request_id.clone(), &api_request)
+            .try_process_v2_request(connection_id, request_id.clone(), &api_request)
             .await
         {
             return;
@@ -266,6 +275,7 @@ impl MessageProcessor {
     }
 
     pub(crate) async fn on_connection_closed(&mut self, connection_id: ConnectionId) {
+        self.thread_state_manager.remove_connection(connection_id).await;
         self.code_message_processor
             .on_connection_closed(connection_id)
             .await;
@@ -293,7 +303,8 @@ impl MessageProcessor {
     }
 
     async fn try_process_v2_request(
-        &self,
+        &mut self,
+        connection_id: ConnectionId,
         request_id: mcp_types::RequestId,
         request: &ApiClientRequest,
     ) -> bool {
@@ -393,6 +404,16 @@ impl MessageProcessor {
             }
             ApiClientRequest::ThreadRead { params, .. } => {
                 self.thread_read_v2(request_id, params.clone()).await;
+                true
+            }
+            ApiClientRequest::ThreadStart { params, .. } => {
+                self.thread_start_v2(connection_id, request_id, params.clone())
+                    .await;
+                true
+            }
+            ApiClientRequest::TurnStart { params, .. } => {
+                self.turn_start_v2(connection_id, request_id, params.clone())
+                    .await;
                 true
             }
             ApiClientRequest::McpServerStatusList { params, .. } => {
