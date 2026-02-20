@@ -713,6 +713,9 @@ pub(crate) struct ChatWidget<'a> {
     mcp_tool_catalog_by_id: HashMap<String, mcp_types::Tool>,
     mcp_tools_by_server: HashMap<String, Vec<String>>,
     mcp_disabled_tools_by_server: HashMap<String, Vec<String>>,
+    mcp_resources_by_server: HashMap<String, Vec<code_protocol::mcp::Resource>>,
+    mcp_resource_templates_by_server:
+        HashMap<String, Vec<code_protocol::mcp::ResourceTemplate>>,
     mcp_server_failures: HashMap<String, McpServerFailure>,
     mcp_auth_statuses: HashMap<String, McpAuthStatus>,
     /// Startup-only MCP init error summary. We keep this out of history so the

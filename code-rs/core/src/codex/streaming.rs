@@ -1430,6 +1430,13 @@ pub(super) async fn submission_loop(
                 let server_disabled_tools =
                     sess.mcp_connection_manager.list_disabled_tools_by_server();
                 let server_failures = sess.mcp_connection_manager.list_server_failures();
+                let resources =
+                    convert_mcp_resources_by_server(sess.mcp_connection_manager.list_resources_by_server().await);
+                let resource_templates = convert_mcp_resource_templates_by_server(
+                    sess.mcp_connection_manager
+                        .list_resource_templates_by_server()
+                        .await,
+                );
                 let auth_statuses = sess.mcp_connection_manager.list_auth_statuses().await;
 
                 let event = Event {
@@ -1440,8 +1447,8 @@ pub(super) async fn submission_loop(
                         server_tools: Some(server_tools),
                         server_disabled_tools: Some(server_disabled_tools),
                         server_failures: Some(server_failures),
-                        resources: std::collections::HashMap::new(),
-                        resource_templates: std::collections::HashMap::new(),
+                        resources,
+                        resource_templates,
                         auth_statuses,
                     }),
                     order: None,
@@ -1487,6 +1494,13 @@ pub(super) async fn submission_loop(
                 let server_disabled_tools =
                     sess.mcp_connection_manager.list_disabled_tools_by_server();
                 let server_failures = sess.mcp_connection_manager.list_server_failures();
+                let resources =
+                    convert_mcp_resources_by_server(sess.mcp_connection_manager.list_resources_by_server().await);
+                let resource_templates = convert_mcp_resource_templates_by_server(
+                    sess.mcp_connection_manager
+                        .list_resource_templates_by_server()
+                        .await,
+                );
                 let auth_statuses = sess.mcp_connection_manager.list_auth_statuses().await;
 
                 let event = Event {
@@ -1497,8 +1511,8 @@ pub(super) async fn submission_loop(
                         server_tools: Some(server_tools),
                         server_disabled_tools: Some(server_disabled_tools),
                         server_failures: Some(server_failures),
-                        resources: std::collections::HashMap::new(),
-                        resource_templates: std::collections::HashMap::new(),
+                        resources,
+                        resource_templates,
                         auth_statuses,
                     }),
                     order: None,
@@ -1550,6 +1564,13 @@ pub(super) async fn submission_loop(
                 let server_disabled_tools =
                     sess.mcp_connection_manager.list_disabled_tools_by_server();
                 let server_failures = sess.mcp_connection_manager.list_server_failures();
+                let resources =
+                    convert_mcp_resources_by_server(sess.mcp_connection_manager.list_resources_by_server().await);
+                let resource_templates = convert_mcp_resource_templates_by_server(
+                    sess.mcp_connection_manager
+                        .list_resource_templates_by_server()
+                        .await,
+                );
                 let auth_statuses = sess.mcp_connection_manager.list_auth_statuses().await;
 
                 let event = Event {
@@ -1560,8 +1581,8 @@ pub(super) async fn submission_loop(
                         server_tools: Some(server_tools),
                         server_disabled_tools: Some(server_disabled_tools),
                         server_failures: Some(server_failures),
-                        resources: std::collections::HashMap::new(),
-                        resource_templates: std::collections::HashMap::new(),
+                        resources,
+                        resource_templates,
                         auth_statuses,
                     }),
                     order: None,
@@ -3743,6 +3764,66 @@ fn preview_first_n_lines(s: &str, n: usize) -> (String, usize) {
     }
 
     (preview, total_lines)
+}
+
+fn convert_mcp_resources_by_server(
+    resources_by_server: std::collections::HashMap<String, Vec<mcp_types::Resource>>,
+) -> std::collections::HashMap<String, Vec<code_protocol::mcp::Resource>> {
+    resources_by_server
+        .into_iter()
+        .map(|(server, resources)| {
+            let converted = resources
+                .into_iter()
+                .filter_map(|resource| match serde_json::to_value(resource) {
+                    Ok(value) => match code_protocol::mcp::Resource::from_mcp_value(value) {
+                        Ok(resource) => Some(resource),
+                        Err(err) => {
+                            warn!("failed to convert MCP resource for server {server}: {err}");
+                            None
+                        }
+                    },
+                    Err(err) => {
+                        warn!("failed to serialize MCP resource for server {server}: {err}");
+                        None
+                    }
+                })
+                .collect();
+            (server, converted)
+        })
+        .collect()
+}
+
+fn convert_mcp_resource_templates_by_server(
+    templates_by_server: std::collections::HashMap<String, Vec<mcp_types::ResourceTemplate>>,
+) -> std::collections::HashMap<String, Vec<code_protocol::mcp::ResourceTemplate>> {
+    templates_by_server
+        .into_iter()
+        .map(|(server, templates)| {
+            let converted = templates
+                .into_iter()
+                .filter_map(|template| match serde_json::to_value(template) {
+                    Ok(value) => {
+                        match code_protocol::mcp::ResourceTemplate::from_mcp_value(value) {
+                            Ok(template) => Some(template),
+                            Err(err) => {
+                                warn!(
+                                    "failed to convert MCP resource template for server {server}: {err}"
+                                );
+                                None
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        warn!(
+                            "failed to serialize MCP resource template for server {server}: {err}"
+                        );
+                        None
+                    }
+                })
+                .collect();
+            (server, converted)
+        })
+        .collect()
 }
 
 #[cfg(test)]

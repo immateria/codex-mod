@@ -16,6 +16,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+chrono = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 code-arg0 = { workspace = true }
 code-common = { workspace = true, features = ["cli"] }

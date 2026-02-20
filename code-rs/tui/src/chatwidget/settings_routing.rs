@@ -217,7 +217,16 @@ impl ChatWidget<'_> {
             }
         };
 
-        let (enabled, disabled) = match code_core::config::list_mcp_servers(&home) {
+        let runtime_snapshot = code_core::mcp_snapshot::McpRuntimeSnapshot {
+            tools_by_server: self.mcp_tools_by_server.clone(),
+            disabled_tools_by_server: self.mcp_disabled_tools_by_server.clone(),
+            auth_statuses: self.mcp_auth_statuses.clone(),
+            failures: self.mcp_server_failures.clone(),
+        };
+        let resources_by_server = &self.mcp_resources_by_server;
+        let resource_templates_by_server = &self.mcp_resource_templates_by_server;
+
+        let merged_servers = match code_core::mcp_snapshot::merge_servers(&home, &runtime_snapshot) {
             Ok(result) => result,
             Err(e) => {
                 let msg = format!("Failed to read MCP config: {e}");
@@ -227,60 +236,51 @@ impl ChatWidget<'_> {
         };
 
         let mut rows: McpServerRows = Vec::new();
-        let mut push_row = |name: String,
-                            cfg: code_core::config_types::McpServerConfig,
-                            enabled: bool| {
-            let transport = Self::format_mcp_summary(&cfg);
-            let status = self.format_mcp_tool_status(&name, enabled);
-            let auth_status = self
-                .mcp_auth_statuses
-                .get(&name)
-                .copied()
-                .unwrap_or(McpAuthStatus::Unsupported);
-            let failure = self
-                .mcp_server_failures
-                .get(&name)
+        for server in merged_servers {
+            let server_name = server.name.clone();
+            let transport = Self::format_mcp_summary(&server.config);
+            let status = self.format_mcp_tool_status(&server_name, server.enabled);
+            let failure = server
+                .failure
+                .as_ref()
                 .map(|entry| self.format_mcp_failure(entry));
-            let mut tools = if enabled {
-                self.mcp_tools_by_server
-                    .get(&name)
-                    .cloned()
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
-            };
-            tools.sort_unstable();
-            let mut disabled_tools = cfg.disabled_tools.clone();
-            if let Some(runtime_disabled) = self.mcp_disabled_tools_by_server.get(&name) {
-                disabled_tools.extend(runtime_disabled.clone());
-            }
-            disabled_tools.sort();
-            disabled_tools.dedup();
             let mut tool_definitions = std::collections::BTreeMap::new();
-            for tool_name in tools.iter().chain(disabled_tools.iter()) {
-                if let Some(tool) = self.mcp_tool_definition_for(&name, tool_name) {
+            for tool_name in server.tools.iter().chain(server.disabled_tools.iter()) {
+                if let Some(tool) = self.mcp_tool_definition_for(&server_name, tool_name) {
                     tool_definitions.insert(tool_name.clone(), tool);
                 }
             }
+            let resources = resources_by_server
+                .get(&server_name)
+                .cloned()
+                .unwrap_or_default();
+            let resource_templates = resource_templates_by_server
+                .get(&server_name)
+                .cloned()
+                .unwrap_or_default();
+            let mut resources = resources;
+            let mut resource_templates = resource_templates;
+            resources.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.uri.cmp(&b.uri)));
+            resource_templates.sort_by(|a, b| {
+                a.name
+                    .cmp(&b.name)
+                    .then_with(|| a.uri_template.cmp(&b.uri_template))
+            });
             rows.push(McpServerRow {
-                name,
-                enabled,
+                name: server.name,
+                enabled: server.enabled,
                 transport,
-                auth_status,
-                startup_timeout: cfg.startup_timeout_sec,
-                tool_timeout: cfg.tool_timeout_sec,
-                tools,
-                disabled_tools,
+                auth_status: server.auth_status,
+                startup_timeout: server.config.startup_timeout_sec,
+                tool_timeout: server.config.tool_timeout_sec,
+                tools: server.tools,
+                disabled_tools: server.disabled_tools,
+                resources,
+                resource_templates,
                 tool_definitions,
                 failure,
                 status,
             });
-        };
-        for (name, cfg) in enabled.into_iter() {
-            push_row(name, cfg, true);
-        }
-        for (name, cfg) in disabled.into_iter() {
-            push_row(name, cfg, false);
         }
         rows.sort_by(|a, b| a.name.cmp(&b.name));
         Some(rows)

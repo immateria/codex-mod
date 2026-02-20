@@ -207,7 +207,6 @@ use code_core::protocol::EnvironmentContextFullEvent;
 use code_core::protocol::InputItem;
 use code_core::protocol::McpAuthStatus;
 use code_core::protocol::McpServerFailure;
-use code_core::protocol::McpServerFailurePhase;
 use code_core::protocol::SessionConfiguredEvent;
 // MCP tool call handlers moved into chatwidget::tools
 use code_core::protocol::Op;
@@ -8079,33 +8078,47 @@ fi\n\
     }
 
     fn format_mcp_summary(cfg: &code_core::config_types::McpServerConfig) -> String {
-        use code_core::config_types::McpServerTransportConfig;
-
-        match &cfg.transport {
-            McpServerTransportConfig::Stdio { command, args, .. } => {
-                if args.is_empty() {
-                    command.clone()
-                } else {
-                    format!("{} {}", command, args.join(" "))
-                }
-            }
-            McpServerTransportConfig::StreamableHttp { url, .. } => format!("HTTP {url}"),
-        }
+        code_core::mcp_snapshot::format_transport_summary(cfg)
     }
 
-    fn format_mcp_server_summary(
-        &self,
-        name: &str,
-        cfg: &code_core::config_types::McpServerConfig,
-        enabled: bool,
-    ) -> String {
-        let transport = Self::format_mcp_summary(cfg);
-        let status = self.format_mcp_tool_status(name, enabled);
-        if status.is_empty() {
-            transport
-        } else {
-            format!("{transport} · {status}")
+    fn format_mcp_status_report(rows: &[McpServerRow]) -> String {
+        if rows.is_empty() {
+            return "No MCP servers configured. Use /mcp add … to add one.".to_string();
         }
+
+        let mut out = String::new();
+        let enabled_count = rows.iter().filter(|row| row.enabled).count();
+        out.push_str(&format!("Enabled ({enabled_count}):\n"));
+        for row in rows.iter().filter(|row| row.enabled) {
+            out.push_str(&format!(
+                "• {} — {} · {} · Auth: {}\n",
+                row.name, row.transport, row.status, row.auth_status
+            ));
+            if let Some(timeout) = row.startup_timeout {
+                out.push_str(&format!("  startup_timeout_sec: {:.3}\n", timeout.as_secs_f64()));
+            }
+            if let Some(timeout) = row.tool_timeout {
+                out.push_str(&format!("  tool_timeout_sec: {:.3}\n", timeout.as_secs_f64()));
+            }
+            if !row.disabled_tools.is_empty() {
+                out.push_str(&format!(
+                    "  disabled_tools ({}): {}\n",
+                    row.disabled_tools.len(),
+                    row.disabled_tools.join(", ")
+                ));
+            }
+        }
+
+        let disabled_count = rows.iter().filter(|row| !row.enabled).count();
+        out.push_str(&format!("\nDisabled ({disabled_count}):\n"));
+        for row in rows.iter().filter(|row| !row.enabled) {
+            out.push_str(&format!(
+                "• {} — {} · {} · Auth: {}\n",
+                row.name, row.transport, row.status, row.auth_status
+            ));
+        }
+
+        out.trim_end().to_string()
     }
 
     fn format_mcp_tool_status(&self, name: &str, enabled: bool) -> String {
@@ -8149,12 +8162,8 @@ fi\n\
     fn format_mcp_failure(&self, failure: &McpServerFailure) -> String {
         const MAX_CHARS: usize = 160;
 
-        let normalized = failure.message.replace('\n', " ");
-        let message = Self::truncate_with_ellipsis(&normalized, MAX_CHARS);
-        match failure.phase {
-            McpServerFailurePhase::Start => format!("Failed to start: {message}"),
-            McpServerFailurePhase::ListTools => format!("Failed to list tools: {message}"),
-        }
+        let summary = code_core::mcp_snapshot::format_failure_summary(failure);
+        Self::truncate_with_ellipsis(&summary, MAX_CHARS)
     }
 
     /// Handle `/mcp` command: manage MCP servers (status/on/off/add).
@@ -8176,45 +8185,8 @@ fi\n\
                 if !self.config.mcp_servers.is_empty() {
                     self.submit_op(Op::ListMcpTools);
                 }
-                match find_code_home() {
-                    Ok(home) => match code_core::config::list_mcp_servers(&home) {
-                        Ok((enabled, disabled)) => {
-                            let mut lines = String::new();
-                            if enabled.is_empty() && disabled.is_empty() {
-                                lines.push_str(
-                                    "No MCP servers configured. Use /mcp add … to add one.",
-                                );
-                            } else {
-                                let enabled_count = enabled.len();
-                                lines.push_str(&format!("Enabled ({enabled_count}):\n"));
-                                for (name, cfg) in enabled {
-                                    lines.push_str(&format!(
-                                        "• {} — {}\n",
-                                        name,
-                                        self.format_mcp_server_summary(&name, &cfg, true)
-                                    ));
-                                }
-                                let disabled_count = disabled.len();
-                                lines.push_str(&format!("\nDisabled ({disabled_count}):\n"));
-                                for (name, cfg) in disabled {
-                                    lines.push_str(&format!(
-                                        "• {} — {}\n",
-                                        name,
-                                        self.format_mcp_server_summary(&name, &cfg, false)
-                                    ));
-                                }
-                            }
-                            self.push_background_tail(lines);
-                        }
-                        Err(e) => {
-                            let msg = format!("Failed to read MCP config: {e}");
-                            self.history_push_plain_state(history_cell::new_error_event(msg));
-                        }
-                    },
-                    Err(e) => {
-                        let msg = format!("Failed to locate CODEX_HOME: {e}");
-                        self.history_push_plain_state(history_cell::new_error_event(msg));
-                    }
+                if let Some(rows) = self.build_mcp_server_rows() {
+                    self.push_background_tail(Self::format_mcp_status_report(&rows));
                 }
             }
             "on" | "off" => {

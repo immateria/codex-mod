@@ -177,8 +177,7 @@ impl ConfigService {
         let requirements = crate::config::load_allowed_approval_policies(&self.code_home)
             .map_err(|err| ConfigServiceError::io("failed to read config requirements", err))?;
 
-        let requirements = match requirements {
-            Some(allowed_approval_policies) => Some(ConfigRequirements {
+        let requirements = requirements.map(|allowed_approval_policies| ConfigRequirements {
                 allowed_approval_policies: Some(
                     allowed_approval_policies
                         .into_iter()
@@ -189,9 +188,7 @@ impl ConfigService {
                 allowed_web_search_modes: None,
                 enforce_residency: None,
                 network: None,
-            }),
-            None => None,
-        };
+            });
 
         Ok(ConfigRequirementsReadResponse { requirements })
     }

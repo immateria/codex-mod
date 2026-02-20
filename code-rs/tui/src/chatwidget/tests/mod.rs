@@ -5,6 +5,7 @@
     };
     use crate::app_event::AppEvent;
     use crate::bottom_pane::AutoCoordinatorViewModel;
+    use crate::bottom_pane::mcp_settings_view::McpServerRow;
     use crate::chatwidget::message::UserMessage;
     use crate::chatwidget::smoke_helpers::{enter_test_runtime_guard, ChatWidgetHarness};
     use crate::history_cell::{self, ExploreAggregationCell, HistoryCellType};
@@ -46,12 +47,14 @@
     Event,
     EventMsg,
     ExecCommandBeginEvent,
+    McpAuthStatus,
     McpServerFailure,
     McpServerFailurePhase,
     TaskCompleteEvent,
     };
     use code_core::protocol::AgentInfo as CoreAgentInfo;
     use code_protocol::protocol::ReviewTarget;
+    use std::collections::BTreeMap;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::process::Command;
     use tempfile::tempdir;
@@ -129,8 +132,16 @@
             disabled_tools: Vec::new(),
         };
     
-        let ok_summary = chat.format_mcp_server_summary("alpha", &ok_cfg, true);
-        let fail_summary = chat.format_mcp_server_summary("beta", &fail_cfg, true);
+        let ok_summary = format!(
+            "{} · {}",
+            ChatWidget::format_mcp_summary(&ok_cfg),
+            chat.format_mcp_tool_status("alpha", true)
+        );
+        let fail_summary = format!(
+            "{} · {}",
+            ChatWidget::format_mcp_summary(&fail_cfg),
+            chat.format_mcp_tool_status("beta", true)
+        );
     
         assert!(
             ok_summary.contains("Tools: fetch, search"),
@@ -141,6 +152,51 @@
             "expected failure message in summary, got: {fail_summary}"
         );
     });
+    }
+
+    #[test]
+    fn mcp_status_report_includes_auth_timeouts_and_disabled_tools() {
+    let rows = vec![
+        McpServerRow {
+            name: "alpha".to_string(),
+            enabled: true,
+            transport: "npx -y alpha".to_string(),
+            auth_status: McpAuthStatus::OAuth,
+            startup_timeout: Some(Duration::from_secs(12)),
+            tool_timeout: Some(Duration::from_secs(4)),
+            tools: vec!["fetch".to_string(), "search".to_string()],
+            disabled_tools: vec!["legacy".to_string()],
+            resources: Vec::new(),
+            resource_templates: Vec::new(),
+            tool_definitions: BTreeMap::new(),
+            failure: None,
+            status: "Tools: fetch, search".to_string(),
+        },
+        McpServerRow {
+            name: "beta".to_string(),
+            enabled: false,
+            transport: "HTTP https://beta.example/mcp".to_string(),
+            auth_status: McpAuthStatus::Unsupported,
+            startup_timeout: None,
+            tool_timeout: None,
+            tools: Vec::new(),
+            disabled_tools: Vec::new(),
+            resources: Vec::new(),
+            resource_templates: Vec::new(),
+            tool_definitions: BTreeMap::new(),
+            failure: None,
+            status: "Tools: disabled".to_string(),
+        },
+    ];
+
+    let report = ChatWidget::format_mcp_status_report(&rows);
+    assert!(report.contains("Enabled (1):"), "{report}");
+    assert!(report.contains("Disabled (1):"), "{report}");
+    assert!(report.contains("Auth: OAuth"), "{report}");
+    assert!(report.contains("startup_timeout_sec: 12.000"), "{report}");
+    assert!(report.contains("tool_timeout_sec: 4.000"), "{report}");
+    assert!(report.contains("disabled_tools (1): legacy"), "{report}");
+    assert!(report.contains("Auth: Unsupported"), "{report}");
     }
     
     #[test]

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -12,14 +13,20 @@ use code_core::config::load_global_mcp_servers;
 use code_core::config::write_global_mcp_servers;
 use code_core::config_types::McpServerConfig;
 use code_core::config_types::McpServerTransportConfig;
+use code_core::mcp_connection_manager::McpConnectionManager;
+use code_core::mcp_snapshot::collect_runtime_snapshot;
+use code_core::mcp_snapshot::format_failure_summary;
+use code_core::mcp_snapshot::format_transport_summary;
+use code_core::mcp_snapshot::merge_servers;
+use code_core::mcp_snapshot::MergedMcpServer;
 use code_rmcp_client::delete_oauth_tokens;
 use code_rmcp_client::perform_oauth_login;
 use code_rmcp_client::supports_oauth_login;
 
 /// Subcommands:
-/// - `serve`  — run the MCP server on stdio
 /// - `list`   — list configured servers (with `--json`)
 /// - `get`    — show a single server (with `--json`)
+/// - `status` — list live server status, auth, and discovered tools
 /// - `add`    — add a server launcher entry to `~/.code/config.toml` (Code also reads legacy `~/.codex/config.toml`)
 /// - `remove` — delete a server entry
 /// - `login`  — authenticate with MCP server using OAuth
@@ -38,6 +45,8 @@ pub enum McpSubcommand {
     List(ListArgs),
 
     Get(GetArgs),
+
+    Status(StatusArgs),
 
     Add(AddArgs),
 
@@ -61,6 +70,13 @@ pub struct GetArgs {
     pub name: String,
 
     /// Output the server configuration as JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Debug, clap::Parser)]
+pub struct StatusArgs {
+    /// Output runtime MCP status as JSON.
     #[arg(long)]
     pub json: bool,
 }
@@ -130,6 +146,9 @@ impl McpCli {
             }
             McpSubcommand::Get(args) => {
                 run_get(&config_overrides, args)?;
+            }
+            McpSubcommand::Status(args) => {
+                run_status(&config_overrides, args).await?;
             }
             McpSubcommand::Add(args) => {
                 run_add(&config_overrides, args).await?;
@@ -383,6 +402,114 @@ async fn run_logout(config_overrides: &CliConfigOverrides, logout_args: LogoutAr
     }
 
     Ok(())
+}
+
+async fn run_status(config_overrides: &CliConfigOverrides, status_args: StatusArgs) -> Result<()> {
+    let overrides = config_overrides.parse_overrides().map_err(|e| anyhow!(e))?;
+    let config = Config::load_with_cli_overrides(overrides, ConfigOverrides::default())
+        .context("failed to load configuration")?;
+
+    let (enabled_servers, _disabled_servers) = code_core::config::list_mcp_servers(&config.code_home)
+        .with_context(|| format!("failed to load MCP servers from {}", config.code_home.display()))?;
+
+    let excluded_tools: HashSet<(String, String)> = enabled_servers
+        .iter()
+        .flat_map(|(server_name, cfg)| {
+            let server_name = server_name.clone();
+            cfg.disabled_tools
+                .iter()
+                .cloned()
+                .map(move |tool_name| (server_name.clone(), tool_name))
+        })
+        .collect();
+    let enabled_server_map: HashMap<String, McpServerConfig> = enabled_servers.iter().cloned().collect();
+
+    let (manager, startup_errors) = McpConnectionManager::new(
+        config.code_home.clone(),
+        config.mcp_oauth_credentials_store_mode,
+        enabled_server_map,
+        excluded_tools,
+    )
+    .await
+    .context("failed to initialize MCP connection manager")?;
+
+    let mut runtime_snapshot = collect_runtime_snapshot(&manager).await;
+    for (server_name, failure) in startup_errors {
+        runtime_snapshot.failures.entry(server_name).or_insert(failure);
+    }
+
+    let merged_servers = merge_servers(&config.code_home, &runtime_snapshot)
+        .with_context(|| format!("failed to merge MCP status for {}", config.code_home.display()));
+    manager.shutdown_all().await;
+    let merged_servers = merged_servers?;
+
+    if status_args.json {
+        println!("{}", serde_json::to_string_pretty(&status_rows_json(&merged_servers))?);
+        return Ok(());
+    }
+
+    if merged_servers.is_empty() {
+        println!("No MCP servers configured yet. Try `codex mcp add my-tool -- my-command`.");
+        return Ok(());
+    }
+
+    print_status_rows(&merged_servers);
+
+    Ok(())
+}
+
+fn status_rows_json(servers: &[MergedMcpServer]) -> Vec<serde_json::Value> {
+    servers
+        .iter()
+        .map(|server| {
+            serde_json::json!({
+                "name": &server.name,
+                "enabled": server.enabled,
+                "transport": format_transport_summary(&server.config),
+                "startup_timeout_sec": server.config.startup_timeout_sec.map(|value| value.as_secs_f64()),
+                "tool_timeout_sec": server.config.tool_timeout_sec.map(|value| value.as_secs_f64()),
+                "auth_status": server.auth_status,
+                "tools": &server.tools,
+                "disabled_tools": &server.disabled_tools,
+                "failure": server.failure.as_ref().map(format_failure_summary),
+            })
+        })
+        .collect()
+}
+
+fn print_status_rows(servers: &[MergedMcpServer]) {
+    for (index, server) in servers.iter().enumerate() {
+        let enabled = if server.enabled { "on" } else { "off" };
+        println!("{} [{enabled}]", server.name);
+        println!("  transport: {}", format_transport_summary(&server.config));
+        if let Some(timeout) = server.config.startup_timeout_sec {
+            println!("  startup_timeout_sec: {:.3}", timeout.as_secs_f64());
+        }
+        if let Some(timeout) = server.config.tool_timeout_sec {
+            println!("  tool_timeout_sec: {:.3}", timeout.as_secs_f64());
+        }
+        println!("  auth: {}", server.auth_status);
+        if server.tools.is_empty() {
+            println!("  tools: -");
+        } else {
+            println!("  tools ({}): {}", server.tools.len(), server.tools.join(", "));
+        }
+        if server.disabled_tools.is_empty() {
+            println!("  disabled_tools: -");
+        } else {
+            println!(
+                "  disabled_tools ({}): {}",
+                server.disabled_tools.len(),
+                server.disabled_tools.join(", ")
+            );
+        }
+        if let Some(failure) = server.failure.as_ref() {
+            println!("  failure: {}", format_failure_summary(failure));
+        }
+        if index + 1 < servers.len() {
+            println!();
+        }
+    }
 }
 
 fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) -> Result<()> {
@@ -693,6 +820,11 @@ fn validate_server_name(name: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::Parser;
+    use code_core::protocol::McpAuthStatus;
+    use code_core::protocol::McpServerFailure;
+    use code_core::protocol::McpServerFailurePhase;
+    use std::time::Duration;
 
     #[test]
     fn add_with_url_defaults_to_streamable_http() {
@@ -764,5 +896,67 @@ mod tests {
             }
             _ => panic!("expected streamable http transport"),
         }
+    }
+
+    #[test]
+    fn clap_parses_status_subcommand() {
+        let parsed = McpCli::parse_from(["codex", "mcp", "status"]);
+        match parsed.subcommand {
+            McpSubcommand::Status(args) => assert!(!args.json),
+            _ => panic!("expected status subcommand"),
+        }
+    }
+
+    #[test]
+    fn clap_parses_status_json_flag() {
+        let parsed = McpCli::parse_from(["codex", "mcp", "status", "--json"]);
+        match parsed.subcommand {
+            McpSubcommand::Status(args) => assert!(args.json),
+            _ => panic!("expected status subcommand"),
+        }
+    }
+
+    #[test]
+    fn status_rows_json_includes_failure_and_auth() {
+        let server = MergedMcpServer {
+            name: "brave_search".to_string(),
+            enabled: true,
+            config: McpServerConfig {
+                transport: McpServerTransportConfig::StreamableHttp {
+                    url: "https://example.test/mcp".to_string(),
+                    bearer_token: None,
+                    bearer_token_env_var: None,
+                    http_headers: None,
+                    env_http_headers: None,
+                },
+                startup_timeout_sec: Some(Duration::from_secs(15)),
+                tool_timeout_sec: Some(Duration::from_secs(5)),
+                disabled_tools: vec!["brave_news_search".to_string()],
+            },
+            tools: vec!["brave_web_search".to_string()],
+            disabled_tools: vec!["brave_news_search".to_string()],
+            auth_status: McpAuthStatus::OAuth,
+            failure: Some(McpServerFailure {
+                phase: McpServerFailurePhase::ListTools,
+                message: "timed out".to_string(),
+            }),
+        };
+
+        let rows = status_rows_json(&[server]);
+        assert_eq!(rows.len(), 1);
+
+        let row = &rows[0];
+        assert_eq!(row["name"], "brave_search");
+        assert!(row["enabled"].as_bool().unwrap_or(false));
+        assert_eq!(row["transport"], "HTTP https://example.test/mcp");
+        assert_eq!(row["startup_timeout_sec"], 15.0);
+        assert_eq!(row["tool_timeout_sec"], 5.0);
+        assert_eq!(row["auth_status"], "oauth");
+        assert_eq!(row["tools"], serde_json::json!(["brave_web_search"]));
+        assert_eq!(
+            row["disabled_tools"],
+            serde_json::json!(["brave_news_search"])
+        );
+        assert_eq!(row["failure"], "Failed to list tools: timed out");
     }
 }

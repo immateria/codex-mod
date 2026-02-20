@@ -25,6 +25,8 @@ pub(crate) struct McpServerRow {
     pub tool_timeout: Option<Duration>,
     pub tools: Vec<String>,
     pub disabled_tools: Vec<String>,
+    pub resources: Vec<code_protocol::mcp::Resource>,
+    pub resource_templates: Vec<code_protocol::mcp::ResourceTemplate>,
     pub tool_definitions: BTreeMap<String, mcp_types::Tool>,
     pub failure: Option<String>,
     pub status: String,
@@ -176,6 +178,8 @@ mod tests {
             tool_timeout: Some(Duration::from_secs(30)),
             tools: vec!["tool_a".to_string(), "tool_b".to_string()],
             disabled_tools: Vec::new(),
+            resources: Vec::new(),
+            resource_templates: Vec::new(),
             tool_definitions: BTreeMap::new(),
             failure: Some(
                 "very long failure text that should wrap and produce vertical overflow ".repeat(12),
@@ -389,5 +393,43 @@ mod tests {
         assert!(!view.handle_mouse_event_direct(event, area));
         assert_eq!(view.selected, initial_selected);
         assert_eq!(view.summary_scroll_top, initial_scroll);
+    }
+
+    #[test]
+    fn summary_shows_resources_and_resource_templates() {
+        let mut row = make_server_row("server_a");
+        row.failure = None;
+        row.resources = vec![code_protocol::mcp::Resource {
+            annotations: None,
+            description: Some("Primary docs".to_string()),
+            mime_type: Some("text/markdown".to_string()),
+            name: "docs".to_string(),
+            size: Some(42),
+            title: None,
+            uri: "file:///docs/readme.md".to_string(),
+            icons: None,
+            meta: None,
+        }];
+        row.resource_templates = vec![code_protocol::mcp::ResourceTemplate {
+            annotations: None,
+            uri_template: "file:///docs/{slug}.md".to_string(),
+            name: "docs-template".to_string(),
+            title: None,
+            description: Some("Parameterized docs".to_string()),
+            mime_type: Some("text/markdown".to_string()),
+        }];
+
+        let view = make_view(vec![row]);
+        let lines = view.summary_lines();
+        let text = lines
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(text.contains("Resources (1)"));
+        assert!(text.contains("- docs (file:///docs/readme.md) · text/markdown · 42 bytes"));
+        assert!(text.contains("Resource Templates (1)"));
+        assert!(text.contains("- docs-template (file:///docs/{slug}.md) · text/markdown"));
     }
 }

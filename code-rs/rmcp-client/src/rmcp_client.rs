@@ -13,6 +13,10 @@ use mcp_types::CallToolRequestParams;
 use mcp_types::CallToolResult;
 use mcp_types::InitializeRequestParams;
 use mcp_types::InitializeResult;
+use mcp_types::ListResourceTemplatesRequestParams;
+use mcp_types::ListResourceTemplatesResult;
+use mcp_types::ListResourcesRequestParams;
+use mcp_types::ListResourcesResult;
 use mcp_types::ListToolsRequestParams;
 use mcp_types::ListToolsResult;
 use mcp_types::MCP_SCHEMA_VERSION;
@@ -321,6 +325,40 @@ impl RmcpClient {
 
         let fut = service.list_tools(rmcp_params);
         let result = run_with_timeout(fut, timeout, "tools/list").await?;
+        self.persist_oauth_tokens().await;
+        convert_to_mcp(result)
+    }
+
+    pub async fn list_resources(
+        &self,
+        params: Option<ListResourcesRequestParams>,
+        timeout: Option<Duration>,
+    ) -> Result<ListResourcesResult> {
+        self.refresh_oauth_if_needed().await;
+        let service = self.service().await?;
+        let rmcp_params = params
+            .map(convert_to_rmcp::<_, PaginatedRequestParam>)
+            .transpose()?;
+
+        let fut = service.list_resources(rmcp_params);
+        let result = run_with_timeout(fut, timeout, "resources/list").await?;
+        self.persist_oauth_tokens().await;
+        convert_to_mcp(result)
+    }
+
+    pub async fn list_resource_templates(
+        &self,
+        params: Option<ListResourceTemplatesRequestParams>,
+        timeout: Option<Duration>,
+    ) -> Result<ListResourceTemplatesResult> {
+        self.refresh_oauth_if_needed().await;
+        let service = self.service().await?;
+        let rmcp_params = params
+            .map(convert_to_rmcp::<_, PaginatedRequestParam>)
+            .transpose()?;
+
+        let fut = service.list_resource_templates(rmcp_params);
+        let result = run_with_timeout(fut, timeout, "resources/templates/list").await?;
         self.persist_oauth_tokens().await;
         convert_to_mcp(result)
     }
