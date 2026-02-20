@@ -68,7 +68,7 @@ fn mcp_access_prompt_options(
     options
 }
 
-pub(super) fn mcp_access_question(
+pub(crate) fn mcp_access_question(
     question: String,
     style_active: bool,
 ) -> code_protocol::request_user_input::RequestUserInputQuestion {
@@ -129,7 +129,7 @@ async fn persist_style_mcp_server_filters(
     }
 }
 
-pub(super) async fn apply_mcp_access_selection(
+pub(crate) async fn apply_mcp_access_selection(
     sess: &Session,
     turn_id: &str,
     server_id: &crate::mcp::ids::McpServerId,

@@ -23,8 +23,6 @@ use base64::Engine;
 use code_apply_patch::ApplyPatchAction;
 use code_apply_patch::MaybeApplyPatchVerified;
 use crate::bridge_client::spawn_bridge_listener;
-use code_browser::BrowserConfig as CodexBrowserConfig;
-use code_browser::BrowserManager;
 use code_otel::otel_event_manager::{
     OtelEventManager,
     ToolDecisionSource,
@@ -88,18 +86,23 @@ use chrono::Utc;
 
 pub mod compact;
 pub mod compact_remote;
+pub(crate) mod agent_tool_call;
 mod events;
 mod exec;
-mod mcp_access;
+pub(crate) mod exec_tool;
+mod fs_utils;
+pub(crate) mod mcp_access;
 mod session;
-mod streaming;
+pub(crate) mod streaming;
+mod truncation;
 
 pub use session::ApprovedCommandPattern;
 pub(crate) use session::McpAccessState;
-pub(crate) use session::{Session, ToolCallCtx};
+pub(crate) use session::{Session, ToolCallCtx, WaitInterruptReason};
 use self::compact::{build_compacted_history, collect_compaction_snippets};
 use self::compact_remote::run_inline_remote_auto_compact_task;
-use self::streaming::{add_pending_screenshot, capture_browser_screenshot, submission_loop};
+use self::agent_tool_call::capture_browser_screenshot;
+use self::streaming::{add_pending_screenshot, submission_loop};
 
 /// Initial submission ID for session configuration
 pub(crate) const INITIAL_SUBMIT_ID: &str = "";
@@ -845,12 +848,7 @@ use crate::agent_tool::normalize_agent_name;
 use crate::agent_tool::RunAgentParams;
 use crate::agent_tool::WaitForAgentParams;
 use crate::apply_patch::convert_apply_patch_to_protocol;
-use crate::apply_patch::get_writable_roots;
 use crate::apply_patch::{self, ApplyPatchResult};
-use crate::bridge_client::{
-    get_effective_subscription, persist_workspace_subscription, send_bridge_control,
-    set_session_subscription, set_workspace_subscription,
-};
 use crate::client::ModelClient;
 use crate::client_common::{Prompt, ResponseEvent, TextFormat, REVIEW_PROMPT};
 use crate::context_timeline::ContextTimeline;
@@ -884,11 +882,9 @@ use crate::exec::process_exec_tool_call;
 use crate::review_format::format_review_findings_block;
 use crate::exec_env::create_env;
 use crate::mcp_connection_manager::McpConnectionManager;
-use crate::mcp_tool_call::handle_mcp_tool_call;
 use crate::model_family::{derive_default_model_family, find_family_for_model};
 use code_protocol::models::ContentItem;
 use code_protocol::models::FunctionCallOutputPayload;
-use code_protocol::models::LocalShellAction;
 use code_protocol::models::ReasoningItemContent;
 use code_protocol::models::ReasoningItemReasoningSummary;
 use code_protocol::models::ResponseInputItem;
@@ -900,7 +896,6 @@ use crate::openai_tools::get_openai_tools;
 use crate::slash_commands::get_enabled_agents;
 use crate::dry_run_guard::{analyze_command, DryRunAnalysis, DryRunDisposition, DryRunGuardState};
 use crate::parse_command::parse_command;
-use crate::plan_tool::handle_update_plan;
 use crate::project_doc::get_user_instructions;
 use crate::skills::loader::load_skills;
 use crate::project_features::{ProjectCommand, ProjectHook, ProjectHooks};
@@ -959,7 +954,6 @@ use crate::util::{backoff, wait_for_connectivity};
 use code_protocol::protocol::SessionSource;
 use crate::rollout::recorder::SessionStateSnapshot;
 use serde_json::Value;
-use crate::exec_command::ExecSessionManager;
 
 /// The high-level interface to the Codex system.
 /// It operates as a queue pair where you send submissions and receive events.

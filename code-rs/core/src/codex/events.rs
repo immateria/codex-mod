@@ -127,6 +127,12 @@ impl Session {
         let _ = self.tx_event.send(ev).await;
     }
 
+    pub(crate) async fn send_background_ordered_from_ctx(&self, ctx: &ToolCallCtx, msg: EventMsg) {
+        let order = self.background_order_for_ctx(ctx, self.current_request_ordinal());
+        let ev = self.make_event_with_order(&ctx.sub_id, msg, order, ctx.seq_hint);
+        let _ = self.tx_event.send(ev).await;
+    }
+
     pub(super) fn current_request_ordinal(&self) -> u64 {
         let state = self.state.lock().unwrap();
         state.request_ordinal

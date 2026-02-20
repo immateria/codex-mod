@@ -2,18 +2,12 @@ use super::*;
 use serde_json::Value;
 use code_protocol::dynamic_tools::DynamicToolResponse;
 use code_protocol::dynamic_tools::DynamicToolSpec;
+use super::fs_utils::{ensure_user_dir, write_agent_file};
 use super::streaming::{
-    AgentTask,
-    TRUNCATION_MARKER,
-    TimelineReplayContext,
-    debug_history,
-    ensure_user_dir,
-    parse_env_delta_from_response,
-    parse_env_snapshot_from_response,
-    process_rollout_env_item,
-    truncate_middle_bytes,
-    write_agent_file,
+    debug_history, parse_env_delta_from_response, parse_env_snapshot_from_response,
+    process_rollout_env_item, AgentTask, TimelineReplayContext,
 };
+use super::truncation::{truncate_middle_bytes, TRUNCATION_MARKER};
 use std::sync::RwLock as StdRwLock;
 
 pub(super) const MAX_EVENT_SEQ_SUB_IDS: usize = 1024;
@@ -81,7 +75,7 @@ pub(super) struct RunningExecMeta {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum WaitInterruptReason {
+pub(crate) enum WaitInterruptReason {
     UserMessage,
     SessionAborted,
 }
@@ -331,7 +325,6 @@ pub(crate) struct Session {
     pub(super) sandbox_policy: SandboxPolicy,
     pub(super) shell_environment_policy: ShellEnvironmentPolicy,
     pub(super) collaboration_mode: crate::protocol::CollaborationModeKind,
-    pub(super) _writable_roots: Vec<PathBuf>,
     pub(super) disable_response_storage: bool,
     pub(super) tools_config: ToolsConfig,
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
@@ -339,8 +332,6 @@ pub(crate) struct Session {
     /// Manager for external MCP servers/tools.
     pub(super) mcp_connection_manager: McpConnectionManager,
     pub(super) client_tools: Option<ClientTools>,
-    #[allow(dead_code)]
-    pub(super) session_manager: ExecSessionManager,
 
     /// Configuration for available agent models
     pub(super) agents: Vec<crate::config_types::AgentConfig>,
@@ -363,9 +354,6 @@ pub(crate) struct Session {
     pub(super) dangerous_command_rules: crate::config_types::CommandSafetyRuleset,
     pub(super) shell_style_profile_messages: Vec<String>,
     pub(super) show_raw_agent_reasoning: bool,
-    /// Pending browser screenshots to include in the next model request
-    #[allow(dead_code)]
-    pub(super) pending_browser_screenshots: Mutex<Vec<PathBuf>>,
     /// Track the last system status to detect changes
     pub(super) last_system_status: Mutex<Option<String>>,
     /// Track the last screenshot path and hash to detect changes
@@ -424,11 +412,6 @@ impl ToolCallCtx {
 }
 
 impl Session {
-    #[allow(dead_code)]
-    pub(crate) fn get_writable_roots(&self) -> &[PathBuf] {
-        &self._writable_roots
-    }
-
     pub(crate) fn get_approval_policy(&self) -> AskForApproval {
         self.approval_policy
     }
@@ -457,7 +440,7 @@ impl Session {
         }
     }
 
-    pub(super) fn mcp_access_snapshot(&self) -> McpAccessState {
+    pub(crate) fn mcp_access_snapshot(&self) -> McpAccessState {
         self.mcp_access_read().clone()
     }
 
@@ -564,6 +547,21 @@ impl Session {
 
     pub(crate) fn get_cwd(&self) -> &Path {
         &self.cwd
+    }
+
+    pub(crate) fn background_exec_cmd_display(&self, call_id: &str) -> Option<String> {
+        let state = self.state.lock().unwrap();
+        state
+            .background_execs
+            .get(call_id)
+            .map(|exec| exec.cmd_display.clone())
+    }
+
+    pub(crate) fn maybe_nudge_time_budget(&self) -> Option<String> {
+        let mut guard = self.time_budget.lock().unwrap();
+        guard
+            .as_mut()
+            .and_then(|budget| budget.maybe_nudge(std::time::Instant::now()))
     }
 
     pub(super) async fn apply_remote_model_overrides(&self, prompt: &mut Prompt) -> bool {
@@ -754,7 +752,6 @@ impl Session {
             (gap, metrics)
         };
 
-        let pending_browser_screenshots = self.pending_browser_screenshots.lock().unwrap().len();
         let (gap, metrics) = gap_and_metrics;
         let payload = TurnLatencyPayload {
             phase: TurnLatencyPhase::RequestScheduled,
@@ -766,7 +763,7 @@ impl Session {
             pending_background_execs: metrics.pending_background_execs as u64,
             running_exec_count: metrics.running_exec_count as u64,
             pending_manual_compacts: metrics.pending_manual_compacts as u64,
-            pending_browser_screenshots: pending_browser_screenshots as u64,
+            pending_browser_screenshots: 0,
             scratchpad_active: metrics.scratchpad_active,
             prompt_input_count: Some(prompt.input.len() as u64),
             prompt_status_count: Some(prompt.status_items.len() as u64),
@@ -800,7 +797,6 @@ impl Session {
             (duration, prompt_counts, metrics)
         };
 
-        let pending_browser_screenshots = self.pending_browser_screenshots.lock().unwrap().len();
         let (token_usage_input_tokens, token_usage_cached_input_tokens, token_usage_output_tokens, token_usage_reasoning_output_tokens, token_usage_total_tokens) =
             match token_usage {
                 Some(usage) => (
@@ -822,7 +818,7 @@ impl Session {
             pending_background_execs: metrics.pending_background_execs as u64,
             running_exec_count: metrics.running_exec_count as u64,
             pending_manual_compacts: metrics.pending_manual_compacts as u64,
-            pending_browser_screenshots: pending_browser_screenshots as u64,
+            pending_browser_screenshots: 0,
             scratchpad_active: metrics.scratchpad_active,
             prompt_input_count: prompt_counts.map(|counts| counts.input_items as u64),
             prompt_status_count: prompt_counts.map(|counts| counts.status_items as u64),
@@ -850,7 +846,6 @@ impl Session {
             (duration, prompt_counts, metrics)
         };
 
-        let pending_browser_screenshots = self.pending_browser_screenshots.lock().unwrap().len();
         let payload = TurnLatencyPayload {
             phase: TurnLatencyPhase::RequestFailed,
             attempt: attempt_req,
@@ -861,7 +856,7 @@ impl Session {
             pending_background_execs: metrics.pending_background_execs as u64,
             running_exec_count: metrics.running_exec_count as u64,
             pending_manual_compacts: metrics.pending_manual_compacts as u64,
-            pending_browser_screenshots: pending_browser_screenshots as u64,
+            pending_browser_screenshots: 0,
             scratchpad_active: metrics.scratchpad_active,
             prompt_input_count: prompt_counts.map(|counts| counts.input_items as u64),
             prompt_status_count: prompt_counts.map(|counts| counts.status_items as u64),
@@ -1023,7 +1018,7 @@ impl Session {
         state.wait_interrupt_reason = Some(reason);
     }
 
-    pub(super) fn wait_interrupt_snapshot(&self) -> (u64, Option<WaitInterruptReason>) {
+    pub(crate) fn wait_interrupt_snapshot(&self) -> (u64, Option<WaitInterruptReason>) {
         let state = self.state.lock().unwrap();
         (state.wait_interrupt_epoch, state.wait_interrupt_reason)
     }

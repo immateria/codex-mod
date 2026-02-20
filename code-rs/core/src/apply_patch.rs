@@ -17,7 +17,6 @@ use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use serde_json::json;
 use std::collections::HashMap;
-use std::path::Path;
 use std::path::PathBuf;
 
 pub const CODEX_APPLY_PATCH_ARG1: &str = "--codex-run-as-apply-patch";
@@ -219,22 +218,6 @@ pub(crate) fn convert_apply_patch_to_protocol(
         result.insert(path.clone(), protocol_change);
     }
     result
-}
-
-pub(crate) fn get_writable_roots(cwd: &Path) -> Vec<PathBuf> {
-    let mut writable_roots = Vec::new();
-    if cfg!(target_os = "macos") {
-        writable_roots.push(std::env::temp_dir());
-
-        if let Ok(home_dir) = std::env::var("HOME") {
-            let pyenv_dir = PathBuf::from(home_dir).join(".pyenv");
-            writable_roots.push(pyenv_dir);
-        }
-    }
-
-    writable_roots.push(cwd.to_path_buf());
-
-    writable_roots
 }
 
 async fn apply_changes_from_apply_patch_and_report(

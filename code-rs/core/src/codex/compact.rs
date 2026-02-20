@@ -5,7 +5,7 @@ use super::streaming::AgentTask;
 use super::Session;
 use super::compact_remote;
 use super::TurnContext;
-use super::streaming::get_last_assistant_message_from_turn;
+use super::agent_tool_call::get_last_assistant_message_from_turn;
 use crate::Prompt;
 use crate::client_common::ResponseEvent;
 use crate::environment_context::EnvironmentContext;
