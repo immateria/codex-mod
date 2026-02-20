@@ -460,6 +460,27 @@ enum DebugCommand {
 
     /// Run a command under Landlock+seccomp (Linux only).
     Landlock(LandlockCommand),
+
+    /// Tooling: helps debug the app server.
+    AppServer(DebugAppServerCommand),
+}
+
+#[derive(Debug, Parser)]
+struct DebugAppServerCommand {
+    #[command(subcommand)]
+    subcommand: DebugAppServerSubcommand,
+}
+
+#[derive(Debug, clap::Subcommand)]
+enum DebugAppServerSubcommand {
+    /// Send a message via the app-server V2 APIs and stream the response.
+    SendMessageV2(DebugAppServerSendMessageV2Command),
+}
+
+#[derive(Debug, Parser)]
+struct DebugAppServerSendMessageV2Command {
+    #[arg(value_name = "USER_MESSAGE", required = true)]
+    user_message: String,
 }
 
 #[derive(Debug, Parser)]
@@ -784,6 +805,17 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
                 )
                 .await?;
             }
+            DebugCommand::AppServer(cmd) => match cmd.subcommand {
+                DebugAppServerSubcommand::SendMessageV2(cmd) => {
+                    let code_bin = std::env::current_exe()?;
+                    code_cli::debug_app_server::send_message_v2(
+                        &code_bin,
+                        &root_config_overrides.raw_overrides,
+                        cmd.user_message,
+                    )
+                    .await?;
+                }
+            },
         },
         Some(Subcommand::Sandbox(sandbox_args)) => match sandbox_args.cmd {
             SandboxCommand::Macos(mut seatbelt_cli) => {
@@ -1939,6 +1971,28 @@ mod tests {
         let script = String::from_utf8(buf).expect("completion output should be valid UTF-8");
         assert!(script.contains("_code()"), "expected bash completion function to be named _code");
         assert!(!script.contains("_codex()"), "bash completion output should not use legacy codex prefix");
+    }
+
+    #[test]
+    fn debug_app_server_send_message_v2_parses() {
+        let cli = MultitoolCli::try_parse_from([
+            "code",
+            "debug",
+            "app-server",
+            "send-message-v2",
+            "hello",
+        ])
+        .expect("parse");
+
+        let Some(Subcommand::Debug(DebugArgs {
+            cmd: DebugCommand::AppServer(cmd),
+        })) = cli.subcommand
+        else {
+            panic!("expected debug app-server command");
+        };
+
+        let DebugAppServerSubcommand::SendMessageV2(cmd) = cmd.subcommand;
+        assert_eq!(cmd.user_message, "hello");
     }
 
     #[test]
