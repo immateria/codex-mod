@@ -1,7 +1,7 @@
 # MCP tool discovery
 
-When `search_tool_bm25` is available, Codex Apps MCP tools (`mcp__codex_apps__...`) are hidden until you search for them.
-Non-Apps MCP tools remain available without searching.
+When `search_tool_bm25` is available, MCP tools are hidden until you search for them.
+After you search, only the selected MCP tools are available.
 
 Follow this workflow:
 
@@ -21,8 +21,6 @@ Notes:
   - `server_name`
   - `title`
   - `description`
-  - `connector_name`
   - input schema property keys (`input_keys`)
-- When the user asks to search/lookup/query any external system (logs, tickets, metrics, Slack, etc.), you must call `search_tool_bm25` first before running any shell command or repo search.
-- Only use shell commands if (a) MCP tools for that system are not available or not sufficient, and (b) the user explicitly wants a local file/CLI search.
-- If unsure which system/tool applies, ask a clarifying question after checking MCP tools.
+- Selecting a tool does not bypass MCP access prompting. If a tool is blocked by policy, it will still require user approval.
+- When the user asks to search/lookup/query any external system (logs, tickets, metrics, Slack, etc.), call `search_tool_bm25` first before running any shell command or repo search.

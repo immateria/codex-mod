@@ -18,7 +18,7 @@ use code_protocol::dynamic_tools::DynamicToolSpec;
 use crate::tool_apply_patch::{
     create_apply_patch_freeform_tool, create_apply_patch_json_tool, ApplyPatchToolType,
 };
-// apply_patch tools are not currently surfaced; keep imports out to avoid warnings.
+// apply_patch tools are optional and only exposed when enabled via ToolsConfig.
 
 const SEARCH_TOOL_DESCRIPTION_TEMPLATE: &str =
     include_str!("../templates/search_tool/tool_description.md");
@@ -415,10 +415,7 @@ fn create_search_tool_bm25_tool() -> OpenAiTool {
 }
 
 fn render_search_tool_description() -> String {
-    // Keep this list human-readable in the tool schema. It may be dynamic in the
-    // future if per-session app exposure changes.
-    SEARCH_TOOL_DESCRIPTION_TEMPLATE
-        .replace("{{app_names}}", "Codex Apps MCP servers")
+    SEARCH_TOOL_DESCRIPTION_TEMPLATE.to_string()
 }
 
 fn create_shell_tool_for_sandbox(sandbox_policy: &SandboxPolicy) -> OpenAiTool {
@@ -1341,9 +1338,10 @@ mod tests {
             panic!("search tool should be a function tool");
         };
         assert_eq!(tool_spec.name, SEARCH_TOOL_BM25_TOOL_NAME);
-        assert!(!tool_spec.description.contains("{{app_names}}"));
-        assert!(tool_spec.description.contains("Codex Apps MCP servers"));
-        assert!(tool_spec.description.contains("Searches over apps tool metadata with BM25"));
+        assert!(tool_spec.description.contains("MCP tool discovery"));
+        assert!(tool_spec
+            .description
+            .contains("MCP tools are hidden until you search for them"));
     }
 
     #[test]

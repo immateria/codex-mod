@@ -25,8 +25,8 @@ pub(crate) struct ExecCommandSession {
     /// JoinHandle for the child wait task.
     wait_handle: StdMutex<Option<JoinHandle<()>>>,
 
-    /// Tracks whether the underlying process has exited.
-    exit_status: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// Exit code for the process, when available.
+    exit_code: std::sync::Arc<StdMutex<Option<i32>>>,
 }
 
 impl ExecCommandSession {
@@ -37,7 +37,7 @@ impl ExecCommandSession {
         reader_handle: JoinHandle<()>,
         writer_handle: JoinHandle<()>,
         wait_handle: JoinHandle<()>,
-        exit_status: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        exit_code: std::sync::Arc<StdMutex<Option<i32>>>,
     ) -> (Self, broadcast::Receiver<Vec<u8>>) {
         let initial_output_rx = output_tx.subscribe();
         (
@@ -48,7 +48,7 @@ impl ExecCommandSession {
                 reader_handle: StdMutex::new(Some(reader_handle)),
                 writer_handle: StdMutex::new(Some(writer_handle)),
                 wait_handle: StdMutex::new(Some(wait_handle)),
-                exit_status,
+                exit_code,
             },
             initial_output_rx,
         )
@@ -62,8 +62,11 @@ impl ExecCommandSession {
         self.output_tx.subscribe()
     }
 
-    pub(crate) fn has_exited(&self) -> bool {
-        self.exit_status.load(std::sync::atomic::Ordering::SeqCst)
+    pub(crate) fn exit_code(&self) -> Option<i32> {
+        match self.exit_code.lock() {
+            Ok(guard) => *guard,
+            Err(poisoned) => *poisoned.into_inner(),
+        }
     }
 }
 

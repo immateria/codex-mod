@@ -1,13 +1,16 @@
 pub(crate) mod agent;
+pub(crate) mod apply_patch;
 pub(crate) mod bridge;
 pub(crate) mod browser;
 pub(crate) mod dynamic;
+pub(crate) mod exec_command;
 pub(crate) mod gh_run_wait;
 pub(crate) mod image_view;
 pub(crate) mod kill;
 pub(crate) mod mcp;
 pub(crate) mod plan;
 pub(crate) mod request_user_input;
+pub(crate) mod search_tool_bm25;
 pub(crate) mod shell;
 pub(crate) mod wait;
 pub(crate) mod web_fetch;

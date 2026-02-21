@@ -57,6 +57,10 @@ impl ToolRouter {
         let plan: Arc<dyn ToolHandler> = Arc::new(handlers::plan::PlanHandler);
         let request_user_input: Arc<dyn ToolHandler> =
             Arc::new(handlers::request_user_input::RequestUserInputHandler);
+        let search_tool_bm25: Arc<dyn ToolHandler> =
+            Arc::new(handlers::search_tool_bm25::SearchToolBm25Handler);
+        let apply_patch: Arc<dyn ToolHandler> = Arc::new(handlers::apply_patch::ApplyPatchToolHandler);
+        let exec_command: Arc<dyn ToolHandler> = Arc::new(handlers::exec_command::ExecCommandToolHandler);
         let agent: Arc<dyn ToolHandler> = Arc::new(handlers::agent::AgentToolHandler);
         let browser: Arc<dyn ToolHandler> = Arc::new(handlers::browser::BrowserToolHandler);
         let web_fetch: Arc<dyn ToolHandler> = Arc::new(handlers::web_fetch::WebFetchToolHandler);
@@ -74,6 +78,10 @@ impl ToolRouter {
         handlers.insert("container.exec", Arc::clone(&shell));
         handlers.insert("update_plan", plan);
         handlers.insert("request_user_input", request_user_input);
+        handlers.insert("search_tool_bm25", search_tool_bm25);
+        handlers.insert("apply_patch", apply_patch);
+        handlers.insert(crate::exec_command::EXEC_COMMAND_TOOL_NAME, Arc::clone(&exec_command));
+        handlers.insert(crate::exec_command::WRITE_STDIN_TOOL_NAME, exec_command);
         handlers.insert("agent", agent);
         handlers.insert("browser", browser);
         handlers.insert("web_fetch", web_fetch);
@@ -225,6 +233,24 @@ impl ToolRouter {
             .mcp_connection_manager()
             .parse_tool_name(tool_name.as_str())
         {
+            if sess.search_tool_enabled() {
+                let selection = sess.mcp_tool_selection_snapshot();
+                let selected = selection.as_ref().is_some_and(|tools| {
+                    tools
+                        .iter()
+                        .any(|name| name.eq_ignore_ascii_case(tool_name.as_str()))
+                });
+                if !selected {
+                    return crate::tools::registry::unsupported_tool_call_output(
+                        &ctx.call_id,
+                        false,
+                        format!(
+                            "MCP tool `{tool_name}` is not selected. Call `search_tool_bm25` first to select MCP tools."
+                        ),
+                    );
+                }
+            }
+
             let call = ToolCall {
                 tool_name,
                 payload: ToolPayload::Mcp {
@@ -360,7 +386,7 @@ mod tests {
     #[test]
     fn registry_has_handlers_for_default_openai_function_tools() {
         let model_family = derive_default_model_family("gpt-5.3-codex");
-        let config = ToolsConfig::new(ToolsConfigParams {
+        let default_config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
             sandbox_policy: SandboxPolicy::ReadOnly,
@@ -370,26 +396,57 @@ mod tests {
             use_streamable_shell_tool: false,
             include_view_image_tool: true,
         });
+        let mut search_tool_config = default_config.clone();
+        search_tool_config.search_tool = true;
+        let apply_patch_config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: true,
+            include_apply_patch_tool: true,
+            include_web_search_request: true,
+            use_streamable_shell_tool: false,
+            include_view_image_tool: true,
+        });
+        let streamable_shell_config = ToolsConfig::new(ToolsConfigParams {
+            model_family: &model_family,
+            approval_policy: AskForApproval::Never,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            include_plan_tool: true,
+            include_apply_patch_tool: false,
+            include_web_search_request: true,
+            use_streamable_shell_tool: true,
+            include_view_image_tool: true,
+        });
 
-        let tools = get_openai_tools(&config, None, true, false, &[]);
         let router = ToolRouter::global();
-        for tool in tools {
-            match tool {
-                OpenAiTool::Function(spec) => {
-                    assert!(
-                        router.registry.handler(spec.name.as_str()).is_some(),
-                        "missing handler for function tool `{}`",
-                        spec.name
-                    );
+        let cases: Vec<(&'static str, ToolsConfig)> = vec![
+            ("default", default_config),
+            ("search_tool_enabled", search_tool_config),
+            ("apply_patch_enabled", apply_patch_config),
+            ("streamable_shell_enabled", streamable_shell_config),
+        ];
+
+        for (label, config) in cases {
+            let tools = get_openai_tools(&config, None, true, false, &[]);
+            for tool in tools {
+                match tool {
+                    OpenAiTool::Function(spec) => {
+                        assert!(
+                            router.registry.handler(spec.name.as_str()).is_some(),
+                            "[{label}] missing handler for function tool `{}`",
+                            spec.name
+                        );
+                    }
+                    OpenAiTool::Freeform(spec) => {
+                        assert!(
+                            router.registry.handler(spec.name.as_str()).is_some(),
+                            "[{label}] missing handler for custom tool `{}`",
+                            spec.name
+                        );
+                    }
+                    OpenAiTool::WebSearch(_) | OpenAiTool::LocalShell { .. } => {}
                 }
-                OpenAiTool::Freeform(spec) => {
-                    assert!(
-                        router.registry.handler(spec.name.as_str()).is_some(),
-                        "missing handler for custom tool `{}`",
-                        spec.name
-                    );
-                }
-                OpenAiTool::WebSearch(_) | OpenAiTool::LocalShell { .. } => {}
             }
         }
     }

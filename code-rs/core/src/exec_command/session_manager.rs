@@ -355,8 +355,6 @@ impl SessionManager {
             let sessions = self.sessions.lock().await;
             match sessions.get(&session_id) {
                 Some(session) => {
-                    // Touch exit flag to mark the field as used and enable early checks in the future.
-                    let _exited = session.has_exited();
                     (session.writer_sender(), session.output_receiver())
                 }
                 None => {
@@ -399,9 +397,24 @@ impl SessionManager {
         }
 
         let (output, original_token_count) = collector.finalize();
+        let exit_code = {
+            let mut sessions = self.sessions.lock().await;
+            let code = sessions
+                .get(&session_id)
+                .and_then(ExecCommandSession::exit_code);
+            if code.is_some() {
+                sessions.remove(&session_id);
+            }
+            code
+        };
+        let exit_status = if let Some(code) = exit_code {
+            ExitStatus::Exited(code)
+        } else {
+            ExitStatus::Ongoing(session_id)
+        };
         Ok(ExecCommandOutput {
             wall_time: Instant::now().duration_since(start_time),
-            exit_status: ExitStatus::Ongoing(session_id),
+            exit_status,
             original_token_count,
             output,
         })
@@ -511,17 +524,17 @@ async fn create_exec_command_session(
 
     // Keep the child alive until it exits, then signal exit code.
     let (exit_tx, exit_rx) = oneshot::channel::<i32>();
-    // Track process exit status for concurrent queries.
-    let exit_status = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let exit_status_for_wait = exit_status.clone();
+    let exit_code = std::sync::Arc::new(StdMutex::new(None));
+    let exit_code_for_wait = exit_code.clone();
     let wait_handle = tokio::task::spawn_blocking(move || {
         let code = match child.wait() {
             Ok(status) => status.exit_code() as i32,
             Err(_) => -1,
         };
+        if let Ok(mut guard) = exit_code_for_wait.lock() {
+            *guard = Some(code);
+        }
         let _ = exit_tx.send(code);
-        // Mark as exited so readers can stop without waiting on the channel.
-        exit_status_for_wait.store(true, std::sync::atomic::Ordering::SeqCst);
     });
 
     // Create and store the session with channels.
@@ -532,7 +545,7 @@ async fn create_exec_command_session(
         reader_handle,
         writer_handle,
         wait_handle,
-        exit_status,
+        exit_code,
     );
     Ok((session, initial_output_rx, exit_rx))
 }

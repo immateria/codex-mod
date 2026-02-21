@@ -17,6 +17,8 @@ use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use serde_json::json;
 use std::collections::HashMap;
+use std::path::Component;
+use std::path::Path;
 use std::path::PathBuf;
 
 pub const CODEX_APPLY_PATCH_ARG1: &str = "--codex-run-as-apply-patch";
@@ -296,4 +298,87 @@ async fn apply_changes_from_apply_patch(
         modified,
         deleted,
     })
+}
+
+pub(crate) fn guard_apply_patch_outside_branch(
+    branch_root: &Path,
+    action: &ApplyPatchAction,
+) -> Option<String> {
+    let branch_norm = match normalize_absolute(branch_root) {
+        Some(path) => path,
+        None => {
+            return Some(format!(
+                "apply_patch blocked: failed to resolve /branch worktree root {}. Stay inside the worktree until you finish with `/merge`.",
+                branch_root.display()
+            ));
+        }
+    };
+    let action_cwd_norm = match normalize_absolute(&action.cwd) {
+        Some(path) => path,
+        None => {
+            return Some(format!(
+                "apply_patch blocked: the command resolved outside the /branch worktree (cwd {}). Stay inside {} until you finish with `/merge`.",
+                action.cwd.display(),
+                branch_root.display()
+            ));
+        }
+    };
+    if !path_within(&action_cwd_norm, &branch_norm) {
+        return Some(format!(
+            "apply_patch blocked: the active /branch worktree is {} but the command tried to run from {}. Stay inside the worktree until you finish with `/merge`.",
+            branch_root.display(),
+            action.cwd.display()
+        ));
+    }
+
+    for path in action.changes().keys() {
+        let normalized = match normalize_absolute(path) {
+            Some(value) => value,
+            None => {
+                return Some(format!(
+                    "apply_patch blocked: could not resolve patch target {} inside worktree {}. Keep edits within the /branch directory.",
+                    path.display(),
+                    branch_root.display()
+                ));
+            }
+        };
+        if !path_within(&normalized, &branch_norm) {
+            return Some(format!(
+                "apply_patch blocked: patch would modify {} outside the active /branch worktree {}. Apply changes from within the worktree before `/merge`.",
+                path.display(),
+                branch_root.display()
+            ));
+        }
+    }
+
+    None
+}
+
+pub(crate) fn normalize_absolute(path: &Path) -> Option<PathBuf> {
+    if !path.is_absolute() {
+        return None;
+    }
+    let mut result = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => result.push(prefix.as_os_str()),
+            Component::RootDir => result.push(component.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !result.pop() {
+                    return None;
+                }
+            }
+            Component::Normal(part) => result.push(part),
+        }
+    }
+    if result.as_os_str().is_empty() {
+        None
+    } else {
+        Some(result)
+    }
+}
+
+pub(crate) fn path_within(path: &Path, base: &Path) -> bool {
+    path.starts_with(base)
 }

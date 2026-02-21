@@ -921,6 +921,8 @@ pub(super) async fn submission_loop(
                 });
                 tools_config.web_search_allowed_domains =
                     config.tools_web_search_allowed_domains.clone();
+                tools_config.web_search_external = config.tools_web_search_external;
+                tools_config.search_tool = config.tools_search_tool;
 
                 let mut agent_models: Vec<String> = if config.agents.is_empty() {
                     default_agent_configs()
@@ -981,6 +983,7 @@ pub(super) async fn submission_loop(
                     remote_models_manager,
                     tools_config,
                     dynamic_tools,
+                    exec_command_manager: Arc::new(crate::exec_command::SessionManager::default()),
                     tx_event: tx_event.clone(),
                     user_instructions: effective_user_instructions.clone(),
                     base_instructions,
@@ -2625,14 +2628,45 @@ async fn run_turn(
             effective_family,
         );
         let mcp_access = sess.mcp_access_snapshot();
-        let mcp_tools = crate::mcp::policy::filter_tools_for_turn(
-            &sess.mcp_connection_manager,
-            &mcp_access,
-            sub_id.as_str(),
-        );
+        let mcp_tools = if tools_config.search_tool {
+            let selection = sess.mcp_tool_selection_snapshot().unwrap_or_default();
+            if selection.is_empty() {
+                None
+            } else {
+                let selection_lower: std::collections::HashSet<String> = selection
+                    .iter()
+                    .map(|tool| tool.to_ascii_lowercase())
+                    .collect();
+                let session_deny: std::collections::HashSet<String> = mcp_access
+                    .session_deny_servers
+                    .iter()
+                    .map(|name| name.to_ascii_lowercase())
+                    .collect();
+                let mut selected = std::collections::HashMap::new();
+                for (qualified_name, server_name, tool) in sess
+                    .mcp_connection_manager
+                    .list_all_tools_with_server_names()
+                {
+                    if session_deny.contains(&server_name.to_ascii_lowercase()) {
+                        continue;
+                    }
+                    if !selection_lower.contains(&qualified_name.to_ascii_lowercase()) {
+                        continue;
+                    }
+                    selected.insert(qualified_name, tool);
+                }
+                (!selected.is_empty()).then_some(selected)
+            }
+        } else {
+            Some(crate::mcp::policy::filter_tools_for_turn(
+                &sess.mcp_connection_manager,
+                &mcp_access,
+                sub_id.as_str(),
+            ))
+        };
         prompt.tools = get_openai_tools(
             &tools_config,
-            Some(mcp_tools),
+            mcp_tools,
             browser_enabled,
             agents_active,
             sess.dynamic_tools.as_slice(),

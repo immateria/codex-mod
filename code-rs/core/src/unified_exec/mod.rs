@@ -8,7 +8,6 @@ use std::io::ErrorKind;
 use std::io::Read;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
 use tokio::sync::Mutex;
@@ -139,7 +138,7 @@ impl ManagedUnifiedExecSession {
     }
 
     fn has_exited(&self) -> bool {
-        self.session.has_exited()
+        self.session.exit_code().is_some()
     }
 }
 
@@ -383,11 +382,16 @@ async fn create_unified_exec_session(
         }
     });
 
-    let exit_status = Arc::new(AtomicBool::new(false));
-    let wait_exit_status = Arc::clone(&exit_status);
+    let exit_code = Arc::new(StdMutex::new(None));
+    let wait_exit_code = Arc::clone(&exit_code);
     let wait_handle = tokio::task::spawn_blocking(move || {
-        let _ = child.wait();
-        wait_exit_status.store(true, Ordering::SeqCst);
+        let code = match child.wait() {
+            Ok(status) => status.exit_code() as i32,
+            Err(_) => -1,
+        };
+        if let Ok(mut guard) = wait_exit_code.lock() {
+            *guard = Some(code);
+        }
     });
 
     let (session, initial_output_rx) = ExecCommandSession::new(
@@ -397,7 +401,7 @@ async fn create_unified_exec_session(
         reader_handle,
         writer_handle,
         wait_handle,
-        exit_status,
+        exit_code,
     );
     Ok((session, initial_output_rx))
 }

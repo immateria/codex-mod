@@ -110,6 +110,9 @@ pub(super) struct State {
     pub(super) pending_input: Vec<ResponseInputItem>,
     pub(super) pending_user_input: Vec<QueuedUserInput>,
     pub(super) history: ConversationHistory,
+    /// Active MCP tool selection when `search_tool_bm25` gating is enabled.
+    /// When `None`, no selection has been made yet for this session.
+    pub(super) active_mcp_tool_selection: Option<Vec<String>>,
     /// Tracks which completed agents (by id) have already been returned to the
     /// model for a given batch when using `agent` with `action="wait"` and
     /// `return_all=false`.
@@ -328,6 +331,7 @@ pub(crate) struct Session {
     pub(super) disable_response_storage: bool,
     pub(super) tools_config: ToolsConfig,
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
+    pub(super) exec_command_manager: Arc<crate::exec_command::SessionManager>,
 
     /// Manager for external MCP servers/tools.
     pub(super) mcp_connection_manager: McpConnectionManager,
@@ -444,6 +448,26 @@ impl Session {
         self.mcp_access_read().clone()
     }
 
+    pub(crate) fn mcp_tool_selection_snapshot(&self) -> Option<Vec<String>> {
+        let state = self.state.lock().unwrap();
+        state.active_mcp_tool_selection.clone()
+    }
+
+    pub(crate) fn merge_mcp_tool_selection(&self, tools: Vec<String>) -> Vec<String> {
+        if tools.is_empty() {
+            return self
+                .mcp_tool_selection_snapshot()
+                .unwrap_or_default();
+        }
+
+        let mut state = self.state.lock().unwrap();
+        let current = state.active_mcp_tool_selection.get_or_insert_with(Vec::new);
+        current.extend(tools);
+        current.sort_by_key(|tool| tool.to_ascii_lowercase());
+        current.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+        current.clone()
+    }
+
     pub(crate) fn set_mcp_style_filters(
         &self,
         style: Option<crate::config_types::ShellScriptStyle>,
@@ -547,6 +571,18 @@ impl Session {
 
     pub(crate) fn get_cwd(&self) -> &Path {
         &self.cwd
+    }
+
+    pub(crate) fn search_tool_enabled(&self) -> bool {
+        self.tools_config.search_tool
+    }
+
+    pub(crate) fn user_shell(&self) -> &shell::Shell {
+        &self.user_shell
+    }
+
+    pub(crate) fn exec_command_manager(&self) -> Arc<crate::exec_command::SessionManager> {
+        Arc::clone(&self.exec_command_manager)
     }
 
     pub(crate) fn background_exec_cmd_display(&self, call_id: &str) -> Option<String> {
@@ -2057,11 +2093,13 @@ impl Session {
         if let Some(agent) = current {
             agent.abort(TurnAbortReason::Interrupted);
         }
-        // Also terminate any running exec sessions (PTY-based) so child processes do not linger.
-        // Best-effort cleanup for PTY-based exec sessions would go here. The
-        // PTY implementation already kills processes on session drop; in the
-        // common LocalShellCall path we also kill processes immediately via
-        // KillOnDrop in exec.rs.
+
+        // Terminate any PTY-based exec sessions so child processes do not linger.
+        // Best-effort; failures are ignored.
+        let mgr = Arc::clone(&self.exec_command_manager);
+        tokio::spawn(async move {
+            mgr.kill_all().await;
+        });
     }
 
     /// Spawn the configured notifier (if any) with the given JSON payload as

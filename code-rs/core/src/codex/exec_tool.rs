@@ -331,6 +331,10 @@ pub(crate) async fn handle_kill(
                 }
             };
 
+            // Best-effort cleanup: there is no targeted kill for streamable PTY sessions
+            // yet, so a kill request also terminates any outstanding sessions.
+            sess.exec_command_manager().kill_all().await;
+
             use std::sync::atomic::Ordering;
 
             let (
@@ -492,6 +496,207 @@ pub(crate) fn parse_container_exec_arguments(
                 },
             };
             Err(Box::new(output))
+        }
+    }
+}
+
+pub(crate) async fn handle_apply_patch_action(
+    sess: &Session,
+    turn_diff_tracker: &mut TurnDiffTracker,
+    ctx: &ToolCallCtx,
+    params: &ExecParams,
+    action: ApplyPatchAction,
+    attempt_req: u64,
+    outputs_custom: bool,
+) -> ResponseInputItem {
+    if let Some(branch_root) = git_worktree::branch_worktree_root(sess.get_cwd())
+        && let Some(guidance) =
+            crate::apply_patch::guard_apply_patch_outside_branch(&branch_root, &action)
+    {
+        let order = sess.next_background_order(&ctx.sub_id, attempt_req, ctx.output_index);
+        sess
+            .notify_background_event_with_order(
+                &ctx.sub_id,
+                order,
+                format!("Command guard: {}", guidance.clone()),
+            )
+            .await;
+
+        if outputs_custom {
+            return ResponseInputItem::CustomToolCallOutput {
+                call_id: ctx.call_id.clone(),
+                output: guidance,
+            };
+        }
+
+        return ResponseInputItem::FunctionCallOutput {
+            call_id: ctx.call_id.clone(),
+            output: FunctionCallOutputPayload {
+                body: FunctionCallOutputBody::Text(guidance),
+                success: None,
+            },
+        };
+    }
+
+    let changes = convert_apply_patch_to_protocol(&action);
+    turn_diff_tracker.on_patch_begin(&changes);
+
+    let mut hook_ctx = ExecCommandContext {
+        sub_id: ctx.sub_id.clone(),
+        call_id: ctx.call_id.clone(),
+        command_for_display: params.command.clone(),
+        cwd: params.cwd.clone(),
+        apply_patch: Some(ApplyPatchCommandContext {
+            user_explicitly_approved_this_action: false,
+            changes: changes.clone(),
+        }),
+    };
+
+    // FileBeforeWrite hook for apply_patch
+    sess
+        .run_hooks_for_exec_event(
+            turn_diff_tracker,
+            ProjectHookEvent::FileBeforeWrite,
+            &hook_ctx,
+            params,
+            None,
+            attempt_req,
+        )
+        .await;
+
+    let patch_start = std::time::Instant::now();
+
+    match apply_patch::apply_patch(
+        sess,
+        &ctx.sub_id,
+        &ctx.call_id,
+        attempt_req,
+        ctx.output_index,
+        action,
+    )
+    .await
+    {
+        ApplyPatchResult::Reply(item) => {
+            if !outputs_custom {
+                return item;
+            }
+
+            let output = match item {
+                ResponseInputItem::FunctionCallOutput { output, .. } => {
+                    output.body.to_text().unwrap_or_default()
+                }
+                ResponseInputItem::CustomToolCallOutput { output, .. } => output,
+                other => format!("{other:?}"),
+            };
+
+            ResponseInputItem::CustomToolCallOutput {
+                call_id: ctx.call_id.clone(),
+                output,
+            }
+        }
+        ApplyPatchResult::Applied(run) => {
+            if let Some(ctx) = hook_ctx.apply_patch.as_mut() {
+                ctx.user_explicitly_approved_this_action = !run.auto_approved;
+            }
+
+            let order_begin = crate::protocol::OrderMeta {
+                request_ordinal: attempt_req,
+                output_index: ctx.output_index,
+                sequence_number: ctx.seq_hint,
+            };
+            let begin_event = EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
+                call_id: ctx.call_id.clone(),
+                auto_approved: run.auto_approved,
+                changes,
+            });
+            let event = sess.make_event_with_order(&ctx.sub_id, begin_event, order_begin, ctx.seq_hint);
+            let _ = sess.tx_event.send(event).await;
+
+            let order_end = crate::protocol::OrderMeta {
+                request_ordinal: attempt_req,
+                output_index: ctx.output_index,
+                sequence_number: ctx.seq_hint.map(|h| h.saturating_add(1)),
+            };
+            let end_event = EventMsg::PatchApplyEnd(PatchApplyEndEvent {
+                call_id: ctx.call_id.clone(),
+                stdout: run.stdout.clone(),
+                stderr: run.stderr.clone(),
+                success: run.success,
+            });
+            let event = sess.make_event_with_order(
+                &ctx.sub_id,
+                end_event,
+                order_end,
+                ctx.seq_hint.map(|h| h.saturating_add(1)),
+            );
+            let _ = sess.tx_event.send(event).await;
+
+            let hook_output = ExecToolCallOutput {
+                exit_code: if run.success { 0 } else { 1 },
+                stdout: StreamOutput::new(run.stdout.clone()),
+                stderr: StreamOutput::new(run.stderr.clone()),
+                aggregated_output: StreamOutput::new({
+                    if run.stdout.is_empty() {
+                        run.stderr.clone()
+                    } else if run.stderr.is_empty() {
+                        run.stdout.clone()
+                    } else {
+                        format!("{}\n{}", run.stdout, run.stderr)
+                    }
+                }),
+                duration: patch_start.elapsed(),
+                timed_out: false,
+            };
+
+            sess
+                .run_hooks_for_exec_event(
+                    turn_diff_tracker,
+                    ProjectHookEvent::FileAfterWrite,
+                    &hook_ctx,
+                    params,
+                    Some(&hook_output),
+                    attempt_req,
+                )
+                .await;
+
+            if let Ok(Some(unified_diff)) = turn_diff_tracker.get_unified_diff() {
+                let diff_event = sess.make_event(
+                    &ctx.sub_id,
+                    EventMsg::TurnDiff(TurnDiffEvent { unified_diff }),
+                );
+                let _ = sess.tx_event.send(diff_event).await;
+            }
+
+            let mut content = run.stdout;
+            if !run.success && !run.stderr.is_empty() {
+                if !content.is_empty() {
+                    content.push('\n');
+                }
+                content.push_str(&format!("stderr: {}", run.stderr));
+            }
+            if let Some(summary) = run.harness_summary_json
+                && !summary.is_empty()
+            {
+                if !content.is_empty() {
+                    content.push('\n');
+                }
+                content.push_str(&summary);
+            }
+
+            if outputs_custom {
+                return ResponseInputItem::CustomToolCallOutput {
+                    call_id: ctx.call_id.clone(),
+                    output: content,
+                };
+            }
+
+            ResponseInputItem::FunctionCallOutput {
+                call_id: ctx.call_id.clone(),
+                output: FunctionCallOutputPayload {
+                    body: FunctionCallOutputBody::Text(content),
+                    success: Some(run.success),
+                },
+            }
         }
     }
 }
@@ -1075,157 +1280,16 @@ pub(crate) async fn handle_container_exec_with_params(
         .await
     {
         MaybeApplyPatchVerified::Body(action) => {
-            if let Some(branch_root) = git_worktree::branch_worktree_root(sess.get_cwd())
-                && let Some(guidance) = guard_apply_patch_outside_branch(&branch_root, &action) {
-                    let order = sess.next_background_order(&sub_id, attempt_req, output_index);
-                    sess
-                        .notify_background_event_with_order(
-                            &sub_id,
-                            order,
-                            format!("Command guard: {}", guidance.clone()),
-                        )
-                        .await;
-
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id,
-                        output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(guidance), success: None },
-                    };
-                }
-
-            let changes = convert_apply_patch_to_protocol(&action);
-            turn_diff_tracker.on_patch_begin(&changes);
-
-            let mut hook_ctx = ExecCommandContext {
-                sub_id: sub_id.clone(),
-                call_id: call_id.clone(),
-                command_for_display: params.command.clone(),
-                cwd: params.cwd.clone(),
-                apply_patch: Some(ApplyPatchCommandContext {
-                    user_explicitly_approved_this_action: false,
-                    changes: changes.clone(),
-                }),
-            };
-
-            // FileBeforeWrite hook for apply_patch
-            sess
-                .run_hooks_for_exec_event(
-                    turn_diff_tracker,
-                    ProjectHookEvent::FileBeforeWrite,
-                    &hook_ctx,
-                    &params,
-                    None,
-                    attempt_req,
-                )
-                .await;
-
-            let patch_start = std::time::Instant::now();
-
-            match apply_patch::apply_patch(
+            return handle_apply_patch_action(
                 sess,
-                &sub_id,
-                &call_id,
-                attempt_req,
-                output_index,
+                turn_diff_tracker,
+                ctx,
+                &params,
                 action,
+                attempt_req,
+                false,
             )
-            .await
-            {
-                ApplyPatchResult::Reply(item) => return item,
-                ApplyPatchResult::Applied(run) => {
-                    if let Some(ctx) = hook_ctx.apply_patch.as_mut() { ctx.user_explicitly_approved_this_action = !run.auto_approved; }
-
-                    let order_begin = crate::protocol::OrderMeta {
-                        request_ordinal: attempt_req,
-                        output_index,
-                        sequence_number: seq_hint,
-                    };
-                    let begin_event = EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
-                        call_id: call_id.clone(),
-                        auto_approved: run.auto_approved,
-                        changes,
-                    });
-                    let event = sess.make_event_with_order(&sub_id, begin_event, order_begin, seq_hint);
-                    let _ = sess.tx_event.send(event).await;
-
-                    let order_end = crate::protocol::OrderMeta {
-                        request_ordinal: attempt_req,
-                        output_index,
-                        sequence_number: seq_hint.map(|h| h.saturating_add(1)),
-                    };
-                    let end_event = EventMsg::PatchApplyEnd(PatchApplyEndEvent {
-                        call_id: call_id.clone(),
-                        stdout: run.stdout.clone(),
-                        stderr: run.stderr.clone(),
-                        success: run.success,
-                    });
-                    let event = sess.make_event_with_order(
-                        &sub_id,
-                        end_event,
-                        order_end,
-                        seq_hint.map(|h| h.saturating_add(1)),
-                    );
-                    let _ = sess.tx_event.send(event).await;
-
-                    let hook_output = ExecToolCallOutput {
-                        exit_code: if run.success { 0 } else { 1 },
-                        stdout: StreamOutput::new(run.stdout.clone()),
-                        stderr: StreamOutput::new(run.stderr.clone()),
-                        aggregated_output: StreamOutput::new({
-                            if run.stdout.is_empty() {
-                                run.stderr.clone()
-                            } else if run.stderr.is_empty() {
-                                run.stdout.clone()
-                            } else {
-                                format!("{}\n{}", run.stdout, run.stderr)
-                            }
-                        }),
-                        duration: patch_start.elapsed(),
-                        timed_out: false,
-                    };
-
-                    sess
-                        .run_hooks_for_exec_event(
-                            turn_diff_tracker,
-                            ProjectHookEvent::FileAfterWrite,
-                            &hook_ctx,
-                            &params,
-                            Some(&hook_output),
-                            attempt_req,
-                        )
-                        .await;
-
-                    if let Ok(Some(unified_diff)) = turn_diff_tracker.get_unified_diff() {
-                        let diff_event = sess.make_event(
-                            &sub_id,
-                            EventMsg::TurnDiff(TurnDiffEvent { unified_diff }),
-                        );
-                        let _ = sess.tx_event.send(diff_event).await;
-                    }
-
-                    let mut content = run.stdout;
-                    if !run.success && !run.stderr.is_empty() {
-                        if !content.is_empty() {
-                            content.push('\n');
-                        }
-                        content.push_str(&format!("stderr: {}", run.stderr));
-                    }
-                    if let Some(summary) = run.harness_summary_json
-                        && !summary.is_empty() {
-                            if !content.is_empty() {
-                                content.push('\n');
-                            }
-                            content.push_str(&summary);
-                        }
-
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(content),
-                            success: Some(run.success),
-                        },
-                    };
-                }
-            }
+            .await;
         }
         MaybeApplyPatchVerified::CorrectnessError(parse_error) => {
             return ResponseInputItem::FunctionCallOutput {
@@ -1781,86 +1845,6 @@ fn line_contains_cat_heredoc_write(line: &str) -> bool {
     }
 
     false
-}
-
-fn guard_apply_patch_outside_branch(branch_root: &Path, action: &ApplyPatchAction) -> Option<String> {
-    let branch_norm = match normalize_absolute(branch_root) {
-        Some(path) => path,
-        None => {
-            return Some(format!(
-                "apply_patch blocked: failed to resolve /branch worktree root {}. Stay inside the worktree until you finish with `/merge`.",
-                branch_root.display()
-            ));
-        }
-    };
-    let action_cwd_norm = match normalize_absolute(&action.cwd) {
-        Some(path) => path,
-        None => {
-            return Some(format!(
-                "apply_patch blocked: the command resolved outside the /branch worktree (cwd {}). Stay inside {} until you finish with `/merge`.",
-                action.cwd.display(),
-                branch_root.display()
-            ));
-        }
-    };
-    if !path_within(&action_cwd_norm, &branch_norm) {
-        return Some(format!(
-            "apply_patch blocked: the active /branch worktree is {} but the command tried to run from {}. Stay inside the worktree until you finish with `/merge`.",
-            branch_root.display(),
-            action.cwd.display()
-        ));
-    }
-
-    for path in action.changes().keys() {
-        let normalized = match normalize_absolute(path) {
-            Some(value) => value,
-            None => {
-                return Some(format!(
-                    "apply_patch blocked: could not resolve patch target {} inside worktree {}. Keep edits within the /branch directory.",
-                    path.display(),
-                    branch_root.display()
-                ));
-            }
-        };
-        if !path_within(&normalized, &branch_norm) {
-            return Some(format!(
-                "apply_patch blocked: patch would modify {} outside the active /branch worktree {}. Apply changes from within the worktree before `/merge`.",
-                path.display(),
-                branch_root.display()
-            ));
-        }
-    }
-
-    None
-}
-
-fn normalize_absolute(path: &Path) -> Option<PathBuf> {
-    if !path.is_absolute() {
-        return None;
-    }
-    let mut result = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::Prefix(prefix) => result.push(prefix.as_os_str()),
-            Component::RootDir => result.push(component.as_os_str()),
-            Component::CurDir => {}
-            Component::ParentDir => {
-                if !result.pop() {
-                    return None;
-                }
-            }
-            Component::Normal(part) => result.push(part),
-        }
-    }
-    if result.as_os_str().is_empty() {
-        None
-    } else {
-        Some(result)
-    }
-}
-
-fn path_within(path: &Path, base: &Path) -> bool {
-    path.starts_with(base)
 }
 
 fn guidance_for_cat_write(suggestion: &CatWriteSuggestion) -> String {
