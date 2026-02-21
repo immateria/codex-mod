@@ -131,3 +131,120 @@ new tool runtime.
   - search selects tools for session and exposes them to the model
 - `apply_patch` tool calls work end-to-end (with the same safety + hooks + events as today).
 
+## Streamable Shell (`exec_command` / `write_stdin`) Parity
+
+Upstream (`codex-rs`) supports a “streamable shell” tool pair:
+
+- `exec_command`: start a command, stream output for a time slice, then return a process/session id
+- `write_stdin`: write more input to that running process and poll for output
+
+**Why it matters**
+- Enables long-running interactive tools (REPLs, ssh, prompts) without blocking the model
+- Makes headless automation more reliable than `shell` alone
+
+**Current state in this fork**
+- Tool specs exist and can be emitted when enabled:
+  - `code-rs/core/src/openai_tools.rs` emits `exec_command` + `write_stdin` when
+    `ToolsConfig.shell_type == StreamableShell`
+  - Config flag: `use_experimental_streamable_shell_tool` (see `code-rs/core/src/config.rs`)
+- Runtime exists but is **not wired into the tool router**:
+  - `code-rs/core/src/exec_command/*` contains a working session manager + tool schemas
+  - `code-rs/core/src/unified_exec/mod.rs` exists but is currently `#![allow(dead_code)]`
+  - `code-rs/core/src/tools/router.rs` does **not** register handlers for
+    `exec_command` / `write_stdin`
+
+**Result**
+- Enabling `use_experimental_streamable_shell_tool=true` will surface tool names
+  that the core cannot handle (tool calls fail as “unsupported call”).
+
+**Plan (decision complete)**
+- Add a handler and register it:
+  - `code-rs/core/src/tools/handlers/unified_exec.rs` (or `exec_command.rs`)
+  - Register tool names:
+    - `exec_command`
+    - `write_stdin`
+- Implementation should reuse existing `exec_command::SessionManager` and match
+  current safety/approval behavior:
+  - Respect `AskForApproval` and `SandboxPolicy`
+  - Support `sandbox_permissions=require_escalated` only when approval policy allows it
+  - Intercept apply_patch pasted into exec streams:
+    - Upstream warns: “apply_patch was requested via exec_command; use apply_patch tool”
+    - In `code-rs`, this should share the same apply_patch verification + /branch guard
+- Update tool parallelism classification:
+  - `exec_command` / `write_stdin` should be `Exclusive` (ordering + mutation risk)
+
+**Tests to add**
+- Extend `code-rs/core/src/tools/router.rs` completeness test to cover
+  `use_experimental_streamable_shell_tool=true` and assert handlers exist for both tools.
+
+## Upstream Tool Inventory Delta (Handlers)
+
+Upstream tool handlers live in `codex-rs/core/src/tools/handlers/`.
+This fork’s tool runtime handlers live in `code-rs/core/src/tools/handlers/`.
+
+**Already present in code-rs (mapped)**
+- `shell` / `container.exec` (code-rs uses `ShellHandler`)
+- `update_plan`
+- `request_user_input`
+- MCP tool calls (qualified tool names via `McpConnectionManager::parse_tool_name`)
+- `web_fetch`, `browser`, `image_view`
+- `wait`, `kill`, `gh_run_wait`
+- Bridge tools (`code_bridge`, `code_bridge_subscription`)
+- Dynamic tool bridge (session-registered tools)
+
+**Upstream handlers not yet ported (or not exposed)**
+- `search_tool_bm25` (schema exists; handler missing)
+- `apply_patch` (schema exists; handler missing)
+- `unified_exec` / `exec_command` / `write_stdin` (schema exists; handler missing)
+- File helpers not exposed in this fork’s tool schema:
+  - `read_file` (safe, structured file reads)
+  - `list_dir` (structured directory listing)
+  - `grep_files` (non-mutating repo search wrapper around `rg`)
+- Optional runtime tools:
+  - `js_repl` (requires a feature-flag + runtime integration that this fork doesn’t have today)
+- MCP “resource” helpers (`mcp_resource`) are not currently exposed as first-class tools here.
+
+## CLI Parity / Automation Snapshot
+
+This fork already carries a lot of CLI parity that upstream Every Code didn’t
+bring over initially. Useful automation commands include:
+
+- `code fork` (fork prior interactive sessions)
+- `code sandbox` (macOS Seatbelt, Linux Landlock/seccomp, with clear unsupported errors elsewhere)
+- `code debug app-server send-message-v2` (scriptable diagnostics without TUI)
+- `code config schema` / `code config validate` (validate against codex vs fork schemas)
+
+Reference entry point: `code-rs/cli/src/main.rs`.
+
+## Status Line (`/statusline`) Snapshot
+
+Upstream (`codex-rs`) has `/statusline` to configure which items appear on the status line.
+
+This fork supports:
+- A **top** lane and a **bottom** lane
+- A “primary” lane concept (primary vs secondary)
+- Full settings UI + slash command wiring
+
+Reference pointers:
+- Slash command parsing: `code-rs/tui/src/slash_command.rs`
+- Setup view: `code-rs/tui/src/bottom_pane/status_line_setup.rs`
+- Render + hover hit regions: `code-rs/tui/src/chatwidget/terminal_surface_render.rs`
+- State/events: `code-rs/tui/src/app/events.rs`, `code-rs/tui/src/app_event.rs`
+- Config fields: `code-rs/core/src/config_types.rs` (`status_line_top`, `status_line_bottom`, `status_line_primary`)
+
+## Proposed “Phase 3” Work Order (Next)
+
+This is the next minimal set of migrations that unlock the remaining upstream
+tooling without sacrificing local fork features:
+
+1. Implement `search_tool_bm25` end-to-end (handler + per-session selection state + MCP gating).
+2. Implement `apply_patch` tool call handling (share the same safety + hooks + /branch guard).
+3. Wire `exec_command` / `write_stdin` tool handlers (reuse `exec_command::SessionManager`).
+4. Expand tool registry completeness tests so “enabled tool == has handler” holds for:
+   - `tools_search_tool`
+   - `include_apply_patch_tool`
+   - `use_experimental_streamable_shell_tool`
+
+Optional after the above is stable:
+- Add structured file helper tools (`read_file`, `list_dir`, `grep_files`) if we want to reduce
+  reliance on arbitrary shell commands for inspection/search.
