@@ -204,6 +204,70 @@ This fork’s tool runtime handlers live in `code-rs/core/src/tools/handlers/`.
   - `js_repl` (requires a feature-flag + runtime integration that this fork doesn’t have today)
 - MCP “resource” helpers (`mcp_resource`) are not currently exposed as first-class tools here.
 
+## Upstream Tool Runtime Modules Not Yet Ported
+
+Upstream `codex-rs/core/src/tools/` includes a more complete “tool runtime” stack:
+
+- `orchestrator.rs`: central approval + sandbox attempt + retry semantics per tool runtime
+- `sandboxing.rs`: shared traits/types for approvable/sandboxable tool runtimes, cached approvals, etc.
+- `parallel.rs`: tool call runtime that supports cancellation + mutating vs parallel gating
+- `runtimes/*`: per-tool runtime implementations (`shell`, `apply_patch`, `unified_exec`, ...)
+- `network_approval.rs`: managed network policy approvals (proxy-mediated)
+- `js_repl/*`: JS REPL kernel + handler plumbing
+
+This fork’s `code-rs/core/src/tools/` intentionally stayed lighter-weight:
+
+- We kept most approval/sandbox behavior in the existing `exec_tool` path
+  (`code-rs/core/src/codex/exec_tool.rs`) and per-tool handlers.
+- Parallel tool call batching is implemented in `code-rs/core/src/codex/streaming.rs`,
+  not in `code-rs/core/src/tools/parallel.rs` (which does not exist here).
+
+**Implication for Phase 3**
+- We should not attempt to “fully port” upstream’s orchestrator/sandboxing stack as
+  part of completing the missing tools. It’s a large structural change and would
+  risk regressions in local features (MCP prompting + shell/style routing).
+- We *can* borrow the key ideas when it reduces duplication:
+  - per-handler “mutating vs parallel-safe” metadata (instead of hardcoded name lists)
+  - central tool-call begin/end emission helpers to avoid copy/paste
+
+## MCP Resource Tools (Optional)
+
+Upstream exposes MCP resource discovery + reading as tools:
+- `list_mcp_resources`
+- `list_mcp_resource_templates`
+- `read_mcp_resource`
+
+This fork currently surfaces the same information primarily via UI/AppEvents:
+- `code-rs/core/src/codex/streaming.rs` (`Op::ListMcpTools`) already gathers:
+  - resources by server
+  - resource templates by server
+  - auth statuses
+
+**Gap**
+- `code-rs/rmcp-client` and `code-rs/core/src/mcp_connection_manager.rs` support
+  listing resources/templates, but do **not** currently expose “read resource”
+  RPCs as a first-class client call.
+
+**Recommendation**
+- Keep MCP resources as a UI feature for now.
+- Revisit as a separate migration once `search_tool_bm25`/`apply_patch`/`exec_command`
+  are stable, because adding `read_resource` likely requires expanding the RMCP client surface.
+
+## File Helper Tools (Optional)
+
+Upstream includes “safe, structured” file helpers that reduce reliance on raw shell:
+- `read_file` (slice or indentation-aware)
+- `list_dir` (paged, depth-bounded directory listing)
+- `grep_files` (non-mutating wrapper around `rg`)
+
+This fork currently prefers:
+- `shell` / `container.exec` for inspection/search
+- plus guardrails that prevent direct file writes outside `apply_patch`
+
+**Recommendation**
+- Consider porting these once `apply_patch` is a first-class tool handler.
+- Benefits: less shell noise, easier to constrain outputs, more deterministic behavior.
+
 ## CLI Parity / Automation Snapshot
 
 This fork already carries a lot of CLI parity that upstream Every Code didn’t
