@@ -923,6 +923,7 @@ pub(super) async fn submission_loop(
                     config.tools_web_search_allowed_domains.clone();
                 tools_config.web_search_external = config.tools_web_search_external;
                 tools_config.search_tool = config.tools_search_tool;
+                tools_config.js_repl = config.tools_js_repl;
 
                 let mut agent_models: Vec<String> = if config.agents.is_empty() {
                     default_agent_configs()
@@ -984,6 +985,7 @@ pub(super) async fn submission_loop(
                     tools_config,
                     dynamic_tools,
                     exec_command_manager: Arc::new(crate::exec_command::SessionManager::default()),
+                    js_repl: crate::tools::js_repl::JsReplHandle::new(None),
                     tx_event: tx_event.clone(),
                     user_instructions: effective_user_instructions.clone(),
                     base_instructions,
@@ -3279,7 +3281,9 @@ fn classify_tool_call_parallelism(sess: &Session, item: &ResponseItem) -> ToolCa
     }
 
     match tool_name {
-        "web_fetch" | "wait" | "gh_run_wait" => ToolCallParallelism::Parallel,
+        "web_fetch" | "wait" | "gh_run_wait" | "read_file" | "list_dir" | "grep_files" => {
+            ToolCallParallelism::Parallel
+        }
         _ => ToolCallParallelism::Exclusive,
     }
 }

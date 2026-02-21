@@ -2,6 +2,7 @@ pub mod spec;
 pub(crate) mod output_format;
 pub(crate) mod events;
 pub(crate) mod context;
+pub(crate) mod js_repl;
 pub(crate) mod handlers;
 pub(crate) mod registry;
 pub(crate) mod router;

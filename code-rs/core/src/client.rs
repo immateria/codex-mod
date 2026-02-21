@@ -417,6 +417,7 @@ impl ModelClient {
         tools_config.web_search_allowed_domains = self.config.tools_web_search_allowed_domains.clone();
         tools_config.web_search_external = self.config.tools_web_search_external;
         tools_config.search_tool = self.config.tools_search_tool;
+        tools_config.js_repl = self.config.tools_js_repl;
 
         let auth_mode = self
             .auth_manager

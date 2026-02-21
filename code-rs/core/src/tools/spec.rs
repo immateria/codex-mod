@@ -20,6 +20,7 @@ pub struct ToolsConfig {
     pub web_search_request: bool,
     pub web_search_external: bool,
     pub search_tool: bool,
+    pub js_repl: bool,
     #[allow(dead_code)]
     pub include_view_image_tool: bool,
     pub web_search_allowed_domains: Option<Vec<String>>,
@@ -86,6 +87,7 @@ impl ToolsConfig {
             web_search_request: include_web_search_request,
             web_search_external: true,
             search_tool: false,
+            js_repl: false,
             include_view_image_tool,
             web_search_allowed_domains: None,
             agent_model_allowed_values: Vec::new(),

@@ -23,6 +23,11 @@ use crate::tool_apply_patch::{
 const SEARCH_TOOL_DESCRIPTION_TEMPLATE: &str =
     include_str!("../templates/search_tool/tool_description.md");
 pub(crate) const SEARCH_TOOL_BM25_TOOL_NAME: &str = "search_tool_bm25";
+pub(crate) const READ_FILE_TOOL_NAME: &str = "read_file";
+pub(crate) const LIST_DIR_TOOL_NAME: &str = "list_dir";
+pub(crate) const GREP_FILES_TOOL_NAME: &str = "grep_files";
+pub(crate) const JS_REPL_TOOL_NAME: &str = "js_repl";
+pub(crate) const JS_REPL_RESET_TOOL_NAME: &str = "js_repl_reset";
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct ResponsesApiTool {
@@ -418,6 +423,246 @@ fn render_search_tool_description() -> String {
     SEARCH_TOOL_DESCRIPTION_TEMPLATE.to_string()
 }
 
+fn create_grep_files_tool() -> OpenAiTool {
+    let properties = BTreeMap::from([
+        (
+            "pattern".to_string(),
+            JsonSchema::String {
+                description: Some("Regular expression pattern to search for.".to_string()),
+                allowed_values: None,
+            },
+        ),
+        (
+            "include".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Optional glob that limits which files are searched (e.g. \"*.rs\" or \"*.{ts,tsx}\")."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+        (
+            "path".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Directory or file path to search. Defaults to the session's working directory."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+        (
+            "limit".to_string(),
+            JsonSchema::Number {
+                description: Some(
+                    "Maximum number of file paths to return (defaults to 100).".to_string(),
+                ),
+            },
+        ),
+    ]);
+
+    OpenAiTool::Function(ResponsesApiTool {
+        name: GREP_FILES_TOOL_NAME.to_string(),
+        description:
+            "Find files whose contents match the pattern and list them by modification time."
+                .to_string(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties,
+            required: Some(vec!["pattern".to_string()]),
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
+fn create_read_file_tool() -> OpenAiTool {
+    let indentation_properties = BTreeMap::from([
+        (
+            "anchor_line".to_string(),
+            JsonSchema::Number {
+                description: Some(
+                    "Anchor line to center the indentation lookup on (defaults to offset)."
+                        .to_string(),
+                ),
+            },
+        ),
+        (
+            "max_levels".to_string(),
+            JsonSchema::Number {
+                description: Some(
+                    "How many parent indentation levels (smaller indents) to include.".to_string(),
+                ),
+            },
+        ),
+        (
+            "include_siblings".to_string(),
+            JsonSchema::Boolean {
+                description: Some(
+                    "When true, include additional blocks that share the anchor indentation."
+                        .to_string(),
+                ),
+            },
+        ),
+        (
+            "include_header".to_string(),
+            JsonSchema::Boolean {
+                description: Some(
+                    "Include doc comments or attributes directly above the selected block."
+                        .to_string(),
+                ),
+            },
+        ),
+        (
+            "max_lines".to_string(),
+            JsonSchema::Number {
+                description: Some(
+                    "Hard cap on the number of lines returned when using indentation mode."
+                        .to_string(),
+                ),
+            },
+        ),
+    ]);
+
+    let properties = BTreeMap::from([
+        (
+            "file_path".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Path to the file (absolute recommended; relative paths are resolved against the session working directory)."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+        (
+            "offset".to_string(),
+            JsonSchema::Number {
+                description: Some(
+                    "The line number to start reading from. Must be 1 or greater.".to_string(),
+                ),
+            },
+        ),
+        (
+            "limit".to_string(),
+            JsonSchema::Number {
+                description: Some("The maximum number of lines to return.".to_string()),
+            },
+        ),
+        (
+            "mode".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Optional mode selector: \"slice\" for simple ranges (default) or \"indentation\" to expand around an anchor line."
+                        .to_string(),
+                ),
+                allowed_values: Some(vec!["slice".to_string(), "indentation".to_string()]),
+            },
+        ),
+        (
+            "indentation".to_string(),
+            JsonSchema::Object {
+                properties: indentation_properties,
+                required: None,
+                additional_properties: Some(false.into()),
+            },
+        ),
+    ]);
+
+    OpenAiTool::Function(ResponsesApiTool {
+        name: READ_FILE_TOOL_NAME.to_string(),
+        description:
+            "Read a local file with 1-indexed line numbers, supporting slice and indentation-aware block modes."
+                .to_string(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties,
+            required: Some(vec!["file_path".to_string()]),
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
+fn create_list_dir_tool() -> OpenAiTool {
+    let properties = BTreeMap::from([
+        (
+            "dir_path".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Directory path to list (absolute recommended; relative paths are resolved against the session working directory)."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+        (
+            "offset".to_string(),
+            JsonSchema::Number {
+                description: Some(
+                    "The entry number to start listing from. Must be 1 or greater.".to_string(),
+                ),
+            },
+        ),
+        (
+            "limit".to_string(),
+            JsonSchema::Number {
+                description: Some("The maximum number of entries to return.".to_string()),
+            },
+        ),
+        (
+            "depth".to_string(),
+            JsonSchema::Number {
+                description: Some(
+                    "The maximum directory depth to traverse. Must be 1 or greater.".to_string(),
+                ),
+            },
+        ),
+    ]);
+
+    OpenAiTool::Function(ResponsesApiTool {
+        name: LIST_DIR_TOOL_NAME.to_string(),
+        description:
+            "List entries in a local directory with 1-indexed entry numbers and simple type labels."
+                .to_string(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties,
+            required: Some(vec!["dir_path".to_string()]),
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
+fn create_js_repl_tool() -> OpenAiTool {
+    const JS_REPL_FREEFORM_GRAMMAR: &str = r#"start: /[\s\S]*/"#;
+
+    OpenAiTool::Freeform(FreeformTool {
+        name: JS_REPL_TOOL_NAME.to_string(),
+        description: "Runs JavaScript in a persistent Node kernel with top-level await. This is a freeform tool: send raw JavaScript source text, optionally with a first-line pragma like `// codex-js-repl: timeout_ms=15000`; do not send JSON/quotes/markdown fences."
+            .to_string(),
+        format: FreeformToolFormat {
+            r#type: "grammar".to_string(),
+            syntax: "lark".to_string(),
+            definition: JS_REPL_FREEFORM_GRAMMAR.to_string(),
+        },
+    })
+}
+
+fn create_js_repl_reset_tool() -> OpenAiTool {
+    OpenAiTool::Function(ResponsesApiTool {
+        name: JS_REPL_RESET_TOOL_NAME.to_string(),
+        description:
+            "Restarts the js_repl kernel for this run and clears persisted top-level bindings."
+                .to_string(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties: BTreeMap::new(),
+            required: None,
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
 fn create_shell_tool_for_sandbox(sandbox_policy: &SandboxPolicy) -> OpenAiTool {
     let mut properties = BTreeMap::new();
     properties.insert(
@@ -794,8 +1039,15 @@ pub fn get_openai_tools(
     }
 
     tools.push(create_request_user_input_tool());
+    tools.push(create_read_file_tool());
+    tools.push(create_list_dir_tool());
+    tools.push(create_grep_files_tool());
     if config.search_tool {
         tools.push(create_search_tool_bm25_tool());
+    }
+    if config.js_repl {
+        tools.push(create_js_repl_tool());
+        tools.push(create_js_repl_reset_tool());
     }
 
     tools.push(create_browser_tool(browser_enabled));

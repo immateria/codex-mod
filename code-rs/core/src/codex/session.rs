@@ -332,6 +332,7 @@ pub(crate) struct Session {
     pub(super) tools_config: ToolsConfig,
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
     pub(super) exec_command_manager: Arc<crate::exec_command::SessionManager>,
+    pub(super) js_repl: crate::tools::js_repl::JsReplHandle,
 
     /// Manager for external MCP servers/tools.
     pub(super) mcp_connection_manager: McpConnectionManager,
@@ -577,12 +578,24 @@ impl Session {
         self.tools_config.search_tool
     }
 
+    pub(crate) fn js_repl_enabled(&self) -> bool {
+        self.tools_config.js_repl
+    }
+
     pub(crate) fn user_shell(&self) -> &shell::Shell {
         &self.user_shell
     }
 
     pub(crate) fn exec_command_manager(&self) -> Arc<crate::exec_command::SessionManager> {
         Arc::clone(&self.exec_command_manager)
+    }
+
+    pub(crate) async fn js_repl_manager(&self) -> Result<Arc<crate::tools::js_repl::JsReplManager>, String> {
+        self.js_repl.manager().await
+    }
+
+    pub(crate) fn js_repl_manager_if_started(&self) -> Option<Arc<crate::tools::js_repl::JsReplManager>> {
+        self.js_repl.manager_if_started()
     }
 
     pub(crate) fn background_exec_cmd_display(&self, call_id: &str) -> Option<String> {
@@ -2100,6 +2113,12 @@ impl Session {
         tokio::spawn(async move {
             mgr.kill_all().await;
         });
+
+        if let Some(js_mgr) = self.js_repl_manager_if_started() {
+            tokio::spawn(async move {
+                js_mgr.kill().await;
+            });
+        }
     }
 
     /// Spawn the configured notifier (if any) with the given JSON payload as
