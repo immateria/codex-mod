@@ -23,3 +23,4 @@ pub use session_manager::SessionManager;
 
 // Re-export ExecCommandSession for crate-internal consumers.
 pub(crate) use exec_command_session::ExecCommandSession;
+pub(crate) use exec_command_session::ExecCommandSessionParts;

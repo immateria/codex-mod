@@ -61,6 +61,8 @@ impl ToolRouter {
             Arc::new(handlers::search_tool_bm25::SearchToolBm25Handler);
         let apply_patch: Arc<dyn ToolHandler> = Arc::new(handlers::apply_patch::ApplyPatchToolHandler);
         let exec_command: Arc<dyn ToolHandler> = Arc::new(handlers::exec_command::ExecCommandToolHandler);
+        let mcp_resource: Arc<dyn ToolHandler> =
+            Arc::new(handlers::mcp_resource::McpResourceToolHandler);
         let read_file: Arc<dyn ToolHandler> = Arc::new(handlers::read_file::ReadFileToolHandler);
         let list_dir: Arc<dyn ToolHandler> = Arc::new(handlers::list_dir::ListDirToolHandler);
         let grep_files: Arc<dyn ToolHandler> = Arc::new(handlers::grep_files::GrepFilesToolHandler);
@@ -87,6 +89,9 @@ impl ToolRouter {
         handlers.insert("apply_patch", apply_patch);
         handlers.insert(crate::exec_command::EXEC_COMMAND_TOOL_NAME, Arc::clone(&exec_command));
         handlers.insert(crate::exec_command::WRITE_STDIN_TOOL_NAME, exec_command);
+        handlers.insert("list_mcp_resources", Arc::clone(&mcp_resource));
+        handlers.insert("list_mcp_resource_templates", Arc::clone(&mcp_resource));
+        handlers.insert("read_mcp_resource", mcp_resource);
         handlers.insert(crate::openai_tools::READ_FILE_TOOL_NAME, read_file);
         handlers.insert(crate::openai_tools::LIST_DIR_TOOL_NAME, list_dir);
         handlers.insert(crate::openai_tools::GREP_FILES_TOOL_NAME, grep_files);

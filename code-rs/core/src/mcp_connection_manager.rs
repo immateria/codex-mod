@@ -25,6 +25,8 @@ use mcp_types::ClientCapabilities;
 use mcp_types::Implementation;
 use mcp_types::ListResourceTemplatesRequestParams;
 use mcp_types::ListResourcesRequestParams;
+use mcp_types::ReadResourceRequestParams;
+use mcp_types::ReadResourceResult;
 use mcp_types::Resource;
 use mcp_types::ResourceTemplate;
 use mcp_types::Tool;
@@ -275,6 +277,16 @@ impl McpClientAdapter {
     ) -> Result<mcp_types::ListResourceTemplatesResult> {
         match self {
             McpClientAdapter::Rmcp(client) => client.list_resource_templates(params, timeout).await,
+        }
+    }
+
+    async fn read_resource(
+        &self,
+        params: ReadResourceRequestParams,
+        timeout: Option<Duration>,
+    ) -> Result<ReadResourceResult> {
+        match self {
+            McpClientAdapter::Rmcp(client) => client.read_resource(params, timeout).await,
         }
     }
 
@@ -662,6 +674,10 @@ impl McpConnectionManager {
         tools_by_server
     }
 
+    pub fn list_server_names(&self) -> Vec<String> {
+        self.server_names_read().clone()
+    }
+
     pub async fn list_resources_by_server(&self) -> HashMap<String, Vec<Resource>> {
         let clients_snapshot = {
             let clients = self.clients.read().await;
@@ -790,6 +806,71 @@ impl McpConnectionManager {
         }
 
         by_server
+    }
+
+    pub async fn list_resources(
+        &self,
+        server: &str,
+        params: Option<ListResourcesRequestParams>,
+        timeout_override: Option<Duration>,
+    ) -> Result<mcp_types::ListResourcesResult> {
+        let (client, timeout) = {
+            let clients = self.clients.read().await;
+            let managed = clients
+                .get(server)
+                .ok_or_else(|| anyhow!("unknown MCP server '{server}'"))?;
+            let timeout = timeout_override.or(managed.tool_timeout);
+            (managed.client.clone(), timeout)
+        };
+
+        client
+            .list_resources(params, timeout)
+            .await
+            .with_context(|| format!("resources/list failed for MCP server '{server}'"))
+    }
+
+    pub async fn list_resource_templates(
+        &self,
+        server: &str,
+        params: Option<ListResourceTemplatesRequestParams>,
+        timeout_override: Option<Duration>,
+    ) -> Result<mcp_types::ListResourceTemplatesResult> {
+        let (client, timeout) = {
+            let clients = self.clients.read().await;
+            let managed = clients
+                .get(server)
+                .ok_or_else(|| anyhow!("unknown MCP server '{server}'"))?;
+            let timeout = timeout_override.or(managed.tool_timeout);
+            (managed.client.clone(), timeout)
+        };
+
+        client
+            .list_resource_templates(params, timeout)
+            .await
+            .with_context(|| {
+                format!("resources/templates/list failed for MCP server '{server}'")
+            })
+    }
+
+    pub async fn read_resource(
+        &self,
+        server: &str,
+        params: ReadResourceRequestParams,
+        timeout_override: Option<Duration>,
+    ) -> Result<ReadResourceResult> {
+        let (client, timeout) = {
+            let clients = self.clients.read().await;
+            let managed = clients
+                .get(server)
+                .ok_or_else(|| anyhow!("unknown MCP server '{server}'"))?;
+            let timeout = timeout_override.or(managed.tool_timeout);
+            (managed.client.clone(), timeout)
+        };
+
+        client
+            .read_resource(params, timeout)
+            .await
+            .with_context(|| format!("resources/read failed for MCP server '{server}'"))
     }
 
     pub fn list_disabled_tools_by_server(&self) -> HashMap<String, Vec<String>> {

@@ -199,6 +199,119 @@ pub(crate) async fn apply_mcp_access_selection(
     }
 }
 
+pub(crate) async fn ensure_mcp_server_access_for_turn(
+    sess: &Session,
+    ctx: &ToolCallCtx,
+    server_id: &crate::mcp::ids::McpServerId,
+    server_name: &str,
+    tool_label: &str,
+) -> std::result::Result<(), String> {
+    use code_protocol::request_user_input::RequestUserInputEvent;
+
+    fn sanitize_call_id_fragment(value: &str) -> String {
+        let mut out = String::with_capacity(value.len());
+        for ch in value.chars() {
+            if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
+                out.push(ch);
+            } else {
+                out.push('_');
+            }
+        }
+        if out.is_empty() {
+            "mcp".to_string()
+        } else if out.len() > 64 {
+            out.truncate(64);
+            out
+        } else {
+            out
+        }
+    }
+
+    let mut mcp_access = sess.mcp_access_snapshot();
+    let mut access = crate::mcp::policy::server_access_for_turn(
+        &mcp_access,
+        ctx.sub_id.as_str(),
+        server_id,
+    );
+    let mut allow = access.is_allowed();
+
+    if !allow {
+        if access.is_session_denied() {
+            return Err(format!(
+                "MCP server `{server_name}` is blocked for this session. Open Settings -> MCP (or update your shell style MCP filters) to allow it."
+            ));
+        }
+
+        let style_label = mcp_access.style_label.as_deref().unwrap_or("none");
+        let mut question_text = format!(
+            "The model attempted to call {tool_label}, but MCP server `{server_name}` is blocked by your current MCP filters."
+        );
+        if mcp_access.style.is_some() {
+            question_text.push_str(&format!(" Active shell style: `{style_label}`."));
+        }
+        question_text.push_str("\n\nHow do you want to proceed?");
+
+        let call_tag = sanitize_call_id_fragment(tool_label);
+        let prompt_call_id = format!(
+            "mcp_access:{}:{}:{}",
+            ctx.sub_id,
+            server_id.as_str(),
+            call_tag
+        );
+        let rx_response = sess.register_pending_user_input(ctx.sub_id.clone())?;
+
+        sess.send_ordered_from_ctx(
+            ctx,
+            crate::protocol::EventMsg::RequestUserInput(RequestUserInputEvent {
+                call_id: prompt_call_id,
+                turn_id: ctx.sub_id.clone(),
+                questions: vec![crate::codex::mcp_access::mcp_access_question(
+                    question_text,
+                    mcp_access.style.is_some(),
+                )],
+            }),
+        )
+        .await;
+
+        let response = rx_response.await.map_err(|_| {
+            "MCP access prompt was cancelled before receiving a response.".to_string()
+        })?;
+
+        let selection = response
+            .answers
+            .get("mcp_access")
+            .and_then(|answer| answer.answers.first())
+            .map(|value| value.trim().to_string())
+            .unwrap_or_default();
+
+        apply_mcp_access_selection(
+            sess,
+            ctx.sub_id.as_str(),
+            server_id,
+            server_name,
+            &mcp_access,
+            selection.as_str(),
+        )
+        .await;
+
+        mcp_access = sess.mcp_access_snapshot();
+        access = crate::mcp::policy::server_access_for_turn(
+            &mcp_access,
+            ctx.sub_id.as_str(),
+            server_id,
+        );
+        allow = access.is_allowed();
+    }
+
+    if !allow {
+        return Err(format!(
+            "MCP server `{server_name}` is blocked by your current MCP filters."
+        ));
+    }
+
+    Ok(())
+}
+
 pub(super) async fn ensure_skill_mcp_access_for_turn(
     sess: &Arc<Session>,
     turn_id: &str,

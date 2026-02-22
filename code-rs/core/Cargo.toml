@@ -26,6 +26,7 @@ code-file-search = { workspace = true }
 code-utils-absolute-path = { workspace = true }
 code-utils-json-to-toml = { workspace = true }
 code-protocol = { workspace = true }
+code-network-proxy = { workspace = true }
 code-rmcp-client = { workspace = true }
 code-app-server-protocol = { workspace = true }
 code-otel = { workspace = true, features = ["otel"] }

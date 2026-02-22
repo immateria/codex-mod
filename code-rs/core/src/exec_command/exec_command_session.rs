@@ -4,6 +4,17 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::network_approval::NetworkAttemptGuard;
+
+pub(crate) struct ExecCommandSessionParts {
+    pub(crate) killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
+    pub(crate) reader_handle: JoinHandle<()>,
+    pub(crate) writer_handle: JoinHandle<()>,
+    pub(crate) wait_handle: JoinHandle<()>,
+    pub(crate) exit_code: std::sync::Arc<StdMutex<Option<i32>>>,
+    pub(crate) network_attempt_guard: Option<NetworkAttemptGuard>,
+}
+
 #[derive(Debug)]
 pub(crate) struct ExecCommandSession {
     /// Queue for writing bytes to the process stdin (PTY master write side).
@@ -27,18 +38,27 @@ pub(crate) struct ExecCommandSession {
 
     /// Exit code for the process, when available.
     exit_code: std::sync::Arc<StdMutex<Option<i32>>>,
+
+    /// Optional managed-network attempt guard. When present, dropping the session
+    /// unregisters the attempt id so the network approval service does not leak
+    /// state across turns.
+    network_attempt_guard: Option<NetworkAttemptGuard>,
 }
 
 impl ExecCommandSession {
     pub(crate) fn new(
         writer_tx: mpsc::Sender<Vec<u8>>,
         output_tx: broadcast::Sender<Vec<u8>>,
-        killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
-        reader_handle: JoinHandle<()>,
-        writer_handle: JoinHandle<()>,
-        wait_handle: JoinHandle<()>,
-        exit_code: std::sync::Arc<StdMutex<Option<i32>>>,
+        parts: ExecCommandSessionParts,
     ) -> (Self, broadcast::Receiver<Vec<u8>>) {
+        let ExecCommandSessionParts {
+            killer,
+            reader_handle,
+            writer_handle,
+            wait_handle,
+            exit_code,
+            network_attempt_guard,
+        } = parts;
         let initial_output_rx = output_tx.subscribe();
         (
             Self {
@@ -49,6 +69,7 @@ impl ExecCommandSession {
                 writer_handle: StdMutex::new(Some(writer_handle)),
                 wait_handle: StdMutex::new(Some(wait_handle)),
                 exit_code,
+                network_attempt_guard,
             },
             initial_output_rx,
         )
@@ -95,5 +116,9 @@ impl Drop for ExecCommandSession {
         {
             handle.abort();
         }
+
+        // Preserve the managed-network attempt guard for the lifetime of the session,
+        // but explicitly drop it here so dead-code analysis sees it used.
+        let _ = self.network_attempt_guard.take();
     }
 }

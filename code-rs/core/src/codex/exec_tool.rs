@@ -1360,6 +1360,7 @@ pub(crate) async fn handle_container_exec_with_params(
                     params.command.clone(),
                     params.cwd.clone(),
                     params.justification.clone(),
+                    None,
                 )
                 .await;
 
@@ -1507,6 +1508,8 @@ pub(crate) async fn handle_container_exec_with_params(
     let suppress_event_flag_task = suppress_event_flag.clone();
     let display_label_task = display_label.clone();
     let tool_output_max_bytes = sess.tool_output_max_bytes;
+    let managed_network_proxy = sess.managed_network_proxy();
+    let network_approval = sess.network_approval();
     let task_handle = tokio::spawn(async move {
         // Build stdout stream with tail capture. We cannot stamp via `Session` here,
         // but deltas will be delivered with neutral ordering which the UI tolerates.
@@ -1524,14 +1527,38 @@ pub(crate) async fn handle_container_exec_with_params(
             })
         };
 
+        let mut params_for_exec = params.clone();
+        let mut enforce_managed_network = false;
+        let _network_attempt_guard = if let Some(proxy) = managed_network_proxy {
+            enforce_managed_network = true;
+            let attempt_id = uuid::Uuid::new_v4().to_string();
+            network_approval
+                .register_attempt(
+                    attempt_id.clone(),
+                    sub_id_for_events.clone(),
+                    call_id_for_events.clone(),
+                    params_for_exec.command.clone(),
+                    params_for_exec.cwd.clone(),
+                )
+                .await;
+            proxy.apply_to_env_for_attempt(&mut params_for_exec.env, Some(&attempt_id));
+            Some(crate::network_approval::NetworkAttemptGuard::new(
+                std::sync::Arc::clone(&network_approval),
+                attempt_id,
+            ))
+        } else {
+            None
+        };
+
         let start = std::time::Instant::now();
-        let res = crate::exec::process_exec_tool_call(
-            params.clone(),
+        let res = crate::exec::process_exec_tool_call_with_managed_network(
+            params_for_exec,
             sandbox_type,
             &sandbox_policy,
             &sandbox_cwd,
             &code_linux_sandbox_exe,
             stdout_stream,
+            enforce_managed_network,
         )
         .await;
 

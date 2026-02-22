@@ -96,6 +96,7 @@ async fn run_command_under_sandbox(
                 &config.sandbox_policy,
                 sandbox_policy_cwd.as_path(),
                 stdio_policy,
+                false,
                 env,
             )
             .await?

@@ -25,6 +25,7 @@ members = [
     "mcp-client",
     "mcp-server",
     "mcp-types",
+    "network-proxy",
     "ollama",
     "process-hardening",
     "protocol",
@@ -40,6 +41,7 @@ members = [
     "utils/image",
     "utils/json-to-toml",
     "utils/readiness",
+    "utils/rustls-provider",
 ]
 resolver = "2"
 
@@ -93,6 +95,8 @@ code-tui = { path = "tui" }
 code-utils-json-to-toml = { path = "utils/json-to-toml" }
 code-utils-readiness = { path = "utils/readiness" }
 code-auto-drive-core = { path = "code-auto-drive-core" }
+code-utils-rustls-provider = { path = "utils/rustls-provider", package = "codex-utils-rustls-provider" }
+code-network-proxy = { path = "network-proxy", package = "codex-network-proxy" }
 mcp-types = { path = "mcp-types", package = "code-mcp-types" }
 upstream-mcp-types = { git = "https://github.com/openai/codex.git", package = "mcp-types", rev = "6c384eb9c610f9a83037d9cad120fb792e782c7c" }
 
@@ -129,6 +133,7 @@ encoding_rs = "0.8.35"
 eventsource-stream = "0.2.3"
 filetime = "0.2"
 futures = "0.3"
+globset = "0.4"
 oauth2 = "5"
 icu_provider = "2.0.0"
 icu_decimal = "2.0.0"
@@ -174,6 +179,7 @@ regex = "1"
 regex-lite = "0.1.7"
 reqwest = "0.12"
 runfiles = { git = "https://github.com/dzbarsky/rules_rust", rev = "b56cbaa8465e74127f1ea216f813cd377295ad81" }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 schemars = "0.8.22"
 seccompiler = "0.5.0"
 serde = "1"

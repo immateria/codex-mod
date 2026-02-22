@@ -333,6 +333,8 @@ pub(crate) struct Session {
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
     pub(super) exec_command_manager: Arc<crate::exec_command::SessionManager>,
     pub(super) js_repl: crate::tools::js_repl::JsReplHandle,
+    pub(super) network_proxy: Option<crate::config::network_proxy_spec::StartedNetworkProxy>,
+    pub(super) network_approval: Arc<crate::network_approval::NetworkApprovalService>,
 
     /// Manager for external MCP servers/tools.
     pub(super) mcp_connection_manager: McpConnectionManager,
@@ -588,6 +590,16 @@ impl Session {
 
     pub(crate) fn exec_command_manager(&self) -> Arc<crate::exec_command::SessionManager> {
         Arc::clone(&self.exec_command_manager)
+    }
+
+    pub(crate) fn managed_network_proxy(&self) -> Option<code_network_proxy::NetworkProxy> {
+        self.network_proxy
+            .as_ref()
+            .map(crate::config::network_proxy_spec::StartedNetworkProxy::proxy)
+    }
+
+    pub(crate) fn network_approval(&self) -> Arc<crate::network_approval::NetworkApprovalService> {
+        Arc::clone(&self.network_approval)
     }
 
     pub(crate) async fn js_repl_manager(&self) -> Result<Arc<crate::tools::js_repl::JsReplManager>, String> {
@@ -1245,6 +1257,7 @@ impl Session {
         command: Vec<String>,
         cwd: PathBuf,
         reason: Option<String>,
+        network_approval_context: Option<crate::protocol::NetworkApprovalContext>,
     ) -> oneshot::Receiver<ReviewDecision> {
         let (tx_approve, rx_approve) = oneshot::channel();
         let event = self.make_event(
@@ -1255,7 +1268,7 @@ impl Session {
                 command,
                 cwd,
                 reason,
-                network_approval_context: None,
+                network_approval_context,
             }),
         );
         let _ = self.tx_event.send(event).await;
@@ -2083,6 +2096,39 @@ impl Session {
     ) -> anyhow::Result<mcp_types::CallToolResult> {
         self.mcp_connection_manager
             .call_tool(server, tool, arguments, timeout)
+            .await
+    }
+
+    pub async fn list_resources(
+        &self,
+        server: &str,
+        params: Option<mcp_types::ListResourcesRequestParams>,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<mcp_types::ListResourcesResult> {
+        self.mcp_connection_manager
+            .list_resources(server, params, timeout)
+            .await
+    }
+
+    pub async fn list_resource_templates(
+        &self,
+        server: &str,
+        params: Option<mcp_types::ListResourceTemplatesRequestParams>,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<mcp_types::ListResourceTemplatesResult> {
+        self.mcp_connection_manager
+            .list_resource_templates(server, params, timeout)
+            .await
+    }
+
+    pub async fn read_resource(
+        &self,
+        server: &str,
+        params: mcp_types::ReadResourceRequestParams,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<mcp_types::ReadResourceResult> {
+        self.mcp_connection_manager
+            .read_resource(server, params, timeout)
             .await
     }
 

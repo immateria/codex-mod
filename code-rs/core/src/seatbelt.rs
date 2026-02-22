@@ -1,7 +1,13 @@
+use code_network_proxy::ALLOW_LOCAL_BINDING_ENV_KEY;
+use code_network_proxy::PROXY_URL_ENV_KEYS;
+use code_network_proxy::has_proxy_url_env_vars;
+use code_network_proxy::proxy_url_env_value;
+use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use tokio::process::Child;
+use url::Url;
 
 use crate::protocol::SandboxPolicy;
 use crate::spawn::CODEX_SANDBOX_ENV_VAR;
@@ -9,6 +15,7 @@ use crate::spawn::StdioPolicy;
 use crate::spawn::spawn_child_async;
 
 const MACOS_SEATBELT_BASE_POLICY: &str = include_str!("seatbelt_base_policy.sbpl");
+const MACOS_SEATBELT_NETWORK_POLICY: &str = include_str!("seatbelt_network_policy.sbpl");
 
 /// When working with `sandbox-exec`, only consider `sandbox-exec` in `/usr/bin`
 /// to defend against an attacker trying to inject a malicious version on the
@@ -22,9 +29,16 @@ pub async fn spawn_command_under_seatbelt(
     sandbox_policy: &SandboxPolicy,
     sandbox_policy_cwd: &Path,
     stdio_policy: StdioPolicy,
+    enforce_managed_network: bool,
     mut env: HashMap<String, String>,
 ) -> std::io::Result<Child> {
-    let args = create_seatbelt_command_args(command, sandbox_policy, sandbox_policy_cwd);
+    let args = create_seatbelt_command_args(
+        command,
+        sandbox_policy,
+        sandbox_policy_cwd,
+        enforce_managed_network,
+        &env,
+    );
     let arg0 = None;
     env.insert(CODEX_SANDBOX_ENV_VAR.to_string(), "seatbelt".to_string());
     spawn_child_async(
@@ -39,10 +53,139 @@ pub async fn spawn_command_under_seatbelt(
     .await
 }
 
+fn is_loopback_host(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost") || host == "127.0.0.1" || host == "::1"
+}
+
+fn proxy_scheme_default_port(scheme: &str) -> u16 {
+    match scheme {
+        "https" => 443,
+        "socks5" | "socks5h" | "socks4" | "socks4a" => 1080,
+        _ => 80,
+    }
+}
+
+fn proxy_loopback_ports_from_env(env: &HashMap<String, String>) -> Vec<u16> {
+    let mut ports = BTreeSet::new();
+    for key in PROXY_URL_ENV_KEYS {
+        let Some(proxy_url) = proxy_url_env_value(env, key) else {
+            continue;
+        };
+        let trimmed = proxy_url.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let candidate = if trimmed.contains("://") {
+            trimmed.to_string()
+        } else {
+            format!("http://{trimmed}")
+        };
+        let Ok(parsed) = Url::parse(&candidate) else {
+            continue;
+        };
+        let Some(host) = parsed.host_str() else {
+            continue;
+        };
+        if !is_loopback_host(host) {
+            continue;
+        }
+
+        let scheme = parsed.scheme().to_ascii_lowercase();
+        let port = parsed
+            .port()
+            .unwrap_or_else(|| proxy_scheme_default_port(scheme.as_str()));
+        ports.insert(port);
+    }
+    ports.into_iter().collect()
+}
+
+fn local_binding_enabled(env: &HashMap<String, String>) -> bool {
+    env.get(ALLOW_LOCAL_BINDING_ENV_KEY).is_some_and(|value| {
+        let trimmed = value.trim();
+        trimmed == "1" || trimmed.eq_ignore_ascii_case("true")
+    })
+}
+
+fn dynamic_network_policy(
+    sandbox_policy: &SandboxPolicy,
+    enforce_managed_network: bool,
+    env: &HashMap<String, String>,
+) -> String {
+    let ports = proxy_loopback_ports_from_env(env);
+    if !ports.is_empty() {
+        let mut policy =
+            String::from("; allow outbound access only to configured loopback proxy endpoints\n");
+        if local_binding_enabled(env) {
+            policy.push_str("; allow localhost-only binding and loopback traffic\n");
+            policy.push_str("(allow network-bind (local ip \"localhost:*\"))\n");
+            policy.push_str("(allow network-inbound (local ip \"localhost:*\"))\n");
+            policy.push_str("(allow network-outbound (remote ip \"localhost:*\"))\n");
+        }
+        for port in ports {
+            policy.push_str(&format!(
+                "(allow network-outbound (remote ip \"localhost:{port}\"))\n"
+            ));
+        }
+        return format!("{policy}{MACOS_SEATBELT_NETWORK_POLICY}");
+    }
+
+    if has_proxy_url_env_vars(env) {
+        // Proxy configuration is present but we could not infer any valid loopback endpoints.
+        // Fail closed to avoid silently widening network access in proxy-enforced sessions.
+        return String::new();
+    }
+
+    if enforce_managed_network {
+        // Managed network requirements are active but no usable proxy endpoints
+        // are available. Fail closed for network access.
+        return String::new();
+    }
+
+    if sandbox_policy.has_full_network_access() {
+        format!("(allow network-outbound)\n(allow network-inbound)\n{MACOS_SEATBELT_NETWORK_POLICY}")
+    } else {
+        String::new()
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn confstr(name: libc::c_int) -> Option<String> {
+    use std::ffi::CStr;
+    let mut buf = vec![0_i8; (libc::PATH_MAX as usize) + 1];
+    let len = unsafe { libc::confstr(name, buf.as_mut_ptr(), buf.len()) };
+    if len == 0 {
+        return None;
+    }
+    // confstr guarantees NUL-termination when len > 0.
+    let cstr = unsafe { CStr::from_ptr(buf.as_ptr()) };
+    cstr.to_str().ok().map(ToString::to_string)
+}
+
+#[cfg(target_os = "macos")]
+fn confstr_path(name: libc::c_int) -> Option<PathBuf> {
+    let s = confstr(name)?;
+    let path = PathBuf::from(s);
+    path.canonicalize().ok().or(Some(path))
+}
+
+fn macos_dir_params() -> Vec<(String, PathBuf)> {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(p) = confstr_path(libc::_CS_DARWIN_USER_CACHE_DIR) {
+            return vec![("DARWIN_USER_CACHE_DIR".to_string(), p)];
+        }
+    }
+
+    vec![]
+}
+
 fn create_seatbelt_command_args(
     command: Vec<String>,
     sandbox_policy: &SandboxPolicy,
     sandbox_policy_cwd: &Path,
+    enforce_managed_network: bool,
+    env: &HashMap<String, String>,
 ) -> Vec<String> {
     let (file_write_policy, extra_cli_args) = {
         if sandbox_policy.has_full_disk_write_access() {
@@ -106,12 +249,7 @@ fn create_seatbelt_command_args(
         ""
     };
 
-    // TODO(mbolin): apply_patch calls must also honor the SandboxPolicy.
-    let network_policy = if sandbox_policy.has_full_network_access() {
-        "(allow network-outbound)\n(allow network-inbound)\n(allow system-socket)"
-    } else {
-        ""
-    };
+    let network_policy = dynamic_network_policy(sandbox_policy, enforce_managed_network, env);
 
     let full_policy = format!(
         "{MACOS_SEATBELT_BASE_POLICY}\n{file_read_policy}\n{file_write_policy}\n{network_policy}"
@@ -123,6 +261,11 @@ fn create_seatbelt_command_args(
 
     let mut seatbelt_args: Vec<String> = vec!["-p".to_string(), full_policy];
     seatbelt_args.extend(extra_cli_args);
+    if !network_policy.is_empty() {
+        seatbelt_args.extend(macos_dir_params().into_iter().map(|(key, value)| {
+            format!("-D{key}={value}", value = value.to_string_lossy())
+        }));
+    }
     seatbelt_args.push("--".to_string());
     seatbelt_args.extend(command);
     seatbelt_args
@@ -167,11 +310,14 @@ mod tests {
             exclude_slash_tmp: true,
             allow_git_writes: false,
         };
+        let env = std::collections::HashMap::new();
 
         let args = create_seatbelt_command_args(
             vec!["/bin/echo".to_string(), "hello".to_string()],
             &policy,
             &cwd,
+            false,
+            &env,
         );
 
         // Build the expected policy text using a raw string for readability.
@@ -243,11 +389,14 @@ mod tests {
             exclude_slash_tmp: false,
             allow_git_writes: false,
         };
+        let env = std::collections::HashMap::new();
 
         let args = create_seatbelt_command_args(
             vec!["/bin/echo".to_string(), "hello".to_string()],
             &policy,
             root_with_git.as_path(),
+            false,
+            &env,
         );
 
         let tmpdir_env_var = std::env::var("TMPDIR")

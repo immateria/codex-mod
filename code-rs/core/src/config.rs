@@ -63,6 +63,7 @@ mod builder;
 mod defaults;
 pub mod schema;
 pub mod service;
+pub mod network_proxy_spec;
 mod sources;
 mod validation;
 
@@ -271,6 +272,10 @@ pub struct Config {
     pub approval_policy: AskForApproval,
 
     pub sandbox_policy: SandboxPolicy,
+
+    /// Optional managed network proxy configuration used to mediate outbound
+    /// network access from sandboxed command execution.
+    pub network_proxy: Option<network_proxy_spec::NetworkProxySpec>,
 
     /// Commands the user has permanently approved for this project/session.
     pub always_allow_commands: Vec<ApprovedCommandPattern>,
@@ -843,6 +848,11 @@ pub struct ConfigToml {
     #[serde(default)]
     pub api_key_fallback_on_all_accounts_limited: Option<bool>,
 
+    /// Optional managed network proxy configuration used to mediate outbound
+    /// network access from sandboxed command execution.
+    #[serde(default)]
+    pub network: Option<NetworkProxySettingsToml>,
+
     /// Nested tools section for feature toggles
     pub tools: Option<ToolsToml>,
 
@@ -943,6 +953,129 @@ pub struct ToolsToml {
     /// Enable the `image_view` tool that lets the agent attach local images.
     #[serde(default)]
     pub view_image: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, JsonSchema, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum NetworkModeToml {
+    Limited,
+    #[default]
+    Full,
+}
+
+impl NetworkModeToml {
+    fn to_proxy_mode(self) -> code_network_proxy::NetworkMode {
+        match self {
+            Self::Limited => code_network_proxy::NetworkMode::Limited,
+            Self::Full => code_network_proxy::NetworkMode::Full,
+        }
+    }
+}
+
+fn default_network_proxy_url() -> String {
+    "http://127.0.0.1:3128".to_string()
+}
+
+fn default_network_admin_url() -> String {
+    "http://127.0.0.1:8080".to_string()
+}
+
+fn default_network_socks_url() -> String {
+    "http://127.0.0.1:8081".to_string()
+}
+
+#[derive(Deserialize, Debug, Clone, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+#[serde(default)]
+pub struct NetworkProxySettingsToml {
+    /// Enable managed network proxy mediation for sandboxed command execution.
+    pub enabled: bool,
+
+    /// HTTP proxy listener address (must be loopback unless explicitly overridden).
+    #[serde(default = "default_network_proxy_url")]
+    pub proxy_url: String,
+
+    /// Admin API listener address (must be loopback unless explicitly overridden).
+    #[serde(default = "default_network_admin_url")]
+    pub admin_url: String,
+
+    /// Enable the SOCKS5 proxy listener.
+    pub enable_socks5: bool,
+
+    /// SOCKS5 listener address (must be loopback unless explicitly overridden).
+    #[serde(default = "default_network_socks_url")]
+    pub socks_url: String,
+
+    /// Enable SOCKS5 UDP (only used when SOCKS5 is enabled).
+    pub enable_socks5_udp: bool,
+
+    /// Allow honoring upstream proxy environment variables (defense-in-depth is
+    /// still enforced by the managed proxy policy).
+    pub allow_upstream_proxy: bool,
+
+    /// DANGEROUS: allow binding the proxy listener on a non-loopback address.
+    pub dangerously_allow_non_loopback_proxy: bool,
+
+    /// DANGEROUS: allow binding the admin listener on a non-loopback address.
+    pub dangerously_allow_non_loopback_admin: bool,
+
+    /// Network policy mode (method restrictions and tunneling behavior).
+    pub mode: NetworkModeToml,
+
+    /// Allow-list of domain globs. When empty, all hosts are treated as not allowed
+    /// and may trigger the interactive approval flow (when enabled).
+    pub allowed_domains: Vec<String>,
+
+    /// Deny-list of domain globs. Denies always win over allows.
+    pub denied_domains: Vec<String>,
+
+    /// Allow proxying requests to these unix sockets (macOS only).
+    pub allow_unix_sockets: Vec<String>,
+
+    /// Allow binding loopback listeners from within mediated sessions.
+    pub allow_local_binding: bool,
+}
+
+impl Default for NetworkProxySettingsToml {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            proxy_url: default_network_proxy_url(),
+            admin_url: default_network_admin_url(),
+            enable_socks5: true,
+            socks_url: default_network_socks_url(),
+            enable_socks5_udp: true,
+            allow_upstream_proxy: true,
+            dangerously_allow_non_loopback_proxy: false,
+            dangerously_allow_non_loopback_admin: false,
+            mode: NetworkModeToml::default(),
+            allowed_domains: Vec::new(),
+            denied_domains: Vec::new(),
+            allow_unix_sockets: Vec::new(),
+            allow_local_binding: true,
+        }
+    }
+}
+
+impl NetworkProxySettingsToml {
+    fn to_network_proxy_config(&self) -> code_network_proxy::NetworkProxyConfig {
+        let mut cfg = code_network_proxy::NetworkProxyConfig::default();
+        cfg.network.enabled = self.enabled;
+        cfg.network.proxy_url = self.proxy_url.clone();
+        cfg.network.admin_url = self.admin_url.clone();
+        cfg.network.enable_socks5 = self.enable_socks5;
+        cfg.network.socks_url = self.socks_url.clone();
+        cfg.network.enable_socks5_udp = self.enable_socks5_udp;
+        cfg.network.allow_upstream_proxy = self.allow_upstream_proxy;
+        cfg.network.dangerously_allow_non_loopback_proxy = self.dangerously_allow_non_loopback_proxy;
+        cfg.network.dangerously_allow_non_loopback_admin = self.dangerously_allow_non_loopback_admin;
+        cfg.network.mode = self.mode.to_proxy_mode();
+        cfg.network.allowed_domains = self.allowed_domains.clone();
+        cfg.network.denied_domains = self.denied_domains.clone();
+        cfg.network.allow_unix_sockets = self.allow_unix_sockets.clone();
+        cfg.network.allow_local_binding = self.allow_local_binding;
+        cfg
+    }
 }
 
 #[derive(Deserialize, Debug, Clone, Default, JsonSchema)]
@@ -1269,6 +1402,15 @@ impl Config {
         let include_view_image_tool_flag = include_view_image_tool
             .or(cfg.tools.as_ref().and_then(|t| t.view_image))
             .unwrap_or(true);
+
+        let network_proxy = cfg
+            .network
+            .as_ref()
+            .filter(|net| net.enabled)
+            .map(|net| {
+                network_proxy_spec::NetworkProxySpec::from_config(net.to_network_proxy_config())
+            })
+            .transpose()?;
 
         let skills_enabled = cfg
             .features
@@ -1612,6 +1754,7 @@ impl Config {
             cwd: resolved_cwd,
             approval_policy: effective_approval,
             sandbox_policy,
+            network_proxy,
             always_allow_commands,
             project_hooks,
             project_commands,

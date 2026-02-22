@@ -143,6 +143,27 @@ pub async fn process_exec_tool_call(
     code_linux_sandbox_exe: &Option<PathBuf>,
     stdout_stream: Option<StdoutStream>,
 ) -> Result<ExecToolCallOutput> {
+    process_exec_tool_call_with_managed_network(
+        params,
+        sandbox_type,
+        sandbox_policy,
+        sandbox_cwd,
+        code_linux_sandbox_exe,
+        stdout_stream,
+        false,
+    )
+    .await
+}
+
+pub async fn process_exec_tool_call_with_managed_network(
+    params: ExecParams,
+    sandbox_type: SandboxType,
+    sandbox_policy: &SandboxPolicy,
+    sandbox_cwd: &Path,
+    code_linux_sandbox_exe: &Option<PathBuf>,
+    stdout_stream: Option<StdoutStream>,
+    enforce_managed_network: bool,
+) -> Result<ExecToolCallOutput> {
     let start = Instant::now();
 
     let timeout_duration = params.maybe_timeout_duration();
@@ -163,6 +184,7 @@ pub async fn process_exec_tool_call(
                 sandbox_policy,
                 sandbox_cwd,
                 StdioPolicy::RedirectForShellTool,
+                enforce_managed_network,
                 env,
             )
             .await?;

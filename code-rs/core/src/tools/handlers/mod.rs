@@ -11,6 +11,7 @@ pub(crate) mod js_repl;
 pub(crate) mod list_dir;
 pub(crate) mod kill;
 pub(crate) mod mcp;
+pub(crate) mod mcp_resource;
 pub(crate) mod plan;
 pub(crate) mod read_file;
 pub(crate) mod request_user_input;

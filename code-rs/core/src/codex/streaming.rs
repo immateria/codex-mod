@@ -978,6 +978,37 @@ pub(super) async fn submission_loop(
                         remote.refresh_remote_models().await;
                     });
                 }
+
+                let network_approval =
+                    Arc::new(crate::network_approval::NetworkApprovalService::default());
+                let network_policy_decider_session = config.network_proxy.as_ref().map(|_| {
+                    Arc::new(tokio::sync::RwLock::new(std::sync::Weak::<Session>::new()))
+                });
+                let network_policy_decider = network_policy_decider_session
+                    .as_ref()
+                    .map(|session| {
+                        crate::network_approval::build_network_policy_decider(
+                            Arc::clone(&network_approval),
+                            Arc::clone(session),
+                        )
+                    });
+                let network_proxy = if let Some(spec) = config.network_proxy.as_ref() {
+                    match spec
+                        .start_proxy(&sandbox_policy, network_policy_decider, None, true)
+                        .await
+                    {
+                        Ok(proxy) => Some(proxy),
+                        Err(err) => {
+                            let message =
+                                format!("Failed to start managed network proxy: {err}");
+                            error!("{message}");
+                            mcp_connection_errors.push(message);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
                 let mut new_session = Arc::new(Session {
                     id: session_id,
                     client,
@@ -986,6 +1017,8 @@ pub(super) async fn submission_loop(
                     dynamic_tools,
                     exec_command_manager: Arc::new(crate::exec_command::SessionManager::default()),
                     js_repl: crate::tools::js_repl::JsReplHandle::new(None),
+                    network_proxy,
+                    network_approval: Arc::clone(&network_approval),
                     tx_event: tx_event.clone(),
                     user_instructions: effective_user_instructions.clone(),
                     base_instructions,
@@ -1051,6 +1084,12 @@ pub(super) async fn submission_loop(
                     inner.self_handle = weak_handle;
                 }
                 sess = Some(new_session);
+                if let Some(sess_arc) = sess.as_ref()
+                    && let Some(lock) = network_policy_decider_session.as_ref()
+                {
+                    let mut guard = lock.write().await;
+                    *guard = Arc::downgrade(sess_arc);
+                }
                 if let Some(sess_arc) = &sess {
                     // Reset environment context tracker if shell changed
                     if shell_override.is_some() {

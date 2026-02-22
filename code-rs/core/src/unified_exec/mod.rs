@@ -18,6 +18,7 @@ use tokio::time::Duration;
 use tokio::time::Instant;
 
 use crate::exec_command::ExecCommandSession;
+use crate::exec_command::ExecCommandSessionParts;
 use crate::truncate::truncate_middle;
 
 mod errors;
@@ -394,15 +395,15 @@ async fn create_unified_exec_session(
         }
     });
 
-    let (session, initial_output_rx) = ExecCommandSession::new(
-        writer_tx,
-        output_tx,
+    let parts = ExecCommandSessionParts {
         killer,
         reader_handle,
         writer_handle,
         wait_handle,
         exit_code,
-    );
+        network_attempt_guard: None,
+    };
+    let (session, initial_output_rx) = ExecCommandSession::new(writer_tx, output_tx, parts);
     Ok((session, initial_output_rx))
 }
 

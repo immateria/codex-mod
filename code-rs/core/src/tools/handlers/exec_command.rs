@@ -7,6 +7,7 @@ use crate::tools::registry::unsupported_tool_call_output;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use async_trait::async_trait;
 use code_protocol::models::ResponseInputItem;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub(crate) struct ExecCommandToolHandler;
@@ -35,6 +36,7 @@ impl ToolHandler for ExecCommandToolHandler {
         let params_for_event = serde_json::from_str::<serde_json::Value>(arguments).ok();
         let arguments = arguments.clone();
         let ctx = inv.ctx.clone();
+        let sub_id = ctx.sub_id.clone();
         let call_id = ctx.call_id.clone();
         let tool_name = inv.tool_name.clone();
         let mgr = sess.exec_command_manager();
@@ -101,23 +103,56 @@ impl ToolHandler for ExecCommandToolHandler {
 
                     // Intercept apply_patch-style commands invoked via exec_command.
                     let mode_flag = if params.login { "-lc" } else { "-c" };
-                    let wrapper = vec![params.shell.clone(), mode_flag.to_string(), params.cmd.clone()];
-                    match code_apply_patch::maybe_parse_apply_patch_verified(&wrapper, &effective_workdir) {
-                        code_apply_patch::MaybeApplyPatchVerified::Body(_)
-                        | code_apply_patch::MaybeApplyPatchVerified::CorrectnessError(_) => {
-                            return unsupported_tool_call_output(
-                                &call_id,
-                                false,
-                                "apply_patch was requested via exec_command. Use the apply_patch tool instead.".to_string(),
-                            );
-                        }
-                        code_apply_patch::MaybeApplyPatchVerified::ShellParseError(_)
-                        | code_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {}
-                    }
+	                    let wrapper =
+	                        vec![params.shell.clone(), mode_flag.to_string(), params.cmd.clone()];
+	                    match code_apply_patch::maybe_parse_apply_patch_verified(
+	                        &wrapper,
+	                        &effective_workdir,
+	                    ) {
+	                        code_apply_patch::MaybeApplyPatchVerified::Body(_)
+	                        | code_apply_patch::MaybeApplyPatchVerified::CorrectnessError(_) => {
+	                            return unsupported_tool_call_output(
+	                                &call_id,
+	                                false,
+	                                "apply_patch was requested via exec_command. Use the apply_patch tool instead."
+	                                    .to_string(),
+	                            );
+	                        }
+	                        code_apply_patch::MaybeApplyPatchVerified::ShellParseError(_)
+	                        | code_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {}
+	                    }
 
-                    let output = crate::exec_command::result_into_payload(
-                        mgr.handle_exec_command_request(params).await,
-                    );
+	                    let mut env_overrides = HashMap::new();
+	                    let network_attempt_guard = if let Some(proxy) = sess.managed_network_proxy()
+	                    {
+	                        let attempt_id = uuid::Uuid::new_v4().to_string();
+	                        let network_approval = sess.network_approval();
+	                        network_approval
+	                            .register_attempt(
+	                                attempt_id.clone(),
+	                                sub_id.clone(),
+	                                call_id.clone(),
+	                                wrapper.clone(),
+	                                effective_workdir.clone(),
+	                            )
+	                            .await;
+	                        proxy.apply_to_env_for_attempt(&mut env_overrides, Some(&attempt_id));
+	                        Some(crate::network_approval::NetworkAttemptGuard::new(
+	                            network_approval,
+	                            attempt_id,
+	                        ))
+	                    } else {
+	                        None
+	                    };
+
+	                    let output = crate::exec_command::result_into_payload(
+	                        mgr.handle_exec_command_request(
+	                            params,
+	                            env_overrides,
+	                            network_attempt_guard,
+	                        )
+	                        .await,
+	                    );
                     ResponseInputItem::FunctionCallOutput {
                         call_id: call_id.clone(),
                         output,

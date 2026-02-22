@@ -20,12 +20,15 @@ use mcp_types::ListResourcesResult;
 use mcp_types::ListToolsRequestParams;
 use mcp_types::ListToolsResult;
 use mcp_types::MCP_SCHEMA_VERSION;
+use mcp_types::ReadResourceRequestParams;
+use mcp_types::ReadResourceResult;
 use oauth2::TokenResponse;
 use reqwest::header::AUTHORIZATION;
 use reqwest::header::HeaderMap;
 use rmcp::model::CallToolRequestParam;
 use rmcp::model::InitializeRequestParam;
 use rmcp::model::PaginatedRequestParam;
+use rmcp::model::ReadResourceRequestParam as RmcpReadResourceRequestParam;
 use rmcp::service::RoleClient;
 use rmcp::service::RunningService;
 use rmcp::service::{self};
@@ -359,6 +362,21 @@ impl RmcpClient {
 
         let fut = service.list_resource_templates(rmcp_params);
         let result = run_with_timeout(fut, timeout, "resources/templates/list").await?;
+        self.persist_oauth_tokens().await;
+        convert_to_mcp(result)
+    }
+
+    pub async fn read_resource(
+        &self,
+        params: ReadResourceRequestParams,
+        timeout: Option<Duration>,
+    ) -> Result<ReadResourceResult> {
+        self.refresh_oauth_if_needed().await;
+        let service = self.service().await?;
+        let rmcp_params: RmcpReadResourceRequestParam = convert_to_rmcp(params)?;
+
+        let fut = service.read_resource(rmcp_params);
+        let result = run_with_timeout(fut, timeout, "resources/read").await?;
         self.persist_oauth_tokens().await;
         convert_to_mcp(result)
     }

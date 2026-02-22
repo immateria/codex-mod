@@ -20,6 +20,7 @@ use tokio::time::timeout;
 use crate::exec_command::exec_command_params::ExecCommandParams;
 use crate::exec_command::exec_command_params::WriteStdinParams;
 use crate::exec_command::exec_command_session::ExecCommandSession;
+use crate::exec_command::exec_command_session::ExecCommandSessionParts;
 use crate::exec_command::session_id::SessionId;
 use code_protocol::models::FunctionCallOutputPayload;
 
@@ -237,6 +238,8 @@ impl SessionManager {
     pub async fn handle_exec_command_request(
         &self,
         params: ExecCommandParams,
+        env_overrides: HashMap<String, String>,
+        network_attempt_guard: Option<crate::network_approval::NetworkAttemptGuard>,
     ) -> Result<ExecCommandOutput, String> {
         if let Some(sandbox_permissions) = params.sandbox_permissions
             && sandbox_permissions.requires_escalated_permissions()
@@ -257,7 +260,11 @@ impl SessionManager {
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
         );
 
-        let (session, mut output_rx, mut exit_rx) = create_exec_command_session(params.clone())
+        let (session, mut output_rx, mut exit_rx) = create_exec_command_session(
+            params.clone(),
+            env_overrides,
+            network_attempt_guard,
+        )
             .await
             .map_err(|err| {
                 format!(
@@ -330,6 +337,12 @@ impl SessionManager {
         };
 
         let (output, original_token_count) = collector.finalize();
+        if exit_code.is_some() {
+            // Clean up completed sessions immediately so their children and attempt guards
+            // are dropped without requiring a follow-up write_stdin call.
+            let mut sessions = self.sessions.lock().await;
+            sessions.remove(&session_id);
+        }
         Ok(ExecCommandOutput {
             wall_time: Instant::now().duration_since(start_time),
             exit_status,
@@ -431,6 +444,8 @@ impl SessionManager {
 /// Spawn PTY and child process per spawn_exec_command_session logic.
 async fn create_exec_command_session(
     params: ExecCommandParams,
+    env_overrides: HashMap<String, String>,
+    network_attempt_guard: Option<crate::network_approval::NetworkAttemptGuard>,
 ) -> anyhow::Result<(
     ExecCommandSession,
     tokio::sync::broadcast::Receiver<Vec<u8>>,
@@ -465,6 +480,9 @@ async fn create_exec_command_session(
     command_builder.arg(cmd);
     if let Some(workdir) = workdir {
         command_builder.cwd(PathBuf::from(workdir));
+    }
+    for (key, value) in env_overrides {
+        command_builder.env(key, value);
     }
 
     let mut child = pair.slave.spawn_command(command_builder)?;
@@ -538,15 +556,15 @@ async fn create_exec_command_session(
     });
 
     // Create and store the session with channels.
-    let (session, initial_output_rx) = ExecCommandSession::new(
-        writer_tx,
-        output_tx,
+    let parts = ExecCommandSessionParts {
         killer,
         reader_handle,
         writer_handle,
         wait_handle,
         exit_code,
-    );
+        network_attempt_guard,
+    };
+    let (session, initial_output_rx) = ExecCommandSession::new(writer_tx, output_tx, parts);
     Ok((session, initial_output_rx, exit_rx))
 }
 
@@ -598,7 +616,7 @@ PY"#
             justification: None,
         };
         let initial_output = match session_manager
-            .handle_exec_command_request(params.clone())
+            .handle_exec_command_request(params.clone(), HashMap::new(), None)
             .await
         {
             Ok(v) => v,

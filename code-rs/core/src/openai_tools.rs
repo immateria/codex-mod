@@ -419,6 +419,116 @@ fn create_search_tool_bm25_tool() -> OpenAiTool {
     })
 }
 
+fn create_list_mcp_resources_tool() -> OpenAiTool {
+    let properties = BTreeMap::from([
+        (
+            "server".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Optional MCP server name. When omitted, lists resources from every configured server."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+        (
+            "cursor".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Opaque cursor returned by a previous list_mcp_resources call for the same server."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+    ]);
+
+    OpenAiTool::Function(ResponsesApiTool {
+        name: "list_mcp_resources".to_string(),
+        description: "Lists resources provided by MCP servers. Resources allow servers to share data that provides context to language models, such as files, database schemas, or application-specific information. Prefer resources over web search when possible.".to_string(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties,
+            required: None,
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
+fn create_list_mcp_resource_templates_tool() -> OpenAiTool {
+    let properties = BTreeMap::from([
+        (
+            "server".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Optional MCP server name. When omitted, lists resource templates from all configured servers."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+        (
+            "cursor".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Opaque cursor returned by a previous list_mcp_resource_templates call for the same server."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+    ]);
+
+    OpenAiTool::Function(ResponsesApiTool {
+        name: "list_mcp_resource_templates".to_string(),
+        description: "Lists resource templates provided by MCP servers. Parameterized resource templates allow servers to share data that takes parameters and provides context to language models, such as files, database schemas, or application-specific information. Prefer resource templates over web search when possible.".to_string(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties,
+            required: None,
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
+fn create_read_mcp_resource_tool() -> OpenAiTool {
+    let properties = BTreeMap::from([
+        (
+            "server".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "MCP server name exactly as configured. Must match the 'server' field returned by list_mcp_resources."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+        (
+            "uri".to_string(),
+            JsonSchema::String {
+                description: Some(
+                    "Resource URI to read. Must be one of the URIs returned by list_mcp_resources."
+                        .to_string(),
+                ),
+                allowed_values: None,
+            },
+        ),
+    ]);
+
+    OpenAiTool::Function(ResponsesApiTool {
+        name: "read_mcp_resource".to_string(),
+        description:
+            "Read a specific resource from an MCP server given the server name and resource URI."
+                .to_string(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties,
+            required: Some(vec!["server".to_string(), "uri".to_string()]),
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
 fn render_search_tool_description() -> String {
     SEARCH_TOOL_DESCRIPTION_TEMPLATE.to_string()
 }
@@ -1039,6 +1149,9 @@ pub fn get_openai_tools(
     }
 
     tools.push(create_request_user_input_tool());
+    tools.push(create_list_mcp_resources_tool());
+    tools.push(create_list_mcp_resource_templates_tool());
+    tools.push(create_read_mcp_resource_tool());
     tools.push(create_read_file_tool());
     tools.push(create_list_dir_tool());
     tools.push(create_grep_files_tool());

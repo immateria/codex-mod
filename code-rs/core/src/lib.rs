@@ -57,6 +57,7 @@ pub use environment_context::ViewportDimensions;
 pub use auto_drive_pid::{AutoDriveMode, AutoDrivePidFile};
 pub mod error;
 pub mod exec;
+pub(crate) mod network_approval;
 mod exec_command;
 pub mod exec_env;
 mod flags;
