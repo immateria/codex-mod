@@ -174,6 +174,7 @@ impl ChatWidget<'_> {
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            network: self.config.network.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
         self.submit_op(op);
@@ -210,6 +211,16 @@ impl ChatWidget<'_> {
         self.request_redraw();
         self.submit_configure_session_for_current_settings();
         self.persist_shell_config(shell, previous_shell);
+    }
+
+    pub(crate) fn apply_network_proxy_settings(
+        &mut self,
+        settings: Option<code_core::config::NetworkProxySettingsToml>,
+    ) {
+        self.config.network = settings;
+        self.submit_configure_session_for_current_settings();
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
     }
 
     pub(crate) fn on_shell_persisted(&mut self, shell: Option<ShellConfig>) {

@@ -54,6 +54,7 @@ use code_rmcp_client::OAuthCredentialsStoreMode;
 use schemars::JsonSchema;
 use std::time::Instant;
 use serde::Deserialize;
+use serde::Serialize;
 use serde::de::{self, Unexpected};
 use std::path::Path;
 use std::path::PathBuf;
@@ -95,6 +96,7 @@ pub use sources::{
     set_github_check_on_push,
     set_mcp_server_enabled,
     set_mcp_server_tool_enabled,
+    set_network_proxy_settings,
     set_planning_model,
     set_project_access_mode,
     set_project_trusted,
@@ -272,6 +274,12 @@ pub struct Config {
     pub approval_policy: AskForApproval,
 
     pub sandbox_policy: SandboxPolicy,
+
+    /// User-provided managed network proxy configuration.
+    ///
+    /// This is the config layer representation (used by the TUI / persistence).
+    /// `network_proxy` is the validated/derived runtime spec.
+    pub network: Option<NetworkProxySettingsToml>,
 
     /// Optional managed network proxy configuration used to mediate outbound
     /// network access from sandboxed command execution.
@@ -955,7 +963,7 @@ pub struct ToolsToml {
     pub view_image: Option<bool>,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, JsonSchema, Default)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum NetworkModeToml {
     Limited,
@@ -984,7 +992,7 @@ fn default_network_socks_url() -> String {
     "http://127.0.0.1:8081".to_string()
 }
 
-#[derive(Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 #[serde(default)]
 pub struct NetworkProxySettingsToml {
@@ -1058,7 +1066,7 @@ impl Default for NetworkProxySettingsToml {
 }
 
 impl NetworkProxySettingsToml {
-    fn to_network_proxy_config(&self) -> code_network_proxy::NetworkProxyConfig {
+    pub(crate) fn to_network_proxy_config(&self) -> code_network_proxy::NetworkProxyConfig {
         let mut cfg = code_network_proxy::NetworkProxyConfig::default();
         cfg.network.enabled = self.enabled;
         cfg.network.proxy_url = self.proxy_url.clone();
@@ -1754,6 +1762,7 @@ impl Config {
             cwd: resolved_cwd,
             approval_policy: effective_approval,
             sandbox_policy,
+            network: cfg.network.clone(),
             network_proxy,
             always_allow_commands,
             project_hooks,

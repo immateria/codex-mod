@@ -14,11 +14,12 @@ pub(crate) enum SettingsSection {
     Limits,
     Chrome,
     Mcp,
+    Network,
     Notifications,
 }
 
 impl SettingsSection {
-    pub(crate) const ALL: [SettingsSection; 15] = [
+    pub(crate) const ALL: [SettingsSection; 16] = [
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Updates,
@@ -32,6 +33,7 @@ impl SettingsSection {
         SettingsSection::Validation,
         SettingsSection::Chrome,
         SettingsSection::Mcp,
+        SettingsSection::Network,
         SettingsSection::Notifications,
         SettingsSection::Limits,
     ];

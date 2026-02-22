@@ -16,6 +16,7 @@ impl SettingsSection {
             "limit" | "limits" | "usage" => Some(SettingsSection::Limits),
             "chrome" | "browser" => Some(SettingsSection::Chrome),
             "mcp" => Some(SettingsSection::Mcp),
+            "network" | "net" | "proxy" => Some(SettingsSection::Network),
             "notification" | "notifications" | "notify" | "notif" => {
                 Some(SettingsSection::Notifications)
             }

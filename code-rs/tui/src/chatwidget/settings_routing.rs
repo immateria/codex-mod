@@ -1,4 +1,6 @@
 use super::*;
+use crate::bottom_pane::NetworkSettingsView;
+use crate::chatwidget::settings_overlay::NetworkSettingsContent;
 
 impl ChatWidget<'_> {
     fn mcp_tool_definition_for(
@@ -76,6 +78,7 @@ impl ChatWidget<'_> {
         if let Some(mcp_content) = self.build_mcp_settings_content() {
             overlay.set_mcp_content(mcp_content);
         }
+        overlay.set_network_content(self.build_network_settings_content());
         overlay.set_agents_content(self.build_agents_settings_content());
         overlay.set_auto_drive_content(self.build_auto_drive_settings_content());
         overlay.set_review_content(self.build_review_settings_content());
@@ -179,6 +182,15 @@ impl ChatWidget<'_> {
 
     pub(super) fn build_notifications_settings_content(&mut self) -> NotificationsSettingsContent {
         NotificationsSettingsContent::new(self.build_notifications_settings_view())
+    }
+
+    pub(super) fn build_network_settings_view(&mut self) -> NetworkSettingsView {
+        let ticket = self.make_background_tail_ticket();
+        NetworkSettingsView::new(self.config.network.clone(), self.app_event_tx.clone(), ticket)
+    }
+
+    pub(super) fn build_network_settings_content(&mut self) -> NetworkSettingsContent {
+        NetworkSettingsContent::new(self.build_network_settings_view())
     }
 
     pub(super) fn build_prompts_settings_view(&mut self) -> PromptsSettingsView {
@@ -539,12 +551,29 @@ impl ChatWidget<'_> {
                     SettingsSection::Validation    => self.settings_summary_validation(),
                     SettingsSection::Chrome        => self.settings_summary_chrome(),
                     SettingsSection::Mcp           => self.settings_summary_mcp(),
+                    SettingsSection::Network       => self.settings_summary_network(),
                     SettingsSection::Notifications => self.settings_summary_notifications(),
                     SettingsSection::Limits        => self.settings_summary_limits(),
                 };
                 SettingsOverviewRow::new(section, summary)
             })
             .collect()
+    }
+
+    pub(super) fn settings_summary_network(&self) -> Option<String> {
+        let Some(network) = self.config.network.as_ref() else {
+            return Some("Status: Disabled".to_string());
+        };
+        let status = if network.enabled { "Enabled" } else { "Disabled" };
+        let mode = match network.mode {
+            code_core::config::NetworkModeToml::Limited => "limited",
+            code_core::config::NetworkModeToml::Full => "full",
+        };
+        Some(format!(
+            "Status: {status} · Mode: {mode} · Allow: {} · Deny: {}",
+            network.allowed_domains.len(),
+            network.denied_domains.len()
+        ))
     }
 
     pub(super) fn settings_summary_model(&self) -> Option<String> {
@@ -994,6 +1023,13 @@ impl ChatWidget<'_> {
         })
     }
 
+    fn open_network_settings_section(&mut self) -> bool {
+        let view = self.build_network_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_network_settings(view);
+        })
+    }
+
     fn open_mcp_settings_section(&mut self) -> bool {
         let Some(rows) = self.build_mcp_server_rows() else {
             return false;
@@ -1018,6 +1054,7 @@ impl ChatWidget<'_> {
             SettingsSection::Validation                         => self.open_validation_settings_section(),
             SettingsSection::Notifications                      => self.open_notifications_settings_section(),
             SettingsSection::Mcp                                => self.open_mcp_settings_section(),
+            SettingsSection::Network                            => self.open_network_settings_section(),
 
             SettingsSection::Agents | SettingsSection::Limits | SettingsSection::Chrome => false,
         }
@@ -1059,6 +1096,7 @@ impl ChatWidget<'_> {
             | SettingsSection::Validation
             | SettingsSection::AutoDrive
             | SettingsSection::Mcp
+            | SettingsSection::Network
             | SettingsSection::Notifications
             | SettingsSection::Prompts
             | SettingsSection::Accounts

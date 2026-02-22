@@ -557,10 +557,11 @@ These are present in upstream `codex-rs`, but not fully integrated in this fork 
 - Structured file helpers: `read_file`, `list_dir`, `grep_files` (schema + handlers + parallel-safe classification).
 - Optional JS REPL tooling: `js_repl` + `js_repl_reset` (behind `[tools].js_repl=true`, default off).
 
-**Remaining candidate ports (not started)**
+**Completed (Phase 5)**
 
-- MCP resource helpers as tools (`list_mcp_resources`, `list_mcp_resource_templates`, `read_mcp_resource`) if we want headless automation parity.
-- Upstream network approval/proxy tooling (optional; only if we want policy-enforced network mediation during tool execution).
+- MCP resource helper tools for headless automation parity:
+  `list_mcp_resources`, `list_mcp_resource_templates`, `read_mcp_resource`.
+- Optional managed network mediation during tool execution (proxy + per-host approvals).
 
 ## Tests (Core)
 
@@ -643,10 +644,8 @@ This fork's tool runtime handlers live in `code-rs/core/src/tools/handlers/`.
   - `js_repl_reset`
 
 **Upstream handlers not yet ported (or not exposed)**
-- MCP resource discovery/reading tools are not currently exposed as first-class tools here:
-  - `list_mcp_resources`
-  - `list_mcp_resource_templates`
-  - `read_mcp_resource`
+
+- (none currently tracked)
 
 ## Upstream Tool Runtime Modules Not Yet Ported
 

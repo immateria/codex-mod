@@ -2750,3 +2750,78 @@ pub(crate) fn get_compact_prompt_override(
 ) -> std::io::Result<Option<String>> {
     read_override_file(path, cwd, "compact prompt override file")
 }
+
+pub fn set_network_proxy_settings(
+    code_home: &Path,
+    settings: &super::NetworkProxySettingsToml,
+) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let network_table = doc["network"]
+        .or_insert(TomlItem::Table(TomlTable::new()))
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("`network` must be a TOML table"))?;
+
+    network_table["enabled"] = toml_edit::value(settings.enabled);
+    network_table["proxy_url"] = toml_edit::value(settings.proxy_url.clone());
+    network_table["admin_url"] = toml_edit::value(settings.admin_url.clone());
+    network_table["enable_socks5"] = toml_edit::value(settings.enable_socks5);
+    network_table["socks_url"] = toml_edit::value(settings.socks_url.clone());
+    network_table["enable_socks5_udp"] = toml_edit::value(settings.enable_socks5_udp);
+    network_table["allow_upstream_proxy"] = toml_edit::value(settings.allow_upstream_proxy);
+    network_table["dangerously_allow_non_loopback_proxy"] =
+        toml_edit::value(settings.dangerously_allow_non_loopback_proxy);
+    network_table["dangerously_allow_non_loopback_admin"] =
+        toml_edit::value(settings.dangerously_allow_non_loopback_admin);
+
+    let mode_label = match settings.mode {
+        super::NetworkModeToml::Limited => "limited",
+        super::NetworkModeToml::Full => "full",
+    };
+    network_table["mode"] = toml_edit::value(mode_label);
+
+    let _ = write_string_array(network_table, "allowed_domains", &settings.allowed_domains)?;
+    let _ = write_string_array(network_table, "denied_domains", &settings.denied_domains)?;
+    if settings.allow_unix_sockets.is_empty() {
+        network_table.remove("allow_unix_sockets");
+    } else {
+        let mut deduped: Vec<String> = Vec::new();
+        let mut seen: HashSet<String> = HashSet::new();
+        for value in &settings.allow_unix_sockets {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if seen.insert(trimmed.to_string()) {
+                deduped.push(trimmed.to_string());
+            }
+        }
+
+        if deduped.is_empty() {
+            network_table.remove("allow_unix_sockets");
+        } else {
+            let mut array = TomlArray::new();
+            for value in &deduped {
+                array.push(value.as_str());
+            }
+            network_table["allow_unix_sockets"] = toml_edit::value(array);
+        }
+    }
+    network_table["allow_local_binding"] = toml_edit::value(settings.allow_local_binding);
+
+    if network_table.is_empty() {
+        doc.as_table_mut().remove("network");
+    }
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+    Ok(())
+}

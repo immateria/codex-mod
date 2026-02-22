@@ -881,6 +881,29 @@ impl App<'_> {
                         self.config.auto_upgrade_enabled = enabled;
                     }
                 }
+                AppEvent::SetNetworkProxySettings(settings) => {
+                    match code_core::config::set_network_proxy_settings(
+                        &self.config.code_home,
+                        &settings,
+                    ) {
+                        Ok(()) => {
+                            self.config.network = Some(settings.clone());
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                let status = if settings.enabled { "Enabled" } else { "Disabled" };
+                                widget.apply_network_proxy_settings(Some(settings));
+                                widget.flash_footer_notice(format!("Network mediation: {status}"));
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to persist network settings: {err}",
+                                ));
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::StatusLineSetup {
                     top_items,
                     bottom_items,

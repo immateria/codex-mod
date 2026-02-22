@@ -5,6 +5,7 @@ use code_core::config_types::ShellConfig;
 use code_core::config_types::StatusLineLane;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
+use code_core::config::NetworkProxySettingsToml;
 use code_core::protocol::Event;
 use code_core::protocol::OrderMeta;
 use code_core::protocol::ValidationGroup;
@@ -729,6 +730,7 @@ pub(crate) enum AppEvent {
         latest_version: Option<String>,
     },
     SetAutoUpgradeEnabled(bool),
+    SetNetworkProxySettings(NetworkProxySettingsToml),
     StatusLineSetup {
         top_items: Vec<StatusLineItem>,
         bottom_items: Vec<StatusLineItem>,

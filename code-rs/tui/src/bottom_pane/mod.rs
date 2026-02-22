@@ -60,6 +60,7 @@ pub(crate) mod validation_settings_view;
 mod update_settings_view;
 mod undo_timeline_view;
 mod notifications_settings_view;
+mod network_settings_view;
 mod settings_overlay;
 mod status_line_setup;
 mod request_user_input_view;
@@ -93,6 +94,7 @@ pub(crate) use login_accounts_view::{
 
 pub(crate) use update_settings_view::{UpdateSettingsInit, UpdateSettingsView, UpdateSharedState};
 pub(crate) use notifications_settings_view::{NotificationsMode, NotificationsSettingsView};
+pub(crate) use network_settings_view::NetworkSettingsView;
 pub(crate) use validation_settings_view::ValidationSettingsView;
 pub(crate) use review_settings_view::ReviewSettingsView;
 pub(crate) use planning_settings_view::PlanningSettingsView;
@@ -272,6 +274,13 @@ impl BottomPane<'_> {
 
     #[allow(dead_code)]
     pub fn show_notifications_settings(&mut self, view: NotificationsSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_network_settings(&mut self, view: NetworkSettingsView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;

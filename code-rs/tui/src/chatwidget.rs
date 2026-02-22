@@ -4946,6 +4946,7 @@ fi\n\
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            network: self.config.network.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
         self.submit_op(op);

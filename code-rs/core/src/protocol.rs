@@ -172,6 +172,11 @@ pub enum Op {
         #[serde(default)]
         shell: Option<ShellConfig>,
 
+        /// Optional managed network proxy settings for this session.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
+        network: Option<crate::config::NetworkProxySettingsToml>,
+
         /// Session collaboration mode controls additional developer
         /// instructions and behavior contracts for the model.
         #[serde(default)]

@@ -407,6 +407,7 @@ pub(super) async fn submission_loop(
                 demo_developer_message,
                 dynamic_tools,
                 shell: shell_override,
+                network,
                 collaboration_mode,
             } => {
                 debug!(
@@ -458,6 +459,34 @@ pub(super) async fn submission_loop(
                 updated_config.notify = notify.clone();
                 updated_config.cwd = cwd.clone();
                 updated_config.dynamic_tools = dynamic_tools.clone();
+                updated_config.network = network.clone();
+
+                updated_config.network_proxy = match updated_config
+                    .network
+                    .as_ref()
+                    .filter(|net| net.enabled)
+                {
+                    Some(net) => match crate::config::network_proxy_spec::NetworkProxySpec::from_config(
+                        net.to_network_proxy_config(),
+                    ) {
+                        Ok(spec) => Some(spec),
+                        Err(err) => {
+                            let message = format!("invalid managed network config: {err}");
+                            error!(message);
+                            let event = Event {
+                                id: sub.id,
+                                event_seq: 0,
+                                msg: EventMsg::Error(ErrorEvent { message }),
+                                order: None,
+                            };
+                            if let Err(e) = tx_event.send(event).await {
+                                error!("failed to send error message: {e:?}");
+                            }
+                            return;
+                        }
+                    },
+                    None => None,
+                };
 
                 updated_config.model_family = find_family_for_model(&updated_config.model)
                     .unwrap_or_else(|| derive_default_model_family(&updated_config.model));

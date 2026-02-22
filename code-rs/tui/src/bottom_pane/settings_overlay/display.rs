@@ -15,6 +15,7 @@ impl SettingsSection {
             SettingsSection::Limits => "Limits",
             SettingsSection::Chrome => "Chrome",
             SettingsSection::Mcp => "MCP",
+            SettingsSection::Network => "Network",
             SettingsSection::Notifications => "Notifications",
             SettingsSection::Prompts => "Prompts",
             SettingsSection::Skills => "Skills",
@@ -37,6 +38,7 @@ impl SettingsSection {
             SettingsSection::Limits => "Inspect API usage, rate limits, and reset windows.",
             SettingsSection::Chrome => "Connect to Chrome or switch browser integrations.",
             SettingsSection::Mcp => "Enable and manage local MCP servers for tooling.",
+            SettingsSection::Network => "Configure managed network mediation and approvals.",
             SettingsSection::Notifications => {
                 "Adjust desktop and terminal notification preferences."
             }
@@ -59,6 +61,7 @@ impl SettingsSection {
             SettingsSection::Limits => "Limits usage visualization coming soon.",
             SettingsSection::Chrome => "Chrome integration settings coming soon.",
             SettingsSection::Mcp => "MCP server management coming soon.",
+            SettingsSection::Network => "Configure managed network mediation for tool execution.",
             SettingsSection::Notifications => "Notification preferences coming soon.",
             SettingsSection::Prompts => "Manage custom prompts.",
             SettingsSection::Skills => "Manage skills.",

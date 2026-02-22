@@ -18,6 +18,7 @@ pub(crate) use self::contents::{
     AutoDriveSettingsContent,
     McpSettingsContent,
     ModelSettingsContent,
+    NetworkSettingsContent,
     NotificationsSettingsContent,
     PlanningSettingsContent,
     PromptsSettingsContent,
@@ -46,6 +47,7 @@ pub(crate) struct SettingsOverlayView {
     prompts_content: Option<PromptsSettingsContent>,
     skills_content: Option<SkillsSettingsContent>,
     mcp_content: Option<McpSettingsContent>,
+    network_content: Option<NetworkSettingsContent>,
     agents_content: Option<AgentsSettingsContent>,
     review_content: Option<ReviewSettingsContent>,
     validation_content: Option<ValidationSettingsContent>,
@@ -85,6 +87,7 @@ impl SettingsOverlayView {
             prompts_content: None,
             skills_content: None,
             mcp_content: None,
+            network_content: None,
             agents_content: None,
             review_content: None,
             validation_content: None,
@@ -195,6 +198,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn mcp_content(&self) -> Option<&McpSettingsContent> {
         self.mcp_content.as_ref()
+    }
+
+    pub(crate) fn set_network_content(&mut self, content: NetworkSettingsContent) {
+        self.network_content = Some(content);
     }
 
     pub(crate) fn set_agents_content(&mut self, content: AgentsSettingsContent) {
@@ -370,6 +377,10 @@ impl SettingsOverlayView {
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Mcp => self
                 .mcp_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::Network => self
+                .network_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
         }
