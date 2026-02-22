@@ -3328,10 +3328,6 @@ fn classify_tool_call_parallelism(sess: &Session, item: &ResponseItem) -> ToolCa
     };
     let tool_name = name.as_str();
 
-    // Conservative allowlist:
-    // - Anything that can mutate the working tree or depends on strict in-order execution stays
-    //   Exclusive.
-    // - Only a small set of non-mutating tools are Parallel for now.
     if tool_name == "shell" || tool_name == "container.exec" {
         return ToolCallParallelism::Exclusive;
     }
@@ -3348,11 +3344,10 @@ fn classify_tool_call_parallelism(sess: &Session, item: &ResponseItem) -> ToolCa
         return ToolCallParallelism::Exclusive;
     }
 
-    match tool_name {
-        "web_fetch" | "wait" | "gh_run_wait" | "read_file" | "list_dir" | "grep_files" => {
-            ToolCallParallelism::Parallel
-        }
-        _ => ToolCallParallelism::Exclusive,
+    if crate::tools::router::ToolRouter::global().is_parallel_safe_function_tool(tool_name) {
+        ToolCallParallelism::Parallel
+    } else {
+        ToolCallParallelism::Exclusive
     }
 }
 
@@ -3408,7 +3403,8 @@ async fn dispatch_pending_tool_calls(
                     });
                 }
 
-                let results = futures::future::join_all(futures).await;
+                let mut results = futures::future::join_all(futures).await;
+                results.sort_by_key(|(pos, _)| *pos);
                 for (pos, resp) in results {
                     if let Some(cell) = output.get_mut(pos) {
                         cell.response = resp;

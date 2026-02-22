@@ -87,7 +87,6 @@ pub mod parse_command;
 pub mod history;
 mod mentions;
 mod truncate;
-mod unified_exec;
 mod user_instructions;
 mod skills;
 pub use model_provider_info::BUILT_IN_OSS_MODEL_PROVIDER_ID;

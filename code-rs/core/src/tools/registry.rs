@@ -11,6 +11,10 @@ use std::sync::Arc;
 
 #[async_trait]
 pub(crate) trait ToolHandler: Send + Sync {
+    fn is_parallel_safe(&self) -> bool {
+        false
+    }
+
     async fn handle(
         &self,
         sess: &Session,

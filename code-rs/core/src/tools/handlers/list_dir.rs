@@ -47,6 +47,10 @@ struct ListDirArgs {
 
 #[async_trait]
 impl ToolHandler for ListDirToolHandler {
+    fn is_parallel_safe(&self) -> bool {
+        true
+    }
+
     async fn handle(
         &self,
         sess: &Session,
@@ -488,4 +492,3 @@ mod tests {
         );
     }
 }
-

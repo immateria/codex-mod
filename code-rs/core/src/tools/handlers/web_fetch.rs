@@ -17,6 +17,10 @@ pub(crate) struct WebFetchToolHandler;
 
 #[async_trait]
 impl ToolHandler for WebFetchToolHandler {
+    fn is_parallel_safe(&self) -> bool {
+        true
+    }
+
     async fn handle(
         &self,
         sess: &Session,

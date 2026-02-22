@@ -52,6 +52,12 @@ impl ToolRouter {
         ROUTER.get_or_init(Self::new)
     }
 
+    pub(crate) fn is_parallel_safe_function_tool(&self, tool_name: &str) -> bool {
+        self.registry
+            .handler(tool_name)
+            .is_some_and(|handler| handler.is_parallel_safe())
+    }
+
     fn new() -> Self {
         let shell: Arc<dyn ToolHandler> = Arc::new(handlers::shell::ShellHandler);
         let plan: Arc<dyn ToolHandler> = Arc::new(handlers::plan::PlanHandler);

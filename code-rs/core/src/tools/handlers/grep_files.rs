@@ -39,6 +39,10 @@ struct GrepFilesArgs {
 
 #[async_trait]
 impl ToolHandler for GrepFilesToolHandler {
+    fn is_parallel_safe(&self) -> bool {
+        true
+    }
+
     async fn handle(
         &self,
         sess: &Session,
@@ -269,4 +273,3 @@ mod tests {
         );
     }
 }
-

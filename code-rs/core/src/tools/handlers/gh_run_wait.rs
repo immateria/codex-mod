@@ -15,6 +15,10 @@ pub(crate) struct GhRunWaitToolHandler;
 
 #[async_trait]
 impl ToolHandler for GhRunWaitToolHandler {
+    fn is_parallel_safe(&self) -> bool {
+        true
+    }
+
     async fn handle(
         &self,
         sess: &Session,

@@ -12,6 +12,10 @@ pub(crate) struct WaitToolHandler;
 
 #[async_trait]
 impl ToolHandler for WaitToolHandler {
+    fn is_parallel_safe(&self) -> bool {
+        true
+    }
+
     async fn handle(
         &self,
         sess: &Session,
