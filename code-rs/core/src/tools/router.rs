@@ -4,6 +4,7 @@ use crate::tools::context::ToolCall;
 use crate::tools::context::ToolPayload;
 use crate::tools::handlers;
 use crate::tools::registry::ToolHandler;
+use crate::tools::registry::ToolSchedulingHints;
 use crate::tools::registry::ToolRegistry;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use code_protocol::models::FunctionCallOutputBody;
@@ -52,10 +53,18 @@ impl ToolRouter {
         ROUTER.get_or_init(Self::new)
     }
 
-    pub(crate) fn is_parallel_safe_function_tool(&self, tool_name: &str) -> bool {
+    pub(crate) fn function_tool_scheduling_hints(
+        &self,
+        tool_name: &str,
+    ) -> Option<ToolSchedulingHints> {
         self.registry
             .handler(tool_name)
-            .is_some_and(|handler| handler.is_parallel_safe())
+            .map(|handler| handler.scheduling_hints())
+    }
+
+    pub(crate) fn is_parallel_safe_function_tool(&self, tool_name: &str) -> bool {
+        self.function_tool_scheduling_hints(tool_name)
+            .is_some_and(ToolSchedulingHints::is_parallel_safe)
     }
 
     fn new() -> Self {

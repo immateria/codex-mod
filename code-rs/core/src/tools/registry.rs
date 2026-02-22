@@ -9,10 +9,52 @@ use code_protocol::models::ResponseInputItem;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ToolConcurrency {
+    /// Tool must run one-at-a-time because it mutates shared state or depends on strict ordering.
+    Exclusive,
+    /// Tool can run concurrently without using the shared `TurnDiffTracker`.
+    ParallelSafe,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ToolMutation {
+    /// Tool is observational: no turn diff, no working-tree mutation.
+    Pure,
+    /// Tool may write to disk / mutate state and/or emit turn diffs.
+    ProducesTurnDiff,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ToolSchedulingHints {
+    pub(crate) concurrency: ToolConcurrency,
+    pub(crate) mutation: ToolMutation,
+}
+
+impl ToolSchedulingHints {
+    pub(crate) const fn exclusive() -> Self {
+        Self {
+            concurrency: ToolConcurrency::Exclusive,
+            mutation: ToolMutation::ProducesTurnDiff,
+        }
+    }
+
+    pub(crate) const fn pure_parallel() -> Self {
+        Self {
+            concurrency: ToolConcurrency::ParallelSafe,
+            mutation: ToolMutation::Pure,
+        }
+    }
+
+    pub(crate) fn is_parallel_safe(self) -> bool {
+        self.concurrency == ToolConcurrency::ParallelSafe && self.mutation == ToolMutation::Pure
+    }
+}
+
 #[async_trait]
 pub(crate) trait ToolHandler: Send + Sync {
-    fn is_parallel_safe(&self) -> bool {
-        false
+    fn scheduling_hints(&self) -> ToolSchedulingHints {
+        ToolSchedulingHints::exclusive()
     }
 
     async fn handle(

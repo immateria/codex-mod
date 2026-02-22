@@ -6,3 +6,4 @@ pub(crate) mod js_repl;
 pub(crate) mod handlers;
 pub(crate) mod registry;
 pub(crate) mod router;
+pub(crate) mod scheduler;

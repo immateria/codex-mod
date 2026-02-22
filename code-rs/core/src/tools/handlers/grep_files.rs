@@ -39,8 +39,8 @@ struct GrepFilesArgs {
 
 #[async_trait]
 impl ToolHandler for GrepFilesToolHandler {
-    fn is_parallel_safe(&self) -> bool {
-        true
+    fn scheduling_hints(&self) -> crate::tools::registry::ToolSchedulingHints {
+        crate::tools::registry::ToolSchedulingHints::pure_parallel()
     }
 
     async fn handle(
