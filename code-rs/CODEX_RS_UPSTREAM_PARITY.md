@@ -527,6 +527,9 @@ from re-planning the same work repeatedly.
   - `code-rs/tui/src/bottom_pane/status_line_setup.rs`
 - Auth credential store modes with a TUI setting (top-level config persistence; async apply):
   - `cli_auth_credentials_store` (`file|keyring|auto|ephemeral`)
+- Managed network mediation integration points:
+  - `code-rs/tui/src/bottom_pane/network_settings_view.rs` (Settings -> Network)
+  - `code-rs/core/src/config.rs` + `code_core::config::set_network_proxy_settings` (`[network]`)
 
 ## Tool Runtime Migration (Core)
 
@@ -672,28 +675,16 @@ This fork's `code-rs/core/src/tools/` intentionally stayed lighter-weight:
   - per-handler "mutating vs parallel-safe" metadata (instead of hardcoded name lists)
   - central tool-call begin/end emission helpers to avoid copy/paste
 
-## MCP Resource Tools (Optional)
+## MCP Resource Tools (Ported)
 
 Upstream exposes MCP resource discovery + reading as tools:
 - `list_mcp_resources`
 - `list_mcp_resource_templates`
 - `read_mcp_resource`
 
-This fork currently surfaces the same information primarily via UI/AppEvents:
-- `code-rs/core/src/codex/streaming.rs` (`Op::ListMcpTools`) already gathers:
-  - resources by server
-  - resource templates by server
-  - auth statuses
-
-**Gap**
-- `code-rs/rmcp-client` and `code-rs/core/src/mcp_connection_manager.rs` support
-  listing resources/templates, but do **not** currently expose "read resource"
-  RPCs as a first-class client call.
-
-**Recommendation**
-- Keep MCP resources as a UI feature for now.
-- Revisit as a separate migration once `search_tool_bm25`/`apply_patch`/`exec_command`
-  are stable, because adding `read_resource` likely requires expanding the RMCP client surface.
+This fork ports those tools for headless/automation parity:
+- Handler: `code-rs/core/src/tools/handlers/mcp_resource.rs`
+- Policy: routes through existing MCP access prompting enforcement (per-turn).
 
 ## File Helper Tools (Ported)
 

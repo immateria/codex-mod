@@ -3564,6 +3564,53 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
         "resume insertion should surface the new assistant answer at the tail"
     );
     }
+
+    #[test]
+    fn network_settings_emits_apply_event_with_expected_fields() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    use crate::bottom_pane::SettingsSection;
+
+    {
+        let chat = harness.chat();
+        chat.ensure_settings_overlay_section(SettingsSection::Network);
+        chat.show_settings_overlay(Some(SettingsSection::Network));
+    }
+    harness.flush_into_widget();
+
+    {
+        let chat = harness.chat();
+        // Navigate to "Advanced" (row 5), toggle on, toggle off.
+        for _ in 0..5 {
+            chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        }
+        chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        // Back to Enabled and toggle it on.
+        for _ in 0..5 {
+            chat.handle_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        }
+        chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        // Move to Apply and activate.
+        for _ in 0..6 {
+            chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        }
+        chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    }
+
+    let mut applied = None;
+    for event in harness.drain_events() {
+        if let AppEvent::SetNetworkProxySettings(settings) = event {
+            applied = Some(settings);
+            break;
+        }
+    }
+
+    let applied = applied.expect("expected SetNetworkProxySettings event");
+    assert!(applied.enabled, "expected Enabled to be true after toggle");
+    }
     
     
     

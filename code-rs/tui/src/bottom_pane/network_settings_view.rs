@@ -12,16 +12,15 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::chatwidget::BackgroundOrderTicket;
 use crate::components::form_text_field::FormTextField;
+use crate::components::scroll_state::ScrollState;
 use crate::ui_interaction::{
-    RelativeHitRegion,
     redraw_if,
-    route_selectable_regions_mouse_with_config,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
-    wrap_next,
-    wrap_prev,
+    route_selectable_list_mouse_with_config,
 };
+use std::cell::Cell;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::BottomPane;
@@ -30,56 +29,66 @@ use super::BottomPane;
 enum EditTarget {
     AllowedDomains,
     DeniedDomains,
+    AllowUnixSockets,
 }
 
 #[derive(Debug)]
 enum ViewMode {
-    Main,
-    EditList { target: EditTarget, field: FormTextField },
+    Transition,
+    Main { show_advanced: bool },
+    EditList {
+        target: EditTarget,
+        field: FormTextField,
+        show_advanced: bool,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RowKind {
+    Enabled,
+    Mode,
+    AllowedDomains,
+    DeniedDomains,
+    AllowLocalBinding,
+    AdvancedToggle,
+    Socks5Enabled,
+    Socks5Udp,
+    AllowUpstreamProxyEnv,
+    AllowUnixSockets,
+    Apply,
+    Close,
 }
 
 pub(crate) struct NetworkSettingsView {
     settings: NetworkProxySettingsToml,
     app_event_tx: AppEventSender,
     ticket: BackgroundOrderTicket,
-    selected_row: usize,
     is_complete: bool,
     dirty: bool,
     mode: ViewMode,
+    state: ScrollState,
+    viewport_rows: Cell<usize>,
 }
 
 impl NetworkSettingsView {
-    const SELECTABLE_ROWS: usize = 7;
-    const HIT_REGIONS: [RelativeHitRegion; Self::SELECTABLE_ROWS] = [
-        // Enabled
-        RelativeHitRegion::new(0, 4, 1),
-        // Mode
-        RelativeHitRegion::new(1, 5, 1),
-        // Allowed domains
-        RelativeHitRegion::new(2, 6, 1),
-        // Denied domains
-        RelativeHitRegion::new(3, 7, 1),
-        // Allow local binding
-        RelativeHitRegion::new(4, 8, 1),
-        // Apply
-        RelativeHitRegion::new(5, 10, 1),
-        // Close
-        RelativeHitRegion::new(6, 11, 1),
-    ];
+    const DEFAULT_VISIBLE_ROWS: usize = 8;
 
     pub fn new(
         settings: Option<NetworkProxySettingsToml>,
         app_event_tx: AppEventSender,
         ticket: BackgroundOrderTicket,
     ) -> Self {
+        let mut state = ScrollState::new();
+        state.selected_idx = Some(0);
         Self {
             settings: settings.unwrap_or_default(),
             app_event_tx,
             ticket,
-            selected_row: 0,
             is_complete: false,
             dirty: false,
-            mode: ViewMode::Main,
+            mode: ViewMode::Main { show_advanced: false },
+            state,
+            viewport_rows: Cell::new(0),
         }
     }
 
@@ -90,6 +99,73 @@ impl NetworkSettingsView {
         }
     }
 
+    fn build_rows(&self, show_advanced: bool) -> Vec<RowKind> {
+        let mut rows = vec![
+            RowKind::Enabled,
+            RowKind::Mode,
+            RowKind::AllowedDomains,
+            RowKind::DeniedDomains,
+            RowKind::AllowLocalBinding,
+            RowKind::AdvancedToggle,
+        ];
+
+        if show_advanced {
+            rows.push(RowKind::Socks5Enabled);
+            if self.settings.enable_socks5 {
+                rows.push(RowKind::Socks5Udp);
+            }
+            rows.push(RowKind::AllowUpstreamProxyEnv);
+            #[cfg(target_os = "macos")]
+            rows.push(RowKind::AllowUnixSockets);
+        }
+
+        rows.push(RowKind::Apply);
+        rows.push(RowKind::Close);
+        rows
+    }
+
+    fn render_header_lines(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(Span::styled(
+                "Network mediation (managed proxy).",
+                Style::default().fg(crate::colors::text_dim()),
+            )),
+            Line::from(Span::styled(
+                "Allow/deny apply first · Enter activate · Esc close",
+                Style::default().fg(crate::colors::text_dim()),
+            )),
+            Line::from(""),
+        ]
+    }
+
+    fn visible_budget(&self, total: usize) -> usize {
+        if total == 0 {
+            return 1;
+        }
+        let hint = self.viewport_rows.get();
+        let target = if hint == 0 {
+            Self::DEFAULT_VISIBLE_ROWS
+        } else {
+            hint
+        };
+        target.clamp(1, total)
+    }
+
+    fn reconcile_selection_state(&mut self, show_advanced: bool) {
+        let total = self.build_rows(show_advanced).len();
+        if total == 0 {
+            self.state.reset();
+            return;
+        }
+        if self.state.selected_idx.is_none() {
+            self.state.selected_idx = Some(0);
+        }
+        self.state.clamp_selection(total);
+        self.state.scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+        let visible_budget = self.visible_budget(total);
+        self.state.ensure_visible(total, visible_budget);
+    }
+
     fn toggle_enabled(&mut self) {
         self.settings.enabled = !self.settings.enabled;
         self.dirty = true;
@@ -97,6 +173,27 @@ impl NetworkSettingsView {
 
     fn toggle_allow_local_binding(&mut self) {
         self.settings.allow_local_binding = !self.settings.allow_local_binding;
+        self.dirty = true;
+    }
+
+    fn toggle_socks5_enabled(&mut self) {
+        self.settings.enable_socks5 = !self.settings.enable_socks5;
+        if !self.settings.enable_socks5 {
+            self.settings.enable_socks5_udp = false;
+        }
+        self.dirty = true;
+    }
+
+    fn toggle_socks5_udp(&mut self) {
+        if !self.settings.enable_socks5 {
+            return;
+        }
+        self.settings.enable_socks5_udp = !self.settings.enable_socks5_udp;
+        self.dirty = true;
+    }
+
+    fn toggle_allow_upstream_proxy_env(&mut self) {
+        self.settings.allow_upstream_proxy = !self.settings.allow_upstream_proxy;
         self.dirty = true;
     }
 
@@ -112,32 +209,61 @@ impl NetworkSettingsView {
         self.next_mode();
     }
 
-    fn open_list_editor(&mut self, target: EditTarget) {
+    fn open_list_editor(&mut self, target: EditTarget, show_advanced: bool) {
         let mut field = FormTextField::new_multi_line();
         field.set_placeholder("One entry per line…");
         let text = match target {
             EditTarget::AllowedDomains => self.settings.allowed_domains.join("\n"),
             EditTarget::DeniedDomains => self.settings.denied_domains.join("\n"),
+            EditTarget::AllowUnixSockets => self.settings.allow_unix_sockets.join("\n"),
         };
         field.set_text(&text);
         field.move_cursor_to_start();
-        self.mode = ViewMode::EditList { target, field };
+        self.mode = ViewMode::EditList {
+            target,
+            field,
+            show_advanced,
+        };
     }
 
     fn save_list_editor(&mut self, target: EditTarget, field: &FormTextField) {
-        let mut values: Vec<String> = field
-            .text()
-            .lines()
-            .map(str::trim)
-            .filter(|line| !line.is_empty())
-            .map(std::string::ToString::to_string)
-            .collect();
-        values.sort_by_key(|value| value.to_ascii_lowercase());
-        values.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
-
         match target {
-            EditTarget::AllowedDomains => self.settings.allowed_domains = values,
-            EditTarget::DeniedDomains => self.settings.denied_domains = values,
+            EditTarget::AllowedDomains => {
+                let mut values: Vec<String> = field
+                    .text()
+                    .lines()
+                    .map(str::trim)
+                    .filter(|line| !line.is_empty())
+                    .map(std::string::ToString::to_string)
+                    .collect();
+                values.sort_by_key(|value| value.to_ascii_lowercase());
+                values.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+                self.settings.allowed_domains = values;
+            }
+            EditTarget::DeniedDomains => {
+                let mut values: Vec<String> = field
+                    .text()
+                    .lines()
+                    .map(str::trim)
+                    .filter(|line| !line.is_empty())
+                    .map(std::string::ToString::to_string)
+                    .collect();
+                values.sort_by_key(|value| value.to_ascii_lowercase());
+                values.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+                self.settings.denied_domains = values;
+            }
+            EditTarget::AllowUnixSockets => {
+                // Preserve user order, but dedupe exact paths (do not case-fold).
+                let mut seen = std::collections::HashSet::<String>::new();
+                let mut values = Vec::new();
+                for line in field.text().lines().map(str::trim).filter(|line| !line.is_empty()) {
+                    let value = line.to_string();
+                    if seen.insert(value.clone()) {
+                        values.push(value);
+                    }
+                }
+                self.settings.allow_unix_sockets = values;
+            }
         }
         self.dirty = true;
     }
@@ -148,92 +274,160 @@ impl NetworkSettingsView {
         ));
         self.app_event_tx.send_background_event_with_ticket(
             &self.ticket,
-            "Applying network settings…".to_string(),
+            "Network mediation: applying…".to_string(),
         );
         self.dirty = false;
     }
 
-    fn activate_selected_row(&mut self) {
-        match self.selected_row {
-            0 => self.toggle_enabled(),
-            1 => self.next_mode(),
-            2 => self.open_list_editor(EditTarget::AllowedDomains),
-            3 => self.open_list_editor(EditTarget::DeniedDomains),
-            4 => self.toggle_allow_local_binding(),
-            5 => self.apply_settings(),
-            6 => self.is_complete = true,
-            _ => {}
+    fn activate_row(&mut self, kind: RowKind, show_advanced: &mut bool) {
+        match kind {
+            RowKind::Enabled => self.toggle_enabled(),
+            RowKind::Mode => self.next_mode(),
+            RowKind::AllowedDomains => self.open_list_editor(EditTarget::AllowedDomains, *show_advanced),
+            RowKind::DeniedDomains => self.open_list_editor(EditTarget::DeniedDomains, *show_advanced),
+            RowKind::AllowLocalBinding => self.toggle_allow_local_binding(),
+            RowKind::AdvancedToggle => {
+                *show_advanced = !*show_advanced;
+            }
+            RowKind::Socks5Enabled => self.toggle_socks5_enabled(),
+            RowKind::Socks5Udp => self.toggle_socks5_udp(),
+            RowKind::AllowUpstreamProxyEnv => self.toggle_allow_upstream_proxy_env(),
+            RowKind::AllowUnixSockets => self.open_list_editor(EditTarget::AllowUnixSockets, *show_advanced),
+            RowKind::Apply => self.apply_settings(),
+            RowKind::Close => self.is_complete = true,
         }
     }
 
-    fn process_key_event_main(&mut self, key_event: KeyEvent) -> bool {
-        match key_event {
+    fn process_key_event_main(&mut self, key_event: KeyEvent, show_advanced: &mut bool) -> bool {
+        let rows = self.build_rows(*show_advanced);
+        let total = rows.len();
+        if total == 0 {
+            if matches!(key_event.code, KeyCode::Esc) {
+                self.is_complete = true;
+                return true;
+            }
+            return false;
+        }
+
+        if self.state.selected_idx.is_none() {
+            self.state.selected_idx = Some(0);
+        }
+        self.state.clamp_selection(total);
+        self.state.scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+        let visible_budget = self.visible_budget(total);
+        self.state.ensure_visible(total, visible_budget);
+
+        let selected = self.state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+        let current_row = rows.get(selected).copied();
+
+        let handled = match key_event {
             KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
-                self.selected_row = wrap_prev(self.selected_row, Self::SELECTABLE_ROWS);
+                self.state.move_up_wrap(total);
                 true
             }
             KeyEvent { code: KeyCode::Down, modifiers: KeyModifiers::NONE, .. } => {
-                self.selected_row = wrap_next(self.selected_row, Self::SELECTABLE_ROWS);
+                self.state.move_down_wrap(total);
                 true
             }
             KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE, .. } => {
-                match self.selected_row {
-                    0 => self.toggle_enabled(),
-                    1 => self.prev_mode(),
-                    4 => self.toggle_allow_local_binding(),
-                    _ => {}
+                if let Some(kind) = current_row {
+                    match kind {
+                        RowKind::Enabled => self.toggle_enabled(),
+                        RowKind::Mode => self.prev_mode(),
+                        RowKind::AllowLocalBinding => self.toggle_allow_local_binding(),
+                        RowKind::AdvancedToggle => *show_advanced = !*show_advanced,
+                        RowKind::Socks5Enabled => self.toggle_socks5_enabled(),
+                        RowKind::Socks5Udp => self.toggle_socks5_udp(),
+                        RowKind::AllowUpstreamProxyEnv => self.toggle_allow_upstream_proxy_env(),
+                        _ => {}
+                    }
+                    true
+                } else {
+                    false
                 }
-                true
             }
             KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE, .. } => {
-                match self.selected_row {
-                    0 => self.toggle_enabled(),
-                    1 => self.next_mode(),
-                    4 => self.toggle_allow_local_binding(),
-                    _ => {}
+                if let Some(kind) = current_row {
+                    match kind {
+                        RowKind::Enabled => self.toggle_enabled(),
+                        RowKind::Mode => self.next_mode(),
+                        RowKind::AllowLocalBinding => self.toggle_allow_local_binding(),
+                        RowKind::AdvancedToggle => *show_advanced = !*show_advanced,
+                        RowKind::Socks5Enabled => self.toggle_socks5_enabled(),
+                        RowKind::Socks5Udp => self.toggle_socks5_udp(),
+                        RowKind::AllowUpstreamProxyEnv => self.toggle_allow_upstream_proxy_env(),
+                        _ => {}
+                    }
+                    true
+                } else {
+                    false
                 }
-                true
             }
             KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. }
             | KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. } => {
-                self.activate_selected_row();
-                true
+                if let Some(kind) = current_row {
+                    self.activate_row(kind, show_advanced);
+                    true
+                } else {
+                    false
+                }
             }
             KeyEvent { code: KeyCode::Esc, .. } => {
                 self.is_complete = true;
                 true
             }
             _ => false,
-        }
+        };
+
+        self.reconcile_selection_state(*show_advanced);
+        handled
     }
 
-    fn process_key_event_edit(&mut self, key_event: KeyEvent) -> bool {
+    fn process_key_event_edit(&mut self, key_event: KeyEvent, show_advanced: bool) -> bool {
         match key_event {
             KeyEvent { code: KeyCode::Esc, .. } => {
-                self.mode = ViewMode::Main;
+                self.mode = ViewMode::Main { show_advanced };
                 true
             }
             KeyEvent { code: KeyCode::Char('s'), modifiers, .. }
                 if modifiers.contains(KeyModifiers::CONTROL) =>
             {
-                let mode = std::mem::replace(&mut self.mode, ViewMode::Main);
-                if let ViewMode::EditList { target, field } = mode {
+                let mode = std::mem::replace(&mut self.mode, ViewMode::Main { show_advanced });
+                if let ViewMode::EditList { target, field, .. } = mode {
                     self.save_list_editor(target, &field);
                 }
-                self.mode = ViewMode::Main;
+                self.mode = ViewMode::Main { show_advanced };
                 true
             }
             _ => match &mut self.mode {
                 ViewMode::EditList { field, .. } => field.handle_key(key_event),
-                ViewMode::Main => false,
+                ViewMode::Main { .. } | ViewMode::Transition => false,
             },
         }
     }
 
     fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
-        match self.mode {
-            ViewMode::Main => self.process_key_event_main(key_event),
-            ViewMode::EditList { .. } => self.process_key_event_edit(key_event),
+        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+        match mode {
+            ViewMode::Main { mut show_advanced } => {
+                let handled = self.process_key_event_main(key_event, &mut show_advanced);
+                if matches!(self.mode, ViewMode::Transition) {
+                    self.mode = ViewMode::Main { show_advanced };
+                }
+                handled
+            }
+            ViewMode::EditList { target, field, show_advanced } => {
+                self.mode = ViewMode::EditList {
+                    target,
+                    field,
+                    show_advanced,
+                };
+                self.process_key_event_edit(key_event, show_advanced)
+            }
+            ViewMode::Transition => {
+                self.mode = ViewMode::Main { show_advanced: false };
+                false
+            }
         }
     }
 
@@ -247,57 +441,125 @@ impl NetworkSettingsView {
                 field.handle_paste(text);
                 true
             }
-            ViewMode::Main => false,
+            ViewMode::Main { .. } | ViewMode::Transition => false,
         }
     }
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        match &mut self.mode {
-            ViewMode::Main => {
-                let mut selected = self.selected_row;
-                let result = route_selectable_regions_mouse_with_config(
+        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+        match mode {
+            ViewMode::Main { mut show_advanced } => {
+                let rows = self.build_rows(show_advanced);
+                let total = rows.len();
+                if total == 0 {
+                    self.mode = ViewMode::Main { show_advanced };
+                    return false;
+                }
+
+                if self.state.selected_idx.is_none() {
+                    self.state.selected_idx = Some(0);
+                }
+                self.state.clamp_selection(total);
+
+                let mut selected = self.state.selected_idx.unwrap_or(0);
+                let result = route_selectable_list_mouse_with_config(
                     mouse_event,
                     &mut selected,
-                    Self::SELECTABLE_ROWS,
-                    area,
-                    &Self::HIT_REGIONS,
+                    total,
+                    |x, y| self.selection_index_at(area, x, y),
                     SelectableListMouseConfig {
+                        hover_select: true,
                         require_pointer_hit_for_scroll: true,
                         scroll_behavior: ScrollSelectionBehavior::Clamp,
                         ..SelectableListMouseConfig::default()
                     },
                 );
-                self.selected_row = selected;
+                self.state.selected_idx = Some(selected);
 
-                if matches!(result, SelectableListMouseResult::Activated) {
-                    self.activate_selected_row();
+                if matches!(result, SelectableListMouseResult::Activated)
+                    && let Some(kind) = rows.get(selected).copied()
+                {
+                    self.activate_row(kind, &mut show_advanced);
+                }
+
+                if result.handled() {
+                    self.reconcile_selection_state(show_advanced);
+                }
+                if matches!(self.mode, ViewMode::Transition) {
+                    self.mode = ViewMode::Main { show_advanced };
                 }
                 result.handled()
             }
-            ViewMode::EditList { field, .. } => match mouse_event.kind {
-                MouseEventKind::Down(MouseButton::Left) => {
-                    let inner = Rect {
-                        x: area.x.saturating_add(1),
-                        y: area.y.saturating_add(1),
-                        width: area.width.saturating_sub(2),
-                        height: area.height.saturating_sub(2),
-                    };
-                    let textarea = Rect {
-                        x: inner.x,
-                        y: inner.y.saturating_add(2),
-                        width: inner.width,
-                        height: inner.height.saturating_sub(2),
-                    };
-                    field.handle_mouse_click(mouse_event.column, mouse_event.row, textarea)
-                }
-                MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
-                MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
-                _ => false,
-            },
+            ViewMode::EditList { target, mut field, show_advanced } => {
+                let handled = match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        let inner = Rect {
+                            x: area.x.saturating_add(1),
+                            y: area.y.saturating_add(1),
+                            width: area.width.saturating_sub(2),
+                            height: area.height.saturating_sub(2),
+                        };
+                        let textarea = Rect {
+                            x: inner.x,
+                            y: inner.y.saturating_add(2),
+                            width: inner.width,
+                            height: inner.height.saturating_sub(2),
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, textarea)
+                    }
+                    MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
+                    MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
+                    _ => false,
+                };
+                self.mode = ViewMode::EditList {
+                    target,
+                    field,
+                    show_advanced,
+                };
+                handled
+            }
+            ViewMode::Transition => {
+                self.mode = ViewMode::Main { show_advanced: false };
+                false
+            }
         }
     }
 
-    fn render_main(&self, area: Rect, buf: &mut Buffer) {
+    fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
+        if area.width == 0 || area.height == 0 {
+            return None;
+        }
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        if inner.width == 0 || inner.height == 0 {
+            return None;
+        }
+        if x < inner.x
+            || x >= inner.x.saturating_add(inner.width)
+            || y < inner.y
+            || y >= inner.y.saturating_add(inner.height)
+        {
+            return None;
+        }
+
+        let header_lines = self.render_header_lines();
+        let available_height = inner.height as usize;
+        let header_height = header_lines.len().min(available_height);
+        let list_height = available_height.saturating_sub(header_height);
+        if list_height == 0 {
+            return None;
+        }
+
+        let rel_y = y.saturating_sub(inner.y) as usize;
+        if rel_y < header_height || rel_y >= header_height + list_height {
+            return None;
+        }
+        let line_offset = rel_y - header_height;
+
+        let scroll_top = self.state.scroll_top;
+        Some(scroll_top.saturating_add(line_offset))
+    }
+
+    fn render_main(&self, area: Rect, buf: &mut Buffer, show_advanced: bool) {
         Clear.render(area, buf);
         let block = Block::default()
             .borders(Borders::ALL)
@@ -308,20 +570,9 @@ impl NetworkSettingsView {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from(vec![
-            Span::styled(
-                "Managed network mediation for tool execution.",
-                Style::default().fg(crate::colors::text_dim()),
-            ),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled(
-                "Allow/deny lists apply before interactive approvals.",
-                Style::default().fg(crate::colors::text_dim()),
-            ),
-        ]));
-        lines.push(Line::from(""));
+        if inner.width == 0 || inner.height == 0 {
+            return;
+        }
 
         let row_style = |selected: bool| {
             if selected {
@@ -333,28 +584,40 @@ impl NetworkSettingsView {
             }
         };
 
+        let arrow_style = |selected: bool| {
+            if selected {
+                Style::default().fg(crate::colors::primary())
+            } else {
+                Style::default().fg(crate::colors::text_dim())
+            }
+        };
+
+        let header_lines = self.render_header_lines();
+        let available_height = inner.height as usize;
+        let header_height = header_lines.len().min(available_height);
+        let list_height = available_height.saturating_sub(header_height);
+        let visible_slots = list_height.max(1);
+        self.viewport_rows.set(visible_slots);
+
+        let rows = self.build_rows(show_advanced);
+        let total = rows.len();
+        let selected_idx = self
+            .state
+            .selected_idx
+            .unwrap_or(0)
+            .min(total.saturating_sub(1));
+        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+
+        let mut lines: Vec<Line<'static>> = Vec::new();
+        lines.extend(header_lines.into_iter());
+
         let enabled_label = if self.settings.enabled { "Enabled" } else { "Disabled" };
         let enabled_color = if self.settings.enabled {
             crate::colors::success()
         } else {
             crate::colors::warning()
         };
-        lines.push(
-            Line::from(vec![
-                Span::raw("  Enabled: "),
-                Span::styled(
-                    enabled_label,
-                    Style::default().fg(enabled_color).add_modifier(Modifier::BOLD),
-                ),
-            ])
-            .style(row_style(self.selected_row == 0)),
-        );
-
         let mode = Self::mode_label(self.settings.mode);
-        lines.push(
-            Line::from(vec![Span::raw("  Mode: "), Span::styled(mode, Style::default().fg(crate::colors::info()))])
-                .style(row_style(self.selected_row == 1)),
-        );
 
         let allowed_count = self.settings.allowed_domains.len();
         let allowed_summary = if allowed_count == 0 {
@@ -362,10 +625,6 @@ impl NetworkSettingsView {
         } else {
             format!("{allowed_count} entries")
         };
-        lines.push(
-            Line::from(vec![Span::raw("  Allowed domains: "), Span::styled(allowed_summary, Style::default().fg(crate::colors::text_dim()))])
-                .style(row_style(self.selected_row == 2)),
-        );
 
         let denied_count = self.settings.denied_domains.len();
         let denied_summary = if denied_count == 0 {
@@ -373,30 +632,115 @@ impl NetworkSettingsView {
         } else {
             format!("{denied_count} entries")
         };
-        lines.push(
-            Line::from(vec![Span::raw("  Denied domains: "), Span::styled(denied_summary, Style::default().fg(crate::colors::text_dim()))])
-                .style(row_style(self.selected_row == 3)),
-        );
 
         let local_label = if self.settings.allow_local_binding { "On" } else { "Off" };
-        lines.push(
-            Line::from(vec![Span::raw("  Allow local binding: "), Span::styled(local_label, Style::default().fg(crate::colors::text_dim()))])
-                .style(row_style(self.selected_row == 4)),
-        );
+        let advanced_label = if show_advanced { "shown" } else { "hidden" };
 
-        lines.push(Line::from(""));
+        let socks_label = if self.settings.enable_socks5 { "On" } else { "Off" };
+        let socks_udp_label = if self.settings.enable_socks5_udp { "On" } else { "Off" };
+        let upstream_env_label = if self.settings.allow_upstream_proxy { "On" } else { "Off" };
+
+        let unix_count = self.settings.allow_unix_sockets.len();
+        let unix_summary = if unix_count == 0 {
+            "(none)".to_string()
+        } else {
+            format!("{unix_count} entries")
+        };
 
         let apply_suffix = if self.dirty { " *" } else { "" };
-        lines.push(
-            Line::from(vec![
-                Span::raw("  Apply changes"),
-                Span::styled(apply_suffix, Style::default().fg(crate::colors::warning())),
-            ])
-            .style(row_style(self.selected_row == 5)),
-        );
-        lines.push(
-            Line::from(vec![Span::raw("  Close")]).style(row_style(self.selected_row == 6)),
-        );
+
+        let mut remaining = visible_slots;
+        let mut row_index = scroll_top;
+        while remaining > 0 && row_index < rows.len() {
+            let kind = rows[row_index];
+            let selected = row_index == selected_idx;
+            let arrow = if selected { "› " } else { "  " };
+            let mut spans = vec![Span::styled(arrow, arrow_style(selected))];
+            match kind {
+                RowKind::Enabled => {
+                    spans.push(Span::raw("Enabled: "));
+                    spans.push(Span::styled(
+                        enabled_label,
+                        Style::default()
+                            .fg(enabled_color)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                }
+                RowKind::Mode => {
+                    spans.push(Span::raw("Mode: "));
+                    spans.push(Span::styled(mode, Style::default().fg(crate::colors::info())));
+                }
+                RowKind::AllowedDomains => {
+                    spans.push(Span::raw("Allowed domains: "));
+                    spans.push(Span::styled(
+                        allowed_summary.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                }
+                RowKind::DeniedDomains => {
+                    spans.push(Span::raw("Denied domains: "));
+                    spans.push(Span::styled(
+                        denied_summary.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                }
+                RowKind::AllowLocalBinding => {
+                    spans.push(Span::raw("Allow local binding: "));
+                    spans.push(Span::styled(
+                        local_label,
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                }
+                RowKind::AdvancedToggle => {
+                    spans.push(Span::raw("Advanced: "));
+                    spans.push(Span::styled(
+                        advanced_label,
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                }
+                RowKind::Socks5Enabled => {
+                    spans.push(Span::raw("SOCKS5: "));
+                    spans.push(Span::styled(
+                        socks_label,
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                }
+                RowKind::Socks5Udp => {
+                    spans.push(Span::raw("SOCKS5 UDP: "));
+                    spans.push(Span::styled(
+                        socks_udp_label,
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                }
+                RowKind::AllowUpstreamProxyEnv => {
+                    spans.push(Span::raw("Allow upstream proxy env: "));
+                    spans.push(Span::styled(
+                        upstream_env_label,
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                }
+                RowKind::AllowUnixSockets => {
+                    spans.push(Span::raw("Allow unix sockets: "));
+                    spans.push(Span::styled(
+                        unix_summary.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                }
+                RowKind::Apply => {
+                    spans.push(Span::raw("Apply changes"));
+                    spans.push(Span::styled(
+                        apply_suffix,
+                        Style::default().fg(crate::colors::warning()),
+                    ));
+                }
+                RowKind::Close => {
+                    spans.push(Span::raw("Close"));
+                }
+            }
+            lines.push(Line::from(spans).style(row_style(selected)));
+            remaining = remaining.saturating_sub(1);
+            row_index += 1;
+        }
 
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
@@ -408,6 +752,7 @@ impl NetworkSettingsView {
         let title = match target {
             EditTarget::AllowedDomains => " Network: Allowed Domains ",
             EditTarget::DeniedDomains => " Network: Denied Domains ",
+            EditTarget::AllowUnixSockets => " Network: Unix Sockets ",
         };
         let block = Block::default()
             .borders(Borders::ALL)
@@ -477,13 +822,23 @@ impl<'a> BottomPaneView<'a> for NetworkSettingsView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        14
+        match &self.mode {
+            ViewMode::Main { show_advanced } => {
+                let header = self.render_header_lines().len() as u16;
+                let total_rows = self.build_rows(*show_advanced).len();
+                let visible = total_rows.clamp(1, 12) as u16;
+                2 + header + visible
+            }
+            ViewMode::EditList { .. } => 18,
+            ViewMode::Transition => 2 + self.render_header_lines().len() as u16 + 8,
+        }
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main => self.render_main(area, buf),
-            ViewMode::EditList { target, field } => self.render_edit(area, buf, *target, field),
+            ViewMode::Main { show_advanced } => self.render_main(area, buf, *show_advanced),
+            ViewMode::EditList { target, field, .. } => self.render_edit(area, buf, *target, field),
+            ViewMode::Transition => self.render_main(area, buf, false),
         }
     }
 }
