@@ -161,6 +161,7 @@ where
         }
     }
 
+    results.sort_by_key(|(pos, _)| *pos);
     results
 }
 
@@ -279,4 +280,3 @@ mod tool_call_batch_tests {
         );
     }
 }
-

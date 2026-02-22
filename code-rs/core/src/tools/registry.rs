@@ -18,36 +18,37 @@ pub(crate) enum ToolConcurrency {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ToolMutation {
-    /// Tool is observational: no turn diff, no working-tree mutation.
-    Pure,
-    /// Tool may write to disk / mutate state and/or emit turn diffs.
-    ProducesTurnDiff,
+pub(crate) enum ToolDiffImpact {
+    /// Tool does not contribute to the shared `TurnDiffTracker`.
+    None,
+    /// Tool may contribute to the shared `TurnDiffTracker`.
+    WritesTurnDiff,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ToolSchedulingHints {
     pub(crate) concurrency: ToolConcurrency,
-    pub(crate) mutation: ToolMutation,
+    pub(crate) diff_impact: ToolDiffImpact,
 }
 
 impl ToolSchedulingHints {
     pub(crate) const fn exclusive() -> Self {
         Self {
             concurrency: ToolConcurrency::Exclusive,
-            mutation: ToolMutation::ProducesTurnDiff,
+            diff_impact: ToolDiffImpact::WritesTurnDiff,
         }
     }
 
     pub(crate) const fn pure_parallel() -> Self {
         Self {
             concurrency: ToolConcurrency::ParallelSafe,
-            mutation: ToolMutation::Pure,
+            diff_impact: ToolDiffImpact::None,
         }
     }
 
     pub(crate) fn is_parallel_safe(self) -> bool {
-        self.concurrency == ToolConcurrency::ParallelSafe && self.mutation == ToolMutation::Pure
+        self.concurrency == ToolConcurrency::ParallelSafe
+            && self.diff_impact == ToolDiffImpact::None
     }
 }
 
