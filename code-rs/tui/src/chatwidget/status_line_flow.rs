@@ -192,6 +192,20 @@ impl ChatWidget<'_> {
                         .unwrap_or_else(|| root.display().to_string())
                 }),
             StatusLineItem::GitBranch => self.get_git_branch(),
+            StatusLineItem::NetworkMediation => {
+                let Some(settings) = self.config.network.as_ref() else {
+                    return Some("net off".to_string());
+                };
+                if !settings.enabled {
+                    return Some("net off".to_string());
+                }
+
+                let mode = match settings.mode {
+                    code_core::config::NetworkModeToml::Limited => "limited",
+                    code_core::config::NetworkModeToml::Full => "full",
+                };
+                Some(format!("net {mode}"))
+            }
             StatusLineItem::ContextRemaining => self
                 .status_line_context_remaining_percent()
                 .map(|remaining| format!("{remaining}% left")),
