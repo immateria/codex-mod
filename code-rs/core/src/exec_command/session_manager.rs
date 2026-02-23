@@ -22,6 +22,8 @@ use crate::exec_command::exec_command_params::WriteStdinParams;
 use crate::exec_command::exec_command_session::ExecCommandSession;
 use crate::exec_command::exec_command_session::ExecCommandSessionParts;
 use crate::exec_command::session_id::SessionId;
+use crate::protocol::SandboxPolicy;
+use crate::spawn::CODEX_SANDBOX_ENV_VAR;
 use code_protocol::models::FunctionCallOutputPayload;
 
 const EXEC_COMMAND_OUTPUT_MAX_BYTES: u64 = 1024 * 1024;
@@ -240,6 +242,9 @@ impl SessionManager {
         params: ExecCommandParams,
         env_overrides: HashMap<String, String>,
         network_attempt_guard: Option<crate::network_approval::NetworkAttemptGuard>,
+        sandbox_policy: SandboxPolicy,
+        sandbox_policy_cwd: PathBuf,
+        enforce_managed_network: bool,
     ) -> Result<ExecCommandOutput, String> {
         if let Some(sandbox_permissions) = params.sandbox_permissions
             && sandbox_permissions.requires_escalated_permissions()
@@ -264,6 +269,9 @@ impl SessionManager {
             params.clone(),
             env_overrides,
             network_attempt_guard,
+            sandbox_policy,
+            sandbox_policy_cwd,
+            enforce_managed_network,
         )
             .await
             .map_err(|err| {
@@ -446,6 +454,9 @@ async fn create_exec_command_session(
     params: ExecCommandParams,
     env_overrides: HashMap<String, String>,
     network_attempt_guard: Option<crate::network_approval::NetworkAttemptGuard>,
+    sandbox_policy: SandboxPolicy,
+    sandbox_policy_cwd: PathBuf,
+    enforce_managed_network: bool,
 ) -> anyhow::Result<(
     ExecCommandSession,
     tokio::sync::broadcast::Receiver<Vec<u8>>,
@@ -458,7 +469,7 @@ async fn create_exec_command_session(
         workdir,
         shell,
         login,
-        sandbox_permissions: _,
+        sandbox_permissions,
         justification: _,
     } = params;
 
@@ -473,11 +484,49 @@ async fn create_exec_command_session(
         pixel_height: 0,
     })?;
 
-    // Spawn a shell into the pty
-    let mut command_builder = CommandBuilder::new(shell);
     let shell_mode_opt = if login { "-lc" } else { "-c" };
-    command_builder.arg(shell_mode_opt);
-    command_builder.arg(cmd);
+    let requires_escalated_permissions = sandbox_permissions
+        .as_ref()
+        .is_some_and(|value| value.requires_escalated_permissions());
+    let seatbelt_enabled = cfg!(target_os = "macos")
+        && !matches!(sandbox_policy, SandboxPolicy::DangerFullAccess)
+        && !requires_escalated_permissions;
+
+    // Spawn a shell into the pty. On macOS, apply seatbelt for parity with the
+    // normal exec tool path. When managed network is enabled, seatbelt is used
+    // to fail-closed and allow outbound traffic only to proxy loopback ports.
+    let mut command_builder = if seatbelt_enabled {
+        if enforce_managed_network && !crate::seatbelt::has_loopback_proxy_endpoints(&env_overrides)
+        {
+            return Err(anyhow::anyhow!(
+                "managed network enforcement active but no usable proxy endpoints"
+            ));
+        }
+
+        let command = vec![
+            shell.clone(),
+            shell_mode_opt.to_string(),
+            cmd.clone(),
+        ];
+        let seatbelt_args = crate::seatbelt::build_seatbelt_args(
+            command,
+            &sandbox_policy,
+            sandbox_policy_cwd.as_path(),
+            enforce_managed_network,
+            &env_overrides,
+        );
+        let mut builder = CommandBuilder::new(crate::seatbelt::seatbelt_exec_path());
+        for arg in seatbelt_args {
+            builder.arg(arg);
+        }
+        builder.env(CODEX_SANDBOX_ENV_VAR, "seatbelt");
+        builder
+    } else {
+        let mut builder = CommandBuilder::new(shell);
+        builder.arg(shell_mode_opt);
+        builder.arg(cmd);
+        builder
+    };
     if let Some(workdir) = workdir {
         command_builder.cwd(PathBuf::from(workdir));
     }
@@ -616,7 +665,14 @@ PY"#
             justification: None,
         };
         let initial_output = match session_manager
-            .handle_exec_command_request(params.clone(), HashMap::new(), None)
+            .handle_exec_command_request(
+                params.clone(),
+                HashMap::new(),
+                None,
+                SandboxPolicy::DangerFullAccess,
+                std::env::temp_dir(),
+                false,
+            )
             .await
         {
             Ok(v) => v,

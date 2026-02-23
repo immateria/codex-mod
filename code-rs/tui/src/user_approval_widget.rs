@@ -32,7 +32,9 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::chatwidget::BackgroundOrderTicket;
 use crate::exec_command::strip_bash_lc_and_escape;
+use crate::slash_command::SlashCommand;
 use code_core::protocol::ApprovedCommandMatchKind;
+use code_core::protocol::NetworkApprovalProtocol;
 
 /// Request coming from the agent that needs user approval.
 pub(crate) enum ApprovalRequest {
@@ -40,6 +42,13 @@ pub(crate) enum ApprovalRequest {
         id: String,
         command: Vec<String>,
         reason: Option<String>,
+    },
+    Network {
+        id: String,
+        command: Vec<String>,
+        reason: Option<String>,
+        host: String,
+        protocol: NetworkApprovalProtocol,
     },
     ApplyPatch {
         id: String,
@@ -63,12 +72,15 @@ struct SelectOption {
 #[derive(Clone)]
 enum SelectAction {
     ApproveOnce,
-    ApproveForSession {
+    ApproveCommandForSession {
         command: Vec<String>,
         match_kind: ApprovedCommandMatchKind,
         persist: bool,
         semantic_prefix: Option<Vec<String>>,
     },
+    ApproveForSession,
+    Deny,
+    DenyAndOpenNetworkSettings,
     Abort,
 }
 
@@ -117,6 +129,64 @@ impl UserApprovalWidget<'_> {
                 }
                 Paragraph::new(contents).wrap(Wrap { trim: false })
             }
+            ApprovalRequest::Network {
+                host,
+                protocol,
+                command,
+                reason,
+                ..
+            } => {
+                let cmd = strip_bash_lc_and_escape(command);
+                let mut cmd_span: Span = cmd.into();
+                cmd_span.style = cmd_span.style.add_modifier(Modifier::DIM);
+
+                let protocol_label = match protocol {
+                    NetworkApprovalProtocol::Http => "HTTP",
+                    NetworkApprovalProtocol::Https => "HTTPS",
+                    NetworkApprovalProtocol::Socks5Tcp => "SOCKS5 TCP",
+                    NetworkApprovalProtocol::Socks5Udp => "SOCKS5 UDP",
+                };
+
+                let mut contents: Vec<Line> = vec![
+                    Line::from(""),
+                    Line::from(vec![
+                        "? ".fg(crate::colors::info()),
+                        "Network access blocked".bold(),
+                    ]),
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::styled("Host: ", Style::default().fg(crate::colors::text_dim())),
+                        Span::raw(host.clone()),
+                    ]),
+                    Line::from(vec![
+                        Span::styled(
+                            "Protocol: ",
+                            Style::default().fg(crate::colors::text_dim()),
+                        ),
+                        Span::raw(protocol_label),
+                    ]),
+                    Line::from(vec![
+                        Span::styled(
+                            "Command: ",
+                            Style::default().fg(crate::colors::text_dim()),
+                        ),
+                        cmd_span,
+                    ]),
+                    Line::from(""),
+                ];
+                if let Some(reason) = reason {
+                    contents.push(Line::from(reason.clone().italic()));
+                    contents.push(Line::from(""));
+                }
+                contents.push(Line::from(Span::styled(
+                    "To allow/deny permanently, edit Settings -> Network lists.",
+                    Style::default()
+                        .fg(crate::colors::text_dim())
+                        .add_modifier(Modifier::ITALIC),
+                )));
+                contents.push(Line::from(""));
+                Paragraph::new(contents).wrap(Wrap { trim: false })
+            }
             ApprovalRequest::ApplyPatch {
                 reason, grant_root, ..
             } => {
@@ -156,6 +226,7 @@ impl UserApprovalWidget<'_> {
 
         let select_options = match &approval_request {
             ApprovalRequest::Exec { command, .. } => build_exec_select_options(command),
+            ApprovalRequest::Network { .. } => build_network_select_options(),
             ApprovalRequest::ApplyPatch { .. } => build_patch_select_options(),
             ApprovalRequest::TerminalCommand { .. } => build_terminal_select_options(),
         };
@@ -233,7 +304,11 @@ impl UserApprovalWidget<'_> {
                 }
             }
             KeyCode::Esc => {
-                self.perform_action(SelectAction::Abort);
+                if matches!(&self.approval_request, ApprovalRequest::Network { .. }) {
+                    self.perform_action(SelectAction::Deny);
+                } else {
+                    self.perform_action(SelectAction::Abort);
+                }
             }
             other => {
                 let normalized = Self::normalize_keycode(other);
@@ -274,6 +349,26 @@ impl UserApprovalWidget<'_> {
                     ReviewDecision::Abort => format!("canceled: run {cmd}"),
                 }
             }
+            ApprovalRequest::Network { host, protocol, .. } => {
+                let protocol_label = match protocol {
+                    NetworkApprovalProtocol::Http => "HTTP",
+                    NetworkApprovalProtocol::Https => "HTTPS",
+                    NetworkApprovalProtocol::Socks5Tcp => "SOCKS5 TCP",
+                    NetworkApprovalProtocol::Socks5Udp => "SOCKS5 UDP",
+                };
+                match decision {
+                    ReviewDecision::Approved => {
+                        format!("approved: allow network to {host} ({protocol_label}, this time)")
+                    }
+                    ReviewDecision::ApprovedForSession => format!(
+                        "approved: allow network to {host} ({protocol_label}, this session)"
+                    ),
+                    ReviewDecision::Denied => format!(
+                        "not approved: network to {host} (denied for this run)"
+                    ),
+                    ReviewDecision::Abort => format!("canceled: network to {host}"),
+                }
+            }
             ApprovalRequest::ApplyPatch { .. } => {
                 format!("patch approval decision: {decision:?}")
             }
@@ -309,11 +404,13 @@ impl UserApprovalWidget<'_> {
         }
 
         let op = match &self.approval_request {
-            ApprovalRequest::Exec { id, .. } => Op::ExecApproval {
-                id: id.clone(),
-                turn_id: None,
-                decision,
-            },
+            ApprovalRequest::Exec { id, .. } | ApprovalRequest::Network { id, .. } => {
+                Op::ExecApproval {
+                    id: id.clone(),
+                    turn_id: None,
+                    decision,
+                }
+            }
             ApprovalRequest::ApplyPatch { id, .. } => Op::PatchApproval {
                 id: id.clone(),
                 decision,
@@ -330,7 +427,7 @@ impl UserApprovalWidget<'_> {
             SelectAction::ApproveOnce => {
                 self.send_decision(ReviewDecision::Approved);
             }
-            SelectAction::ApproveForSession {
+            SelectAction::ApproveCommandForSession {
                 command,
                 match_kind,
                 persist,
@@ -343,6 +440,19 @@ impl UserApprovalWidget<'_> {
                     semantic_prefix,
                 });
                 self.send_decision(ReviewDecision::ApprovedForSession);
+            }
+            SelectAction::ApproveForSession => {
+                self.send_decision(ReviewDecision::ApprovedForSession);
+            }
+            SelectAction::Deny => {
+                self.send_decision(ReviewDecision::Denied);
+            }
+            SelectAction::DenyAndOpenNetworkSettings => {
+                self.send_decision(ReviewDecision::Denied);
+                self.app_event_tx.send(AppEvent::DispatchCommand(
+                    SlashCommand::Settings,
+                    "/settings network".to_string(),
+                ));
             }
             SelectAction::Abort => {
                 self.send_decision(ReviewDecision::Abort);
@@ -429,7 +539,7 @@ fn build_exec_select_options(command: &[String]) -> Vec<SelectOption> {
         label: format!("Always allow '{full_display}' for this project"),
         description: "Approve this exact command automatically next time".to_string(),
         hotkey: KeyCode::Char('a'),
-        action: SelectAction::ApproveForSession {
+        action: SelectAction::ApproveCommandForSession {
             command: command.to_vec(),
             match_kind: ApprovedCommandMatchKind::Exact,
             persist: true,
@@ -447,7 +557,7 @@ fn build_exec_select_options(command: &[String]) -> Vec<SelectOption> {
             label: format!("Always allow '{prefix_with_wildcard}' for this project"),
             description: "Approve any command starting with this prefix".to_string(),
             hotkey: KeyCode::Char('p'),
-            action: SelectAction::ApproveForSession {
+            action: SelectAction::ApproveCommandForSession {
                 command: prefix.clone(),
                 match_kind: ApprovedCommandMatchKind::Prefix,
                 persist: true,
@@ -464,6 +574,37 @@ fn build_exec_select_options(command: &[String]) -> Vec<SelectOption> {
     });
 
     options
+}
+
+fn build_network_select_options() -> Vec<SelectOption> {
+    vec![
+        SelectOption {
+            label: "Allow once".to_string(),
+            description: "Allow this host for this run".to_string(),
+            hotkey: KeyCode::Char('y'),
+            action: SelectAction::ApproveOnce,
+        },
+        SelectOption {
+            label: "Allow for session".to_string(),
+            description: "Allow this host for the rest of this session".to_string(),
+            hotkey: KeyCode::Char('s'),
+            action: SelectAction::ApproveForSession,
+        },
+        SelectOption {
+            label: "Deny network for this run".to_string(),
+            description: "Deny all future network prompts for the remainder of this command run"
+                .to_string(),
+            hotkey: KeyCode::Char('n'),
+            action: SelectAction::Deny,
+        },
+        SelectOption {
+            label: "Deny and open Settings -> Network".to_string(),
+            description: "Deny this request, then open Network settings to edit allow/deny lists"
+                .to_string(),
+            hotkey: KeyCode::Char('o'),
+            action: SelectAction::DenyAndOpenNetworkSettings,
+        },
+    ]
 }
 
 fn build_patch_select_options() -> Vec<SelectOption> {

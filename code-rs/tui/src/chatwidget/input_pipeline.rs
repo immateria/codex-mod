@@ -5429,6 +5429,9 @@ impl ChatWidget<'_> {
                     };
                     self.set_reasoning_effort(next);
                 }
+                ClickableAction::ShowNetworkSettings => {
+                    self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);
+                }
                 ClickableAction::ExecuteCommand(cmd) => {
                     // Parse and dispatch the slash command
                     let trimmed = cmd.trim_start_matches('/').trim();

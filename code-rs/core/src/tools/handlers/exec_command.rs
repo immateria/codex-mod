@@ -41,6 +41,9 @@ impl ToolHandler for ExecCommandToolHandler {
         let tool_name = inv.tool_name.clone();
         let mgr = sess.exec_command_manager();
         let cwd = sess.get_cwd().to_path_buf();
+        let sandbox_policy = sess.get_sandbox_policy().clone();
+        let sandbox_policy_cwd = cwd.clone();
+        let enforce_managed_network = sess.managed_network_proxy().is_some();
 
         execute_custom_tool(sess, &ctx, tool_name.clone(), params_for_event, move || async move {
             match tool_name.as_str() {
@@ -103,56 +106,56 @@ impl ToolHandler for ExecCommandToolHandler {
 
                     // Intercept apply_patch-style commands invoked via exec_command.
                     let mode_flag = if params.login { "-lc" } else { "-c" };
-	                    let wrapper =
-	                        vec![params.shell.clone(), mode_flag.to_string(), params.cmd.clone()];
-	                    match code_apply_patch::maybe_parse_apply_patch_verified(
-	                        &wrapper,
-	                        &effective_workdir,
-	                    ) {
-	                        code_apply_patch::MaybeApplyPatchVerified::Body(_)
-	                        | code_apply_patch::MaybeApplyPatchVerified::CorrectnessError(_) => {
-	                            return unsupported_tool_call_output(
-	                                &call_id,
-	                                false,
-	                                "apply_patch was requested via exec_command. Use the apply_patch tool instead."
-	                                    .to_string(),
-	                            );
-	                        }
-	                        code_apply_patch::MaybeApplyPatchVerified::ShellParseError(_)
-	                        | code_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {}
-	                    }
+                    let wrapper =
+                        vec![params.shell.clone(), mode_flag.to_string(), params.cmd.clone()];
+                    match code_apply_patch::maybe_parse_apply_patch_verified(&wrapper, &effective_workdir)
+                    {
+                        code_apply_patch::MaybeApplyPatchVerified::Body(_)
+                        | code_apply_patch::MaybeApplyPatchVerified::CorrectnessError(_) => {
+                            return unsupported_tool_call_output(
+                                &call_id,
+                                false,
+                                "apply_patch was requested via exec_command. Use the apply_patch tool instead."
+                                    .to_string(),
+                            );
+                        }
+                        code_apply_patch::MaybeApplyPatchVerified::ShellParseError(_)
+                        | code_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {}
+                    }
 
-	                    let mut env_overrides = HashMap::new();
-	                    let network_attempt_guard = if let Some(proxy) = sess.managed_network_proxy()
-	                    {
-	                        let attempt_id = uuid::Uuid::new_v4().to_string();
-	                        let network_approval = sess.network_approval();
-	                        network_approval
-	                            .register_attempt(
-	                                attempt_id.clone(),
-	                                sub_id.clone(),
-	                                call_id.clone(),
-	                                wrapper.clone(),
-	                                effective_workdir.clone(),
-	                            )
-	                            .await;
-	                        proxy.apply_to_env_for_attempt(&mut env_overrides, Some(&attempt_id));
-	                        Some(crate::network_approval::NetworkAttemptGuard::new(
-	                            network_approval,
-	                            attempt_id,
-	                        ))
-	                    } else {
-	                        None
-	                    };
+                    let mut env_overrides = HashMap::new();
+                    let network_attempt_guard = if let Some(proxy) = sess.managed_network_proxy() {
+                        let attempt_id = uuid::Uuid::new_v4().to_string();
+                        let network_approval = sess.network_approval();
+                        network_approval
+                            .register_attempt(
+                                attempt_id.clone(),
+                                sub_id.clone(),
+                                call_id.clone(),
+                                wrapper.clone(),
+                                effective_workdir.clone(),
+                            )
+                            .await;
+                        proxy.apply_to_env_for_attempt(&mut env_overrides, Some(&attempt_id));
+                        Some(crate::network_approval::NetworkAttemptGuard::new(
+                            network_approval,
+                            attempt_id,
+                        ))
+                    } else {
+                        None
+                    };
 
-	                    let output = crate::exec_command::result_into_payload(
-	                        mgr.handle_exec_command_request(
-	                            params,
-	                            env_overrides,
-	                            network_attempt_guard,
-	                        )
-	                        .await,
-	                    );
+                    let output = crate::exec_command::result_into_payload(
+                        mgr.handle_exec_command_request(
+                            params,
+                            env_overrides,
+                            network_attempt_guard,
+                            sandbox_policy,
+                            sandbox_policy_cwd,
+                            enforce_managed_network,
+                        )
+                        .await,
+                    );
                     ResponseInputItem::FunctionCallOutput {
                         call_id: call_id.clone(),
                         output,

@@ -23,6 +23,30 @@ const MACOS_SEATBELT_NETWORK_POLICY: &str = include_str!("seatbelt_network_polic
 /// already has root access.
 const MACOS_PATH_TO_SEATBELT_EXECUTABLE: &str = "/usr/bin/sandbox-exec";
 
+pub(crate) fn seatbelt_exec_path() -> &'static str {
+    MACOS_PATH_TO_SEATBELT_EXECUTABLE
+}
+
+pub(crate) fn build_seatbelt_args(
+    command: Vec<String>,
+    sandbox_policy: &SandboxPolicy,
+    sandbox_policy_cwd: &Path,
+    enforce_managed_network: bool,
+    env: &HashMap<String, String>,
+) -> Vec<String> {
+    create_seatbelt_command_args(
+        command,
+        sandbox_policy,
+        sandbox_policy_cwd,
+        enforce_managed_network,
+        env,
+    )
+}
+
+pub(crate) fn has_loopback_proxy_endpoints(env: &HashMap<String, String>) -> bool {
+    !proxy_loopback_ports_from_env(env).is_empty()
+}
+
 pub async fn spawn_command_under_seatbelt(
     command: Vec<String>,
     command_cwd: PathBuf,

@@ -3611,6 +3611,194 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     let applied = applied.expect("expected SetNetworkProxySettings event");
     assert!(applied.enabled, "expected Enabled to be true after toggle");
     }
+
+    #[test]
+    fn network_approval_renders_network_modal_without_exec_persist_options() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.handle_event(Event {
+        id: "turn-1".to_string(),
+        event_seq: 0,
+        msg: EventMsg::ExecApprovalRequest(code_core::protocol::ExecApprovalRequestEvent {
+            call_id: "approve-1".to_string(),
+            turn_id: "turn-1".to_string(),
+            command: vec![
+                "/bin/bash".to_string(),
+                "-lc".to_string(),
+                "curl https://example.com".to_string(),
+            ],
+            cwd: std::env::temp_dir(),
+            reason: Some("Allowlist miss".to_string()),
+            network_approval_context: Some(code_core::protocol::NetworkApprovalContext {
+                host: "example.com".to_string(),
+                protocol: code_core::protocol::NetworkApprovalProtocol::Https,
+            }),
+        }),
+        order: None,
+    });
+    harness.flush_into_widget();
+
+    let output = {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    assert!(
+        output.contains("Network access blocked"),
+        "expected network approval title, got:\n{output}",
+    );
+    assert!(
+        output.contains("Host:") && output.contains("example.com"),
+        "expected host line, got:\n{output}",
+    );
+    assert!(
+        output.contains("Protocol:") && output.contains("HTTPS"),
+        "expected protocol line, got:\n{output}",
+    );
+    assert!(output.contains("Allow once"), "missing Allow once option:\n{output}");
+    assert!(
+        output.contains("Allow for session"),
+        "missing Allow for session option:\n{output}",
+    );
+    assert!(
+        output.contains("Deny network for this run"),
+        "missing deny-for-run option:\n{output}",
+    );
+    assert!(
+        output.contains("Settings -> Network"),
+        "missing settings hint:\n{output}",
+    );
+    assert!(
+        !output.contains("Always allow") && !output.contains("project"),
+        "network approvals should not include exec persist options:\n{output}",
+    );
+    }
+
+    #[test]
+    fn statusline_network_segment_click_on_top_opens_network_settings() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        use code_core::config_types::StatusLineLane;
+        use crate::bottom_pane::StatusLineItem;
+
+        chat.setup_status_line(
+            vec![StatusLineItem::ModelName, StatusLineItem::NetworkMediation],
+            Vec::new(),
+            StatusLineLane::Top,
+        );
+    });
+
+    // Render once to populate clickable regions.
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    let (x, y) = harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        let region = regions
+            .iter()
+            .filter(|region| region.action == ClickableAction::ShowNetworkSettings)
+            .min_by_key(|region| region.rect.y)
+            .expect("expected a top statusline region for network settings");
+        let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+        (x, region.rect.y)
+    });
+
+    harness.with_chat(|chat| chat.handle_click((x, y)));
+
+    let output = {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    assert!(
+        output.contains("Coverage: exec, exec_command, web_fetch"),
+        "expected Network settings view after click, got:\n{output}",
+    );
+    }
+
+    #[test]
+    fn statusline_network_segment_click_on_bottom_opens_network_settings() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        use code_core::config_types::StatusLineLane;
+        use crate::bottom_pane::StatusLineItem;
+
+        chat.setup_status_line(
+            Vec::new(),
+            vec![StatusLineItem::NetworkMediation],
+            StatusLineLane::Top,
+        );
+    });
+
+    // Render once to populate clickable regions (bottom statusline adds regions).
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    let (x, y) = harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        let region = regions
+            .iter()
+            .filter(|region| region.action == ClickableAction::ShowNetworkSettings)
+            .max_by_key(|region| region.rect.y)
+            .expect("expected a bottom statusline region for network settings");
+        let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+        (x, region.rect.y)
+    });
+
+    harness.with_chat(|chat| chat.handle_click((x, y)));
+
+    let output = {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    assert!(
+        output.contains("Coverage: exec, exec_command, web_fetch"),
+        "expected Network settings view after click, got:\n{output}",
+    );
+    }
     
     
     

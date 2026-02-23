@@ -206,14 +206,12 @@ impl ChatWidget<'_> {
 
         if area.width == 0 || area.height == 0 {
             self.clickable_regions.borrow_mut().clear();
-            *self.hovered_clickable_action.borrow_mut() = None;
             return;
         }
 
         let header_cfg = &self.config.tui.header;
         if !header_cfg.show_top_line && !header_cfg.show_bottom_line {
             self.clickable_regions.borrow_mut().clear();
-            *self.hovered_clickable_action.borrow_mut() = None;
             return;
         }
 
@@ -408,7 +406,6 @@ impl ChatWidget<'_> {
 
         if status_lines.is_empty() {
             self.clickable_regions.borrow_mut().clear();
-            *self.hovered_clickable_action.borrow_mut() = None;
             return;
         }
 
@@ -432,7 +429,6 @@ impl ChatWidget<'_> {
             );
         } else {
             self.clickable_regions.borrow_mut().clear();
-            *self.hovered_clickable_action.borrow_mut() = None;
         }
     }
 
@@ -483,6 +479,9 @@ impl ChatWidget<'_> {
                 crate::bottom_pane::StatusLineItem::ModelWithReasoning => {
                     Some(ClickableAction::ShowReasoningSelector)
                 }
+                crate::bottom_pane::StatusLineItem::NetworkMediation => {
+                    Some(ClickableAction::ShowNetworkSettings)
+                }
                 _ => None,
             };
 
@@ -516,38 +515,6 @@ impl ChatWidget<'_> {
         }
     }
 
-    pub(super) fn render_plain_status_line(
-        &self,
-        items: &[crate::bottom_pane::StatusLineItem],
-    ) -> Line<'static> {
-        use ratatui::style::Style;
-        use ratatui::text::Span;
-
-        let mut spans: Vec<Span<'static>> = Vec::new();
-        let mut added_any = false;
-
-        for item in items {
-            let Some(value) = self.status_line_value_for_item(*item) else {
-                continue;
-            };
-
-            if added_any {
-                spans.push(Span::styled(
-                    " • ".to_string(),
-                    Style::default().fg(crate::colors::text_dim()),
-                ));
-            }
-            spans.push(Span::styled(value, Style::default().fg(crate::colors::text())));
-            added_any = true;
-        }
-
-        if !added_any {
-            return Line::from("");
-        }
-
-        Line::from(spans)
-    }
-
     pub(super) fn render_bottom_status_line(&self, bottom_pane_area: Rect, buf: &mut Buffer) {
         use ratatui::layout::Alignment;
         use ratatui::style::Style;
@@ -578,8 +545,22 @@ impl ChatWidget<'_> {
             return;
         }
 
-        let line = self.render_plain_status_line(&bottom_items);
-        let widget = Paragraph::new(vec![line])
+        let hovered_action = self.hovered_clickable_action.borrow().clone();
+        let hover_style = self.config.tui.header.hover_style;
+        let rendered = self.render_selected_status_line(&bottom_items, hovered_action, hover_style);
+
+        // Add clickable regions for the bottom status line, in addition to any
+        // regions tracked for the top status bar.
+        {
+            let mut regions = self.clickable_regions.borrow_mut();
+            regions.extend(centered_clickable_regions_from_char_ranges(
+                &rendered.clickable_ranges,
+                line_area,
+                rendered.width,
+            ));
+        }
+
+        let widget = Paragraph::new(vec![rendered.line])
             .alignment(Alignment::Center)
             .style(Style::default().fg(crate::colors::text_dim()));
         ratatui::widgets::Widget::render(widget, line_area, buf);

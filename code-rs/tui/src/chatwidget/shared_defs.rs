@@ -671,6 +671,7 @@ enum ClickableAction {
     ShowModelSelector,
     ShowShellSelector,
     ShowReasoningSelector,
+    ShowNetworkSettings,
     #[allow(dead_code)]
     ExecuteCommand(String),
 }

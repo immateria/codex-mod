@@ -8,12 +8,27 @@ impl ChatWidget<'_> {
         // exact pending approval in core (supports multiple approvals per turn).
         let approval_id = ev.call_id.clone();
         let ticket = self.make_background_before_next_output_ticket();
-        self.bottom_pane
-            .push_approval_request(ApprovalRequest::Exec {
-                id: approval_id,
-                command: ev.command,
-                reason: ev.reason,
-            }, ticket);
+        if let Some(ctx) = ev.network_approval_context {
+            self.bottom_pane.push_approval_request(
+                ApprovalRequest::Network {
+                    id: approval_id,
+                    command: ev.command,
+                    reason: ev.reason,
+                    host: ctx.host,
+                    protocol: ctx.protocol,
+                },
+                ticket,
+            );
+        } else {
+            self.bottom_pane.push_approval_request(
+                ApprovalRequest::Exec {
+                    id: approval_id,
+                    command: ev.command,
+                    reason: ev.reason,
+                },
+                ticket,
+            );
+        }
     }
 
     /// Handle apply patch approval request immediately

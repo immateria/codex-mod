@@ -125,13 +125,57 @@ impl NetworkSettingsView {
     }
 
     fn render_header_lines(&self) -> Vec<Line<'static>> {
+        let enabled = self.settings.enabled;
+        let status_tag = if enabled { "ON" } else { "OFF" };
+        let status_style = if enabled {
+            Style::default()
+                .fg(crate::colors::success())
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(crate::colors::text_dim())
+                .add_modifier(Modifier::BOLD)
+        };
+        let status_tail = if enabled {
+            let mode = Self::mode_label(self.settings.mode);
+            format!(": mediated (managed proxy) · mode {mode}")
+        } else {
+            ": direct (sandbox policy decides)".to_string()
+        };
+
+        let enforcement = if !enabled {
+            "Enforcement: n/a (mediation off)".to_string()
+        } else if cfg!(target_os = "macos") {
+            "Enforcement: fail-closed for sandboxed tools (seatbelt); best-effort otherwise"
+                .to_string()
+        } else if cfg!(windows) {
+            "Enforcement: best-effort (no OS-level egress restriction yet)".to_string()
+        } else {
+            "Enforcement: best-effort (processes may ignore proxy env)".to_string()
+        };
+
         vec![
+            Line::from(vec![
+                Span::styled(status_tag.to_string(), status_style),
+                Span::styled(
+                    status_tail,
+                    Style::default().fg(crate::colors::text_dim()),
+                ),
+            ]),
             Line::from(Span::styled(
-                "Network mediation (managed proxy).",
+                "When ON: prompts only for allowlist misses. Deny/local/mode blocks require edits.",
                 Style::default().fg(crate::colors::text_dim()),
             )),
             Line::from(Span::styled(
-                "Allow/deny apply first · Enter activate · Esc close",
+                "Coverage: exec, exec_command, web_fetch (browser partial)",
+                Style::default().fg(crate::colors::text_dim()),
+            )),
+            Line::from(Span::styled(
+                enforcement,
+                Style::default().fg(crate::colors::text_dim()),
+            )),
+            Line::from(Span::styled(
+                "Enter activate · Ctrl+S save lists · Esc close",
                 Style::default().fg(crate::colors::text_dim()),
             )),
             Line::from(""),
@@ -742,9 +786,7 @@ impl NetworkSettingsView {
             row_index += 1;
         }
 
-        Paragraph::new(lines)
-            .wrap(Wrap { trim: false })
-            .render(inner, buf);
+        Paragraph::new(lines).render(inner, buf);
     }
 
     fn render_edit(&self, area: Rect, buf: &mut Buffer, target: EditTarget, field: &FormTextField) {
