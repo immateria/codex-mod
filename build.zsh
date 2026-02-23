@@ -261,7 +261,7 @@ function perform-build
     cd "${CODE_RS_DIR}"
     
     # Build with appropriate flags
-    log-info "Running: cargo build --bin code ${BUILD_FLAGS} ${CARGO_BUILD_FLAGS}"
+	    log-info "Running: rustup run stable cargo build --bin code ${BUILD_FLAGS} ${CARGO_BUILD_FLAGS}"
     
     # For Android, ensure all environment variables are passed to cargo
     if [[ "${PLATFORM}" == "android" ]]; then
@@ -280,7 +280,7 @@ function perform-build
             OPENSSL_INCLUDE_DIR="${OPENSSL_INCLUDE_DIR}"                                                    \
             CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang" \
             CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${TOOLCHAIN_PATH}/bin/llvm-ar"                           \
-            rustup run 1.90.0 cargo build                                                                   \
+	            rustup run stable cargo build                                                                   \
             --bin code                                                                                      \
             $BUILD_FLAGS                                                                                    \
             $CARGO_BUILD_FLAGS; then
@@ -288,7 +288,7 @@ function perform-build
             	exit 1
         fi
     else
-        if ! rustup run 1.90.0 cargo build \
+	        if ! rustup run stable cargo build \
             --bin code                     \
             $BUILD_FLAGS                   \
             $CARGO_BUILD_FLAGS; then
