@@ -5,7 +5,6 @@ use code_protocol::models::ShellToolCallParams;
 pub(crate) enum ToolPayload {
     Function { arguments: String },
     Custom {
-        #[allow(dead_code)]
         input: String,
     },
     LocalShell { params: ShellToolCallParams },

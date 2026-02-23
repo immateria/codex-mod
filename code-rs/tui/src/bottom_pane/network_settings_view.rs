@@ -609,7 +609,7 @@ impl NetworkSettingsView {
         let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
 
         let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.extend(header_lines.into_iter());
+        lines.extend(header_lines);
 
         let enabled_label = if self.settings.enabled { "Enabled" } else { "Disabled" };
         let enabled_color = if self.settings.enabled {

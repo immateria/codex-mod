@@ -2,6 +2,7 @@ use super::*;
 use super::session::{
     QueuedUserInput,
     State,
+    TurnScratchpad,
     WaitInterruptReason,
     account_usage_context,
     format_retry_eta,
@@ -2971,84 +2972,7 @@ async fn run_turn(
                 let is_connectivity = is_connectivity_error(&e);
                 let drain_scratchpad_into_attempt = |attempt_input: &mut Vec<ResponseItem>| {
                     if let Some(sp) = sess.take_scratchpad() {
-                        // Build a set of call_ids we have already included to avoid duplicate calls
-                        let mut seen_calls: std::collections::HashSet<String> = attempt_input
-                            .iter()
-                            .filter_map(|ri| match ri {
-                                ResponseItem::FunctionCall { call_id, .. } => Some(call_id.clone()),
-                                ResponseItem::LocalShellCall { call_id: Some(c), .. } => Some(c.clone()),
-                                _ => None,
-                            })
-                            .collect();
-
-                        // Append finalized function/local shell calls from the dropped attempt
-                        for item in sp.items {
-                            match &item {
-                                ResponseItem::FunctionCall { call_id, .. } => {
-                                    if seen_calls.insert(call_id.clone()) {
-                                        attempt_input.push(item.clone());
-                                    }
-                                }
-                                ResponseItem::LocalShellCall { call_id: Some(c), .. } => {
-                                    if seen_calls.insert(c.clone()) {
-                                        attempt_input.push(item.clone());
-                                    }
-                                }
-                                _ => {
-                                    // Avoid injecting assistant/Reasoning messages on retry to reduce duplication.
-                                }
-                            }
-                        }
-
-                        // Append tool outputs produced during the dropped attempt
-                        for resp in sp.responses {
-                            attempt_input.push(ResponseItem::from(resp));
-                        }
-
-                        // If we have partial deltas, include a short ephemeral hint so the model can resume.
-                        if !sp.partial_assistant_text.is_empty() || !sp.partial_reasoning_summary.is_empty() {
-                            use code_protocol::models::ContentItem;
-                            let mut hint = String::from(
-                                "[EPHEMERAL:RETRY_HINT]\nPrevious attempt aborted mid-stream. Continue without repeating.\n",
-                            );
-                            if !sp.partial_reasoning_summary.is_empty() {
-                                let s = &sp.partial_reasoning_summary;
-                                // Take the last 800 characters, respecting UTF-8 boundaries
-                                let start_idx = if s.chars().count() > 800 {
-                                    s.char_indices()
-                                        .rev()
-                                        .nth(800 - 1)
-                                        .map(|(i, _)| i)
-                                        .unwrap_or(0)
-                                } else {
-                                    0
-                                };
-                                let tail = &s[start_idx..];
-                                hint.push_str(&format!("Last reasoning summary fragment:\n{tail}\n\n"));
-                            }
-                            if !sp.partial_assistant_text.is_empty() {
-                                let s = &sp.partial_assistant_text;
-                                // Take the last 800 characters, respecting UTF-8 boundaries
-                                let start_idx = if s.chars().count() > 800 {
-                                    s.char_indices()
-                                        .rev()
-                                        .nth(800 - 1)
-                                        .map(|(i, _)| i)
-                                        .unwrap_or(0)
-                                } else {
-                                    0
-                                };
-                                let tail = &s[start_idx..];
-                                hint.push_str(&format!("Last assistant text fragment:\n{tail}\n"));
-                            }
-                            attempt_input.push(ResponseItem::Message {
-                                id: None,
-                                role: "user".to_string(),
-                                content: vec![ContentItem::InputText { text: hint }],
-                                end_turn: None,
-                                phase: None,
-                            });
-                        }
+                        inject_scratchpad_into_attempt_input(attempt_input, sp);
                     }
                 };
 
@@ -3169,6 +3093,95 @@ fn should_inject_search_tool_developer_instructions(tools: &[OpenAiTool]) -> boo
     })
 }
 
+fn inject_scratchpad_into_attempt_input(
+    attempt_input: &mut Vec<ResponseItem>,
+    sp: TurnScratchpad,
+) {
+    // Build a set of call ids we have already included to avoid duplicate call items.
+    let mut seen_calls: std::collections::HashSet<String> = attempt_input
+        .iter()
+        .filter_map(|ri| match ri {
+            ResponseItem::FunctionCall { call_id, .. } => Some(call_id.clone()),
+            ResponseItem::CustomToolCall { call_id, .. } => Some(call_id.clone()),
+            ResponseItem::LocalShellCall { call_id, id, .. } => {
+                call_id.clone().or_else(|| id.clone())
+            }
+            _ => None,
+        })
+        .collect();
+
+    // Append finalized tool calls from the dropped attempt so retry payloads include
+    // the same call ids as their tool outputs.
+    for item in sp.items {
+        let call_id = match &item {
+            ResponseItem::FunctionCall { call_id, .. } => Some(call_id.as_str()),
+            ResponseItem::CustomToolCall { call_id, .. } => Some(call_id.as_str()),
+            ResponseItem::LocalShellCall { call_id, id, .. } => {
+                call_id.as_deref().or(id.as_deref())
+            }
+            _ => None,
+        };
+
+        let Some(call_id) = call_id else {
+            continue;
+        };
+
+        if seen_calls.insert(call_id.to_string()) {
+            attempt_input.push(item);
+        }
+    }
+
+    // Append tool outputs produced during the dropped attempt.
+    for resp in sp.responses {
+        attempt_input.push(ResponseItem::from(resp));
+    }
+
+    // If we have partial deltas, include a short ephemeral hint so the model can resume.
+    if !sp.partial_assistant_text.is_empty() || !sp.partial_reasoning_summary.is_empty() {
+        use code_protocol::models::ContentItem;
+        let mut hint = String::from(
+            "[EPHEMERAL:RETRY_HINT]\nPrevious attempt aborted mid-stream. Continue without repeating.\n",
+        );
+        if !sp.partial_reasoning_summary.is_empty() {
+            let s = &sp.partial_reasoning_summary;
+            // Take the last 800 characters, respecting UTF-8 boundaries
+            let start_idx = if s.chars().count() > 800 {
+                s.char_indices()
+                    .rev()
+                    .nth(800 - 1)
+                    .map(|(i, _)| i)
+                    .unwrap_or(0)
+            } else {
+                0
+            };
+            let tail = &s[start_idx..];
+            hint.push_str(&format!("Last reasoning summary fragment:\n{tail}\n\n"));
+        }
+        if !sp.partial_assistant_text.is_empty() {
+            let s = &sp.partial_assistant_text;
+            // Take the last 800 characters, respecting UTF-8 boundaries
+            let start_idx = if s.chars().count() > 800 {
+                s.char_indices()
+                    .rev()
+                    .nth(800 - 1)
+                    .map(|(i, _)| i)
+                    .unwrap_or(0)
+            } else {
+                0
+            };
+            let tail = &s[start_idx..];
+            hint.push_str(&format!("Last assistant text fragment:\n{tail}\n"));
+        }
+        attempt_input.push(ResponseItem::Message {
+            id: None,
+            role: "user".to_string(),
+            content: vec![ContentItem::InputText { text: hint }],
+            end_turn: None,
+            phase: None,
+        });
+    }
+}
+
 #[cfg(test)]
 mod search_tool_instructions_tests {
     use super::*;
@@ -3246,8 +3259,10 @@ fn collect_tool_call_ids(items: &[ResponseItem]) -> HashSet<String> {
             ResponseItem::FunctionCall { call_id, .. } => {
                 ids.insert(call_id.clone());
             }
-            ResponseItem::LocalShellCall { call_id: Some(call_id), .. } => {
-                ids.insert(call_id.clone());
+            ResponseItem::LocalShellCall { call_id, id, .. } => {
+                if let Some(call_id) = call_id.as_ref().or(id.as_ref()) {
+                    ids.insert(call_id.clone());
+                }
             }
             ResponseItem::CustomToolCall { call_id, .. } => {
                 ids.insert(call_id.clone());
@@ -3261,10 +3276,174 @@ fn collect_tool_call_ids(items: &[ResponseItem]) -> HashSet<String> {
 fn find_call_item_by_id(items: &[ResponseItem], call_id: &str) -> Option<ResponseItem> {
     items.iter().rev().find_map(|item| match item {
         ResponseItem::FunctionCall { call_id: existing, .. } if existing == call_id => Some(item.clone()),
-        ResponseItem::LocalShellCall { call_id: Some(existing), .. } if existing == call_id => Some(item.clone()),
+        ResponseItem::LocalShellCall { call_id: call_id_field, id, .. } => {
+            let effective = call_id_field.as_deref().or(id.as_deref());
+            if effective == Some(call_id) {
+                Some(item.clone())
+            } else {
+                None
+            }
+        }
         ResponseItem::CustomToolCall { call_id: existing, .. } if existing == call_id => Some(item.clone()),
         _ => None,
     })
+}
+
+#[cfg(test)]
+mod tool_call_id_tests {
+    use super::*;
+
+    fn legacy_local_shell_call(id: &str) -> ResponseItem {
+        ResponseItem::LocalShellCall {
+            id: Some(id.to_string()),
+            call_id: None,
+            status: code_protocol::models::LocalShellStatus::Completed,
+            action: code_protocol::models::LocalShellAction::Exec(
+                code_protocol::models::LocalShellExecAction {
+                    command: vec!["echo".to_string(), "hi".to_string()],
+                    timeout_ms: None,
+                    working_directory: None,
+                    env: None,
+                    user: None,
+                },
+            ),
+        }
+    }
+
+    #[test]
+    fn collect_tool_call_ids_includes_local_shell_id() {
+        let items = vec![legacy_local_shell_call("sh_1")];
+        let ids = collect_tool_call_ids(&items);
+        assert!(ids.contains("sh_1"));
+    }
+
+    #[test]
+    fn find_call_item_by_id_matches_local_shell_id() {
+        let items = vec![legacy_local_shell_call("sh_1")];
+        let found = find_call_item_by_id(&items, "sh_1");
+        assert!(matches!(
+            found,
+            Some(ResponseItem::LocalShellCall { id: Some(id), .. }) if id == "sh_1"
+        ));
+    }
+
+    #[test]
+    fn retry_scratchpad_injects_custom_tool_call_before_output() {
+        let sp = TurnScratchpad {
+            items: vec![ResponseItem::CustomToolCall {
+                id: None,
+                status: None,
+                call_id: "c1".to_string(),
+                name: "apply_patch".to_string(),
+                input: "*** Begin Patch\n*** End Patch".to_string(),
+            }],
+            responses: vec![ResponseInputItem::CustomToolCallOutput {
+                call_id: "c1".to_string(),
+                output: "ok".to_string(),
+            }],
+            partial_assistant_text: String::new(),
+            partial_reasoning_summary: String::new(),
+        };
+
+        let mut attempt_input: Vec<ResponseItem> = Vec::new();
+        inject_scratchpad_into_attempt_input(&mut attempt_input, sp);
+
+        let call_pos = attempt_input
+            .iter()
+            .position(|item| matches!(item, ResponseItem::CustomToolCall { call_id, .. } if call_id == "c1"))
+            .expect("expected CustomToolCall to be injected");
+        let output_pos = attempt_input
+            .iter()
+            .position(|item| matches!(item, ResponseItem::CustomToolCallOutput { call_id, .. } if call_id == "c1"))
+            .expect("expected CustomToolCallOutput to be injected");
+        assert!(call_pos < output_pos, "tool call should precede output");
+    }
+
+    #[test]
+    fn missing_tool_outputs_inserts_function_call_output_for_function_call() {
+        let items = vec![ResponseItem::FunctionCall {
+            id: None,
+            name: "shell".to_string(),
+            arguments: "{}".to_string(),
+            call_id: "f1".to_string(),
+        }];
+
+        let missing = missing_tool_outputs_to_insert(&items);
+        assert_eq!(missing.len(), 1);
+
+        let mut input = items;
+        for (idx, output_item) in missing.into_iter().rev() {
+            input.insert(idx + 1, output_item);
+        }
+
+        assert!(matches!(
+            input.get(1),
+            Some(ResponseItem::FunctionCallOutput { call_id, output })
+                if call_id == "f1" && matches!(&output.body, code_protocol::models::FunctionCallOutputBody::Text(text) if text == "aborted")
+        ));
+    }
+
+    #[test]
+    fn missing_tool_outputs_inserts_function_call_output_for_local_shell_legacy_id() {
+        let items = vec![legacy_local_shell_call("sh_1")];
+        let missing = missing_tool_outputs_to_insert(&items);
+        assert_eq!(missing.len(), 1);
+
+        let mut input = items;
+        for (idx, output_item) in missing.into_iter().rev() {
+            input.insert(idx + 1, output_item);
+        }
+
+        assert!(matches!(
+            input.get(1),
+            Some(ResponseItem::FunctionCallOutput { call_id, output })
+                if call_id == "sh_1" && matches!(&output.body, code_protocol::models::FunctionCallOutputBody::Text(text) if text == "aborted")
+        ));
+    }
+
+    #[test]
+    fn missing_tool_outputs_inserts_custom_tool_call_output_for_custom_tool_call() {
+        let items = vec![ResponseItem::CustomToolCall {
+            id: None,
+            status: None,
+            call_id: "c1".to_string(),
+            name: "apply_patch".to_string(),
+            input: "noop".to_string(),
+        }];
+
+        let missing = missing_tool_outputs_to_insert(&items);
+        assert_eq!(missing.len(), 1);
+
+        let mut input = items;
+        for (idx, output_item) in missing.into_iter().rev() {
+            input.insert(idx + 1, output_item);
+        }
+
+        assert!(matches!(
+            input.get(1),
+            Some(ResponseItem::CustomToolCallOutput { call_id, output })
+                if call_id == "c1" && output == "aborted"
+        ));
+    }
+
+    #[test]
+    fn missing_tool_outputs_noops_when_outputs_exist() {
+        let items = vec![
+            ResponseItem::FunctionCall {
+                id: None,
+                name: "shell".to_string(),
+                arguments: "{}".to_string(),
+                call_id: "f1".to_string(),
+            },
+            ResponseItem::FunctionCallOutput {
+                call_id: "f1".to_string(),
+                output: FunctionCallOutputPayload::from_text("ok".to_string()),
+            },
+        ];
+
+        let missing = missing_tool_outputs_to_insert(&items);
+        assert!(missing.is_empty());
+    }
 }
 
 /// When the model is prompted, it returns a stream of events. Some of these
@@ -3322,6 +3501,70 @@ impl Drop for TurnLatencyGuard<'_> {
     }
 }
 
+fn missing_tool_outputs_to_insert(items: &[ResponseItem]) -> Vec<(usize, ResponseItem)> {
+    let mut function_outputs: HashSet<String> = HashSet::new();
+    let mut custom_outputs: HashSet<String> = HashSet::new();
+
+    for item in items {
+        match item {
+            ResponseItem::FunctionCallOutput { call_id, .. } => {
+                function_outputs.insert(call_id.clone());
+            }
+            ResponseItem::CustomToolCallOutput { call_id, .. } => {
+                custom_outputs.insert(call_id.clone());
+            }
+            _ => {}
+        }
+    }
+
+    let mut missing_outputs_to_insert: Vec<(usize, ResponseItem)> = Vec::new();
+
+    for (idx, item) in items.iter().enumerate() {
+        match item {
+            ResponseItem::FunctionCall { call_id, .. } => {
+                if function_outputs.insert(call_id.clone()) {
+                    missing_outputs_to_insert.push((
+                        idx,
+                        ResponseItem::FunctionCallOutput {
+                            call_id: call_id.clone(),
+                            output: FunctionCallOutputPayload::from_text("aborted".to_string()),
+                        },
+                    ));
+                }
+            }
+            ResponseItem::CustomToolCall { call_id, .. } => {
+                if custom_outputs.insert(call_id.clone()) {
+                    missing_outputs_to_insert.push((
+                        idx,
+                        ResponseItem::CustomToolCallOutput {
+                            call_id: call_id.clone(),
+                            output: "aborted".to_string(),
+                        },
+                    ));
+                }
+            }
+            ResponseItem::LocalShellCall { call_id, id, .. } => {
+                let Some(effective_call_id) = call_id.as_ref().or(id.as_ref()) else {
+                    continue;
+                };
+
+                if function_outputs.insert(effective_call_id.clone()) {
+                    missing_outputs_to_insert.push((
+                        idx,
+                        ResponseItem::FunctionCallOutput {
+                            call_id: effective_call_id.clone(),
+                            output: FunctionCallOutputPayload::from_text("aborted".to_string()),
+                        },
+                    ));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    missing_outputs_to_insert
+}
+
 async fn try_run_turn(
     sess: &Session,
     turn_diff_tracker: &mut TurnDiffTracker,
@@ -3329,59 +3572,18 @@ async fn try_run_turn(
     prompt: &Prompt,
     attempt_req: u64,
 ) -> CodexResult<Vec<ProcessedResponseItem>> {
-    // call_ids that are part of this response.
-    let completed_call_ids = prompt
-        .input
-        .iter()
-        .filter_map(|ri| match ri {
-            ResponseItem::FunctionCallOutput { call_id, .. } => Some(call_id),
-            ResponseItem::LocalShellCall {
-                call_id: Some(call_id),
-                ..
-            } => Some(call_id),
-            ResponseItem::CustomToolCallOutput { call_id, .. } => Some(call_id),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-
-    // call_ids that were pending but are not part of this response.
-    // This usually happens because the user interrupted the model before we responded to one of its tool calls
-    // and then the user sent a follow-up message.
-    let missing_calls = {
-        prompt
-            .input
-            .iter()
-            .filter_map(|ri| match ri {
-                ResponseItem::FunctionCall { call_id, .. } => Some(call_id),
-                ResponseItem::LocalShellCall {
-                    call_id: Some(call_id),
-                    ..
-                } => Some(call_id),
-                ResponseItem::CustomToolCall { call_id, .. } => Some(call_id),
-                _ => None,
-            })
-            .filter_map(|call_id| {
-                if completed_call_ids.contains(&call_id) {
-                    None
-                } else {
-                    Some(call_id.clone())
-                }
-            })
-            .map(|call_id| ResponseItem::CustomToolCallOutput {
-                call_id,
-                output: "aborted".to_string(),
-            })
-            .collect::<Vec<_>>()
-    };
-    let prompt: Cow<Prompt> = if missing_calls.is_empty() {
+    // Ensure any pending tool calls from a previous interrupted attempt are paired with
+    // an "aborted" output before we send a new request to the model.
+    let missing_outputs = missing_tool_outputs_to_insert(&prompt.input);
+    let prompt: Cow<Prompt> = if missing_outputs.is_empty() {
         Cow::Borrowed(prompt)
     } else {
-        // Add the synthetic aborted missing calls to the beginning of the input to ensure all call ids have responses.
-        let input = [missing_calls, prompt.input.clone()].concat();
-        Cow::Owned(Prompt {
-            input,
-            ..prompt.clone()
-        })
+        let mut input = prompt.input.clone();
+        for (idx, output_item) in missing_outputs.into_iter().rev() {
+            input.insert(idx + 1, output_item);
+        }
+
+        Cow::Owned(Prompt { input, ..prompt.clone() })
     };
 
     let enable_parallel_tool_calls = prompt
@@ -3448,6 +3650,9 @@ async fn try_run_turn(
 
                 if enable_parallel_tool_calls && is_tool_call {
                     let output_pos = output.len();
+                    // Persist finalized tool call items so retries can re-seed them if the
+                    // stream disconnects before `response.completed`.
+                    sess.scratchpad_push(&item, &None, sub_id);
                     output.push(ProcessedResponseItem {
                         item,
                         response: None,
@@ -3587,8 +3792,10 @@ async fn try_run_turn(
                 // The complete message will be added to history when OutputItemDone arrives.
                 // This ensures items are recorded in the correct chronological order.
 
-                // Use the item_id if present, otherwise fall back to sub_id
-                let event_id = item_id.unwrap_or_else(|| sub_id.to_string());
+                // Use the item_id if present and non-empty, otherwise fall back to sub_id.
+                let event_id = item_id
+                    .filter(|id| !id.is_empty())
+                    .unwrap_or_else(|| sub_id.to_string());
                 let order = crate::protocol::OrderMeta {
                     request_ordinal: attempt_req,
                     output_index,
@@ -3603,8 +3810,10 @@ async fn try_run_turn(
                 sess.scratchpad_add_text_delta(&delta);
             }
             ResponseEvent::ReasoningSummaryDelta { delta, item_id, sequence_number, output_index, summary_index } => {
-                // Use the item_id if present, otherwise fall back to sub_id
-                let mut event_id = item_id.unwrap_or_else(|| sub_id.to_string());
+                // Use the item_id if present and non-empty, otherwise fall back to sub_id.
+                let mut event_id = item_id
+                    .filter(|id| !id.is_empty())
+                    .unwrap_or_else(|| sub_id.to_string());
                 if let Some(si) = summary_index { event_id = format!("{event_id}#s{si}"); }
                 let order = crate::protocol::OrderMeta { request_ordinal: attempt_req, output_index, sequence_number };
                 let stamped = sess.make_event_with_order(&event_id, EventMsg::AgentReasoningDelta(AgentReasoningDeltaEvent { delta: delta.clone() }), order, sequence_number);
@@ -3619,8 +3828,10 @@ async fn try_run_turn(
             }
             ResponseEvent::ReasoningContentDelta { delta, item_id, sequence_number, output_index, content_index } => {
                 if sess.show_raw_agent_reasoning {
-                    // Use the item_id if present, otherwise fall back to sub_id
-                    let mut event_id = item_id.unwrap_or_else(|| sub_id.to_string());
+                    // Use the item_id if present and non-empty, otherwise fall back to sub_id.
+                    let mut event_id = item_id
+                        .filter(|id| !id.is_empty())
+                        .unwrap_or_else(|| sub_id.to_string());
                     if let Some(ci) = content_index { event_id = format!("{event_id}#c{ci}"); }
                     let order = crate::protocol::OrderMeta { request_ordinal: attempt_req, output_index, sequence_number };
                     let stamped = sess.make_event_with_order(&event_id, EventMsg::AgentReasoningRawContentDelta(AgentReasoningRawContentDeltaEvent { delta }), order, sequence_number);
@@ -3670,8 +3881,10 @@ async fn handle_response_item(
     debug!(?item, "Output item");
     let output = match item {
         ResponseItem::Message { content, id, .. } => {
-            // Use the item_id if present, otherwise fall back to sub_id
-            let event_id = id.unwrap_or_else(|| sub_id.to_string());
+            // Use the item_id if present and non-empty, otherwise fall back to sub_id.
+            let event_id = id
+                .filter(|id| !id.is_empty())
+                .unwrap_or_else(|| sub_id.to_string());
             for item in content {
                 if let ContentItem::OutputText { text } = item {
                     let order = crate::protocol::OrderMeta { request_ordinal: attempt_req, output_index, sequence_number: seq_hint };
