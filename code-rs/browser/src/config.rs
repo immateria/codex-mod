@@ -71,6 +71,20 @@ pub struct BrowserConfig {
     /// Number of WS connect attempts before giving up
     #[serde(default = "default_connect_attempts")]
     pub connect_attempts: u32,
+
+    /// Optional proxy server for the launched internal Chrome instance.
+    /// Example: "http://127.0.0.1:8888".
+    #[serde(default)]
+    pub proxy_server: Option<String>,
+
+    /// Optional proxy bypass list passed as-is to Chrome's `--proxy-bypass-list`.
+    #[serde(default)]
+    pub proxy_bypass_list: Option<String>,
+
+    /// Optional value for the `Proxy-Authorization` header set via CDP
+    /// (e.g. "Basic <base64>") for correlating requests to a Codex network attempt.
+    #[serde(default)]
+    pub proxy_authorization: Option<String>,
 }
 
 impl Default for BrowserConfig {
@@ -95,6 +109,9 @@ impl Default for BrowserConfig {
             user_agent: None,
             connect_attempt_timeout_ms: default_connect_attempt_timeout_ms(),
             connect_attempts: default_connect_attempts(),
+            proxy_server: None,
+            proxy_bypass_list: None,
+            proxy_authorization: None,
         }
     }
 }

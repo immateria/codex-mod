@@ -17,6 +17,8 @@ mod upstream;
 pub use config::NetworkMode;
 pub use config::NetworkProxyConfig;
 pub use config::host_and_port_from_network_addr;
+pub use metadata::attempt_id_from_proxy_authorization;
+pub use metadata::proxy_username_for_attempt_id;
 pub use network_policy::NetworkDecision;
 pub use network_policy::NetworkDecisionSource;
 pub use network_policy::NetworkPolicyDecider;

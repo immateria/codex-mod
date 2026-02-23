@@ -913,6 +913,24 @@ impl BrowserManager {
                     // Set a longer timeout for CDP requests (60 seconds instead of default 30)
                     .request_timeout(Duration::from_secs(60));
 
+                if let Some(proxy_server) = config
+                    .proxy_server
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                {
+                    builder = builder.arg(format!("--proxy-server={proxy_server}"));
+                }
+
+                if let Some(proxy_bypass_list) = config
+                    .proxy_bypass_list
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                {
+                    builder = builder.arg(format!("--proxy-bypass-list={proxy_bypass_list}"));
+                }
+
                 if let Some(ref log_file) = log_file {
                     builder = builder
                         .arg("--enable-logging")
@@ -1463,12 +1481,24 @@ impl BrowserManager {
                 }
                 page.execute(b.build().map_err(BrowserError::CdpError)?)
                     .await?;
-            } else if let Some(al) = &config.accept_language {
-                let mut headers_map = std::collections::HashMap::new();
+            }
+
+            let mut headers_map = std::collections::HashMap::new();
+            if config.user_agent.is_none()
+                && let Some(al) = &config.accept_language
+            {
                 headers_map.insert(
                     "Accept-Language".to_string(),
                     serde_json::Value::String(al.clone()),
                 );
+            }
+            if let Some(proxy_authorization) = &config.proxy_authorization {
+                headers_map.insert(
+                    "Proxy-Authorization".to_string(),
+                    serde_json::Value::String(proxy_authorization.clone()),
+                );
+            }
+            if !headers_map.is_empty() {
                 let headers = network::Headers::new(serde_json::Value::Object(
                     headers_map.into_iter().collect(),
                 ));

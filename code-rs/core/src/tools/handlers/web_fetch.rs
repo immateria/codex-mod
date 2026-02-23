@@ -6,6 +6,7 @@ use crate::tools::events::execute_custom_tool;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use async_trait::async_trait;
+use base64::Engine;
 use code_protocol::models::FunctionCallOutputBody;
 use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
@@ -55,6 +56,8 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
     }
     let arguments_clone = arguments.clone();
     let call_id_clone = ctx.call_id.clone();
+    let sub_id_clone = ctx.sub_id.clone();
+    let cwd_clone = sess.get_cwd().to_path_buf();
 
     execute_custom_tool(
         sess,
@@ -94,6 +97,8 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
             async fn fetch_html_via_headless_browser(
                 url: &str,
                 timeout: Duration,
+                proxy_server: Option<&str>,
+                proxy_authorization: Option<&str>,
             ) -> Result<BrowserFetchOutcome, String> {
                 let config = CodexBrowserConfig {
                     enabled: true,
@@ -102,6 +107,9 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     segments_max: 2,
                     persist_profile: false,
                     idle_timeout_ms: 10_000,
+                    proxy_server: proxy_server.map(str::to_string),
+                    proxy_bypass_list: None,
+                    proxy_authorization: proxy_authorization.map(str::to_string),
                     ..CodexBrowserConfig::default()
                 };
 
@@ -190,6 +198,8 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 url: &str,
                 timeout: Duration,
                 prefer_global: bool,
+                proxy_server: Option<&str>,
+                proxy_authorization: Option<&str>,
             ) -> Option<BrowserFetchOutcome> {
                 const HTML_JS: &str =
                     "(function(){ return { html: document.documentElement.outerHTML, title: document.title||'' }; })()";
@@ -262,7 +272,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         }
                     }
 
-                match fetch_html_via_headless_browser(url, timeout).await {
+                match fetch_html_via_headless_browser(url, timeout, proxy_server, proxy_authorization).await {
                     Ok(outcome) => Some(outcome),
                     Err(err) => {
                         tracing::warn!("Headless browser fallback failed for {}: {}", url, err);
@@ -273,17 +283,14 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
 
             // Helper: build a client with a specific UA and common headers.
             async fn do_request(
+                client: &reqwest::Client,
                 url: &str,
                 ua: &str,
-                timeout: Duration,
                 extra_headers: Option<&[(reqwest::header::HeaderName, &'static str)]>,
             ) -> Result<reqwest::Response, reqwest::Error> {
-                let client = reqwest::Client::builder()
-                    .timeout(timeout)
-                    .user_agent(ua)
-                    .build()?;
                 let mut req = client.get(url)
                     // Add a few browser-like headers to reduce blocks
+                    .header(reqwest::header::USER_AGENT, ua)
                     .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
                     .header(reqwest::header::ACCEPT_LANGUAGE, "en-US,en;q=0.9");
                 if let Some(pairs) = extra_headers {
@@ -723,8 +730,77 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
             let timeout = Duration::from_millis(params.timeout_ms.unwrap_or(15000));
             let code_ua = crate::default_client::get_code_user_agent(Some("web_fetch"));
 
+            let mut browser_proxy_server: Option<String> = None;
+            let mut browser_proxy_authorization: Option<String> = None;
+            let mut _network_attempt_guard: Option<crate::network_approval::NetworkAttemptGuard> = None;
+
+            let mut http_client_builder = reqwest::Client::builder().timeout(timeout);
+            if let Some(managed_proxy) = sess.managed_network_proxy() {
+                let attempt_id = uuid::Uuid::new_v4().to_string();
+                let network_approval = sess.network_approval();
+                network_approval
+                    .register_attempt(
+                        attempt_id.clone(),
+                        sub_id_clone.clone(),
+                        call_id_clone.clone(),
+                        vec!["web_fetch".to_string(), params.url.clone()],
+                        cwd_clone.clone(),
+                    )
+                    .await;
+                _network_attempt_guard = Some(crate::network_approval::NetworkAttemptGuard::new(
+                    network_approval,
+                    attempt_id.clone(),
+                ));
+
+                let username = code_network_proxy::proxy_username_for_attempt_id(&attempt_id);
+                let proxy_url = format!("http://{username}@{}", managed_proxy.http_addr());
+                let no_proxy = "localhost,127.0.0.1,::1,.local,169.254.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16";
+                let reqwest_proxy = match reqwest::Proxy::all(&proxy_url) {
+                    Ok(proxy) => proxy.no_proxy(reqwest::NoProxy::from_string(no_proxy)),
+                    Err(err) => {
+                        return ResponseInputItem::FunctionCallOutput {
+                            call_id: call_id_clone,
+                            output: FunctionCallOutputPayload {
+                                body: FunctionCallOutputBody::Text(format!(
+                                    "Failed to configure network proxy: {err}"
+                                )),
+                                success: Some(false),
+                            },
+                        };
+                    }
+                };
+                http_client_builder = http_client_builder.proxy(reqwest_proxy);
+
+                browser_proxy_server = Some(format!("http://{}", managed_proxy.http_addr()));
+                let encoded = base64::engine::general_purpose::STANDARD.encode(format!("{username}:"));
+                browser_proxy_authorization = Some(format!("Basic {encoded}"));
+            }
+
+            let client = match http_client_builder.build() {
+                Ok(client) => client,
+                Err(err) => {
+                    return ResponseInputItem::FunctionCallOutput {
+                        call_id: call_id_clone,
+                        output: FunctionCallOutputPayload {
+                            body: FunctionCallOutputBody::Text(format!(
+                                "Failed to build HTTP client: {err}"
+                            )),
+                            success: Some(false),
+                        },
+                    };
+                }
+            };
+
+            let prefer_global_browser = browser_proxy_server.is_none();
             if matches!(params.mode.as_deref(), Some("browser"))
-                && let Some(browser_fetch) = fetch_html_via_browser(&params.url, timeout, true).await {
+                && let Some(browser_fetch) = fetch_html_via_browser(
+                    &params.url,
+                    timeout,
+                    prefer_global_browser,
+                    browser_proxy_server.as_deref(),
+                    browser_proxy_authorization.as_deref(),
+                )
+                .await {
                     let (markdown, truncated) = match convert_html_to_markdown_trimmed(browser_fetch.html, 120_000) {
                         Ok(t) => t,
                         Err(e) => {
@@ -752,7 +828,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     };
                 }
             // Attempt 1: Codex UA + polite headers
-            let resp = match do_request(&params.url, &code_ua, timeout, None).await {
+            let resp = match do_request(&client, &params.url, &code_ua, None).await {
                 Ok(r) => r,
                 Err(e) => {
                     return ResponseInputItem::FunctionCallOutput {
@@ -783,7 +859,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 let extra = [
                     (reqwest::header::HeaderName::from_static("upgrade-insecure-requests"), "1"),
                 ];
-                if let Ok(r2) = do_request(&params.url, browser_ua, timeout, Some(&extra)).await {
+                if let Ok(r2) = do_request(&client, &params.url, browser_ua, Some(&extra)).await {
                     let status2 = r2.status();
                     let final_url2 = r2.url().to_string();
                     let headers2 = r2.headers().clone();
@@ -826,7 +902,14 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 if let Some(ra) = retry_after { diag["retry_after"] = serde_json::json!(ra); }
                 if let Some(ray) = cf_ray { diag["cf_ray"] = serde_json::json!(ray); }
 
-                if let Some(browser_fetch) = fetch_html_via_browser(&params.url, timeout, false).await {
+                if let Some(browser_fetch) = fetch_html_via_browser(
+                    &params.url,
+                    timeout,
+                    false,
+                    browser_proxy_server.as_deref(),
+                    browser_proxy_authorization.as_deref(),
+                )
+                .await {
                     let (markdown, truncated) = match convert_html_to_markdown_trimmed(browser_fetch.html, 120_000) {
                         Ok(t) => t,
                         Err(e) => {
@@ -948,7 +1031,14 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
 
             // If the rendered markdown still looks like a challenge page, attempt browser fallback (unless http-only).
             if !matches!(params.mode.as_deref(), Some("http")) && looks_like_challenge_markdown(&markdown) {
-                if let Some(browser_fetch) = fetch_html_via_browser(&params.url, timeout, false).await {
+                if let Some(browser_fetch) = fetch_html_via_browser(
+                    &params.url,
+                    timeout,
+                    false,
+                    browser_proxy_server.as_deref(),
+                    browser_proxy_authorization.as_deref(),
+                )
+                .await {
                     let (md2, truncated2) = match convert_html_to_markdown_trimmed(browser_fetch.html, 120_000) {
                         Ok(t) => t,
                         Err(e) => {
