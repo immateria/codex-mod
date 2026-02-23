@@ -844,6 +844,21 @@ mod tests {
     }
 
     #[test]
+    fn request_network_attempt_id_accepts_case_insensitive_basic_scheme() {
+        let encoded = STANDARD.encode("codex-net-attempt-attempt-1:");
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("http://example.com")
+            .header("proxy-authorization", format!("basic {encoded}"))
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            request_network_attempt_id(&req),
+            Some("attempt-1".to_string())
+        );
+    }
+
+    #[test]
     fn request_network_attempt_id_reads_authorization_header_fallback() {
         let encoded = STANDARD.encode("codex-net-attempt-attempt-2:");
         let req = Request::builder()

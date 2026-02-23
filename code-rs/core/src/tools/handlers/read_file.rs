@@ -540,6 +540,62 @@ gamma
     }
 
     #[tokio::test]
+    async fn reads_non_utf8_lines() -> anyhow::Result<()> {
+        let mut temp = NamedTempFile::new()?;
+        use std::io::Write as _;
+        temp.as_file_mut().write_all(b"\xff\xfe\nplain\n")?;
+
+        let lines = read(temp.path(), 1, 2).await.map_err(anyhow::Error::msg)?;
+        let expected_first = format!("L1: {}{}", '\u{FFFD}', '\u{FFFD}');
+        assert_eq!(lines, vec![expected_first, "L2: plain".to_string()]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn trims_crlf_endings() -> anyhow::Result<()> {
+        let mut temp = NamedTempFile::new()?;
+        use std::io::Write as _;
+        write!(temp, "one\r\ntwo\r\n")?;
+
+        let lines = read(temp.path(), 1, 2).await.map_err(anyhow::Error::msg)?;
+        assert_eq!(lines, vec!["L1: one".to_string(), "L2: two".to_string()]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn respects_limit_even_with_more_lines() -> anyhow::Result<()> {
+        let mut temp = NamedTempFile::new()?;
+        use std::io::Write as _;
+        write!(
+            temp,
+            "first
+second
+third
+"
+        )?;
+
+        let lines = read(temp.path(), 1, 2).await.map_err(anyhow::Error::msg)?;
+        assert_eq!(
+            lines,
+            vec!["L1: first".to_string(), "L2: second".to_string()]
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn truncates_lines_longer_than_max_length() -> anyhow::Result<()> {
+        let mut temp = NamedTempFile::new()?;
+        use std::io::Write as _;
+        let long_line = "x".repeat(MAX_LINE_LENGTH + 50);
+        writeln!(temp, "{long_line}")?;
+
+        let lines = read(temp.path(), 1, 1).await.map_err(anyhow::Error::msg)?;
+        let expected = "x".repeat(MAX_LINE_LENGTH);
+        assert_eq!(lines, vec![format!("L1: {expected}")]);
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn reads_indentation_block_around_anchor() -> anyhow::Result<()> {
         let mut temp = NamedTempFile::new()?;
         use std::io::Write as _;
@@ -572,6 +628,97 @@ fn outer() {{
 
         assert!(lines.iter().any(|line| line.contains("fn outer")));
         assert!(lines.iter().any(|line| line.contains("let b")));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn indentation_mode_captures_block() -> anyhow::Result<()> {
+        let mut temp = NamedTempFile::new()?;
+        use std::io::Write as _;
+        write!(
+            temp,
+            "fn outer() {{
+    if cond {{
+        inner();
+    }}
+    tail();
+}}
+"
+        )?;
+
+        let options = IndentationArgs {
+            anchor_line: Some(3),
+            include_siblings: false,
+            max_levels: 1,
+            ..Default::default()
+        };
+
+        let lines = read_block(temp.path(), 3, 10, options)
+            .await
+            .map_err(anyhow::Error::msg)?;
+
+        assert_eq!(
+            lines,
+            vec![
+                "L2:     if cond {".to_string(),
+                "L3:         inner();".to_string(),
+                "L4:     }".to_string(),
+            ]
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn indentation_mode_respects_sibling_flag() -> anyhow::Result<()> {
+        let mut temp = NamedTempFile::new()?;
+        use std::io::Write as _;
+        write!(
+            temp,
+            "fn wrapper() {{
+    if first {{
+        do_first();
+    }}
+    if second {{
+        do_second();
+    }}
+}}
+"
+        )?;
+
+        let mut options = IndentationArgs {
+            anchor_line: Some(3),
+            include_siblings: false,
+            max_levels: 1,
+            ..Default::default()
+        };
+
+        let lines = read_block(temp.path(), 3, 50, options.clone())
+            .await
+            .map_err(anyhow::Error::msg)?;
+        assert_eq!(
+            lines,
+            vec![
+                "L2:     if first {".to_string(),
+                "L3:         do_first();".to_string(),
+                "L4:     }".to_string(),
+            ]
+        );
+
+        options.include_siblings = true;
+        let with_siblings = read_block(temp.path(), 3, 50, options)
+            .await
+            .map_err(anyhow::Error::msg)?;
+        assert_eq!(
+            with_siblings,
+            vec![
+                "L2:     if first {".to_string(),
+                "L3:         do_first();".to_string(),
+                "L4:     }".to_string(),
+                "L5:     if second {".to_string(),
+                "L6:         do_second();".to_string(),
+                "L7:     }".to_string(),
+            ]
+        );
         Ok(())
     }
 }

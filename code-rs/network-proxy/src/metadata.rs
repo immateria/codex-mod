@@ -11,7 +11,13 @@ pub fn proxy_username_for_attempt_id(attempt_id: &str) -> String {
 pub fn attempt_id_from_proxy_authorization(header: Option<&HeaderValue>) -> Option<String> {
     let header = header?;
     let raw = header.to_str().ok()?;
-    let encoded = raw.strip_prefix("Basic ")?;
+    let mut parts = raw.split_whitespace();
+    let scheme = parts.next()?;
+    let encoded = parts.next()?;
+    if !scheme.eq_ignore_ascii_case("basic") {
+        return None;
+    }
+
     let decoded = STANDARD.decode(encoded.trim()).ok()?;
     let decoded = String::from_utf8(decoded).ok()?;
     let username = decoded
@@ -35,6 +41,16 @@ mod tests {
     fn parses_attempt_id_from_proxy_authorization_header() {
         let encoded = STANDARD.encode(format!("{NETWORK_ATTEMPT_USERNAME_PREFIX}abc123:"));
         let header = HeaderValue::from_str(&format!("Basic {encoded}")).unwrap();
+        assert_eq!(
+            attempt_id_from_proxy_authorization(Some(&header)),
+            Some("abc123".to_string())
+        );
+    }
+
+    #[test]
+    fn parses_attempt_id_from_proxy_authorization_header_case_insensitive() {
+        let encoded = STANDARD.encode(format!("{NETWORK_ATTEMPT_USERNAME_PREFIX}abc123:"));
+        let header = HeaderValue::from_str(&format!("basic {encoded}")).unwrap();
         assert_eq!(
             attempt_id_from_proxy_authorization(Some(&header)),
             Some("abc123".to_string())

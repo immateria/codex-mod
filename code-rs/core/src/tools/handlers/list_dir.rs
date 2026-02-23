@@ -491,4 +491,123 @@ mod tests {
             ]
         );
     }
+
+    #[tokio::test]
+    async fn paginates_in_sorted_order() {
+        let temp = tempdir().expect("create tempdir");
+        let dir_path = temp.path();
+
+        let dir_a = dir_path.join("a");
+        let dir_b = dir_path.join("b");
+        tokio::fs::create_dir(&dir_a).await.expect("create a");
+        tokio::fs::create_dir(&dir_b).await.expect("create b");
+
+        tokio::fs::write(dir_a.join("a_child.txt"), b"a")
+            .await
+            .expect("write a child");
+        tokio::fs::write(dir_b.join("b_child.txt"), b"b")
+            .await
+            .expect("write b child");
+
+        let first_page = list_dir_slice(dir_path, 1, 2, 2)
+            .await
+            .expect("list page one");
+        assert_eq!(
+            first_page,
+            vec![
+                "1. a/".to_string(),
+                "2.   a_child.txt".to_string(),
+                "More than 2 entries found".to_string()
+            ]
+        );
+
+        let second_page = list_dir_slice(dir_path, 3, 2, 2)
+            .await
+            .expect("list page two");
+        assert_eq!(
+            second_page,
+            vec!["3. b/".to_string(), "4.   b_child.txt".to_string()]
+        );
+    }
+
+    #[tokio::test]
+    async fn handles_large_limit_without_overflow() {
+        let temp = tempdir().expect("create tempdir");
+        let dir_path = temp.path();
+        tokio::fs::write(dir_path.join("alpha.txt"), b"alpha")
+            .await
+            .expect("write alpha");
+        tokio::fs::write(dir_path.join("beta.txt"), b"beta")
+            .await
+            .expect("write beta");
+        tokio::fs::write(dir_path.join("gamma.txt"), b"gamma")
+            .await
+            .expect("write gamma");
+
+        let entries = list_dir_slice(dir_path, 2, usize::MAX, 1)
+            .await
+            .expect("list without overflow");
+        assert_eq!(
+            entries,
+            vec!["2. beta.txt".to_string(), "3. gamma.txt".to_string(),]
+        );
+    }
+
+    #[tokio::test]
+    async fn indicates_truncated_results() {
+        let temp = tempdir().expect("create tempdir");
+        let dir_path = temp.path();
+
+        for idx in 0..40 {
+            let file = dir_path.join(format!("file_{idx:02}.txt"));
+            tokio::fs::write(file, b"content")
+                .await
+                .expect("write file");
+        }
+
+        let entries = list_dir_slice(dir_path, 1, 25, 1)
+            .await
+            .expect("list directory");
+        assert_eq!(entries.len(), 26);
+        assert_eq!(
+            entries.last(),
+            Some(&"More than 25 entries found".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn truncation_respects_sorted_order() {
+        let temp = tempdir().expect("create tempdir");
+        let dir_path = temp.path();
+        let nested = dir_path.join("nested");
+        let deeper = nested.join("deeper");
+        tokio::fs::create_dir(&nested)
+            .await
+            .expect("create nested");
+        tokio::fs::create_dir(&deeper)
+            .await
+            .expect("create deeper");
+        tokio::fs::write(dir_path.join("root.txt"), b"root")
+            .await
+            .expect("write root");
+        tokio::fs::write(nested.join("child.txt"), b"child")
+            .await
+            .expect("write child");
+        tokio::fs::write(deeper.join("grandchild.txt"), b"deep")
+            .await
+            .expect("write grandchild");
+
+        let entries_depth_three = list_dir_slice(dir_path, 1, 3, 3)
+            .await
+            .expect("list truncated");
+        assert_eq!(
+            entries_depth_three,
+            vec![
+                "1. nested/".to_string(),
+                "2.   child.txt".to_string(),
+                "3.   deeper/".to_string(),
+                "More than 3 entries found".to_string()
+            ]
+        );
+    }
 }
