@@ -503,11 +503,7 @@ async fn create_exec_command_session(
             ));
         }
 
-        let command = vec![
-            shell.clone(),
-            shell_mode_opt.to_string(),
-            cmd.clone(),
-        ];
+        let command = vec![shell, shell_mode_opt.to_string(), cmd];
         let seatbelt_args = crate::seatbelt::build_seatbelt_args(
             command,
             &sandbox_policy,
