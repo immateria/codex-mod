@@ -483,6 +483,46 @@ mod tests {
         assert_eq!(expected_args, args);
     }
 
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn seatbelt_args_for_exec_command_wrap_shell_command() {
+        let policy = SandboxPolicy::ReadOnly;
+        let cwd = Path::new("/tmp");
+
+        let mut env = std::collections::HashMap::new();
+        env.insert(
+            "HTTP_PROXY".to_string(),
+            "http://127.0.0.1:8899".to_string(),
+        );
+
+        let command = vec![
+            "/bin/bash".to_string(),
+            "-lc".to_string(),
+            "echo hi".to_string(),
+        ];
+        let args = super::build_seatbelt_args(command.clone(), &policy, cwd, true, &env);
+
+        assert_eq!(args[0], "-p");
+        assert!(
+            args[1].contains("(allow network-outbound (remote ip \"localhost:8899\"))"),
+            "expected loopback proxy port allow rule in seatbelt policy"
+        );
+
+        let dash_dash = args
+            .iter()
+            .position(|arg| arg == "--")
+            .expect("seatbelt args should contain `--`");
+        assert_eq!(
+            &args[dash_dash..],
+            &[
+                "--".to_string(),
+                "/bin/bash".to_string(),
+                "-lc".to_string(),
+                "echo hi".to_string(),
+            ]
+        );
+    }
+
     struct PopulatedTmp {
         root_with_git: PathBuf,
         root_without_git: PathBuf,
