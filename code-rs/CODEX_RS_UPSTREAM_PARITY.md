@@ -595,31 +595,8 @@ These are present in upstream `codex-rs`, but not fully integrated in this fork 
 
 ## Partial / Duplicate Migrations to Be Aware Of
 
-There is some "half-migrated" upstream structure in this fork that can confuse
-future work if we don't call it out explicitly.
-
-### `unified_exec` duplication
-
-- `code-rs/core/src/unified_exec/mod.rs` exists, is compiled, and is marked
-  `#![allow(dead_code)]`.
-- It is not wired into the tool router and does not map cleanly to the upstream
-  `exec_command` / `write_stdin` model.
-
-**Recommendation**
-- Treat `exec_command` / `write_stdin` (via `code-rs/core/src/exec_command/*`)
-  as the canonical streamable-shell implementation.
-- Either delete `unified_exec` later or repurpose it as an internal helper, but
-  do not build new tool routing around it.
-
-### `state/` + `tasks/` scaffolding
-
-`code-rs/core/src/state/*` and `code-rs/core/src/tasks/*` exist but are not
-currently part of the compiled crate graph (not referenced from `lib.rs`).
-
-**Recommendation**
-- Ignore for Phase 3 tool parity work.
-- Consider deleting or finishing a full migration later, but only if we decide
-  to adopt upstream's task runtime patterns.
+No active duplicates are currently tracked. Streamable shell is implemented
+exclusively via `exec_command` / `write_stdin` (`code-rs/core/src/exec_command/*`).
 
 ## Upstream Tool Inventory Delta (Handlers)
 
