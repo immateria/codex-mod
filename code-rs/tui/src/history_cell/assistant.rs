@@ -401,13 +401,6 @@ fn compute_assistant_layout_from_rendered_lines(
 
     let text_wrap_width = width;
     let mut segs: Vec<AssistantSeg> = Vec::new();
-    let measure_line = |line: &Line<'_>| -> u16 {
-        line.spans
-            .iter()
-            .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))
-            .sum::<usize>()
-            .min(u16::MAX as usize) as u16
-    };
 
     let mut idx = 0usize;
     let mut text_start = 0usize;
@@ -461,13 +454,11 @@ fn compute_assistant_layout_from_rendered_lines(
 
             let content_lines: Vec<Line<'static>> = content_slice.to_vec();
             let code_wrap_width = width.saturating_sub(6) as usize;
-            let content_lines = wrap_code_lines(content_lines, code_wrap_width);
+            let (content_lines, max_line_width) = wrap_code_lines(content_lines, code_wrap_width);
             if content_lines.is_empty() {
                 text_start = idx;
                 continue;
             }
-
-            let max_line_width = content_lines.iter().map(&measure_line).max().unwrap_or(0);
 
             let full_height = content_lines.len() as u16 + 2;
             let card_w = max_line_width.saturating_add(6).min(width.max(6));
@@ -504,7 +495,7 @@ fn compute_assistant_layout_from_rendered_lines(
                 blk
             };
             let inner_rect = blk.inner(temp_area);
-            blk.clone().render(temp_area, &mut temp_buf);
+            blk.render(temp_area, &mut temp_buf);
             for (idx, line) in content_lines.iter().enumerate() {
                 let target_y = inner_rect.y.saturating_add(idx as u16);
                 if target_y >= inner_rect.y.saturating_add(inner_rect.height) {
@@ -598,22 +589,27 @@ pub(crate) enum AssistantSeg {
     },
 }
 
-fn wrap_code_lines(lines: Vec<Line<'static>>, width: usize) -> Vec<Line<'static>> {
-    if width == 0 {
-        return lines;
-    }
-
-    let mut out = Vec::new();
+fn wrap_code_lines(lines: Vec<Line<'static>>, width: usize) -> (Vec<Line<'static>>, u16) {
+    let mut out: Vec<Line<'static>> = Vec::new();
+    let mut max_width: u16 = 0;
     for line in lines {
         let trimmed = trim_code_line_padding(line);
-        out.extend(wrap_code_line(trimmed, width));
+        let (wrapped, line_max_width) = wrap_code_line(trimmed, width);
+        out.extend(wrapped);
+        max_width = max_width.max(line_max_width);
     }
-    out
+    (out, max_width)
 }
 
-fn wrap_code_line(line: Line<'static>, width: usize) -> Vec<Line<'static>> {
-    if width == 0 {
-        return vec![line];
+fn wrap_code_line(line: Line<'static>, width: usize) -> (Vec<Line<'static>>, u16) {
+    let line_width: usize = line
+        .spans
+        .iter()
+        .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))
+        .sum();
+    let line_width_u16 = line_width.min(u16::MAX as usize) as u16;
+    if width == 0 || line_width <= width {
+        return (vec![line], line_width_u16);
     }
 
     fn flush_current_line(
@@ -634,26 +630,20 @@ fn wrap_code_line(line: Line<'static>, width: usize) -> Vec<Line<'static>> {
         *current_width = 0;
     }
 
-    let line_width: usize = line
-        .spans
-        .iter()
-        .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))
-        .sum();
-    if line_width <= width {
-        return vec![line];
-    }
-
     let mut out: Vec<Line<'static>> = Vec::new();
     let mut current_spans: Vec<Span<'static>> = Vec::new();
     let mut current_width = 0usize;
+    let mut max_width: u16 = 0;
     let style = line.style;
     let alignment = line.alignment;
 
     for span in line.spans {
         let span_style = span.style;
-        let mut remaining = span.content.into_owned();
+        let owned = span.content.into_owned();
+        let mut remaining: &str = &owned;
         while !remaining.is_empty() {
             if current_width >= width {
+                max_width = max_width.max(current_width.min(u16::MAX as usize) as u16);
                 flush_current_line(&mut out, &mut current_spans, style, alignment, &mut current_width);
             }
 
@@ -662,33 +652,43 @@ fn wrap_code_line(line: Line<'static>, width: usize) -> Vec<Line<'static>> {
                 continue;
             }
 
-            let (prefix, suffix, taken) = crate::live_wrap::take_prefix_by_width(&remaining, available);
+            let (prefix, suffix, taken) =
+                crate::live_wrap::take_prefix_by_width(remaining, available);
             if taken == 0 {
                 if current_width > 0 {
-                    flush_current_line(&mut out, &mut current_spans, style, alignment, &mut current_width);
+                    max_width = max_width.max(current_width.min(u16::MAX as usize) as u16);
+                    flush_current_line(
+                        &mut out,
+                        &mut current_spans,
+                        style,
+                        alignment,
+                        &mut current_width,
+                    );
                 }
-                if let Some((idx, ch)) = remaining.char_indices().next() {
-                    let len = idx + ch.len_utf8();
+                if let Some(ch) = remaining.chars().next() {
+                    let len = ch.len_utf8();
                     let piece = remaining[..len].to_string();
-                    current_width += unicode_width::UnicodeWidthStr::width(piece.as_str());
+                    current_width += unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
                     current_spans.push(Span::styled(piece, span_style));
-                    remaining = remaining[len..].to_string();
+                    remaining = &remaining[len..];
                 } else {
                     break;
                 }
             } else {
                 current_width += taken;
                 current_spans.push(Span::styled(prefix, span_style));
-                remaining = suffix.to_string();
+                remaining = suffix;
             }
 
             if current_width >= width {
+                max_width = max_width.max(current_width.min(u16::MAX as usize) as u16);
                 flush_current_line(&mut out, &mut current_spans, style, alignment, &mut current_width);
             }
         }
     }
 
     if !current_spans.is_empty() {
+        max_width = max_width.max(current_width.min(u16::MAX as usize) as u16);
         out.push(Line {
             style,
             alignment,
@@ -702,7 +702,7 @@ fn wrap_code_line(line: Line<'static>, width: usize) -> Vec<Line<'static>> {
         });
     }
 
-    out
+    (out, max_width)
 }
 
 fn trim_code_line_padding(mut line: Line<'static>) -> Line<'static> {
@@ -981,7 +981,7 @@ mod tests {
     #[test]
     fn wrap_code_line_moves_wide_grapheme() {
         let line = Line::from(vec![Span::raw("abc界")]);
-        let wrapped = wrap_code_line(line, 4);
+        let (wrapped, _max_width) = wrap_code_line(line, 4);
         let rendered: Vec<String> = wrapped.iter().map(line_text).collect();
         assert_eq!(rendered, vec!["abc", "界"]);
         for text in rendered {

@@ -469,6 +469,15 @@ fn word_wrap_line(line: &Line, width: usize) -> Vec<Line<'static>> {
         }
     }
 
+    let line_width: usize = line
+        .spans
+        .iter()
+        .map(|s| unicode_width::UnicodeWidthStr::width(s.content.as_ref()))
+        .sum();
+    if line_width <= width {
+        return vec![to_owned_line(line)];
+    }
+
     // Concatenate content and keep span boundaries for later re-slicing.
     let mut flat = String::new();
     let mut span_bounds = Vec::new(); // (start_byte, end_byte, style)

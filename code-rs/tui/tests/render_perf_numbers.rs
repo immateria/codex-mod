@@ -29,6 +29,17 @@ fn make_code_block(lines: usize) -> String {
     out
 }
 
+fn make_long_code_block(lines: usize, line_len: usize) -> String {
+    let mut out = String::new();
+    out.push_str("```rust\n");
+    let payload = "x".repeat(line_len);
+    for idx in 0..lines {
+        out.push_str(&format!("let s{idx} = \"{payload}\";\n"));
+    }
+    out.push_str("```\n");
+    out
+}
+
 fn next_order_meta(request_ordinal: u64, seq: &mut u64) -> OrderMeta {
     let order = OrderMeta {
         request_ordinal,
@@ -257,6 +268,53 @@ fn print_widget_render_cost_for_width_churn_code_blocks() {
 
     println!(
         "render_perf_numbers_width_churn_code_blocks: frames={rendered_frames} avg_widget_render_ms={avg_widget_ms:.3} avg_visible_render_ms={avg_visible_ms:.3}"
+    );
+}
+
+#[test]
+fn print_widget_render_cost_for_width_churn_long_code_lines() {
+    if !perf_numbers_enabled() {
+        return;
+    }
+
+    let mut harness = ChatWidgetHarness::new();
+    harness.enable_perf(true);
+
+    let code = make_long_code_block(4, 1600);
+    harness.push_assistant_message(format!("Long code lines\n\n{code}"));
+
+    // Warm-up to populate caches.
+    let _ = render_chat_widget_to_vt100(&mut harness, 120, 40);
+
+    let before = harness.perf_stats_snapshot();
+    let frames = 50u64;
+    for idx in 0..frames {
+        let width = 80u16.saturating_add(idx as u16);
+        let _ = render_chat_widget_to_vt100(&mut harness, width, 40);
+    }
+    let after = harness.perf_stats_snapshot();
+
+    let rendered_frames = after.frames.saturating_sub(before.frames);
+    let ns_widget = after
+        .ns_widget_render_total
+        .saturating_sub(before.ns_widget_render_total);
+    let ns_render = after
+        .ns_render_loop
+        .saturating_sub(before.ns_render_loop);
+
+    let avg_widget_ms = if rendered_frames == 0 {
+        0.0
+    } else {
+        (ns_widget as f64) / (rendered_frames as f64) / 1_000_000.0
+    };
+    let avg_visible_ms = if rendered_frames == 0 {
+        0.0
+    } else {
+        (ns_render as f64) / (rendered_frames as f64) / 1_000_000.0
+    };
+
+    println!(
+        "render_perf_numbers_width_churn_long_code_lines: frames={rendered_frames} avg_widget_render_ms={avg_widget_ms:.3} avg_visible_render_ms={avg_visible_ms:.3}"
     );
 }
 
