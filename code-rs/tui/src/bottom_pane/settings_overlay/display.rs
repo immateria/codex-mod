@@ -5,6 +5,8 @@ impl SettingsSection {
         match self {
             SettingsSection::Model => "Model",
             SettingsSection::Theme => "Theme",
+            SettingsSection::Interface => "Interface",
+            SettingsSection::Shell => "Shell",
             SettingsSection::Planning => "Planning",
             SettingsSection::Updates => "Updates",
             SettingsSection::Accounts => "Accounts",
@@ -26,6 +28,8 @@ impl SettingsSection {
         match self {
             SettingsSection::Model => "Choose the language model used for new completions.",
             SettingsSection::Theme => "Switch between preset color palettes and adjust contrast.",
+            SettingsSection::Interface => "Control Settings UI routing and other layout preferences.",
+            SettingsSection::Shell => "Select the shell used for tool execution.",
             SettingsSection::Planning => "Choose the model used in Plan Mode (Read Only).",
             SettingsSection::Updates => "Control CLI auto-update cadence and release channels.",
             SettingsSection::Accounts => {
@@ -51,6 +55,8 @@ impl SettingsSection {
         match self {
             SettingsSection::Model => "Model settings coming soon.",
             SettingsSection::Theme => "Theme settings coming soon.",
+            SettingsSection::Interface => "Control Settings UI routing (overlay vs bottom pane).",
+            SettingsSection::Shell => "Select the shell used for tool execution.",
             SettingsSection::Planning => "Planning settings coming soon.",
             SettingsSection::Updates => "Upgrade Codex and manage automatic updates.",
             SettingsSection::Accounts => "Account switching settings coming soon.",

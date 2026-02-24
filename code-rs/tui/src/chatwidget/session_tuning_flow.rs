@@ -214,6 +214,7 @@ impl ChatWidget<'_> {
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
@@ -581,6 +582,7 @@ impl ChatWidget<'_> {
                 demo_developer_message: self.config.demo_developer_message.clone(),
                 dynamic_tools: Vec::new(),
                 shell: self.config.shell.clone(),
+                shell_style_profiles: self.config.shell_style_profiles.clone(),
                 network: self.config.network.clone(),
                 collaboration_mode: self.current_collaboration_mode(),
             };
@@ -1209,6 +1211,7 @@ impl ChatWidget<'_> {
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
@@ -1239,6 +1242,7 @@ impl ChatWidget<'_> {
                 demo_developer_message: self.config.demo_developer_message.clone(),
                 dynamic_tools: Vec::new(),
                 shell: self.config.shell.clone(),
+                shell_style_profiles: self.config.shell_style_profiles.clone(),
                 network: self.config.network.clone(),
                 collaboration_mode: self.current_collaboration_mode(),
             };
@@ -1445,6 +1449,7 @@ impl ChatWidget<'_> {
                 demo_developer_message: self.config.demo_developer_message.clone(),
                 dynamic_tools: Vec::new(),
                 shell: self.config.shell.clone(),
+                shell_style_profiles: self.config.shell_style_profiles.clone(),
                 network: self.config.network.clone(),
                 collaboration_mode: self.current_collaboration_mode(),
             };
@@ -1592,6 +1597,7 @@ impl ChatWidget<'_> {
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
@@ -1637,6 +1643,7 @@ impl ChatWidget<'_> {
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };

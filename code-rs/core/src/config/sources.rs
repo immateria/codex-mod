@@ -7,6 +7,8 @@ use crate::config_types::{
     McpServerConfig,
     McpServerTransportConfig,
     ReasoningEffort,
+    SettingsMenuConfig,
+    SettingsMenuOpenMode,
     ShellConfig,
     ShellScriptStyle,
     StatusLineLane,
@@ -1275,6 +1277,38 @@ pub fn set_tui_limits_layout_mode(
         LimitsLayoutMode::SingleColumn => "single-column",
     };
     doc["tui"]["limits"]["layout_mode"] = toml_edit::value(mode);
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+
+    Ok(())
+}
+
+/// Persist Settings UI routing preferences into `CODEX_HOME/config.toml` at
+/// `[tui.settings_menu]`.
+pub fn set_tui_settings_menu(
+    code_home: &Path,
+    settings_menu: &SettingsMenuConfig,
+) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let open_mode = match settings_menu.open_mode {
+        SettingsMenuOpenMode::Auto => "auto",
+        SettingsMenuOpenMode::Overlay => "overlay",
+        SettingsMenuOpenMode::Bottom => "bottom",
+    };
+
+    doc["tui"]["settings_menu"]["open_mode"] = toml_edit::value(open_mode);
+    doc["tui"]["settings_menu"]["overlay_min_width"] =
+        toml_edit::value(settings_menu.overlay_min_width as i64);
 
     std::fs::create_dir_all(code_home)?;
     let tmp_file = NamedTempFile::new_in(code_home)?;

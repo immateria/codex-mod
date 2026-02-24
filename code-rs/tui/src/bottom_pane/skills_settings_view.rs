@@ -9,7 +9,7 @@ use code_core::config::{
     set_shell_style_profile_skill_mode,
     ShellStyleSkillMode,
 };
-use code_core::config_types::{ShellScriptStyle, ShellStyleProfileConfig};
+use code_core::config_types::{CommandSafetyProfileConfig, ShellScriptStyle, ShellStyleProfileConfig};
 use code_core::protocol::Op;
 use code_protocol::skills::{Skill, SkillScope};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
@@ -1902,6 +1902,8 @@ impl SkillsSettingsView {
 
         self.style_field.set_text(&shell_style);
 
+        let shell_style_profiles_before = self.shell_style_profiles.clone();
+
         let mut profile_warning: Option<String> = None;
         let mut style_profile_aliases: Vec<String> = Vec::new();
         if let Some(previous_skill) = existing_skill.as_ref() {
@@ -1993,6 +1995,11 @@ impl SkillsSettingsView {
         });
 
         self.app_event_tx.send(AppEvent::CodexOp(Op::ListSkills));
+        if self.shell_style_profiles != shell_style_profiles_before {
+            self.app_event_tx.send(AppEvent::UpdateShellStyleProfiles {
+                shell_style_profiles: self.shell_style_profiles.clone(),
+            });
+        }
     }
 
     fn delete_current(&mut self) {
@@ -2030,6 +2037,8 @@ impl SkillsSettingsView {
                 self.selected = self.skills.len() - 1;
             }
         }
+
+        let shell_style_profiles_before = self.shell_style_profiles.clone();
 
         let mut delete_warning: Option<String> = None;
         let deleted_skill_name = skill_slug(&skill);
@@ -2071,6 +2080,11 @@ impl SkillsSettingsView {
         });
 
         self.app_event_tx.send(AppEvent::CodexOp(Op::ListSkills));
+        if self.shell_style_profiles != shell_style_profiles_before {
+            self.app_event_tx.send(AppEvent::UpdateShellStyleProfiles {
+                shell_style_profiles: self.shell_style_profiles.clone(),
+            });
+        }
     }
 }
 
@@ -2320,6 +2334,8 @@ fn style_profile_is_empty(profile: &ShellStyleProfileConfig) -> bool {
         && profile.skill_roots.is_empty()
         && profile.mcp_servers.include.is_empty()
         && profile.mcp_servers.exclude.is_empty()
+        && profile.command_safety == CommandSafetyProfileConfig::default()
+        && profile.dangerous_command_detection.is_none()
 }
 
 fn append_warning(current: &mut Option<String>, message: String) {

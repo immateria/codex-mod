@@ -1,6 +1,16 @@
 use super::*;
-use crate::bottom_pane::NetworkSettingsView;
-use crate::chatwidget::settings_overlay::NetworkSettingsContent;
+use crate::bottom_pane::{
+    InterfaceSettingsView,
+    NetworkSettingsView,
+    ShellSelectionView,
+    SettingsMenuRow,
+    SettingsOverviewView,
+};
+use crate::chatwidget::settings_overlay::{
+    InterfaceSettingsContent,
+    NetworkSettingsContent,
+    ShellSettingsContent,
+};
 
 impl ChatWidget<'_> {
     fn mcp_tool_definition_for(
@@ -68,6 +78,8 @@ impl ChatWidget<'_> {
         overlay.set_model_content(self.build_model_settings_content());
         overlay.set_planning_content(self.build_planning_settings_content());
         overlay.set_theme_content(self.build_theme_settings_content());
+        overlay.set_interface_content(self.build_interface_settings_content());
+        overlay.set_shell_content(self.build_shell_settings_content());
         if let Some(update_content) = self.build_updates_settings_content() {
             overlay.set_updates_content(update_content);
         }
@@ -98,16 +110,19 @@ impl ChatWidget<'_> {
         }
     }
 
-    pub(crate) fn show_settings_overlay(&mut self, section: Option<SettingsSection>) {
-        // TODO(responsive-settings): Route between overlay and bottom pane based on
-        // terminal width and a user-configurable preference. Today we route to
-        // bottom pane when possible and fall back to the overlay for unsupported
-        // sections.
-        if let Some(section) = section
-            && self.open_settings_section_in_bottom_pane(section) {
-                return;
+    fn should_open_settings_overlay(&self) -> bool {
+        use code_core::config_types::SettingsMenuOpenMode;
+        match self.config.tui.settings_menu.open_mode {
+            SettingsMenuOpenMode::Overlay => true,
+            SettingsMenuOpenMode::Bottom => false,
+            SettingsMenuOpenMode::Auto => {
+                let width = self.layout.last_frame_width.get();
+                width >= self.config.tui.settings_menu.overlay_min_width
             }
+        }
+    }
 
+    fn show_settings_overlay_view(&mut self, section: Option<SettingsSection>) {
         let initial_section = section
             .or_else(|| {
                 self.settings
@@ -123,6 +138,45 @@ impl ChatWidget<'_> {
 
         self.settings.overlay = Some(overlay);
         self.request_redraw();
+    }
+
+    fn show_settings_bottom_pane(&mut self, section: Option<SettingsSection>) {
+        let initial_section = section
+            .or_else(|| {
+                self.settings
+                    .overlay
+                    .as_ref()
+                    .map(super::settings_overlay::SettingsOverlayView::active_section)
+            })
+            .unwrap_or(SettingsSection::Model);
+
+        if let Some(section) = section {
+            if self.open_settings_section_in_bottom_pane(section) {
+                return;
+            }
+            // Some sections only exist in the overlay; fall back.
+            self.show_settings_overlay_view(Some(section));
+            return;
+        }
+
+        let rows = self
+            .build_settings_overview_rows()
+            .into_iter()
+            .map(|row| SettingsMenuRow {
+                section: row.section,
+                summary: row.summary,
+            })
+            .collect();
+        let view = SettingsOverviewView::new(rows, initial_section, self.app_event_tx.clone());
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_overview(view));
+    }
+
+    pub(crate) fn show_settings_overlay(&mut self, section: Option<SettingsSection>) {
+        if self.should_open_settings_overlay() {
+            self.show_settings_overlay_view(section);
+        } else {
+            self.show_settings_bottom_pane(section);
+        }
     }
 
     pub(crate) fn ensure_settings_overlay_section(&mut self, section: SettingsSection) {
@@ -169,6 +223,20 @@ impl ChatWidget<'_> {
             before_ticket,
         );
         ThemeSettingsContent::new(view)
+    }
+
+    pub(super) fn build_interface_settings_view(&mut self) -> InterfaceSettingsView {
+        InterfaceSettingsView::new(self.config.tui.settings_menu.clone(), self.app_event_tx.clone())
+    }
+
+    pub(super) fn build_interface_settings_content(&mut self) -> InterfaceSettingsContent {
+        InterfaceSettingsContent::new(self.build_interface_settings_view())
+    }
+
+    pub(super) fn build_shell_settings_content(&mut self) -> ShellSettingsContent {
+        let presets = self.available_shell_presets();
+        let view = ShellSelectionView::new(self.config.shell.clone(), presets, self.app_event_tx.clone());
+        ShellSettingsContent::new(view)
     }
 
     pub(super) fn build_notifications_settings_view(&mut self) -> NotificationsSettingsView {
@@ -540,6 +608,8 @@ impl ChatWidget<'_> {
                 let summary = match section {
                     SettingsSection::Model         => self.settings_summary_model(),
                     SettingsSection::Theme         => self.settings_summary_theme(),
+                    SettingsSection::Interface     => self.settings_summary_interface(),
+                    SettingsSection::Shell         => self.settings_summary_shell(),
                     SettingsSection::Planning      => self.settings_summary_planning(),
                     SettingsSection::Updates       => self.settings_summary_updates(),
                     SettingsSection::Accounts      => self.settings_summary_accounts(),
@@ -558,6 +628,32 @@ impl ChatWidget<'_> {
                 SettingsOverviewRow::new(section, summary)
             })
             .collect()
+    }
+
+    pub(super) fn settings_summary_shell(&self) -> Option<String> {
+        match self.config.shell.as_ref() {
+            Some(shell) => {
+                let style = shell
+                    .script_style
+                    .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path))
+                    .map(|style| style.to_string())
+                    .unwrap_or_else(|| "auto".to_string());
+                Some(format!("Shell: {} · Style: {style}", shell.path))
+            }
+            None => Some("Shell: auto".to_string()),
+        }
+    }
+
+    pub(super) fn settings_summary_interface(&self) -> Option<String> {
+        let settings = &self.config.tui.settings_menu;
+        let width = settings.overlay_min_width;
+        match settings.open_mode {
+            code_core::config_types::SettingsMenuOpenMode::Auto => {
+                Some(format!("Mode: auto · Overlay >= {width}"))
+            }
+            code_core::config_types::SettingsMenuOpenMode::Overlay => Some("Mode: overlay".to_string()),
+            code_core::config_types::SettingsMenuOpenMode::Bottom => Some("Mode: bottom".to_string()),
+        }
     }
 
     pub(super) fn settings_summary_network(&self) -> Option<String> {
@@ -842,6 +938,15 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    pub(crate) fn apply_tui_settings_menu(
+        &mut self,
+        settings: code_core::config_types::SettingsMenuConfig,
+    ) {
+        self.config.tui.settings_menu = settings;
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
     pub(super) fn format_reasoning_effort(effort: ReasoningEffort) -> &'static str {
         match effort {
             ReasoningEffort::Minimal | ReasoningEffort::None => "Minimal",
@@ -1030,6 +1135,20 @@ impl ChatWidget<'_> {
         })
     }
 
+    fn open_shell_settings_section(&mut self) -> bool {
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane
+                .show_shell_selection(this.config.shell.clone(), this.available_shell_presets());
+        })
+    }
+
+    fn open_interface_settings_section(&mut self) -> bool {
+        let view = self.build_interface_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_interface_settings(view);
+        })
+    }
+
     fn open_mcp_settings_section(&mut self) -> bool {
         let Some(rows) = self.build_mcp_server_rows() else {
             return false;
@@ -1044,6 +1163,8 @@ impl ChatWidget<'_> {
         match section {
             SettingsSection::Model                              => self.open_model_settings_section(),
             SettingsSection::Theme                              => self.open_theme_settings_section(),
+            SettingsSection::Interface                          => self.open_interface_settings_section(),
+            SettingsSection::Shell                              => self.open_shell_settings_section(),
             SettingsSection::Updates                            => self.open_updates_settings_section(),
             SettingsSection::Accounts                           => false,
             SettingsSection::Prompts                            => self.open_prompts_settings_section(),
@@ -1071,10 +1192,6 @@ impl ChatWidget<'_> {
             None => return false,
         };
 
-        if self.open_settings_section_in_bottom_pane(section) {
-            return true;
-        }
-
         let handled = match section {
             SettingsSection::Agents => {
                 self.show_agents_overview_ui();
@@ -1090,6 +1207,8 @@ impl ChatWidget<'_> {
             }
             SettingsSection::Model
             | SettingsSection::Theme
+            | SettingsSection::Interface
+            | SettingsSection::Shell
             | SettingsSection::Planning
             | SettingsSection::Updates
             | SettingsSection::Review

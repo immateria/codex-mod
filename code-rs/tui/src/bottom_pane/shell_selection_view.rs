@@ -13,6 +13,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 use code_common::shell_presets::ShellPreset;
 use code_core::config_types::ShellConfig;
+use code_core::split_command_and_args;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
@@ -162,14 +163,15 @@ impl ShellSelectionView {
     }
 
     fn submit_custom_path(&mut self) {
-        let path = self.custom_input.trim().to_string();
+        let (path, args) = split_command_and_args(self.custom_input.as_str());
+        let path = path.trim().to_string();
         if path.is_empty() {
             return;
         }
 
         self.app_event_tx.send(AppEvent::UpdateShellSelection {
             path,
-            args: vec![],
+            args,
             script_style: None,
         });
         self.send_closed(true);
@@ -199,7 +201,7 @@ impl ShellSelectionView {
         None
     }
 
-    fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent) -> bool {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent) -> bool {
         if self.custom_input_mode {
             return false;
         }
@@ -297,7 +299,7 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
 }
 
 impl ShellSelectionView {
-    fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+    pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         if self.custom_input_mode {
             return match (key_event.code, key_event.modifiers) {
                 (KeyCode::Esc, _) => {
@@ -340,6 +342,23 @@ impl ShellSelectionView {
             }
             _ => false,
         }
+    }
+
+    pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
+        if !self.custom_input_mode {
+            return false;
+        }
+
+        if text.is_empty() {
+            return false;
+        }
+
+        self.custom_input.push_str(&text);
+        true
+    }
+
+    pub(crate) fn is_complete(&self) -> bool {
+        self.is_complete
     }
 
     fn render_custom_input(&self, area: Rect, buf: &mut Buffer) {

@@ -1029,6 +1029,7 @@ impl Codex {
             demo_developer_message: config.demo_developer_message.clone(),
             dynamic_tools: config.dynamic_tools.clone(),
             shell: config.shell.clone(),
+            shell_style_profiles: config.shell_style_profiles.clone(),
             network: config.network.clone(),
             collaboration_mode: crate::protocol::CollaborationModeKind::from_sandbox_policy(
                 &config.sandbox_policy,

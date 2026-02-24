@@ -65,9 +65,6 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
         match key_event.code {
             KeyCode::Enter => {
                 let section = overlay.active_section();
-                if chat.open_settings_section_in_bottom_pane(section) {
-                    return true;
-                }
                 {
                     let Some(overlay) = chat.settings.overlay.as_mut() else {
                         return true;

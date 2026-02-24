@@ -6,6 +6,8 @@ impl SettingsSection {
             "model" | "models" => Some(SettingsSection::Model),
             "skill" | "skills" => Some(SettingsSection::Skills),
             "theme" | "themes" => Some(SettingsSection::Theme),
+            "ui" | "interface" | "layout" | "settings-ui" => Some(SettingsSection::Interface),
+            "shell" | "shells" => Some(SettingsSection::Shell),
             "planning" | "plan" => Some(SettingsSection::Planning),
             "update" | "updates" => Some(SettingsSection::Updates),
             "account" | "accounts" | "auth" => Some(SettingsSection::Accounts),

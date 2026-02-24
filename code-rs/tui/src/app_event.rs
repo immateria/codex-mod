@@ -2,6 +2,9 @@ use code_core::config_types::AutoDriveModelRoutingEntry;
 use code_core::config_types::AuthCredentialsStoreMode;
 use code_core::config_types::ReasoningEffort;
 use code_core::config_types::ShellConfig;
+use code_core::config_types::ShellScriptStyle;
+use code_core::config_types::ShellStyleProfileConfig;
+use code_core::config_types::SettingsMenuConfig;
 use code_core::config_types::StatusLineLane;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
@@ -19,6 +22,7 @@ use crossterm::event::KeyEvent;
 use crossterm::event::MouseEvent;
 use ratatui::text::Line;
 use crate::streaming::StreamKind;
+use crate::bottom_pane::SettingsSection;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ModelSelectionKind {
@@ -48,6 +52,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::Sender as StdSender;
 use crate::cloud_tasks_service::CloudEnvironment;
 use crate::resume::discovery::ResumeCandidate;
+use std::collections::HashMap;
 
 /// Wrapper to allow including non-Debug types in Debug enums without leaking internals.
 pub(crate) struct Redacted<T>(pub T);
@@ -259,6 +264,9 @@ pub(crate) enum AppEvent {
     CloseAutoDriveSettings,
     AutoDriveSettingsChanged(AutoDriveSettingsUpdate),
 
+    /// Open the Settings UI without writing the action to conversation history.
+    OpenSettings { section: Option<SettingsSection> },
+
     /// Dispatch a recognized slash command from the UI (composer) to the app
     /// layer so it can be handled centrally. Includes the full command text.
     DispatchCommand(SlashCommand, String),
@@ -374,6 +382,11 @@ pub(crate) enum AppEvent {
     /// Shell selection UI closed
     ShellSelectionClosed {
         confirmed: bool,
+    },
+
+    /// Update shell-style profiles for the running session.
+    UpdateShellStyleProfiles {
+        shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
     },
 
     /// Open the shell selector overlay
@@ -731,6 +744,7 @@ pub(crate) enum AppEvent {
     },
     SetAutoUpgradeEnabled(bool),
     SetNetworkProxySettings(NetworkProxySettingsToml),
+    SetTuiSettingsMenuConfig(SettingsMenuConfig),
     StatusLineSetup {
         top_items: Vec<StatusLineItem>,
         bottom_items: Vec<StatusLineItem>,

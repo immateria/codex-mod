@@ -16,6 +16,7 @@ pub(crate) use self::chrome::ChromeSettingsContent;
 pub(crate) use self::contents::{
     AccountsSettingsContent,
     AutoDriveSettingsContent,
+    InterfaceSettingsContent,
     McpSettingsContent,
     ModelSettingsContent,
     NetworkSettingsContent,
@@ -23,6 +24,7 @@ pub(crate) use self::contents::{
     PlanningSettingsContent,
     PromptsSettingsContent,
     ReviewSettingsContent,
+    ShellSettingsContent,
     SkillsSettingsContent,
     ThemeSettingsContent,
     UpdatesSettingsContent,
@@ -41,6 +43,8 @@ pub(crate) struct SettingsOverlayView {
     model_content: Option<ModelSettingsContent>,
     planning_content: Option<PlanningSettingsContent>,
     theme_content: Option<ThemeSettingsContent>,
+    interface_content: Option<InterfaceSettingsContent>,
+    shell_content: Option<ShellSettingsContent>,
     updates_content: Option<UpdatesSettingsContent>,
     notifications_content: Option<NotificationsSettingsContent>,
     accounts_content: Option<AccountsSettingsContent>,
@@ -81,6 +85,8 @@ impl SettingsOverlayView {
             model_content: None,
             planning_content: None,
             theme_content: None,
+            interface_content: None,
+            shell_content: None,
             updates_content: None,
             notifications_content: None,
             accounts_content: None,
@@ -166,6 +172,14 @@ impl SettingsOverlayView {
 
     pub(crate) fn set_theme_content(&mut self, content: ThemeSettingsContent) {
         self.theme_content = Some(content);
+    }
+
+    pub(crate) fn set_interface_content(&mut self, content: InterfaceSettingsContent) {
+        self.interface_content = Some(content);
+    }
+
+    pub(crate) fn set_shell_content(&mut self, content: ShellSettingsContent) {
+        self.shell_content = Some(content);
     }
 
     pub(crate) fn set_updates_content(&mut self, content: UpdatesSettingsContent) {
@@ -321,6 +335,14 @@ impl SettingsOverlayView {
         match self.active_section() {
             SettingsSection::Model => self
                 .model_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::Interface => self
+                .interface_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::Shell => self
+                .shell_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Planning => self

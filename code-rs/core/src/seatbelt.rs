@@ -500,7 +500,7 @@ mod tests {
             "-lc".to_string(),
             "echo hi".to_string(),
         ];
-        let args = super::build_seatbelt_args(command.clone(), &policy, cwd, true, &env);
+        let args = super::build_seatbelt_args(command, &policy, cwd, true, &env);
 
         assert_eq!(args[0], "-p");
         assert!(

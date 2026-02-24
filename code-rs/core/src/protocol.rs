@@ -23,6 +23,8 @@ use uuid::Uuid;
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use crate::config_types::ShellConfig;
+use crate::config_types::ShellScriptStyle;
+use crate::config_types::ShellStyleProfileConfig;
 use crate::config_types::TextVerbosity as TextVerbosityConfig;
 use crate::message_history::HistoryEntry;
 use crate::model_provider_info::ModelProviderInfo;
@@ -171,6 +173,10 @@ pub enum Op {
         #[serde(skip_serializing_if = "Option::is_none")]
         #[serde(default)]
         shell: Option<ShellConfig>,
+
+        /// Optional shell-style-specific resource profiles keyed by style.
+        #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+        shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
 
         /// Optional managed network proxy settings for this session.
         #[serde(skip_serializing_if = "Option::is_none")]

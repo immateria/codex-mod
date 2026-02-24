@@ -1,4 +1,5 @@
 use super::*;
+use code_core::config_types::ShellStyleProfileConfig;
 
 impl ChatWidget<'_> {
 
@@ -174,6 +175,7 @@ impl ChatWidget<'_> {
             demo_developer_message: self.config.demo_developer_message.clone(),
             dynamic_tools: Vec::new(),
             shell: self.config.shell.clone(),
+            shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
@@ -211,6 +213,16 @@ impl ChatWidget<'_> {
         self.request_redraw();
         self.submit_configure_session_for_current_settings();
         self.persist_shell_config(shell, previous_shell);
+    }
+
+    pub(crate) fn apply_shell_style_profiles(
+        &mut self,
+        shell_style_profiles: std::collections::HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+    ) {
+        self.config.shell_style_profiles = shell_style_profiles;
+        self.submit_configure_session_for_current_settings();
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
     }
 
     pub(crate) fn apply_network_proxy_settings(

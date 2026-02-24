@@ -904,6 +904,36 @@ impl App<'_> {
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::SetTuiSettingsMenuConfig(settings) => {
+                    match code_core::config::set_tui_settings_menu(&self.config.code_home, &settings) {
+                        Ok(()) => {
+                            self.config.tui.settings_menu = settings.clone();
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.apply_tui_settings_menu(settings.clone());
+                                let mode = match settings.open_mode {
+                                    code_core::config_types::SettingsMenuOpenMode::Auto => {
+                                        format!("auto (>= {})", settings.overlay_min_width)
+                                    }
+                                    code_core::config_types::SettingsMenuOpenMode::Overlay => {
+                                        "overlay".to_string()
+                                    }
+                                    code_core::config_types::SettingsMenuOpenMode::Bottom => {
+                                        "bottom".to_string()
+                                    }
+                                };
+                                widget.flash_footer_notice(format!("Settings UI: {mode}"));
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to persist settings UI preferences: {err}",
+                                ));
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::StatusLineSetup {
                     top_items,
                     bottom_items,
@@ -1214,6 +1244,11 @@ impl App<'_> {
                 } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.perform_undo_restore(commit.as_deref(), restore_files, restore_conversation);
+                    }
+                }
+                AppEvent::OpenSettings { section } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.show_settings_overlay(section);
                     }
                 }
                 AppEvent::DispatchCommand(command, command_text) => {
@@ -1727,6 +1762,12 @@ impl App<'_> {
                 AppEvent::ShellSelectionClosed { confirmed } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.on_shell_selection_closed(confirmed);
+                    }
+                }
+                AppEvent::UpdateShellStyleProfiles { shell_style_profiles } => {
+                    self.config.shell_style_profiles = shell_style_profiles.clone();
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apply_shell_style_profiles(shell_style_profiles);
                     }
                 }
                 AppEvent::ShowShellSelector => {

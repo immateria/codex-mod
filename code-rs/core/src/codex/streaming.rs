@@ -409,6 +409,7 @@ pub(super) async fn submission_loop(
                 demo_developer_message,
                 dynamic_tools,
                 shell: shell_override,
+                shell_style_profiles,
                 network,
                 collaboration_mode,
             } => {
@@ -462,6 +463,7 @@ pub(super) async fn submission_loop(
                 updated_config.cwd = cwd.clone();
                 updated_config.dynamic_tools = dynamic_tools.clone();
                 updated_config.network = network.clone();
+                updated_config.shell_style_profiles = shell_style_profiles;
 
                 updated_config.network_proxy = match updated_config
                     .network

@@ -882,6 +882,45 @@ pub struct CachedTerminalBackground {
     pub rgb: Option<String>,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum SettingsMenuOpenMode {
+    /// Choose between the overlay and bottom-pane settings UIs based on the
+    /// current terminal width.
+    #[default]
+    Auto,
+    /// Always open the full-screen settings overlay ("big menu").
+    Overlay,
+    /// Always open the bottom-pane settings UI ("bottom menu") when possible.
+    Bottom,
+}
+
+fn default_settings_overlay_min_width() -> u16 {
+    100
+}
+
+/// Settings UI routing preferences under `[tui.settings_menu]`.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+pub struct SettingsMenuConfig {
+    /// Which settings UI to open by default.
+    #[serde(default)]
+    pub open_mode: SettingsMenuOpenMode,
+
+    /// Minimum terminal width (columns) to prefer the overlay UI when
+    /// `open_mode = "auto"`.
+    #[serde(default = "default_settings_overlay_min_width")]
+    pub overlay_min_width: u16,
+}
+
+impl Default for SettingsMenuConfig {
+    fn default() -> Self {
+        Self {
+            open_mode: SettingsMenuOpenMode::default(),
+            overlay_min_width: default_settings_overlay_min_width(),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct Tui {
     /// Theme configuration for the TUI
@@ -979,6 +1018,10 @@ pub struct Tui {
     /// Rate-limit panel layout preferences for the settings overlay.
     #[serde(default)]
     pub limits: LimitsUiConfig,
+
+    /// Routing preferences for the Settings UI (overlay vs bottom pane).
+    #[serde(default)]
+    pub settings_menu: SettingsMenuConfig,
 }
 
 /// Branding options under `[tui.branding]`.
@@ -1094,6 +1137,7 @@ impl Default for Tui {
             shell_presets: Vec::new(),
             shell_presets_file: None,
             limits: LimitsUiConfig::default(),
+            settings_menu: SettingsMenuConfig::default(),
         }
     }
 }
