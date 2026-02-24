@@ -18,7 +18,7 @@ use chrono::Utc;
 use ratatui::text::Line;
 use std::collections::VecDeque;
 use std::sync::mpsc::{self, Receiver};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 use tokio::runtime::Runtime;
 
 static TEST_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
@@ -123,10 +123,14 @@ impl ChatWidgetHarness {
     }
 
     pub fn handle_event(&mut self, event: Event) {
+        let runtime = &*TEST_RUNTIME;
+        let _guard = runtime.enter();
         self.chat.handle_code_event(event);
     }
 
     pub fn flush_into_widget(&mut self) {
+        let runtime = &*TEST_RUNTIME;
+        let _guard = runtime.enter();
         let mut queue: VecDeque<AppEvent> = self
             .drain_events()
             .into_iter()
@@ -270,6 +274,8 @@ impl ChatWidgetHarness {
     }
 
     pub fn send_key(&mut self, key_event: KeyEvent) {
+        let runtime = &*TEST_RUNTIME;
+        let _guard = runtime.enter();
         self.chat.handle_key_event(key_event);
         self.flush_into_widget();
     }
@@ -471,6 +477,12 @@ impl ChatWidgetHarness {
         self.chat.history_push_plain_state(state);
     }
 
+    pub fn push_user_prompt_with_id(&mut self, id: u64, message: impl Into<String>) {
+        let mut state = history_cell::new_user_prompt(message.into());
+        state.id = code_core::history::state::HistoryId(id);
+        self.chat.history_push_plain_state(state);
+    }
+
     pub fn push_background_event(&mut self, message: impl Into<String>) {
         let seq = self.next_helper_seq();
         self.handle_event(Event {
@@ -495,6 +507,47 @@ impl ChatWidgetHarness {
         lines.append(&mut rendered.lines);
         let state = history_cell::plain_message_state_from_lines(lines, HistoryCellType::Assistant);
         self.chat.history_push_plain_state(state);
+    }
+
+    pub fn push_assistant_message(&mut self, markdown: impl Into<String>) {
+        let state = code_core::history::state::AssistantMessageState {
+            id: code_core::history::state::HistoryId::ZERO,
+            stream_id: None,
+            markdown: markdown.into(),
+            citations: Vec::new(),
+            metadata: None,
+            token_usage: None,
+            mid_turn: false,
+            created_at: SystemTime::UNIX_EPOCH,
+        };
+        let cell = history_cell::AssistantMarkdownCell::from_state(state, &self.chat.config);
+        self.chat.history_push(cell);
+    }
+
+    pub fn push_merged_exec_state(&mut self, record: code_core::history::state::MergedExecRecord) {
+        let cell = history_cell::MergedExecCell::from_state(record);
+        self.chat.history_push(cell);
+    }
+
+    pub fn push_reasoning_state(
+        &mut self,
+        state: code_core::history::state::ReasoningState,
+        collapsed: bool,
+    ) {
+        let cell = history_cell::CollapsibleReasoningCell::from_state(state);
+        cell.set_collapsed(collapsed);
+        self.chat.history_push(cell);
+    }
+
+    pub fn push_web_fetch_tool_call(&mut self, result: impl Into<String>) {
+        let cell = history_cell::new_completed_web_fetch_tool_call(
+            &self.chat.config,
+            None,
+            Duration::from_millis(50),
+            true,
+            result.into(),
+        );
+        self.chat.history_push(cell);
     }
 
     pub fn auto_drive_activate(

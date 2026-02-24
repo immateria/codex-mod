@@ -5,7 +5,6 @@ use crate::markdown_renderer::MarkdownRenderer;
 use code_core::config::Config;
 use ratatui::style::Style;
 use ratatui::text::Span;
-use unicode_width::UnicodeWidthStr;
 use code_core::config_types::UriBasedFileOpener;
 use ratatui::text::Line;
 use std::borrow::Cow;
@@ -80,15 +79,13 @@ pub(crate) fn append_markdown_with_opener_and_cwd_and_bold(
                 // Apply a solid background and pad trailing spaces so the block forms
                 // a rectangle up to the longest line in this code section.
                 let code_bg = crate::colors::code_block_bg();
-                let mut highlighted = crate::syntax_highlight::highlight_code_block(&content, lang);
-                // Compute max display width (in terminal cells) across lines
-                let max_w: usize = highlighted
-                    .iter()
-                    .map(|l| l.spans.iter().map(|s| UnicodeWidthStr::width(s.content.as_ref())).sum::<usize>())
-                    .max()
-                    .unwrap_or(0);
+                let crate::syntax_highlight::HighlightedCodeBlock {
+                    lines: mut highlighted_lines,
+                    line_widths,
+                    max_width,
+                } = crate::syntax_highlight::highlight_code_block_with_metrics(&content, lang);
                 // No extra horizontal padding; use exact content width.
-                let target_w = max_w;
+                let target_w = max_width;
 
                 // When fenced and language is known, emit a hidden sentinel line so the
                 // downstream renderer can surface a border + title without losing lang info.
@@ -99,17 +96,13 @@ pub(crate) fn append_markdown_with_opener_and_cwd_and_bold(
                 }
 
                 if fenced {
-                    for l in highlighted.iter_mut() {
+                    for (idx, l) in highlighted_lines.iter_mut().enumerate() {
                         // Apply background to all existing spans instead of the line,
                         // so the painted region matches our explicit padding width.
                         for sp in l.spans.iter_mut() {
                             sp.style = sp.style.bg(code_bg);
                         }
-                        let w: usize = l
-                            .spans
-                            .iter()
-                            .map(|s| UnicodeWidthStr::width(s.content.as_ref()))
-                            .sum();
+                        let w = line_widths.get(idx).copied().unwrap_or(0);
                         if target_w > w {
                             let pad = " ".repeat(target_w - w);
                             l.spans.push(Span::styled(pad, Style::default().bg(code_bg)));
@@ -118,11 +111,11 @@ pub(crate) fn append_markdown_with_opener_and_cwd_and_bold(
                             l.spans.push(Span::styled(" ", Style::default().bg(code_bg)));
                         }
                     }
-                    lines.extend(highlighted);
+                    lines.extend(highlighted_lines);
                 } else {
                     // Non‑fenced (indented) blocks: do NOT convert to code cards.
                     // Preserve exact text and any syntax highlighting FG, but no background.
-                    lines.extend(highlighted);
+                    lines.extend(highlighted_lines);
                 }
             }
         }

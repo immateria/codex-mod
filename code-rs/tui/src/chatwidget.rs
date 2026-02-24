@@ -122,6 +122,11 @@ mod running_tools;
 mod tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod smoke_helpers;
+#[cfg(feature = "test-helpers")]
+pub(crate) use self::history_render::{
+    history_layout_cache_stats_for_test,
+    reset_history_layout_cache_stats_for_test,
+};
 
 #[cfg(test)]
 pub(crate) use self::esc::EscIntent;

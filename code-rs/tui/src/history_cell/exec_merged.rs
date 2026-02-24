@@ -1,7 +1,7 @@
 use ratatui::prelude::{Buffer, Rect};
 use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, Borders, Padding, Paragraph, Widget, Wrap};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Padding, Widget};
 
 use crate::history::compat::{
     ExecAction,
@@ -10,12 +10,32 @@ use crate::history::compat::{
     HistoryId,
     MergedExecRecord,
 };
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::{fill_rect, write_line};
 
 use super::core::{ExecKind, HistoryCell, HistoryCellType};
 use super::exec::ExecCell;
 use super::exec_helpers::coalesce_read_ranges_in_lines_local;
 use super::formatting::trim_empty_lines;
+
+#[cfg(feature = "code-fork")]
+use crate::foundation::wrapping::word_wrap_lines;
+#[cfg(not(feature = "code-fork"))]
+use crate::insert_history::word_wrap_lines;
+
+#[cfg(feature = "test-helpers")]
+thread_local! {
+    static MERGED_EXEC_LAYOUT_BUILDS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn reset_merged_exec_layout_builds_for_test() {
+    MERGED_EXEC_LAYOUT_BUILDS.with(|c| c.set(0));
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn merged_exec_layout_builds_for_test() -> u64 {
+    MERGED_EXEC_LAYOUT_BUILDS.with(std::cell::Cell::get)
+}
 
 // ==================== MergedExecCell ====================
 // Represents multiple completed exec results merged into one cell while preserving
@@ -48,10 +68,20 @@ pub(crate) struct MergedExecCell {
     segments: Vec<MergedExecSegment>,
     kind: ExecKind,
     history_id: HistoryId,
+    layout_cache: std::cell::RefCell<MergedExecLayoutCacheEntry>,
 }
 
 impl MergedExecCell {
-    pub(crate) fn rebuild_with_theme(&self) {}
+    pub(crate) fn rebuild_with_theme(&self) {
+        self.invalidate_layout_cache();
+    }
+
+    fn invalidate_layout_cache(&self) {
+        *self.layout_cache.borrow_mut() = MergedExecLayoutCacheEntry {
+            width: 0,
+            layout: MergedExecLayout::default(),
+        };
+    }
 
     pub(crate) fn set_history_id(&mut self, id: HistoryId) {
         self.history_id = id;
@@ -78,6 +108,10 @@ impl MergedExecCell {
             segments: segments.into_iter().map(MergedExecSegment::new).collect(),
             kind: action.into(),
             history_id,
+            layout_cache: std::cell::RefCell::new(MergedExecLayoutCacheEntry {
+                width: 0,
+                layout: MergedExecLayout::default(),
+            }),
         }
     }
 
@@ -93,6 +127,126 @@ impl MergedExecCell {
             segments,
             kind,
             history_id,
+            layout_cache: std::cell::RefCell::new(MergedExecLayoutCacheEntry {
+                width: 0,
+                layout: MergedExecLayout::default(),
+            }),
+        }
+    }
+
+    fn ensure_layout_for_width(&self, width: u16) {
+        if width == 0 {
+            *self.layout_cache.borrow_mut() = MergedExecLayoutCacheEntry {
+                width,
+                layout: MergedExecLayout::default(),
+            };
+            return;
+        }
+
+        let needs_rebuild = self.layout_cache.borrow().width != width;
+        if !needs_rebuild {
+            return;
+        }
+
+        #[cfg(feature = "test-helpers")]
+        MERGED_EXEC_LAYOUT_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
+
+        let layout = self.compute_layout_for_width(width);
+        *self.layout_cache.borrow_mut() = MergedExecLayoutCacheEntry { width, layout };
+    }
+
+    fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, MergedExecLayout> {
+        self.ensure_layout_for_width(width);
+        std::cell::Ref::map(self.layout_cache.borrow(), |cache| &cache.layout)
+    }
+
+    fn compute_layout_for_width(&self, width: u16) -> MergedExecLayout {
+        if width == 0 {
+            return MergedExecLayout::default();
+        }
+
+        let header_total: u16 = if self.kind == ExecKind::Run { 0 } else { 1 };
+        let out_wrap_width = width.saturating_sub(2);
+
+        if let Some(agg_pre) = self.aggregated_read_preamble_lines() {
+            let pre_wrapped = word_wrap_lines(&agg_pre, width);
+            let pre_total = pre_wrapped.len().min(u16::MAX as usize) as u16;
+
+            let mut segments: Vec<MergedExecSegmentLayout> = Vec::with_capacity(self.segments.len());
+            let mut total = header_total.saturating_add(pre_total);
+            for segment in &self.segments {
+                let (_, out_raw) = segment.lines();
+                let out = trim_empty_lines(out_raw);
+                let out_wrapped = word_wrap_lines(&out, out_wrap_width);
+                let out_total = out_wrapped.len().min(u16::MAX as usize) as u16;
+                total = total.saturating_add(out_total);
+                segments.push(MergedExecSegmentLayout {
+                    pre_lines: Vec::new(),
+                    out_lines: out_wrapped,
+                    pre_total: 0,
+                    out_total,
+                });
+            }
+
+            return MergedExecLayout {
+                aggregated_preamble: Some(pre_wrapped),
+                aggregated_preamble_total: pre_total,
+                segments,
+                total_rows: total,
+            };
+        }
+
+        let mut segments: Vec<MergedExecSegmentLayout> = Vec::with_capacity(self.segments.len());
+        let mut total = header_total;
+        let mut added_corner = false;
+        for segment in &self.segments {
+            let (pre_raw, out_raw) = segment.lines();
+            let mut pre = trim_empty_lines(pre_raw);
+            if self.kind != ExecKind::Run && !pre.is_empty() {
+                pre.remove(0);
+            }
+            if self.kind != ExecKind::Run
+                && let Some(first) = pre.first_mut()
+            {
+                let flat: String = first.spans.iter().map(|s| s.content.as_ref()).collect();
+                let has_corner = flat.trim_start().starts_with("└ ");
+                let has_spaced_corner = flat.trim_start().starts_with("  └ ");
+                if !added_corner {
+                    if !(has_corner || has_spaced_corner) {
+                        first.spans.insert(
+                            0,
+                            Span::styled("└ ", Style::default().fg(crate::colors::text_dim())),
+                        );
+                    }
+                    added_corner = true;
+                } else if let Some(sp0) = first.spans.get_mut(0)
+                    && sp0.content.as_ref() == "└ "
+                {
+                    sp0.content = "  ".into();
+                    sp0.style = sp0.style.add_modifier(Modifier::DIM);
+                }
+            }
+
+            let out = trim_empty_lines(out_raw);
+
+            let pre_wrapped = word_wrap_lines(&pre, width);
+            let out_wrapped = word_wrap_lines(&out, out_wrap_width);
+            let pre_total = pre_wrapped.len().min(u16::MAX as usize) as u16;
+            let out_total = out_wrapped.len().min(u16::MAX as usize) as u16;
+            total = total.saturating_add(pre_total).saturating_add(out_total);
+            segments.push(MergedExecSegmentLayout {
+                pre_lines: pre_wrapped,
+                out_lines: out_wrapped,
+                pre_total,
+                out_total,
+            });
+        }
+
+        MergedExecLayout {
+            aggregated_preamble: None,
+            aggregated_preamble_total: 0,
+            segments,
+            total_rows: total,
         }
     }
 
@@ -184,6 +338,26 @@ impl MergedExecCell {
     }
 }
 
+#[derive(Default)]
+struct MergedExecLayout {
+    aggregated_preamble: Option<Vec<Line<'static>>>,
+    aggregated_preamble_total: u16,
+    segments: Vec<MergedExecSegmentLayout>,
+    total_rows: u16,
+}
+
+struct MergedExecSegmentLayout {
+    pre_lines: Vec<Line<'static>>,
+    out_lines: Vec<Line<'static>>,
+    pre_total: u16,
+    out_total: u16,
+}
+
+struct MergedExecLayoutCacheEntry {
+    width: u16,
+    layout: MergedExecLayout,
+}
+
 impl HistoryCell for MergedExecCell {
     fn as_any(&self) -> &dyn std::any::Any {
         self
@@ -198,72 +372,7 @@ impl HistoryCell for MergedExecCell {
         }
     }
     fn desired_height(&self, width: u16) -> u16 {
-        let header_rows = if self.kind == ExecKind::Run { 0 } else { 1 };
-        let pre_wrap_width = width;
-        let out_wrap_width = width.saturating_sub(2);
-        let mut total: u16 = header_rows;
-
-        if let Some(agg_pre) = self.aggregated_read_preamble_lines() {
-            let pre_rows: u16 = Paragraph::new(Text::from(agg_pre))
-                .wrap(Wrap { trim: false })
-                .line_count(pre_wrap_width)
-                .try_into()
-                .unwrap_or(0);
-            total = total.saturating_add(pre_rows);
-            for segment in &self.segments {
-                let (_, out_raw) = segment.lines();
-                let out = trim_empty_lines(out_raw);
-                let out_rows: u16 = Paragraph::new(Text::from(out))
-                    .wrap(Wrap { trim: false })
-                    .line_count(out_wrap_width)
-                    .try_into()
-                    .unwrap_or(0);
-                total = total.saturating_add(out_rows);
-            }
-            return total;
-        }
-
-        let mut added_corner = false;
-        for segment in &self.segments {
-            let (pre_raw, out_raw) = segment.lines();
-            let mut pre = trim_empty_lines(pre_raw);
-            if self.kind != ExecKind::Run && !pre.is_empty() {
-                pre.remove(0);
-            }
-            if self.kind != ExecKind::Run
-                && let Some(first) = pre.first_mut() {
-                    let flat: String = first.spans.iter().map(|s| s.content.as_ref()).collect();
-                    let has_corner = flat.trim_start().starts_with("└ ");
-                    let has_spaced_corner = flat.trim_start().starts_with("  └ ");
-                    if !added_corner {
-                        if !(has_corner || has_spaced_corner) {
-                            first.spans.insert(
-                                0,
-                                Span::styled("└ ", Style::default().fg(crate::colors::text_dim())),
-                            );
-                        }
-                        added_corner = true;
-                    } else if let Some(sp0) = first.spans.get_mut(0)
-                        && sp0.content.as_ref() == "└ " {
-                            sp0.content = "  ".into();
-                            sp0.style = sp0.style.add_modifier(Modifier::DIM);
-                        }
-                }
-            let out = trim_empty_lines(out_raw);
-            let pre_rows: u16 = Paragraph::new(Text::from(pre))
-                .wrap(Wrap { trim: false })
-                .line_count(pre_wrap_width)
-                .try_into()
-                .unwrap_or(0);
-            let out_rows: u16 = Paragraph::new(Text::from(out))
-                .wrap(Wrap { trim: false })
-                .line_count(out_wrap_width)
-                .try_into()
-                .unwrap_or(0);
-            total = total.saturating_add(pre_rows).saturating_add(out_rows);
-        }
-
-        total
+        self.layout_for_width(width).total_rows
     }
     fn display_lines(&self) -> Vec<Line<'static>> {
         let mut out: Vec<Line<'static>> = Vec::new();
@@ -285,6 +394,11 @@ impl HistoryCell for MergedExecCell {
             .bg(crate::colors::background())
             .fg(crate::colors::text());
         fill_rect(buf, area, Some(' '), bg);
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+
+        let layout = self.layout_for_width(area.width);
 
         // Build one header line based on exec kind
         let header_line = match self.kind {
@@ -310,19 +424,7 @@ impl HistoryCell for MergedExecCell {
         if let Some(header_line) = header_line {
             if skip_rows == 0 {
                 if cur_y < end_y {
-                    let txt = Text::from(vec![header_line]);
-                    Paragraph::new(txt)
-                        .block(Block::default().style(bg))
-                        .wrap(Wrap { trim: false })
-                        .render(
-                            Rect {
-                                x: area.x,
-                                y: cur_y,
-                                width: area.width,
-                                height: 1,
-                            },
-                            buf,
-                        );
+                    write_line(buf, area.x, cur_y, area.width, &header_line, bg);
                     cur_y = cur_y.saturating_add(1);
                 }
             } else {
@@ -330,190 +432,57 @@ impl HistoryCell for MergedExecCell {
             }
         }
 
-        let mut added_corner: bool = false;
-        let mut ensure_prefix = |lines: &mut Vec<Line<'static>>| {
-            if self.kind == ExecKind::Run {
-                return;
-            }
-            if let Some(first) = lines.first_mut() {
-                let flat: String = first.spans.iter().map(|s| s.content.as_ref()).collect();
-                let has_corner = flat.trim_start().starts_with("└ ");
-                let has_spaced_corner = flat.trim_start().starts_with("  └ ");
-                if !added_corner {
-                    if !(has_corner || has_spaced_corner) {
-                        first.spans.insert(
-                            0,
-                            Span::styled("└ ", Style::default().fg(crate::colors::text_dim())),
-                        );
-                    }
-                    added_corner = true;
-                } else {
-                    // For subsequent segments, replace any leading corner with two spaces
-                    if let Some(sp0) = first.spans.get_mut(0)
-                        && sp0.content.as_ref() == "└ " {
-                            sp0.content = "  ".into();
-                            sp0.style = sp0.style.add_modifier(Modifier::DIM);
-                        }
-                }
-            }
-        };
-
         // Special aggregated rendering for Read: collapse file ranges
-        if self.kind == ExecKind::Read
-            && let Some(agg_pre) = self.aggregated_read_preamble_lines() {
-                let pre_text = Text::from(agg_pre);
-                let pre_wrap_width = area.width;
-                let pre_total: u16 = Paragraph::new(pre_text.clone())
-                    .wrap(Wrap { trim: false })
-                    .line_count(pre_wrap_width)
-                    .try_into()
-                    .unwrap_or(0);
-                if cur_y < end_y {
-                    let pre_skip = skip_rows.min(pre_total);
-                    let pre_remaining = pre_total.saturating_sub(pre_skip);
-                    let pre_height = pre_remaining.min(end_y.saturating_sub(cur_y));
-                    if pre_height > 0 {
-                        Paragraph::new(pre_text)
-                            .block(Block::default().style(bg))
-                            .wrap(Wrap { trim: false })
-                            .scroll((pre_skip, 0))
-                            .style(bg)
-                            .render(
-                                Rect {
-                                    x: area.x,
-                                    y: cur_y,
-                                    width: area.width,
-                                    height: pre_height,
-                                },
-                                buf,
-                            );
-                        cur_y = cur_y.saturating_add(pre_height);
-                    }
-                    skip_rows = skip_rows.saturating_sub(pre_skip);
-                }
-
-                let out_wrap_width = area.width.saturating_sub(2);
-                for segment in &self.segments {
-                    if cur_y >= end_y {
-                        break;
-                    }
-                    let (_, out_raw) = segment.lines();
-                    let out = trim_empty_lines(out_raw);
-                    let out_text = Text::from(out.clone());
-                    let out_total: u16 = Paragraph::new(out_text.clone())
-                        .wrap(Wrap { trim: false })
-                        .line_count(out_wrap_width)
-                        .try_into()
-                        .unwrap_or(0);
-                    let out_skip = skip_rows.min(out_total);
-                    let out_remaining = out_total.saturating_sub(out_skip);
-                    let out_height = out_remaining.min(end_y.saturating_sub(cur_y));
-                    if out_height > 0 {
-                        let out_area = Rect {
-                            x: area.x,
-                            y: cur_y,
-                            width: area.width,
-                            height: out_height,
-                        };
-                        let block = Block::default()
-                            .borders(Borders::LEFT)
-                            .border_style(
-                                Style::default()
-                                    .fg(crate::colors::border_dim())
-                                    .bg(crate::colors::background()),
-                            )
-                            .style(Style::default().bg(crate::colors::background()))
-                            .padding(Padding {
-                                left: 1,
-                                right: 0,
-                                top: 0,
-                                bottom: 0,
-                            });
-                        Paragraph::new(out_text)
-                            .block(block)
-                            .wrap(Wrap { trim: false })
-                            .scroll((out_skip, 0))
-                            .style(
-                                Style::default()
-                                    .bg(crate::colors::background())
-                                    .fg(crate::colors::text_dim()),
-                            )
-                            .render(out_area, buf);
-                        cur_y = cur_y.saturating_add(out_height);
-                    }
-                    skip_rows = skip_rows.saturating_sub(out_skip);
-                }
-                return;
-            }
-
-            // Fallback: each segment retains its own preamble and output
-
-        for segment in &self.segments {
-            if cur_y >= end_y {
-                break;
-            }
-            let (pre_raw, out_raw) = segment.lines();
-            let mut pre = trim_empty_lines(pre_raw);
-            if self.kind != ExecKind::Run && !pre.is_empty() {
-                pre.remove(0);
-            }
-            ensure_prefix(&mut pre);
-
-            let out = trim_empty_lines(out_raw);
-            let out_text = Text::from(out.clone());
-
-            let pre_text = Text::from(pre.clone());
-            let pre_wrap_width = area.width;
-            let out_wrap_width = area.width.saturating_sub(2);
-            let pre_total: u16 = Paragraph::new(pre_text.clone())
-                .wrap(Wrap { trim: false })
-                .line_count(pre_wrap_width)
-                .try_into()
-                .unwrap_or(0);
-            let out_total: u16 = Paragraph::new(out_text.clone())
-                .wrap(Wrap { trim: false })
-                .line_count(out_wrap_width)
-                .try_into()
-                .unwrap_or(0);
-
-            // Apply skip to pre, then out
+        if let Some(agg_pre) = layout.aggregated_preamble.as_ref() {
+            let pre_total = layout.aggregated_preamble_total;
             let pre_skip = skip_rows.min(pre_total);
-            let out_skip = skip_rows.saturating_sub(pre_total).min(out_total);
+            skip_rows = skip_rows.saturating_sub(pre_skip);
 
-            // Render pre
-            let pre_remaining = pre_total.saturating_sub(pre_skip);
-            let pre_height = pre_remaining.min(end_y.saturating_sub(cur_y));
-            if pre_height > 0 {
-                Paragraph::new(pre_text)
-                    .block(Block::default().style(bg))
-                    .wrap(Wrap { trim: false })
-                    .scroll((pre_skip, 0))
-                    .style(bg)
-                    .render(
-                        Rect {
-                            x: area.x,
-                            y: cur_y,
-                            width: area.width,
-                            height: pre_height,
-                        },
-                        buf,
-                    );
-                cur_y = cur_y.saturating_add(pre_height);
+            if cur_y < end_y {
+                let pre_height = pre_total
+                    .saturating_sub(pre_skip)
+                    .min(end_y.saturating_sub(cur_y));
+                if pre_height > 0 {
+                    for (idx, line) in agg_pre
+                        .iter()
+                        .skip(pre_skip as usize)
+                        .take(pre_height as usize)
+                        .enumerate()
+                    {
+                        let y = cur_y.saturating_add(idx as u16);
+                        if y >= end_y {
+                            break;
+                        }
+                        write_line(buf, area.x, y, area.width, line, bg);
+                    }
+                    cur_y = cur_y.saturating_add(pre_height);
+                }
             }
 
-            if cur_y >= end_y {
-                break;
-            }
-            // Render out as bordered, dim block
-            let out_remaining = out_total.saturating_sub(out_skip);
-            let out_height = out_remaining.min(end_y.saturating_sub(cur_y));
-            if out_height > 0 {
+            let dim_style = Style::default()
+                .bg(crate::colors::background())
+                .fg(crate::colors::text_dim());
+
+            for segment in &layout.segments {
+                if cur_y >= end_y {
+                    break;
+                }
+                let out_total = segment.out_total;
+                let out_skip = skip_rows.min(out_total);
+                skip_rows = skip_rows.saturating_sub(out_skip);
+                let out_height = out_total
+                    .saturating_sub(out_skip)
+                    .min(end_y.saturating_sub(cur_y));
+                if out_height == 0 {
+                    continue;
+                }
                 let out_area = Rect {
                     x: area.x,
                     y: cur_y,
                     width: area.width,
                     height: out_height,
                 };
+                fill_rect(buf, out_area, Some(' '), dim_style);
                 let block = Block::default()
                     .borders(Borders::LEFT)
                     .border_style(
@@ -528,22 +497,115 @@ impl HistoryCell for MergedExecCell {
                         top: 0,
                         bottom: 0,
                     });
-                Paragraph::new(out_text)
-                    .block(block)
-                    .wrap(Wrap { trim: false })
-                    .scroll((out_skip, 0))
-                    .style(
-                        Style::default()
-                            .bg(crate::colors::background())
-                            .fg(crate::colors::text_dim()),
-                    )
-                    .render(out_area, buf);
+                let inner = block.inner(out_area);
+                block.render(out_area, buf);
+                if inner.width > 0 {
+                    for (idx, line) in segment
+                        .out_lines
+                        .iter()
+                        .skip(out_skip as usize)
+                        .take(out_height as usize)
+                        .enumerate()
+                    {
+                        let y = inner.y.saturating_add(idx as u16);
+                        if y >= inner.y.saturating_add(inner.height) {
+                            break;
+                        }
+                        write_line(buf, inner.x, y, inner.width, line, dim_style);
+                    }
+                }
                 cur_y = cur_y.saturating_add(out_height);
             }
+            return;
+        }
 
-            // Consume skip rows used in this segment
-            let consumed = pre_total + out_total;
-            skip_rows = skip_rows.saturating_sub(consumed);
+        // Fallback: each segment retains its own preamble and output
+
+        let dim_style = Style::default()
+            .bg(crate::colors::background())
+            .fg(crate::colors::text_dim());
+
+        for segment in &layout.segments {
+            if cur_y >= end_y {
+                break;
+            }
+            let pre_total = segment.pre_total;
+            let out_total = segment.out_total;
+
+            let pre_skip = skip_rows.min(pre_total);
+            skip_rows = skip_rows.saturating_sub(pre_skip);
+            let pre_height = pre_total
+                .saturating_sub(pre_skip)
+                .min(end_y.saturating_sub(cur_y));
+
+            if pre_height > 0 {
+                for (idx, line) in segment
+                    .pre_lines
+                    .iter()
+                    .skip(pre_skip as usize)
+                    .take(pre_height as usize)
+                    .enumerate()
+                {
+                    let y = cur_y.saturating_add(idx as u16);
+                    if y >= end_y {
+                        break;
+                    }
+                    write_line(buf, area.x, y, area.width, line, bg);
+                }
+                cur_y = cur_y.saturating_add(pre_height);
+            }
+
+            if cur_y >= end_y {
+                break;
+            }
+
+            let out_skip = skip_rows.min(out_total);
+            skip_rows = skip_rows.saturating_sub(out_skip);
+            let out_height = out_total
+                .saturating_sub(out_skip)
+                .min(end_y.saturating_sub(cur_y));
+
+            if out_height > 0 {
+                let out_area = Rect {
+                    x: area.x,
+                    y: cur_y,
+                    width: area.width,
+                    height: out_height,
+                };
+                fill_rect(buf, out_area, Some(' '), dim_style);
+                let block = Block::default()
+                    .borders(Borders::LEFT)
+                    .border_style(
+                        Style::default()
+                            .fg(crate::colors::border_dim())
+                            .bg(crate::colors::background()),
+                    )
+                    .style(Style::default().bg(crate::colors::background()))
+                    .padding(Padding {
+                        left: 1,
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                    });
+                let inner = block.inner(out_area);
+                block.render(out_area, buf);
+                if inner.width > 0 {
+                    for (idx, line) in segment
+                        .out_lines
+                        .iter()
+                        .skip(out_skip as usize)
+                        .take(out_height as usize)
+                        .enumerate()
+                    {
+                        let y = inner.y.saturating_add(idx as u16);
+                        if y >= inner.y.saturating_add(inner.height) {
+                            break;
+                        }
+                        write_line(buf, inner.x, y, inner.width, line, dim_style);
+                    }
+                }
+                cur_y = cur_y.saturating_add(out_height);
+            }
         }
     }
 }

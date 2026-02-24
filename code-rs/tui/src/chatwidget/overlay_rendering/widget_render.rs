@@ -55,7 +55,10 @@ impl ChatWidget<'_> {
             height: history_area.height,
         };
 
-        self.update_welcome_height_hint(content_area.width, content_area.height);
+        // The history scroller renders cells inside `content_area` with a fixed
+        // 2-column gutter. Use the same width here so welcome reservation and
+        // per-cell height caching don't thrash on startup.
+        self.update_welcome_height_hint(content_area.width.saturating_sub(2), content_area.height);
 
         let base_style = Style::default()
             .bg(crate::colors::background())

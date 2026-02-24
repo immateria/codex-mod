@@ -18,6 +18,21 @@ use ratatui::text::Line;
 use std::cell::{Cell, RefCell};
 use unicode_width::UnicodeWidthStr as _;
 
+#[cfg(feature = "test-helpers")]
+thread_local! {
+    static REASONING_LAYOUT_BUILDS: Cell<u64> = const { Cell::new(0) };
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn reset_reasoning_layout_builds_for_test() {
+    REASONING_LAYOUT_BUILDS.with(|c| c.set(0));
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn reasoning_layout_builds_for_test() -> u64 {
+    REASONING_LAYOUT_BUILDS.with(Cell::get)
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct CollapsibleReasoningState {
     lines: Vec<ReasoningLineEntry>,
@@ -59,6 +74,29 @@ impl CollapsibleReasoningState {
 pub(crate) struct CollapsibleReasoningCell {
     state: RefCell<CollapsibleReasoningState>,
     collapsed: Cell<bool>,
+    layout_cache: RefCell<ReasoningLayoutCacheEntry>,
+}
+
+#[derive(Default)]
+struct ReasoningLayout {
+    lines: Vec<Line<'static>>,
+    total_rows: u16,
+}
+
+struct ReasoningLayoutCacheEntry {
+    width: u16,
+    collapsed: bool,
+    layout: ReasoningLayout,
+}
+
+impl Default for ReasoningLayoutCacheEntry {
+    fn default() -> Self {
+        Self {
+            width: 0,
+            collapsed: true,
+            layout: ReasoningLayout::default(),
+        }
+    }
 }
 
 impl CollapsibleReasoningCell {
@@ -66,6 +104,7 @@ impl CollapsibleReasoningCell {
         Self {
             state: RefCell::new(CollapsibleReasoningState::new(lines, id)),
             collapsed: Cell::new(true),
+            layout_cache: RefCell::new(ReasoningLayoutCacheEntry::default()),
         }
     }
 
@@ -99,6 +138,92 @@ impl CollapsibleReasoningCell {
         Self {
             state: RefCell::new(cell_state),
             collapsed: Cell::new(true),
+            layout_cache: RefCell::new(ReasoningLayoutCacheEntry::default()),
+        }
+    }
+
+    fn invalidate_layout_cache(&self) {
+        *self.layout_cache.borrow_mut() = ReasoningLayoutCacheEntry {
+            width: 0,
+            collapsed: self.collapsed.get(),
+            layout: ReasoningLayout::default(),
+        };
+    }
+
+    fn ensure_layout_for_width(&self, width: u16) {
+        let collapsed = self.collapsed.get();
+        if width == 0 {
+            *self.layout_cache.borrow_mut() = ReasoningLayoutCacheEntry {
+                width,
+                collapsed,
+                layout: ReasoningLayout::default(),
+            };
+            return;
+        }
+
+        let needs_rebuild = {
+            let entry = self.layout_cache.borrow();
+            entry.width != width || entry.collapsed != collapsed
+        };
+        if !needs_rebuild {
+            return;
+        }
+
+        #[cfg(feature = "test-helpers")]
+        REASONING_LAYOUT_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
+
+        let layout = self.compute_layout_for_width(width, collapsed);
+        *self.layout_cache.borrow_mut() = ReasoningLayoutCacheEntry {
+            width,
+            collapsed,
+            layout,
+        };
+    }
+
+    fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, ReasoningLayout> {
+        self.ensure_layout_for_width(width);
+        std::cell::Ref::map(self.layout_cache.borrow(), |cache| &cache.layout)
+    }
+
+    fn compute_layout_for_width(&self, width: u16, collapsed: bool) -> ReasoningLayout {
+        if width == 0 {
+            return ReasoningLayout::default();
+        }
+
+        let (has_sections, hide_when_collapsed) = {
+            let state = self.state.borrow();
+            (!state.sections.is_empty(), state.hide_when_collapsed)
+        };
+        if !has_sections || (collapsed && hide_when_collapsed) {
+            return ReasoningLayout::default();
+        }
+
+        let mut lines = self.display_lines_trimmed();
+        if lines.is_empty() {
+            return ReasoningLayout::default();
+        }
+
+        if !collapsed {
+            let dim = crate::colors::text_dim();
+            let dim_style = Style::default().fg(dim);
+            for line in &mut lines {
+                line.style = line.style.patch(dim_style);
+                for span in &mut line.spans {
+                    span.style = dim_style;
+                }
+            }
+        }
+
+        let wrap_width = if collapsed {
+            width.max(1)
+        } else {
+            width.saturating_sub(2).max(1)
+        };
+        let wrapped = word_wrap_lines(&lines, wrap_width);
+        let total_rows = wrapped.len().min(u16::MAX as usize) as u16;
+        ReasoningLayout {
+            lines: wrapped,
+            total_rows,
         }
     }
 
@@ -112,7 +237,13 @@ impl CollapsibleReasoningCell {
     }
 
     pub(crate) fn set_in_progress(&self, in_progress: bool) {
-        self.state.borrow_mut().in_progress = in_progress;
+        let mut state = self.state.borrow_mut();
+        if state.in_progress == in_progress {
+            return;
+        }
+        state.in_progress = in_progress;
+        drop(state);
+        self.invalidate_layout_cache();
     }
 
     pub(crate) fn is_in_progress(&self) -> bool {
@@ -165,6 +296,8 @@ impl CollapsibleReasoningCell {
             return false;
         }
         state.hide_when_collapsed = hide;
+        drop(state);
+        self.invalidate_layout_cache();
         true
     }
 
@@ -184,9 +317,13 @@ impl CollapsibleReasoningCell {
         dedup_append_entries(&mut state.lines, &mut incoming);
         state.lines.extend(incoming);
         state.sections = sections_from_entries(&state.lines);
+        drop(state);
+        self.invalidate_layout_cache();
     }
 
-    pub(crate) fn retint(&self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {}
+    pub(crate) fn retint(&self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {
+        self.invalidate_layout_cache();
+    }
 
     pub(crate) fn debug_title_overlay(&self) -> String {
         let state = self.state.borrow();
@@ -220,6 +357,10 @@ impl HistoryCell for CollapsibleReasoningCell {
 
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Reasoning
+    }
+
+    fn desired_height(&self, width: u16) -> u16 {
+        self.layout_for_width(width).total_rows
     }
 
     fn display_lines(&self) -> Vec<Line<'static>> {
@@ -266,47 +407,41 @@ impl HistoryCell for CollapsibleReasoningCell {
     }
 
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
-        let state = self.state.borrow();
-        if self.collapsed.get() {
-            if state.hide_when_collapsed {
-                return;
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+
+        let collapsed = self.collapsed.get();
+        if collapsed && self.state.borrow().hide_when_collapsed {
+            return;
+        }
+
+        let layout = self.layout_for_width(area.width);
+        if layout.lines.is_empty() {
+            return;
+        }
+
+        if collapsed {
+            let bg = crate::colors::background();
+            let base_style = Style::default().bg(bg).fg(crate::colors::text());
+            fill_rect(buf, area, Some(' '), base_style);
+            for (idx, line) in layout
+                .lines
+                .iter()
+                .skip(skip_rows as usize)
+                .take(area.height as usize)
+                .enumerate()
+            {
+                let y = area.y.saturating_add(idx as u16);
+                write_line(buf, area.x, y, area.width, line, base_style);
             }
-            let bg_style = Style::default()
-                .bg(crate::colors::background())
-                .fg(crate::colors::text());
-            fill_rect(buf, area, Some(' '), bg_style);
-            let lines = self.display_lines_trimmed();
-            Paragraph::new(Text::from(lines))
-                .block(Block::default().style(Style::default().bg(crate::colors::background())))
-                .wrap(Wrap { trim: false })
-                .scroll((skip_rows, 0))
-                .style(Style::default().bg(crate::colors::background()))
-                .render(area, buf);
             return;
         }
 
         let dim = crate::colors::text_dim();
-        let stored_lines = sections_to_ratatui_lines(&state.sections, &crate::theme::current_theme());
-        let mut lines = normalized_lines(&stored_lines)
-            .into_iter()
-            .map(|mut line| {
-                line.spans = line
-                    .spans
-                    .into_iter()
-                    .map(|s| s.clone().style(Style::default().fg(dim)))
-                    .collect();
-                line.style = line.style.patch(Style::default().fg(dim));
-                line
-            })
-            .collect::<Vec<_>>();
-        if state.in_progress {
-            lines.push(Line::from("…".dim()));
-        }
-
-        let text = Text::from(trim_empty_lines(lines));
         let bg = crate::colors::background();
-        let bg_style = Style::default().bg(bg).fg(dim);
-        fill_rect(buf, area, Some(' '), bg_style);
+        let base_style = Style::default().bg(bg).fg(dim);
+        fill_rect(buf, area, Some(' '), base_style);
 
         let block = Block::default()
             .borders(Borders::LEFT)
@@ -318,13 +453,25 @@ impl HistoryCell for CollapsibleReasoningCell {
                 top: 0,
                 bottom: 0,
             });
+        let inner = block.inner(area);
+        block.render(area, buf);
+        if inner.width == 0 || inner.height == 0 {
+            return;
+        }
 
-        Paragraph::new(text)
-            .block(block)
-            .wrap(Wrap { trim: false })
-            .scroll((skip_rows, 0))
-            .style(Style::default().bg(bg).fg(dim))
-            .render(area, buf);
+        for (idx, line) in layout
+            .lines
+            .iter()
+            .skip(skip_rows as usize)
+            .take(inner.height as usize)
+            .enumerate()
+        {
+            let y = inner.y.saturating_add(idx as u16);
+            if y >= inner.y.saturating_add(inner.height) {
+                break;
+            }
+            write_line(buf, inner.x, y, inner.width, line, base_style);
+        }
     }
 }
 

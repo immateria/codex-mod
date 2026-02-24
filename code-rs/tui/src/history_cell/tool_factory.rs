@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+#[cfg(feature = "test-helpers")]
+use std::cell::Cell;
 use std::io::Cursor;
 use std::time::{Duration, SystemTime};
 
@@ -8,8 +11,8 @@ use code_core::protocol::McpInvocation;
 use mcp_types::{EmbeddedResourceResource, ResourceLink};
 use ratatui::prelude::{Buffer, Rect};
 use ratatui::style::{Modifier, Style, Stylize};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, Borders, Padding, Paragraph, Widget, Wrap};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Padding, Widget};
 use sha2::{Digest, Sha256};
 use tracing::error;
 
@@ -38,7 +41,7 @@ use crate::history::compat::{
     ToolStatus as HistoryToolStatus,
 };
 use ::image::ImageReader;
-use crate::util::buffer::fill_rect;
+use crate::util::buffer::{fill_rect, write_line};
 
 #[allow(dead_code)]
 pub(crate) fn new_active_mcp_tool_call(invocation: McpInvocation) -> ToolCallCell {
@@ -540,15 +543,101 @@ pub(crate) fn new_completed_web_fetch_tool_call(
         } else {
             ToolCellStatus::Failed
         },
+        layout_cache: RefCell::new(WebFetchLayoutCacheEntry {
+            width: 0,
+            layout: WebFetchLayout::default(),
+        }),
     }
 }
 
 // ==================== WebFetchToolCell ====================
 
+#[cfg(feature = "test-helpers")]
+thread_local! {
+    static WEB_FETCH_LAYOUT_BUILDS: Cell<u64> = const { Cell::new(0) };
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn reset_web_fetch_layout_builds_for_test() {
+    WEB_FETCH_LAYOUT_BUILDS.with(|c| c.set(0));
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn web_fetch_layout_builds_for_test() -> u64 {
+    WEB_FETCH_LAYOUT_BUILDS.with(Cell::get)
+}
+
 pub(crate) struct WebFetchToolCell {
     pre_lines: Vec<Line<'static>>,  // header/invocation
     body_lines: Vec<Line<'static>>, // bordered, dim preview
     state: ToolCellStatus,
+    layout_cache: RefCell<WebFetchLayoutCacheEntry>,
+}
+
+#[derive(Default)]
+struct WebFetchLayout {
+    pre_lines: Vec<Line<'static>>,
+    body_lines: Vec<Line<'static>>,
+    pre_total: u16,
+    body_total: u16,
+    total_rows: u16,
+}
+
+struct WebFetchLayoutCacheEntry {
+    width: u16,
+    layout: WebFetchLayout,
+}
+
+impl WebFetchToolCell {
+    fn ensure_layout_for_width(&self, width: u16) {
+        if width == 0 {
+            *self.layout_cache.borrow_mut() = WebFetchLayoutCacheEntry {
+                width,
+                layout: WebFetchLayout::default(),
+            };
+            return;
+        }
+
+        let needs_rebuild = self.layout_cache.borrow().width != width;
+        if !needs_rebuild {
+            return;
+        }
+
+        #[cfg(feature = "test-helpers")]
+        WEB_FETCH_LAYOUT_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
+
+        let layout = self.compute_layout_for_width(width);
+        *self.layout_cache.borrow_mut() = WebFetchLayoutCacheEntry { width, layout };
+    }
+
+    fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, WebFetchLayout> {
+        self.ensure_layout_for_width(width);
+        std::cell::Ref::map(self.layout_cache.borrow(), |cache| &cache.layout)
+    }
+
+    fn compute_layout_for_width(&self, width: u16) -> WebFetchLayout {
+        if width == 0 {
+            return WebFetchLayout::default();
+        }
+
+        let pre = trim_empty_lines(self.pre_lines.clone());
+        let body = trim_empty_lines(self.body_lines.clone());
+
+        let pre_wrapped = super::word_wrap_lines(&pre, width);
+        let pre_total = pre_wrapped.len().min(u16::MAX as usize) as u16;
+
+        let body_wrap_width = width.saturating_sub(2).max(1);
+        let body_wrapped = super::word_wrap_lines(&body, body_wrap_width);
+        let body_total = body_wrapped.len().min(u16::MAX as usize) as u16;
+
+        WebFetchLayout {
+            pre_lines: pre_wrapped,
+            body_lines: body_wrapped,
+            pre_total,
+            body_total,
+            total_rows: pre_total.saturating_add(body_total),
+        }
+    }
 }
 
 impl HistoryCell for WebFetchToolCell {
@@ -572,36 +661,17 @@ impl HistoryCell for WebFetchToolCell {
         true
     }
     fn desired_height(&self, width: u16) -> u16 {
-        let pre_text = Text::from(trim_empty_lines(self.pre_lines.clone()));
-        let body_text = Text::from(trim_empty_lines(self.body_lines.clone()));
-        let pre_total: u16 = Paragraph::new(pre_text)
-            .wrap(Wrap { trim: false })
-            .line_count(width)
-            .try_into()
-            .unwrap_or(0);
-        let body_total: u16 = Paragraph::new(body_text)
-            .wrap(Wrap { trim: false })
-            .line_count(width.saturating_sub(2))
-            .try_into()
-            .unwrap_or(0);
-        pre_total.saturating_add(body_total)
+        self.layout_for_width(width).total_rows
     }
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
-        // Measure with the same widths we will render with.
-        let pre_text = Text::from(trim_empty_lines(self.pre_lines.clone()));
-        let body_text = Text::from(trim_empty_lines(self.body_lines.clone()));
-        let pre_wrap_width = area.width;
-        let body_wrap_width = area.width.saturating_sub(2);
-        let pre_total: u16 = Paragraph::new(pre_text.clone())
-            .wrap(Wrap { trim: false })
-            .line_count(pre_wrap_width)
-            .try_into()
-            .unwrap_or(0);
-        let body_total: u16 = Paragraph::new(body_text.clone())
-            .wrap(Wrap { trim: false })
-            .line_count(body_wrap_width)
-            .try_into()
-            .unwrap_or(0);
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+
+        let layout = self.layout_for_width(area.width);
+
+        let pre_total = layout.pre_total;
+        let body_total = layout.body_total;
 
         let pre_skip = skip_rows.min(pre_total);
         let body_skip = skip_rows.saturating_sub(pre_total).min(body_total);
@@ -612,7 +682,6 @@ impl HistoryCell for WebFetchToolCell {
         let body_remaining = body_total.saturating_sub(body_skip);
         let body_height = body_available.min(body_remaining);
 
-        // Render preamble
         if pre_height > 0 {
             let pre_area = Rect {
                 x: area.x,
@@ -620,21 +689,21 @@ impl HistoryCell for WebFetchToolCell {
                 width: area.width,
                 height: pre_height,
             };
-            let bg_style = Style::default()
-                .bg(crate::colors::background())
-                .fg(crate::colors::text());
-            fill_rect(buf, pre_area, Some(' '), bg_style);
-            let pre_block =
-                Block::default().style(Style::default().bg(crate::colors::background()));
-            Paragraph::new(pre_text)
-                .block(pre_block)
-                .wrap(Wrap { trim: false })
-                .scroll((pre_skip, 0))
-                .style(Style::default().bg(crate::colors::background()))
-                .render(pre_area, buf);
+            let bg = crate::colors::background();
+            let base_style = Style::default().bg(bg).fg(crate::colors::text());
+            fill_rect(buf, pre_area, Some(' '), base_style);
+            for (idx, line) in layout
+                .pre_lines
+                .iter()
+                .skip(pre_skip as usize)
+                .take(pre_height as usize)
+                .enumerate()
+            {
+                let y = pre_area.y.saturating_add(idx as u16);
+                write_line(buf, pre_area.x, y, pre_area.width, line, base_style);
+            }
         }
 
-        // Render body with left border + dim text
         if body_height > 0 {
             let body_area = Rect {
                 x: area.x,
@@ -642,34 +711,39 @@ impl HistoryCell for WebFetchToolCell {
                 width: area.width,
                 height: body_height,
             };
-            let bg_style = Style::default()
-                .bg(crate::colors::background())
-                .fg(crate::colors::text_dim());
-            fill_rect(buf, body_area, Some(' '), bg_style);
+            let bg = crate::colors::background();
+            let base_style = Style::default().bg(bg).fg(crate::colors::text_dim());
+            fill_rect(buf, body_area, Some(' '), base_style);
+
             let block = Block::default()
                 .borders(Borders::LEFT)
-                .border_style(
-                    Style::default()
-                        .fg(crate::colors::border_dim())
-                        .bg(crate::colors::background()),
-                )
-                .style(Style::default().bg(crate::colors::background()))
+                .border_style(Style::default().fg(crate::colors::border_dim()).bg(bg))
+                .style(Style::default().bg(bg))
                 .padding(Padding {
                     left: 1,
                     right: 0,
                     top: 0,
                     bottom: 0,
                 });
-            Paragraph::new(body_text)
-                .block(block)
-                .wrap(Wrap { trim: false })
-                .scroll((body_skip, 0))
-                .style(
-                    Style::default()
-                        .bg(crate::colors::background())
-                        .fg(crate::colors::text_dim()),
-                )
-                .render(body_area, buf);
+            let inner = block.inner(body_area);
+            block.render(body_area, buf);
+            if inner.width == 0 || inner.height == 0 {
+                return;
+            }
+
+            for (idx, line) in layout
+                .body_lines
+                .iter()
+                .skip(body_skip as usize)
+                .take(body_height as usize)
+                .enumerate()
+            {
+                let y = inner.y.saturating_add(idx as u16);
+                if y >= inner.y.saturating_add(inner.height) {
+                    break;
+                }
+                write_line(buf, inner.x, y, inner.width, line, base_style);
+            }
         }
     }
 }

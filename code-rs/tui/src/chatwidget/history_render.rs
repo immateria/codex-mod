@@ -28,6 +28,25 @@ use crate::insert_history::word_wrap_lines;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
+#[cfg(feature = "test-helpers")]
+thread_local! {
+    static HISTORY_LAYOUT_CACHE_HITS: Cell<u64> = const { Cell::new(0) };
+    static HISTORY_LAYOUT_CACHE_MISSES: Cell<u64> = const { Cell::new(0) };
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn reset_history_layout_cache_stats_for_test() {
+    HISTORY_LAYOUT_CACHE_HITS.with(|c| c.set(0));
+    HISTORY_LAYOUT_CACHE_MISSES.with(|c| c.set(0));
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn history_layout_cache_stats_for_test() -> (u64, u64) {
+    let hits = HISTORY_LAYOUT_CACHE_HITS.with(Cell::get);
+    let misses = HISTORY_LAYOUT_CACHE_MISSES.with(Cell::get);
+    (hits, misses)
+}
+
 /// Memoized layout data for history rendering.
 pub(crate) struct HistoryRenderState {
     pub(crate) layout_cache: RefCell<HashMap<CacheKey, Rc<CachedLayout>>>,
@@ -490,8 +509,13 @@ impl HistoryRenderState {
 
         let key = CacheKey::new(history_id, settings);
         if let Some(layout) = self.layout_cache.borrow().get(&key).cloned() {
+            #[cfg(feature = "test-helpers")]
+            HISTORY_LAYOUT_CACHE_HITS.with(|c| c.set(c.get().saturating_add(1)));
             return LayoutRef { data: layout };
         }
+
+        #[cfg(feature = "test-helpers")]
+        HISTORY_LAYOUT_CACHE_MISSES.with(|c| c.set(c.get().saturating_add(1)));
 
         let layout = Rc::new(build_cached_layout(build_lines(), settings.width));
         self.layout_cache

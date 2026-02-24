@@ -22,6 +22,21 @@ use crate::history::state::{
 use crate::insert_history::word_wrap_lines;
 use crate::util::buffer::{fill_rect, write_line};
 
+#[cfg(feature = "test-helpers")]
+thread_local! {
+    static EXEC_LAYOUT_BUILDS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn reset_exec_layout_builds_for_test() {
+    EXEC_LAYOUT_BUILDS.with(|c| c.set(0));
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn exec_layout_builds_for_test() -> u64 {
+    EXEC_LAYOUT_BUILDS.with(std::cell::Cell::get)
+}
+
 use super::{
     action_enum_from_parsed,
     exec_command_lines,
@@ -67,6 +82,7 @@ pub(crate) struct ExecCell {
     parsed_meta: Option<ParsedExecMetadata>,
     has_bold_command: bool,
     wait_state: std::cell::RefCell<ExecWaitState>,
+    layout_cache: std::cell::RefCell<ExecLayoutCacheEntry>,
 }
 
 const STREAMING_EXIT_CODE: i32 = i32::MIN;
@@ -96,12 +112,17 @@ impl ParsedExecMetadata {
     }
 }
 
+#[derive(Default)]
 struct ExecRenderLayout {
     pre_lines: Vec<Line<'static>>,
     out_lines: Vec<Line<'static>>,
     pre_total: u16,
     out_block_total: u16,
-    status_line: Option<Line<'static>>,
+}
+
+struct ExecLayoutCacheEntry {
+    width: u16,
+    layout: ExecRenderLayout,
 }
 
 fn chunks_to_string(chunks: &[ExecStreamChunk]) -> String {
@@ -211,13 +232,14 @@ impl HistoryCell for ExecCell {
     fn desired_height(&self, width: u16) -> u16 {
         let layout = self.layout_for_width(width);
         let mut total = layout.pre_total.saturating_add(layout.out_block_total);
-        if layout.status_line.is_some() {
+        if self.status_line_for_render().is_some() {
             total = total.saturating_add(1);
         }
         total
     }
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
         let layout = self.layout_for_width(area.width);
+        let status_line = self.status_line_for_render();
 
         let pre_total = layout.pre_total;
         let out_block_total = layout.out_block_total;
@@ -236,7 +258,7 @@ impl HistoryCell for ExecCell {
         remaining_height = remaining_height.saturating_sub(block_height);
 
         let status_line_to_render = if after_block_skip == 0 && remaining_height > 0 {
-            layout.status_line.clone()
+            status_line
         } else {
             None
         };
@@ -383,6 +405,10 @@ impl ExecCell {
             parsed_meta,
             has_bold_command,
             wait_state: std::cell::RefCell::new(wait_state),
+            layout_cache: std::cell::RefCell::new(ExecLayoutCacheEntry {
+                width: 0,
+                layout: ExecRenderLayout::default(),
+            }),
         }
     }
 
@@ -394,6 +420,70 @@ impl ExecCell {
             .unwrap_or(ExecAction::Run)
     }
 
+    fn invalidate_layout_cache(&self) {
+        *self.layout_cache.borrow_mut() = ExecLayoutCacheEntry {
+            width: 0,
+            layout: ExecRenderLayout::default(),
+        };
+    }
+
+    fn status_line_for_render(&self) -> Option<Line<'static>> {
+        let waiting = self.wait_state.borrow().waiting;
+        let status_label = if waiting { "Waiting" } else { "Running" };
+        self.streaming_status_line_for_label(status_label)
+    }
+
+    fn ensure_layout_for_width(&self, width: u16) {
+        if width == 0 {
+            *self.layout_cache.borrow_mut() = ExecLayoutCacheEntry {
+                width,
+                layout: ExecRenderLayout::default(),
+            };
+            return;
+        }
+
+        let needs_rebuild = self.layout_cache.borrow().width != width;
+        if !needs_rebuild {
+            return;
+        }
+
+        #[cfg(feature = "test-helpers")]
+        EXEC_LAYOUT_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
+
+        let layout = self.compute_layout_for_width(width);
+        *self.layout_cache.borrow_mut() = ExecLayoutCacheEntry { width, layout };
+    }
+
+    fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, ExecRenderLayout> {
+        self.ensure_layout_for_width(width);
+        std::cell::Ref::map(self.layout_cache.borrow(), |cache| &cache.layout)
+    }
+
+    fn compute_layout_for_width(&self, width: u16) -> ExecRenderLayout {
+        let (pre_raw, out_raw, _status_line) = self.exec_render_parts();
+        let pre_trimmed = trim_empty_lines(pre_raw);
+        let out_trimmed = trim_empty_lines(out_raw);
+
+        let wrap_and_clamp =
+            |lines: Vec<Line<'static>>, wrap_width: u16| -> (Vec<Line<'static>>, u16) {
+                if wrap_width == 0 {
+                    return (Vec::new(), 0);
+                }
+                let wrapped = word_wrap_lines(&lines, wrap_width);
+                let total = wrapped.len().min(u16::MAX as usize) as u16;
+                (wrapped, total)
+            };
+
+        let (pre_lines, pre_total) = wrap_and_clamp(pre_trimmed, width);
+        let (out_lines, out_block_total) = wrap_and_clamp(out_trimmed, width.saturating_sub(2));
+
+        ExecRenderLayout {
+            pre_lines,
+            out_lines,
+            pre_total,
+            out_block_total,
+        }
+    }
 
     pub(crate) fn set_waiting(&mut self, waiting: bool) {
         let mut changed = false;
@@ -406,6 +496,7 @@ impl ExecCell {
         }
         if changed {
             self.record.wait_active = waiting;
+            self.invalidate_layout_cache();
         }
     }
 
@@ -420,6 +511,7 @@ impl ExecCell {
         }
         if changed {
             self.record.wait_total = total;
+            self.invalidate_layout_cache();
         }
     }
 
@@ -428,6 +520,7 @@ impl ExecCell {
         if state.run_duration != duration {
             state.run_duration = duration;
             drop(state);
+            self.invalidate_layout_cache();
         }
     }
 
@@ -473,6 +566,7 @@ impl ExecCell {
                 }
             })
             .collect();
+        self.invalidate_layout_cache();
     }
 
     fn wait_note_lines(&self, state: &ExecWaitState) -> Vec<Line<'static>> {
@@ -547,31 +641,7 @@ impl ExecCell {
         } else {
             Some(ParsedExecMetadata::from_commands(&self.parsed))
         };
-    }
-    fn layout_for_width(&self, width: u16) -> ExecRenderLayout {
-        let (pre_raw, out_raw, status_line) = self.exec_render_parts();
-        let pre_trimmed = trim_empty_lines(pre_raw);
-        let out_trimmed = trim_empty_lines(out_raw);
-
-        let wrap_and_clamp = |lines: Vec<Line<'static>>, wrap_width: u16| -> (Vec<Line<'static>>, u16) {
-            if wrap_width == 0 {
-                return (Vec::new(), 0);
-            }
-            let wrapped = word_wrap_lines(&lines, wrap_width);
-            let total = wrapped.len().min(u16::MAX as usize) as u16;
-            (wrapped, total)
-        };
-
-        let (pre_lines, pre_total) = wrap_and_clamp(pre_trimmed, width);
-        let (out_lines, out_block_total) = wrap_and_clamp(out_trimmed, width.saturating_sub(2));
-
-        ExecRenderLayout {
-            pre_lines,
-            out_lines,
-            pre_total,
-            out_block_total,
-            status_line,
-        }
+        self.invalidate_layout_cache();
     }
 
     // Build separate segments: (preamble lines, output lines)
@@ -649,7 +719,13 @@ impl ExecCell {
         self.record = record.clone();
         self.command = record.command.clone();
         self.parsed = record.parsed.clone();
+        self.parsed_meta = if self.parsed.is_empty() {
+            None
+        } else {
+            Some(ParsedExecMetadata::from_commands(&self.parsed))
+        };
         self.has_bold_command = command_has_bold_token(&self.command);
+        self.output = record_output(record);
 
         let run_duration = record
             .completed_at
@@ -674,10 +750,14 @@ impl ExecCell {
                     stderr,
                 });
             }
+            if self.start_time.is_none() {
+                self.start_time = Some(Instant::now());
+            }
         } else {
             self.stream_preview = None;
+            self.start_time = None;
         }
-
+        self.invalidate_layout_cache();
     }
 
     fn exec_render_parts_generic(

@@ -36,6 +36,11 @@ pub(crate) use assistant::{
     AssistantLayoutCache,
     AssistantMarkdownCell,
 };
+#[cfg(feature = "test-helpers")]
+pub(crate) use assistant::{
+    assistant_layout_builds_for_test,
+    reset_assistant_layout_builds_for_test,
+};
 pub(crate) use animated::{AnimatedWelcomeCell, new_animated_welcome};
 pub(crate) use background::{
     new_background_event,
@@ -60,6 +65,13 @@ pub(crate) use exec::{
     new_active_exec_command,
     new_completed_exec_command,
     ExecCell,
+};
+#[cfg(feature = "test-helpers")]
+pub(crate) use exec::{exec_layout_builds_for_test, reset_exec_layout_builds_for_test};
+#[cfg(feature = "test-helpers")]
+pub(crate) use exec_merged::{
+    merged_exec_layout_builds_for_test,
+    reset_merged_exec_layout_builds_for_test,
 };
 #[allow(unused_imports)]
 pub(crate) use exec::ParsedExecMetadata;
@@ -123,6 +135,11 @@ pub(crate) use plain::new_text_line;
 pub(crate) use plan_update::{new_plan_update, PlanUpdateCell};
 pub(crate) use rate_limits::RateLimitsCell;
 pub(crate) use reasoning::CollapsibleReasoningCell;
+#[cfg(feature = "test-helpers")]
+pub(crate) use reasoning::{
+    reasoning_layout_builds_for_test,
+    reset_reasoning_layout_builds_for_test,
+};
 pub(crate) use registry::{cell_from_record, lines_from_record, record_from_cell};
 pub(crate) use stream::{new_streaming_content, stream_lines_from_state, StreamingContentCell};
 pub(crate) use tool::{RunningToolCallCell, ToolCallCell};
@@ -134,6 +151,11 @@ pub(crate) use tool_factory::{
     new_running_browser_tool_call,
     new_running_custom_tool_call,
     new_running_mcp_tool_call,
+};
+#[cfg(feature = "test-helpers")]
+pub(crate) use tool_factory::{
+    reset_web_fetch_layout_builds_for_test,
+    web_fetch_layout_builds_for_test,
 };
 #[allow(unused_imports)]
 pub(crate) use tool_factory::{

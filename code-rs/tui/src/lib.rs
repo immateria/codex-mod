@@ -187,6 +187,74 @@ pub mod test_helpers {
 
     use std::io::Write;
 
+    pub fn reset_assistant_layout_builds() {
+        crate::history_cell::reset_assistant_layout_builds_for_test();
+    }
+
+    pub fn assistant_layout_builds() -> u64 {
+        crate::history_cell::assistant_layout_builds_for_test()
+    }
+
+    pub fn reset_syntax_highlight_calls() {
+        crate::syntax_highlight::reset_highlight_calls_for_test();
+    }
+
+    pub fn syntax_highlight_calls() -> u64 {
+        crate::syntax_highlight::highlight_calls_for_test()
+    }
+
+    pub fn reset_ui_aware_theme_builds() {
+        crate::syntax_highlight::reset_ui_aware_theme_builds_for_test();
+    }
+
+    pub fn ui_aware_theme_builds() -> u64 {
+        crate::syntax_highlight::ui_aware_theme_builds_for_test()
+    }
+
+    pub fn reset_exec_layout_builds() {
+        crate::history_cell::reset_exec_layout_builds_for_test();
+    }
+
+    pub fn exec_layout_builds() -> u64 {
+        crate::history_cell::exec_layout_builds_for_test()
+    }
+
+    pub fn reset_merged_exec_layout_builds() {
+        crate::history_cell::reset_merged_exec_layout_builds_for_test();
+    }
+
+    pub fn merged_exec_layout_builds() -> u64 {
+        crate::history_cell::merged_exec_layout_builds_for_test()
+    }
+
+    pub fn reset_reasoning_layout_builds() {
+        crate::history_cell::reset_reasoning_layout_builds_for_test();
+    }
+
+    pub fn reasoning_layout_builds() -> u64 {
+        crate::history_cell::reasoning_layout_builds_for_test()
+    }
+
+    pub fn reset_web_fetch_layout_builds() {
+        crate::history_cell::reset_web_fetch_layout_builds_for_test();
+    }
+
+    pub fn web_fetch_layout_builds() -> u64 {
+        crate::history_cell::web_fetch_layout_builds_for_test()
+    }
+
+    pub fn reset_history_layout_cache_stats() {
+        crate::chatwidget::reset_history_layout_cache_stats_for_test();
+    }
+
+    pub fn history_layout_cache_hits() -> u64 {
+        crate::chatwidget::history_layout_cache_stats_for_test().0
+    }
+
+    pub fn history_layout_cache_misses() -> u64 {
+        crate::chatwidget::history_layout_cache_stats_for_test().1
+    }
+
     /// Render successive frames of the chat widget into a VT100-backed terminal.
     /// Each entry in `frames` specifies the `(width, height)` for that capture.
     /// Returns a vector of screen dumps, one per frame.

@@ -2,6 +2,7 @@
 
 use once_cell::sync::OnceCell;
 use ratatui::text::{Line, Span};
+use std::sync::Arc;
 
 use crate::colors::color_to_rgb;
 
@@ -11,6 +12,36 @@ use syntect::highlighting::{Style as SynStyle, Theme, ThemeItem, ThemeSet, Theme
 use syntect::parsing::{SyntaxReference, SyntaxSet};
 use syntect::parsing::SyntaxSetBuilder;
 use syntect::util::LinesWithEndings;
+
+#[cfg(feature = "test-helpers")]
+thread_local! {
+    static HIGHLIGHT_CALLS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn reset_highlight_calls_for_test() {
+    HIGHLIGHT_CALLS.with(|c| c.set(0));
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn highlight_calls_for_test() -> u64 {
+    HIGHLIGHT_CALLS.with(std::cell::Cell::get)
+}
+
+#[cfg(feature = "test-helpers")]
+thread_local! {
+    static UI_AWARE_THEME_BUILDS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn reset_ui_aware_theme_builds_for_test() {
+    UI_AWARE_THEME_BUILDS.with(|c| c.set(0));
+}
+
+#[cfg(feature = "test-helpers")]
+pub(crate) fn ui_aware_theme_builds_for_test() -> u64 {
+    UI_AWARE_THEME_BUILDS.with(std::cell::Cell::get)
+}
 
 // Convert a ratatui `Color` into an RGB tuple using the shared theme helper so
 // ANSI-256 indexed colors resolve to the correct palette entries instead of a
@@ -447,6 +478,49 @@ fn build_ui_aware_theme() -> Theme {
     t
 }
 
+#[derive(Clone)]
+struct UiAwareThemeCache {
+    key: crate::theme::Theme,
+    theme: Arc<Theme>,
+}
+
+static UI_AWARE_THEME_CACHE: OnceCell<std::sync::RwLock<UiAwareThemeCache>> = OnceCell::new();
+
+fn ui_aware_theme_cached() -> Arc<Theme> {
+    let current_theme = crate::theme::current_theme();
+    let cache_lock = UI_AWARE_THEME_CACHE.get_or_init(|| {
+        #[cfg(feature = "test-helpers")]
+        UI_AWARE_THEME_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
+
+        std::sync::RwLock::new(UiAwareThemeCache {
+            key: current_theme.clone(),
+            theme: Arc::new(build_ui_aware_theme()),
+        })
+    });
+
+    {
+        let cache = cache_lock
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if cache.key == current_theme {
+            return Arc::clone(&cache.theme);
+        }
+    }
+
+    let mut cache = cache_lock
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if cache.key != current_theme {
+        #[cfg(feature = "test-helpers")]
+        UI_AWARE_THEME_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
+
+        cache.key = current_theme;
+        cache.theme = Arc::new(build_ui_aware_theme());
+    }
+
+    Arc::clone(&cache.theme)
+}
+
 fn use_ui_aware_theme() -> bool {
     match pref_cell().read() {
         Ok(pref) => matches!(*pref, HighlightPref::Auto),
@@ -496,14 +570,23 @@ fn span_from_syn((SynStyle { foreground, font_style, .. }, text): (SynStyle, &st
     Span::styled(content.to_string(), style)
 }
 
+pub(crate) struct HighlightedCodeBlock {
+    pub(crate) lines: Vec<Line<'static>>,
+    pub(crate) line_widths: Vec<usize>,
+    pub(crate) max_width: usize,
+}
+
 /// Highlight a code block into ratatui Lines while preserving exact text.
-pub(crate) fn highlight_code_block(content: &str, lang: Option<&str>) -> Vec<Line<'static>> {
+pub(crate) fn highlight_code_block_with_metrics(content: &str, lang: Option<&str>) -> HighlightedCodeBlock {
+    #[cfg(feature = "test-helpers")]
+    HIGHLIGHT_CALLS.with(|c| c.set(c.get().saturating_add(1)));
+
     // Choose theme: if user configured a specific syntect theme, honor it.
     // Otherwise, derive colors from our current UI theme for cohesion.
     let ui_theme_holder;
     let theme: &Theme = if use_ui_aware_theme() {
-        ui_theme_holder = build_ui_aware_theme();
-        &ui_theme_holder
+        ui_theme_holder = ui_aware_theme_cached();
+        ui_theme_holder.as_ref()
     } else {
         default_theme()
     };
@@ -540,12 +623,23 @@ pub(crate) fn highlight_code_block(content: &str, lang: Option<&str>) -> Vec<Lin
     }
 
     let mut highlighter = HighlightLines::new(syntax, theme);
-    let mut out: Vec<Line<'static>> = Vec::new();
+    let estimated_lines = content.as_bytes().iter().filter(|b| **b == b'\n').count().saturating_add(1);
+    let mut out: Vec<Line<'static>> = Vec::with_capacity(estimated_lines);
+    let mut line_widths: Vec<usize> = Vec::with_capacity(estimated_lines);
+    let mut max_width: usize = 0;
+    use unicode_width::UnicodeWidthStr;
     for line in LinesWithEndings::from(content) {
         // syntect returns (Style, &str) pairs; convert to ratatui Spans
         let ranges = highlighter.highlight_line(line, ps).unwrap_or_else(|_| vec![(SynStyle::default(), line)]);
-        let spans: Vec<Span<'static>> = ranges.into_iter().map(span_from_syn).collect();
+        let mut spans: Vec<Span<'static>> = Vec::with_capacity(ranges.len());
+        for range in ranges {
+            spans.push(span_from_syn(range));
+        }
         out.push(Line::from(spans));
+        let raw = line.strip_suffix('\n').unwrap_or(line);
+        let width = UnicodeWidthStr::width(raw);
+        max_width = max_width.max(width);
+        line_widths.push(width);
     }
     // When `content` ends with a trailing newline, syntect yields an extra
     // empty "line" at the end. Historically our renderer did not emit that
@@ -554,9 +648,20 @@ pub(crate) fn highlight_code_block(content: &str, lang: Option<&str>) -> Vec<Lin
     if content.ends_with('\n')
         && let Some(last) = out.last() {
             let is_empty = last.spans.is_empty() || last.spans.iter().all(|s| s.content.is_empty());
-            if is_empty { out.pop(); }
+            if is_empty {
+                out.pop();
+                line_widths.pop();
+            }
         }
-    out
+    HighlightedCodeBlock {
+        lines: out,
+        line_widths,
+        max_width,
+    }
+}
+
+pub(crate) fn highlight_code_block(content: &str, lang: Option<&str>) -> Vec<Line<'static>> {
+    highlight_code_block_with_metrics(content, lang).lines
 }
 
 // --- Color adaptation helpers ---
@@ -612,79 +717,121 @@ fn adjust_color(c: Color) -> Color {
 
 // --- Language aliasing ---
 fn normalize_lang(lang: &str) -> &str {
-    let l = lang.trim().trim_matches(|c: char| c == '.' || c == '#').to_ascii_lowercase();
-    match l.as_str() {
+    let l = lang.trim().trim_matches(|c: char| c == '.' || c == '#');
+    match l {
         // Shells
-        "sh" | "bash" | "zsh" | "shell" | "console" | "shellsession" => "bash",
-        "ps" | "ps1" | "pwsh" | "powershell" => "PowerShell",
-        "bat" | "cmd" | "batch" => "Batch File",
+        _ if l.eq_ignore_ascii_case("sh")
+            || l.eq_ignore_ascii_case("bash")
+            || l.eq_ignore_ascii_case("zsh")
+            || l.eq_ignore_ascii_case("shell")
+            || l.eq_ignore_ascii_case("console")
+            || l.eq_ignore_ascii_case("shellsession") =>
+        {
+            "bash"
+        }
+        _ if l.eq_ignore_ascii_case("ps")
+            || l.eq_ignore_ascii_case("ps1")
+            || l.eq_ignore_ascii_case("pwsh")
+            || l.eq_ignore_ascii_case("powershell") =>
+        {
+            "PowerShell"
+        }
+        _ if l.eq_ignore_ascii_case("bat") || l.eq_ignore_ascii_case("cmd") || l.eq_ignore_ascii_case("batch") => "Batch File",
         // Web
-        "html" | "htm" | "xhtml" => "HTML",
-        "xml" => "XML",
-        "css" => "CSS",
-        "scss" | "sass" => "SCSS",
+        _ if l.eq_ignore_ascii_case("html") || l.eq_ignore_ascii_case("htm") || l.eq_ignore_ascii_case("xhtml") => "HTML",
+        _ if l.eq_ignore_ascii_case("xml") => "XML",
+        _ if l.eq_ignore_ascii_case("css") => "CSS",
+        _ if l.eq_ignore_ascii_case("scss") || l.eq_ignore_ascii_case("sass") => "SCSS",
         // JS/TS
-        "js" | "javascript" => "JavaScript",
-        "mjs" | "cjs" => "JavaScript",
-        "jsx" => "JavaScript (JSX)",
-        "ts" | "typescript" => "TypeScript",
-        "tsx" => "TypeScriptReact",
+        _ if l.eq_ignore_ascii_case("js") || l.eq_ignore_ascii_case("javascript") => "JavaScript",
+        _ if l.eq_ignore_ascii_case("mjs") || l.eq_ignore_ascii_case("cjs") => "JavaScript",
+        _ if l.eq_ignore_ascii_case("jsx") => "JavaScript (JSX)",
+        _ if l.eq_ignore_ascii_case("ts") || l.eq_ignore_ascii_case("typescript") => "TypeScript",
+        _ if l.eq_ignore_ascii_case("tsx") => "TypeScriptReact",
         // Data/config
-        "json" => "JSON",
-        "yaml" | "yml" => "YAML",
-        "toml" => "TOML",
-        "ini" | "cfg" | "conf" | "dotenv" | ".env" => "ini",
-        "properties" => "Java Properties",
+        _ if l.eq_ignore_ascii_case("json") => "JSON",
+        _ if l.eq_ignore_ascii_case("yaml") || l.eq_ignore_ascii_case("yml") => "YAML",
+        _ if l.eq_ignore_ascii_case("toml") => "TOML",
+        _ if l.eq_ignore_ascii_case("ini")
+            || l.eq_ignore_ascii_case("cfg")
+            || l.eq_ignore_ascii_case("conf")
+            || l.eq_ignore_ascii_case("dotenv")
+            || l.eq_ignore_ascii_case(".env") =>
+        {
+            "ini"
+        }
+        _ if l.eq_ignore_ascii_case("properties") => "Java Properties",
         // Rust and friends
-        "rs" | "rust" => "Rust",
-        "toml.lock" | "cargo.lock" => "TOML",
+        _ if l.eq_ignore_ascii_case("rs") || l.eq_ignore_ascii_case("rust") => "Rust",
+        _ if l.eq_ignore_ascii_case("toml.lock") || l.eq_ignore_ascii_case("cargo.lock") => "TOML",
         // Python
-        "py" | "python" | "py3" => "Python",
+        _ if l.eq_ignore_ascii_case("py") || l.eq_ignore_ascii_case("python") || l.eq_ignore_ascii_case("py3") => "Python",
         // C-family
-        "c" => "C",
-        "h" => "C",
-        "cpp" | "c++" | "cxx" | "cc" | "hpp" | "hh" => "C++",
-        "objc" | "objective-c" | "m" | "mm" => "Objective-C",
-        "cs" | "csharp" => "C#",
+        _ if l.eq_ignore_ascii_case("c") => "C",
+        _ if l.eq_ignore_ascii_case("h") => "C",
+        _ if l.eq_ignore_ascii_case("cpp")
+            || l.eq_ignore_ascii_case("c++")
+            || l.eq_ignore_ascii_case("cxx")
+            || l.eq_ignore_ascii_case("cc")
+            || l.eq_ignore_ascii_case("hpp")
+            || l.eq_ignore_ascii_case("hh") =>
+        {
+            "C++"
+        }
+        _ if l.eq_ignore_ascii_case("objc")
+            || l.eq_ignore_ascii_case("objective-c")
+            || l.eq_ignore_ascii_case("m")
+            || l.eq_ignore_ascii_case("mm") =>
+        {
+            "Objective-C"
+        }
+        _ if l.eq_ignore_ascii_case("cs") || l.eq_ignore_ascii_case("csharp") => "C#",
         // Other popular
-        "go" => "Go",
-        "rb" | "ruby" => "Ruby",
-        "java" => "Java",
-        "scala" => "Scala",
-        "kt" | "kts" | "kotlin" => "Kotlin",
-        "swift" => "Swift",
-        "php" => "PHP",
-        "dart" => "Dart",
-        "lua" => "Lua",
-        "r" => "R",
-        "hs" | "haskell" => "Haskell",
-        "zig" => "zig",
-        "nim" => "nim",
-        "jl" | "julia" => "julia",
-        "ex" | "exs" | "elixir" => "elixir",
-        "erl" | "erlang" => "erlang",
-        "clj" | "cljs" | "cljc" | "edn" | "clojure" => "clojure",
-        "ml" | "mli" | "ocaml" => "OCaml",
+        _ if l.eq_ignore_ascii_case("go") => "Go",
+        _ if l.eq_ignore_ascii_case("rb") || l.eq_ignore_ascii_case("ruby") => "Ruby",
+        _ if l.eq_ignore_ascii_case("java") => "Java",
+        _ if l.eq_ignore_ascii_case("scala") => "Scala",
+        _ if l.eq_ignore_ascii_case("kt") || l.eq_ignore_ascii_case("kts") || l.eq_ignore_ascii_case("kotlin") => "Kotlin",
+        _ if l.eq_ignore_ascii_case("swift") => "Swift",
+        _ if l.eq_ignore_ascii_case("php") => "PHP",
+        _ if l.eq_ignore_ascii_case("dart") => "Dart",
+        _ if l.eq_ignore_ascii_case("lua") => "Lua",
+        _ if l.eq_ignore_ascii_case("r") => "R",
+        _ if l.eq_ignore_ascii_case("hs") || l.eq_ignore_ascii_case("haskell") => "Haskell",
+        _ if l.eq_ignore_ascii_case("zig") => "zig",
+        _ if l.eq_ignore_ascii_case("nim") => "nim",
+        _ if l.eq_ignore_ascii_case("jl") || l.eq_ignore_ascii_case("julia") => "julia",
+        _ if l.eq_ignore_ascii_case("ex") || l.eq_ignore_ascii_case("exs") || l.eq_ignore_ascii_case("elixir") => "elixir",
+        _ if l.eq_ignore_ascii_case("erl") || l.eq_ignore_ascii_case("erlang") => "erlang",
+        _ if l.eq_ignore_ascii_case("clj")
+            || l.eq_ignore_ascii_case("cljs")
+            || l.eq_ignore_ascii_case("cljc")
+            || l.eq_ignore_ascii_case("edn")
+            || l.eq_ignore_ascii_case("clojure") =>
+        {
+            "clojure"
+        }
+        _ if l.eq_ignore_ascii_case("ml") || l.eq_ignore_ascii_case("mli") || l.eq_ignore_ascii_case("ocaml") => "OCaml",
         // Infra / devops
-        "docker" | "dockerfile" => "Dockerfile",
-        "make" | "makefile" | "mk" => "Makefile",
-        "cmake" | "cmakelists.txt" => "CMake",
-        "nix" => "Nix",
-        "tf" | "terraform" => "HCL",
-        "hcl" => "HCL",
-        "nginx" => "nginx",
-        "apache" | "apacheconf" | "htaccess" => "Apache Conf",
+        _ if l.eq_ignore_ascii_case("docker") || l.eq_ignore_ascii_case("dockerfile") => "Dockerfile",
+        _ if l.eq_ignore_ascii_case("make") || l.eq_ignore_ascii_case("makefile") || l.eq_ignore_ascii_case("mk") => "Makefile",
+        _ if l.eq_ignore_ascii_case("cmake") || l.eq_ignore_ascii_case("cmakelists.txt") => "CMake",
+        _ if l.eq_ignore_ascii_case("nix") => "Nix",
+        _ if l.eq_ignore_ascii_case("tf") || l.eq_ignore_ascii_case("terraform") => "HCL",
+        _ if l.eq_ignore_ascii_case("hcl") => "HCL",
+        _ if l.eq_ignore_ascii_case("nginx") => "nginx",
+        _ if l.eq_ignore_ascii_case("apache") || l.eq_ignore_ascii_case("apacheconf") || l.eq_ignore_ascii_case("htaccess") => "Apache Conf",
         // Diffs/patches
-        "diff" | "patch" => "Diff",
+        _ if l.eq_ignore_ascii_case("diff") || l.eq_ignore_ascii_case("patch") => "Diff",
         // Markup / docs
-        "md" | "markdown" => "Markdown",
+        _ if l.eq_ignore_ascii_case("md") || l.eq_ignore_ascii_case("markdown") => "Markdown",
         // Data formats and misc languages
-        "sql" => "SQL",
-        "proto" | "protobuf" => "Protocol Buffer",
-        "graphql" | "gql" => "GraphQL",
-        "plantuml" | "puml" => "PlantUML",
+        _ if l.eq_ignore_ascii_case("sql") => "SQL",
+        _ if l.eq_ignore_ascii_case("proto") || l.eq_ignore_ascii_case("protobuf") => "Protocol Buffer",
+        _ if l.eq_ignore_ascii_case("graphql") || l.eq_ignore_ascii_case("gql") => "GraphQL",
+        _ if l.eq_ignore_ascii_case("plantuml") || l.eq_ignore_ascii_case("puml") => "PlantUML",
         // Fallback
-        other => Box::leak(other.to_string().into_boxed_str()),
+        _ => l,
     }
 }
 

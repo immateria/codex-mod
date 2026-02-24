@@ -135,22 +135,14 @@ impl MarkdownRenderer {
             // Render accumulated buffer with syntax highlighting
             let lang = self.code_block_lang.as_deref();
             let code_bg = crate::colors::code_block_bg();
-            let mut highlighted =
-                crate::syntax_highlight::highlight_code_block(&self.code_block_buf, lang);
+            let crate::syntax_highlight::HighlightedCodeBlock {
+                lines: mut highlighted_lines,
+                line_widths,
+                max_width,
+            } = crate::syntax_highlight::highlight_code_block_with_metrics(&self.code_block_buf, lang);
             use ratatui::style::Style;
             use ratatui::text::Span;
-            use unicode_width::UnicodeWidthStr;
-            let max_w: usize = highlighted
-                .iter()
-                .map(|l| {
-                    l.spans
-                        .iter()
-                        .map(|s| UnicodeWidthStr::width(s.content.as_ref()))
-                        .sum::<usize>()
-                })
-                .max()
-                .unwrap_or(0);
-            let target_w = max_w; // no extra horizontal padding
+            let target_w = max_width; // no extra horizontal padding
             // Emit hidden sentinel with language for border/title downstream
             let label = self
                 .code_block_lang
@@ -161,17 +153,13 @@ impl MarkdownRenderer {
                 Style::default().fg(code_bg).bg(code_bg),
             )));
 
-            for l in highlighted.iter_mut() {
+            for (idx, l) in highlighted_lines.iter_mut().enumerate() {
                 // Paint background on each span, not the whole line, so width
                 // matches our explicit padding rectangle.
                 for sp in l.spans.iter_mut() {
                     sp.style = sp.style.bg(code_bg);
                 }
-                let w: usize = l
-                    .spans
-                    .iter()
-                    .map(|s| UnicodeWidthStr::width(s.content.as_ref()))
-                    .sum();
+                let w = line_widths.get(idx).copied().unwrap_or(0);
                 if target_w > w {
                     let pad = " ".repeat(target_w - w);
                     l.spans
@@ -182,7 +170,7 @@ impl MarkdownRenderer {
                         .push(Span::styled(" ", Style::default().bg(code_bg)));
                 }
             }
-            self.lines.extend(highlighted);
+            self.lines.extend(highlighted_lines);
             self.code_block_buf.clear();
             self.in_code_block = false;
             self.code_block_lang = None;
