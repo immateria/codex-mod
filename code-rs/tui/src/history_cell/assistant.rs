@@ -224,20 +224,53 @@ impl AssistantMarkdownCell {
                         continue;
                     }
 
+                    let buf_width = buf.area.width as usize;
+                    let buf_height = buf.area.height as usize;
+                    let dest_offset_x = area.x.saturating_sub(buf.area.x) as usize;
+                    let copy_width = card_w.min(area.width) as usize;
+                    let copy_width = copy_width.min(buf_width.saturating_sub(dest_offset_x));
+
+                    let src_width = temp_buf.area.width as usize;
+                    let src_height = temp_buf.area.height as usize;
+
                     for row_offset in 0..usize::from(draw_rows) {
                         let src_y = start_row + row_offset as u16;
                         let dest_y = cur_y.saturating_add(row_offset as u16);
                         if dest_y >= end_y {
                             break;
                         }
-                        for col in 0..usize::from(card_w) {
-                            let dest_x = area.x + col as u16;
-                            if dest_x >= area.x.saturating_add(area.width) {
-                                break;
-                            }
-                            let cell = temp_buf[(col as u16, src_y)].clone();
-                            buf[(dest_x, dest_y)] = cell;
+                        if copy_width == 0 {
+                            break;
                         }
+
+                        // Fast path: copy the rendered row as a contiguous slice rather than
+                        // per-cell indexing/cloning. This is a hotspot when scrolling through
+                        // large histories with multiple code cards visible.
+                        let dest_offset_y = dest_y.saturating_sub(buf.area.y) as usize;
+                        if dest_offset_y >= buf_height {
+                            break;
+                        }
+
+                        let src_row = src_y as usize;
+                        if src_row >= src_height {
+                            break;
+                        }
+
+                        let src_start = src_row * src_width;
+                        let dest_start = dest_offset_y
+                            .saturating_mul(buf_width)
+                            .saturating_add(dest_offset_x);
+                        let src_end =
+                            src_start.saturating_add(copy_width).min(temp_buf.content.len());
+                        let dest_end = dest_start.saturating_add(copy_width).min(buf.content.len());
+                        let copy_len = src_end
+                            .saturating_sub(src_start)
+                            .min(dest_end.saturating_sub(dest_start));
+                        if copy_len == 0 {
+                            continue;
+                        }
+                        buf.content[dest_start..dest_start + copy_len]
+                            .clone_from_slice(&temp_buf.content[src_start..src_start + copy_len]);
                     }
                     cur_y = cur_y.saturating_add(draw_rows);
                     remaining_skip = 0;
