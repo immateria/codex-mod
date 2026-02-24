@@ -479,6 +479,10 @@ impl ChatWidget<'_> {
                 crate::bottom_pane::StatusLineItem::ModelWithReasoning => {
                     Some(ClickableAction::ShowReasoningSelector)
                 }
+                crate::bottom_pane::StatusLineItem::Shell
+                | crate::bottom_pane::StatusLineItem::ShellStyle => {
+                    Some(ClickableAction::ShowShellSelector)
+                }
                 crate::bottom_pane::StatusLineItem::NetworkMediation => {
                     Some(ClickableAction::ShowNetworkSettings)
                 }

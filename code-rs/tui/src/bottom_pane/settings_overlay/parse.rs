@@ -8,6 +8,9 @@ impl SettingsSection {
             "theme" | "themes" => Some(SettingsSection::Theme),
             "ui" | "interface" | "layout" | "settings-ui" => Some(SettingsSection::Interface),
             "shell" | "shells" => Some(SettingsSection::Shell),
+            "shell-profiles" | "shell-profile" | "profiles" | "profile" => {
+                Some(SettingsSection::ShellProfiles)
+            }
             "planning" | "plan" => Some(SettingsSection::Planning),
             "update" | "updates" => Some(SettingsSection::Updates),
             "account" | "accounts" | "auth" => Some(SettingsSection::Accounts),

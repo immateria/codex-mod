@@ -13,6 +13,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 use code_common::shell_presets::ShellPreset;
 use code_core::config_types::ShellConfig;
+use code_core::config_types::ShellScriptStyle;
 use code_core::split_command_and_args;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
@@ -39,6 +40,7 @@ pub(crate) struct ShellSelectionView {
     is_complete: bool,
     custom_input_mode: bool,
     custom_input: String,
+    custom_style_override: Option<ShellScriptStyle>,
     /// Cached item rects from last render for mouse hit testing
     item_rects: RefCell<Vec<Rect>>,
     /// Rect for custom option
@@ -78,6 +80,7 @@ impl ShellSelectionView {
             is_complete: false,
             custom_input_mode: false,
             custom_input: String::new(),
+            custom_style_override: None,
             item_rects: RefCell::new(Vec::new()),
             custom_rect: RefCell::new(None),
         }
@@ -142,6 +145,7 @@ impl ShellSelectionView {
         if index == self.shells.len() {
             // Custom path option selected
             self.custom_input_mode = true;
+            self.custom_style_override = None;
             return;
         }
 
@@ -150,6 +154,12 @@ impl ShellSelectionView {
                 // Show notice that shell is not available - enter custom mode with command pre-filled
                 self.custom_input_mode = true;
                 self.custom_input = shell.preset.command.clone();
+                self.custom_style_override = shell
+                    .preset
+                    .script_style
+                    .as_deref()
+                    .and_then(ShellScriptStyle::parse)
+                    .or_else(|| ShellScriptStyle::infer_from_shell_program(&self.custom_input));
                 return;
             }
 
@@ -172,7 +182,7 @@ impl ShellSelectionView {
         self.app_event_tx.send(AppEvent::UpdateShellSelection {
             path,
             args,
-            script_style: None,
+            script_style: self.custom_style_override.map(|style| style.to_string()),
         });
         self.send_closed(true);
     }
@@ -305,10 +315,20 @@ impl ShellSelectionView {
                 (KeyCode::Esc, _) => {
                     self.custom_input_mode = false;
                     self.custom_input.clear();
+                    self.custom_style_override = None;
                     true
                 }
                 (KeyCode::Enter, _) => {
                     self.submit_custom_path();
+                    true
+                }
+                (KeyCode::Tab, _) => {
+                    self.custom_style_override = match self.custom_style_override {
+                        None => Some(ShellScriptStyle::PosixSh),
+                        Some(ShellScriptStyle::PosixSh) => Some(ShellScriptStyle::BashZshCompatible),
+                        Some(ShellScriptStyle::BashZshCompatible) => Some(ShellScriptStyle::Zsh),
+                        Some(ShellScriptStyle::Zsh) => None,
+                    };
                     true
                 }
                 (KeyCode::Backspace, _) => {
@@ -368,12 +388,28 @@ impl ShellSelectionView {
             Span::styled("█", Style::default()),
         ]);
 
-        let help_line = Line::from(Span::styled(
-            "Tip: Enter the full path to your shell executable",
+        let inferred = {
+            let (path, _args) = split_command_and_args(self.custom_input.as_str());
+            ShellScriptStyle::infer_from_shell_program(&path)
+        };
+        let style_label = match (self.custom_style_override, inferred) {
+            (Some(style), _) => format!("Style: {style} (explicit)"),
+            (None, Some(style)) => format!("Style: auto (inferred: {style})"),
+            (None, None) => "Style: auto".to_string(),
+        };
+
+        let style_line = Line::from(Span::styled(
+            style_label,
             Style::default().fg(colors::text_dim()),
         ));
 
-        let para = Paragraph::new(vec![prompt_line, Line::raw(""), help_line]).alignment(Alignment::Left);
+        let help_line = Line::from(Span::styled(
+            "Tip: Tab cycles script style. Enter applies. Esc cancels.",
+            Style::default().fg(colors::text_dim()),
+        ));
+
+        let para = Paragraph::new(vec![prompt_line, style_line, Line::raw(""), help_line])
+            .alignment(Alignment::Left);
         para.render(area, buf);
     }
 

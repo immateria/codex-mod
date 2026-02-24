@@ -2,6 +2,7 @@ use super::*;
 use crate::bottom_pane::{
     InterfaceSettingsView,
     NetworkSettingsView,
+    ShellProfilesSettingsView,
     ShellSelectionView,
     SettingsMenuRow,
     SettingsOverviewView,
@@ -10,6 +11,7 @@ use crate::chatwidget::settings_overlay::{
     InterfaceSettingsContent,
     NetworkSettingsContent,
     ShellSettingsContent,
+    ShellProfilesSettingsContent,
 };
 
 impl ChatWidget<'_> {
@@ -80,6 +82,7 @@ impl ChatWidget<'_> {
         overlay.set_theme_content(self.build_theme_settings_content());
         overlay.set_interface_content(self.build_interface_settings_content());
         overlay.set_shell_content(self.build_shell_settings_content());
+        overlay.set_shell_profiles_content(self.build_shell_profiles_settings_content());
         if let Some(update_content) = self.build_updates_settings_content() {
             overlay.set_updates_content(update_content);
         }
@@ -237,6 +240,16 @@ impl ChatWidget<'_> {
         let presets = self.available_shell_presets();
         let view = ShellSelectionView::new(self.config.shell.clone(), presets, self.app_event_tx.clone());
         ShellSettingsContent::new(view)
+    }
+
+    pub(super) fn build_shell_profiles_settings_content(&mut self) -> ShellProfilesSettingsContent {
+        let view = ShellProfilesSettingsView::new(
+            self.config.code_home.clone(),
+            self.config.shell.as_ref(),
+            self.config.shell_style_profiles.clone(),
+            self.app_event_tx.clone(),
+        );
+        ShellProfilesSettingsContent::new(view)
     }
 
     pub(super) fn build_notifications_settings_view(&mut self) -> NotificationsSettingsView {
@@ -610,6 +623,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Theme         => self.settings_summary_theme(),
                     SettingsSection::Interface     => self.settings_summary_interface(),
                     SettingsSection::Shell         => self.settings_summary_shell(),
+                    SettingsSection::ShellProfiles => self.settings_summary_shell_profiles(),
                     SettingsSection::Planning      => self.settings_summary_planning(),
                     SettingsSection::Updates       => self.settings_summary_updates(),
                     SettingsSection::Accounts      => self.settings_summary_accounts(),
@@ -642,6 +656,30 @@ impl ChatWidget<'_> {
             }
             None => Some("Shell: auto".to_string()),
         }
+    }
+
+    pub(super) fn settings_summary_shell_profiles(&self) -> Option<String> {
+        let active_style = self.config.shell.as_ref().and_then(|shell| {
+            shell.script_style
+                .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path))
+        });
+        let Some(style) = active_style else {
+            return Some("Active: auto".to_string());
+        };
+        let Some(profile) = self.config.shell_style_profiles.get(&style) else {
+            return Some(format!("Active: {style} · (no overrides)"));
+        };
+
+        let refs = profile.references.len();
+        let roots = profile.skill_roots.len();
+        let include = profile.mcp_servers.include.len();
+        let exclude = profile.mcp_servers.exclude.len();
+        let skills = profile.skills.len();
+        let disabled = profile.disabled_skills.len();
+
+        Some(format!(
+            "Active: {style} · refs:{refs} · roots:{roots} · skills:{skills}/{disabled} · mcp:+{include}/-{exclude}"
+        ))
     }
 
     pub(super) fn settings_summary_interface(&self) -> Option<String> {
@@ -1142,6 +1180,18 @@ impl ChatWidget<'_> {
         })
     }
 
+    fn open_shell_profiles_settings_section(&mut self) -> bool {
+        let view = ShellProfilesSettingsView::new(
+            self.config.code_home.clone(),
+            self.config.shell.as_ref(),
+            self.config.shell_style_profiles.clone(),
+            self.app_event_tx.clone(),
+        );
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_shell_profiles_settings(view);
+        })
+    }
+
     fn open_interface_settings_section(&mut self) -> bool {
         let view = self.build_interface_settings_view();
         self.open_bottom_pane_settings(move |this| {
@@ -1165,6 +1215,7 @@ impl ChatWidget<'_> {
             SettingsSection::Theme                              => self.open_theme_settings_section(),
             SettingsSection::Interface                          => self.open_interface_settings_section(),
             SettingsSection::Shell                              => self.open_shell_settings_section(),
+            SettingsSection::ShellProfiles                       => self.open_shell_profiles_settings_section(),
             SettingsSection::Updates                            => self.open_updates_settings_section(),
             SettingsSection::Accounts                           => false,
             SettingsSection::Prompts                            => self.open_prompts_settings_section(),
@@ -1209,6 +1260,7 @@ impl ChatWidget<'_> {
             | SettingsSection::Theme
             | SettingsSection::Interface
             | SettingsSection::Shell
+            | SettingsSection::ShellProfiles
             | SettingsSection::Planning
             | SettingsSection::Updates
             | SettingsSection::Review

@@ -184,6 +184,28 @@ impl ChatWidget<'_> {
                 self.format_model_name(&self.config.model),
                 Self::format_reasoning_effort(self.config.model_reasoning_effort)
             )),
+            StatusLineItem::Shell => Some(match self.config.shell.as_ref() {
+                Some(shell) => {
+                    let display = if shell.args.is_empty() {
+                        shell.path.clone()
+                    } else {
+                        let args = shell.args.join(" ");
+                        format!("{} {args}", shell.path)
+                    };
+                    format!("sh {display}")
+                }
+                None => "sh auto".to_string(),
+            }),
+            StatusLineItem::ShellStyle => {
+                let style = self.config.shell.as_ref().and_then(|shell| {
+                    shell.script_style
+                        .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path))
+                });
+                Some(match style {
+                    Some(style) => format!("style {style}"),
+                    None => "style auto".to_string(),
+                })
+            }
             StatusLineItem::CurrentDir => Some(Self::status_line_format_cwd(&self.config.cwd)),
             StatusLineItem::ProjectRoot => code_core::git_info::get_git_repo_root(&self.config.cwd)
                 .map(|root| {

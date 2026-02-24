@@ -7,6 +7,7 @@ impl SettingsSection {
             SettingsSection::Theme => "Theme",
             SettingsSection::Interface => "Interface",
             SettingsSection::Shell => "Shell",
+            SettingsSection::ShellProfiles => "Shell profiles",
             SettingsSection::Planning => "Planning",
             SettingsSection::Updates => "Updates",
             SettingsSection::Accounts => "Accounts",
@@ -30,6 +31,9 @@ impl SettingsSection {
             SettingsSection::Theme => "Switch between preset color palettes and adjust contrast.",
             SettingsSection::Interface => "Control Settings UI routing and other layout preferences.",
             SettingsSection::Shell => "Select the shell used for tool execution.",
+            SettingsSection::ShellProfiles => {
+                "Configure shell-style profiles (skills, references, MCP filters)."
+            }
             SettingsSection::Planning => "Choose the model used in Plan Mode (Read Only).",
             SettingsSection::Updates => "Control CLI auto-update cadence and release channels.",
             SettingsSection::Accounts => {
@@ -57,6 +61,9 @@ impl SettingsSection {
             SettingsSection::Theme => "Theme settings coming soon.",
             SettingsSection::Interface => "Control Settings UI routing (overlay vs bottom pane).",
             SettingsSection::Shell => "Select the shell used for tool execution.",
+            SettingsSection::ShellProfiles => {
+                "Configure shell-style profiles (skills, references, MCP filters)."
+            }
             SettingsSection::Planning => "Planning settings coming soon.",
             SettingsSection::Updates => "Upgrade Codex and manage automatic updates.",
             SettingsSection::Accounts => "Account switching settings coming soon.",

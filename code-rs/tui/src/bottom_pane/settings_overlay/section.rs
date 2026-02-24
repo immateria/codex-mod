@@ -4,6 +4,7 @@ pub(crate) enum SettingsSection {
     Theme,
     Interface,
     Shell,
+    ShellProfiles,
     Updates,
     Accounts,
     Agents,
@@ -21,11 +22,12 @@ pub(crate) enum SettingsSection {
 }
 
 impl SettingsSection {
-    pub(crate) const ALL: [SettingsSection; 18] = [
+    pub(crate) const ALL: [SettingsSection; 19] = [
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Interface,
         SettingsSection::Shell,
+        SettingsSection::ShellProfiles,
         SettingsSection::Updates,
         SettingsSection::Accounts,
         SettingsSection::Agents,

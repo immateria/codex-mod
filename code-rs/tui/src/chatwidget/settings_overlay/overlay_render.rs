@@ -415,6 +415,7 @@ impl SettingsOverlayView {
             SettingsSection::Theme => "Theme Settings",
             SettingsSection::Interface => "Interface",
             SettingsSection::Shell => "Shell Selection",
+            SettingsSection::ShellProfiles => "Shell Profiles",
             SettingsSection::Planning => "Planning Settings",
             SettingsSection::Updates => "Upgrade",
             SettingsSection::Accounts => "Account Switching",
@@ -754,6 +755,13 @@ impl SettingsOverlayView {
                     return;
                 }
                 self.render_placeholder(area, buf, SettingsSection::Shell.placeholder());
+            }
+            SettingsSection::ShellProfiles => {
+                if let Some(content) = self.shell_profiles_content.as_ref() {
+                    content.render(area, buf);
+                    return;
+                }
+                self.render_placeholder(area, buf, SettingsSection::ShellProfiles.placeholder());
             }
             SettingsSection::Updates => {
                 if let Some(content) = self.updates_content.as_ref() {

@@ -128,6 +128,7 @@ impl SettingsHelpOverlay {
                 | SettingsSection::Mcp
                 | SettingsSection::Accounts
                 | SettingsSection::Shell
+                | SettingsSection::ShellProfiles
                 | SettingsSection::Skills
         ) {
             lines.push(Line::from(vec![Span::styled(

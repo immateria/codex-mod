@@ -27,6 +27,8 @@ use code_core::config_types::StatusLineLane;
 pub(crate) enum StatusLineItem {
     ModelName,
     ModelWithReasoning,
+    Shell,
+    ShellStyle,
     CurrentDir,
     ProjectRoot,
     GitBranch,
@@ -48,6 +50,8 @@ impl StatusLineItem {
         match self {
             StatusLineItem::ModelName => "Model name",
             StatusLineItem::ModelWithReasoning => "Model + reasoning",
+            StatusLineItem::Shell => "Shell",
+            StatusLineItem::ShellStyle => "Shell style",
             StatusLineItem::CurrentDir => "Current directory",
             StatusLineItem::ProjectRoot => "Project root",
             StatusLineItem::GitBranch => "Git branch",
@@ -69,6 +73,8 @@ impl StatusLineItem {
         match self {
             StatusLineItem::ModelName => "Current model name.",
             StatusLineItem::ModelWithReasoning => "Current model with reasoning level.",
+            StatusLineItem::Shell => "Selected shell executable for tool execution.",
+            StatusLineItem::ShellStyle => "Active shell script style for routing and profiles.",
             StatusLineItem::CurrentDir => "Current working directory.",
             StatusLineItem::ProjectRoot => "Detected project root directory.",
             StatusLineItem::GitBranch => "Current git branch when available.",
@@ -90,6 +96,8 @@ impl StatusLineItem {
         match self {
             StatusLineItem::ModelName => "GPT-5.3-Codex",
             StatusLineItem::ModelWithReasoning => "GPT-5.3-Codex High",
+            StatusLineItem::Shell => "sh /bin/zsh",
+            StatusLineItem::ShellStyle => "style zsh",
             StatusLineItem::CurrentDir => "~/code-termux",
             StatusLineItem::ProjectRoot => "code-termux",
             StatusLineItem::GitBranch => "main",
