@@ -71,6 +71,7 @@ struct PickListItem {
     name: String,
     description: Option<String>,
     is_unknown: bool,
+    is_no_filter_option: bool,
 }
 
 #[derive(Debug)]
@@ -375,6 +376,7 @@ impl ShellProfilesSettingsView {
                         name: skill.name.clone(),
                         description: skill.description.clone(),
                         is_unknown: false,
+                        is_no_filter_option: false,
                     });
                 }
             }
@@ -388,6 +390,7 @@ impl ShellProfilesSettingsView {
                         name: server.clone(),
                         description: None,
                         is_unknown: false,
+                        is_no_filter_option: false,
                     });
                 }
             }
@@ -406,6 +409,7 @@ impl ShellProfilesSettingsView {
                 name: trimmed.to_string(),
                 description: None,
                 is_unknown: true,
+                is_no_filter_option: false,
             });
         }
 
@@ -415,9 +419,41 @@ impl ShellProfilesSettingsView {
                 .then_with(|| a.name.cmp(&b.name))
         });
 
+        let has_no_filter_option = matches!(target, PickTarget::SkillsAllowlist | PickTarget::McpInclude);
+        if has_no_filter_option {
+            let (label, description) = match target {
+                PickTarget::SkillsAllowlist => (
+                    "(all skills)".to_string(),
+                    Some("No allowlist filter (disabled skills still apply).".to_string()),
+                ),
+                PickTarget::McpInclude => (
+                    "(all MCP servers)".to_string(),
+                    Some("No include filter (excluded servers still apply).".to_string()),
+                ),
+                _ => (String::new(), None),
+            };
+            if !label.is_empty() {
+                items.insert(
+                    0,
+                    PickListItem {
+                        name: label,
+                        description,
+                        is_unknown: false,
+                        is_no_filter_option: true,
+                    },
+                );
+            }
+        }
+
         let checked: Vec<bool> = items
             .iter()
-            .map(|item| current_set.contains(&normalize_list_key(&item.name)))
+            .map(|item| {
+                if item.is_no_filter_option {
+                    current_set.is_empty()
+                } else {
+                    current_set.contains(&normalize_list_key(&item.name))
+                }
+            })
             .collect();
         let other_values_set: HashSet<String> = other_values
             .iter()
@@ -432,6 +468,7 @@ impl ShellProfilesSettingsView {
         } else {
             scroll.selected_idx = Some(0);
         }
+        scroll.ensure_visible(items.len(), self.pick_viewport_rows.get().max(1));
 
         self.mode = ViewMode::PickList(PickListState {
             target,
@@ -453,10 +490,10 @@ impl ShellProfilesSettingsView {
 
     fn picker_title(target: PickTarget) -> &'static str {
         match target {
-            PickTarget::SkillsAllowlist => "Select skills allowlist (non-empty means only these run)",
-            PickTarget::DisabledSkills => "Select disabled skills (always excluded for this style)",
-            PickTarget::McpInclude => "Select MCP include list (non-empty means only these servers)",
-            PickTarget::McpExclude => "Select MCP exclude list (always excluded for this style)",
+            PickTarget::SkillsAllowlist => "Skills allowlist",
+            PickTarget::DisabledSkills => "Disabled skills",
+            PickTarget::McpInclude => "MCP include",
+            PickTarget::McpExclude => "MCP exclude",
         }
     }
 
@@ -526,7 +563,12 @@ impl ShellProfilesSettingsView {
             .items
             .iter()
             .zip(state.checked.iter())
-            .filter_map(|(item, checked)| (*checked).then_some(item.name.trim().to_string()))
+            .filter_map(|(item, checked)| {
+                if item.is_no_filter_option {
+                    return None;
+                }
+                (*checked).then_some(item.name.trim().to_string())
+            })
             .filter(|value| !value.is_empty())
             .collect();
 
@@ -539,10 +581,44 @@ impl ShellProfilesSettingsView {
         let Some(idx) = state.scroll.selected_idx else {
             return false;
         };
+
+        if idx == 0
+            && matches!(state.target, PickTarget::SkillsAllowlist | PickTarget::McpInclude)
+            && state
+                .items
+                .first()
+                .is_some_and(|item| item.is_no_filter_option)
+        {
+            if let Some(first) = state.checked.first_mut() {
+                *first = true;
+            }
+            for entry in state.checked.iter_mut().skip(1) {
+                *entry = false;
+            }
+            return true;
+        }
+
         let Some(is_checked) = state.checked.get_mut(idx) else {
             return false;
         };
         *is_checked = !*is_checked;
+
+        if matches!(state.target, PickTarget::SkillsAllowlist | PickTarget::McpInclude)
+            && state
+                .items
+                .first()
+                .is_some_and(|item| item.is_no_filter_option)
+        {
+            let any_selected = state
+                .checked
+                .iter()
+                .enumerate()
+                .skip(1)
+                .any(|(_idx, checked)| *checked);
+            if let Some(first) = state.checked.first_mut() {
+                *first = !any_selected;
+            }
+        }
         true
     }
 
@@ -673,29 +749,39 @@ impl ShellProfilesSettingsView {
             }
             RowKind::References => Some(format!("{} paths", parse_path_list(self.references_field.text()).len())),
             RowKind::SkillRoots => Some(format!("{} roots", parse_path_list(self.skill_roots_field.text()).len())),
-            RowKind::SkillsAllowlist => Some(format!(
-                "{} skills",
-                self.shell_style_profiles
+            RowKind::SkillsAllowlist => {
+                let count = self
+                    .shell_style_profiles
                     .get(&self.selected_style)
                     .map(|profile| profile.skills.len())
-                    .unwrap_or(0)
-            )),
+                    .unwrap_or(0);
+                if count == 0 {
+                    Some("all (no filter)".to_string())
+                } else {
+                    Some(format!("{count} selected"))
+                }
+            }
             RowKind::DisabledSkills => Some(format!(
-                "{} skills",
+                "{} disabled",
                 self.shell_style_profiles
                     .get(&self.selected_style)
                     .map(|profile| profile.disabled_skills.len())
                     .unwrap_or(0)
             )),
-            RowKind::McpInclude => Some(format!(
-                "{} servers",
-                self.shell_style_profiles
+            RowKind::McpInclude => {
+                let count = self
+                    .shell_style_profiles
                     .get(&self.selected_style)
                     .map(|profile| profile.mcp_servers.include.len())
-                    .unwrap_or(0)
-            )),
+                    .unwrap_or(0);
+                if count == 0 {
+                    Some("all (no filter)".to_string())
+                } else {
+                    Some(format!("{count} selected"))
+                }
+            }
             RowKind::McpExclude => Some(format!(
-                "{} servers",
+                "{} excluded",
                 self.shell_style_profiles
                     .get(&self.selected_style)
                     .map(|profile| profile.mcp_servers.exclude.len())
@@ -892,19 +978,23 @@ impl ShellProfilesSettingsView {
 
             let prefix = if is_selected { "> " } else { "  " };
             let label = Self::row_label(row);
-            let value = self.row_value(row).unwrap_or_default();
             let label_style = base.add_modifier(Modifier::BOLD);
-            let value_style = if is_selected {
-                base.add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-                    .bg(crate::colors::background())
-                    .fg(crate::colors::text_dim())
+            let line = match self.row_value(row) {
+                Some(value) => {
+                    let value_style = if is_selected {
+                        base.add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default()
+                            .bg(crate::colors::background())
+                            .fg(crate::colors::text_dim())
+                    };
+                    Line::from(vec![
+                        Span::styled(format!("{prefix}{label}: "), label_style),
+                        Span::styled(value, value_style),
+                    ])
+                }
+                None => Line::from(vec![Span::styled(format!("{prefix}{label}"), label_style)]),
             };
-            let line = Line::from(vec![
-                Span::styled(format!("{prefix}{label}: "), label_style),
-                Span::styled(value, value_style),
-            ]);
             write_line(buf, area.x, y, area.width, &line, base);
         }
     }
@@ -975,9 +1065,22 @@ impl ShellProfilesSettingsView {
         self.pick_viewport_rows.set(list_area.height as usize);
 
         let title = Self::picker_title(state.target);
+        let selected_count: usize = state
+            .items
+            .iter()
+            .zip(state.checked.iter())
+            .filter(|(item, checked)| **checked && !item.is_no_filter_option)
+            .count();
+        let selection_summary = if matches!(state.target, PickTarget::SkillsAllowlist | PickTarget::McpInclude)
+            && selected_count == 0
+        {
+            "all (no filter)".to_string()
+        } else {
+            format!("{selected_count} selected")
+        };
         let style = self.selected_style.to_string();
         let header_line = Line::from(vec![Span::styled(
-            format!("{title}  •  style: {style}"),
+            format!("{title}  •  style: {style}  •  {selection_summary}"),
             Style::default()
                 .fg(crate::colors::text_bright())
                 .add_modifier(Modifier::BOLD),
@@ -1069,14 +1172,20 @@ impl ShellProfilesSettingsView {
             let checked = state.checked.get(idx).copied().unwrap_or(false);
             let check = if checked { "[x]" } else { "[ ]" };
             let mut suffix: String = String::new();
-            if item.is_unknown {
-                suffix.push_str(" (unknown)");
-            }
-            let conflict_key = normalize_list_key(&item.name);
-            if state.other_values.contains(&conflict_key) {
-                suffix.push_str(" (");
-                suffix.push_str(conflict_label);
-                suffix.push(')');
+            let conflict_key = if item.is_no_filter_option {
+                String::new()
+            } else {
+                normalize_list_key(&item.name)
+            };
+            if !item.is_no_filter_option {
+                if item.is_unknown {
+                    suffix.push_str(" (unknown)");
+                }
+                if state.other_values.contains(&conflict_key) {
+                    suffix.push_str(" (");
+                    suffix.push_str(conflict_label);
+                    suffix.push(')');
+                }
             }
 
             let mut spans = Vec::new();
@@ -1089,7 +1198,7 @@ impl ShellProfilesSettingsView {
                 format!("{}{}", item.name, suffix),
                 if is_selected {
                     base.add_modifier(Modifier::BOLD)
-                } else if state.other_values.contains(&conflict_key) {
+                } else if !item.is_no_filter_option && state.other_values.contains(&conflict_key) {
                     Style::default()
                         .bg(crate::colors::background())
                         .fg(crate::colors::text_dim())
@@ -1155,6 +1264,10 @@ impl ShellProfilesSettingsView {
                     if self.selected_row() == RowKind::Style =>
                 {
                     self.cycle_style_next();
+                    true
+                }
+                KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. } => {
+                    self.activate_selected_row();
                     true
                 }
                 KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
@@ -1324,9 +1437,7 @@ impl ShellProfilesSettingsView {
                         state.scroll.selected_idx = Some(selected);
                         let visible = self.pick_viewport_rows.get().max(1);
                         state.scroll.ensure_visible(total, visible);
-                        if let Some(entry) = state.checked.get_mut(selected) {
-                            *entry = !*entry;
-                        }
+                        let _ = Self::toggle_picker_selection(&mut state);
                         true
                     }
                 };
