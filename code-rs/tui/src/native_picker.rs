@@ -102,6 +102,10 @@ fn run_picker_command(command: &str, args: &[String]) -> Result<Option<PathBuf>>
     target_os = "openbsd",
 ))]
 fn pick_linux_bsd(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>> {
+    if crate::chatwidget::is_test_mode() {
+        return Ok(None);
+    }
+
     if !has_gui_env() {
         return Err(anyhow::anyhow!(
             "no GUI session detected (missing DISPLAY/WAYLAND_DISPLAY)"
@@ -218,17 +222,24 @@ fn pick_rfd(_kind: NativePickerKind, _title: &str) -> Result<Option<PathBuf>> {
     ))
 }
 
+#[cfg(any(
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "dragonfly",
+    target_os = "netbsd",
+    target_os = "openbsd",
+))]
 pub(crate) fn pick_path(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>> {
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "freebsd",
-        target_os = "dragonfly",
-        target_os = "netbsd",
-        target_os = "openbsd",
-    ))]
-    {
-        return pick_linux_bsd(kind, title);
-    }
+    pick_linux_bsd(kind, title)
+}
 
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "dragonfly",
+    target_os = "netbsd",
+    target_os = "openbsd",
+)))]
+pub(crate) fn pick_path(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>> {
     pick_rfd(kind, title)
 }
