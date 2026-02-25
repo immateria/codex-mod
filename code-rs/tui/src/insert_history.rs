@@ -445,28 +445,39 @@ fn word_wrap_line(line: &Line, width: usize) -> Vec<Line<'static>> {
     if width == 0 {
         return vec![to_owned_line(line)];
     }
-    // Horizontal rule detection: lines consisting of --- *** or ___ (3+)
-    let flat_trim: String = line
+    // Horizontal rule detection: lines consisting of --- *** or ___ (3+).
+    // Avoid allocations by scanning spans directly.
+    let mut marker: Option<char> = None;
+    let mut marker_count: usize = 0;
+    let mut ok = true;
+    for ch in line
         .spans
         .iter()
-        .map(|s| s.content.as_ref())
-        .collect::<String>()
-        .trim()
-        .to_string();
-    if !flat_trim.is_empty() {
-        let chars: Vec<char> = flat_trim.chars().collect();
-        let only = |ch: char| chars.iter().all(|c| *c == ch || c.is_whitespace());
-        let count = |ch: char| chars.iter().filter(|c| **c == ch).count();
-        if (only('-') && count('-') >= 3)
-            || (only('*') && count('*') >= 3)
-            || (only('_') && count('_') >= 3)
-        {
-            let hr = Line::from(Span::styled(
-                std::iter::repeat_n('─', width).collect::<String>(),
-                ratatui::style::Style::default().fg(crate::colors::assistant_hr()),
-            ));
-            return vec![hr];
+        .flat_map(|span| span.content.as_ref().chars())
+    {
+        if ch.is_whitespace() {
+            continue;
         }
+        if !matches!(ch, '-' | '*' | '_') {
+            ok = false;
+            break;
+        }
+        if let Some(existing) = marker {
+            if existing != ch {
+                ok = false;
+                break;
+            }
+        } else {
+            marker = Some(ch);
+        }
+        marker_count = marker_count.saturating_add(1);
+    }
+    if ok && marker_count >= 3 && marker.is_some() {
+        let hr = Line::from(Span::styled(
+            std::iter::repeat_n('─', width).collect::<String>(),
+            ratatui::style::Style::default().fg(crate::colors::assistant_hr()),
+        ));
+        return vec![hr];
     }
 
     let line_width: usize = line
