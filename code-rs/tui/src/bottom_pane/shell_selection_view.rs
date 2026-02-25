@@ -13,6 +13,7 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
 use crate::components::form_text_field::FormTextField;
+use crate::native_picker::{pick_path, NativePickerKind};
 use crate::util::buffer::write_line;
 use code_common::shell_presets::ShellPreset;
 use code_core::config_types::ShellConfig;
@@ -45,6 +46,7 @@ pub(crate) struct ShellSelectionView {
     custom_input_mode: bool,
     custom_field: FormTextField,
     custom_style_override: Option<ShellScriptStyle>,
+    native_picker_notice: Option<String>,
     /// Cached item rects from last render for mouse hit testing
     item_rects: RefCell<Vec<Rect>>,
     /// Cached rect for the custom input field for mouse hit testing
@@ -96,6 +98,7 @@ impl ShellSelectionView {
                 field
             },
             custom_style_override: None,
+            native_picker_notice: None,
             item_rects: RefCell::new(Vec::new()),
             custom_field_rect: RefCell::new(None),
         }
@@ -161,6 +164,7 @@ impl ShellSelectionView {
         self.custom_input_mode = true;
         self.custom_field.set_text(&prefill);
         self.custom_style_override = style;
+        self.native_picker_notice = None;
         self.hovered_index = None;
     }
 
@@ -269,6 +273,37 @@ impl ShellSelectionView {
             script_style: self.custom_style_override.map(|style| style.to_string()),
         });
         self.send_closed(true);
+    }
+
+    fn set_custom_path_from_picker(&mut self, selected_path: &std::path::Path) {
+        let selected = selected_path.to_string_lossy().to_string();
+        let selected = match shlex::try_quote(&selected) {
+            Ok(quoted) => quoted.into_owned(),
+            Err(_) => {
+                self.native_picker_notice = Some("Picker returned an invalid path".to_string());
+                return;
+            }
+        };
+        let (_current_path, current_args) = split_command_and_args(self.custom_field.text());
+        let mut args: Vec<String> = Vec::new();
+        for arg in current_args {
+            match shlex::try_quote(&arg) {
+                Ok(quoted) => args.push(quoted.into_owned()),
+                Err(_) => {
+                    self.native_picker_notice =
+                        Some("Shell args contain invalid characters".to_string());
+                    return;
+                }
+            }
+        }
+        let args = args.join(" ");
+
+        let mut next = selected;
+        if !args.is_empty() {
+            next.push(' ');
+            next.push_str(&args);
+        }
+        self.custom_field.set_text(&next);
     }
 
     fn pin_selected_shell_binary(&mut self) {
@@ -476,11 +511,26 @@ impl ShellSelectionView {
                     self.custom_input_mode = false;
                     self.custom_field.set_text("");
                     self.custom_style_override = None;
+                    self.native_picker_notice = None;
                     true
                 }
                 (KeyCode::Enter, _) => {
                     self.submit_custom_path();
                     true
+                }
+                (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
+                    self.native_picker_notice = None;
+                    match pick_path(NativePickerKind::File, "Select shell binary") {
+                        Ok(Some(path)) => {
+                            self.set_custom_path_from_picker(&path);
+                            true
+                        }
+                        Ok(None) => true,
+                        Err(err) => {
+                            self.native_picker_notice = Some(format!("Picker failed: {err:#}"));
+                            true
+                        }
+                    }
                 }
                 (KeyCode::Tab, _) | (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
                     self.custom_style_override = match self.custom_style_override {
@@ -621,13 +671,20 @@ impl ShellSelectionView {
                 }
             }
         };
+        let notice = self.native_picker_notice.as_deref().unwrap_or_default();
+        let notice = notice.trim();
+        let notice = if notice.is_empty() {
+            String::new()
+        } else {
+            format!("  •  {notice}")
+        };
         write_line(
             buf,
             help_area.x,
             help_area.y,
             help_area.width,
             &Line::from(Span::styled(
-                format!("{status}  •  Enter apply  •  Ctrl+R resolve  •  Ctrl+T style  •  Esc back"),
+                format!("{status}{notice}  •  Enter apply  •  Ctrl+O pick  •  Ctrl+R resolve  •  Ctrl+T style  •  Esc back"),
                 Style::default().fg(colors::text_dim()),
             )),
             Style::default().bg(colors::background()),

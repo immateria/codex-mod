@@ -112,6 +112,10 @@ vt100 = "0.15.0"
 libc = "0.2"
 signal-hook = "0.3"
 
+# Native file/folder picker (macOS only for now).
+[target.'cfg(target_os = "macos")'.dependencies]
+rfd = { version = "0.15.4", default-features = false }
+
 # Android doesn't have arboard support - disable clipboard feature for Android
 [target.'cfg(target_os = "android")'.dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls-webpki-roots", "rustls-tls-native-roots"] }

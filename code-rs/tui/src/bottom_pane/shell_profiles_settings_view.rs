@@ -15,6 +15,7 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::components::form_text_field::FormTextField;
 use crate::components::scroll_state::ScrollState;
+use crate::native_picker::{pick_path, NativePickerKind};
 use crate::ui_interaction::{
     redraw_if,
     route_selectable_list_mouse_with_config,
@@ -1037,8 +1038,15 @@ impl ShellProfilesSettingsView {
             Style::default().bg(crate::colors::background()),
         );
 
+        let footer_text = if let Some(status) = self.status.as_deref()
+            && !status.trim().is_empty()
+        {
+            format!("{status}  •  Ctrl+S save  •  Ctrl+O pick  •  Esc cancel")
+        } else {
+            "Ctrl+S save  •  Ctrl+O pick  •  Esc cancel".to_string()
+        };
         let footer = Line::from(vec![Span::styled(
-            "Ctrl+S save  •  Esc cancel".to_string(),
+            footer_text,
             Style::default().fg(crate::colors::text_dim()),
         )]);
         write_line(
@@ -1292,6 +1300,40 @@ impl ShellProfilesSettingsView {
                     self.stage_pending_profile_from_fields();
                     self.dirty = true;
                     self.status = Some("Changes staged. Select Apply to persist.".to_string());
+                    true
+                }
+                (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
+                    let kind = match target {
+                        ListTarget::References => NativePickerKind::File,
+                        ListTarget::SkillRoots => NativePickerKind::Folder,
+                    };
+                    let title = match target {
+                        ListTarget::References => "Select reference file",
+                        ListTarget::SkillRoots => "Select skill root folder",
+                    };
+
+                    match pick_path(kind, title) {
+                        Ok(Some(path)) => {
+                            let entry = path.to_string_lossy();
+                            let entry = entry.trim();
+                            if !entry.is_empty() {
+                                let field = self.editor_field_mut(target);
+                                let mut next = field.text().to_string();
+                                if !next.trim().is_empty() && !next.ends_with('\n') {
+                                    next.push('\n');
+                                }
+                                next.push_str(entry);
+                                field.set_text(&next);
+                                self.status = Some("Added path (not staged)".to_string());
+                            }
+                        }
+                        Ok(None) => {}
+                        Err(err) => {
+                            self.status = Some(format!("Native picker failed: {err:#}"));
+                        }
+                    }
+
+                    self.mode = ViewMode::EditList { target, before };
                     true
                 }
                 _ => {

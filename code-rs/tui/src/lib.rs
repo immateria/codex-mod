@@ -89,6 +89,7 @@ mod ui_interaction;
 mod remote_model_presets;
 mod markdown_stream;
 mod syntax_highlight;
+mod native_picker;
 pub mod onboarding;
 pub mod public_widgets;
 mod render;
