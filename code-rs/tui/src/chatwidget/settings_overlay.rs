@@ -189,6 +189,10 @@ impl SettingsOverlayView {
         self.shell_profiles_content = Some(content);
     }
 
+    pub(crate) fn shell_profiles_content_mut(&mut self) -> Option<&mut ShellProfilesSettingsContent> {
+        self.shell_profiles_content.as_mut()
+    }
+
     pub(crate) fn set_updates_content(&mut self, content: UpdatesSettingsContent) {
         self.updates_content = Some(content);
     }

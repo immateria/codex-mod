@@ -18,15 +18,15 @@ impl ChatWidget<'_> {
         }
 
         // The welcome animation shares viewport with startup prelude content
-        // (popular commands / notices). Reserve a small fixed row budget so
+        // (notices). Reserve a small fixed row budget so
         // the intro doesn't consume the entire history viewport on short
         // terminals and get pushed out of view immediately.
 
         // When we're on the prelude screen (first request), absorb *all* remaining
         // viewport height into the welcome cell so the intro uses otherwise-empty
-        // rows above the "Popular commands" section. This keeps the commands pinned
-        // near the composer (bottom-aligned history) without wasting blank lines at
-        // the top of the viewport.
+        // rows above any startup notices. This keeps the most relevant content
+        // pinned near the composer (bottom-aligned history) without wasting blank
+        // lines at the top of the viewport.
         let (has_welcome, non_welcome_count, non_welcome_height) =
             if self.last_seen_request_index == 0 && self.history_cells.len() > 1 {
                 let mut has_welcome = false;

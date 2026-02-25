@@ -117,7 +117,6 @@ pub(crate) use patch::{new_patch_apply_failure, new_patch_event, PatchSummaryCel
 pub(crate) use plain::{
     new_error_event,
     new_model_output,
-    new_popular_commands_notice,
     new_prompts_output,
     new_queued_user_prompt,
     new_reasoning_output,

@@ -88,7 +88,7 @@ impl ChatWidget<'_> {
         }
 
         let (start_y, scroll_pos) = if total_height <= content_area.height {
-            // Content fits - always align to bottom so "Popular commands" stays at the bottom
+            // Content fits - always align to bottom so the newest content stays near the composer.
             let start_y = content_area.y + content_area.height.saturating_sub(total_height);
             // Update last_max_scroll cache
             self.layout.last_max_scroll.set(0);

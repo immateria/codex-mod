@@ -118,6 +118,30 @@ impl ShellProfilesSettingsView {
         view
     }
 
+    pub(crate) fn set_current_shell(&mut self, current_shell: Option<&ShellConfig>) {
+        let active_style = current_shell.and_then(|shell| {
+            shell.script_style
+                .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.path))
+        });
+
+        if self.active_style == active_style {
+            return;
+        }
+
+        self.active_style = active_style;
+
+        // Keep the panel "following" the active style when the user hasn't
+        // staged edits or entered the editor. This avoids surprising resets
+        // while still keeping defaults aligned with the selected shell.
+        if matches!(self.mode, ViewMode::Main) && !self.dirty {
+            if let Some(active) = self.active_style
+                && self.selected_style != active {
+                    self.selected_style = active;
+                    self.load_fields_for_style(active);
+                }
+        }
+    }
+
     fn rows() -> [RowKind; 8] {
         [
             RowKind::Style,

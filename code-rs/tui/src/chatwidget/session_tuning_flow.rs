@@ -448,6 +448,12 @@ impl ChatWidget<'_> {
         args: Vec<String>,
         script_style: Option<String>,
     ) {
+        let path_trimmed = path.trim();
+        if path_trimmed == "-" || path_trimmed.eq_ignore_ascii_case("auto") {
+            self.update_shell_config(None);
+            return;
+        }
+
         let parsed_style = script_style
             .as_deref()
             .and_then(ShellScriptStyle::parse)

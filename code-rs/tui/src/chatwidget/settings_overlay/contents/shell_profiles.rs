@@ -14,6 +14,10 @@ impl ShellProfilesSettingsContent {
     pub(crate) fn new(view: ShellProfilesSettingsView) -> Self {
         Self { view }
     }
+
+    pub(crate) fn set_current_shell(&mut self, current_shell: Option<&code_core::config_types::ShellConfig>) {
+        self.view.set_current_shell(current_shell);
+    }
 }
 
 impl SettingsContent for ShellProfilesSettingsContent {
@@ -37,4 +41,3 @@ impl SettingsContent for ShellProfilesSettingsContent {
         self.view.handle_paste_direct(text)
     }
 }
-

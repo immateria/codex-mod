@@ -18,7 +18,6 @@ use crate::colors;
 use crate::sanitize::Mode as SanitizeMode;
 use crate::sanitize::Options as SanitizeOptions;
 use crate::sanitize::sanitize_for_tui;
-use crate::slash_command::SlashCommand;
 use crate::theme::{current_theme, Theme};
 use code_ansi_escape::ansi_escape_line;
 use code_common::create_config_summary_entries;
@@ -560,8 +559,6 @@ fn line_plain_text(line: &Line<'_>) -> String {
 pub(crate) fn new_session_info(
     config: &Config,
     event: SessionConfiguredEvent,
-    is_first_event: bool,
-    latest_version: Option<&str>,
 ) -> PlainMessageState {
     let SessionConfiguredEvent {
         model,
@@ -571,12 +568,7 @@ pub(crate) fn new_session_info(
         ..
     } = event;
 
-    if is_first_event {
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from("notice".dim()));
-        lines.extend(popular_commands_lines(latest_version));
-        plain_message_state_from_lines(lines, HistoryCellType::Notice)
-    } else if config.model == model {
+    if config.model == model {
         plain_message_state_from_lines(Vec::new(), HistoryCellType::Notice)
     } else {
         let lines = vec![
@@ -589,84 +581,6 @@ pub(crate) fn new_session_info(
         ];
         plain_message_state_from_lines(lines, HistoryCellType::Notice)
     }
-}
-
-/// Build the common lines for the "Popular commands" section (without the leading
-/// "notice" marker). Shared between the initial session info and the startup prelude.
-fn popular_commands_lines(_latest_version: Option<&str>) -> Vec<Line<'static>> {
-    let mut lines: Vec<Line<'static>> = vec![Line::styled(
-        "Popular commands:",
-        Style::default().fg(crate::colors::text_bright()),
-    )];
-    lines.push(Line::from(vec![
-        Span::styled("/settings", Style::default().fg(crate::colors::primary())),
-        Span::from(" - "),
-        Span::from(SlashCommand::Settings.description())
-            .style(Style::default().add_modifier(Modifier::DIM)),
-        Span::styled(
-            " UPDATED",
-            Style::default().fg(crate::colors::primary()),
-        ),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("/auto", Style::default().fg(crate::colors::primary())),
-        Span::from(" - "),
-        Span::from(SlashCommand::Auto.description())
-            .style(Style::default().add_modifier(Modifier::DIM)),
-        Span::styled(
-            " UPDATED",
-            Style::default().fg(crate::colors::primary()),
-        ),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("/chrome", Style::default().fg(crate::colors::primary())),
-        Span::from(" - "),
-        Span::from(SlashCommand::Chrome.description())
-            .style(Style::default().add_modifier(Modifier::DIM)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("/plan", Style::default().fg(crate::colors::primary())),
-        Span::from(" - "),
-        Span::from(SlashCommand::Plan.description())
-            .style(Style::default().add_modifier(Modifier::DIM)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("/code", Style::default().fg(crate::colors::primary())),
-        Span::from(" - "),
-        Span::from(SlashCommand::Code.description())
-            .style(Style::default().add_modifier(Modifier::DIM)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled("/skills", Style::default().fg(crate::colors::primary())),
-        Span::from(" - "),
-        Span::from(SlashCommand::Skills.description())
-            .style(Style::default().add_modifier(Modifier::DIM)),
-        Span::styled(
-            " NEW",
-            Style::default().fg(crate::colors::primary()),
-        ),
-    ]));
-
-    lines
-}
-
-pub(crate) fn new_popular_commands_notice(
-    _connecting_mcp: bool,
-    latest_version: Option<&str>,
-) -> PlainMessageState {
-    if crate::chatwidget::is_test_mode() {
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from(""));
-        let legacy_line = "  /code - perform a coding task (multiple agents)";
-        lines.push(Line::from(legacy_line));
-        return plain_message_state_from_lines(lines, HistoryCellType::Notice);
-    }
-    let mut lines: Vec<Line<'static>> = Vec::new();
-    lines.push(Line::from("notice".dim()));
-    lines.extend(popular_commands_lines(latest_version));
-    // MCP startup status is surfaced outside of history (header/footer) so the
-    // intro animation doesn't jump when MCP connects or fails.
-    plain_message_state_from_lines(lines, HistoryCellType::Notice)
 }
 
 pub(crate) fn new_user_prompt(message: String) -> PlainMessageState {

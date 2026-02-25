@@ -163,9 +163,6 @@ fn format_upgrade_message(
     spans
 }
 
-/// Create a notice cell that shows the "Popular commands" immediately.
-/// If `connecting_mcp` is true, include a dim status line to inform users
-/// that external MCP servers are being connected in the background.
 pub(crate) fn new_upgrade_prelude(latest_version: Option<&str>) -> Option<UpgradeNoticeCell> {
     if !crate::updates::upgrade_ui_enabled() {
         return None;

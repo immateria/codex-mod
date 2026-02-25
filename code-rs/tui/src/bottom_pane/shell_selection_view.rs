@@ -11,11 +11,13 @@ use super::BottomPane;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
+use crate::components::form_text_field::FormTextField;
+use crate::util::buffer::write_line;
 use code_common::shell_presets::ShellPreset;
 use code_core::config_types::ShellConfig;
 use code_core::config_types::ShellScriptStyle;
 use code_core::split_command_and_args;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::prelude::Widget;
@@ -29,6 +31,7 @@ use std::cell::RefCell;
 struct ShellOption {
     preset: ShellPreset,
     available: bool,
+    resolved_path: Option<String>,
 }
 
 pub(crate) struct ShellSelectionView {
@@ -39,12 +42,12 @@ pub(crate) struct ShellSelectionView {
     app_event_tx: AppEventSender,
     is_complete: bool,
     custom_input_mode: bool,
-    custom_input: String,
+    custom_field: FormTextField,
     custom_style_override: Option<ShellScriptStyle>,
     /// Cached item rects from last render for mouse hit testing
     item_rects: RefCell<Vec<Rect>>,
-    /// Rect for custom option
-    custom_rect: RefCell<Option<Rect>>,
+    /// Cached rect for the custom input field for mouse hit testing
+    custom_field_rect: RefCell<Option<Rect>>,
 }
 
 impl ShellSelectionView {
@@ -57,18 +60,25 @@ impl ShellSelectionView {
             .into_iter()
             .filter(|p| p.show_in_picker)
             .map(|preset| {
-                let available = which::which(&preset.command).is_ok();
-                ShellOption { preset, available }
+                let resolved_path =
+                    which::which(&preset.command).ok().map(|path| path.to_string_lossy().to_string());
+                let available = resolved_path.is_some();
+                ShellOption {
+                    preset,
+                    available,
+                    resolved_path,
+                }
             })
             .collect();
 
-        let initial_index = if let Some(ref current) = current_shell {
-            shells
+        let custom_index = shells.len().saturating_add(1);
+        let initial_index = match current_shell.as_ref() {
+            None => 0,
+            Some(current) => shells
                 .iter()
                 .position(|s| Self::current_matches_preset(current, &s.preset))
-                .unwrap_or(0)
-        } else {
-            0
+                .map(|idx| idx.saturating_add(1))
+                .unwrap_or(custom_index),
         };
 
         Self {
@@ -79,10 +89,14 @@ impl ShellSelectionView {
             app_event_tx,
             is_complete: false,
             custom_input_mode: false,
-            custom_input: String::new(),
+            custom_field: {
+                let mut field = FormTextField::new_single_line();
+                field.set_placeholder("/bin/zsh -l");
+                field
+            },
             custom_style_override: None,
             item_rects: RefCell::new(Vec::new()),
-            custom_rect: RefCell::new(None),
+            custom_field_rect: RefCell::new(None),
         }
     }
 
@@ -112,7 +126,8 @@ impl ShellSelectionView {
     }
 
     fn item_count(&self) -> usize {
-        self.shells.len() + 1
+        // Auto option + presets + custom path option
+        self.shells.len() + 2
     }
 
     fn set_hovered_index(&mut self, hovered: Option<usize>) -> bool {
@@ -125,7 +140,7 @@ impl ShellSelectionView {
 
     fn move_selection_up(&mut self) {
         if self.selected_index == 0 {
-            self.selected_index = self.shells.len();
+            self.selected_index = self.item_count().saturating_sub(1);
         } else {
             self.selected_index = self.selected_index.saturating_sub(1);
         }
@@ -133,7 +148,7 @@ impl ShellSelectionView {
     }
 
     fn move_selection_down(&mut self) {
-        self.selected_index = (self.selected_index + 1) % (self.shells.len() + 1);
+        self.selected_index = (self.selected_index + 1) % self.item_count();
         self.hovered_index = None; // Clear hover when using keyboard
     }
 
@@ -141,25 +156,93 @@ impl ShellSelectionView {
         self.select_item(self.selected_index);
     }
 
-    fn select_item(&mut self, index: usize) {
-        if index == self.shells.len() {
-            // Custom path option selected
-            self.custom_input_mode = true;
-            self.custom_style_override = None;
-            return;
-        }
+    fn open_custom_input_with_prefill(&mut self, prefill: String, style: Option<ShellScriptStyle>) {
+        self.custom_input_mode = true;
+        self.custom_field.set_text(&prefill);
+        self.custom_style_override = style;
+        self.hovered_index = None;
+    }
 
-        if let Some(shell) = self.shells.get(index) {
-            if !shell.available {
-                // Show notice that shell is not available - enter custom mode with command pre-filled
-                self.custom_input_mode = true;
-                self.custom_input = shell.preset.command.clone();
-                self.custom_style_override = shell
+    fn prefill_for_selection(&self, index: usize) -> (String, Option<ShellScriptStyle>) {
+        let custom_index = self.shells.len().saturating_add(1);
+        let current_prefill = || {
+            let Some(current) = self.current_shell.as_ref() else {
+                return (String::new(), None);
+            };
+            let inferred = current
+                .script_style
+                .or_else(|| ShellScriptStyle::infer_from_shell_program(&current.path));
+            (Self::display_shell(current), inferred)
+        };
+
+        match index {
+            0 => current_prefill(),
+            idx if idx == custom_index => current_prefill(),
+            idx => {
+                let preset_idx = idx.saturating_sub(1);
+                let Some(shell) = self.shells.get(preset_idx) else {
+                    return current_prefill();
+                };
+
+                if let Some(current) = self.current_shell.as_ref()
+                    && Self::current_matches_preset(current, &shell.preset)
+                {
+                    return (
+                        Self::display_shell(current),
+                        current
+                            .script_style
+                            .or_else(|| ShellScriptStyle::infer_from_shell_program(&current.path)),
+                    );
+                }
+
+                let resolved_command = shell
+                    .resolved_path
+                    .clone()
+                    .unwrap_or_else(|| shell.preset.command.clone());
+
+                let mut input = resolved_command.clone();
+                if !shell.preset.default_args.is_empty() {
+                    input.push(' ');
+                    input.push_str(shell.preset.default_args.join(" ").as_str());
+                }
+
+                let style = shell
                     .preset
                     .script_style
                     .as_deref()
                     .and_then(ShellScriptStyle::parse)
-                    .or_else(|| ShellScriptStyle::infer_from_shell_program(&self.custom_input));
+                    .or_else(|| ShellScriptStyle::infer_from_shell_program(&resolved_command));
+                (input, style)
+            }
+        }
+    }
+
+    fn select_item(&mut self, index: usize) {
+        if index == 0 {
+            self.app_event_tx.send(AppEvent::UpdateShellSelection {
+                // Keep parity with `/shell -` which clears the override.
+                path: "-".to_string(),
+                args: Vec::new(),
+                script_style: None,
+            });
+            self.send_closed(true);
+            return;
+        }
+
+        let custom_index = self.shells.len().saturating_add(1);
+        if index == custom_index {
+            // Custom path option selected
+            let (prefill, style) = self.prefill_for_selection(index);
+            self.open_custom_input_with_prefill(prefill, style);
+            return;
+        }
+
+        let preset_index = index.saturating_sub(1);
+        if let Some(shell) = self.shells.get(preset_index) {
+            if !shell.available {
+                // Show notice that shell is not available - enter custom mode with command pre-filled
+                let (prefill, style) = self.prefill_for_selection(index);
+                self.open_custom_input_with_prefill(prefill, style);
                 return;
             }
 
@@ -173,7 +256,7 @@ impl ShellSelectionView {
     }
 
     fn submit_custom_path(&mut self) {
-        let (path, args) = split_command_and_args(self.custom_input.as_str());
+        let (path, args) = split_command_and_args(self.custom_field.text());
         let path = path.trim().to_string();
         if path.is_empty() {
             return;
@@ -187,6 +270,71 @@ impl ShellSelectionView {
         self.send_closed(true);
     }
 
+    fn pin_selected_shell_binary(&mut self) {
+        let index = self.selected_index;
+        if index == 0 {
+            // Auto-detect can't be pinned.
+            return;
+        }
+
+        let custom_index = self.shells.len().saturating_add(1);
+        if index == custom_index {
+            let (prefill, style) = self.prefill_for_selection(index);
+            self.open_custom_input_with_prefill(prefill, style);
+            return;
+        }
+
+        let preset_index = index.saturating_sub(1);
+        let Some(shell) = self.shells.get(preset_index) else {
+            return;
+        };
+
+        let Some(resolved) = shell.resolved_path.clone() else {
+            // If the binary isn't discoverable, fall back to the editor so the user can
+            // provide an explicit path.
+            let (prefill, style) = self.prefill_for_selection(index);
+            self.open_custom_input_with_prefill(prefill, style);
+            return;
+        };
+
+        self.app_event_tx.send(AppEvent::UpdateShellSelection {
+            path: resolved,
+            args: shell.preset.default_args.clone(),
+            script_style: shell.preset.script_style.clone(),
+        });
+        self.send_closed(true);
+    }
+
+    fn resolve_custom_shell_path_in_place(&mut self) -> bool {
+        let (path, args) = split_command_and_args(self.custom_field.text());
+        let trimmed = path.trim();
+        if trimmed.is_empty() {
+            return false;
+        }
+
+        let resolved = if trimmed.contains('/') || trimmed.contains('\\') {
+            // Already a path; only normalize if it exists.
+            if std::path::Path::new(trimmed).exists() {
+                trimmed.to_string()
+            } else {
+                return false;
+            }
+        } else {
+            match which::which(trimmed) {
+                Ok(path) => path.to_string_lossy().to_string(),
+                Err(_) => return false,
+            }
+        };
+
+        let mut cmd = resolved;
+        if !args.is_empty() {
+            cmd.push(' ');
+            cmd.push_str(&args.join(" "));
+        }
+        self.custom_field.set_text(&cmd);
+        true
+    }
+
     fn send_closed(&mut self, confirmed: bool) {
         self.is_complete = true;
         self.app_event_tx.send(AppEvent::ShellSelectionClosed { confirmed });
@@ -194,7 +342,7 @@ impl ShellSelectionView {
 
     /// Find which item index a screen position corresponds to
     fn hit_test(&self, x: u16, y: u16) -> Option<usize> {
-        // Check shell items
+        // Check cached item rects in render order (auto + presets + custom).
         let item_rects = self.item_rects.borrow();
         for (idx, rect) in item_rects.iter().enumerate() {
             if x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height {
@@ -202,17 +350,23 @@ impl ShellSelectionView {
             }
         }
 
-        // Check custom option
-        if let Some(rect) = *self.custom_rect.borrow()
-            && x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height {
-                return Some(self.shells.len());
-            }
-
         None
     }
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent) -> bool {
         if self.custom_input_mode {
+            if let Some(area) = *self.custom_field_rect.borrow() {
+                match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        return self.custom_field.handle_mouse_click(
+                            mouse_event.column,
+                            mouse_event.row,
+                            area,
+                        );
+                    }
+                    _ => return false,
+                }
+            }
             return false;
         }
 
@@ -283,17 +437,14 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        // Shell options + custom option + current display + padding
-        let shell_count = self.shells.len();
-        let has_current = self.current_shell.is_some();
-        let extra_lines = if has_current { 3 } else { 1 };
-        let lines = shell_count + 2 + extra_lines;
+        // Options + current display + padding (description lines are handled by min height).
+        let lines = self.item_count() + 6;
         (lines as u16).max(12)
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
         let title = if self.custom_input_mode {
-            "Enter Custom Shell Path"
+            "Edit Shell Command"
         } else {
             "Select Shell"
         };
@@ -314,7 +465,7 @@ impl ShellSelectionView {
             return match (key_event.code, key_event.modifiers) {
                 (KeyCode::Esc, _) => {
                     self.custom_input_mode = false;
-                    self.custom_input.clear();
+                    self.custom_field.set_text("");
                     self.custom_style_override = None;
                     true
                 }
@@ -322,7 +473,7 @@ impl ShellSelectionView {
                     self.submit_custom_path();
                     true
                 }
-                (KeyCode::Tab, _) => {
+                (KeyCode::Tab, _) | (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
                     self.custom_style_override = match self.custom_style_override {
                         None => Some(ShellScriptStyle::PosixSh),
                         Some(ShellScriptStyle::PosixSh) => Some(ShellScriptStyle::BashZshCompatible),
@@ -331,15 +482,10 @@ impl ShellSelectionView {
                     };
                     true
                 }
-                (KeyCode::Backspace, _) => {
-                    self.custom_input.pop();
-                    true
+                (KeyCode::Char('r'), KeyModifiers::CONTROL) => {
+                    self.resolve_custom_shell_path_in_place()
                 }
-                (KeyCode::Char(c), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
-                    self.custom_input.push(c);
-                    true
-                }
-                _ => false,
+                _ => self.custom_field.handle_key(key_event),
             };
         }
 
@@ -354,6 +500,20 @@ impl ShellSelectionView {
             }
             (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
                 self.move_selection_down();
+                true
+            }
+            (KeyCode::Char('e'), KeyModifiers::NONE) => {
+                let (prefill, style) = self.prefill_for_selection(self.selected_index);
+                self.open_custom_input_with_prefill(prefill, style);
+                true
+            }
+            (KeyCode::Char('p'), KeyModifiers::NONE) => {
+                self.pin_selected_shell_binary();
+                true
+            }
+            (KeyCode::Right, _) => {
+                let (prefill, style) = self.prefill_for_selection(self.selected_index);
+                self.open_custom_input_with_prefill(prefill, style);
                 true
             }
             (KeyCode::Enter, _) => {
@@ -373,7 +533,7 @@ impl ShellSelectionView {
             return false;
         }
 
-        self.custom_input.push_str(&text);
+        self.custom_field.handle_paste(text);
         true
     }
 
@@ -382,14 +542,32 @@ impl ShellSelectionView {
     }
 
     fn render_custom_input(&self, area: Rect, buf: &mut Buffer) {
-        let prompt_line = Line::from(vec![
-            Span::styled("Enter shell path: ", Style::default()),
-            Span::styled(&self.custom_input, Style::default().add_modifier(Modifier::BOLD)),
-            Span::styled("█", Style::default()),
-        ]);
+        if area.width == 0 || area.height < 4 {
+            return;
+        }
+
+        let label_area = Rect::new(area.x, area.y, area.width, 1);
+        let field_area = Rect::new(area.x, area.y.saturating_add(1), area.width, 1);
+        let style_area = Rect::new(area.x, area.y.saturating_add(2), area.width, 1);
+        let help_area = Rect::new(area.x, area.y.saturating_add(3), area.width, 1);
+
+        write_line(
+            buf,
+            label_area.x,
+            label_area.y,
+            label_area.width,
+            &Line::from(vec![Span::styled(
+                "Shell command (path + args):".to_string(),
+                Style::default().fg(colors::text_dim()),
+            )]),
+            Style::default().bg(colors::background()),
+        );
+
+        *self.custom_field_rect.borrow_mut() = Some(field_area);
+        self.custom_field.render(field_area, buf, true);
 
         let inferred = {
-            let (path, _args) = split_command_and_args(self.custom_input.as_str());
+            let (path, _args) = split_command_and_args(self.custom_field.text());
             ShellScriptStyle::infer_from_shell_program(&path)
         };
         let style_label = match (self.custom_style_override, inferred) {
@@ -398,32 +576,69 @@ impl ShellSelectionView {
             (None, None) => "Style: auto".to_string(),
         };
 
-        let style_line = Line::from(Span::styled(
-            style_label,
-            Style::default().fg(colors::text_dim()),
-        ));
+        write_line(
+            buf,
+            style_area.x,
+            style_area.y,
+            style_area.width,
+            &Line::from(Span::styled(style_label, Style::default().fg(colors::text_dim()))),
+            Style::default().bg(colors::background()),
+        );
 
-        let help_line = Line::from(Span::styled(
-            "Tip: Tab cycles script style. Enter applies. Esc cancels.",
-            Style::default().fg(colors::text_dim()),
-        ));
-
-        let para = Paragraph::new(vec![prompt_line, style_line, Line::raw(""), help_line])
-            .alignment(Alignment::Left);
-        para.render(area, buf);
+        let status = {
+            let (path, _args) = split_command_and_args(self.custom_field.text());
+            let trimmed = path.trim();
+            if trimmed.is_empty() {
+                "Status: enter a shell path or command".to_string()
+            } else if trimmed.contains('/') || trimmed.contains('\\') {
+                let exists = std::path::Path::new(trimmed).exists();
+                if exists {
+                    format!("Status: OK ({trimmed})")
+                } else {
+                    format!("Status: not found ({trimmed})")
+                }
+            } else {
+                match which::which(trimmed) {
+                    Ok(resolved) => format!("Status: OK ({})", resolved.to_string_lossy()),
+                    Err(_) => format!("Status: not found in PATH ({trimmed})"),
+                }
+            }
+        };
+        write_line(
+            buf,
+            help_area.x,
+            help_area.y,
+            help_area.width,
+            &Line::from(Span::styled(
+                format!("{status}  •  Enter apply  •  Ctrl+R resolve  •  Ctrl+T style  •  Esc back"),
+                Style::default().fg(colors::text_dim()),
+            )),
+            Style::default().bg(colors::background()),
+        );
     }
 
     fn render_shell_list(&self, area: Rect, buf: &mut Buffer) {
         let mut item_rects = self.item_rects.borrow_mut();
         item_rects.clear();
-        *self.custom_rect.borrow_mut() = None;
+        *self.custom_field_rect.borrow_mut() = None;
 
         let mut lines = Vec::new();
         let mut current_y = area.y;
 
-        // Show current shell if set
-        if let Some(ref current) = self.current_shell {
-            let current_label = Self::display_shell(current);
+        // Show current shell (or auto) at the top.
+        {
+            let current_label = match self.current_shell.as_ref() {
+                Some(current) => {
+                    let label = Self::display_shell(current);
+                    let style = current
+                        .script_style
+                        .or_else(|| ShellScriptStyle::infer_from_shell_program(&current.path))
+                        .map(|style| style.to_string())
+                        .unwrap_or_else(|| "auto".to_string());
+                    format!("{label} (style: {style})")
+                }
+                None => "auto-detected".to_string(),
+            };
             lines.push(Line::from(vec![
                 Span::styled("Current: ", Style::default()),
                 Span::styled(
@@ -435,10 +650,44 @@ impl ShellSelectionView {
             current_y += 2;
         }
 
+        // Auto option
+        let is_auto_selected = self.selected_index == 0;
+        let is_auto_hovered = self.hovered_index == Some(0);
+        let auto_prefix = if is_auto_selected { "▶ " } else { "  " };
+        let auto_style = if is_auto_selected || is_auto_hovered {
+            Style::default()
+                .bg(colors::selection())
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+        let auto_start_y = current_y;
+        lines.push(Line::from(vec![
+            Span::styled(auto_prefix, auto_style),
+            Span::styled("Auto-detect shell", auto_style),
+            Span::styled(" - ", Style::default().fg(colors::text_dim())),
+            Span::styled("use system default", Style::default().fg(colors::text_dim())),
+        ]));
+        current_y += 1;
+        if is_auto_selected {
+            lines.push(Line::from(Span::styled(
+                "    Clears the override and follows your default shell.",
+                Style::default().fg(colors::text_dim()).bg(colors::selection()),
+            )));
+            current_y += 1;
+        }
+        item_rects.push(Rect {
+            x: area.x,
+            y: auto_start_y,
+            width: area.width,
+            height: current_y.saturating_sub(auto_start_y),
+        });
+
         // Render shell options
         for (idx, shell) in self.shells.iter().enumerate() {
-            let is_selected = idx == self.selected_index;
-            let is_hovered = self.hovered_index == Some(idx);
+            let item_idx = idx.saturating_add(1);
+            let is_selected = item_idx == self.selected_index;
+            let is_hovered = self.hovered_index == Some(item_idx);
             let prefix = if is_selected { "▶ " } else { "  " };
 
             let name_style = if shell.available {
@@ -452,35 +701,56 @@ impl ShellSelectionView {
             };
 
             let status = if shell.available { "" } else { " (not found)" };
+            let item_start_y = current_y;
 
-            // Store the rect for this item
-            item_rects.push(Rect {
-                x: area.x,
-                y: current_y,
-                width: area.width,
-                height: 1,
-            });
+            let style_label = shell
+                .preset
+                .script_style
+                .as_deref()
+                .and_then(ShellScriptStyle::parse)
+                .or_else(|| ShellScriptStyle::infer_from_shell_program(&shell.preset.command))
+                .map(|style| style.to_string())
+                .unwrap_or_else(|| "auto".to_string());
 
             lines.push(Line::from(vec![
                 Span::styled(prefix, name_style),
                 Span::styled(format!("{}{}", shell.preset.display_name, status), name_style),
+                Span::styled(format!(" [{style_label}]"), Style::default().fg(colors::text_dim())),
                 Span::styled(" - ", Style::default().fg(colors::text_dim())),
                 Span::styled(&shell.preset.command, Style::default().fg(colors::text_dim())),
             ]));
             current_y += 1;
 
             if is_selected {
+                let info_style = Style::default().fg(colors::text_dim()).bg(colors::selection());
                 lines.push(Line::from(Span::styled(
                     format!("    {}", shell.preset.description),
-                    Style::default().fg(colors::text_dim()),
+                    info_style,
+                )));
+                current_y += 1;
+                let resolved = shell
+                    .resolved_path
+                    .as_deref()
+                    .unwrap_or("not found in PATH");
+                lines.push(Line::from(Span::styled(
+                    format!("    Binary: {resolved} (press p to pin, e/→ to edit)"),
+                    info_style,
                 )));
                 current_y += 1;
             }
+
+            item_rects.push(Rect {
+                x: area.x,
+                y: item_start_y,
+                width: area.width,
+                height: current_y.saturating_sub(item_start_y),
+            });
         }
 
         // Custom path option
-        let is_custom_selected = self.selected_index == self.shells.len();
-        let is_custom_hovered = self.hovered_index == Some(self.shells.len());
+        let custom_idx = self.shells.len().saturating_add(1);
+        let is_custom_selected = self.selected_index == custom_idx;
+        let is_custom_hovered = self.hovered_index == Some(custom_idx);
         let custom_prefix = if is_custom_selected { "▶ " } else { "  " };
         let custom_style = if is_custom_selected || is_custom_hovered {
             Style::default().bg(colors::selection()).add_modifier(Modifier::BOLD)
@@ -491,18 +761,24 @@ impl ShellSelectionView {
         lines.push(Line::raw(""));
         current_y += 1;
 
-        // Store the rect for custom option
-        *self.custom_rect.borrow_mut() = Some(Rect {
-            x: area.x,
-            y: current_y,
-            width: area.width,
-            height: 1,
-        });
+        let custom_start_y = current_y;
 
         lines.push(Line::from(vec![
             Span::styled(custom_prefix, custom_style),
-            Span::styled("Custom path...", custom_style),
+            Span::styled("Custom / pinned path...", custom_style),
         ]));
+        current_y += 1;
+        item_rects.push(Rect {
+            x: area.x,
+            y: custom_start_y,
+            width: area.width,
+            height: current_y.saturating_sub(custom_start_y),
+        });
+
+        lines.push(Line::from(Span::styled(
+            "Keys: Enter apply  •  e/→ edit/pin path  •  p pin resolved  •  Esc close".to_string(),
+            Style::default().fg(colors::text_dim()),
+        )));
 
         let para = Paragraph::new(lines).alignment(Alignment::Left);
         para.render(area, buf);

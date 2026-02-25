@@ -210,6 +210,26 @@ impl ChatWidget<'_> {
     pub(super) fn update_shell_config(&mut self, shell: Option<ShellConfig>) {
         let previous_shell = self.config.shell.clone();
         self.config.shell = shell.clone();
+        self.refresh_settings_overview_rows();
+
+        let should_refresh_shell_content = self.settings.overlay.as_ref().is_some_and(|overlay| {
+            overlay.is_menu_active()
+                || overlay.active_section() == crate::bottom_pane::SettingsSection::Shell
+        });
+        let shell_content = should_refresh_shell_content.then(|| self.build_shell_settings_content());
+
+        if let Some(overlay) = self.settings.overlay.as_mut() {
+            // Shell selection is simple state; keep the cached view in sync so
+            // returning to the section shows the latest config.
+            if let Some(content) = shell_content {
+                overlay.set_shell_content(content);
+            }
+
+            if let Some(content) = overlay.shell_profiles_content_mut() {
+                content.set_current_shell(self.config.shell.as_ref());
+            }
+        }
+
         self.request_redraw();
         self.submit_configure_session_for_current_settings();
         self.persist_shell_config(shell, previous_shell);

@@ -102,22 +102,9 @@ impl ChatWidget<'_> {
                 self.bottom_pane
                     .set_history_metadata(event.history_log_id, event.history_entry_count);
                 // Record session information at the top of the conversation.
-                // If we already showed the startup prelude (Popular commands),
-                // avoid inserting a duplicate. Still surface a notice if the
-                // model actually changed from the requested one.
-                let is_first = !self.welcome_shown;
-                let should_insert_session_info =
-                    (!self.test_mode && is_first) || self.config.model != event.model;
-                if should_insert_session_info {
-                    if is_first {
-                        self.welcome_shown = true;
-                    }
-                    let session_state = history_cell::new_session_info(
-                        &self.config,
-                        event.clone(),
-                        is_first,
-                        self.latest_upgrade_version.as_deref(),
-                    );
+                // Only surface a notice when the model differs from what we requested.
+                if self.config.model != event.model {
+                    let session_state = history_cell::new_session_info(&self.config, event.clone());
                     let key = self.next_req_key_top();
                     let _ = self
                         .history_insert_plain_state_with_key(session_state, key, "prelude");

@@ -336,8 +336,7 @@ impl ChatWidget<'_> {
         // Seed footer access indicator based on current config
         new_widget.apply_access_mode_indicator_from_config();
         // Insert the welcome cell as top-of-first-request so future model output
-        // appears below it. Also insert the Popular commands immediately so users
-        // don't wait for MCP initialization to finish.
+        // appears below it.
         let mut w = new_widget;
         let auto_defaults = w.config.auto_drive.clone();
         w.auto_state.review_enabled = auto_defaults.review_enabled;
@@ -359,14 +358,6 @@ impl ChatWidget<'_> {
                 {
                     w.history_push_top_next_req(upgrade_cell);
                 }
-            let notice_state = history_cell::new_popular_commands_notice(
-                false,
-                w.latest_upgrade_version.as_deref(),
-            );
-            let notice_key = w.next_req_key_top();
-            let _ = w.history_insert_plain_state_with_key(notice_state, notice_key, "prelude");
-            // Mark welcome as shown to avoid duplicating the Popular commands section
-            // when SessionConfigured arrives shortly after.
             w.welcome_shown = true;
         } else {
             w.welcome_shown = true;
