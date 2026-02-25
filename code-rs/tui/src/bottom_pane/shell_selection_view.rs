@@ -27,6 +27,17 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use std::cell::RefCell;
+use unicode_width::UnicodeWidthStr;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CustomHelpAction {
+    Apply,
+    Pick,
+    Show,
+    Resolve,
+    ToggleStyle,
+    Back,
+}
 
 /// A shell option with availability status
 #[derive(Clone, Debug)]
@@ -51,6 +62,7 @@ pub(crate) struct ShellSelectionView {
     item_rects: RefCell<Vec<Rect>>,
     /// Cached rect for the custom input field for mouse hit testing
     custom_field_rect: RefCell<Option<Rect>>,
+    custom_help_rects: RefCell<Vec<(CustomHelpAction, Rect)>>,
 }
 
 impl ShellSelectionView {
@@ -101,6 +113,58 @@ impl ShellSelectionView {
             native_picker_notice: None,
             item_rects: RefCell::new(Vec::new()),
             custom_field_rect: RefCell::new(None),
+            custom_help_rects: RefCell::new(Vec::new()),
+        }
+    }
+
+    fn pick_shell_binary_from_dialog(&mut self) -> bool {
+        self.native_picker_notice = None;
+        match pick_path(NativePickerKind::File, "Select shell binary") {
+            Ok(Some(path)) => {
+                self.set_custom_path_from_picker(&path);
+                true
+            }
+            Ok(None) => true,
+            Err(err) => {
+                self.native_picker_notice = Some(format!("Picker failed: {err:#}"));
+                true
+            }
+        }
+    }
+
+    fn show_custom_shell_in_file_manager(&mut self) -> bool {
+        self.native_picker_notice = None;
+        let (path, _args) = split_command_and_args(self.custom_field.text());
+        let trimmed = path.trim();
+        if trimmed.is_empty() {
+            self.native_picker_notice = Some("No shell path to show".to_string());
+            return true;
+        }
+
+        let resolved = if trimmed.contains('/') || trimmed.contains('\\') {
+            if std::path::Path::new(trimmed).exists() {
+                Some(trimmed.to_string())
+            } else {
+                None
+            }
+        } else {
+            which::which(trimmed).ok().map(|path| path.to_string_lossy().to_string())
+        };
+
+        let Some(resolved) = resolved else {
+            self.native_picker_notice = Some(format!("Not found: {trimmed}"));
+            return true;
+        };
+
+        match crate::native_file_manager::reveal_path(std::path::Path::new(&resolved)) {
+            Ok(()) => {
+                self.native_picker_notice = Some("Opened in file manager".to_string());
+                true
+            }
+            Err(err) => {
+                self.native_picker_notice = Some(format!("Open failed: {err:#}"));
+                true
+            }
         }
     }
 
@@ -399,19 +463,68 @@ impl ShellSelectionView {
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent) -> bool {
         if self.custom_input_mode {
-            if let Some(area) = *self.custom_field_rect.borrow() {
-                match mouse_event.kind {
-                    MouseEventKind::Down(MouseButton::Left) => {
+            return match mouse_event.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    let action_hit = {
+                        let rects = self.custom_help_rects.borrow();
+                        rects.iter().copied().find_map(|(action, rect)| {
+                            if mouse_event.column >= rect.x
+                                && mouse_event.column < rect.x.saturating_add(rect.width)
+                                && mouse_event.row >= rect.y
+                                && mouse_event.row < rect.y.saturating_add(rect.height)
+                            {
+                                Some(action)
+                            } else {
+                                None
+                            }
+                        })
+                    };
+                    if let Some(action) = action_hit {
+                        match action {
+                            CustomHelpAction::Apply => self.submit_custom_path(),
+                            CustomHelpAction::Pick => {
+                                let _ = self.pick_shell_binary_from_dialog();
+                            }
+                            CustomHelpAction::Show => {
+                                let _ = self.show_custom_shell_in_file_manager();
+                            }
+                            CustomHelpAction::Resolve => {
+                                let _ = self.resolve_custom_shell_path_in_place();
+                            }
+                            CustomHelpAction::ToggleStyle => {
+                                self.custom_style_override = match self.custom_style_override {
+                                    None => Some(ShellScriptStyle::PosixSh),
+                                    Some(ShellScriptStyle::PosixSh) => {
+                                        Some(ShellScriptStyle::BashZshCompatible)
+                                    }
+                                    Some(ShellScriptStyle::BashZshCompatible) => {
+                                        Some(ShellScriptStyle::Zsh)
+                                    }
+                                    Some(ShellScriptStyle::Zsh) => None,
+                                };
+                            }
+                            CustomHelpAction::Back => {
+                                self.custom_input_mode = false;
+                                self.custom_field.set_text("");
+                                self.custom_style_override = None;
+                                self.native_picker_notice = None;
+                            }
+                        }
+                        return true;
+                    }
+
+                    if let Some(area) = *self.custom_field_rect.borrow() {
                         return self.custom_field.handle_mouse_click(
                             mouse_event.column,
                             mouse_event.row,
                             area,
                         );
                     }
-                    _ => return false,
+
+                    false
                 }
-            }
-            return false;
+                _ => false,
+            };
         }
 
         let mut selected = self.selected_index;
@@ -519,53 +632,10 @@ impl ShellSelectionView {
                     true
                 }
                 (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    self.native_picker_notice = None;
-                    match pick_path(NativePickerKind::File, "Select shell binary") {
-                        Ok(Some(path)) => {
-                            self.set_custom_path_from_picker(&path);
-                            true
-                        }
-                        Ok(None) => true,
-                        Err(err) => {
-                            self.native_picker_notice = Some(format!("Picker failed: {err:#}"));
-                            true
-                        }
-                    }
+                    self.pick_shell_binary_from_dialog()
                 }
                 (KeyCode::Char('v'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    self.native_picker_notice = None;
-                    let (path, _args) = split_command_and_args(self.custom_field.text());
-                    let trimmed = path.trim();
-                    if trimmed.is_empty() {
-                        self.native_picker_notice = Some("No shell path to show".to_string());
-                        return true;
-                    }
-
-                    let resolved = if trimmed.contains('/') || trimmed.contains('\\') {
-                        if std::path::Path::new(trimmed).exists() {
-                            Some(trimmed.to_string())
-                        } else {
-                            None
-                        }
-                    } else {
-                        which::which(trimmed).ok().map(|path| path.to_string_lossy().to_string())
-                    };
-
-                    let Some(resolved) = resolved else {
-                        self.native_picker_notice = Some(format!("Not found: {trimmed}"));
-                        return true;
-                    };
-
-                    match crate::native_file_manager::reveal_path(std::path::Path::new(&resolved)) {
-                        Ok(()) => {
-                            self.native_picker_notice = Some("Opened in file manager".to_string());
-                            true
-                        }
-                        Err(err) => {
-                            self.native_picker_notice = Some(format!("Open failed: {err:#}"));
-                            true
-                        }
-                    }
+                    self.show_custom_shell_in_file_manager()
                 }
                 (KeyCode::Tab, _) | (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
                     self.custom_style_override = match self.custom_style_override {
@@ -645,6 +715,8 @@ impl ShellSelectionView {
 
     fn render_custom_input(&self, area: Rect, buf: &mut Buffer) {
         if area.width == 0 || area.height < 4 {
+            *self.custom_field_rect.borrow_mut() = None;
+            self.custom_help_rects.borrow_mut().clear();
             return;
         }
 
@@ -713,15 +785,82 @@ impl ShellSelectionView {
         } else {
             format!("  •  {notice}")
         };
+
+        let dim = Style::default().fg(colors::text_dim());
+        let key_style = Style::default().fg(colors::function());
+
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut cursor_x = help_area.x;
+        let line_y = help_area.y;
+        let area_end = help_area.x.saturating_add(help_area.width);
+        let mut hits = self.custom_help_rects.borrow_mut();
+        hits.clear();
+
+        let mut push_span = |text: &str, style: Style| {
+            spans.push(Span::styled(text.to_string(), style));
+            cursor_x = cursor_x.saturating_add(UnicodeWidthStr::width(text) as u16);
+        };
+        let push_sep = |cursor_x: &mut u16, spans: &mut Vec<Span<'static>>| {
+            let text = "  •  ";
+            spans.push(Span::styled(text.to_string(), dim));
+            *cursor_x = cursor_x.saturating_add(UnicodeWidthStr::width(text) as u16);
+        };
+        let push_action = |key: &str,
+                               label: &str,
+                               action: CustomHelpAction,
+                               cursor_x: &mut u16,
+                               spans: &mut Vec<Span<'static>>,
+                               hits: &mut Vec<(CustomHelpAction, Rect)>| {
+            let start = *cursor_x;
+            spans.push(Span::styled(key.to_string(), key_style));
+            *cursor_x = cursor_x.saturating_add(UnicodeWidthStr::width(key) as u16);
+            spans.push(Span::styled(label.to_string(), dim));
+            *cursor_x = cursor_x.saturating_add(UnicodeWidthStr::width(label) as u16);
+
+            let end = (*cursor_x).min(area_end);
+            let visible_start = start.max(help_area.x);
+            if end > visible_start {
+                hits.push((action, Rect::new(visible_start, line_y, end - visible_start, 1)));
+            }
+        };
+
+        push_span(&format!("{status}{notice}"), dim);
+        push_sep(&mut cursor_x, &mut spans);
+        push_action("Enter", " apply", CustomHelpAction::Apply, &mut cursor_x, &mut spans, &mut hits);
+        push_sep(&mut cursor_x, &mut spans);
+        push_action("Ctrl+O", " pick", CustomHelpAction::Pick, &mut cursor_x, &mut spans, &mut hits);
+        push_sep(&mut cursor_x, &mut spans);
+        push_action("Ctrl+V", " show", CustomHelpAction::Show, &mut cursor_x, &mut spans, &mut hits);
+        push_sep(&mut cursor_x, &mut spans);
+        push_action(
+            "Ctrl+R",
+            " resolve",
+            CustomHelpAction::Resolve,
+            &mut cursor_x,
+            &mut spans,
+            &mut hits,
+        );
+        push_sep(&mut cursor_x, &mut spans);
+        push_action(
+            "Ctrl+T",
+            " style",
+            CustomHelpAction::ToggleStyle,
+            &mut cursor_x,
+            &mut spans,
+            &mut hits,
+        );
+        push_sep(&mut cursor_x, &mut spans);
+        push_action("Esc", " back", CustomHelpAction::Back, &mut cursor_x, &mut spans, &mut hits);
+
+        // Clamp any regions that started past the visible area.
+        hits.retain(|(_action, rect)| rect.x < area_end && rect.width > 0 && rect.y == line_y);
+
         write_line(
             buf,
             help_area.x,
             help_area.y,
             help_area.width,
-            &Line::from(Span::styled(
-                format!("{status}{notice}  •  Enter apply  •  Ctrl+O pick  •  Ctrl+V show  •  Ctrl+R resolve  •  Ctrl+T style  •  Esc back"),
-                Style::default().fg(colors::text_dim()),
-            )),
+            &Line::from(spans),
             Style::default().bg(colors::background()),
         );
     }
@@ -730,6 +869,7 @@ impl ShellSelectionView {
         let mut item_rects = self.item_rects.borrow_mut();
         item_rects.clear();
         *self.custom_field_rect.borrow_mut() = None;
+        self.custom_help_rects.borrow_mut().clear();
 
         let mut lines = Vec::new();
         let mut current_y = area.y;

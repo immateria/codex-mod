@@ -25,6 +25,7 @@ use crate::ui_interaction::{
 };
 use crate::util::buffer::{fill_rect, write_line};
 use std::cell::Cell;
+use unicode_width::UnicodeWidthStr;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
@@ -89,6 +90,14 @@ enum ViewMode {
     Main,
     EditList { target: ListTarget, before: String },
     PickList(PickListState),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EditorFooterAction {
+    Save,
+    Pick,
+    Show,
+    Cancel,
 }
 
 pub(crate) struct ShellProfilesSettingsView {
@@ -859,6 +868,111 @@ impl ShellProfilesSettingsView {
         }
     }
 
+    fn editor_footer_line_and_hits(&self, footer_area: Rect) -> (Line<'static>, Vec<(EditorFooterAction, Rect)>) {
+        let dim = Style::default().fg(crate::colors::text_dim());
+        let key_style = Style::default().fg(crate::colors::function());
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut hits: Vec<(EditorFooterAction, Rect)> = Vec::new();
+
+        let y = footer_area.y;
+        let area_end = footer_area.x.saturating_add(footer_area.width);
+        let mut cursor_x = footer_area.x;
+
+        let push_sep = |cursor_x: &mut u16, spans: &mut Vec<Span<'static>>| {
+            let text = "  •  ";
+            spans.push(Span::styled(text.to_string(), dim));
+            *cursor_x = cursor_x.saturating_add(UnicodeWidthStr::width(text) as u16);
+        };
+
+        let push_action = |key: &str,
+                               label: &str,
+                               action: EditorFooterAction,
+                               cursor_x: &mut u16,
+                               spans: &mut Vec<Span<'static>>,
+                               hits: &mut Vec<(EditorFooterAction, Rect)>| {
+            let start = *cursor_x;
+            spans.push(Span::styled(key.to_string(), key_style));
+            *cursor_x = cursor_x.saturating_add(UnicodeWidthStr::width(key) as u16);
+            spans.push(Span::styled(label.to_string(), dim));
+            *cursor_x = cursor_x.saturating_add(UnicodeWidthStr::width(label) as u16);
+
+            let end = (*cursor_x).min(area_end);
+            let visible_start = start.max(footer_area.x);
+            if end > visible_start {
+                hits.push((action, Rect::new(visible_start, y, end - visible_start, 1)));
+            }
+        };
+
+        if let Some(status) = self.status.as_deref()
+            && !status.trim().is_empty()
+        {
+            let status = status.trim().replace(['\r', '\n'], " ");
+            cursor_x = cursor_x.saturating_add(UnicodeWidthStr::width(status.as_str()) as u16);
+            spans.push(Span::styled(status, dim));
+            push_sep(&mut cursor_x, &mut spans);
+        }
+
+        push_action("Ctrl+S", " save", EditorFooterAction::Save, &mut cursor_x, &mut spans, &mut hits);
+        push_sep(&mut cursor_x, &mut spans);
+        push_action("Ctrl+O", " pick", EditorFooterAction::Pick, &mut cursor_x, &mut spans, &mut hits);
+        push_sep(&mut cursor_x, &mut spans);
+        push_action("Ctrl+V", " show", EditorFooterAction::Show, &mut cursor_x, &mut spans, &mut hits);
+        push_sep(&mut cursor_x, &mut spans);
+        push_action("Esc", " cancel", EditorFooterAction::Cancel, &mut cursor_x, &mut spans, &mut hits);
+
+        hits.retain(|(_action, rect)| rect.x < area_end && rect.width > 0 && rect.y == y);
+        (Line::from(spans), hits)
+    }
+
+    fn editor_append_picker_path(&mut self, target: ListTarget) {
+        let kind = match target {
+            ListTarget::References => NativePickerKind::File,
+            ListTarget::SkillRoots => NativePickerKind::Folder,
+        };
+        let title = match target {
+            ListTarget::References => "Select reference file",
+            ListTarget::SkillRoots => "Select skill root folder",
+        };
+
+        match pick_path(kind, title) {
+            Ok(Some(path)) => {
+                let entry = path.to_string_lossy();
+                let entry = entry.trim();
+                if !entry.is_empty() {
+                    let field = self.editor_field_mut(target);
+                    let mut next = field.text().to_string();
+                    if !next.trim().is_empty() && !next.ends_with('\n') {
+                        next.push('\n');
+                    }
+                    next.push_str(entry);
+                    field.set_text(&next);
+                    self.status = Some("Added path (not staged)".to_string());
+                }
+            }
+            Ok(None) => {}
+            Err(err) => {
+                self.status = Some(format!("Native picker failed: {err:#}"));
+            }
+        }
+    }
+
+    fn editor_show_last_path(&mut self, target: ListTarget) {
+        let text = self.editor_field_mut(target).text().to_string();
+        let last = text
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .last();
+
+        match last {
+            Some(path) => match crate::native_file_manager::reveal_path(std::path::Path::new(path)) {
+                Ok(()) => self.status = Some("Opened in file manager".to_string()),
+                Err(err) => self.status = Some(format!("Open failed: {err:#}")),
+            },
+            None => self.status = Some("No paths to show".to_string()),
+        }
+    }
+
     fn activate_selected_row(&mut self) {
         match self.selected_row() {
             RowKind::Style => self.cycle_style_next(),
@@ -1038,17 +1152,7 @@ impl ShellProfilesSettingsView {
             Style::default().bg(crate::colors::background()),
         );
 
-        let footer_text = if let Some(status) = self.status.as_deref()
-            && !status.trim().is_empty()
-        {
-            format!("{status}  •  Ctrl+S save  •  Ctrl+O pick  •  Ctrl+V show  •  Esc cancel")
-        } else {
-            "Ctrl+S save  •  Ctrl+O pick  •  Ctrl+V show  •  Esc cancel".to_string()
-        };
-        let footer = Line::from(vec![Span::styled(
-            footer_text,
-            Style::default().fg(crate::colors::text_dim()),
-        )]);
+        let (footer, _hits) = self.editor_footer_line_and_hits(footer_area);
         write_line(
             buf,
             footer_area.x,
@@ -1303,55 +1407,12 @@ impl ShellProfilesSettingsView {
                     true
                 }
                 (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    let kind = match target {
-                        ListTarget::References => NativePickerKind::File,
-                        ListTarget::SkillRoots => NativePickerKind::Folder,
-                    };
-                    let title = match target {
-                        ListTarget::References => "Select reference file",
-                        ListTarget::SkillRoots => "Select skill root folder",
-                    };
-
-                    match pick_path(kind, title) {
-                        Ok(Some(path)) => {
-                            let entry = path.to_string_lossy();
-                            let entry = entry.trim();
-                            if !entry.is_empty() {
-                                let field = self.editor_field_mut(target);
-                                let mut next = field.text().to_string();
-                                if !next.trim().is_empty() && !next.ends_with('\n') {
-                                    next.push('\n');
-                                }
-                                next.push_str(entry);
-                                field.set_text(&next);
-                                self.status = Some("Added path (not staged)".to_string());
-                            }
-                        }
-                        Ok(None) => {}
-                        Err(err) => {
-                            self.status = Some(format!("Native picker failed: {err:#}"));
-                        }
-                    }
-
+                    self.editor_append_picker_path(target);
                     self.mode = ViewMode::EditList { target, before };
                     true
                 }
                 (KeyCode::Char('v'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    let text = self.editor_field_mut(target).text().to_string();
-                    let last = text
-                        .lines()
-                        .map(str::trim)
-                        .filter(|line| !line.is_empty())
-                        .last();
-
-                    match last {
-                        Some(path) => match crate::native_file_manager::reveal_path(std::path::Path::new(path)) {
-                            Ok(()) => self.status = Some("Opened in file manager".to_string()),
-                            Err(err) => self.status = Some(format!("Open failed: {err:#}")),
-                        },
-                        None => self.status = Some("No paths to show".to_string()),
-                    }
-
+                    self.editor_show_last_path(target);
                     self.mode = ViewMode::EditList { target, before };
                     true
                 }
@@ -1420,6 +1481,12 @@ impl ShellProfilesSettingsView {
                     self.mode = ViewMode::EditList { target, before };
                     return false;
                 }
+                let footer_area = Rect::new(
+                    content.x,
+                    content.y.saturating_add(content.height.saturating_sub(1)),
+                    content.width,
+                    1,
+                );
                 let field_area = Rect::new(
                     content.x,
                     content.y.saturating_add(1),
@@ -1427,11 +1494,56 @@ impl ShellProfilesSettingsView {
                     content.height.saturating_sub(2),
                 );
                 let handled = match mouse_event.kind {
-                    MouseEventKind::Down(MouseButton::Left) => self.editor_field_mut(target).handle_mouse_click(
-                        mouse_event.column,
-                        mouse_event.row,
-                        field_area,
-                    ),
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        if mouse_event.row == footer_area.y
+                            && mouse_event.column >= footer_area.x
+                            && mouse_event.column < footer_area.x.saturating_add(footer_area.width)
+                        {
+                            let (_line, hits) = self.editor_footer_line_and_hits(footer_area);
+                            for (action, rect) in hits {
+                                if mouse_event.column >= rect.x
+                                    && mouse_event.column < rect.x.saturating_add(rect.width)
+                                    && mouse_event.row == rect.y
+                                {
+                                    match action {
+                                        EditorFooterAction::Save => {
+                                            self.stage_pending_profile_from_fields();
+                                            self.dirty = true;
+                                            self.status = Some(
+                                                "Changes staged. Select Apply to persist.".to_string(),
+                                            );
+                                            self.mode = ViewMode::Main;
+                                            return true;
+                                        }
+                                        EditorFooterAction::Pick => {
+                                            self.editor_append_picker_path(target);
+                                            self.mode = ViewMode::EditList { target, before };
+                                            return true;
+                                        }
+                                        EditorFooterAction::Show => {
+                                            self.editor_show_last_path(target);
+                                            self.mode = ViewMode::EditList { target, before };
+                                            return true;
+                                        }
+                                        EditorFooterAction::Cancel => {
+                                            match target {
+                                                ListTarget::References => self.references_field.set_text(&before),
+                                                ListTarget::SkillRoots => self.skill_roots_field.set_text(&before),
+                                            }
+                                            self.mode = ViewMode::Main;
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        self.editor_field_mut(target).handle_mouse_click(
+                            mouse_event.column,
+                            mouse_event.row,
+                            field_area,
+                        )
+                    }
                     MouseEventKind::ScrollDown => self.editor_field_mut(target).handle_mouse_scroll(true),
                     MouseEventKind::ScrollUp => self.editor_field_mut(target).handle_mouse_scroll(false),
                     _ => false,
