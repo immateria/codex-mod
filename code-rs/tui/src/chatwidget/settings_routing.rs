@@ -243,10 +243,24 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn build_shell_profiles_settings_content(&mut self) -> ShellProfilesSettingsContent {
+        let skills = self
+            .bottom_pane
+            .skills()
+            .iter()
+            .map(|skill| (skill.name.clone(), skill.description.clone()))
+            .collect::<Vec<_>>();
+        let mcp_servers = self
+            .config
+            .mcp_servers
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
         let view = ShellProfilesSettingsView::new(
             self.config.code_home.clone(),
             self.config.shell.as_ref(),
             self.config.shell_style_profiles.clone(),
+            skills,
+            mcp_servers,
             self.app_event_tx.clone(),
         );
         ShellProfilesSettingsContent::new(view)
@@ -1181,10 +1195,24 @@ impl ChatWidget<'_> {
     }
 
     fn open_shell_profiles_settings_section(&mut self) -> bool {
+        let skills = self
+            .bottom_pane
+            .skills()
+            .iter()
+            .map(|skill| (skill.name.clone(), skill.description.clone()))
+            .collect::<Vec<_>>();
+        let mcp_servers = self
+            .config
+            .mcp_servers
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
         let view = ShellProfilesSettingsView::new(
             self.config.code_home.clone(),
             self.config.shell.as_ref(),
             self.config.shell_style_profiles.clone(),
+            skills,
+            mcp_servers,
             self.app_event_tx.clone(),
         );
         self.open_bottom_pane_settings(move |this| {

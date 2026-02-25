@@ -84,6 +84,7 @@ pub use sources::{
     resolve_code_path_for_read,
     set_shell_style_profile_mcp_servers,
     set_shell_style_profile_paths,
+    set_shell_style_profile_skills,
     set_shell_style_profile_skill_mode,
     set_auto_drive_settings,
     set_auto_review_model,
@@ -3755,6 +3756,90 @@ include = "not-an-array"
 
         assert!(
             err.to_string().contains("`include` must be a TOML array"),
+            "unexpected error: {err}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_skills_updates_existing_alias_key() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.bash-zsh]
+skills = ["legacy"]
+"#,
+        )?;
+
+        set_shell_style_profile_skills(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::BashZshCompatible,
+            &["termux".to_string()],
+            &["legacy".to_string()],
+        )?;
+
+        let written = std::fs::read_to_string(&config_path)?;
+        assert!(written.contains("[shell_style_profiles.bash-zsh]"));
+        assert!(!written.contains("[shell_style_profiles.bash-zsh-compatible]"));
+        assert!(written.contains("termux"));
+        assert!(written.contains("legacy"));
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_skills_error_on_ambiguous_alias_keys() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.bash-zsh]
+skills = ["a"]
+
+[shell_style_profiles.bash-zsh-compatible]
+skills = ["b"]
+"#,
+        )?;
+
+        let err = set_shell_style_profile_skills(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::BashZshCompatible,
+            &["termux".to_string()],
+            &[],
+        )
+        .expect_err("ambiguous alias keys should fail fast");
+
+        assert!(
+            err.to_string().contains("multiple shell_style_profiles entries"),
+            "unexpected error: {err}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shell_style_profile_skills_error_on_invalid_skills_type() -> anyhow::Result<()> {
+        let code_home = TempDir::new().unwrap();
+        let config_path = code_home.path().join(CONFIG_TOML_FILE);
+        std::fs::write(
+            &config_path,
+            r#"
+[shell_style_profiles.zsh]
+skills = "not-an-array"
+"#,
+        )?;
+
+        let err = set_shell_style_profile_skills(
+            code_home.path(),
+            crate::config_types::ShellScriptStyle::Zsh,
+            &["termux".to_string()],
+            &[],
+        )
+        .expect_err("invalid skills type should fail fast");
+
+        assert!(
+            err.to_string().contains("`skills` must be a TOML array"),
             "unexpected error: {err}"
         );
         Ok(())

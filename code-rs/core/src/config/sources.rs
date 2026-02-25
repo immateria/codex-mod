@@ -488,6 +488,112 @@ pub fn set_shell_style_profile_skill_mode(
     Ok(changed)
 }
 
+/// Update shell-style profile skill lists (`skills` allow-list + `disabled_skills` overrides).
+///
+/// Empty lists remove their corresponding keys. If the resulting style profile
+/// table is empty it is removed.
+pub fn set_shell_style_profile_skills(
+    code_home: &Path,
+    style: ShellScriptStyle,
+    skills: &[String],
+    disabled_skills: &[String],
+) -> anyhow::Result<bool> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let style_key = style.to_string();
+    let mut changed = false;
+
+    {
+        let root = doc.as_table_mut();
+        match root.get("shell_style_profiles") {
+            Some(item) => {
+                if item.as_table().is_none() {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if skills.is_empty() && disabled_skills.is_empty() {
+                    return Ok(false);
+                }
+                let mut table = TomlTable::new();
+                table.set_implicit(true);
+                root.insert("shell_style_profiles", TomlItem::Table(table));
+                changed = true;
+            }
+        }
+    }
+
+    {
+        let root = doc.as_table_mut();
+        let profiles_table = root
+            .get_mut("shell_style_profiles")
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
+
+        let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
+        match resolved_style_key.as_deref() {
+            Some(existing_key) => {
+                if profiles_table
+                    .get(existing_key)
+                    .and_then(|item| item.as_table())
+                    .is_none()
+                {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles.{existing_key}` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if skills.is_empty() && disabled_skills.is_empty() {
+                    return Ok(changed);
+                }
+                let mut style_table = TomlTable::new();
+                style_table.set_implicit(false);
+                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+                resolved_style_key = Some(style_key.clone());
+                changed = true;
+            }
+        }
+        let resolved_style_key = resolved_style_key
+            .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
+
+        let style_table = profiles_table
+            .get_mut(resolved_style_key.as_str())
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell style profile table"))?;
+
+        changed |= write_string_array(style_table, "skills", skills)?;
+        changed |= write_string_array(style_table, "disabled_skills", disabled_skills)?;
+
+        if style_table.is_empty() {
+            profiles_table.remove(resolved_style_key.as_str());
+            changed = true;
+        }
+
+        if profiles_table.is_empty() {
+            root.remove("shell_style_profiles");
+            changed = true;
+        }
+    }
+
+    if changed {
+        std::fs::create_dir_all(code_home)?;
+        let tmp_path = config_path.with_extension("tmp");
+        std::fs::write(&tmp_path, doc.to_string())?;
+        std::fs::rename(&tmp_path, &config_path)?;
+    }
+
+    Ok(changed)
+}
+
 /// Update shell-style profile path lists for `references` and `skill_roots`.
 ///
 /// Empty lists remove their corresponding keys. If the resulting style profile

@@ -8,6 +8,7 @@ use crate::ui_interaction::{
 };
 use super::settings_panel::{render_panel, PanelFrameStyle};
 use super::BottomPane;
+use super::SettingsSection;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
@@ -340,6 +341,14 @@ impl ShellSelectionView {
         self.app_event_tx.send(AppEvent::ShellSelectionClosed { confirmed });
     }
 
+    fn open_shell_profiles_settings(&mut self) {
+        // Close this picker before opening settings to avoid stacked modals.
+        self.send_closed(false);
+        self.app_event_tx.send(AppEvent::OpenSettings {
+            section: Some(SettingsSection::ShellProfiles),
+        });
+    }
+
     /// Find which item index a screen position corresponds to
     fn hit_test(&self, x: u16, y: u16) -> Option<usize> {
         // Check cached item rects in render order (auto + presets + custom).
@@ -482,6 +491,10 @@ impl ShellSelectionView {
                     };
                     true
                 }
+                (KeyCode::Char('p'), mods) if mods.contains(KeyModifiers::CONTROL) => {
+                    self.open_shell_profiles_settings();
+                    true
+                }
                 (KeyCode::Char('r'), KeyModifiers::CONTROL) => {
                     self.resolve_custom_shell_path_in_place()
                 }
@@ -500,6 +513,10 @@ impl ShellSelectionView {
             }
             (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
                 self.move_selection_down();
+                true
+            }
+            (KeyCode::Char('p'), mods) if mods.contains(KeyModifiers::CONTROL) => {
+                self.open_shell_profiles_settings();
                 true
             }
             (KeyCode::Char('e'), KeyModifiers::NONE) => {
@@ -776,7 +793,7 @@ impl ShellSelectionView {
         });
 
         lines.push(Line::from(Span::styled(
-            "Keys: Enter apply  •  e/→ edit/pin path  •  p pin resolved  •  Esc close".to_string(),
+            "Keys: Enter apply  •  e/→ edit/pin path  •  p pin resolved  •  Ctrl+P profiles  •  Esc close".to_string(),
             Style::default().fg(colors::text_dim()),
         )));
 

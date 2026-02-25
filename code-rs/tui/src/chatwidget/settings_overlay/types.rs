@@ -122,6 +122,12 @@ impl SettingsHelpOverlay {
             Line::from(vec![Span::styled("• Tab    Cycle sections", hint)]),
             Line::from(vec![Span::styled("• Shift+Tab  Cycle backwards", hint)]),
         ];
+        if matches!(section, SettingsSection::Shell | SettingsSection::ShellProfiles) {
+            lines.push(Line::from(vec![Span::styled(
+                "• Ctrl+P  Toggle Shell/Profiles",
+                hint,
+            )]));
+        }
         if matches!(
             section,
             SettingsSection::Agents

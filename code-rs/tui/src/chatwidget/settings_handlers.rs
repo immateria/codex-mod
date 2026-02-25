@@ -1,5 +1,5 @@
 use super::ChatWidget;
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 pub(super) fn handle_settings_paste(chat: &mut ChatWidget<'_>, text: String) -> bool {
     if chat.settings.overlay.is_none() {
@@ -142,6 +142,34 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
         }
 
         return handled;
+    }
+
+    // Fast toggle between the two shell-related pages without cycling through
+    // the full sidebar. Use a control chord so text fields can still accept
+    // normal character input.
+    if key_event.modifiers.contains(KeyModifiers::CONTROL)
+        && matches!(key_event.code, KeyCode::Char('p'))
+    {
+        let changed = if let Some(overlay) = chat.settings.overlay.as_mut() {
+            match overlay.active_section() {
+                crate::bottom_pane::SettingsSection::Shell => {
+                    overlay.set_mode_section(crate::bottom_pane::SettingsSection::ShellProfiles);
+                    true
+                }
+                crate::bottom_pane::SettingsSection::ShellProfiles => {
+                    overlay.set_mode_section(crate::bottom_pane::SettingsSection::Shell);
+                    true
+                }
+                _ => false,
+            }
+        } else {
+            false
+        };
+
+        if changed {
+            chat.request_redraw();
+        }
+        return changed;
     }
 
     // In section mode, reserve Tab/Shift+Tab for section navigation even when
