@@ -532,6 +532,41 @@ impl ShellSelectionView {
                         }
                     }
                 }
+                (KeyCode::Char('v'), mods) if mods.contains(KeyModifiers::CONTROL) => {
+                    self.native_picker_notice = None;
+                    let (path, _args) = split_command_and_args(self.custom_field.text());
+                    let trimmed = path.trim();
+                    if trimmed.is_empty() {
+                        self.native_picker_notice = Some("No shell path to show".to_string());
+                        return true;
+                    }
+
+                    let resolved = if trimmed.contains('/') || trimmed.contains('\\') {
+                        if std::path::Path::new(trimmed).exists() {
+                            Some(trimmed.to_string())
+                        } else {
+                            None
+                        }
+                    } else {
+                        which::which(trimmed).ok().map(|path| path.to_string_lossy().to_string())
+                    };
+
+                    let Some(resolved) = resolved else {
+                        self.native_picker_notice = Some(format!("Not found: {trimmed}"));
+                        return true;
+                    };
+
+                    match crate::native_file_manager::reveal_path(std::path::Path::new(&resolved)) {
+                        Ok(()) => {
+                            self.native_picker_notice = Some("Opened in file manager".to_string());
+                            true
+                        }
+                        Err(err) => {
+                            self.native_picker_notice = Some(format!("Open failed: {err:#}"));
+                            true
+                        }
+                    }
+                }
                 (KeyCode::Tab, _) | (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
                     self.custom_style_override = match self.custom_style_override {
                         None => Some(ShellScriptStyle::PosixSh),
@@ -684,7 +719,7 @@ impl ShellSelectionView {
             help_area.y,
             help_area.width,
             &Line::from(Span::styled(
-                format!("{status}{notice}  •  Enter apply  •  Ctrl+O pick  •  Ctrl+R resolve  •  Ctrl+T style  •  Esc back"),
+                format!("{status}{notice}  •  Enter apply  •  Ctrl+O pick  •  Ctrl+V show  •  Ctrl+R resolve  •  Ctrl+T style  •  Esc back"),
                 Style::default().fg(colors::text_dim()),
             )),
             Style::default().bg(colors::background()),

@@ -1041,9 +1041,9 @@ impl ShellProfilesSettingsView {
         let footer_text = if let Some(status) = self.status.as_deref()
             && !status.trim().is_empty()
         {
-            format!("{status}  •  Ctrl+S save  •  Ctrl+O pick  •  Esc cancel")
+            format!("{status}  •  Ctrl+S save  •  Ctrl+O pick  •  Ctrl+V show  •  Esc cancel")
         } else {
-            "Ctrl+S save  •  Ctrl+O pick  •  Esc cancel".to_string()
+            "Ctrl+S save  •  Ctrl+O pick  •  Ctrl+V show  •  Esc cancel".to_string()
         };
         let footer = Line::from(vec![Span::styled(
             footer_text,
@@ -1331,6 +1331,25 @@ impl ShellProfilesSettingsView {
                         Err(err) => {
                             self.status = Some(format!("Native picker failed: {err:#}"));
                         }
+                    }
+
+                    self.mode = ViewMode::EditList { target, before };
+                    true
+                }
+                (KeyCode::Char('v'), mods) if mods.contains(KeyModifiers::CONTROL) => {
+                    let text = self.editor_field_mut(target).text().to_string();
+                    let last = text
+                        .lines()
+                        .map(str::trim)
+                        .filter(|line| !line.is_empty())
+                        .last();
+
+                    match last {
+                        Some(path) => match crate::native_file_manager::reveal_path(std::path::Path::new(path)) {
+                            Ok(()) => self.status = Some("Opened in file manager".to_string()),
+                            Err(err) => self.status = Some(format!("Open failed: {err:#}")),
+                        },
+                        None => self.status = Some("No paths to show".to_string()),
                     }
 
                     self.mode = ViewMode::EditList { target, before };

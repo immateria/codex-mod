@@ -229,7 +229,11 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn build_interface_settings_view(&mut self) -> InterfaceSettingsView {
-        InterfaceSettingsView::new(self.config.tui.settings_menu.clone(), self.app_event_tx.clone())
+        InterfaceSettingsView::new(
+            self.config.code_home.clone(),
+            self.config.tui.settings_menu.clone(),
+            self.app_event_tx.clone(),
+        )
     }
 
     pub(super) fn build_interface_settings_content(&mut self) -> InterfaceSettingsContent {

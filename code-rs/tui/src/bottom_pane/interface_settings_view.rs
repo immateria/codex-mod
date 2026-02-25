@@ -19,6 +19,7 @@ use crate::ui_interaction::{
 };
 use crate::util::buffer::{fill_rect, write_line};
 use std::cell::Cell;
+use std::path::PathBuf;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::settings_panel::{panel_content_rect, render_panel, PanelFrameStyle};
@@ -28,6 +29,8 @@ use super::BottomPane;
 enum RowKind {
     OpenMode,
     OverlayMinWidth,
+    ShowConfigToml,
+    ShowCodeHome,
     Apply,
     Close,
 }
@@ -41,23 +44,27 @@ enum ViewMode {
 
 pub(crate) struct InterfaceSettingsView {
     settings: SettingsMenuConfig,
+    code_home: PathBuf,
     app_event_tx: AppEventSender,
     is_complete: bool,
     dirty: bool,
+    status: Option<(String, bool)>,
     mode: ViewMode,
     state: ScrollState,
     viewport_rows: Cell<usize>,
 }
 
 impl InterfaceSettingsView {
-    pub fn new(settings: SettingsMenuConfig, app_event_tx: AppEventSender) -> Self {
+    pub fn new(code_home: PathBuf, settings: SettingsMenuConfig, app_event_tx: AppEventSender) -> Self {
         let mut state = ScrollState::new();
         state.selected_idx = Some(0);
         Self {
             settings,
+            code_home,
             app_event_tx,
             is_complete: false,
             dirty: false,
+            status: None,
             mode: ViewMode::Main,
             state,
             viewport_rows: Cell::new(0),
@@ -80,10 +87,12 @@ impl InterfaceSettingsView {
         }
     }
 
-    fn build_rows(&self) -> [RowKind; 4] {
+    fn build_rows(&self) -> [RowKind; 6] {
         [
             RowKind::OpenMode,
             RowKind::OverlayMinWidth,
+            RowKind::ShowConfigToml,
+            RowKind::ShowCodeHome,
             RowKind::Apply,
             RowKind::Close,
         ]
@@ -136,12 +145,35 @@ impl InterfaceSettingsView {
         self.app_event_tx
             .send(AppEvent::SetTuiSettingsMenuConfig(self.settings.clone()));
         self.dirty = false;
+        self.status = Some(("Saved interface settings".to_string(), false));
+    }
+
+    fn show_path(&mut self, path: &std::path::Path, label: &str) {
+        match crate::native_file_manager::reveal_path(path) {
+            Ok(()) => self.status = Some((format!("Opened {label} in file manager"), false)),
+            Err(err) => {
+                self.status = Some((format!("Failed to open {label}: {err:#}"), true));
+            }
+        }
+    }
+
+    fn show_config_toml(&mut self) {
+        let path = self.code_home.join("config.toml");
+        let target = if path.exists() { path } else { self.code_home.clone() };
+        self.show_path(&target, "config.toml");
+    }
+
+    fn show_code_home(&mut self) {
+        let code_home = self.code_home.clone();
+        self.show_path(&code_home, "CODE_HOME");
     }
 
     fn activate_selected_row(&mut self) {
         match self.selected_row() {
             RowKind::OpenMode => self.cycle_open_mode_next(),
             RowKind::OverlayMinWidth => self.open_width_editor(),
+            RowKind::ShowConfigToml => self.show_config_toml(),
+            RowKind::ShowCodeHome => self.show_code_home(),
             RowKind::Apply => self.apply_settings(),
             RowKind::Close => self.is_complete = true,
         }
@@ -285,14 +317,17 @@ impl InterfaceSettingsView {
 
         match key_event {
             KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
                 self.state.move_up_wrap_visible(total, visible);
                 true
             }
             KeyEvent { code: KeyCode::Down, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
                 self.state.move_down_wrap_visible(total, visible);
                 true
             }
             KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
                 match current_row {
                     Some(RowKind::OpenMode) => {
                         // Reverse cycle.
@@ -309,6 +344,7 @@ impl InterfaceSettingsView {
                 true
             }
             KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
                 match current_row {
                     Some(RowKind::OpenMode) => self.cycle_open_mode_next(),
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(5),
@@ -427,6 +463,8 @@ impl InterfaceSettingsView {
         match row {
             RowKind::OpenMode => "Auto uses overlay on wide terminals; override with overlay/bottom.",
             RowKind::OverlayMinWidth => "Terminal width (columns) at which auto prefers overlay.",
+            RowKind::ShowConfigToml => "Open config.toml in your file manager (Finder/Explorer).",
+            RowKind::ShowCodeHome => "Open CODE_HOME in your file manager.",
             RowKind::Apply => "Persist these preferences to config.toml.",
             RowKind::Close => "Close this panel.",
         }
@@ -441,7 +479,7 @@ impl InterfaceSettingsView {
 
             let header_line = Line::from(vec![
                 Span::styled("Enter", Style::default().fg(crate::colors::function())),
-                Span::styled(" toggle  ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled(" activate  ", Style::default().fg(crate::colors::text_dim())),
                 Span::styled("Esc", Style::default().fg(crate::colors::function())),
                 Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
             ]);
@@ -490,6 +528,8 @@ impl InterfaceSettingsView {
                         "Overlay min width",
                         format!("{}", self.settings.overlay_min_width),
                     ),
+                    RowKind::ShowConfigToml => ("Show config.toml", String::new()),
+                    RowKind::ShowCodeHome => ("Show CODE_HOME", String::new()),
                     RowKind::Apply => {
                         let suffix = if self.dirty { " *" } else { "" };
                         ("Apply", suffix.to_string())
@@ -520,11 +560,21 @@ impl InterfaceSettingsView {
                 rel_idx = rel_idx.saturating_add(1);
             }
 
-            let help = Self::help_for(self.selected_row());
-            let footer_line = Line::from(vec![Span::styled(
-                help.to_string(),
-                Style::default().fg(crate::colors::text_dim()),
-            )]);
+            let (footer_text, footer_style) = if let Some((status, is_error)) = self.status.as_ref()
+            {
+                let style = if *is_error {
+                    Style::default().fg(crate::colors::error())
+                } else {
+                    Style::default().fg(crate::colors::text_dim())
+                };
+                (status.as_str(), style)
+            } else {
+                (
+                    Self::help_for(self.selected_row()),
+                    Style::default().fg(crate::colors::text_dim()),
+                )
+            };
+            let footer_line = Line::from(vec![Span::styled(footer_text.to_string(), footer_style)]);
             write_line(
                 buf,
                 footer.x,
