@@ -16,8 +16,16 @@ fn normalize_title(title: &str) -> String {
     }
 }
 
-#[cfg(target_os = "macos")]
-fn pick_macos(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>> {
+#[cfg(any(
+    target_os = "macos",
+    target_os = "windows",
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "dragonfly",
+    target_os = "netbsd",
+    target_os = "openbsd",
+))]
+fn pick_rfd(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>> {
     if crate::chatwidget::is_test_mode() {
         return Ok(None);
     }
@@ -30,12 +38,21 @@ fn pick_macos(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>> {
     })
 }
 
-#[cfg(not(target_os = "macos"))]
-fn pick_macos(_kind: NativePickerKind, _title: &str) -> Result<Option<PathBuf>> {
-    Err(anyhow::anyhow!("native picker is only implemented for macOS"))
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "windows",
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "dragonfly",
+    target_os = "netbsd",
+    target_os = "openbsd",
+)))]
+fn pick_rfd(_kind: NativePickerKind, _title: &str) -> Result<Option<PathBuf>> {
+    Err(anyhow::anyhow!(
+        "native picker is not supported on this platform"
+    ))
 }
 
 pub(crate) fn pick_path(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>> {
-    pick_macos(kind, title)
+    pick_rfd(kind, title)
 }
-

@@ -116,6 +116,12 @@ signal-hook = "0.3"
 [target.'cfg(target_os = "macos")'.dependencies]
 rfd = { version = "0.15.4", default-features = false }
 
+[target.'cfg(target_os = "windows")'.dependencies]
+rfd = { version = "0.15.4", default-features = false }
+
+[target.'cfg(any(target_os = "linux", target_os = "freebsd", target_os = "dragonfly", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+rfd = { version = "0.15.4", default-features = false, features = ["xdg-portal", "tokio"] }
+
 # Android doesn't have arboard support - disable clipboard feature for Android
 [target.'cfg(target_os = "android")'.dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls-webpki-roots", "rustls-tls-native-roots"] }
