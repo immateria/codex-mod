@@ -111,7 +111,10 @@ mod terminal_surface_header;
 mod terminal_surface_render;
 mod tools;
 mod browser_sessions;
+#[cfg(not(target_os = "android"))]
 mod chrome_connection;
+#[cfg(target_os = "android")]
+mod chrome_connection_android;
 mod agent_runs;
 mod web_search_sessions;
 mod auto_drive_cards;
