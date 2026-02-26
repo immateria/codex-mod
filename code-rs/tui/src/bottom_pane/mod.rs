@@ -307,6 +307,46 @@ impl BottomPane<'_> {
         self.request_redraw_with_height_change();
     }
 
+    pub(crate) fn apply_shell_profiles_generated_summary(
+        &mut self,
+        style: code_core::config_types::ShellScriptStyle,
+        summary: String,
+    ) -> bool {
+        let Some(view) = self.active_view.as_mut() else {
+            return false;
+        };
+        let Some(any) = view.as_any_mut() else {
+            return false;
+        };
+        let Some(shell_profiles) = any.downcast_mut::<ShellProfilesSettingsView>() else {
+            return false;
+        };
+
+        shell_profiles.apply_generated_summary(style, summary);
+        self.request_redraw();
+        true
+    }
+
+    pub(crate) fn apply_shell_profiles_summary_generation_error(
+        &mut self,
+        style: code_core::config_types::ShellScriptStyle,
+        error: String,
+    ) -> bool {
+        let Some(view) = self.active_view.as_mut() else {
+            return false;
+        };
+        let Some(any) = view.as_any_mut() else {
+            return false;
+        };
+        let Some(shell_profiles) = any.downcast_mut::<ShellProfilesSettingsView>() else {
+            return false;
+        };
+
+        shell_profiles.set_summary_generation_error(style, error);
+        self.request_redraw();
+        true
+    }
+
     pub fn show_settings_overview(&mut self, view: SettingsOverviewView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;

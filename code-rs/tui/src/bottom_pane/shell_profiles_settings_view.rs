@@ -7,6 +7,7 @@ use ratatui::text::{Line, Span};
 use code_core::config::{
     set_shell_style_profile_mcp_servers,
     set_shell_style_profile_paths,
+    set_shell_style_profile_summary,
     set_shell_style_profile_skills,
 };
 use code_core::config_types::{ShellConfig, ShellScriptStyle, ShellStyleProfileConfig};
@@ -37,6 +38,7 @@ use super::SettingsSection;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum RowKind {
     Style,
+    Summary,
     References,
     SkillRoots,
     SkillsAllowlist,
@@ -50,6 +52,7 @@ enum RowKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ListTarget {
+    Summary,
     References,
     SkillRoots,
 }
@@ -95,6 +98,7 @@ enum ViewMode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum EditorFooterAction {
     Save,
+    Generate,
     Pick,
     Show,
     Cancel,
@@ -108,6 +112,7 @@ pub(crate) struct ShellProfilesSettingsView {
     shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
     available_skills: Vec<SkillOption>,
     available_mcp_servers: Vec<String>,
+    summary_field: FormTextField,
     references_field: FormTextField,
     skill_roots_field: FormTextField,
     app_event_tx: AppEventSender,
@@ -141,6 +146,8 @@ impl ShellProfilesSettingsView {
         references_field.set_placeholder("docs/shell/my-style.md");
         let mut skill_roots_field = FormTextField::new_multi_line();
         skill_roots_field.set_placeholder("skills/my-style");
+        let mut summary_field = FormTextField::new_multi_line();
+        summary_field.set_placeholder("Describe what this profile does (optional)");
 
         let mut available_skills: Vec<SkillOption> = available_skills
             .into_iter()
@@ -186,6 +193,7 @@ impl ShellProfilesSettingsView {
             shell_style_profiles,
             available_skills,
             available_mcp_servers,
+            summary_field,
             references_field,
             skill_roots_field,
             app_event_tx,
@@ -218,18 +226,20 @@ impl ShellProfilesSettingsView {
         // Keep the panel "following" the active style when the user hasn't
         // staged edits or entered the editor. This avoids surprising resets
         // while still keeping defaults aligned with the selected shell.
-        if matches!(self.mode, ViewMode::Main) && !self.dirty {
-            if let Some(active) = self.active_style
-                && self.selected_style != active {
-                    self.selected_style = active;
-                    self.load_fields_for_style(active);
-                }
+        if matches!(self.mode, ViewMode::Main)
+            && !self.dirty
+            && let Some(active) = self.active_style
+            && self.selected_style != active
+        {
+            self.selected_style = active;
+            self.load_fields_for_style(active);
         }
     }
 
-    fn rows() -> [RowKind; 10] {
+    fn rows() -> [RowKind; 11] {
         [
             RowKind::Style,
+            RowKind::Summary,
             RowKind::References,
             RowKind::SkillRoots,
             RowKind::SkillsAllowlist,
@@ -323,10 +333,12 @@ impl ShellProfilesSettingsView {
             ShellScriptStyle::Zsh => ShellScriptStyle::PosixSh,
         };
         self.load_fields_for_style(self.selected_style);
+        self.status = None;
     }
 
     fn open_editor(&mut self, target: ListTarget) {
         let before = match target {
+            ListTarget::Summary => self.summary_field.text().to_string(),
             ListTarget::References => self.references_field.text().to_string(),
             ListTarget::SkillRoots => self.skill_roots_field.text().to_string(),
         };
@@ -646,6 +658,45 @@ impl ShellProfilesSettingsView {
         self.is_complete = true;
     }
 
+    fn request_summary_generation(&mut self) {
+        self.stage_pending_profile_from_fields();
+        let profile = self
+            .shell_style_profiles
+            .get(&self.selected_style)
+            .cloned()
+            .unwrap_or_default();
+
+        self.status = Some("Generating summary...".to_string());
+        self.app_event_tx.send(AppEvent::RequestGenerateShellStyleProfileSummary {
+            style: self.selected_style,
+            profile,
+        });
+    }
+
+    pub(crate) fn apply_generated_summary(&mut self, style: ShellScriptStyle, summary: String) {
+        let normalized = summary.trim().to_string();
+        if style == self.selected_style {
+            self.summary_field.set_text(normalized.as_str());
+        }
+
+        let profile = self.shell_style_profiles.entry(style).or_default();
+        profile.summary = if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        };
+        if style_profile_is_empty(profile) {
+            self.shell_style_profiles.remove(&style);
+        }
+
+        self.dirty = true;
+        self.status = Some("Summary staged. Select Apply to persist.".to_string());
+    }
+
+    pub(crate) fn set_summary_generation_error(&mut self, _style: ShellScriptStyle, error: String) {
+        self.status = Some(format!("Summary generation failed: {error}"));
+    }
+
     fn apply_settings(&mut self) {
         self.stage_pending_profile_from_fields();
 
@@ -657,9 +708,10 @@ impl ShellProfilesSettingsView {
             ShellScriptStyle::BashZshCompatible,
             ShellScriptStyle::Zsh,
         ] {
-            let (references, skill_roots, skills, disabled_skills, include, exclude) =
+            let (summary, references, skill_roots, skills, disabled_skills, include, exclude) =
                 if let Some(profile) = self.shell_style_profiles.get(&style) {
                     (
+                        profile.summary.clone(),
                         profile.references.clone(),
                         profile.skill_roots.clone(),
                         profile.skills.clone(),
@@ -668,13 +720,21 @@ impl ShellProfilesSettingsView {
                         profile.mcp_servers.exclude.clone(),
                     )
                 } else {
-                    (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new())
+                    (None, Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new())
                 };
 
             match set_shell_style_profile_paths(&self.code_home, style, &references, &skill_roots) {
                 Ok(changed) => changed_any |= changed,
                 Err(err) => {
                     self.status = Some(format!("Failed to persist style paths: {err}"));
+                    return;
+                }
+            }
+
+            match set_shell_style_profile_summary(&self.code_home, style, summary.as_deref()) {
+                Ok(changed) => changed_any |= changed,
+                Err(err) => {
+                    self.status = Some(format!("Failed to persist summary: {err}"));
                     return;
                 }
             }
@@ -711,16 +771,17 @@ impl ShellProfilesSettingsView {
     }
 
     fn load_fields_for_style(&mut self, style: ShellScriptStyle) {
-        let (references, skill_roots) =
-            if let Some(profile) = self.shell_style_profiles.get(&style) {
-                (
-                    profile.references.clone(),
-                    profile.skill_roots.clone(),
-                )
-            } else {
-                (Vec::new(), Vec::new())
-            };
+        let (summary, references, skill_roots) = if let Some(profile) = self.shell_style_profiles.get(&style) {
+            (
+                profile.summary.clone().unwrap_or_default(),
+                profile.references.clone(),
+                profile.skill_roots.clone(),
+            )
+        } else {
+            (String::new(), Vec::new(), Vec::new())
+        };
 
+        self.summary_field.set_text(summary.as_str());
         self.references_field.set_text(&format_path_list(&references));
         self.skill_roots_field.set_text(&format_path_list(&skill_roots));
     }
@@ -728,9 +789,19 @@ impl ShellProfilesSettingsView {
     fn stage_pending_profile_from_fields(&mut self) {
         let references = parse_path_list(self.references_field.text());
         let skill_roots = parse_path_list(self.skill_roots_field.text());
+        let summary = {
+            let text = self.summary_field.text();
+            let trimmed = text.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        };
 
         if references.is_empty()
             && skill_roots.is_empty()
+            && summary.is_none()
             && !self.shell_style_profiles.contains_key(&self.selected_style)
         {
             return;
@@ -740,6 +811,7 @@ impl ShellProfilesSettingsView {
             .shell_style_profiles
             .entry(self.selected_style)
             .or_default();
+        profile.summary = summary;
         profile.references = references;
         profile.skill_roots = skill_roots;
         if style_profile_is_empty(profile) {
@@ -755,6 +827,15 @@ impl ShellProfilesSettingsView {
                     Some(active) if active == self.selected_style => Some(format!("{selected} (active)")),
                     Some(active) => Some(format!("{selected} (active: {active})")),
                     None => Some(selected),
+                }
+            }
+            RowKind::Summary => {
+                let summary = self.summary_field.text().trim();
+                if summary.is_empty() {
+                    Some("unset".to_string())
+                } else {
+                    let first_line = summary.lines().next().unwrap_or(summary).trim();
+                    Some(first_line.to_string())
                 }
             }
             RowKind::References => Some(format!("{} paths", parse_path_list(self.references_field.text()).len())),
@@ -806,6 +887,7 @@ impl ShellProfilesSettingsView {
     fn row_label(row: RowKind) -> &'static str {
         match row {
             RowKind::Style => "Style",
+            RowKind::Summary => "Summary",
             RowKind::References => "References",
             RowKind::SkillRoots => "Skill roots",
             RowKind::SkillsAllowlist => "Skills allowlist",
@@ -863,12 +945,17 @@ impl ShellProfilesSettingsView {
 
     fn editor_field_mut(&mut self, target: ListTarget) -> &mut FormTextField {
         match target {
+            ListTarget::Summary => &mut self.summary_field,
             ListTarget::References => &mut self.references_field,
             ListTarget::SkillRoots => &mut self.skill_roots_field,
         }
     }
 
-    fn editor_footer_line_and_hits(&self, footer_area: Rect) -> (Line<'static>, Vec<(EditorFooterAction, Rect)>) {
+    fn editor_footer_line_and_hits(
+        &self,
+        footer_area: Rect,
+        target: ListTarget,
+    ) -> (Line<'static>, Vec<(EditorFooterAction, Rect)>) {
         let dim = Style::default().fg(crate::colors::text_dim());
         let key_style = Style::default().fg(crate::colors::function());
         let mut spans: Vec<Span<'static>> = Vec::new();
@@ -913,12 +1000,57 @@ impl ShellProfilesSettingsView {
         }
 
         push_action("Ctrl+S", " save", EditorFooterAction::Save, &mut cursor_x, &mut spans, &mut hits);
-        push_sep(&mut cursor_x, &mut spans);
-        push_action("Ctrl+O", " pick", EditorFooterAction::Pick, &mut cursor_x, &mut spans, &mut hits);
-        push_sep(&mut cursor_x, &mut spans);
-        push_action("Ctrl+V", " show", EditorFooterAction::Show, &mut cursor_x, &mut spans, &mut hits);
-        push_sep(&mut cursor_x, &mut spans);
-        push_action("Esc", " cancel", EditorFooterAction::Cancel, &mut cursor_x, &mut spans, &mut hits);
+        match target {
+            ListTarget::Summary => {
+                push_sep(&mut cursor_x, &mut spans);
+                push_action(
+                    "Ctrl+G",
+                    " generate",
+                    EditorFooterAction::Generate,
+                    &mut cursor_x,
+                    &mut spans,
+                    &mut hits,
+                );
+                push_sep(&mut cursor_x, &mut spans);
+                push_action(
+                    "Esc",
+                    " cancel",
+                    EditorFooterAction::Cancel,
+                    &mut cursor_x,
+                    &mut spans,
+                    &mut hits,
+                );
+            }
+            ListTarget::References | ListTarget::SkillRoots => {
+                push_sep(&mut cursor_x, &mut spans);
+                push_action(
+                    "Ctrl+O",
+                    " pick",
+                    EditorFooterAction::Pick,
+                    &mut cursor_x,
+                    &mut spans,
+                    &mut hits,
+                );
+                push_sep(&mut cursor_x, &mut spans);
+                push_action(
+                    "Ctrl+V",
+                    " show",
+                    EditorFooterAction::Show,
+                    &mut cursor_x,
+                    &mut spans,
+                    &mut hits,
+                );
+                push_sep(&mut cursor_x, &mut spans);
+                push_action(
+                    "Esc",
+                    " cancel",
+                    EditorFooterAction::Cancel,
+                    &mut cursor_x,
+                    &mut spans,
+                    &mut hits,
+                );
+            }
+        }
 
         hits.retain(|(_action, rect)| rect.x < area_end && rect.width > 0 && rect.y == y);
         (Line::from(spans), hits)
@@ -926,10 +1058,15 @@ impl ShellProfilesSettingsView {
 
     fn editor_append_picker_path(&mut self, target: ListTarget) {
         let kind = match target {
+            ListTarget::Summary => {
+                self.status = Some("Picker not available for summary".to_string());
+                return;
+            }
             ListTarget::References => NativePickerKind::File,
             ListTarget::SkillRoots => NativePickerKind::Folder,
         };
         let title = match target {
+            ListTarget::Summary => "Select path",
             ListTarget::References => "Select reference file",
             ListTarget::SkillRoots => "Select skill root folder",
         };
@@ -958,11 +1095,8 @@ impl ShellProfilesSettingsView {
 
     fn editor_show_last_path(&mut self, target: ListTarget) {
         let text = self.editor_field_mut(target).text().to_string();
-        let last = text
-            .lines()
-            .map(str::trim)
-            .filter(|line| !line.is_empty())
-            .last();
+        let mut lines = text.lines().map(str::trim).filter(|line| !line.is_empty());
+        let last = lines.next_back();
 
         match last {
             Some(path) => match crate::native_file_manager::reveal_path(std::path::Path::new(path)) {
@@ -976,6 +1110,7 @@ impl ShellProfilesSettingsView {
     fn activate_selected_row(&mut self) {
         match self.selected_row() {
             RowKind::Style => self.cycle_style_next(),
+            RowKind::Summary => self.open_editor(ListTarget::Summary),
             RowKind::References => self.open_editor(ListTarget::References),
             RowKind::SkillRoots => self.open_editor(ListTarget::SkillRoots),
             RowKind::SkillsAllowlist => self.open_picker(PickTarget::SkillsAllowlist),
@@ -1041,12 +1176,29 @@ impl ShellProfilesSettingsView {
 
         self.render_list(list_area, buf);
 
-        let footer_text = self
-            .status
-            .as_deref()
-            .unwrap_or("Enter: edit/apply  •  Ctrl+P: shell  •  Esc: close");
+        let default_help = "Enter: edit/cycle/apply  •  Ctrl+P: shell  •  Esc: close";
+        let footer_text = if let Some(status) = self.status.as_deref()
+            && !status.trim().is_empty()
+        {
+            status.trim().replace(['\r', '\n'], " ")
+        } else if self.selected_row() == RowKind::Style {
+            let summary = self
+                .shell_style_profiles
+                .get(&self.selected_style)
+                .and_then(|profile| profile.summary.as_deref())
+                .unwrap_or("")
+                .trim();
+            if summary.is_empty() {
+                format!("Summary: unset  •  {default_help}")
+            } else {
+                let first_line = summary.lines().next().unwrap_or(summary).trim();
+                format!("Summary: {first_line}  •  {default_help}")
+            }
+        } else {
+            default_help.to_string()
+        };
         let footer_line = Line::from(vec![Span::styled(
-            footer_text.to_string(),
+            footer_text,
             Style::default().fg(crate::colors::text_dim()),
         )]);
         write_line(
@@ -1135,6 +1287,7 @@ impl ShellProfilesSettingsView {
         );
 
         let title = match target {
+            ListTarget::Summary => "Edit summary (optional)",
             ListTarget::References => "Edit references (one path per line)",
             ListTarget::SkillRoots => "Edit skill roots (one path per line)",
         };
@@ -1152,7 +1305,7 @@ impl ShellProfilesSettingsView {
             Style::default().bg(crate::colors::background()),
         );
 
-        let (footer, _hits) = self.editor_footer_line_and_hits(footer_area);
+        let (footer, _hits) = self.editor_footer_line_and_hits(footer_area, target);
         write_line(
             buf,
             footer_area.x,
@@ -1164,6 +1317,7 @@ impl ShellProfilesSettingsView {
 
         let focused = true;
         match target {
+            ListTarget::Summary => self.summary_field.render(field_area, buf, focused),
             ListTarget::References => self.references_field.render(field_area, buf, focused),
             ListTarget::SkillRoots => self.skill_roots_field.render(field_area, buf, focused),
         }
@@ -1355,12 +1509,14 @@ impl ShellProfilesSettingsView {
                     true
                 }
                 KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
+                    self.status = None;
                     let rows = Self::rows();
                     let visible = self.viewport_rows.get().max(1);
                     self.scroll.move_up_wrap_visible(rows.len(), visible);
                     true
                 }
                 KeyEvent { code: KeyCode::Down, modifiers: KeyModifiers::NONE, .. } => {
+                    self.status = None;
                     let rows = Self::rows();
                     let visible = self.viewport_rows.get().max(1);
                     self.scroll.move_down_wrap_visible(rows.len(), visible);
@@ -1379,10 +1535,12 @@ impl ShellProfilesSettingsView {
                     true
                 }
                 KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. } => {
+                    self.status = None;
                     self.activate_selected_row();
                     true
                 }
                 KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
+                    self.status = None;
                     self.activate_selected_row();
                     true
                 }
@@ -1391,6 +1549,7 @@ impl ShellProfilesSettingsView {
             ViewMode::EditList { target, before } => match (key.code, key.modifiers) {
                 (KeyCode::Esc, _) => {
                     match target {
+                        ListTarget::Summary => self.summary_field.set_text(&before),
                         ListTarget::References => self.references_field.set_text(&before),
                         ListTarget::SkillRoots => self.skill_roots_field.set_text(&before),
                     }
@@ -1406,15 +1565,32 @@ impl ShellProfilesSettingsView {
                     self.status = Some("Changes staged. Select Apply to persist.".to_string());
                     true
                 }
-                (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    self.editor_append_picker_path(target);
+                (KeyCode::Char('g'), mods)
+                    if mods.contains(KeyModifiers::CONTROL) && matches!(target, ListTarget::Summary) =>
+                {
+                    self.request_summary_generation();
                     self.mode = ViewMode::EditList { target, before };
                     true
                 }
+                (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
+                    if matches!(target, ListTarget::References | ListTarget::SkillRoots) {
+                        self.editor_append_picker_path(target);
+                        self.mode = ViewMode::EditList { target, before };
+                        true
+                    } else {
+                        self.mode = ViewMode::EditList { target, before };
+                        false
+                    }
+                }
                 (KeyCode::Char('v'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    self.editor_show_last_path(target);
-                    self.mode = ViewMode::EditList { target, before };
-                    true
+                    if matches!(target, ListTarget::References | ListTarget::SkillRoots) {
+                        self.editor_show_last_path(target);
+                        self.mode = ViewMode::EditList { target, before };
+                        true
+                    } else {
+                        self.mode = ViewMode::EditList { target, before };
+                        false
+                    }
                 }
                 _ => {
                     let handled = self.editor_field_mut(target).handle_key(key);
@@ -1499,7 +1675,7 @@ impl ShellProfilesSettingsView {
                             && mouse_event.column >= footer_area.x
                             && mouse_event.column < footer_area.x.saturating_add(footer_area.width)
                         {
-                            let (_line, hits) = self.editor_footer_line_and_hits(footer_area);
+                            let (_line, hits) = self.editor_footer_line_and_hits(footer_area, target);
                             for (action, rect) in hits {
                                 if mouse_event.column >= rect.x
                                     && mouse_event.column < rect.x.saturating_add(rect.width)
@@ -1515,6 +1691,11 @@ impl ShellProfilesSettingsView {
                                             self.mode = ViewMode::Main;
                                             return true;
                                         }
+                                        EditorFooterAction::Generate => {
+                                            self.request_summary_generation();
+                                            self.mode = ViewMode::EditList { target, before };
+                                            return true;
+                                        }
                                         EditorFooterAction::Pick => {
                                             self.editor_append_picker_path(target);
                                             self.mode = ViewMode::EditList { target, before };
@@ -1527,6 +1708,7 @@ impl ShellProfilesSettingsView {
                                         }
                                         EditorFooterAction::Cancel => {
                                             match target {
+                                                ListTarget::Summary => self.summary_field.set_text(&before),
                                                 ListTarget::References => self.references_field.set_text(&before),
                                                 ListTarget::SkillRoots => self.skill_roots_field.set_text(&before),
                                             }
@@ -1673,6 +1855,14 @@ impl<'a> BottomPaneView<'a> for ShellProfilesSettingsView {
             },
         );
     }
+
+    fn as_any(&self) -> Option<&dyn std::any::Any> {
+        Some(self)
+    }
+
+    fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
+        Some(self)
+    }
 }
 
 fn format_path_list(paths: &[PathBuf]) -> String {
@@ -1696,7 +1886,13 @@ fn parse_path_list(text: &str) -> Vec<PathBuf> {
 }
 
 fn style_profile_is_empty(profile: &ShellStyleProfileConfig) -> bool {
-    profile.references.is_empty()
+    profile
+        .summary
+        .as_ref()
+        .map(|value| value.trim())
+        .unwrap_or("")
+        .is_empty()
+        && profile.references.is_empty()
         && profile.prepend_developer_messages.is_empty()
         && profile.skills.is_empty()
         && profile.disabled_skills.is_empty()

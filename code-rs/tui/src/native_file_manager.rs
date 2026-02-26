@@ -58,26 +58,24 @@ pub(crate) fn reveal_path(path: &Path) -> Result<()> {
 
     #[cfg(target_os = "macos")]
     {
-        if path.is_dir() {
-            let mut cmd = Command::new("open");
-            cmd.arg(path);
-            return spawn_detached(cmd);
-        }
         let mut cmd = Command::new("open");
-        cmd.arg("-R").arg(path);
-        return spawn_detached(cmd);
+        if path.is_dir() {
+            cmd.arg(path);
+        } else {
+            cmd.arg("-R").arg(path);
+        }
+        spawn_detached(cmd)
     }
 
     #[cfg(target_os = "windows")]
     {
-        let arg = if path.is_dir() {
-            path.display().to_string()
-        } else {
-            format!("/select,{}", path.display())
-        };
         let mut cmd = Command::new("explorer.exe");
-        cmd.arg(arg);
-        return spawn_detached(cmd);
+        if path.is_dir() {
+            cmd.arg(path);
+        } else {
+            cmd.arg(format!("/select,{}", path.display()));
+        }
+        spawn_detached(cmd)
     }
 
     #[cfg(any(

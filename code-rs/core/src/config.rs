@@ -84,6 +84,7 @@ pub use sources::{
     resolve_code_path_for_read,
     set_shell_style_profile_mcp_servers,
     set_shell_style_profile_paths,
+    set_shell_style_profile_summary,
     set_shell_style_profile_skills,
     set_shell_style_profile_skill_mode,
     set_auto_drive_settings,

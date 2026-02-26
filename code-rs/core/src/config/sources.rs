@@ -700,6 +700,128 @@ pub fn set_shell_style_profile_paths(
     Ok(changed)
 }
 
+/// Update the optional shell-style profile summary.
+///
+/// When `summary` is `None` (or empty after trimming), the key is removed. If
+/// the resulting style profile table is empty it is removed.
+pub fn set_shell_style_profile_summary(
+    code_home: &Path,
+    style: ShellScriptStyle,
+    summary: Option<&str>,
+) -> anyhow::Result<bool> {
+    let summary = summary
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let style_key = style.to_string();
+    let mut changed = false;
+
+    {
+        let root = doc.as_table_mut();
+        match root.get("shell_style_profiles") {
+            Some(item) => {
+                if item.as_table().is_none() {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if summary.is_none() {
+                    return Ok(false);
+                }
+                let mut table = TomlTable::new();
+                table.set_implicit(true);
+                root.insert("shell_style_profiles", TomlItem::Table(table));
+                changed = true;
+            }
+        }
+    }
+
+    {
+        let root = doc.as_table_mut();
+        let profiles_table = root
+            .get_mut("shell_style_profiles")
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell_style_profiles table"))?;
+
+        let mut resolved_style_key = find_shell_style_profile_key(profiles_table, style)?;
+        match resolved_style_key.as_deref() {
+            Some(existing_key) => {
+                if profiles_table
+                    .get(existing_key)
+                    .and_then(|item| item.as_table())
+                    .is_none()
+                {
+                    return Err(anyhow::anyhow!(
+                        "`shell_style_profiles.{existing_key}` must be a TOML table"
+                    ));
+                }
+            }
+            None => {
+                if summary.is_none() {
+                    return Ok(changed);
+                }
+                let mut style_table = TomlTable::new();
+                style_table.set_implicit(false);
+                profiles_table.insert(style_key.as_str(), TomlItem::Table(style_table));
+                resolved_style_key = Some(style_key.clone());
+                changed = true;
+            }
+        }
+        let resolved_style_key = resolved_style_key
+            .ok_or_else(|| anyhow::anyhow!("failed to resolve shell style profile key"))?;
+
+        let style_table = profiles_table
+            .get_mut(resolved_style_key.as_str())
+            .and_then(|item| item.as_table_mut())
+            .ok_or_else(|| anyhow::anyhow!("failed to prepare shell style profile table"))?;
+
+        let existing_summary = style_table
+            .get("summary")
+            .and_then(|item| item.as_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+
+        if existing_summary != summary {
+            match summary {
+                Some(value) => style_table["summary"] = toml_edit::value(value),
+                None => {
+                    style_table.remove("summary");
+                }
+            }
+            changed = true;
+        }
+
+        if style_table.is_empty() {
+            profiles_table.remove(resolved_style_key.as_str());
+            changed = true;
+        }
+
+        if profiles_table.is_empty() {
+            root.remove("shell_style_profiles");
+            changed = true;
+        }
+    }
+
+    if changed {
+        std::fs::create_dir_all(code_home)?;
+        let tmp_path = config_path.with_extension("tmp");
+        std::fs::write(&tmp_path, doc.to_string())?;
+        std::fs::rename(&tmp_path, &config_path)?;
+    }
+
+    Ok(changed)
+}
+
 /// Update shell-style profile MCP server include/exclude filters.
 ///
 /// Empty lists remove their corresponding keys. If the resulting `mcp_servers`

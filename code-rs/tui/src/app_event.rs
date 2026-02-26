@@ -389,6 +389,24 @@ pub(crate) enum AppEvent {
         shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
     },
 
+    /// Request generation of a user-facing shell profile summary via the model.
+    RequestGenerateShellStyleProfileSummary {
+        style: ShellScriptStyle,
+        profile: ShellStyleProfileConfig,
+    },
+
+    /// Shell profile summary generation succeeded.
+    ShellStyleProfileSummaryGenerated {
+        style: ShellScriptStyle,
+        summary: String,
+    },
+
+    /// Shell profile summary generation failed.
+    ShellStyleProfileSummaryGenerationFailed {
+        style: ShellScriptStyle,
+        error: String,
+    },
+
     /// Open the shell selector overlay
     ShowShellSelector,
 

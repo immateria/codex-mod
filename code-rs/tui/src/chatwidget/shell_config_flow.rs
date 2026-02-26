@@ -245,6 +245,42 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    pub(crate) fn apply_shell_style_profile_summary_generated(
+        &mut self,
+        style: ShellScriptStyle,
+        summary: String,
+    ) {
+        if let Some(overlay) = self.settings.overlay.as_mut()
+            && let Some(content) = overlay.shell_profiles_content_mut()
+        {
+            content.apply_generated_summary(style, summary.clone());
+        }
+
+        let _ = self
+            .bottom_pane
+            .apply_shell_profiles_generated_summary(style, summary);
+        self.request_redraw();
+    }
+
+    pub(crate) fn apply_shell_style_profile_summary_generation_failed(
+        &mut self,
+        style: ShellScriptStyle,
+        error: String,
+    ) {
+        if let Some(overlay) = self.settings.overlay.as_mut()
+            && let Some(content) = overlay.shell_profiles_content_mut()
+        {
+            content.apply_summary_generation_error(style, error.clone());
+        }
+
+        let _ = self
+            .bottom_pane
+            .apply_shell_profiles_summary_generation_error(style, error.clone());
+        self.bottom_pane
+            .flash_footer_notice(format!("Summary generation failed: {error}"));
+        self.request_redraw();
+    }
+
     pub(crate) fn apply_network_proxy_settings(
         &mut self,
         settings: Option<code_core::config::NetworkProxySettingsToml>,

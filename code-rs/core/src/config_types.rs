@@ -345,6 +345,11 @@ pub struct ShellStyleMcpConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct ShellStyleProfileConfig {
+    /// Optional user-defined summary describing what this style profile does.
+    /// Used for UI affordances like shell profile pickers and settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+
     /// Additional style-specific reference files to load into model context.
     /// Relative paths are resolved against the session cwd.
     #[serde(default)]

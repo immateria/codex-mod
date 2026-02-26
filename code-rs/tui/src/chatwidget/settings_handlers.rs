@@ -39,7 +39,7 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
         .settings
         .overlay
         .as_ref()
-        .is_some_and(|overlay| overlay.is_help_visible())
+        .is_some_and(super::settings_overlay::SettingsOverlayView::is_help_visible)
     {
         match key_event.code {
             KeyCode::Esc => {
@@ -71,7 +71,7 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
         .settings
         .overlay
         .as_ref()
-        .is_some_and(|overlay| overlay.is_menu_active())
+        .is_some_and(super::settings_overlay::SettingsOverlayView::is_menu_active)
     {
         let mut handled = true;
         let mut changed = false;
@@ -181,7 +181,7 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
                 .settings
                 .overlay
                 .as_mut()
-                .is_some_and(|overlay| overlay.select_next());
+                .is_some_and(super::settings_overlay::SettingsOverlayView::select_next);
             if changed {
                 chat.request_redraw();
             }
@@ -192,7 +192,7 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
                 .settings
                 .overlay
                 .as_mut()
-                .is_some_and(|overlay| overlay.select_previous());
+                .is_some_and(super::settings_overlay::SettingsOverlayView::select_previous);
             if changed {
                 chat.request_redraw();
             }
