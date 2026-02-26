@@ -71,10 +71,10 @@ def main():
 
     valid, message = validate_skill(sys.argv[1])
     if valid:
-        print(f"✅ {message}")
+        print(f"OK: {message}")
         sys.exit(0)
     else:
-        print(f"❌ {message}")
+        print(f"ERROR: {message}")
         sys.exit(1)
 
 

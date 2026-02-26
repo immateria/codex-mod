@@ -474,7 +474,7 @@ typeset USE_LOCKED
 if CARGO_HOME=$CARGO_HOME RUSTUP_HOME=$RUSTUP_HOME ${=USE_CARGO} metadata --locked --format-version 1 &>/dev/null; then
   USE_LOCKED="--locked"
 else
-  print "⚠️  Warning: Cargo.lock appears out of date or inconsistent"
+  print "WARNING: Cargo.lock appears out of date or inconsistent"
   print "  This might mean:"
   print "  • You've modified Cargo.toml dependencies"
   print "  • You've changed workspace crate versions"
@@ -544,7 +544,7 @@ if [[ -f $FPRINT_FILE ]]; then
   typeset OLD_FPRINT_HASH=$(sed -n 's/^HASH=//p' $FPRINT_FILE 2>/dev/null | head -1)
   if [[ ${OLD_FPRINT_HASH:-} != $NEW_FPRINT_HASH ]]; then
     FPRINT_CHANGED=1
-    print "⚠️  Build cache fingerprint changed since last run for profile '${PROFILE}'."
+    print "WARNING: Build cache fingerprint changed since last run for profile '${PROFILE}'."
     print "   This can trigger incremental rebuilds the first time you build."
     if [[ ${TRACE_BUILD:-} == 1 ]]; then
       print "--- previous fingerprint (hash: ${OLD_FPRINT_HASH:-none}) ---"
@@ -588,7 +588,7 @@ if (( $? == 0 )); then
     fi
   fi
   
-  print "✅ Build successful!"
+  print "OK: Build successful!"
   print "Binary location: ${BIN_DISPLAY_PATH}"
   print ""
   
@@ -696,14 +696,14 @@ if (( $? == 0 )); then
     typeset RUN_PATH=$RUN_BIN_PATH
     [[ ! -x $RUN_PATH ]] && RUN_PATH="${TARGET_DIR_ABS}/${BIN_SUBDIR}/${PRIMARY_BIN}"
     if [[ ! -x $RUN_PATH ]]; then
-      print "❌ Run failed: ${RUN_PATH} is missing or not executable"
+      print "ERROR: Run failed: ${RUN_PATH} is missing or not executable"
       exit 1
     fi
     print "Running ${RUN_PATH} (cwd: ${CALLER_CWD})..."
     ( cd $CALLER_CWD && $RUN_PATH )
     typeset RUN_STATUS=$?
     if (( RUN_STATUS != 0 )); then
-      print "❌ Run failed with status ${RUN_STATUS}"
+      print "ERROR: Run failed with status ${RUN_STATUS}"
       exit $RUN_STATUS
     fi
   fi
@@ -718,14 +718,14 @@ if (( $? == 0 )); then
   # Persist fingerprint
   mkdir -p ./target/$PROFILE 2>/dev/null
   print "HASH=${NEW_FPRINT_HASH}\n${NEW_FPRINT_TEXT}" > $FPRINT_FILE
-  (( FPRINT_CHANGED )) && print "🧰 Cache normalized to current environment (fingerprint ${NEW_FPRINT_HASH})."
+  (( FPRINT_CHANGED )) && print "NOTE: Cache normalized to current environment (fingerprint ${NEW_FPRINT_HASH})."
   
   [[ -z $USE_LOCKED ]] && {
     print ""
-    print "⚠️  Remember: Built without --locked due to Cargo.lock issues"
+    print "WARNING: Built without --locked due to Cargo.lock issues"
     print "  Consider running 'cargo update' and committing the changes"
   }
 else
-  print "❌ Build failed"
+  print "ERROR: Build failed"
   exit 1
 fi

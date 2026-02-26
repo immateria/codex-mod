@@ -122,8 +122,8 @@ cargo build -p <dependent-crate>
 
 Migrate in this order to avoid dependency issues:
 
-1. ✅ `code-core` (already done)
-2. ✅ `code-linux-sandbox` (just completed)
+1. `code-core` (already done)
+2. `code-linux-sandbox` (just completed)
 3. Next candidates:
    - `ansi-escape` (no codex deps)
    - `git-apply` (minimal deps)
@@ -133,11 +133,11 @@ Migrate in this order to avoid dependency issues:
 
 ## Success Criteria
 
-- ✅ `cargo build -p code-<crate>` passes
-- ✅ No `codex-<crate>` in workspace Cargo.toml
-- ✅ No `use codex_*` in src/ (except unavoidable upstream)
-- ✅ Dependent crates still build
-- ✅ Tests pass (if exist)
+- `cargo build -p code-<crate>` passes
+- No `codex-<crate>` in workspace Cargo.toml
+- No `use codex_*` in src/ (except unavoidable upstream)
+- Dependent crates still build
+- Tests pass (if exist)
 
 ## Full Documentation
 

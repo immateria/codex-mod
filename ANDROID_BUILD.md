@@ -87,7 +87,7 @@ scp code-rs/target/aarch64-linux-android/dev/code user@device:~/
 
 ### NDK Not Found
 
-If you see: `❌ Android NDK not found`
+If you see: `Android NDK not found`
 
 **Solution:**
 1. Install NDK using one of the methods above

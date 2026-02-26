@@ -41,7 +41,7 @@ init_merge_log() {
     local log_file="${LOGS_DIR}/merge-$(log_date).md"
 
     if [[ -f "$log_file" ]]; then
-        echo "⚠️  Log file already exists: $log_file"
+        echo "WARNING: Log file already exists: $log_file"
         read -p "Overwrite? (y/N) " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -81,7 +81,7 @@ This log tracks the merge of upstream changes into the fork.
 
 HEADER
 
-    echo "✅ Initialized merge log: $log_file"
+    echo "OK: Initialized merge log: $log_file"
     echo "$log_file"
 }
 
@@ -94,7 +94,7 @@ add_note() {
     local log_file=$(ls -t "${LOGS_DIR}"/merge-*.md 2>/dev/null | head -1)
 
     if [[ -z "$log_file" ]]; then
-        echo "❌ No active merge log found. Run 'init' first."
+        echo "ERROR: No active merge log found. Run 'init' first."
         exit 1
     fi
 
@@ -103,7 +103,7 @@ add_note() {
     echo "${message}" >> "$log_file"
     echo "" >> "$log_file"
 
-    echo "📝 Added note to $log_file"
+    echo "NOTE: Added note to $log_file"
 }
 
 # Log a merge decision for a specific crate
@@ -115,7 +115,7 @@ log_decision() {
     local log_file=$(ls -t "${LOGS_DIR}"/merge-*.md 2>/dev/null | head -1)
 
     if [[ -z "$log_file" ]]; then
-        echo "❌ No active merge log found. Run 'init' first."
+        echo "ERROR: No active merge log found. Run 'init' first."
         exit 1
     fi
 
@@ -131,7 +131,7 @@ log_decision() {
     # Add decision row
     echo "| ${crate} | ${action} | ${reason} | $(timestamp) |" >> "$log_file"
 
-    echo "📝 Logged decision for ${crate}: ${action}"
+    echo "NOTE: Logged decision for ${crate}: ${action}"
 }
 
 # Finalize the merge log
@@ -139,7 +139,7 @@ finalize_log() {
     local log_file=$(ls -t "${LOGS_DIR}"/merge-*.md 2>/dev/null | head -1)
 
     if [[ -z "$log_file" ]]; then
-        echo "❌ No active merge log found. Run 'init' first."
+        echo "ERROR: No active merge log found. Run 'init' first."
         exit 1
     fi
 
@@ -173,7 +173,7 @@ Command: \`git fetch upstream && git log HEAD..upstream/main --oneline\`
 
 FOOTER
 
-    echo "✅ Finalized merge log: $log_file"
+    echo "OK: Finalized merge log: $log_file"
     echo ""
     echo "Next steps:"
     echo "  1. Complete post-merge checklist in the log"
@@ -231,21 +231,21 @@ main() {
     case "$command" in
         init)
             if [[ $# -lt 1 ]]; then
-                echo "❌ Usage: $0 init <upstream-ref>"
+                echo "ERROR: Usage: $0 init <upstream-ref>"
                 exit 1
             fi
             init_merge_log "$@"
             ;;
         note)
             if [[ $# -lt 2 ]]; then
-                echo "❌ Usage: $0 note <category> <message>"
+                echo "ERROR: Usage: $0 note <category> <message>"
                 exit 1
             fi
             add_note "$@"
             ;;
         decision)
             if [[ $# -lt 3 ]]; then
-                echo "❌ Usage: $0 decision <crate> <action> <reason>"
+                echo "ERROR: Usage: $0 decision <crate> <action> <reason>"
                 exit 1
             fi
             log_decision "$@"
@@ -257,7 +257,7 @@ main() {
             summarize_logs
             ;;
         *)
-            echo "❌ Unknown command: $command"
+            echo "ERROR: Unknown command: $command"
             exit 1
             ;;
     esac

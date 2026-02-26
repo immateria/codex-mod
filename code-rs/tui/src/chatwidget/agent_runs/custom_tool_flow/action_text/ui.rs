@@ -32,7 +32,7 @@ pub(super) fn report_missing_batch(
         "missing batch_id for agent event"
     );
 
-    let mut message = format!("⚠️ {context}: missing agent batch_id.");
+    let mut message = format!("WARN: {context}: missing agent batch_id.");
     if let Some(tool) = tool_name
         && !tool.is_empty()
     {

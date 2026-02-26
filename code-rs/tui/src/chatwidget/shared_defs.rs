@@ -1802,11 +1802,11 @@ fn agent_status_label(status: AgentStatus) -> &'static str {
 
 fn agent_status_icon(status: AgentStatus) -> &'static str {
     match status {
-        AgentStatus::Completed => "✔",
-        AgentStatus::Running => "▶",
+        AgentStatus::Completed => "✓",
+        AgentStatus::Running => ">",
         AgentStatus::Pending => "…",
-        AgentStatus::Failed => "✖",
-        AgentStatus::Cancelled => "⏹",
+        AgentStatus::Failed => "✗",
+        AgentStatus::Cancelled => "×",
     }
 }
 

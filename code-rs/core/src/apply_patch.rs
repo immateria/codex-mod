@@ -94,9 +94,9 @@ pub(crate) async fn apply_patch(
 
                 let mut lines: Vec<String> = Vec::new();
                 if total_issues == 0 {
-                    lines.push("✅ Validate New Code: no issues".to_string());
+                    lines.push("Validate New Code: no issues".to_string());
                 } else {
-                    lines.push(format!("❌ Validate New Code: {total_issues} issue(s)"));
+                    lines.push(format!("Validate New Code: {total_issues} issue(s)"));
                     for finding in findings.iter() {
                         let mut parts = vec![finding.tool.clone()];
                         if let Some(rel) = finding

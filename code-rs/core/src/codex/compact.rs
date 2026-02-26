@@ -294,7 +294,7 @@ pub(super) async fn perform_compaction(
                      Applying emergency fallback history to prevent retry loop."
                 );
 
-                let emergency_message = "⚠️ Compaction failed: The conversation history is too large \
+                let emergency_message = "WARN: Compaction failed: The conversation history is too large \
                     to compact within the model's context limits. The history has been reset to prevent \
                     further errors. Please start a new session or manually reduce context by clearing history.";
 
@@ -459,7 +459,7 @@ async fn run_compact_task_inner_inline(
                      Returning emergency fallback history to prevent retry loop."
                 );
 
-                let emergency_message = "⚠️ Compaction failed: The conversation history is too large \
+                let emergency_message = "WARN: Compaction failed: The conversation history is too large \
                     to compact within the model's context limits. The history has been reset to prevent \
                     further errors. Please start a new session or manually reduce context by clearing history.";
 

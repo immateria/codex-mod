@@ -282,9 +282,9 @@ impl ChatWidget<'_> {
                             "›" => crate::colors::text(),
                             "⋮" => crate::colors::primary(),
                             "•" => crate::colors::text_bright(),
-                            "⚙" => crate::colors::info(),
-                            "✔" => crate::colors::success(),
-                            "✖" => crate::colors::error(),
+                            "…" => crate::colors::info(),
+                            "✓" => crate::colors::success(),
+                            "✗" => crate::colors::error(),
                             "★" => crate::colors::text_bright(),
                             _ => crate::colors::text_dim(),
                         }

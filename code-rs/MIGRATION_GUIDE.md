@@ -315,8 +315,8 @@ The binary name uses hyphens, the library name uses underscores (Rust convention
 Crates should be migrated in dependency order. Dependencies must be migrated before their dependents.
 
 **Already migrated:**
-- ✅ `code-core` (was `codex-core`)
-- ✅ `code-linux-sandbox` (was `codex-linux-sandbox`)
+- `code-core` (was `codex-core`)
+- `code-linux-sandbox` (was `codex-linux-sandbox`)
 
 **Remaining wrappers (identified order):**
 1. Low-level utilities (no codex dependencies):
@@ -376,7 +376,7 @@ The result is a crate that owns its implementation and no longer depends on `../
 ## linux-sandbox Migration Results
 
 The `code-linux-sandbox` crate was successfully migrated:
-- **Build status:** ✅ Success (`cargo build -p code-linux-sandbox` in 1m 50s)
+- **Build status:** Success (`cargo build -p code-linux-sandbox` in 1m 50s)
 - **Files migrated:** 7 files (lib.rs, main.rs, landlock.rs, linux_run_main.rs, + 3 test files)
 - **Dependencies:** 5 external + 1 internal (code-core)
 - **Namespace changes:** 4 occurrences (codex_core → code_core, codex_linux_sandbox → code_linux_sandbox)

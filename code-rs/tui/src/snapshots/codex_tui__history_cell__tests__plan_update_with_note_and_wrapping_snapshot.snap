@@ -8,7 +8,7 @@ expression: rendered
     retries and clearer
     messages when the backend is
     unreachable.
-    ✔ Investigate existing error
+    ✓ Investigate existing error
       paths and logging around
       HTTP timeouts
     □ Harden Grafana client

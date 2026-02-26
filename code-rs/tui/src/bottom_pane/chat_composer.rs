@@ -2365,7 +2365,7 @@ impl ChatComposer {
                 let icon_style = key_hint_style;
                 vec![
                     Span::styled("Auto Review: ", label_style),
-                    Span::styled("✔", icon_style),
+                    Span::styled("✓", icon_style),
                     Span::from(" "),
                     Span::styled("Correct", icon_style),
                 ]
@@ -2380,7 +2380,7 @@ impl ChatComposer {
                 };
                 vec![
                     Span::styled("Auto Review: ", label_style),
-                    Span::styled("✔", icon_style),
+                    Span::styled("✓", icon_style),
                     Span::from(" "),
                     Span::styled(text, icon_style),
                 ]
@@ -2389,7 +2389,7 @@ impl ChatComposer {
                 let icon_style = Style::default().fg(crate::colors::error());
                 vec![
                     Span::styled("Auto Review: ", label_style),
-                    Span::styled("✖", icon_style),
+                    Span::styled("✗", icon_style),
                     Span::from(" "),
                     Span::styled("Failed", icon_style),
                 ]

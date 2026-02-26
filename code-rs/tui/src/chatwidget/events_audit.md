@@ -31,10 +31,10 @@ Line numbers reference `code-rs/tui/src/chatwidget.rs` as of 2025-09-27.
   - review-flow variants              (`chatwidget.rs:11660-11747`)
   These still rely on cell-owned caches and in-place mutation.
 - **Exec lifecycle** –
-  - ✅ Streaming deltas now flow through `HistoryDomainEvent::UpdateExecStream`
+  - [done] Streaming deltas now flow through `HistoryDomainEvent::UpdateExecStream`
     (`chatwidget.rs:6996-7034`), and the returned record hydrates the cached
     `ExecCell` state.
-  - 🔲 End/update: merge logic still downcasts and mutates cells directly
+  - [todo] End/update: merge logic still downcasts and mutates cells directly
     (`chatwidget.rs:7159-7184`, `7233-7242`).
 - **Background/system notices** – `push_system_cell` (`chatwidget.rs:1254`) now
   uses `HistoryDomainRecord::BackgroundEvent` for inserts/replacements, so these

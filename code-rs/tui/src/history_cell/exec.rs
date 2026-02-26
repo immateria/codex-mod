@@ -203,7 +203,7 @@ impl HistoryCell for ExecCell {
                 status,
             } => {
                 if matches!(status, ExecStatus::Error) {
-                    Some("✖")
+                    Some("✗")
                 } else if self.has_bold_command {
                     Some("❯")
                 } else {

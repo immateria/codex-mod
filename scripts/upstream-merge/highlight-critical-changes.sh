@@ -77,11 +77,11 @@ analyze_diff() {
     local diff_file="${OUTPUT_DIR}/${crate_name}.diff"
 
     if [[ ! -f "$diff_file" ]]; then
-        echo -e "${GREEN}✅ ${crate_name}: No differences${NC}"
+        echo -e "${GREEN}OK: ${crate_name}: No differences${NC}"
         return 0
     fi
 
-    echo -e "${BLUE}🔍 Analyzing ${crate_name}...${NC}"
+    echo -e "${BLUE}Analyzing ${crate_name}...${NC}"
 
     local critical_file="${CRITICAL_DIR}/${crate_name}-critical.md"
     local has_critical=0
@@ -132,35 +132,35 @@ HEADER
 
     # Function signature changes
     if grep -E "^\+.*fn |^-.*fn " "$diff_file" | head -20 >> "$critical_file" 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  Function signature changes detected${NC}"
+        echo -e "${YELLOW}WARNING: Function signature changes detected${NC}"
         has_critical=1
     fi
 
     # Enum/struct changes
     if grep -E "^\+.*enum |^-.*enum |^\+.*struct |^-.*struct " "$diff_file" | head -20 >> "$critical_file" 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  Type definition changes detected${NC}"
+        echo -e "${YELLOW}WARNING: Type definition changes detected${NC}"
         has_critical=1
     fi
 
     # Protocol message changes
     if grep -E "^\+.*EventMsg|^-.*EventMsg|^\+.*Op::|^-.*Op::" "$diff_file" | head -20 >> "$critical_file" 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  Protocol message changes detected${NC}"
+        echo -e "${YELLOW}WARNING: Protocol message changes detected${NC}"
         has_critical=1
     fi
 
     if [[ $has_critical -eq 1 ]]; then
-        echo -e "${RED}🚨 Critical changes found - see ${critical_file}${NC}"
+        echo -e "${RED}CRITICAL: See ${critical_file}${NC}"
         return 1
     else
         rm "$critical_file"
-        echo -e "${GREEN}✅ No critical changes detected${NC}"
+        echo -e "${GREEN}OK: No critical changes detected${NC}"
         return 0
     fi
 }
 
 # Function to generate critical changes summary
 generate_critical_summary() {
-    echo "📋 Generating critical changes summary..."
+    echo "Generating critical changes summary..."
     local summary_file="${CRITICAL_DIR}/CRITICAL-SUMMARY.md"
 
     cat > "$summary_file" <<'HEADER'
@@ -191,7 +191,7 @@ HEADER
     done
 
     if [[ $critical_count -eq 0 ]]; then
-        echo "✅ No critical changes detected across all crates." >> "$summary_file"
+        echo "OK: No critical changes detected across all crates." >> "$summary_file"
     else
         echo "" >> "$summary_file"
         echo "## Action Items" >> "$summary_file"
@@ -202,7 +202,7 @@ HEADER
         echo "4. Update \`docs/code-crate-parity-tracker.md\` with findings" >> "$summary_file"
     fi
 
-    echo "✅ Critical summary written to ${summary_file}"
+    echo "OK: Critical summary written to ${summary_file}"
     cat "$summary_file"
 }
 
@@ -210,7 +210,7 @@ HEADER
 main() {
     # Check if diff files exist
     if [[ ! -d "$OUTPUT_DIR" ]] || [[ -z "$(ls -A $OUTPUT_DIR/*.diff 2>/dev/null)" ]]; then
-        echo "⚠️  No diff files found. Run diff-crates.sh first:"
+        echo "WARNING: No diff files found. Run diff-crates.sh first:"
         echo "   ./scripts/upstream-merge/diff-crates.sh --all"
         exit 1
     fi
@@ -226,7 +226,7 @@ main() {
 
     case "$1" in
         --all)
-            echo "🔍 Analyzing all crate diffs for critical changes..."
+            echo "Analyzing all crate diffs for critical changes..."
             for diff_file in "$OUTPUT_DIR"/*.diff; do
                 if [[ -f "$diff_file" ]]; then
                     local crate_name=$(basename "$diff_file" .diff)

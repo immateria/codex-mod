@@ -1,4 +1,4 @@
-# Android Build Success ✅
+# Android Build Success
 
 ## Binary Built Successfully
 
@@ -82,4 +82,4 @@ cargo build --bin code --target aarch64-linux-android
 ---
 
 **Build Date**: February 3, 2026
-**Status**: ✅ Complete and Verified
+**Status**: Complete and Verified

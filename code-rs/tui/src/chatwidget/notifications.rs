@@ -22,14 +22,14 @@ impl ChatWidget<'_> {
                 match code_core::config::set_tui_notifications(&home, new_state) {
                     Ok(()) => {
                         let msg = format!(
-                            "✅ {} TUI notifications",
-                            if enabled { "Enabled" } else { "Disabled" }
+                            "TUI notifications: {}",
+                            if enabled { "enabled" } else { "disabled" }
                         );
                         self.push_background_tail(msg);
                     }
                     Err(err) => {
                         let msg = format!(
-                            "⚠️ Failed to persist TUI notifications setting: {err}"
+                            "WARN: Failed to persist TUI notifications setting: {err}"
                         );
                         self.history_push_plain_state(history_cell::new_error_event(msg));
                     }
@@ -37,8 +37,8 @@ impl ChatWidget<'_> {
             }
             Err(_) => {
                 let msg = format!(
-                    "✅ {} TUI notifications (not persisted: CODE_HOME/CODEX_HOME not found)",
-                    if enabled { "Enabled" } else { "Disabled" }
+                    "TUI notifications: {} (not persisted: CODE_HOME/CODEX_HOME not found)",
+                    if enabled { "enabled" } else { "disabled" }
                 );
                 self.push_background_tail(msg);
             }

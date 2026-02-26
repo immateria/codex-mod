@@ -137,7 +137,8 @@ mod tests {
 
     #[test]
     fn truncate_middle_handles_utf8_content() {
-        let s = "😀😀😀😀😀😀😀😀😀😀\nsecond line with ascii text\n";
+        // Use a non-ASCII 4-byte character (not an emoji) to exercise UTF-8 truncation.
+        let s = "𐍈𐍈𐍈𐍈𐍈𐍈𐍈𐍈𐍈𐍈\nsecond line with ascii text\n";
         let max_bytes = 32;
         let (out, tokens) = truncate_middle(s, max_bytes);
 

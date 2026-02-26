@@ -165,7 +165,7 @@ fn print_colored_warning_device_code() {
 /// Full device code login flow.
 pub async fn run_device_code_login(opts: ServerOptions) -> std::io::Result<()> {
     print_colored_warning_device_code();
-    println!("⏳ Generating a new 9-digit device code for authentication...\n");
+    println!("Generating a new 9-digit device code for authentication...\n");
     let session = DeviceCodeSession::start(opts).await?;
 
     println!(

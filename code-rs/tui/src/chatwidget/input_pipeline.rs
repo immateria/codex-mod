@@ -3365,7 +3365,7 @@ impl ChatWidget<'_> {
                 }
             if let Some((fallback_root, label)) = fallback {
                 let msg = format!(
-                    "⚠️ Worktree directory is missing: {}\nSwitching to {}: {}",
+                    "WARN: Worktree directory is missing: {}\nSwitching to {}: {}",
                     missing.display(),
                     label,
                     fallback_root.display()

@@ -446,7 +446,7 @@ impl ChatWidget<'_> {
                 self.refresh_settings_overview_rows();
             }
             EventMsg::ShutdownComplete => {
-                self.push_background_tail("🟡 ShutdownComplete".to_string());
+                self.push_background_tail("ShutdownComplete".to_string());
                 self.app_event_tx.send(AppEvent::ExitRequest);
             }
             EventMsg::TurnDiff(TurnDiffEvent { unified_diff }) => {

@@ -399,7 +399,7 @@ impl HistoryCell for RunningToolCallCell {
                 Some(self.spinner_frame())
             }
         } else {
-            Some("⚙")
+            Some("…")
         }
     }
 

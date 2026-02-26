@@ -85,7 +85,7 @@ impl ChatWidget<'_> {
                         let pretty_args = serde_json::from_str::<JsonValue>(&arguments)
                             .and_then(|v| serde_json::to_string_pretty(&v))
                             .unwrap_or_else(|_| arguments.clone());
-                        let mut m = format!("🔧 Tool call: {name}");
+                        let mut m = format!("Tool call: {name}");
                         if !pretty_args.trim().is_empty() {
                             m.push('\n');
                             m.push_str(&pretty_args);

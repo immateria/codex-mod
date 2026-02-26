@@ -729,7 +729,7 @@ pub(super) async fn submission_loop(
                         Err(e) => {
                             warn!("failed to resume rollout from {path:?}: {e}");
                             resume_notice = Some(format!(
-                                "⚠️ Failed to load previous session from {}: {e}. Starting a new conversation instead.",
+                                "WARN: Failed to load previous session from {}: {e}. Starting a new conversation instead.",
                                 path.display()
                             ));
                             updated_config.experimental_resume = None;

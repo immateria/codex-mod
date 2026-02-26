@@ -199,9 +199,9 @@ fn surface_failure(
     } = context;
     let short = &sha[..std::cmp::min(7, sha.len())];
     let msg = if url.is_empty() {
-        format!("❌ GitHub Actions failed for {owner}/{repo}@{short} on {branch}: {conclusion}")
+        format!("GitHub Actions failed for {owner}/{repo}@{short} on {branch}: {conclusion}")
     } else {
-        format!("❌ GitHub Actions failed for {owner}/{repo}@{short} on {branch}: {conclusion} — {url}")
+        format!("GitHub Actions failed for {owner}/{repo}@{short} on {branch}: {conclusion} — {url}")
     };
     tx.send_background_event_with_ticket(ticket, msg);
 }

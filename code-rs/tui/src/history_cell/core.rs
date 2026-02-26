@@ -49,16 +49,16 @@ pub(crate) fn gutter_symbol_for_kind(kind: HistoryCellType) -> Option<&'static s
         // Restore assistant gutter icon
         HistoryCellType::Assistant => Some("•"),
         HistoryCellType::Reasoning => None,
-        HistoryCellType::Error => Some("✖"),
+        HistoryCellType::Error => Some("✗"),
         HistoryCellType::Tool { status } => Some(match status {
-            ToolCellStatus::Running => "⚙",
-            ToolCellStatus::Success => "✔",
-            ToolCellStatus::Failed => "✖",
+            ToolCellStatus::Running => "…",
+            ToolCellStatus::Success => "✓",
+            ToolCellStatus::Failed => "✗",
         }),
         HistoryCellType::Exec { kind, status } => {
             // Show ❯ only for Run executions; hide for read/search/list summaries
             match (kind, status) {
-                (ExecKind::Run, ExecStatus::Error) => Some("✖"),
+                (ExecKind::Run, ExecStatus::Error) => Some("✗"),
                 (ExecKind::Run, _) => Some("❯"),
                 _ => None,
             }
@@ -68,7 +68,7 @@ pub(crate) fn gutter_symbol_for_kind(kind: HistoryCellType) -> Option<&'static s
         HistoryCellType::PlanUpdate => None,
         HistoryCellType::BackgroundEvent => Some("»"),
         HistoryCellType::Notice => Some("★"),
-        HistoryCellType::CompactionSummary => Some("📍"),
+        HistoryCellType::CompactionSummary => Some("§"),
         HistoryCellType::Diff => Some("↯"),
         HistoryCellType::Image => None,
         HistoryCellType::Context => Some("◆"),

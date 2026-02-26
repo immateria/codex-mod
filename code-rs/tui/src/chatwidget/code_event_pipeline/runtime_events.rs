@@ -16,7 +16,7 @@ impl ChatWidget<'_> {
         if browser_sessions::handle_background_event(self, order, &message) {
             return;
         }
-        let is_agent_hint = message.starts_with("🤖 Agent");
+        let is_agent_hint = message.starts_with("Agent batch");
         if is_agent_hint && self.suppress_next_agent_hint {
             self.suppress_next_agent_hint = false;
             self.clear_resume_placeholder();
@@ -48,14 +48,14 @@ impl ChatWidget<'_> {
         self.restore_reasoning_in_progress_if_streaming();
 
         // Also reflect CDP connect success in the status line.
-        if message.starts_with("✅ Connected to Chrome via CDP") {
+        if message.starts_with("CDP: connected to Chrome") {
             self.bottom_pane
                 .update_status_text("using browser (CDP)".to_string());
         }
 
         if is_agent_hint
-            || message.starts_with("⚠️ Agent reuse")
-            || message.starts_with("⚠️ Agent prompt")
+            || message.starts_with("WARN: Agent reuse")
+            || message.starts_with("WARN: Agent prompt")
         {
             self.recent_agent_hint = Some(message);
         }

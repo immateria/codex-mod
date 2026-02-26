@@ -54,20 +54,20 @@ OPTIONS:
 
 ## Features
 
-✅ **Automatic Environment Setup**
+- **Automatic Environment Setup**
 - Detects and validates build environment
 - Installs missing Rust targets automatically
 - Builds OpenSSL from source if needed (Android only)
 
-✅ **Platform-Specific Configuration**
+- **Platform-Specific Configuration**
 - Native: Standard Rust build
 - Android: NDK cross-compilation with custom OpenSSL
 
-✅ **Build Mode Support**
+- **Build Mode Support**
 - Debug: Full symbols, slower execution, larger binary (~800-900MB)
 - Release: Optimized, stripped, smaller binary (~50MB)
 
-✅ **Helpful Output**
+- **Helpful Output**
 - Color-coded status messages
 - Binary size and type information
 - Platform-specific deployment instructions

@@ -521,8 +521,7 @@ fn is_title_line(line: &Line) -> bool {
             | "/skills"
             | "reasoning effort"
             | "error"
-    ) || text.starts_with("⚡")
-        || text.starts_with("⚙")
+    ) || text.starts_with("…")
         || text.starts_with("✓")
         || text.starts_with("✗")
         || text.starts_with("↯")

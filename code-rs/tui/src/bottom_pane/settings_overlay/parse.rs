@@ -19,6 +19,7 @@ impl SettingsSection {
             "review" | "reviews" => Some(SettingsSection::Review),
             "validation" | "validate" => Some(SettingsSection::Validation),
             "limit" | "limits" | "usage" => Some(SettingsSection::Limits),
+            #[cfg(not(target_os = "android"))]
             "chrome" | "browser" => Some(SettingsSection::Chrome),
             "mcp" => Some(SettingsSection::Mcp),
             "network" | "net" | "proxy" => Some(SettingsSection::Network),

@@ -677,7 +677,8 @@ mod tests {
 
     #[test]
     fn chunk_text_respects_utf8_boundaries() {
-        let text = "🙂".repeat((MAX_TRANSCRIPT_BYTES / 4) + 10);
+        // Use a non-ASCII 4-byte character (not an emoji) to exercise UTF-8 chunking.
+        let text = "𐍈".repeat((MAX_TRANSCRIPT_BYTES / 4) + 10);
         let chunks = chunk_text(&text);
         assert!(!chunks.is_empty());
         for chunk in &chunks {

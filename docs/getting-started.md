@@ -30,7 +30,7 @@ they'll be committed to your working directory.
 
 Below are a few bite-size examples you can copy-paste. Replace the text in quotes with your own task.
 
-| ✨  | What you type                                                              | What happens                                                               |
+| #   | What you type                                                              | What happens                                                               |
 | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | 1   | `code "Refactor the Dashboard component to React Hooks"`                     | Code rewrites the class component, runs `npm test`, and shows the diff.    |
 | 2   | `code "Generate SQL migrations for adding a users table"`                    | Infers your ORM, creates migration files, and runs them in a sandboxed DB. |

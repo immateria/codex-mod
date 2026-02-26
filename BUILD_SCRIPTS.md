@@ -3,11 +3,11 @@
 ## Build Fast (build-fast.zsh)
 
 **Zsh-native rewrite with:**
-- ✅ All variables declared at function tops
-- ✅ No external commands (sed/awk/grep) - uses zsh parameter expansion
-- ✅ Android cross-compilation support
-- ✅ Automatic NDK detection
-- ✅ Proper error handling and diagnostics
+- All variables declared at function tops
+- No external commands (sed/awk/grep) - uses zsh parameter expansion
+- Android cross-compilation support
+- Automatic NDK detection
+- Proper error handling and diagnostics
 
 ### Quick Commands
 
@@ -86,9 +86,9 @@ ANDROID_NDK=~/Android/Sdk/ndk/27.0.12077973 TRACE_BUILD=1 ./build-fast.zsh --tar
 ## Pre-Release Script (pre-release.zsh)
 
 **Simple validation wrapper that:**
-- ✅ Runs fast build
-- ✅ Executes tests
-- ✅ Validates release readiness
+- Runs fast build
+- Executes tests
+- Validates release readiness
 
 ### Usage
 
@@ -127,11 +127,11 @@ BUILD_FAST_CACHE_KEY=my-custom-key ./build-fast.zsh
 
 | Profile      | Speed | Optimization | Use Case |
 |--------------|-------|--------------|----------|
-| dev-fast     | ⚡⚡⚡ | Minimal      | Local development |
-| dev          | ⚡⚡  | Low          | Debugging |
-| perf         | ⚡   | High + debug | Performance analysis |
-| release      | ⚡   | Maximum      | Production |
-| release-prod | ⚡   | Maximum + LTO| Final releases |
+| dev-fast     | fast  | Minimal      | Local development |
+| dev          | med   | Low          | Debugging |
+| perf         | slow  | High + debug | Performance analysis |
+| release      | slow  | Maximum      | Production |
+| release-prod | slow  | Maximum + LTO| Final releases |
 
 ## Troubleshooting
 
@@ -178,7 +178,7 @@ The build script integrates with:
 
 ---
 
-📖 For more details, see:
+For more details, see:
 - [ANDROID_BUILD.md](ANDROID_BUILD.md) - Android build guide
 - [ANDROID_BUILD_STATUS.md](ANDROID_BUILD_STATUS.md) - Status and next steps
 - [code-rs/README.md](code-rs/README.md) - Rust workspace info

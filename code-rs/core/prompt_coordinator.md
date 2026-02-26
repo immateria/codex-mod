@@ -49,6 +49,6 @@ Code completion is not task completion. Never set `finish_status` to `"finish_su
 **Do not leave unresolved risks, missing tests, or "todos" for the user.** If you identify a gap, you MUST stay in `"continue"` and issue a **"Ship Sweep"** milestone to the CLI to fix it. Only output `"finish_success"` when the solution is rock solid.
 
 # Good Milestone Prompts
-- ✅ "Take the failing auth flow from red to green; patch minimally, validate with the strongest available checks, and report evidence."
-- ✅ "Harden the feature for production: add missing tests, run validation, and verify edge cases."
-- ✅ "Execute the architectural plan. I've spawned 3 agents to handle the modular components in parallel; CLI, please coordinate merging their work and running the integration tests."
+- "Take the failing auth flow from red to green; patch minimally, validate with the strongest available checks, and report evidence."
+- "Harden the feature for production: add missing tests, run validation, and verify edge cases."
+- "Execute the architectural plan. I've spawned 3 agents to handle the modular components in parallel; CLI, please coordinate merging their work and running the integration tests."

@@ -424,7 +424,7 @@ impl ChatWidget<'_> {
                     .unwrap_or_else(|| self.make_background_tail_ticket());
                 self.app_event_tx.send_background_event_with_ticket(
                     &ticket,
-                    format!("✅ Created cloud task {} in {env_id}", created.id.0),
+                    format!("Created cloud task {} in {env_id}", created.id.0),
                 );
                 self.request_cloud_task_refresh(None);
             }

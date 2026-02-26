@@ -11,8 +11,8 @@ expression: output
    - Running commands
 
 
- ✶ 📁 /workspace  1 change
-   🖼 Example Domain  1280×720  2025-11-05T12:00:00Z  browser_type=chromium,
+ ✶ Dir: /workspace  1 change
+   Browser: Example Domain  1280×720  2025-11-05T12:00:00Z  browser_type=chromium,
    cursor_position=120,340
 
  +----------------------------------------------------------------------------+

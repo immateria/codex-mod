@@ -4,12 +4,12 @@
 emulate -L zsh
 setopt err_exit pipe_fail
 
-print "🤖 Android Cross-Compilation Setup Demo"
+print "Android Cross-Compilation Setup Demo"
 print "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 print ""
 
 # 1. Check if NDK is installed
-print "1️⃣  Checking for Android NDK installation..."
+print "1. Checking for Android NDK installation..."
 print ""
 
 # Function to detect NDK
@@ -19,7 +19,7 @@ function detect_ndk {
     
     # Check environment first
     if [[ -n ${ANDROID_NDK:-} && -d $ANDROID_NDK ]]; then
-        print "✅ Found ANDROID_NDK env var: $ANDROID_NDK"
+        print "OK: Found ANDROID_NDK env var: $ANDROID_NDK"
         return 0
     fi
     
@@ -35,13 +35,13 @@ function detect_ndk {
     
     for loc in $locations; do
         if [[ -d $loc/toolchains/llvm/prebuilt ]]; then
-            print "✅ Found NDK at: $loc"
+            print "OK: Found NDK at: $loc"
             print -rn -- $loc
             return 0
         fi
     done
     
-    print "❌ NDK not found in standard locations:"
+    print "ERROR: NDK not found in standard locations:"
     print "   • ~/Android/Sdk/ndk/<version>"
     print "   • ~/Android/ndk/<version>"
     print "   • /opt/android-ndk"
@@ -51,7 +51,7 @@ function detect_ndk {
 ndk_path=$(detect_ndk)
 if [[ -z $ndk_path ]]; then
     print ""
-    print "📥 How to install Android NDK:"
+    print "How to install Android NDK:"
     print ""
     print "   Option 1: Using Android Studio"
     print "   • Open Android Studio"
@@ -72,14 +72,14 @@ if [[ -z $ndk_path ]]; then
 fi
 
 print ""
-print "2️⃣  Verifying NDK tools..."
+print "2. Verifying NDK tools..."
 print ""
 
 typeset host_os linker ar
 case ${OSTYPE} in
     darwin*) host_os="darwin-x86_64" ;;
     linux*)  host_os="linux-x86_64" ;;
-    *)       print "❌ Unsupported OS: ${OSTYPE}"; exit 1 ;;
+    *)       print "ERROR: Unsupported OS: ${OSTYPE}"; exit 1 ;;
 esac
 
 prebuilt_dir="${ndk_path}/toolchains/llvm/prebuilt/${host_os}"
@@ -91,31 +91,31 @@ print "NDK prebuilt path: $prebuilt_dir"
 print ""
 
 if [[ ! -x $linker ]]; then
-    print "❌ Linker not found: $linker"
+    print "ERROR: Linker not found: $linker"
     exit 1
 fi
-print "✅ Linker found: ${linker:t}"
+print "OK: Linker found: ${linker:t}"
 
 if [[ ! -x $ar ]]; then
-    print "❌ ar tool not found: $ar"
+    print "ERROR: ar tool not found: $ar"
     exit 1
 fi
-print "✅ ar tool found: ${ar:t}"
+print "OK: ar tool found: ${ar:t}"
 
 print ""
-print "3️⃣  Checking Rust target installation..."
+print "3. Checking Rust target installation..."
 print ""
 
 if ! rustup target list | grep -q "aarch64-linux-android (installed)"; then
-    print "📥 Rust target not installed, installing..."
+    print "Rust target not installed, installing..."
     rustup target add aarch64-linux-android
-    print "✅ Rust target installed"
+    print "OK: Rust target installed"
 else
-    print "✅ Rust target already installed"
+    print "OK: Rust target already installed"
 fi
 
 print ""
-print "4️⃣  Build commands for Android:"
+print "4. Build commands for Android:"
 print ""
 print "   # Simple build"
 print "   ./build-fast.zsh --target android"
@@ -133,7 +133,7 @@ print "   adb push ./target/aarch64-linux-android/dev/code /data/data/com.termux
 print ""
 
 print "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-print "🎯 Ready to build for Android!"
+print "Ready to build for Android!"
 print ""
 print "Run: ./build-fast.zsh --target android"
 print ""

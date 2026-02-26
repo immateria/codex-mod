@@ -240,24 +240,24 @@ function setup_android_build
     
     ndk_root=$(detect_android_ndk)
     if [[ -z $ndk_root ]]; then
-      print -u2 "❌ Android NDK not found. Set ANDROID_NDK or install NDK."
+      print -u2 "ERROR: Android NDK not found. Set ANDROID_NDK or install NDK."
       print -u2 "   Common locations: ~/Android/Sdk/ndk/<version>, ~/Android/ndk/<version>"
       print -u2 "   Or download from: https://developer.android.com/ndk/downloads"
       exit 1
     fi
     
-    print "🤖 Android NDK: ${ndk_root}"
+    print "Android NDK: ${ndk_root}"
     
     # Detect host platform for NDK prebuilt tools
     case ${OSTYPE} in
       linux*) host_tag="linux-x86_64" ;;
       darwin*) host_tag="darwin-x86_64" ;;
-      *) print -u2 "❌ Unsupported host platform for Android NDK: ${OSTYPE}"; exit 1 ;;
+      *) print -u2 "ERROR: Unsupported host platform for Android NDK: ${OSTYPE}"; exit 1 ;;
     esac
     
     prebuilt_dir="${ndk_root}/toolchains/llvm/prebuilt/${host_tag}"
     if [[ ! -d $prebuilt_dir ]]; then
-      print -u2 "❌ NDK prebuilt tools not found: ${prebuilt_dir}"
+      print -u2 "ERROR: NDK prebuilt tools not found: ${prebuilt_dir}"
       exit 1
     fi
     
@@ -266,12 +266,12 @@ function setup_android_build
     ar="${prebuilt_dir}/bin/llvm-ar"
     
     if [[ ! -x $linker ]]; then
-      print -u2 "❌ Android linker not found: ${linker}"
+      print -u2 "ERROR: Android linker not found: ${linker}"
       exit 1
     fi
     
     if [[ ! -x $ar ]]; then
-      print -u2 "❌ Android ar not found: ${ar}"
+      print -u2 "ERROR: Android ar not found: ${ar}"
       exit 1
     fi
     
@@ -785,7 +785,7 @@ fi
 if CARGO_HOME=$CARGO_HOME RUSTUP_HOME=$RUSTUP_HOME ${=USE_CARGO} metadata --locked --format-version 1 &>/dev/null; then
   USE_LOCKED="--locked"
 else
-  print "⚠️  Warning: Cargo.lock appears out of date or inconsistent"
+  print "WARNING: Cargo.lock appears out of date or inconsistent"
   print "  Continuing with unlocked build for development..."
   USE_LOCKED=""
 fi
@@ -824,7 +824,7 @@ if [[ -f $FPRINT_FILE ]]; then
   
   if [[ ${OLD_FPRINT_HASH:-} != $NEW_FPRINT_HASH ]]; then
     FPRINT_CHANGED=1
-    print "⚠️  Build cache fingerprint changed since last run for profile '${PROFILE}'."
+    print "WARNING: Build cache fingerprint changed since last run for profile '${PROFILE}'."
     [[ ${TRACE_BUILD:-} == 1 ]] && print "   Run with TRACE_BUILD=1 to see detailed differences."
   fi
 fi
@@ -863,7 +863,7 @@ if (( $? == 0 )); then
     fi
   fi
   
-  print "✅ Build successful!"
+  print "OK: Build successful!"
   print "Binary location: ${BIN_DISPLAY_PATH}"
   print ""
   
@@ -945,20 +945,20 @@ if (( $? == 0 )); then
   # Run if requested (only works on native builds or if on Android)
   if (( RUN_AFTER_BUILD )); then
     if [[ -n $BUILD_TARGET ]]; then
-      print "⚠️  Cannot run cross-compiled binary for ${BUILD_TARGET}"
+      print "WARNING: Cannot run cross-compiled binary for ${BUILD_TARGET}"
       print "   Transfer to target device and run there"
     else
       RUN_PATH=$RUN_BIN_PATH
       [[ ! -x $RUN_PATH ]] && RUN_PATH="${TARGET_DIR_ABS}/${BIN_SUBDIR}/${PRIMARY_BIN}"
       if [[ ! -x $RUN_PATH ]]; then
-        print "❌ Run failed: ${RUN_PATH} is missing or not executable"
+        print "ERROR: Run failed: ${RUN_PATH} is missing or not executable"
         exit 1
       fi
       print "Running ${RUN_PATH} (cwd: ${CALLER_CWD})..."
       ( cd $CALLER_CWD && $RUN_PATH )
       RUN_STATUS=$?
       if (( RUN_STATUS != 0 )); then
-        print "❌ Run failed with status ${RUN_STATUS}"
+        print "ERROR: Run failed with status ${RUN_STATUS}"
         exit $RUN_STATUS
       fi
     fi
@@ -967,13 +967,13 @@ if (( $? == 0 )); then
   # Persist fingerprint
   mkdir -p ./target/$PROFILE 2>/dev/null
   print "HASH=${NEW_FPRINT_HASH}\n${NEW_FPRINT_TEXT}" > $FPRINT_FILE
-  (( FPRINT_CHANGED )) && print "🧰 Cache normalized to current environment (fingerprint ${NEW_FPRINT_HASH})."
+  (( FPRINT_CHANGED )) && print "NOTE: Cache normalized to current environment (fingerprint ${NEW_FPRINT_HASH})."
   
   [[ -z $USE_LOCKED ]] && {
     print ""
-    print "⚠️  Built without --locked due to Cargo.lock issues"
+    print "WARNING: Built without --locked due to Cargo.lock issues"
   }
 else
-  print "❌ Build failed"
+  print "ERROR: Build failed"
   exit 1
 fi

@@ -123,14 +123,14 @@ impl UpdateSettingsView {
         if let Some(err) = &state.error {
             self.app_event_tx.send_background_event_with_ticket(
                 &self.ticket,
-                format!("❌ /update failed: {err}"),
+                format!("/update failed: {err}"),
             );
             return;
         }
         let Some(latest) = state.latest_version else {
             self.app_event_tx.send_background_event_with_ticket(
                 &self.ticket,
-                "✅ Code is already up to date.".to_string(),
+                "Code is already up to date.".to_string(),
             );
             return;
         };
@@ -146,7 +146,7 @@ impl UpdateSettingsView {
         self.app_event_tx.send_background_event_with_ticket(
             &self.ticket,
             format!(
-                "⬆️ Update available: {} → {}. Opening guided upgrade with `{}`…",
+                "Update available: {} → {}. Opening guided upgrade with `{}`…",
                 self.current_version, latest, display
             ),
         );

@@ -797,11 +797,11 @@ fn normalize_console_line(line: &str) -> String {
 }
 
 fn format_warning_line(line: &str) -> String {
-    if line.contains('⚠') {
-        line.to_string()
-    } else {
-        format!("⚠️ {line}")
+    let trimmed = line.trim_start();
+    if trimmed.starts_with("WARN:") || trimmed.starts_with("ERROR:") {
+        return line.to_string();
     }
+    format!("WARN: {line}")
 }
 
 fn truncate(input: &str, max: usize) -> String {

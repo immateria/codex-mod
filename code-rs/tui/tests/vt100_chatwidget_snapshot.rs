@@ -154,7 +154,7 @@ fn make_key(code: KeyCode, modifiers: KeyModifiers) -> KeyEvent {
 fn normalize_glyph(ch: char) -> char {
     match ch {
         // Decorative sparkles → single sentinel to keep intent without variation.
-        '✧' | '◇' | '✦' | '◆' | '✨' => '✶',
+        '✧' | '◇' | '✦' | '◆' => '✶',
         // Box-drawing corners → '+' for ASCII snapshots.
         '┌' | '┐' | '└' | '┘'
         | '┏' | '┓' | '┗' | '┛'

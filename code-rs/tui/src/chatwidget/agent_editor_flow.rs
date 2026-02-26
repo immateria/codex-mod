@@ -301,7 +301,7 @@ impl ChatWidget<'_> {
     fn start_agent_validation(&mut self, pending: PendingAgentUpdate) {
         let name = pending.cfg.name.clone();
         self.push_background_tail(format!(
-            "🧪 Testing agent `{name}` (expecting \"ok\")…"
+            "Testing agent `{name}` (expecting \"ok\")…"
         ));
         self.pending_agent_updates.retain(|_, existing| {
             !existing.cfg.name.eq_ignore_ascii_case(&name)
@@ -332,13 +332,13 @@ impl ChatWidget<'_> {
         match result {
             Ok(()) => {
                 self.push_background_tail(format!(
-                    "✅ Agent `{name}` responded with \"ok\"."
+                    "Agent `{name}` responded with \"ok\"."
                 ));
                 self.commit_agent_update(pending);
             }
             Err(err) => {
                 self.history_push_plain_state(history_cell::new_error_event(format!(
-                    "❌ Agent `{name}` validation failed: {err}"
+                    "Agent `{name}` validation failed: {err}"
                 )));
                 self.show_agent_editor_for_pending(&pending);
             }

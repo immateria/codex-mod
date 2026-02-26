@@ -545,7 +545,7 @@ fi
 
 # Check Cargo.lock validity (fast, non-blocking check) using the selected cargo
 if ! CARGO_HOME="$CARGO_HOME" RUSTUP_HOME="$RUSTUP_HOME" ${USE_CARGO} metadata --locked --format-version 1 >/dev/null 2>&1; then
-    echo "⚠️  Warning: Cargo.lock appears out of date or inconsistent"
+    echo "WARNING: Cargo.lock appears out of date or inconsistent"
     echo "  This might mean:"
     echo "  • You've modified Cargo.toml dependencies"
     echo "  • You've changed workspace crate versions"
@@ -622,7 +622,7 @@ if [ -f "$FPRINT_FILE" ]; then
   OLD_FPRINT_HASH="$(sed -n 's/^HASH=//p' "$FPRINT_FILE" 2>/dev/null | head -n1)"
   if [ "${OLD_FPRINT_HASH:-}" != "$NEW_FPRINT_HASH" ]; then
     FPRINT_CHANGED="1"
-    echo "⚠️  Build cache fingerprint changed since last run for profile '${PROFILE}'."
+    echo "WARNING: Build cache fingerprint changed since last run for profile '${PROFILE}'."
     echo "   This can trigger incremental rebuilds the first time you build."
     if [ "${TRACE_BUILD:-}" = "1" ]; then
       echo "--- previous fingerprint (hash: ${OLD_FPRINT_HASH:-none}) ---"; sed -n '1,200p' "$FPRINT_FILE" 2>/dev/null | sed '1d'; echo "--------------------------------"
@@ -670,7 +670,7 @@ if [ $? -eq 0 ]; then
       fi
     fi
 
-    echo "✅ Build successful!"
+    echo "OK: Build successful!"
     echo "Binary location: ${BIN_DISPLAY_PATH}"
     echo ""
 
@@ -810,7 +810,7 @@ if [ $? -eq 0 ]; then
         RUN_PATH="${TARGET_DIR_ABS}/${BIN_SUBDIR}/${PRIMARY_BIN}"
       fi
       if [ ! -x "${RUN_PATH}" ]; then
-        echo "❌ Run failed: ${RUN_PATH} is missing or not executable"
+        echo "ERROR: Run failed: ${RUN_PATH} is missing or not executable"
         exit 1
       fi
       echo "Running ${RUN_PATH} (cwd: ${CALLER_CWD})..."
@@ -819,7 +819,7 @@ if [ $? -eq 0 ]; then
       )
       RUN_STATUS=$?
       if [ $RUN_STATUS -ne 0 ]; then
-        echo "❌ Run failed with status ${RUN_STATUS}"
+        echo "ERROR: Run failed with status ${RUN_STATUS}"
         exit $RUN_STATUS
       fi
     fi
@@ -838,16 +838,16 @@ if [ $? -eq 0 ]; then
       printf "%s\n" "$NEW_FPRINT_TEXT"
     } >"$FPRINT_FILE"
     if [ "$FPRINT_CHANGED" = "1" ]; then
-      echo "🧰 Cache normalized to current environment (fingerprint ${NEW_FPRINT_HASH})."
+      echo "NOTE: Cache normalized to current environment (fingerprint ${NEW_FPRINT_HASH})."
     fi
 
     # If lockfile was out of date, remind user
     if [ -z "$USE_LOCKED" ]; then
         echo ""
-        echo "⚠️  Remember: Built without --locked due to Cargo.lock issues"
+        echo "WARNING: Built without --locked due to Cargo.lock issues"
         echo "  Consider running 'cargo update' and committing the changes"
     fi
 else
-    echo "❌ Build failed"
+    echo "ERROR: Build failed"
     exit 1
 fi

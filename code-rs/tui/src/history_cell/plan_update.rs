@@ -70,7 +70,7 @@ impl PlanUpdateCell {
         match step.status {
             StepStatus::Completed => {
                 spans.push(Span::styled(
-                    "✔",
+                    "✓",
                     Style::default().fg(crate::colors::success()),
                 ));
                 spans.push(Span::raw(" "));
@@ -158,9 +158,9 @@ fn progress_meter(progress: &PlanProgress, width: usize) -> ProgressMeter {
 
 fn icon_symbol(icon: &PlanIcon) -> &'static str {
     match icon {
-        PlanIcon::LightBulb => "💡",
-        PlanIcon::Rocket => "🚀",
-        PlanIcon::Clipboard => "📋",
+        PlanIcon::LightBulb => "!",
+        PlanIcon::Rocket => "↑",
+        PlanIcon::Clipboard => "≡",
         PlanIcon::Custom(kind) => match kind.as_str() {
             "progress-empty" => "○",
             "progress-start" => "◔",

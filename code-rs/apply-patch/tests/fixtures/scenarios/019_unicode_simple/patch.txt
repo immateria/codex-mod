@@ -1,7 +1,7 @@
 *** Begin Patch
 *** Update File: foo.txt
 @@
- line1
+line1
 -naïve café
-+naïve café ✅
++naïve café (updated)
 *** End Patch

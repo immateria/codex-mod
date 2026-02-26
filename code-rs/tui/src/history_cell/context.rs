@@ -61,7 +61,7 @@ fn build_lines(record: &ContextRecord) -> Vec<Line<'static>> {
 
     let mut header_spans = Vec::new();
     if let Some(cwd) = &record.cwd {
-        header_spans.push(Span::styled("📁 ", accent));
+        header_spans.push(Span::styled("Dir: ", accent));
         header_spans.push(Span::styled(cwd.clone(), primary));
     } else {
         header_spans.push(Span::styled("Context", accent));
@@ -91,7 +91,7 @@ fn build_lines(record: &ContextRecord) -> Vec<Line<'static>> {
         if !meta_spans.is_empty() {
             meta_spans.push(Span::raw("  "));
         }
-        meta_spans.push(Span::styled("🧠 ", accent));
+        meta_spans.push(Span::styled("Reasoning: ", accent));
         meta_spans.push(Span::styled(reasoning.clone(), primary));
     }
 
@@ -130,7 +130,7 @@ fn build_browser_line(
     dim: Style,
     accent: Style,
 ) -> Line<'static> {
-    let mut spans: Vec<Span<'static>> = vec![Span::styled("🖼 ", accent)];
+    let mut spans: Vec<Span<'static>> = vec![Span::styled("Browser: ", accent)];
     if let Some(title) = snapshot.title.as_ref().filter(|s| !s.is_empty()) {
         spans.push(Span::styled(title.clone(), primary));
     } else if let Some(url) = snapshot.url.as_ref() {

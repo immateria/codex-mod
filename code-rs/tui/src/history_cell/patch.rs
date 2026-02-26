@@ -340,7 +340,7 @@ pub(crate) fn new_patch_event(
 
 pub(crate) fn new_patch_apply_failure(stderr: String) -> PlainMessageState {
     let mut lines: Vec<Line<'static>> = vec![
-        Line::from("❌ Patch application failed")
+        Line::from("Patch application failed")
             .fg(crate::colors::error())
             .bold(),
         Line::from(""),

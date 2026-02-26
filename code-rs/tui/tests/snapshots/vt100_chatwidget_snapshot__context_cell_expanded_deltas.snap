@@ -8,8 +8,8 @@ expression: output
    - Running commands
 
 
- ✶ 📁 /workspace/subdir  3 changes
-    main  🧠 high
+ ✶ Dir: /workspace/subdir  3 changes
+    main  Reasoning: high
    Recent changes:
    • reasoning: medium → high  #3
    • branch: feature/context-ui → main  #2

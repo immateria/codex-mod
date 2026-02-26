@@ -1,10 +1,10 @@
-# Android Build Complete - Release Ready ✅
+# Android Build Complete - Release Ready
 
 ## Summary
 
 You now have a fully functional, production-ready Android build system with:
 
-### ✅ Automated Build Script
+### Automated Build Script
 - **File**: `./build.zsh`
 - **Usage**: `./build.zsh platform="android" --release`
 - **Features**:
@@ -13,14 +13,14 @@ You now have a fully functional, production-ready Android build system with:
   - OpenSSL cross-compilation automation
   - Helpful status messages and deployment guidance
 
-### ✅ Optimized Release Binary
+### Optimized Release Binary
 - **Size**: 51MB (down from 848MB debug build)
 - **Architecture**: ARM aarch64
 - **Type**: Stripped ELF executable for Android
 - **Location**: `code-rs/target/aarch64-linux-android/release/code`
 - **Status**: Ready for immediate deployment to Termux
 
-### ✅ All Patches Integrated
+### All Patches Integrated
 1. TUI Android reqwest configuration
 2. Termux browser integration (termux-open-url)
 3. Shell detection via $SHELL env var
@@ -110,7 +110,7 @@ code-termux/
 │   └── target/
 │       └── aarch64-linux-android/
 │           ├── debug/code       # Debug binary (848MB)
-│           └── release/code     # Release binary (51MB) ✅
+│           └── release/code     # Release binary (51MB)
 └── ...
 ```
 
@@ -146,16 +146,16 @@ e9ea0eb27  docs: add Termux build instructions and status summary
 c3a014341  feat(android): add NDK cross-compilation support with all Android patches
 ```
 
-## Success Indicators ✅
+## Success Indicators
 
-- ✅ Binary compiles without errors
-- ✅ Binary is correctly stripped for release
-- ✅ Binary verified as ARM aarch64 ELF format
-- ✅ File size optimized (51MB release)
-- ✅ All Android patches integrated
-- ✅ Build script tested and working
-- ✅ Documentation complete
-- ✅ Ready for immediate deployment
+- Binary compiles without errors
+- Binary is correctly stripped for release
+- Binary verified as ARM aarch64 ELF format
+- File size optimized (51MB release)
+- All Android patches integrated
+- Build script tested and working
+- Documentation complete
+- Ready for immediate deployment
 
 ## Next Steps
 
@@ -186,7 +186,7 @@ For issues:
 
 ---
 
-**Status**: ✅ **COMPLETE AND READY FOR DEPLOYMENT**
+**Status**: COMPLETE AND READY FOR DEPLOYMENT
 
 **Build Date**: February 3, 2026  
 **Binary Version**: aarch64-linux-android (release)  

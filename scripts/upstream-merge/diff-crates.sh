@@ -61,18 +61,18 @@ diff_crate() {
 
     # Check if both directories exist
     if [[ ! -d "$codex_path" ]]; then
-        echo "⚠️  Warning: $codex_path does not exist"
+        echo "WARNING: $codex_path does not exist"
         return 1
     fi
 
     if [[ ! -d "$code_path" ]]; then
-        echo "⚠️  Warning: $code_path does not exist (fork-only crate)"
+        echo "WARNING: $code_path does not exist (fork-only crate)"
         return 1
     fi
 
     local output_file="${OUTPUT_DIR}/${crate_name}.diff"
 
-    echo "📊 Comparing ${crate_name}..."
+    echo "Comparing ${crate_name}..."
 
     # Prepare sanitized copy of the fork crate so simple `code-*/code_*`
     # branding changes do not overwhelm the diff output.
@@ -92,13 +92,13 @@ diff_crate() {
     # Generate diff with context using the sanitized fork copy
     if diff -Naur --exclude="target" --exclude="*.lock" --exclude="node_modules" --exclude=".DS_Store" \
         "$codex_path" "$sanitized_path" > "$output_file" 2>&1; then
-        echo "   ✅ No differences found"
+        echo "   OK: No differences found"
         rm "$output_file"
         rm -rf "$temp_dir"
         return 0
     else
         local line_count=$(wc -l < "$output_file")
-        echo "   📝 Differences found: ${line_count} lines written to ${output_file}"
+        echo "   NOTE: Differences found: ${line_count} lines written to ${output_file}"
         rm -rf "$temp_dir"
         return 0
     fi
@@ -106,7 +106,7 @@ diff_crate() {
 
 # Function to generate summary
 generate_summary() {
-    echo "📋 Generating diff summary..."
+    echo "Generating diff summary..."
     local summary_file="${OUTPUT_DIR}/SUMMARY.md"
 
     local timestamp
@@ -130,10 +130,10 @@ HEADER
         local diff_file="${OUTPUT_DIR}/${crate}.diff"
 
         if [[ ! -f "$diff_file" ]]; then
-            echo "| ${crate} | ✅ Identical | 0 lines | - |" >> "$summary_file"
+            echo "| ${crate} | Identical | 0 lines | - |" >> "$summary_file"
         else
             local line_count=$(wc -l < "$diff_file")
-            echo "| ${crate} | 📝 Differs | ${line_count} lines | See \`${crate}.diff\` |" >> "$summary_file"
+            echo "| ${crate} | Differs | ${line_count} lines | See \`${crate}.diff\` |" >> "$summary_file"
         fi
     done
 
@@ -159,7 +159,7 @@ HEADER
         fi
     done
 
-    echo "✅ Summary written to ${summary_file}"
+    echo "OK: Summary written to ${summary_file}"
     cat "$summary_file"
 }
 
@@ -175,7 +175,7 @@ main() {
 
     case "$1" in
         --all)
-            echo "🔍 Comparing all shared crates..."
+            echo "Comparing all shared crates..."
             rm -f "${OUTPUT_DIR}"/*.diff
             for crate in "${SHARED_CRATES[@]}"; do
                 diff_crate "$crate"

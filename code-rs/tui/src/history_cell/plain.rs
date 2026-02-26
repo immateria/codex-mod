@@ -91,7 +91,7 @@ impl PlainHistoryCell {
             .body()
             .first()
             .and_then(|line| line.spans.first())
-            .map(|span| span.text.starts_with("⚠ "))
+            .map(|span| span.text.starts_with("WARN: "))
             .unwrap_or(false)
     }
     pub(crate) fn from_state(state: PlainMessageState) -> Self {
@@ -281,7 +281,7 @@ impl HistoryCell for PlainHistoryCell {
 
     fn gutter_symbol(&self) -> Option<&'static str> {
         if self.is_warning_notice() {
-            return Some("⚠");
+            return Some("!");
         }
         if let Some(header) = self.state.header() {
             let label = header.label.trim().to_lowercase();
@@ -305,7 +305,7 @@ impl HistoryCell for PlainHistoryCell {
         if self.is_warning_notice()
             && let Some(first_line) = body_lines.first_mut()
             && let Some(first_span) = first_line.spans.first_mut()
-            && let Some(stripped) = first_span.content.as_ref().strip_prefix("⚠ ")
+            && let Some(stripped) = first_span.content.as_ref().strip_prefix("WARN: ")
         {
             first_span.content = stripped.to_string().into();
         }
@@ -708,8 +708,8 @@ pub(crate) fn new_status_output(
     lines.push(Line::from("/status").fg(crate::colors::keyword()));
     lines.push(Line::from(""));
 
-    // 🔧 Configuration
-    lines.push(Line::from(vec!["🔧 ".into(), "Configuration".bold()]));
+    // Configuration
+    lines.push(Line::from("Configuration".bold()));
 
     // Prepare config summary with custom prettification
     let summary_entries = create_config_summary_entries(config);
@@ -766,8 +766,8 @@ pub(crate) fn new_status_output(
 
     lines.push(Line::from(""));
 
-    // 🔁 Model routing
-    lines.push(Line::from(vec!["🔁 ".into(), "Model Routing".bold()]));
+    // Model routing
+    lines.push(Line::from("Model Routing".bold()));
     let requested_display = requested_model.unwrap_or(config.model.as_str());
     lines.push(Line::from(vec![
         "  • Requested model: ".into(),
@@ -803,8 +803,8 @@ pub(crate) fn new_status_output(
 
     lines.push(Line::from(""));
 
-    // 🔐 Authentication
-    lines.push(Line::from(vec!["🔐 ".into(), "Authentication".bold()]));
+    // Authentication
+    lines.push(Line::from("Authentication".bold()));
     {
         use code_login::AuthMode;
         use code_login::CodexAuth;
@@ -851,8 +851,8 @@ pub(crate) fn new_status_output(
 
     lines.push(Line::from(""));
 
-    // 📊 Token Usage
-    lines.push(Line::from(vec!["📊 ".into(), "Token Usage".bold()]));
+    // Token Usage
+    lines.push(Line::from("Token Usage".bold()));
     // Input: <input> [+ <cached> cached]
     let mut input_line_spans: Vec<Span<'static>> = vec![
         "  • Input: ".into(),
@@ -883,14 +883,14 @@ pub(crate) fn new_status_output(
         format_with_separators_u64(total_usage.blended_total()).into(),
     ]));
 
-    // 📐 Model Limits
+    // Model Limits
     let context_window = config.model_context_window;
     let max_output_tokens = config.model_max_output_tokens;
     let auto_compact_limit = config.model_auto_compact_token_limit;
 
     if context_window.is_some() || max_output_tokens.is_some() || auto_compact_limit.is_some() {
         lines.push(Line::from(""));
-        lines.push(Line::from(vec!["📐 ".into(), "Model Limits".bold()]));
+        lines.push(Line::from("Model Limits".bold()));
 
         if let Some(context_window) = context_window {
             let used = last_usage.tokens_in_context_window().min(context_window);
@@ -968,7 +968,7 @@ pub(crate) fn new_warning_event(message: String) -> PlainMessageState {
 
     let mut message_lines = message.lines();
     if let Some(first) = message_lines.next() {
-        lines.push(Line::from(vec![Span::styled(format!("⚠ {first}"), warn_style)]));
+        lines.push(Line::from(vec![Span::styled(format!("WARN: {first}"), warn_style)]));
         lines.extend(message_lines.map(|line| Line::from(vec![Span::styled(line.to_string(), warn_style)])));
     }
 

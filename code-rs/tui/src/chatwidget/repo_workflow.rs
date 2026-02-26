@@ -462,7 +462,7 @@ impl ChatWidget<'_> {
         let ticket = self.make_background_tail_ticket();
 
         let msg = format!(
-            "✅ Working directory changed\n  from: {}\n  to:   {}",
+            "Working directory changed\n  from: {}\n  to:   {}",
             previous_cwd.display(),
             new_cwd.display()
         );

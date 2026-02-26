@@ -9,8 +9,8 @@ expression: "&output"
  | Filter   1 All - 2 Running - 3 Failed - 4 Done - 5 Review               Sort: ( Recent ▼ ) |
  | +----------------------++----------------------------------------------------------------+ |
  | |Docs Sweep            || Docs Sweep / CLAUDE-3-Opus                                     | |
- | |› CLAUDE-3-Opus ✔     || Status: ✔ Completed   Model: CLAUDE-3-Opus   ID: #docs-sw      | |
- | |  GPT-4o ✖            ||Batch: Batch batchdoc                                           | |
+ | |› CLAUDE-3-Opus ✓     || Status: ✓ Completed   Model: CLAUDE-3-Opus   ID: #docs-sw      | |
+ | |  GPT-4o ✗            ||Batch: Batch batchdoc                                           | |
  | |                      ||                                                                | |
  | |                      ||+ Highlights (h) ▼ --------------------------------------------+| |
  | |                      |||   • Final: ### Highlights - New Auto Drive controls - Faster  | |

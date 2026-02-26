@@ -246,7 +246,7 @@ impl MarkdownRenderer {
             {
                 content = rest.trim_start();
                 checkbox_spans.push(Span::styled(
-                    "✔ ",
+                    "✓ ",
                     Style::default().fg(crate::colors::success()),
                 ));
             }

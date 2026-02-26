@@ -19,4 +19,4 @@ SKIP_CARGO_TESTS=1 CI_CLI_BIN="${CARGO_TARGET_DIR}/dev-fast/code" \
 print "[pre-release] running workspace tests (nextest)"
 cargo nextest run --no-fail-fast --locked
 
-print "✅ Pre-release checks passed!"
+print "OK: Pre-release checks passed!"

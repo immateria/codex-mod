@@ -29,7 +29,7 @@ while IFS= read -r -d '' cargo_file; do
   fi
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
-    echo "❌ $cargo_file:$line" >&2
+    echo "ERROR: $cargo_file:$line" >&2
     violations=1
   done <<<"$matches"
 done < <(find "$CODE_RS_DIR" -name Cargo.toml -print0)
@@ -44,7 +44,7 @@ if command -v jq >/dev/null 2>&1; then
         | select(.manifest_path | startswith($forbidden))
         | .manifest_path] | .[]' <<<"$metadata" || true)
     if [[ -n "$offenders" ]]; then
-      echo "❌ cargo metadata found forbidden manifests:" >&2
+      echo "ERROR: cargo metadata found forbidden manifests:" >&2
       echo "$offenders" >&2
       violations=1
     fi
@@ -59,4 +59,4 @@ if [[ $violations -ne 0 ]]; then
   exit 1
 fi
 
-echo "✅ No forbidden ../codex-rs dependencies detected in code-rs/."
+echo "OK: No forbidden ../codex-rs dependencies detected in code-rs/."

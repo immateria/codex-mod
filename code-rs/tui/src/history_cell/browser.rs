@@ -615,7 +615,13 @@ impl BrowserSessionCell {
             Some(value) => value.clone(),
             None => return Vec::new(),
         };
-        let style_color = if last.contains('⚠') {
+        let upper = last.to_ascii_uppercase();
+        let is_warning = upper.contains("WARN")
+            || upper.contains("WARNING")
+            || upper.contains("ERROR")
+            || upper.contains("EXCEPTION")
+            || upper.contains("UNHANDLEDREJECTION");
+        let style_color = if is_warning {
             Style::default().fg(colors::warning())
         } else {
             secondary_text_style(style)
@@ -1039,7 +1045,7 @@ impl HistoryCell for BrowserSessionCell {
 
     fn gutter_symbol(&self) -> Option<&'static str> {
         if self.completed {
-            Some("✔")
+            Some("✓")
         } else {
             None
         }

@@ -192,6 +192,10 @@ impl SlashCommand {
     pub fn is_available(self) -> bool {
         match self {
             SlashCommand::Demo => demo_command_enabled(),
+            // Chrome/CDP and the internal browser are desktop-oriented.
+            // On Android builds (e.g., Termux), we can't reliably launch Chrome and CDP endpoints are
+            // typically not reachable without external tooling (adb/host). Hide these commands.
+            SlashCommand::Chrome | SlashCommand::Browser => !cfg!(target_os = "android"),
             _ => true,
         }
     }

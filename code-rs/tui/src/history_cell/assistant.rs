@@ -723,7 +723,7 @@ fn trim_code_line_padding(mut line: Line<'static>) -> Line<'static> {
 pub(crate) fn detect_bullet_prefix(
     line: &ratatui::text::Line<'_>,
 ) -> Option<(usize, String)> {
-    let bullets = ["-", "•", "◦", "·", "∘", "⋅", "☐", "✔"];
+    let bullets = ["-", "•", "◦", "·", "∘", "⋅", "☐", "✓"];
     let spans = &line.spans;
     if spans.is_empty() {
         return None;

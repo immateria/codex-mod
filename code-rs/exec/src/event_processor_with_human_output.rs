@@ -447,7 +447,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             EventMsg::WebSearchBegin(WebSearchBeginEvent { call_id: _, .. }) => {}
             EventMsg::WebSearchComplete(WebSearchCompleteEvent { call_id: _, query }) => {
                 if let Some(query) = query {
-                    ts_println!(self, "🌐 Search: {query}");
+                    ts_println!(self, "Search: {query}");
                 }
             }
             EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
