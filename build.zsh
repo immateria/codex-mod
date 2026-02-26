@@ -244,6 +244,15 @@ function perform-build
 
 	typeset OUTPUT_DIR BINARY_SIZE BINARY_TYPE
             OUTPUT_DIR="${CODE_RS_DIR}/target"
+
+    # Prefer the repo-pinned toolchain (CODE_RS_DIR/rust-toolchain.toml) so
+    # local builds do not depend on whatever "stable" happens to be.
+    typeset TOOLCHAIN
+    TOOLCHAIN="${RUSTUP_TOOLCHAIN:-}"
+    if [[ -z "${TOOLCHAIN}" && -f "${CODE_RS_DIR}/rust-toolchain.toml" ]]; then
+        TOOLCHAIN="$(sed -n 's/^channel[[:space:]]*=[[:space:]]*\"\\(.*\\)\"/\\1/p' "${CODE_RS_DIR}/rust-toolchain.toml" | head -n1)"
+    fi
+    TOOLCHAIN="${TOOLCHAIN:-stable}"
     
     if [[ "${PLATFORM}" == "android" ]]; then
         OUTPUT_DIR="${OUTPUT_DIR}/aarch64-linux-android"
@@ -261,7 +270,7 @@ function perform-build
     cd "${CODE_RS_DIR}"
     
     # Build with appropriate flags
-	    log-info "Running: rustup run stable cargo build --bin code ${BUILD_FLAGS} ${CARGO_BUILD_FLAGS}"
+	    log-info "Running: rustup run ${TOOLCHAIN} cargo build --bin code ${BUILD_FLAGS} ${CARGO_BUILD_FLAGS}"
     
     # For Android, ensure all environment variables are passed to cargo
     if [[ "${PLATFORM}" == "android" ]]; then
@@ -280,7 +289,7 @@ function perform-build
             OPENSSL_INCLUDE_DIR="${OPENSSL_INCLUDE_DIR}"                                                    \
             CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang" \
             CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${TOOLCHAIN_PATH}/bin/llvm-ar"                           \
-	            rustup run stable cargo build                                                                   \
+	            rustup run "${TOOLCHAIN}" cargo build                                                          \
             --bin code                                                                                      \
             $BUILD_FLAGS                                                                                    \
             $CARGO_BUILD_FLAGS; then
@@ -288,7 +297,7 @@ function perform-build
             	exit 1
         fi
     else
-	        if ! rustup run stable cargo build \
+	        if ! rustup run "${TOOLCHAIN}" cargo build \
             --bin code                     \
             $BUILD_FLAGS                   \
             $CARGO_BUILD_FLAGS; then
