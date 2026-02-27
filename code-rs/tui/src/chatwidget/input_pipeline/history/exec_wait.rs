@@ -40,6 +40,7 @@ impl ChatWidget<'_> {
         let Some(record_idx) = self.history_state.index_of(history_id) else {
             return false;
         };
+        let now = SystemTime::now();
         let note_records: Vec<ExecWaitNote> = notes
             .iter()
             .filter_map(|(text, is_error)| {
@@ -54,7 +55,7 @@ impl ChatWidget<'_> {
                         } else {
                             TextTone::Info
                         },
-                        timestamp: SystemTime::now(),
+                        timestamp: now,
                     })
                 }
             })

@@ -229,16 +229,18 @@ impl ChatWidget<'_> {
         if let Some(idx) = self
             .history_cell_ids
             .iter()
-            .position(|maybe| maybe.map(|stored| stored == id).unwrap_or(false))
+            .rposition(|maybe| maybe.as_ref() == Some(&id))
         {
             return Some(idx);
         }
 
         self.history_cells.iter().enumerate().find_map(|(idx, cell)| {
-        history_cell::record_from_cell(cell.as_ref())
-                .map(|record| record.id() == id)
-                .filter(|matched| *matched)
-                .map(|_| idx)
+            let record = history_cell::record_from_cell(cell.as_ref())?;
+            if record.id() == id {
+                Some(idx)
+            } else {
+                None
+            }
         })
     }
 

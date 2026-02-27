@@ -84,14 +84,14 @@ impl ChatWidget<'_> {
 
         // Keep auxiliary order vector in lockstep with history before inserting
         if self.cell_order_seq.len() < self.history_cells.len() {
-            let missing = self.history_cells.len() - self.cell_order_seq.len();
-            for _ in 0..missing {
-                self.cell_order_seq.push(OrderKey {
+            self.cell_order_seq.resize(
+                self.history_cells.len(),
+                OrderKey {
                     req: 0,
                     out: -1,
                     seq: 0,
-                });
-            }
+                },
+            );
         }
 
         tracing::info!(
@@ -361,14 +361,14 @@ impl ChatWidget<'_> {
         }
 
         if self.cell_order_seq.len() < self.history_cells.len() {
-            let missing = self.history_cells.len() - self.cell_order_seq.len();
-            for _ in 0..missing {
-                self.cell_order_seq.push(OrderKey {
+            self.cell_order_seq.resize(
+                self.history_cells.len(),
+                OrderKey {
                     req: 0,
                     out: -1,
                     seq: 0,
-                });
-            }
+                },
+            );
         }
 
         tracing::info!(

@@ -7,7 +7,41 @@ impl ChatWidget<'_> {
         // Animation cleanup is now handled differently
     }
 
+    fn last_meaningful_history_index_for_explore(&self) -> Option<usize> {
+        for idx in (0..self.history_cells.len()).rev() {
+            let cell = &self.history_cells[idx];
+
+            if cell.should_remove() {
+                continue;
+            }
+
+            match cell.kind() {
+                history_cell::HistoryCellType::Reasoning
+                | history_cell::HistoryCellType::Loading
+                | history_cell::HistoryCellType::PlanUpdate => continue,
+                _ => {}
+            }
+
+            if cell
+                .as_any()
+                .downcast_ref::<history_cell::WaitStatusCell>()
+                .is_some()
+            {
+                continue;
+            }
+
+            if self.cell_lines_trimmed_is_empty(idx, cell.as_ref()) {
+                continue;
+            }
+
+            return Some(idx);
+        }
+
+        None
+    }
+
     pub(in crate::chatwidget) fn refresh_explore_trailing_flags(&mut self) -> bool {
+        let last_meaningful = self.last_meaningful_history_index_for_explore();
         let mut updated = false;
         for idx in 0..self.history_cells.len() {
             let is_explore = self.history_cells[idx]
@@ -18,7 +52,7 @@ impl ChatWidget<'_> {
                 continue;
             }
 
-            let hold_title = self.rendered_explore_should_hold(idx);
+            let hold_title = last_meaningful.map_or(true, |last| idx >= last);
 
             if let Some(explore_cell) = self.history_cells[idx]
                 .as_any_mut()
@@ -44,42 +78,9 @@ impl ChatWidget<'_> {
             return true;
         }
 
-        let mut next = idx + 1;
-        while next < self.history_cells.len() {
-            let cell = &self.history_cells[next];
-
-            if cell.should_remove() {
-                next += 1;
-                continue;
-            }
-
-            match cell.kind() {
-                history_cell::HistoryCellType::Reasoning
-                | history_cell::HistoryCellType::Loading
-                | history_cell::HistoryCellType::PlanUpdate => {
-                    next += 1;
-                    continue;
-                }
-                _ => {}
-            }
-
-            if cell
-                .as_any()
-                .downcast_ref::<history_cell::WaitStatusCell>()
-                .is_some()
-            {
-                next += 1;
-                continue;
-            }
-
-            if self.cell_lines_trimmed_is_empty(next, cell.as_ref()) {
-                next += 1;
-                continue;
-            }
-
-            return false;
-        }
-
-        true
+        let Some(last_meaningful) = self.last_meaningful_history_index_for_explore() else {
+            return true;
+        };
+        idx >= last_meaningful
     }
 }
