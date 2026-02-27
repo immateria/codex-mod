@@ -32,14 +32,22 @@ This fork focuses on pulling newer upstream (`codex-rs`) capabilities into
 
 - **Android/Termux build support**
   - Extra scripts and docs in the repo root: `build.zsh`, `ANDROID_BUILD*.md`, `android-build-demo.sh`.
+- **Build + toolchain hygiene**
+  - A fast zsh build wrapper with caching and guardrails: `./build-fast.sh` + `build-fast.zsh`.
+  - Toolchain pinning/selection fixes so local builds don’t silently drift.
 - **Tool/runtime parity work (codex-rs -> code-rs)**
   - Tool router/registry + per-tool handlers (instead of monolithic dispatch).
   - Tool scheduling support for safe parallel tool calls.
-  - New tool handlers used by automation: `search_tool_bm25`, `apply_patch`, `exec_command`, `write_stdin` (and optional `js_repl`).
+  - New tool handlers used by automation: `search_tool_bm25` (tool discovery), `apply_patch`, `exec_command`/`write_stdin` (PTY sessions), plus file helpers and optional `js_repl`.
+  - Optional MCP tool gating: hide MCP tools until the model selects them via `search_tool_bm25`.
+- **Deterministic streaming + recovery**
+  - Stricter per-turn ordering for streamed UI inserts, plus a CLI `order_replay` helper for debugging ordering issues.
+  - Safer retry/auto-compact reconciliation for tool calls and tool outputs across more tool-call types.
 - **Managed network mediation (proxy + approvals + UI)**
   - Core “managed proxy” mediation with allow/deny lists and temporary approvals.
   - TUI: Settings → Network, plus status line indicator and deep link.
-  - macOS: best-effort enforcement for `exec_command` via seatbelt-wrapped PTY children.
+  - macOS: enforce mediated egress for `exec_command` via seatbelt-wrapped PTY children (other platforms are best-effort).
+  - Network approvals are network-scoped and temporary; persistent policy is edited via allow/deny lists.
 - **Layered config and diagnostics**
   - Additional config layers (system + project + user) with better error/diagnostic surfaces.
   - CLI schema/validation helpers via `code config schema` and `code config validate`.
@@ -49,7 +57,8 @@ This fork focuses on pulling newer upstream (`codex-rs`) capabilities into
   - `code sandbox` (debug/inspect sandbox support).
   - `code debug app-server send-message-v2` (headless scripting/debugging for the app-server v2 protocol).
 - **App-server backports**
-  - More app-server message processor/runtime wiring (including v2 surfaces) to expose richer config + MCP status information to the TUI (server status, tools, resources, failures, auth).
+  - More app-server message processor/runtime wiring (including v2 surfaces) to expose richer config + MCP status information to the TUI (server status, tools/resources, failures, auth).
+  - Settings flows use config read/write helpers so changes can apply immediately.
 - **Browser/CDP backports (where supported)**
   - Split/refactored browser manager and expanded CDP operations.
   - Android builds compile out Chrome/CDP integration.
@@ -63,13 +72,14 @@ This fork focuses on pulling newer upstream (`codex-rs`) capabilities into
   - OAuth `login`/`logout` flow for streamable HTTP MCP servers.
   - Per-server auth status surfaced end-to-end (core -> app-server -> CLI -> TUI).
   - CLI: `mcp status` dumps live server status (supports `--json`).
-  - TUI MCP settings support per-tool enable/disable, tool detail inspection, and improved mouse/keyboard interactions.
+  - TUI MCP settings support per-tool enable/disable, tool detail inspection, server resource listing, and improved mouse/keyboard interactions.
 - **MCP access policy backports**
   - Style/profile-aware allow/deny prompting for MCP server access, including per-session allow-lists.
 - **Shell selection + style/profile routing**
   - Shell selection is configurable and drives style profile behavior.
   - Style profiles can influence skills/profiles and MCP allow/deny behavior.
-  - TUI improvements: native file pickers + file-manager shortcuts, user-defined profile summaries (with optional AI-generated summary).
+  - TUI improvements: native file pickers + file-manager shortcuts, user-defined profile summaries (with optional AI-generated summary), and better settings navigation.
+  - Profile filters (skills/MCP) are selectable lists instead of “free text you have to remember”.
 - **Skills backports**
   - Explicit skill/file mentions can inject skill contents into prompts.
   - Warn when mentioned skills depend on MCP servers that are missing/disabled.
@@ -84,8 +94,10 @@ This fork focuses on pulling newer upstream (`codex-rs`) capabilities into
   - Better MCP server program resolution on Windows.
 - **Performance + regression harnesses**
   - TUI perf harnesses and targeted rendering optimizations (markdown wrapping/history rendering).
+  - VT100 snapshot harnesses to keep rendering changes reviewable.
 - **Maintainability refactors**
   - Split large modules (core streaming/configure-session, client transport/SSE, browser manager, TUI input pipeline) to reduce merge pain and make backports easier.
+  - Parity + migration docs to keep future backports honest: `code-rs/CODEX_RS_UPSTREAM_PARITY.md`, `code-rs/MIGRATION_*`.
 - **Status line customization**
   - Configurable top/bottom status lines (separate settings, not necessarily symmetric).
   - Custom line rendering supports hover/click affordances similar to the default bar.
