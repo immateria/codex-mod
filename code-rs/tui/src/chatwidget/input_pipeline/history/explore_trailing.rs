@@ -52,7 +52,7 @@ impl ChatWidget<'_> {
                 continue;
             }
 
-            let hold_title = last_meaningful.map_or(true, |last| idx >= last);
+            let hold_title = last_meaningful.is_none_or(|last| idx >= last);
 
             if let Some(explore_cell) = self.history_cells[idx]
                 .as_any_mut()

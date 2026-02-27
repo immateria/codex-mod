@@ -1365,8 +1365,7 @@ impl ChatWidget<'_> {
             .map(str::trim)
             .find(|line| !line.is_empty())
             .unwrap_or(text)
-            .replace('\n', " ")
-            .replace('\r', " ");
+            .replace(['\n', '\r'], " ");
 
         line = line.split_whitespace().collect::<Vec<_>>().join(" ");
         if line.chars().count() <= max_chars {
