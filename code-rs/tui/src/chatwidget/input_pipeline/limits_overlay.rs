@@ -1,4 +1,4 @@
-use super::*;
+use super::prelude::*;
 use code_protocol::num_format::format_with_separators_u64;
 
 impl ChatWidget<'_> {

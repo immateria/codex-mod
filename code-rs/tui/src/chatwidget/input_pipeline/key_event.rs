@@ -1,4 +1,4 @@
-use super::*;
+use super::prelude::*;
 
 impl ChatWidget<'_> {
     pub(crate) fn handle_key_event(&mut self, key_event: KeyEvent) {

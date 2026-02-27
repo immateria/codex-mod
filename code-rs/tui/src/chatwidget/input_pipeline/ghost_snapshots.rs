@@ -1,4 +1,4 @@
-use super::*;
+use super::prelude::*;
 
 type NumstatRow = (Option<u32>, Option<u32>, String);
 

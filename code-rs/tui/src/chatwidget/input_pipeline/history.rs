@@ -1,4 +1,4 @@
-use super::*;
+use super::prelude::*;
 
 impl ChatWidget<'_> {
     /// Briefly show the vertical scrollbar and schedule a redraw to hide it.

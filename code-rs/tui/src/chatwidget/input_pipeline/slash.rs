@@ -1,4 +1,4 @@
-use super::*;
+use super::prelude::*;
 
 impl ChatWidget<'_> {
     pub(in super::super) fn split_leading_slash_command(text: &str) -> Option<(String, String)> {

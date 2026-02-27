@@ -1,4 +1,4 @@
-use super::*;
+use super::prelude::*;
 
 impl ChatWidget<'_> {
     pub(in super::super) fn toggle_browser_overlay(&mut self) {
