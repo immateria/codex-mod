@@ -873,8 +873,6 @@
             panic!("expected function tool");
         };
         assert_eq!(name, "shell");
-
-        assert_eq!(name, "shell");
         assert!(description.starts_with("Runs a shell command and returns its output."));
         assert!(description.contains("Long-running commands may be backgrounded"));
     }

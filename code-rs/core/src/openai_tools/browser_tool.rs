@@ -45,7 +45,7 @@ pub(super) fn create_browser_tool(browser_enabled: bool) -> OpenAiTool {
                 "Required: choose one of the supported browser actions (e.g., 'open', 'click', 'fetch')."
                     .to_string(),
             ),
-            allowed_values: Some(actions.iter().map(std::string::ToString::to_string).collect()),
+            allowed_values: Some(actions.iter().map(ToString::to_string).collect()),
         },
     );
 
@@ -374,4 +374,3 @@ pub(super) fn create_browser_tool(browser_enabled: bool) -> OpenAiTool {
         },
     })
 }
-

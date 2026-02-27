@@ -118,20 +118,17 @@ pub fn get_openai_tools(
         }
     }
 
-    if !dynamic_tools.is_empty() {
-        for tool in dynamic_tools {
-            match conversions::dynamic_tool_to_openai_tool(tool) {
-                Ok(converted_tool) => tools.push(OpenAiTool::Function(converted_tool)),
-                Err(e) => {
-                    tracing::error!(
-                        "Failed to convert dynamic tool {:?} to OpenAI tool: {e:?}",
-                        tool.name
-                    );
-                }
+    for tool in dynamic_tools {
+        match conversions::dynamic_tool_to_openai_tool(tool) {
+            Ok(converted_tool) => tools.push(OpenAiTool::Function(converted_tool)),
+            Err(e) => {
+                tracing::error!(
+                    "Failed to convert dynamic tool {:?} to OpenAI tool: {e:?}",
+                    tool.name
+                );
             }
         }
     }
 
     tools
 }
-

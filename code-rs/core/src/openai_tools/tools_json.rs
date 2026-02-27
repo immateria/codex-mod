@@ -24,13 +24,13 @@ pub fn create_tools_json_for_responses_api(
 pub(crate) fn create_tools_json_for_chat_completions_api(
     tools: &[OpenAiTool],
 ) -> crate::error::Result<Vec<serde_json::Value>> {
-    // We start with the JSON for the Responses API and than rewrite it to match
+    // We start with the JSON for the Responses API and then rewrite it to match
     // the chat completions tool call format.
     let responses_api_tools_json = create_tools_json_for_responses_api(tools)?;
     let tools_json = responses_api_tools_json
         .into_iter()
         .filter_map(|mut tool| {
-            if tool.get("type") != Some(&serde_json::Value::String("function".to_string())) {
+            if tool.get("type").and_then(serde_json::Value::as_str) != Some("function") {
                 return None;
             }
 
@@ -48,4 +48,3 @@ pub(crate) fn create_tools_json_for_chat_completions_api(
         .collect::<Vec<serde_json::Value>>();
     Ok(tools_json)
 }
-
