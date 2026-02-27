@@ -1204,6 +1204,8 @@ impl ChatWidget<'_> {
     /// Parse the auto-review agent result to derive findings count and a concise summary.
     /// Tries to deserialize `ReviewOutputEvent` JSON (direct or fenced). Falls back to heuristics.
     pub(super) fn parse_agent_review_result(raw: Option<&str>) -> (bool, usize, Option<String>) {
+        const MAX_AUTO_REVIEW_FALLBACK_SUMMARY_CHARS: usize = 280;
+
         let Some(text) = raw else { return (false, 0, None); };
         let trimmed = text.trim();
         if trimmed.is_empty() {
@@ -1232,6 +1234,14 @@ impl ChatWidget<'_> {
             return Self::review_result_from_output(&output);
         }
 
+        // Some runners prepend logs before printing JSON. Scan for embedded JSON
+        // objects and prefer the latest parseable review payload.
+        if let Some((has_findings, findings, summary)) =
+            Self::extract_review_from_mixed_text(trimmed)
+        {
+            return (has_findings, findings, summary);
+        }
+
         // Try to extract JSON from fenced code blocks.
         if let Some(start) = trimmed.find("```")
             && let Some((body, _)) = trimmed[start + 3..].split_once("```") {
@@ -1249,15 +1259,122 @@ impl ChatWidget<'_> {
         let issue_markers = ["issue", "issues", "finding", "findings", "bug", "bugs", "problem", "problems", "error", "errors"]; // keep broad but guarded
 
         if skip_phrases.iter().any(|p| lowered.contains(p)) {
-            return (false, 0, Some(trimmed.to_string()));
+            return (
+                false,
+                0,
+                Some(Self::summarize_plain_review_text(
+                    trimmed,
+                    MAX_AUTO_REVIEW_FALLBACK_SUMMARY_CHARS,
+                )),
+            );
         }
 
         if clean_phrases.iter().any(|p| lowered.contains(p)) {
-            return (false, 0, Some(trimmed.to_string()));
+            return (
+                false,
+                0,
+                Some(Self::summarize_plain_review_text(
+                    trimmed,
+                    MAX_AUTO_REVIEW_FALLBACK_SUMMARY_CHARS,
+                )),
+            );
         }
 
         let has_findings = issue_markers.iter().any(|p| lowered.contains(p));
-        (has_findings, 0, Some(trimmed.to_string()))
+        (
+            has_findings,
+            0,
+            Some(Self::summarize_plain_review_text(
+                trimmed,
+                MAX_AUTO_REVIEW_FALLBACK_SUMMARY_CHARS,
+            )),
+        )
+    }
+
+    fn extract_review_from_mixed_text(text: &str) -> Option<(bool, usize, Option<String>)> {
+        #[derive(serde::Deserialize)]
+        struct MultiRunReview {
+            #[serde(flatten)]
+            latest: ReviewOutputEvent,
+            #[serde(default)]
+            runs: Vec<ReviewOutputEvent>,
+        }
+
+        let mut brace_depth = 0usize;
+        let mut in_string = false;
+        let mut escaped = false;
+        let mut object_start = None;
+        let mut best_match: Option<(bool, usize, Option<String>)> = None;
+
+        for (idx, ch) in text.char_indices() {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                    continue;
+                }
+                if ch == '\\' {
+                    escaped = true;
+                    continue;
+                }
+                if ch == '"' {
+                    in_string = false;
+                }
+                continue;
+            }
+
+            match ch {
+                '"' => in_string = true,
+                '{' => {
+                    if brace_depth == 0 {
+                        object_start = Some(idx);
+                    }
+                    brace_depth = brace_depth.saturating_add(1);
+                }
+                '}' => {
+                    if brace_depth == 0 {
+                        continue;
+                    }
+                    brace_depth -= 1;
+                    if brace_depth == 0
+                        && let Some(start) = object_start.take()
+                    {
+                        let candidate = &text[start..=idx];
+                        if let Ok(wrapper) = serde_json::from_str::<MultiRunReview>(candidate) {
+                            let mut runs = wrapper.runs;
+                            if runs.is_empty() {
+                                runs.push(wrapper.latest);
+                            }
+                            best_match = Some(Self::review_result_from_runs(&runs));
+                            continue;
+                        }
+                        if let Ok(output) = serde_json::from_str::<ReviewOutputEvent>(candidate) {
+                            best_match = Some(Self::review_result_from_output(&output));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        best_match
+    }
+
+    fn summarize_plain_review_text(text: &str, max_chars: usize) -> String {
+        let mut line = text
+            .lines()
+            .map(str::trim)
+            .find(|line| !line.is_empty())
+            .unwrap_or(text)
+            .replace('\n', " ")
+            .replace('\r', " ");
+
+        line = line.split_whitespace().collect::<Vec<_>>().join(" ");
+        if line.chars().count() <= max_chars {
+            return line;
+        }
+
+        let truncated: String = line.chars().take(max_chars.saturating_sub(1)).collect();
+        format!("{truncated}…")
     }
 
     pub(super) fn review_result_from_runs(outputs: &[ReviewOutputEvent]) -> (bool, usize, Option<String>) {

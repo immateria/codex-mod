@@ -19,6 +19,12 @@ pub(super) fn build_agent_env(
         }
     }
 
+    let child_spawn_depth = crate::agent_tool::current_agent_spawn_depth().saturating_add(1);
+    env.insert(
+        crate::agent_tool::CODE_AGENT_SPAWN_DEPTH_ENV.to_string(),
+        child_spawn_depth.to_string(),
+    );
+
     if debug_subagent {
         env.entry("CODE_SUBAGENT_DEBUG".to_string())
             .or_insert_with(|| "1".to_string());

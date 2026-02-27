@@ -6,6 +6,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
 use crate::code_message_processor::CodexMessageProcessor;
+use crate::external_agent_config_api::ExternalAgentConfigApi;
 use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use crate::outgoing_message::ConnectionId;
@@ -40,6 +41,7 @@ mod v2;
 pub(crate) struct MessageProcessor {
     outgoing: Arc<OutgoingMessageSender>,
     code_message_processor: CodexMessageProcessor,
+    external_agent_config_api: ExternalAgentConfigApi,
     base_config: Arc<Config>,
     auth_manager: Arc<AuthManager>,
     conversation_manager: Arc<ConversationManager>,
@@ -92,10 +94,12 @@ impl MessageProcessor {
             code_linux_sandbox_exe,
             config_for_processor.clone(),
         );
+        let external_agent_config_api = ExternalAgentConfigApi::new(config_home.clone());
 
         Self {
             outgoing,
             code_message_processor,
+            external_agent_config_api,
             base_config: config_for_processor,
             auth_manager,
             conversation_manager,
@@ -350,6 +354,20 @@ impl MessageProcessor {
                             .send_error(request_id, map_config_service_error(err))
                             .await
                     }
+                }
+                true
+            }
+            ApiClientRequest::ExternalAgentConfigDetect { params, .. } => {
+                match self.external_agent_config_api.detect(params.clone()).await {
+                    Ok(response) => self.outgoing.send_response(request_id, response).await,
+                    Err(error) => self.outgoing.send_error(request_id, error).await,
+                }
+                true
+            }
+            ApiClientRequest::ExternalAgentConfigImport { params, .. } => {
+                match self.external_agent_config_api.import(params.clone()).await {
+                    Ok(response) => self.outgoing.send_response(request_id, response).await,
+                    Err(error) => self.outgoing.send_error(request_id, error).await,
                 }
                 true
             }

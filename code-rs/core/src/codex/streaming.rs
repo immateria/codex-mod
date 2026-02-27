@@ -1066,6 +1066,7 @@ pub(super) async fn submission_loop(
                     mcp_connection_manager,
                     client_tools: config.experimental_client_tools.clone(),
                     agents: config.agents.clone(),
+                    subagent_max_depth: config.subagent_max_depth,
                     model_reasoning_effort: config.model_reasoning_effort,
                     notify,
                     state: Mutex::new(state),

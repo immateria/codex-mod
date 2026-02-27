@@ -1,13 +1,11 @@
-## @just-every/code v0.6.71
+## @just-every/code v0.6.74
 
-This release improves realtime reliability, tightens approvals, and upgrades core TUI and JS REPL workflows.
+This release sharpens Auto Review messaging so results stay clear without extra transcript noise.
 
 ### Changes
 
-- Core/Realtime: prefer websocket v2, add fallback behavior, and improve timeout handling for more resilient sessions.
-- TUI: add `/copy`, improve clear controls (`/clear` and Ctrl-L), and expand multi-agent progress and picker UX.
-- Security/Approvals: persist network approval policy and tighten zsh-fork approval and sandbox enforcement paths.
-- JS REPL: lower Node minimum requirement, gate incompatible runtimes at startup, and improve error recovery in nested tool calls.
+- TUI/Auto Review: stop duplicating background review notes as `[developer]` history messages to keep transcript noise down.
+- TUI/Auto Review: keep review findings routed through the dedicated Auto Review notice while still forwarding hidden context to the coordinator.
 
 ### Install
 
@@ -16,8 +14,4 @@ npm install -g @just-every/code@latest
 code
 ```
 
-### Thanks
-
-Thanks to @rupurt, @dchimento, @JaviSoto, @owenlin0, and @felipecoury for contributions!
-
-Compare: https://github.com/just-every/code/compare/v0.6.70...v0.6.71
+Compare: https://github.com/just-every/code/compare/v0.6.73...v0.6.74
