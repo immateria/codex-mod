@@ -58,7 +58,9 @@ use crate::session_resume::resolve_resume_path;
 use crate::slash::{process_exec_slash_command, SlashContext, SlashDispatch};
 use code_auto_drive_core::AutoResolveState;
 use code_core::protocol::SandboxPolicy;
-use code_core::timeboxed_exec_guidance::AUTO_EXEC_TIMEBOXED_CLI_GUIDANCE;
+use code_core::timeboxed_exec_guidance::{
+    AUTO_EXEC_TIMEBOXED_CLI_GUIDANCE,
+};
 
 pub async fn run_main(cli: Cli, code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()> {
     if let Err(err) = set_default_originator("code_exec") {
@@ -447,7 +449,6 @@ pub async fn run_main(cli: Cli, code_linux_sandbox_exe: Option<PathBuf>) -> anyh
 
     Ok(())
 }
-
 
 #[cfg(test)]
 mod tests;

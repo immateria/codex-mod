@@ -1357,9 +1357,11 @@ pub(crate) async fn handle_container_exec_with_params(
                 .request_command_approval(
                     sub_id.clone(),
                     call_id.clone(),
+                    None,
                     params.command.clone(),
                     params.cwd.clone(),
                     params.justification.clone(),
+                    None,
                     None,
                 )
                 .await;

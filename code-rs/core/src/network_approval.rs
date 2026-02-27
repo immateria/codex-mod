@@ -153,13 +153,14 @@ impl NetworkApprovalService {
             NetworkProtocol::Socks5Udp => NetworkApprovalProtocol::Socks5Udp,
         };
 
-        // Ensure each network approval prompt has a unique call_id; the TUI routes
-        // approval responses by `call_id`.
-        let approval_call_id = format!("{}-network-{}", attempt.call_id, Uuid::new_v4());
+        // Ensure each network approval prompt has a unique approval_id; the TUI routes
+        // approval responses by the effective approval id (approval_id or call_id fallback).
+        let approval_id = format!("{}-network-{}", attempt.call_id, Uuid::new_v4());
         let receiver = session
             .request_command_approval(
                 attempt.turn_id.clone(),
-                approval_call_id,
+                attempt.call_id.clone(),
+                Some(approval_id),
                 attempt.command.clone(),
                 attempt.cwd.clone(),
                 Some(format!(
@@ -169,6 +170,7 @@ impl NetworkApprovalService {
                     host: host_display,
                     protocol,
                 }),
+                None,
             )
             .await;
         let decision = receiver.await.unwrap_or(ReviewDecision::Denied);

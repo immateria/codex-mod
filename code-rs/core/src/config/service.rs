@@ -410,6 +410,11 @@ fn map_approval_policy_to_v2(policy: CoreAskForApproval) -> V2AskForApproval {
         CoreAskForApproval::UnlessTrusted => V2AskForApproval::UnlessTrusted,
         CoreAskForApproval::OnFailure => V2AskForApproval::OnFailure,
         CoreAskForApproval::OnRequest => V2AskForApproval::OnRequest,
+        CoreAskForApproval::Reject(reject_config) => V2AskForApproval::Reject {
+            sandbox_approval: reject_config.sandbox_approval,
+            rules: reject_config.rules,
+            mcp_elicitations: reject_config.mcp_elicitations,
+        },
         CoreAskForApproval::Never => V2AskForApproval::Never,
     }
 }

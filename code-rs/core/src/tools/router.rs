@@ -175,6 +175,7 @@ impl ToolRouter {
                     timeout_ms: action.timeout_ms,
                     sandbox_permissions: None,
                     prefix_rule: None,
+                    additional_permissions: None,
                     justification: None,
                 };
                 let effective_call_id = match (call_id, id) {

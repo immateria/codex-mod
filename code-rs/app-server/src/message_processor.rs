@@ -425,6 +425,7 @@ impl MessageProcessor {
     }
 
 }
+
 fn map_config_service_error(err: ConfigServiceError) -> JSONRPCErrorError {
     if let Some(code) = err.write_error_code() {
         return JSONRPCErrorError {

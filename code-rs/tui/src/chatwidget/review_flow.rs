@@ -1577,6 +1577,14 @@ impl ChatWidget<'_> {
             inflight_base,
             inflight_snapshot,
         );
+
+        // Auto review findings are inserted as history notices, but Auto Drive resumes
+        // from cached conversation state. Rebuild before resuming so the coordinator
+        // receives the latest background review context.
+        if self.auto_state.is_active() {
+            self.rebuild_auto_history();
+        }
+
         self.maybe_resume_auto_after_review();
         self.request_redraw();
     }

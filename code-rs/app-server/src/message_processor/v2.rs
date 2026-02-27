@@ -1025,6 +1025,15 @@ fn v2_approval_policy_to_core(policy: AskForApproval) -> code_core::protocol::As
         AskForApproval::UnlessTrusted => code_core::protocol::AskForApproval::UnlessTrusted,
         AskForApproval::OnFailure => code_core::protocol::AskForApproval::OnFailure,
         AskForApproval::OnRequest => code_core::protocol::AskForApproval::OnRequest,
+        AskForApproval::Reject {
+            sandbox_approval,
+            rules,
+            mcp_elicitations,
+        } => code_core::protocol::AskForApproval::Reject(code_core::protocol::RejectConfig {
+            sandbox_approval,
+            rules,
+            mcp_elicitations,
+        }),
         AskForApproval::Never => code_core::protocol::AskForApproval::Never,
     }
 }
@@ -1034,6 +1043,11 @@ fn core_approval_policy_to_v2(policy: code_core::protocol::AskForApproval) -> As
         code_core::protocol::AskForApproval::UnlessTrusted => AskForApproval::UnlessTrusted,
         code_core::protocol::AskForApproval::OnFailure => AskForApproval::OnFailure,
         code_core::protocol::AskForApproval::OnRequest => AskForApproval::OnRequest,
+        code_core::protocol::AskForApproval::Reject(reject_config) => AskForApproval::Reject {
+            sandbox_approval: reject_config.sandbox_approval,
+            rules: reject_config.rules,
+            mcp_elicitations: reject_config.mcp_elicitations,
+        },
         code_core::protocol::AskForApproval::Never => AskForApproval::Never,
     }
 }
