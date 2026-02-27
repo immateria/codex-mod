@@ -8,6 +8,8 @@ use crate::network_approval::NetworkAttemptGuard;
 
 pub(crate) struct ExecCommandSessionParts {
     pub(crate) killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
+    #[cfg(unix)]
+    pub(crate) process_group_id: Option<u32>,
     pub(crate) reader_handle: JoinHandle<()>,
     pub(crate) writer_handle: JoinHandle<()>,
     pub(crate) wait_handle: JoinHandle<()>,
@@ -22,6 +24,10 @@ pub(crate) struct ExecCommandSession {
     /// Broadcast stream of output chunks read from the PTY. New subscribers
     /// receive only chunks emitted after they subscribe.
     output_tx: broadcast::Sender<Vec<u8>>,
+
+    #[cfg(unix)]
+    /// Cached process group id so drop can hard-kill descendants on Unix.
+    process_group_id: Option<u32>,
 
     /// Child killer handle for termination on drop (can signal independently
     /// of a thread blocked in `.wait()`).
@@ -53,6 +59,8 @@ impl ExecCommandSession {
     ) -> (Self, broadcast::Receiver<Vec<u8>>) {
         let ExecCommandSessionParts {
             killer,
+            #[cfg(unix)]
+            process_group_id,
             reader_handle,
             writer_handle,
             wait_handle,
@@ -64,6 +72,8 @@ impl ExecCommandSession {
             Self {
                 writer_tx,
                 output_tx,
+                #[cfg(unix)]
+                process_group_id,
                 killer: StdMutex::new(Some(killer)),
                 reader_handle: StdMutex::new(Some(reader_handle)),
                 writer_handle: StdMutex::new(Some(writer_handle)),
@@ -93,6 +103,11 @@ impl ExecCommandSession {
 
 impl Drop for ExecCommandSession {
     fn drop(&mut self) {
+        #[cfg(unix)]
+        if let Some(process_group_id) = self.process_group_id.take() {
+            let _ = crate::exec_command::process_group::kill_process_group(process_group_id);
+        }
+
         // Best-effort: terminate child first so blocking tasks can complete.
         if let Ok(mut killer_opt) = self.killer.lock()
             && let Some(mut killer) = killer_opt.take()

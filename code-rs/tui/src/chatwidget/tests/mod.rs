@@ -41,6 +41,7 @@
     use code_core::config_types::{McpServerConfig, McpServerTransportConfig};
     use code_core::protocol::{
     AskForApproval,
+    AgentMessageDeltaEvent,
     AgentMessageEvent,
     AgentStatusUpdateEvent,
     ErrorEvent,
@@ -53,7 +54,7 @@
     TaskCompleteEvent,
     };
     use code_core::protocol::AgentInfo as CoreAgentInfo;
-    use code_protocol::protocol::ReviewTarget;
+    use code_protocol::protocol::{ReviewTarget, TurnAbortedEvent, TurnAbortReason};
     use std::collections::BTreeMap;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::process::Command;
@@ -3088,6 +3089,131 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
         "late running update should re-enable the spinner"
     );
     }
+
+    #[test]
+    fn answer_delta_strips_citation_markup_from_stream_preview() {
+    let mut harness = ChatWidgetHarness::new();
+    harness.with_chat(reset_history);
+
+    harness.handle_event(Event {
+        id: "turn-1".to_string(),
+        event_seq: 0,
+        msg: EventMsg::TaskStarted,
+        order: None,
+    });
+    harness.handle_event(Event {
+        id: "answer-1".to_string(),
+        event_seq: 1,
+        msg: EventMsg::AgentMessageDelta(AgentMessageDeltaEvent {
+            delta: "Visible <oai-mem-citation>doc-1</oai-mem-citation> text".to_string(),
+        }),
+        order: Some(OrderMeta {
+            request_ordinal: 1,
+            output_index: Some(0),
+            sequence_number: Some(0),
+        }),
+    });
+    harness.flush_into_widget();
+
+    harness.with_chat(|chat| {
+        let state = chat
+            .history_state
+            .assistant_stream_state("answer-1")
+            .cloned()
+            .expect("expected stream state");
+        assert!(
+            !state.preview_markdown.contains("<oai-mem-citation>"),
+            "stream preview should hide citation tags"
+        );
+        assert!(state.preview_markdown.contains("Visible"));
+        assert!(state.preview_markdown.contains("text"));
+        assert_eq!(
+            state.metadata.as_ref().map(|meta| meta.citations.clone()),
+            Some(vec!["doc-1".to_string()]),
+        );
+    });
+    }
+
+    #[test]
+    fn turn_aborted_keeps_proposed_plan_extracted_from_stream_deltas() {
+    let mut harness = ChatWidgetHarness::new();
+    harness.with_chat(|chat| {
+        reset_history(chat);
+        chat.collaboration_mode = code_core::protocol::CollaborationModeKind::Plan;
+    });
+
+    harness.handle_event(Event {
+        id: "turn-1".to_string(),
+        event_seq: 0,
+        msg: EventMsg::TaskStarted,
+        order: None,
+    });
+    harness.handle_event(Event {
+        id: "answer-1".to_string(),
+        event_seq: 1,
+        msg: EventMsg::AgentMessageDelta(AgentMessageDeltaEvent {
+            delta: "Before\n<proposed_plan>\n- step".to_string(),
+        }),
+        order: Some(OrderMeta {
+            request_ordinal: 1,
+            output_index: Some(0),
+            sequence_number: Some(0),
+        }),
+    });
+    harness.handle_event(Event {
+        id: "answer-1".to_string(),
+        event_seq: 2,
+        msg: EventMsg::AgentMessageDelta(AgentMessageDeltaEvent {
+            delta: " one\n</proposed_plan>\nAfter".to_string(),
+        }),
+        order: Some(OrderMeta {
+            request_ordinal: 1,
+            output_index: Some(0),
+            sequence_number: Some(1),
+        }),
+    });
+    harness.handle_event(Event {
+        id: "turn-1".to_string(),
+        event_seq: 3,
+        msg: EventMsg::TurnAborted(TurnAbortedEvent {
+            reason: TurnAbortReason::Interrupted,
+        }),
+        order: None,
+    });
+    harness.flush_into_widget();
+
+    harness.with_chat(|chat| {
+        let has_plan = chat.history_state.records.iter().any(|record| {
+            matches!(record, HistoryRecord::ProposedPlan(state) if state.markdown.contains("- step one"))
+        });
+        assert!(has_plan, "proposed plan should be preserved on turn abort");
+
+        let assistant_messages: Vec<String> = chat
+            .history_state
+            .records
+            .iter()
+            .filter_map(|record| match record {
+                HistoryRecord::AssistantMessage(state) => Some(state.markdown.clone()),
+                _ => None,
+            })
+            .collect();
+
+        assert!(
+            assistant_messages.iter().any(|message| message.contains("Before")),
+            "final assistant message should keep visible text"
+        );
+        assert!(
+            assistant_messages.iter().any(|message| message.contains("After")),
+            "final assistant message should keep trailing visible text"
+        );
+        assert!(
+            assistant_messages
+                .iter()
+                .all(|message| !message.contains("<proposed_plan>")),
+            "assistant message should hide proposed_plan tags"
+        );
+    });
+    }
     
     #[test]
     fn scrollback_spacer_preserves_top_cell_bottom_line() {
@@ -3622,6 +3748,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
         event_seq: 0,
         msg: EventMsg::ExecApprovalRequest(code_core::protocol::ExecApprovalRequestEvent {
             call_id: "approve-1".to_string(),
+            approval_id: None,
             turn_id: "turn-1".to_string(),
             command: vec![
                 "/bin/bash".to_string(),
@@ -3634,6 +3761,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
                 host: "example.com".to_string(),
                 protocol: code_core::protocol::NetworkApprovalProtocol::Https,
             }),
+            additional_permissions: None,
         }),
         order: None,
     });

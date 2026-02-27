@@ -1,5 +1,6 @@
 mod exec_command_params;
 mod exec_command_session;
+mod process_group;
 mod responses_api;
 mod session_id;
 mod session_manager;

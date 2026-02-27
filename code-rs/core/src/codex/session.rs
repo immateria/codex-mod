@@ -451,6 +451,17 @@ impl ToolCallCtx {
     }
 }
 
+pub(crate) struct CommandApprovalRequest {
+    pub(crate) sub_id: String,
+    pub(crate) call_id: String,
+    pub(crate) approval_id: Option<String>,
+    pub(crate) command: Vec<String>,
+    pub(crate) cwd: PathBuf,
+    pub(crate) reason: Option<String>,
+    pub(crate) network_approval_context: Option<crate::protocol::NetworkApprovalContext>,
+    pub(crate) additional_permissions: Option<code_protocol::models::PermissionProfile>,
+}
+
 impl Session {
     pub(crate) fn get_approval_policy(&self) -> AskForApproval {
         self.approval_policy
@@ -1285,15 +1296,18 @@ impl Session {
 
     pub async fn request_command_approval(
         &self,
-        sub_id: String,
-        call_id: String,
-        approval_id: Option<String>,
-        command: Vec<String>,
-        cwd: PathBuf,
-        reason: Option<String>,
-        network_approval_context: Option<crate::protocol::NetworkApprovalContext>,
-        additional_permissions: Option<code_protocol::models::PermissionProfile>,
+        request: CommandApprovalRequest,
     ) -> oneshot::Receiver<ReviewDecision> {
+        let CommandApprovalRequest {
+            sub_id,
+            call_id,
+            approval_id,
+            command,
+            cwd,
+            reason,
+            network_approval_context,
+            additional_permissions,
+        } = request;
         let (tx_approve, rx_approve) = oneshot::channel();
         let effective_approval_id = approval_id.clone().unwrap_or_else(|| call_id.clone());
         let event = self.make_event(

@@ -26,6 +26,7 @@ pub(crate) enum HistoryCellType {
     Plain,
     User,
     Assistant,
+    ProposedPlan,
     Reasoning,
     Error,
     Exec { kind: ExecKind, status: ExecStatus },
@@ -48,6 +49,7 @@ pub(crate) fn gutter_symbol_for_kind(kind: HistoryCellType) -> Option<&'static s
         HistoryCellType::User => Some("›"),
         // Restore assistant gutter icon
         HistoryCellType::Assistant => Some("•"),
+        HistoryCellType::ProposedPlan => Some("≡"),
         HistoryCellType::Reasoning => None,
         HistoryCellType::Error => Some("✗"),
         HistoryCellType::Tool { status } => Some(match status {
@@ -180,12 +182,14 @@ pub(crate) trait HistoryCell {
         // We paint spaces with the current theme background to guarantee a clean slate.
         // Assistant messages use a subtly tinted background: theme background
         // moved 5% toward the theme info color for a gentle distinction.
-        let cell_bg = match self.kind() {
-            HistoryCellType::Assistant => crate::colors::assistant_bg(),
-            _ => crate::colors::background(),
+        let assistant_like = matches!(self.kind(), HistoryCellType::Assistant | HistoryCellType::ProposedPlan);
+        let cell_bg = if assistant_like {
+            crate::colors::assistant_bg()
+        } else {
+            crate::colors::background()
         };
         let bg_style = Style::default().bg(cell_bg).fg(crate::colors::text());
-        if matches!(self.kind(), HistoryCellType::Assistant) {
+        if assistant_like {
             fill_rect(buf, area, Some(' '), bg_style);
         }
 

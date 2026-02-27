@@ -272,6 +272,16 @@ impl ChatWidget<'_> {
 
     pub(super) fn handle_turn_aborted_event(&mut self) {
         self.pending_request_user_input = None;
+        // TurnAborted is emitted when the agent task is aborted and does not
+        // imply a TaskComplete will arrive. Treat it as terminal for the active
+        // turn so we don't leave the UI (or sleep inhibitor) stuck "running".
+        self.active_task_ids.clear();
+        self.turn_sleep_inhibitor.set_turn_running(false);
+        streaming::finalize_active_stream(self);
+        self.bottom_pane.set_task_running(false);
+        self.bottom_pane.update_status_text(String::new());
+        self.maybe_hide_spinner();
+        self.mark_needs_redraw();
     }
 
     pub(super) fn handle_entered_review_mode_event(&mut self, review_request: ReviewRequest) {

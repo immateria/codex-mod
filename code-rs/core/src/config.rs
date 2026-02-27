@@ -495,6 +495,8 @@ pub struct Config {
 
     /// Experimental: enable discovery and injection of skills.
     pub skills_enabled: bool,
+    /// Experimental: prevent idle sleep while a turn is running (platform dependent).
+    pub prevent_idle_sleep: bool,
     /// Experimental: enable JSON-based environment context snapshots and deltas (phase gated).
     pub env_ctx_v2: bool,
     /// Retention policy for env_ctx_v2 timeline management (gated by env_ctx_v2).
@@ -1095,6 +1097,10 @@ pub struct FeaturesToml {
     /// Enable discovery and injection of skills.
     #[serde(default)]
     pub skills: Option<bool>,
+
+    /// Prevent the machine from idling to sleep while a turn is running.
+    #[serde(default)]
+    pub prevent_idle_sleep: Option<bool>,
 }
 
 impl ConfigToml {
@@ -1428,6 +1434,12 @@ impl Config {
             .as_ref()
             .and_then(|features| features.skills)
             .unwrap_or(true);
+
+        let prevent_idle_sleep = cfg
+            .features
+            .as_ref()
+            .and_then(|features| features.prevent_idle_sleep)
+            .unwrap_or(false);
 
         let env_ctx_v2_flag = *crate::flags::CTX_UI;
 
@@ -1854,6 +1866,7 @@ impl Config {
                 .unwrap_or(false),
             include_view_image_tool: include_view_image_tool_flag,
             skills_enabled,
+            prevent_idle_sleep,
             env_ctx_v2: env_ctx_v2_flag,
             retention: crate::config_types::RetentionConfig::default(),
             responses_originator_header,

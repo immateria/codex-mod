@@ -285,7 +285,12 @@ impl ChatWidget<'_> {
 
     pub(super) fn build_network_settings_view(&mut self) -> NetworkSettingsView {
         let ticket = self.make_background_tail_ticket();
-        NetworkSettingsView::new(self.config.network.clone(), self.app_event_tx.clone(), ticket)
+        NetworkSettingsView::new(
+            self.config.network.clone(),
+            self.config.sandbox_policy.clone(),
+            self.app_event_tx.clone(),
+            ticket,
+        )
     }
 
     pub(super) fn build_network_settings_content(&mut self) -> NetworkSettingsContent {

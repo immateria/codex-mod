@@ -1,4 +1,5 @@
 use super::*;
+use code_common::summarize_sandbox_policy;
 use code_core::config_types::StatusLineLane;
 use code_protocol::num_format::format_si_suffix;
 
@@ -228,6 +229,11 @@ impl ChatWidget<'_> {
                 };
                 Some(format!("net {mode}"))
             }
+            StatusLineItem::Approval => Some(format!("approval {}", self.config.approval_policy)),
+            StatusLineItem::Sandbox => Some(format!(
+                "sbx {}",
+                Self::format_sandbox_policy_compact(&self.config.sandbox_policy)
+            )),
             StatusLineItem::ContextRemaining => self
                 .status_line_context_remaining_percent()
                 .map(|remaining| format!("{remaining}% left")),
@@ -271,6 +277,16 @@ impl ChatWidget<'_> {
                 format_si_suffix(self.total_token_usage.output_tokens.min(i64::MAX as u64) as i64)
             )),
             StatusLineItem::SessionId => self.session_id.map(|id| id.to_string()),
+        }
+    }
+
+    fn format_sandbox_policy_compact(policy: &code_core::protocol::SandboxPolicy) -> String {
+        let summary = summarize_sandbox_policy(policy);
+        let base = summary.split_whitespace().next().unwrap_or("unknown");
+        if summary.contains("(network access enabled)") {
+            format!("{base} +net")
+        } else {
+            base.to_string()
         }
     }
 

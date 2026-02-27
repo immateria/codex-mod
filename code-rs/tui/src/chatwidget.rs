@@ -62,6 +62,8 @@ use code_login::AuthMode;
 use code_protocol::dynamic_tools::DynamicToolResponse;
 use code_protocol::num_format::format_with_separators;
 use code_core::split_command_and_args;
+use code_utils_sleep_inhibitor::SleepInhibitor;
+use code_utils_stream_parser as stream_parser;
 use serde_json::Value as JsonValue;
 
 
@@ -1361,6 +1363,7 @@ impl ChatWidget<'_> {
             HistoryCellType::Plain => "Plain".to_string(),
             HistoryCellType::User => "User".to_string(),
             HistoryCellType::Assistant => "Assistant".to_string(),
+            HistoryCellType::ProposedPlan => "ProposedPlan".to_string(),
             HistoryCellType::Reasoning => "Reasoning".to_string(),
             HistoryCellType::Error => "Error".to_string(),
             HistoryCellType::Exec { kind, status } => {
@@ -5763,7 +5766,122 @@ fi\n\
                     HistoryRecord::AssistantStream(existing),
                 );
                 self.autoscroll_if_near_bottom();
+        }
+    }
+
+    fn answer_stream_metadata(
+        &self,
+        stream_id: &str,
+        token_usage_override: Option<code_core::protocol::TokenUsage>,
+    ) -> Option<MessageMetadata> {
+        let existing_metadata = self
+            .history_state
+            .assistant_stream_state(stream_id)
+            .and_then(|state| state.metadata.clone());
+
+        let mut citations = existing_metadata
+            .as_ref()
+            .map(|meta| meta.citations.clone())
+            .unwrap_or_default();
+        if let Some(state) = self.stream_state.answer_markup.get(stream_id) {
+            Self::merge_citations_dedup_case_sensitive(&mut citations, state.citations.clone());
+        }
+
+        let token_usage = token_usage_override
+            .or_else(|| existing_metadata.and_then(|meta| meta.token_usage));
+
+        if citations.is_empty() && token_usage.is_none() {
+            None
+        } else {
+            Some(MessageMetadata {
+                citations,
+                token_usage,
+            })
+        }
+    }
+
+    fn parse_answer_stream_chunk(&mut self, stream_id: &str, chunk: &str) -> String {
+        let plan_mode = self.collaboration_mode == code_core::protocol::CollaborationModeKind::Plan;
+        let state = self
+            .stream_state
+            .answer_markup
+            .entry(stream_id.to_string())
+            .or_insert_with(|| internals::state::AnswerMarkupState {
+                parser: stream_parser::AssistantTextStreamParser::new(plan_mode),
+                citations: Vec::new(),
+                plan_markdown: String::new(),
+            });
+
+        let stream_parser::AssistantTextChunk {
+            visible_text,
+            citations,
+            plan_segments,
+        } = state.parser.push_str(chunk);
+        Self::merge_citations_dedup_case_sensitive(&mut state.citations, citations);
+        Self::apply_proposed_plan_segments(state, plan_segments);
+        visible_text
+    }
+
+    fn take_answer_stream_markup(
+        &mut self,
+        stream_id: Option<&str>,
+    ) -> (Vec<String>, Option<String>) {
+        let key = if let Some(stream_id) = stream_id {
+            Some(stream_id.to_string())
+        } else if self.stream_state.answer_markup.len() == 1 {
+            self.stream_state.answer_markup.keys().next().cloned()
+        } else {
+            None
+        };
+
+        let Some(key) = key else {
+            return (Vec::new(), None);
+        };
+
+        let Some(mut state) = self.stream_state.answer_markup.remove(&key) else {
+            return (Vec::new(), None);
+        };
+
+        let stream_parser::AssistantTextChunk {
+            citations,
+            plan_segments,
+            ..
+        } = state.parser.finish();
+        Self::merge_citations_dedup_case_sensitive(&mut state.citations, citations);
+        Self::apply_proposed_plan_segments(&mut state, plan_segments);
+
+        let plan = (!state.plan_markdown.trim().is_empty()).then_some(state.plan_markdown);
+        (state.citations, plan)
+    }
+
+    fn clear_answer_stream_markup_tracking(&mut self) {
+        self.stream_state.answer_markup.clear();
+    }
+
+    fn merge_citations_dedup_case_sensitive(existing: &mut Vec<String>, incoming: Vec<String>) {
+        for citation in incoming {
+            if !existing.iter().any(|current| current == &citation) {
+                existing.push(citation);
             }
+        }
+    }
+
+    fn apply_proposed_plan_segments(
+        state: &mut internals::state::AnswerMarkupState,
+        segments: Vec<stream_parser::ProposedPlanSegment>,
+    ) {
+        for segment in segments {
+            match segment {
+                stream_parser::ProposedPlanSegment::ProposedPlanStart => {
+                    state.plan_markdown.clear();
+                }
+                stream_parser::ProposedPlanSegment::ProposedPlanDelta(delta) => {
+                    state.plan_markdown.push_str(&delta);
+                }
+                stream_parser::ProposedPlanSegment::Normal(_)
+                | stream_parser::ProposedPlanSegment::ProposedPlanEnd => {}
+            }
+        }
     }
 
     fn update_stream_token_usage_metadata(&mut self) {
@@ -5776,13 +5894,11 @@ fi\n\
         else {
             return;
         };
-        let metadata = MessageMetadata {
-            citations: Vec::new(),
-            token_usage: Some(self.last_token_usage.clone()),
-        };
+        let metadata = self
+            .answer_stream_metadata(&stream_id, Some(self.last_token_usage.clone()));
         self
             .history_state
-            .upsert_assistant_stream_state(&stream_id, preview, None, Some(&metadata));
+            .upsert_assistant_stream_state(&stream_id, preview, None, metadata.as_ref());
         if let Some(state) = self
             .history_state
             .assistant_stream_state(&stream_id)
@@ -5806,12 +5922,13 @@ fi\n\
                 received_at: SystemTime::now(),
             })
         };
+        let metadata = self.answer_stream_metadata(stream_id, None);
         let mutation = self.history_state.apply_domain_event(
             HistoryDomainEvent::UpsertAssistantStream {
                 stream_id: stream_id.to_string(),
                 preview_markdown: preview,
                 delta,
-                metadata: None,
+                metadata,
             },
         );
 
@@ -5923,12 +6040,24 @@ fi\n\
         &mut self,
         stream_id: Option<&str>,
         source: &str,
+        citations: Vec<String>,
     ) -> AssistantMessageState {
         let mut metadata = stream_id.and_then(|sid| {
             self.history_state
                 .assistant_stream_state(sid)
                 .and_then(|state| state.metadata.clone())
         });
+
+        if !citations.is_empty() {
+            if let Some(meta) = metadata.as_mut() {
+                meta.citations = citations.clone();
+            } else {
+                metadata = Some(MessageMetadata {
+                    citations: citations.clone(),
+                    token_usage: None,
+                });
+            }
+        }
 
         let should_attach_token_usage = self.last_token_usage.total_tokens > 0;
         if should_attach_token_usage {
@@ -5938,7 +6067,7 @@ fi\n\
                 }
             } else {
                 metadata = Some(MessageMetadata {
-                    citations: Vec::new(),
+                    citations,
                     token_usage: Some(self.last_token_usage.clone()),
                 });
             }
@@ -5959,6 +6088,57 @@ fi\n\
         )
     }
 
+    fn strip_hidden_assistant_markup(
+        &self,
+        text: &str,
+    ) -> (String, Vec<String>, Option<String>) {
+        let plan_mode = self.collaboration_mode == code_core::protocol::CollaborationModeKind::Plan;
+        let (without_citations, citations) = stream_parser::strip_citations(text);
+        if !plan_mode {
+            return (without_citations, citations, None);
+        }
+
+        let plan_text = stream_parser::extract_proposed_plan_text(&without_citations)
+            .filter(|plan| !plan.trim().is_empty());
+        let cleaned = stream_parser::strip_proposed_plan_blocks(&without_citations);
+        (cleaned, citations, plan_text)
+    }
+
+    fn maybe_insert_proposed_plan(
+        &mut self,
+        plan_markdown: Option<String>,
+        after_key: OrderKey,
+    ) {
+        let Some(plan_markdown) = plan_markdown else {
+            return;
+        };
+        if plan_markdown.trim().is_empty() {
+            return;
+        }
+
+        let already_present = self.history_cells.iter().rev().take(8).any(|cell| {
+            cell.as_any()
+                .downcast_ref::<history_cell::ProposedPlanCell>()
+                .is_some_and(|existing| existing.markdown().trim() == plan_markdown.trim())
+        });
+        if already_present {
+            return;
+        }
+
+        let mut state = code_core::history::ProposedPlanState {
+            id: HistoryId::ZERO,
+            markdown: plan_markdown,
+            created_at: std::time::SystemTime::now(),
+        };
+        let plan_id = self
+            .history_state
+            .push(code_core::history::HistoryRecord::ProposedPlan(state.clone()));
+        state.id = plan_id;
+        let cell = history_cell::ProposedPlanCell::from_state(state, &self.config);
+        let key = Self::order_key_successor(after_key);
+        self.history_insert_existing_record(Box::new(cell), key, "proposed-plan", plan_id);
+    }
+
     /// Replace the in-progress streaming assistant cell with a final markdown cell that
     /// stores raw markdown for future re-rendering.
     pub(crate) fn insert_final_answer_with_id(
@@ -5974,10 +6154,19 @@ fi\n\
             lines.len()
         );
         tracing::info!("[order] final Answer id={:?}", id);
-        let final_source = source.clone();
+        let raw_source = source;
+        let (final_source, citations, proposed_plan) =
+            self.strip_hidden_assistant_markup(&raw_source);
+        let mut citations = citations;
+        let mut proposed_plan = proposed_plan;
+        let (pending_citations, pending_plan) = self.take_answer_stream_markup(id.as_deref());
+        Self::merge_citations_dedup_case_sensitive(&mut citations, pending_citations);
+        if proposed_plan.is_none() {
+            proposed_plan = pending_plan;
+        }
 
         if self.auto_state.pending_stop_message.is_some() {
-            match serde_json::from_str::<code_auto_drive_diagnostics::CompletionCheck>(&final_source)
+            match serde_json::from_str::<code_auto_drive_diagnostics::CompletionCheck>(&raw_source)
             {
                 Ok(check) => {
                     if check.complete {
@@ -6049,7 +6238,10 @@ fi\n\
                 }
             }
         }
-            if self.is_review_flow_active() {
+
+        self.last_assistant_message = Some(final_source.clone());
+
+        if self.is_review_flow_active() {
             if let Some(ref want) = id {
                 if !self
                     .stream_state
@@ -6060,7 +6252,6 @@ fi\n\
                         "InsertFinalAnswer(review): dropping duplicate final for id={}",
                         want
                     );
-                    self.last_assistant_message = Some(final_source.clone());
                     self.maybe_hide_spinner();
                     return;
                 }
@@ -6080,8 +6271,11 @@ fi\n\
             }) {
                 self.history_remove_at(idx);
             }
-            self.last_assistant_message = Some(final_source.clone());
-            let mut state = self.finalize_answer_stream_state(id.as_deref(), &final_source);
+            let mut state = self.finalize_answer_stream_state(
+                id.as_deref(),
+                &final_source,
+                std::mem::take(&mut citations),
+            );
             self.apply_mid_turn_flag(id.as_deref(), &mut state);
             let history_id = state.id;
             let mut key = match id.as_deref() {
@@ -6113,54 +6307,9 @@ fi\n\
             self.last_answer_history_id_in_turn = Some(history_id);
             // Advance Auto Drive after the assistant message has been finalized.
             self.auto_on_assistant_final();
+            self.maybe_insert_proposed_plan(proposed_plan.take(), key);
             self.maybe_hide_spinner();
             return;
-        }
-        // Debug: list last few history cell kinds so we can see what's present
-        let tail_kinds: String = self
-            .history_cells
-            .iter()
-            .rev()
-            .take(5)
-            .map(|c| {
-                if c.as_any()
-                    .downcast_ref::<history_cell::StreamingContentCell>()
-                    .is_some()
-                {
-                    "Streaming".to_string()
-                } else if c
-                    .as_any()
-                    .downcast_ref::<history_cell::AssistantMarkdownCell>()
-                    .is_some()
-                {
-                    "AssistantFinal".to_string()
-                } else if c
-                    .as_any()
-                    .downcast_ref::<history_cell::CollapsibleReasoningCell>()
-                    .is_some()
-                {
-                    "Reasoning".to_string()
-                } else {
-                    format!("{:?}", c.kind())
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-        tracing::debug!("history.tail kinds(last5) = [{}]", tail_kinds);
-
-        // When we have an id but could not find a streaming cell by id, dump ids
-        if id.is_some() {
-            let ids: Vec<String> = self
-                .history_cells
-                .iter()
-                .enumerate()
-                .filter_map(|(i, c)| {
-                    c.as_any()
-                        .downcast_ref::<history_cell::StreamingContentCell>()
-                        .and_then(|sc| sc.id.as_ref().map(|s| format!("{i}:{s}")))
-                })
-                .collect();
-            tracing::debug!("history.streaming ids={}", ids.join(" | "));
         }
         // If we already finalized this id in the current turn with identical content,
         // drop this event to avoid duplicates (belt-and-suspenders against upstream repeats).
@@ -6180,31 +6329,20 @@ fi\n\
                         .downcast_ref::<history_cell::AssistantMarkdownCell>()
                     {
                         let prev = Self::normalize_text(amc.markdown());
-                        let newn = Self::normalize_text(&source);
+                        let newn = Self::normalize_text(&final_source);
                         if prev == newn {
                             tracing::debug!(
                                 "InsertFinalAnswer: dropping duplicate final for id={}",
                                 want
                             );
+                            if let Some(after_key) = self.cell_order_seq.get(existing_idx).copied()
+                            {
+                                self.maybe_insert_proposed_plan(proposed_plan.take(), after_key);
+                            }
                             self.maybe_hide_spinner();
                             return;
                         }
                     }
-        // Ensure a hidden 'codex' header is present
-        let has_header = lines
-            .first()
-            .map(|l| {
-                l.spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<String>()
-                    .trim()
-                    .eq_ignore_ascii_case("codex")
-            })
-            .unwrap_or(false);
-        if !has_header {
-            // No need to mutate `lines` further since we rebuild from `source` below.
-        }
 
         // Replace the matching StreamingContentCell if one exists for this id; else fallback to most recent.
         // NOTE (dup‑guard): This relies on `StreamingContentCell::as_any()` returning `self`.
@@ -6230,7 +6368,16 @@ fi\n\
                 "final-answer: replacing StreamingContentCell at idx={} by id match",
                 idx
             );
-            let mut state = self.finalize_answer_stream_state(id.as_deref(), &final_source);
+            let after_key = self
+                .cell_order_seq
+                .get(idx)
+                .copied()
+                .unwrap_or_else(|| self.next_internal_key());
+            let mut state = self.finalize_answer_stream_state(
+                id.as_deref(),
+                &final_source,
+                std::mem::take(&mut citations),
+            );
             self.apply_mid_turn_flag(id.as_deref(), &mut state);
             let history_id = state.id;
             let cell = history_cell::AssistantMarkdownCell::from_state(state, &self.config);
@@ -6245,6 +6392,7 @@ fi\n\
             self.last_answer_history_id_in_turn = Some(history_id);
             // Final cell committed via replacement; now advance Auto Drive.
             self.auto_on_assistant_final();
+            self.maybe_insert_proposed_plan(proposed_plan.take(), after_key);
             self.maybe_hide_spinner();
             return;
         }
@@ -6267,8 +6415,13 @@ fi\n\
                     "final-answer: replacing existing AssistantMarkdownCell at idx={} by id match",
                     idx
                 );
+                let after_key = self
+                    .cell_order_seq
+                    .get(idx)
+                    .copied()
+                    .unwrap_or_else(|| self.next_internal_key());
                 let mut state =
-                    self.finalize_answer_stream_state(id.as_deref(), &final_source);
+                    self.finalize_answer_stream_state(id.as_deref(), &final_source, std::mem::take(&mut citations));
                 self.apply_mid_turn_flag(id.as_deref(), &mut state);
                 let history_id = state.id;
                 let cell = history_cell::AssistantMarkdownCell::from_state(state, &self.config);
@@ -6281,6 +6434,7 @@ fi\n\
                 self.last_answer_history_id_in_turn = Some(history_id);
                 // Final cell replaced in-place; advance Auto Drive now.
                 self.auto_on_assistant_final();
+                self.maybe_insert_proposed_plan(proposed_plan.take(), after_key);
                 self.maybe_hide_spinner();
                 return;
             }
@@ -6302,7 +6456,7 @@ fi\n\
                 .downcast_ref::<history_cell::AssistantMarkdownCell>()
                 .map(|amc| {
                     let prev = Self::normalize_text(amc.markdown());
-                    let newn = Self::normalize_text(&source);
+                    let newn = Self::normalize_text(&final_source);
                     let identical = prev == newn;
                     if identical || prev.is_empty() {
                         return identical;
@@ -6317,8 +6471,13 @@ fi\n\
                 tracing::debug!(
                     "final-answer: replacing tail AssistantMarkdownCell via heuristic identical/expansion"
                 );
+                let after_key = self
+                    .cell_order_seq
+                    .get(idx)
+                    .copied()
+                    .unwrap_or_else(|| self.next_internal_key());
                 let mut state =
-                    self.finalize_answer_stream_state(id.as_deref(), &final_source);
+                    self.finalize_answer_stream_state(id.as_deref(), &final_source, std::mem::take(&mut citations));
                 self.apply_mid_turn_flag(id.as_deref(), &mut state);
                 let history_id = state.id;
                 let cell = history_cell::AssistantMarkdownCell::from_state(state, &self.config);
@@ -6328,6 +6487,7 @@ fi\n\
                 self.last_answer_history_id_in_turn = Some(history_id);
                 // Final assistant content revised; advance Auto Drive now.
                 self.auto_on_assistant_final();
+                self.maybe_insert_proposed_plan(proposed_plan.take(), after_key);
                 self.maybe_hide_spinner();
                 return;
             }
@@ -6369,7 +6529,8 @@ fi\n\
             id,
             Self::debug_fmt_order_key(key)
         );
-        let mut state = self.finalize_answer_stream_state(id.as_deref(), &final_source);
+        let mut state =
+            self.finalize_answer_stream_state(id.as_deref(), &final_source, std::mem::take(&mut citations));
         self.apply_mid_turn_flag(id.as_deref(), &mut state);
         let history_id = state.id;
         let cell = history_cell::AssistantMarkdownCell::from_state(state, &self.config);
@@ -6389,6 +6550,7 @@ fi\n\
         // Ordered insert completed; advance Auto Drive now that the assistant
         // message is present in history.
         self.auto_on_assistant_final();
+        self.maybe_insert_proposed_plan(proposed_plan.take(), key);
         self.maybe_hide_spinner();
     }
 

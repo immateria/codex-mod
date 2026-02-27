@@ -157,21 +157,21 @@ impl NetworkApprovalService {
         // approval responses by the effective approval id (approval_id or call_id fallback).
         let approval_id = format!("{}-network-{}", attempt.call_id, Uuid::new_v4());
         let receiver = session
-            .request_command_approval(
-                attempt.turn_id.clone(),
-                attempt.call_id.clone(),
-                Some(approval_id),
-                attempt.command.clone(),
-                attempt.cwd.clone(),
-                Some(format!(
+            .request_command_approval(crate::codex::CommandApprovalRequest {
+                sub_id: attempt.turn_id.clone(),
+                call_id: attempt.call_id.clone(),
+                approval_id: Some(approval_id),
+                command: attempt.command.clone(),
+                cwd: attempt.cwd.clone(),
+                reason: Some(format!(
                     "Network access to \"{host_display}\" is blocked by policy."
                 )),
-                Some(NetworkApprovalContext {
+                network_approval_context: Some(NetworkApprovalContext {
                     host: host_display,
                     protocol,
                 }),
-                None,
-            )
+                additional_permissions: None,
+            })
             .await;
         let decision = receiver.await.unwrap_or(ReviewDecision::Denied);
 

@@ -2441,6 +2441,9 @@ impl ChatWidget<'_> {
             HistoryRecord::AssistantMessage(state) => Some(Box::new(
                 history_cell::AssistantMarkdownCell::from_state(state.clone(), &self.config),
             )),
+            HistoryRecord::ProposedPlan(state) => Some(Box::new(
+                history_cell::ProposedPlanCell::from_state(state.clone(), &self.config),
+            )),
             HistoryRecord::Diff(state) => {
                 Some(Box::new(history_cell::DiffCell::from_record(state.clone())))
             }

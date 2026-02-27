@@ -19,6 +19,7 @@ mod loading;
 mod patch;
 mod plain;
 mod plan_update;
+mod proposed_plan;
 mod rate_limits;
 mod reasoning;
 mod registry;
@@ -132,6 +133,7 @@ pub(crate) use plain::{
 #[allow(unused_imports)]
 pub(crate) use plain::new_text_line;
 pub(crate) use plan_update::{new_plan_update, PlanUpdateCell};
+pub(crate) use proposed_plan::ProposedPlanCell;
 pub(crate) use rate_limits::RateLimitsCell;
 pub(crate) use reasoning::CollapsibleReasoningCell;
 #[cfg(feature = "test-helpers")]

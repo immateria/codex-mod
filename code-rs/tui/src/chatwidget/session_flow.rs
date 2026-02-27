@@ -80,6 +80,7 @@ impl ChatWidget<'_> {
             active_exec_cell: None,
             history_cells,
             config: config.clone(),
+            turn_sleep_inhibitor: SleepInhibitor::new(config.prevent_idle_sleep),
             mcp_tool_catalog_by_id: HashMap::new(),
             mcp_tools_by_server: HashMap::new(),
             mcp_disabled_tools_by_server: HashMap::new(),
@@ -201,6 +202,7 @@ impl ChatWidget<'_> {
                 closed_reasoning_ids: HashSet::new(),
                 seq_answer_final: None,
                 drop_streaming: false,
+                answer_markup: HashMap::new(),
             },
             interrupts: interrupts::InterruptManager::new(),
             interrupt_flush_scheduled: false,
@@ -421,6 +423,7 @@ impl ChatWidget<'_> {
             active_exec_cell: None,
             history_cells,
             config: config.clone(),
+            turn_sleep_inhibitor: SleepInhibitor::new(config.prevent_idle_sleep),
             mcp_tool_catalog_by_id: HashMap::new(),
             mcp_tools_by_server: HashMap::new(),
             mcp_disabled_tools_by_server: HashMap::new(),
@@ -556,6 +559,7 @@ impl ChatWidget<'_> {
                 closed_reasoning_ids: HashSet::new(),
                 seq_answer_final: None,
                 drop_streaming: false,
+                answer_markup: HashMap::new(),
             },
             interrupts: interrupts::InterruptManager::new(),
             interrupt_flush_scheduled: false,
@@ -727,6 +731,7 @@ impl ChatWidget<'_> {
         use AutoDriveRole::{Assistant, User};
         match kind {
             HistoryCellType::User => Some(Assistant),
+            HistoryCellType::ProposedPlan => None,
             HistoryCellType::Assistant
             | HistoryCellType::Reasoning
             | HistoryCellType::Error

@@ -99,6 +99,7 @@ mod truncation;
 
 pub use session::ApprovedCommandPattern;
 pub(crate) use session::McpAccessState;
+pub(crate) use session::CommandApprovalRequest;
 pub(crate) use session::{Session, ToolCallCtx, WaitInterruptReason};
 use self::compact::{build_compacted_history, collect_compaction_snippets};
 use self::compact_remote::run_inline_remote_auto_compact_task;

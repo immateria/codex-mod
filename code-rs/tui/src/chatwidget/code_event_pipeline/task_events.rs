@@ -49,12 +49,14 @@ impl ChatWidget<'_> {
         // New turn: clear closed id guards.
         self.stream_state.closed_answer_ids.clear();
         self.stream_state.closed_reasoning_ids.clear();
+        self.clear_answer_stream_markup_tracking();
         self.ended_call_ids.clear();
         self.bottom_pane.clear_ctrl_c_quit_hint();
         // Accept streaming again for this turn.
         self.stream_state.drop_streaming = false;
         // Mark this task id as active and ensure the status stays visible.
         self.active_task_ids.insert(id.clone());
+        self.turn_sleep_inhibitor.set_turn_running(true);
         // Reset per-turn UI indicators; ordering is now global-only.
         self.reasoning_index.clear();
         self.bottom_pane.set_task_running(true);
@@ -94,6 +96,9 @@ impl ChatWidget<'_> {
         }
         // Remove this id from the active set (it may be a sub-agent).
         self.active_task_ids.remove(&id);
+        if self.active_task_ids.is_empty() {
+            self.turn_sleep_inhibitor.set_turn_running(false);
+        }
         if !finalizing_streams
             && self.active_task_ids.is_empty()
             && let Some(last_id) = self.last_seen_answer_stream_id_in_turn.clone()

@@ -540,6 +540,8 @@ async fn create_exec_command_session(
     let mut child = pair.slave.spawn_command(command_builder)?;
     // Obtain a killer that can signal the process independently of `.wait()`.
     let killer = child.clone_killer();
+    #[cfg(unix)]
+    let process_group_id = child.process_id();
 
     // Channel to forward write requests to the PTY writer.
     let (writer_tx, mut writer_rx) = mpsc::channel::<Vec<u8>>(128);
@@ -610,6 +612,8 @@ async fn create_exec_command_session(
     // Create and store the session with channels.
     let parts = ExecCommandSessionParts {
         killer,
+        #[cfg(unix)]
+        process_group_id,
         reader_handle,
         writer_handle,
         wait_handle,

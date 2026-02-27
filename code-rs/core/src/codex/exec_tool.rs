@@ -1354,16 +1354,16 @@ pub(crate) async fn handle_container_exec_with_params(
         }
         SafetyCheck::AskUser => {
             let rx_approve = sess
-                .request_command_approval(
-                    sub_id.clone(),
-                    call_id.clone(),
-                    None,
-                    params.command.clone(),
-                    params.cwd.clone(),
-                    params.justification.clone(),
-                    None,
-                    None,
-                )
+                .request_command_approval(super::session::CommandApprovalRequest {
+                    sub_id: sub_id.clone(),
+                    call_id: call_id.clone(),
+                    approval_id: None,
+                    command: params.command.clone(),
+                    cwd: params.cwd.clone(),
+                    reason: params.justification.clone(),
+                    network_approval_context: None,
+                    additional_permissions: None,
+                })
                 .await;
 
             let decision = rx_approve.await.unwrap_or_default();

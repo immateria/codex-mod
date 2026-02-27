@@ -222,6 +222,14 @@ pub(crate) struct StreamState {
     pub(crate) closed_reasoning_ids: HashSet<StreamId>,
     pub(crate) seq_answer_final: Option<u64>,
     pub(crate) drop_streaming: bool,
+    pub(crate) answer_markup: HashMap<String, AnswerMarkupState>,
+}
+
+#[derive(Default)]
+pub(crate) struct AnswerMarkupState {
+    pub(crate) parser: code_utils_stream_parser::AssistantTextStreamParser,
+    pub(crate) citations: Vec<String>,
+    pub(crate) plan_markdown: String,
 }
 
 #[derive(Default)]

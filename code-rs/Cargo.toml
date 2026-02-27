@@ -42,6 +42,8 @@ members = [
     "utils/json-to-toml",
     "utils/readiness",
     "utils/rustls-provider",
+    "utils/sleep-inhibitor",
+    "utils/stream-parser",
 ]
 resolver = "2"
 
@@ -96,6 +98,8 @@ code-utils-json-to-toml = { path = "utils/json-to-toml" }
 code-utils-readiness = { path = "utils/readiness" }
 code-auto-drive-core = { path = "code-auto-drive-core" }
 code-utils-rustls-provider = { path = "utils/rustls-provider", package = "codex-utils-rustls-provider" }
+code-utils-sleep-inhibitor = { path = "utils/sleep-inhibitor", package = "codex-utils-sleep-inhibitor" }
+code-utils-stream-parser = { path = "utils/stream-parser", package = "codex-utils-stream-parser" }
 code-network-proxy = { path = "network-proxy", package = "codex-network-proxy" }
 mcp-types = { path = "mcp-types", package = "code-mcp-types" }
 upstream-mcp-types = { git = "https://github.com/openai/codex.git", package = "mcp-types", rev = "6c384eb9c610f9a83037d9cad120fb792e782c7c" }

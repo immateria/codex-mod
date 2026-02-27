@@ -20,6 +20,7 @@ pub enum HistoryRecord {
     MergedExec(MergedExecRecord),
     AssistantStream(AssistantStreamState),
     AssistantMessage(AssistantMessageState),
+    ProposedPlan(ProposedPlanState),
     Diff(DiffRecord),
     Image(ImageRecord),
     Explore(ExploreRecord),
@@ -107,6 +108,7 @@ pub enum HistoryDomainRecord {
     MergedExec(MergedExecRecord),
     AssistantStream(AssistantStreamState),
     AssistantMessage(AssistantMessageState),
+    ProposedPlan(ProposedPlanState),
     Patch(PatchRecord),
     Image(ImageRecord),
     Diff(DiffRecord),
@@ -130,6 +132,7 @@ impl From<HistoryRecord> for HistoryDomainRecord {
             HistoryRecord::MergedExec(state) => HistoryDomainRecord::MergedExec(state),
             HistoryRecord::AssistantStream(state) => HistoryDomainRecord::AssistantStream(state),
             HistoryRecord::AssistantMessage(state) => HistoryDomainRecord::AssistantMessage(state),
+            HistoryRecord::ProposedPlan(state) => HistoryDomainRecord::ProposedPlan(state),
             HistoryRecord::Diff(state) => HistoryDomainRecord::Diff(state),
             HistoryRecord::Image(state) => HistoryDomainRecord::Image(state),
             HistoryRecord::Explore(state) => HistoryDomainRecord::Explore(state),
@@ -217,6 +220,12 @@ impl From<AssistantStreamState> for HistoryDomainRecord {
 impl From<AssistantMessageState> for HistoryDomainRecord {
     fn from(state: AssistantMessageState) -> Self {
         HistoryDomainRecord::AssistantMessage(state)
+    }
+}
+
+impl From<ProposedPlanState> for HistoryDomainRecord {
+    fn from(state: ProposedPlanState) -> Self {
+        HistoryDomainRecord::ProposedPlan(state)
     }
 }
 
@@ -314,6 +323,10 @@ impl HistoryDomainRecord {
             HistoryDomainRecord::AssistantMessage(mut state) => {
                 state.id = HistoryId::ZERO;
                 HistoryRecord::AssistantMessage(state)
+            }
+            HistoryDomainRecord::ProposedPlan(mut state) => {
+                state.id = HistoryId::ZERO;
+                HistoryRecord::ProposedPlan(state)
             }
             HistoryDomainRecord::Patch(mut state) => {
                 state.id = HistoryId::ZERO;
@@ -847,6 +860,13 @@ pub struct AssistantMessageState {
     /// to suppress gutter/bold styling.
     #[serde(default)]
     pub mid_turn: bool,
+    pub created_at: SystemTime,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProposedPlanState {
+    pub id: HistoryId,
+    pub markdown: String,
     pub created_at: SystemTime,
 }
 
@@ -2276,6 +2296,10 @@ impl WithId for HistoryRecord {
                 state.id = id;
                 HistoryRecord::AssistantMessage(state)
             }
+            HistoryRecord::ProposedPlan(mut state) => {
+                state.id = id;
+                HistoryRecord::ProposedPlan(state)
+            }
             HistoryRecord::Diff(mut state) => {
                 state.id = id;
                 HistoryRecord::Diff(state)
@@ -2327,6 +2351,7 @@ impl HistoryRecord {
             HistoryRecord::MergedExec(state) => state.id,
             HistoryRecord::AssistantStream(state) => state.id,
             HistoryRecord::AssistantMessage(state) => state.id,
+            HistoryRecord::ProposedPlan(state) => state.id,
             HistoryRecord::Diff(state) => state.id,
             HistoryRecord::Image(state) => state.id,
             HistoryRecord::Explore(state) => state.id,
@@ -2396,6 +2421,7 @@ mod tests {
             HistoryRecord::MergedExec(state) => state.id = HistoryId::ZERO,
             HistoryRecord::AssistantStream(state) => state.id = HistoryId::ZERO,
             HistoryRecord::AssistantMessage(state) => state.id = HistoryId::ZERO,
+            HistoryRecord::ProposedPlan(state) => state.id = HistoryId::ZERO,
             HistoryRecord::Diff(state) => state.id = HistoryId::ZERO,
             HistoryRecord::Image(state) => state.id = HistoryId::ZERO,
             HistoryRecord::Explore(state) => state.id = HistoryId::ZERO,

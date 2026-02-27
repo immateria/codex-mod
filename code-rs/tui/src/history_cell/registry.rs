@@ -14,6 +14,7 @@ use super::loading::LoadingCell;
 use super::patch::PatchSummaryCell;
 use super::plan_update::PlanUpdateCell;
 use super::plain::PlainHistoryCell;
+use super::proposed_plan::ProposedPlanCell;
 use super::rate_limits::RateLimitsCell;
 use super::reasoning::CollapsibleReasoningCell;
 use super::stream::StreamingContentCell;
@@ -45,6 +46,9 @@ pub(crate) fn cell_from_record(record: &HistoryRecord, cfg: &Config) -> Box<dyn 
         }
         HistoryRecord::AssistantMessage(state) => {
             Box::new(AssistantMarkdownCell::from_state(state.clone(), cfg))
+        }
+        HistoryRecord::ProposedPlan(state) => {
+            Box::new(ProposedPlanCell::from_state(state.clone(), cfg))
         }
         HistoryRecord::Diff(state) => Box::new(DiffCell::from_record(state.clone())),
         HistoryRecord::Image(state) => Box::new(ImageOutputCell::from_record(state.clone())),
@@ -127,6 +131,12 @@ pub(crate) fn record_from_cell(cell: &dyn HistoryCell) -> Option<HistoryRecord> 
         .downcast_ref::<AssistantMarkdownCell>()
     {
         return Some(HistoryRecord::AssistantMessage(assistant.state().clone()));
+    }
+    if let Some(plan) = cell
+        .as_any()
+        .downcast_ref::<ProposedPlanCell>()
+    {
+        return Some(HistoryRecord::ProposedPlan(plan.state().clone()));
     }
     if let Some(diff) = cell.as_any().downcast_ref::<DiffCell>() {
         return Some(HistoryRecord::Diff(diff.record().clone()));

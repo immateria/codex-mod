@@ -652,6 +652,33 @@ This fork's `code-rs/core/src/tools/` intentionally stayed lighter-weight:
   - per-handler "mutating vs parallel-safe" metadata (instead of hardcoded name lists)
   - central tool-call begin/end emission helpers to avoid copy/paste
 
+## Other Upstream Additions Worth Tracking
+
+These are upstream `codex-rs` modules/crates that Every Code has not historically
+ported into `code-rs`, but are worth considering. This list is intentionally
+high-level; add detail only when we decide to port an item.
+
+- `codex-rs/utils/stream-parser`:
+  dependency-free incremental parser for stripping `<oai-mem-citation>` tags and
+  extracting `<proposed_plan>` blocks across stream chunk boundaries.
+- `codex-rs/utils/sleep-inhibitor`:
+  cross-platform "keep awake while a turn is running" helper (IOKit /
+  systemd-inhibit / PowerSetRequest).
+- `codex-rs/core/src/state/*` + `codex-rs/core/src/memories/*`:
+  persistent state DB + memory/citation plumbing (bigger architectural lift; must
+  integrate with fork-only multi-account + style routing).
+- `codex-rs/core/src/shell-escalation/*`:
+  execution escalation UX/semantics (must not conflict with fork-only shell
+  selection + command-safety routing).
+- `codex-rs/core/src/tools/network_approval.rs` + `codex-rs/network-proxy/*`:
+  upstream-managed proxy UX + approvals (this fork is already building a managed
+  proxy; upstream pieces may still be useful reference for enforcement/UX).
+- `codex-rs/tui/*` proposed plan streaming + "implement plan" prompt:
+  plan-mode UX that relies on parsing `<proposed_plan>` segments during streaming.
+- `codex-rs/tui/*` realtime/voice:
+  opt-in audio + realtime conversation surfaces (large and currently low-leverage
+  for this fork).
+
 ## MCP Resource Tools (Ported)
 
 Upstream exposes MCP resource discovery + reading as tools:

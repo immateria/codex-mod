@@ -6,7 +6,9 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
+use code_common::summarize_sandbox_policy;
 use code_core::config::{NetworkModeToml, NetworkProxySettingsToml};
+use code_core::protocol::SandboxPolicy;
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -61,6 +63,7 @@ enum RowKind {
 
 pub(crate) struct NetworkSettingsView {
     settings: NetworkProxySettingsToml,
+    sandbox_policy: SandboxPolicy,
     app_event_tx: AppEventSender,
     ticket: BackgroundOrderTicket,
     is_complete: bool,
@@ -75,6 +78,7 @@ impl NetworkSettingsView {
 
     pub fn new(
         settings: Option<NetworkProxySettingsToml>,
+        sandbox_policy: SandboxPolicy,
         app_event_tx: AppEventSender,
         ticket: BackgroundOrderTicket,
     ) -> Self {
@@ -82,6 +86,7 @@ impl NetworkSettingsView {
         state.selected_idx = Some(0);
         Self {
             settings: settings.unwrap_or_default(),
+            sandbox_policy,
             app_event_tx,
             ticket,
             is_complete: false,
@@ -140,7 +145,8 @@ impl NetworkSettingsView {
             let mode = Self::mode_label(self.settings.mode);
             format!(": mediated (managed proxy) · mode {mode}")
         } else {
-            ": direct (sandbox policy decides)".to_string()
+            let sandbox = Self::sandbox_policy_compact(&self.sandbox_policy);
+            format!(": direct (sandbox policy decides) · sbx {sandbox}")
         };
 
         let enforcement = if !enabled {
@@ -180,6 +186,16 @@ impl NetworkSettingsView {
             )),
             Line::from(""),
         ]
+    }
+
+    fn sandbox_policy_compact(policy: &SandboxPolicy) -> String {
+        let summary = summarize_sandbox_policy(policy);
+        let base = summary.split_whitespace().next().unwrap_or("unknown");
+        if summary.contains("(network access enabled)") {
+            format!("{base} +net")
+        } else {
+            base.to_string()
+        }
     }
 
     fn visible_budget(&self, total: usize) -> usize {

@@ -114,12 +114,13 @@ impl ChatWidget<'_> {
             }
         };
         self.seed_stream_order_key(StreamKind::Answer, &id, ok);
+        let visible = self.parse_answer_stream_chunk(&id, &delta);
         // Stream answer delta through StreamController.
         streaming::delta_text(
             self,
             StreamKind::Answer,
             id.clone(),
-            delta,
+            visible,
             order.and_then(|o| o.sequence_number),
         );
         self.ensure_spinner_for_activity("assistant-delta");

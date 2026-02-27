@@ -711,6 +711,7 @@ pub(crate) struct ChatWidget<'a> {
     context_last_sequence: Option<u64>,
     context_browser_sequence: Option<u64>,
     config: Config,
+    turn_sleep_inhibitor: SleepInhibitor,
     mcp_tool_catalog_by_id: HashMap<String, mcp_types::Tool>,
     mcp_tools_by_server: HashMap<String, Vec<String>>,
     mcp_disabled_tools_by_server: HashMap<String, Vec<String>>,
