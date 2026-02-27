@@ -50,7 +50,6 @@ use code_protocol::protocol::TurnAbortReason;
 use code_protocol::protocol::TurnAbortedEvent;
 use futures::prelude::*;
 use code_protocol::mcp::CallToolResult;
-use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::oneshot;
 use tokio::task::AbortHandle;
