@@ -1,5 +1,6 @@
 use crate::codex::Session;
 use crate::codex::ToolCallCtx;
+use crate::openai_tools::OpenAiTool;
 use crate::tools::router::ToolDispatchMeta;
 use crate::tools::router::ToolRouter;
 use crate::turn_diff_tracker::TurnDiffTracker;
@@ -7,6 +8,7 @@ use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use serde_json::json;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -131,6 +133,7 @@ struct Kernel {
     stdin: Arc<Mutex<ChildStdin>>,
     pending_execs: Arc<Mutex<HashMap<String, oneshot::Sender<ExecResultMessage>>>>,
     tool_requests: Arc<Mutex<mpsc::UnboundedReceiver<ToolRequest>>>,
+    active_exec_id: Arc<Mutex<Option<String>>>,
     stdout_task: tokio::task::JoinHandle<()>,
     stderr_task: tokio::task::JoinHandle<()>,
 }
@@ -198,7 +201,7 @@ impl JsReplManager {
 
         let (tx, rx) = oneshot::channel();
 
-        let (stdin, pending, tool_rx) = {
+        let (stdin, pending, tool_rx, active_exec_id) = {
             let mut guard = self.kernel.lock().await;
             if guard.is_none() {
                 *guard = Some(
@@ -220,10 +223,20 @@ impl JsReplManager {
                 Arc::clone(&kernel.stdin),
                 Arc::clone(&kernel.pending_execs),
                 Arc::clone(&kernel.tool_requests),
+                Arc::clone(&kernel.active_exec_id),
             )
         };
 
         pending.lock().await.insert(id.clone(), tx);
+
+        // Snapshot freeform tool names for this session so codex.tool can infer the correct payload.
+        let freeform_tool_names = freeform_tool_name_snapshot(sess);
+
+        // Mark this exec as active so background tool requests can be rejected once the run completes.
+        {
+            let mut active = active_exec_id.lock().await;
+            *active = Some(id.clone());
+        }
 
         let message = json!({
             "type": "exec",
@@ -233,6 +246,10 @@ impl JsReplManager {
 
         if let Err(err) = send_json_line(&stdin, &message).await {
             pending.lock().await.remove(&id);
+            {
+                let mut active = active_exec_id.lock().await;
+                *active = None;
+            }
             let _ = self.reset().await;
             return Err(JsExecError {
                 output: String::new(),
@@ -249,6 +266,10 @@ impl JsReplManager {
             tokio::select! {
                 _ = &mut timeout_sleep => {
                     pending.lock().await.remove(&id);
+                    {
+                        let mut active = active_exec_id.lock().await;
+                        *active = None;
+                    }
                     let _ = self.reset().await;
                     return Err(JsExecError {
                         output: String::new(),
@@ -258,19 +279,27 @@ impl JsReplManager {
                 tool_req = tool_rx.recv() => {
                     let Some(tool_req) = tool_req else {
                         pending.lock().await.remove(&id);
+                        {
+                            let mut active = active_exec_id.lock().await;
+                            *active = None;
+                        }
                         let _ = self.reset().await;
                         return Err(JsExecError {
                             output: String::new(),
                             error: "js_repl kernel terminated while waiting for tool requests".to_string(),
                         });
                     };
-                    self.handle_tool_request(sess, turn_diff_tracker, parent_ctx, attempt_req, &stdin, &tool_req)
+                    self.handle_tool_request(sess, turn_diff_tracker, parent_ctx, attempt_req, &freeform_tool_names, &stdin, &tool_req)
                         .await;
                 }
                 msg = &mut rx => {
                     match msg {
                         Ok(msg) => break msg,
                         Err(_) => {
+                            {
+                                let mut active = active_exec_id.lock().await;
+                                *active = None;
+                            }
                             let _ = self.reset().await;
                             return Err(JsExecError {
                                 output: String::new(),
@@ -281,6 +310,11 @@ impl JsReplManager {
                 }
             }
         };
+
+        {
+            let mut active = active_exec_id.lock().await;
+            *active = None;
+        }
 
         if result.ok {
             Ok(JsExecResult {
@@ -366,12 +400,14 @@ impl JsReplManager {
 
         let (tool_tx, tool_rx) = mpsc::unbounded_channel::<ToolRequest>();
         let tool_requests = Arc::new(Mutex::new(tool_rx));
+        let active_exec_id = Arc::new(Mutex::new(None::<String>));
 
         let stdout_task = tokio::spawn(kernel_stdout_loop(
             stdout,
             Arc::clone(&pending_execs),
             Arc::clone(&stdin),
             tool_tx,
+            Arc::clone(&active_exec_id),
         ));
         let stderr_task = tokio::spawn(kernel_stderr_loop(stderr));
 
@@ -380,6 +416,7 @@ impl JsReplManager {
             stdin,
             pending_execs,
             tool_requests,
+            active_exec_id,
             stdout_task,
             stderr_task,
         })
@@ -503,6 +540,7 @@ impl JsReplManager {
         turn_diff_tracker: &mut TurnDiffTracker,
         parent_ctx: &ToolCallCtx,
         attempt_req: u64,
+        freeform_tool_names: &HashSet<String>,
         stdin: &Arc<Mutex<ChildStdin>>,
         tool_req: &ToolRequest,
     ) {
@@ -537,31 +575,28 @@ impl JsReplManager {
             attempt_req,
         );
 
-        let item = match serde_json::from_str::<JsonValue>(&tool_req.arguments) {
-            Ok(JsonValue::Object(_)) => code_protocol::models::ResponseItem::FunctionCall {
-                id: None,
-                name: tool_req.tool_name.clone(),
-                arguments: tool_req.arguments.clone(),
-                call_id: tool_req.id.clone(),
-            },
-            Ok(_) => {
-                let response = json!({
-                    "type": "run_tool_result",
-                    "id": tool_req.id,
-                    "ok": false,
-                    "response": JsonValue::Null,
-                    "error": format!("codex.tool expects JSON object arguments; got {args}", args = tool_req.arguments),
-                });
-                let _ = send_json_line(stdin, &response).await;
-                return;
-            }
-            Err(_) => code_protocol::models::ResponseItem::CustomToolCall {
+        let tool_name_lower = tool_req.tool_name.to_ascii_lowercase();
+        let is_mcp_tool = sess
+            .mcp_connection_manager()
+            .parse_tool_name(tool_req.tool_name.as_str())
+            .is_some();
+        let is_freeform_tool = !is_mcp_tool && freeform_tool_names.contains(&tool_name_lower);
+
+        let item = if is_freeform_tool {
+            code_protocol::models::ResponseItem::CustomToolCall {
                 id: None,
                 status: None,
                 call_id: tool_req.id.clone(),
                 name: tool_req.tool_name.clone(),
                 input: tool_req.arguments.clone(),
-            },
+            }
+        } else {
+            code_protocol::models::ResponseItem::FunctionCall {
+                id: None,
+                name: tool_req.tool_name.clone(),
+                arguments: tool_req.arguments.clone(),
+                call_id: tool_req.id.clone(),
+            }
         };
 
         let output = ToolRouter::global()
@@ -569,56 +604,24 @@ impl JsReplManager {
             .await;
 
         let (ok, response, error) = match output {
-            Some(code_protocol::models::ResponseInputItem::FunctionCallOutput { output, .. }) => {
-                let ok = output.success.unwrap_or(false);
-                let text = output.body.to_text().unwrap_or_default();
-                if ok {
-                    (true, JsonValue::String(text), JsonValue::Null)
-                } else {
-                    (false, JsonValue::Null, JsonValue::String(text))
-                }
+            Some(output) => match serde_json::to_value(&output) {
+                Ok(value) => (true, value, JsonValue::Null),
+                Err(err) => (
+                    false,
+                    JsonValue::Null,
+                    JsonValue::String(format!("failed to serialize tool output: {err}")),
+                ),
+            },
+            None => {
+                let tool_name = tool_req.tool_name.as_str();
+                (
+                    false,
+                    JsonValue::Null,
+                    JsonValue::String(format!(
+                        "unknown tool or unsupported tool payload: `{tool_name}`"
+                    )),
+                )
             }
-            Some(code_protocol::models::ResponseInputItem::McpToolCallOutput { result, .. }) => {
-                match result {
-                    Ok(call_tool_result) => match serde_json::to_value(&call_tool_result) {
-                        Ok(value) => (true, value, JsonValue::Null),
-                        Err(err) => (
-                            false,
-                            JsonValue::Null,
-                            JsonValue::String(format!("failed to encode MCP tool result: {err}")),
-                        ),
-                    },
-                    Err(err) => (false, JsonValue::Null, JsonValue::String(err)),
-                }
-            }
-            Some(code_protocol::models::ResponseInputItem::CustomToolCallOutput { output, .. }) => {
-                // Freeform tools don't carry a success flag. Treat the output as a response.
-                (true, JsonValue::String(output), JsonValue::Null)
-            }
-            Some(code_protocol::models::ResponseInputItem::Message { content, .. }) => {
-                let mut text = String::new();
-                for item in content {
-                    match item {
-                        code_protocol::models::ContentItem::InputText { text: t }
-                        | code_protocol::models::ContentItem::OutputText { text: t } => {
-                            if !text.is_empty() {
-                                text.push('\n');
-                            }
-                            text.push_str(&t);
-                        }
-                        code_protocol::models::ContentItem::InputImage { .. } => {}
-                    }
-                }
-                (true, JsonValue::String(text), JsonValue::Null)
-            }
-            None => (
-                false,
-                JsonValue::Null,
-                JsonValue::String(format!(
-                    "unknown tool or unsupported tool payload: `{tool_name}`",
-                    tool_name = tool_req.tool_name
-                )),
-            ),
         };
 
         let response = json!({
@@ -655,6 +658,7 @@ async fn kernel_stdout_loop(
     pending_execs: Arc<Mutex<HashMap<String, oneshot::Sender<ExecResultMessage>>>>,
     stdin: Arc<Mutex<ChildStdin>>,
     tool_tx: mpsc::UnboundedSender<ToolRequest>,
+    active_exec_id: Arc<Mutex<Option<String>>>,
 ) {
     let mut reader = BufReader::new(stdout).lines();
     loop {
@@ -699,6 +703,26 @@ async fn kernel_stdout_loop(
                 let Some(id) = message.get("id").and_then(JsonValue::as_str) else {
                     continue;
                 };
+                let exec_id = message
+                    .get("exec_id")
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                let should_accept = {
+                    let active = active_exec_id.lock().await;
+                    active.as_deref() == Some(exec_id.as_str())
+                };
+                if !should_accept {
+                    let response = json!({
+                        "type": "run_tool_result",
+                        "id": id,
+                        "ok": false,
+                        "response": JsonValue::Null,
+                        "error": "js_repl exec context not found".to_string(),
+                    });
+                    let _ = send_json_line(&stdin, &response).await;
+                    continue;
+                }
                 let tool_name = message
                     .get("tool_name")
                     .and_then(JsonValue::as_str)
@@ -744,6 +768,22 @@ async fn kernel_stderr_loop(stderr: ChildStderr) {
     while let Ok(Some(line)) = reader.next_line().await {
         debug!("js_repl stderr: {line}");
     }
+}
+
+fn freeform_tool_name_snapshot(sess: &Session) -> HashSet<String> {
+    crate::openai_tools::get_openai_tools(
+        &sess.tools_config_snapshot(),
+        None,
+        true,
+        false,
+        &[],
+    )
+    .into_iter()
+    .filter_map(|tool| match tool {
+        OpenAiTool::Freeform(spec) => Some(spec.name.to_ascii_lowercase()),
+        _ => None,
+    })
+    .collect()
 }
 
 async fn resolve_runtime(cfg: JsReplRuntimeConfig) -> Result<ResolvedRuntime, String> {
@@ -861,4 +901,28 @@ fn version_at_least(found: (u64, u64, u64), min: (u64, u64, u64)) -> bool {
         return found.1 > min.1;
     }
     found.2 >= min.2
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_version_triplet;
+    use super::version_at_least;
+
+    #[test]
+    fn parses_node_versions_with_prefix_and_suffix() {
+        assert_eq!(parse_version_triplet("v18.17.1"), Some((18, 17, 1)));
+        assert_eq!(parse_version_triplet("18.17.1"), Some((18, 17, 1)));
+        assert_eq!(parse_version_triplet("18.17.1-nightly"), Some((18, 17, 1)));
+        assert_eq!(parse_version_triplet("v18.17"), None);
+    }
+
+    #[test]
+    fn version_at_least_compares_semver_triplets() {
+        assert!(version_at_least((18, 0, 0), (18, 0, 0)));
+        assert!(version_at_least((18, 0, 1), (18, 0, 0)));
+        assert!(version_at_least((18, 1, 0), (18, 0, 9)));
+        assert!(version_at_least((19, 0, 0), (18, 999, 999)));
+        assert!(!version_at_least((17, 99, 99), (18, 0, 0)));
+        assert!(!version_at_least((18, 0, 0), (18, 0, 1)));
+    }
 }

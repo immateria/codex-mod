@@ -631,6 +631,10 @@ impl Session {
         self.tools_config.js_repl
     }
 
+    pub(crate) fn tools_config_snapshot(&self) -> ToolsConfig {
+        self.tools_config.clone()
+    }
+
     pub(crate) fn user_shell(&self) -> &shell::Shell {
         &self.user_shell
     }
