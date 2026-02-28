@@ -1056,6 +1056,44 @@ fn write_string_array(table: &mut TomlTable, key: &str, values: &[String]) -> an
     Ok(true)
 }
 
+fn write_exact_string_array(
+    table: &mut TomlTable,
+    key: &str,
+    values: &[String],
+) -> anyhow::Result<bool> {
+    if values.is_empty() {
+        return Ok(table.remove(key).is_some());
+    }
+
+    let mut deduped: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    for value in values {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if seen.insert(trimmed.to_string()) {
+            deduped.push(trimmed.to_string());
+        }
+    }
+
+    if deduped.is_empty() {
+        return Ok(table.remove(key).is_some());
+    }
+
+    let existing = read_string_array(table, key)?;
+    if existing == deduped {
+        return Ok(false);
+    }
+
+    let mut array = TomlArray::new();
+    for value in &deduped {
+        array.push(value.as_str());
+    }
+    table[key] = toml_edit::value(array);
+    Ok(true)
+}
+
 fn read_path_array(table: &TomlTable, key: &str) -> anyhow::Result<Vec<PathBuf>> {
     let Some(item) = table.get(key) else {
         return Ok(Vec::new());
@@ -3080,6 +3118,60 @@ pub fn set_network_proxy_settings(
     if network_table.is_empty() {
         doc.as_table_mut().remove("network");
     }
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+    Ok(())
+}
+
+/// Persist `js_repl` runtime settings into `CODEX_HOME/config.toml` at `[tools]`.
+pub fn set_js_repl_settings(
+    code_home: &Path,
+    settings: &super::JsReplSettingsToml,
+) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let tools_table = doc["tools"]
+        .or_insert(TomlItem::Table(TomlTable::new()))
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("`tools` must be a TOML table"))?;
+
+    tools_table["js_repl"] = toml_edit::value(settings.enabled);
+
+    let runtime = match settings.runtime {
+        super::JsReplRuntimeKindToml::Node => "node",
+        super::JsReplRuntimeKindToml::Deno => "deno",
+    };
+    tools_table["js_repl_runtime"] = toml_edit::value(runtime);
+
+    match settings.runtime_path.as_ref() {
+        Some(path) => {
+            tools_table["js_repl_runtime_path"] =
+                toml_edit::value(path.to_string_lossy().trim().to_string());
+        }
+        None => {
+            tools_table.remove("js_repl_runtime_path");
+        }
+    }
+
+    let _ = write_exact_string_array(
+        tools_table,
+        "js_repl_runtime_args",
+        &settings.runtime_args,
+    )?;
+    let _ = write_path_array(
+        tools_table,
+        "js_repl_node_module_dirs",
+        &settings.node_module_dirs,
+    )?;
 
     std::fs::create_dir_all(code_home)?;
     let tmp_file = NamedTempFile::new_in(code_home)?;

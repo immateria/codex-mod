@@ -762,6 +762,7 @@ pub(crate) enum AppEvent {
     },
     SetAutoUpgradeEnabled(bool),
     SetNetworkProxySettings(NetworkProxySettingsToml),
+    SetJsReplSettings(code_core::config::JsReplSettingsToml),
     SetTuiSettingsMenuConfig(SettingsMenuConfig),
     StatusLineSetup {
         top_items: Vec<StatusLineItem>,

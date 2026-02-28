@@ -904,6 +904,30 @@ impl App<'_> {
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::SetJsReplSettings(settings) => {
+                    match code_core::config::set_js_repl_settings(&self.config.code_home, &settings) {
+                        Ok(()) => {
+                            self.config.tools_js_repl = settings.enabled;
+                            self.config.js_repl_runtime = settings.runtime;
+                            self.config.js_repl_runtime_path = settings.runtime_path.clone();
+                            self.config.js_repl_runtime_args = settings.runtime_args.clone();
+                            self.config.js_repl_node_module_dirs = settings.node_module_dirs.clone();
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.apply_js_repl_settings(settings);
+                                let status = if self.config.tools_js_repl { "Enabled" } else { "Disabled" };
+                                widget.flash_footer_notice(format!("JS REPL: {status}"));
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to persist JS REPL settings: {err}",
+                                ));
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::SetTuiSettingsMenuConfig(settings) => {
                     match code_core::config::set_tui_settings_menu(&self.config.code_home, &settings) {
                         Ok(()) => {

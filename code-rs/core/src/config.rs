@@ -99,6 +99,7 @@ pub use sources::{
     set_mcp_server_enabled,
     set_mcp_server_tool_enabled,
     set_network_proxy_settings,
+    set_js_repl_settings,
     set_planning_model,
     set_project_access_mode,
     set_project_trusted,
@@ -959,6 +960,29 @@ pub enum JsReplRuntimeKindToml {
     #[default]
     Node,
     Deno,
+}
+
+/// Settings for configuring the optional `js_repl` tool.
+///
+/// These values are persisted under `[tools]` in `config.toml`.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema, Default)]
+#[schemars(deny_unknown_fields)]
+#[serde(default)]
+pub struct JsReplSettingsToml {
+    /// Enable the `js_repl` tool.
+    pub enabled: bool,
+
+    /// Runtime kind used for `js_repl` (default: `node`).
+    pub runtime: JsReplRuntimeKindToml,
+
+    /// Optional explicit path to the runtime executable (otherwise resolved from PATH).
+    pub runtime_path: Option<PathBuf>,
+
+    /// Additional args passed to the runtime process.
+    pub runtime_args: Vec<String>,
+
+    /// Extra directories to search for packages when using the Node runtime.
+    pub node_module_dirs: Vec<PathBuf>,
 }
 
 #[derive(Deserialize, Debug, Clone, Default, JsonSchema)]

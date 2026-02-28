@@ -3739,6 +3739,43 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn js_repl_settings_emits_apply_event_with_expected_fields() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    use crate::bottom_pane::SettingsSection;
+
+    {
+        let chat = harness.chat();
+        chat.ensure_settings_overlay_section(SettingsSection::JsRepl);
+        chat.show_settings_overlay(Some(SettingsSection::JsRepl));
+    }
+    harness.flush_into_widget();
+
+    {
+        let chat = harness.chat();
+        // Toggle Enabled (row 0).
+        chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        // Move to Apply and activate.
+        for _ in 0..7 {
+            chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        }
+        chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    }
+
+    let mut applied = None;
+    for event in harness.drain_events() {
+        if let AppEvent::SetJsReplSettings(settings) = event {
+            applied = Some(settings);
+            break;
+        }
+    }
+
+    let applied = applied.expect("expected SetJsReplSettings event");
+    assert!(applied.enabled, "expected Enabled to be true after toggle");
+    }
+
+    #[test]
     fn network_approval_renders_network_modal_without_exec_persist_options() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();

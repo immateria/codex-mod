@@ -66,6 +66,11 @@ pub(super) async fn handle_configure_session(
         shell: shell_override,
         shell_style_profiles,
         network,
+        tools_js_repl,
+        js_repl_runtime,
+        js_repl_runtime_path,
+        js_repl_runtime_args,
+        js_repl_node_module_dirs,
         collaboration_mode,
     } = op else {
         unreachable!("handle_configure_session called with non-ConfigureSession op");
@@ -93,6 +98,11 @@ pub(super) async fn handle_configure_session(
         shell_override,
         shell_style_profiles,
         network,
+        tools_js_repl,
+        js_repl_runtime,
+        js_repl_runtime_path,
+        js_repl_runtime_args,
+        js_repl_node_module_dirs,
         collaboration_mode,
     };
 
@@ -133,6 +143,11 @@ struct ConfigureSessionRequest {
     shell_override: Option<ShellConfig>,
     shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
     network: Option<crate::config::NetworkProxySettingsToml>,
+    tools_js_repl: bool,
+    js_repl_runtime: crate::config::JsReplRuntimeKindToml,
+    js_repl_runtime_path: Option<PathBuf>,
+    js_repl_runtime_args: Vec<String>,
+    js_repl_node_module_dirs: Vec<PathBuf>,
     collaboration_mode: CollaborationModeKind,
 }
 

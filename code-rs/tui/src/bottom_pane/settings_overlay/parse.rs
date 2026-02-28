@@ -22,6 +22,7 @@ impl SettingsSection {
             #[cfg(not(target_os = "android"))]
             "chrome" | "browser" => Some(SettingsSection::Chrome),
             "mcp" => Some(SettingsSection::Mcp),
+            "js" | "jsrepl" | "repl" | "js-repl" => Some(SettingsSection::JsRepl),
             "network" | "net" | "proxy" => Some(SettingsSection::Network),
             "notification" | "notifications" | "notify" | "notif" => {
                 Some(SettingsSection::Notifications)

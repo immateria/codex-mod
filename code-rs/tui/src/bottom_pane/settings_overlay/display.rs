@@ -18,6 +18,7 @@ impl SettingsSection {
             SettingsSection::Limits => "Limits",
             SettingsSection::Chrome => "Chrome",
             SettingsSection::Mcp => "MCP",
+            SettingsSection::JsRepl => "JS REPL",
             SettingsSection::Network => "Network",
             SettingsSection::Notifications => "Notifications",
             SettingsSection::Prompts => "Prompts",
@@ -46,6 +47,7 @@ impl SettingsSection {
             SettingsSection::Limits => "Inspect API usage, rate limits, and reset windows.",
             SettingsSection::Chrome => "Connect to Chrome or switch browser integrations.",
             SettingsSection::Mcp => "Enable and manage local MCP servers for tooling.",
+            SettingsSection::JsRepl => "Configure the optional js_repl tool runtime and paths.",
             SettingsSection::Network => "Configure managed network mediation and approvals.",
             SettingsSection::Notifications => {
                 "Adjust desktop and terminal notification preferences."
@@ -74,6 +76,7 @@ impl SettingsSection {
             SettingsSection::Limits => "Limits usage visualization coming soon.",
             SettingsSection::Chrome => "Chrome integration settings coming soon.",
             SettingsSection::Mcp => "MCP server management coming soon.",
+            SettingsSection::JsRepl => "Configure the js_repl tool runtime and paths.",
             SettingsSection::Network => "Configure managed network mediation for tool execution.",
             SettingsSection::Notifications => "Notification preferences coming soon.",
             SettingsSection::Prompts => "Manage custom prompts.",

@@ -183,6 +183,27 @@ pub enum Op {
         #[serde(default)]
         network: Option<crate::config::NetworkProxySettingsToml>,
 
+        /// Enable the optional `js_repl` tool for this session.
+        #[serde(default)]
+        tools_js_repl: bool,
+
+        /// Runtime kind used by `js_repl`.
+        #[serde(default)]
+        js_repl_runtime: crate::config::JsReplRuntimeKindToml,
+
+        /// Optional explicit runtime executable path for `js_repl`.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
+        js_repl_runtime_path: Option<std::path::PathBuf>,
+
+        /// Additional arguments passed to the `js_repl` runtime.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        js_repl_runtime_args: Vec<String>,
+
+        /// Extra directories searched for packages when using the Node runtime.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        js_repl_node_module_dirs: Vec<std::path::PathBuf>,
+
         /// Session collaboration mode controls additional developer
         /// instructions and behavior contracts for the model.
         #[serde(default)]

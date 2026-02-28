@@ -1,6 +1,7 @@
 use super::*;
 use crate::bottom_pane::{
     InterfaceSettingsView,
+    JsReplSettingsView,
     NetworkSettingsView,
     ShellProfilesSettingsView,
     ShellSelectionView,
@@ -9,6 +10,7 @@ use crate::bottom_pane::{
 };
 use crate::chatwidget::settings_overlay::{
     InterfaceSettingsContent,
+    JsReplSettingsContent,
     NetworkSettingsContent,
     ShellSettingsContent,
     ShellProfilesSettingsContent,
@@ -93,6 +95,7 @@ impl ChatWidget<'_> {
         if let Some(mcp_content) = self.build_mcp_settings_content() {
             overlay.set_mcp_content(mcp_content);
         }
+        overlay.set_js_repl_content(self.build_js_repl_settings_content());
         overlay.set_network_content(self.build_network_settings_content());
         overlay.set_agents_content(self.build_agents_settings_content());
         overlay.set_auto_drive_content(self.build_auto_drive_settings_content());
@@ -295,6 +298,27 @@ impl ChatWidget<'_> {
 
     pub(super) fn build_network_settings_content(&mut self) -> NetworkSettingsContent {
         NetworkSettingsContent::new(self.build_network_settings_view())
+    }
+
+    pub(super) fn build_js_repl_settings_view(&mut self) -> JsReplSettingsView {
+        let ticket = self.make_background_tail_ticket();
+        let settings = code_core::config::JsReplSettingsToml {
+            enabled: self.config.tools_js_repl,
+            runtime: self.config.js_repl_runtime,
+            runtime_path: self.config.js_repl_runtime_path.clone(),
+            runtime_args: self.config.js_repl_runtime_args.clone(),
+            node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
+        };
+        let network_enabled = self
+            .config
+            .network
+            .as_ref()
+            .is_some_and(|net| net.enabled);
+        JsReplSettingsView::new(settings, network_enabled, self.app_event_tx.clone(), ticket)
+    }
+
+    pub(super) fn build_js_repl_settings_content(&mut self) -> JsReplSettingsContent {
+        JsReplSettingsContent::new(self.build_js_repl_settings_view())
     }
 
     pub(super) fn build_prompts_settings_view(&mut self) -> PromptsSettingsView {
@@ -658,6 +682,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Validation    => self.settings_summary_validation(),
                     SettingsSection::Chrome        => self.settings_summary_chrome(),
                     SettingsSection::Mcp           => self.settings_summary_mcp(),
+                    SettingsSection::JsRepl        => self.settings_summary_js_repl(),
                     SettingsSection::Network       => self.settings_summary_network(),
                     SettingsSection::Notifications => self.settings_summary_notifications(),
                     SettingsSection::Limits        => self.settings_summary_limits(),
@@ -665,6 +690,24 @@ impl ChatWidget<'_> {
                 SettingsOverviewRow::new(section, summary)
             })
             .collect()
+    }
+
+    pub(super) fn settings_summary_js_repl(&self) -> Option<String> {
+        let enabled = if self.config.tools_js_repl { "Enabled" } else { "Disabled" };
+        let runtime = match self.config.js_repl_runtime {
+            code_core::config::JsReplRuntimeKindToml::Node => "node",
+            code_core::config::JsReplRuntimeKindToml::Deno => "deno",
+        };
+        let runtime_path = self
+            .config
+            .js_repl_runtime_path
+            .as_ref()
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|| "auto".to_string());
+
+        Some(format!(
+            "Status: {enabled} · Runtime: {runtime} · Path: {runtime_path}"
+        ))
     }
 
     pub(super) fn settings_summary_shell(&self) -> Option<String> {
@@ -1196,6 +1239,13 @@ impl ChatWidget<'_> {
         })
     }
 
+    fn open_js_repl_settings_section(&mut self) -> bool {
+        let view = self.build_js_repl_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_js_repl_settings(view);
+        })
+    }
+
     fn open_shell_settings_section(&mut self) -> bool {
         self.open_bottom_pane_settings(move |this| {
             this.bottom_pane
@@ -1263,6 +1313,7 @@ impl ChatWidget<'_> {
             SettingsSection::Validation                         => self.open_validation_settings_section(),
             SettingsSection::Notifications                      => self.open_notifications_settings_section(),
             SettingsSection::Mcp                                => self.open_mcp_settings_section(),
+            SettingsSection::JsRepl                             => self.open_js_repl_settings_section(),
             SettingsSection::Network                            => self.open_network_settings_section(),
 
             SettingsSection::Agents | SettingsSection::Limits | SettingsSection::Chrome => false,
@@ -1304,6 +1355,7 @@ impl ChatWidget<'_> {
             | SettingsSection::Validation
             | SettingsSection::AutoDrive
             | SettingsSection::Mcp
+            | SettingsSection::JsRepl
             | SettingsSection::Network
             | SettingsSection::Notifications
             | SettingsSection::Prompts

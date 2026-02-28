@@ -216,6 +216,11 @@ impl ChatWidget<'_> {
             shell: self.config.shell.clone(),
             shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
+            tools_js_repl: self.config.tools_js_repl,
+            js_repl_runtime: self.config.js_repl_runtime,
+            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
+            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
+            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
         self.submit_op(op);
@@ -590,6 +595,11 @@ impl ChatWidget<'_> {
                 shell: self.config.shell.clone(),
                 shell_style_profiles: self.config.shell_style_profiles.clone(),
                 network: self.config.network.clone(),
+                tools_js_repl: self.config.tools_js_repl,
+                js_repl_runtime: self.config.js_repl_runtime,
+                js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
+                js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
+                js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
                 collaboration_mode: self.current_collaboration_mode(),
             };
             self.submit_op(op);
@@ -1219,6 +1229,11 @@ impl ChatWidget<'_> {
             shell: self.config.shell.clone(),
             shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
+            tools_js_repl: self.config.tools_js_repl,
+            js_repl_runtime: self.config.js_repl_runtime,
+            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
+            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
+            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
         self.submit_op(op);
@@ -1250,6 +1265,11 @@ impl ChatWidget<'_> {
                 shell: self.config.shell.clone(),
                 shell_style_profiles: self.config.shell_style_profiles.clone(),
                 network: self.config.network.clone(),
+                tools_js_repl: self.config.tools_js_repl,
+                js_repl_runtime: self.config.js_repl_runtime,
+                js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
+                js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
+                js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
                 collaboration_mode: self.current_collaboration_mode(),
             };
             self.submit_op(op);
@@ -1457,6 +1477,11 @@ impl ChatWidget<'_> {
                 shell: self.config.shell.clone(),
                 shell_style_profiles: self.config.shell_style_profiles.clone(),
                 network: self.config.network.clone(),
+                tools_js_repl: self.config.tools_js_repl,
+                js_repl_runtime: self.config.js_repl_runtime,
+                js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
+                js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
+                js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
                 collaboration_mode: self.current_collaboration_mode(),
             };
             let _ = self.code_op_tx.send(op);
@@ -1605,6 +1630,11 @@ impl ChatWidget<'_> {
             shell: self.config.shell.clone(),
             shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
+            tools_js_repl: self.config.tools_js_repl,
+            js_repl_runtime: self.config.js_repl_runtime,
+            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
+            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
+            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
 
@@ -1651,6 +1681,11 @@ impl ChatWidget<'_> {
             shell: self.config.shell.clone(),
             shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
+            tools_js_repl: self.config.tools_js_repl,
+            js_repl_runtime: self.config.js_repl_runtime,
+            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
+            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
+            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
 

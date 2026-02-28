@@ -27,6 +27,11 @@ impl Runner<'_> {
             shell_override,
             shell_style_profiles,
             network,
+            tools_js_repl,
+            js_repl_runtime,
+            js_repl_runtime_path,
+            js_repl_runtime_args,
+            js_repl_node_module_dirs,
             collaboration_mode,
         } = req;
 
@@ -80,6 +85,11 @@ impl Runner<'_> {
         updated_config.cwd = cwd.clone();
         updated_config.dynamic_tools = dynamic_tools.clone();
         updated_config.network = network.clone();
+        updated_config.tools_js_repl = tools_js_repl;
+        updated_config.js_repl_runtime = js_repl_runtime;
+        updated_config.js_repl_runtime_path = js_repl_runtime_path;
+        updated_config.js_repl_runtime_args = js_repl_runtime_args;
+        updated_config.js_repl_node_module_dirs = js_repl_node_module_dirs;
         updated_config.shell_style_profiles = shell_style_profiles;
 
         updated_config.network_proxy = match updated_config.network.as_ref().filter(|net| net.enabled)
@@ -418,4 +428,3 @@ impl Runner<'_> {
         })
     }
 }
-

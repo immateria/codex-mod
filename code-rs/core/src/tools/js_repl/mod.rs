@@ -65,6 +65,15 @@ struct ToolRequest {
     arguments: String,
 }
 
+struct ToolRequestCtx<'a> {
+    sess: &'a Session,
+    turn_diff_tracker: &'a mut TurnDiffTracker,
+    parent_ctx: &'a ToolCallCtx,
+    attempt_req: u64,
+    freeform_tool_names: &'a HashSet<String>,
+    stdin: &'a Arc<Mutex<ChildStdin>>,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct JsReplArgs {
@@ -289,8 +298,18 @@ impl JsReplManager {
                             error: "js_repl kernel terminated while waiting for tool requests".to_string(),
                         });
                     };
-                    self.handle_tool_request(sess, turn_diff_tracker, parent_ctx, attempt_req, &freeform_tool_names, &stdin, &tool_req)
-                        .await;
+                    self.handle_tool_request(
+                        ToolRequestCtx {
+                            sess,
+                            turn_diff_tracker,
+                            parent_ctx,
+                            attempt_req,
+                            freeform_tool_names: &freeform_tool_names,
+                            stdin: &stdin,
+                        },
+                        &tool_req,
+                    )
+                    .await;
                 }
                 msg = &mut rx => {
                     match msg {
@@ -445,6 +464,20 @@ impl JsReplManager {
                 crate::protocol::SandboxPolicy::DangerFullAccess
             );
 
+        if enforce_managed_network
+            && matches!(self.runtime.kind, crate::config::JsReplRuntimeKindToml::Node)
+            && !seatbelt_enabled
+            && !matches!(
+                sandbox_policy,
+                crate::protocol::SandboxPolicy::DangerFullAccess
+            )
+        {
+            return Err(
+                "js_repl Node runtime cannot be enforced with network mediation on this platform. Set `[tools].js_repl_runtime = \"deno\"` (recommended) or disable network mediation."
+                    .to_string(),
+            );
+        }
+
         let mut command = match self.runtime.kind {
             crate::config::JsReplRuntimeKindToml::Node => {
                 if seatbelt_enabled {
@@ -536,14 +569,18 @@ impl JsReplManager {
 
     async fn handle_tool_request(
         &self,
-        sess: &Session,
-        turn_diff_tracker: &mut TurnDiffTracker,
-        parent_ctx: &ToolCallCtx,
-        attempt_req: u64,
-        freeform_tool_names: &HashSet<String>,
-        stdin: &Arc<Mutex<ChildStdin>>,
+        ctx: ToolRequestCtx<'_>,
         tool_req: &ToolRequest,
     ) {
+        let ToolRequestCtx {
+            sess,
+            turn_diff_tracker,
+            parent_ctx,
+            attempt_req,
+            freeform_tool_names,
+            stdin,
+        } = ctx;
+
         // Avoid infinite recursion: the kernel should not call itself.
         if tool_req
             .tool_name

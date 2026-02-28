@@ -132,6 +132,8 @@ impl SettingsHelpOverlay {
             section,
             SettingsSection::Agents
                 | SettingsSection::Mcp
+                | SettingsSection::JsRepl
+                | SettingsSection::Network
                 | SettingsSection::Accounts
                 | SettingsSection::Shell
                 | SettingsSection::ShellProfiles

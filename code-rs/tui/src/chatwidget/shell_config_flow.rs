@@ -177,6 +177,11 @@ impl ChatWidget<'_> {
             shell: self.config.shell.clone(),
             shell_style_profiles: self.config.shell_style_profiles.clone(),
             network: self.config.network.clone(),
+            tools_js_repl: self.config.tools_js_repl,
+            js_repl_runtime: self.config.js_repl_runtime,
+            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
+            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
+            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         };
         self.submit_op(op);
@@ -286,6 +291,17 @@ impl ChatWidget<'_> {
         settings: Option<code_core::config::NetworkProxySettingsToml>,
     ) {
         self.config.network = settings;
+        self.submit_configure_session_for_current_settings();
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
+    pub(crate) fn apply_js_repl_settings(&mut self, settings: code_core::config::JsReplSettingsToml) {
+        self.config.tools_js_repl = settings.enabled;
+        self.config.js_repl_runtime = settings.runtime;
+        self.config.js_repl_runtime_path = settings.runtime_path;
+        self.config.js_repl_runtime_args = settings.runtime_args;
+        self.config.js_repl_node_module_dirs = settings.node_module_dirs;
         self.submit_configure_session_for_current_settings();
         self.refresh_settings_overview_rows();
         self.request_redraw();

@@ -427,6 +427,7 @@ impl SettingsOverlayView {
             SettingsSection::Limits => "Rate Limits",
             SettingsSection::Chrome => "Chrome Launch Options",
             SettingsSection::Notifications => "Notifications",
+            SettingsSection::JsRepl => "JS REPL",
             SettingsSection::Network => "Network Mediation",
             SettingsSection::Mcp => "MCP Servers",
             SettingsSection::Prompts => "Custom Prompts",
@@ -839,6 +840,13 @@ impl SettingsOverlayView {
                     return;
                 }
                 self.render_placeholder(area, buf, SettingsSection::Notifications.placeholder());
+            }
+            SettingsSection::JsRepl => {
+                if let Some(content) = self.js_repl_content.as_ref() {
+                    content.render(area, buf);
+                    return;
+                }
+                self.render_placeholder(area, buf, SettingsSection::JsRepl.placeholder());
             }
             SettingsSection::Network => {
                 if let Some(content) = self.network_content.as_ref() {
