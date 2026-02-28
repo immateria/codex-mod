@@ -129,11 +129,11 @@ impl ChatWidget<'_> {
 
     pub(in super::super) fn handle_click(&mut self, pos: (u16, u16)) {
         let (x, y) = pos;
-        
-        // Check clickable regions from last render and find matching action
+
+        // Check clickable regions from last render and find matching action.
         let action_opt: Option<ClickableAction> = {
             let regions = self.clickable_regions.borrow();
-            
+
             regions.iter().find_map(|region| {
                 // Check if click is inside this region
                 if x >= region.rect.x
@@ -147,7 +147,7 @@ impl ChatWidget<'_> {
                 }
             })
         };
-        
+
         // Execute the action after dropping the borrow
         if let Some(action) = action_opt {
             match action {
@@ -175,6 +175,9 @@ impl ChatWidget<'_> {
                 ClickableAction::ShowNetworkSettings => {
                     self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);
                 }
+                ClickableAction::JumpToExecCall(call_id) => {
+                    self.jump_to_exec_call_id(&call_id);
+                }
                 ClickableAction::ExecuteCommand(cmd) => {
                     // Parse and dispatch the slash command
                     let trimmed = cmd.trim_start_matches('/').trim();
@@ -184,6 +187,20 @@ impl ChatWidget<'_> {
                 }
             }
         }
+    }
+
+    fn jump_to_exec_call_id(&mut self, call_id: &str) {
+        let Some(idx) = self.history_cells.iter().rposition(|cell| {
+            cell.as_any()
+                .downcast_ref::<crate::history_cell::JsReplCell>()
+                .is_some_and(|js| js.record.call_id.as_deref() == Some(call_id))
+        }) else {
+            self.bottom_pane.update_status_text("parent tool call not found".to_string());
+            self.request_redraw();
+            return;
+        };
+
+        layout_scroll::jump_to_history_index(self, idx);
     }
 
     fn update_header_hover_state(&mut self, pos: (u16, u16)) -> bool {

@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::collections::HashSet;
 use std::time::Instant;
 
 use ratatui::prelude::*;
@@ -40,6 +41,7 @@ pub(crate) struct JsReplCell {
     pub(crate) code_collapsed: Cell<bool>,
     /// When true the output block is capped at OUTPUT_FOLD_THRESHOLD lines.
     pub(crate) collapsed_output: Cell<bool>,
+    child_exec_call_ids: HashSet<String>,
 }
 
 impl JsReplCell {
@@ -59,7 +61,12 @@ impl JsReplCell {
             start_time: Some(Instant::now()),
             code_collapsed: Cell::new(true),
             collapsed_output: Cell::new(false),
+            child_exec_call_ids: HashSet::new(),
         }
+    }
+
+    pub(crate) fn record_child_exec_call_id(&mut self, call_id: &str) -> bool {
+        self.child_exec_call_ids.insert(call_id.to_string())
     }
 
     pub(crate) fn toggle_output_collapsed(&self) {
@@ -119,7 +126,7 @@ impl JsReplCell {
         } else {
             format!("{} {}", self.runtime_kind, self.runtime_version)
         };
-        Line::from(vec![
+        let mut spans = vec![
             Span::styled(
                 "js",
                 Style::default()
@@ -132,7 +139,19 @@ impl JsReplCell {
                     .fg(crate::colors::text_dim())
                     .add_modifier(Modifier::DIM),
             ),
-        ])
+        ];
+
+        let child_count = self.child_exec_call_ids.len();
+        if child_count > 0 {
+            spans.push(Span::styled(
+                format!(" • spawned {child_count}"),
+                Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::DIM),
+            ));
+        }
+
+        Line::from(spans)
     }
 
     fn code_lines(&self) -> Vec<Line<'static>> {

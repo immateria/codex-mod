@@ -3908,6 +3908,101 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn exec_child_gutter_click_jumps_to_parent_js_repl_cell() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+
+        // Seed a parent JS REPL begin, then enough filler content to force scroll,
+        // then a child exec begin that references the parent via parent_call_id.
+        let parent_call_id = "js-parent".to_string();
+        harness.handle_event(Event {
+            id: "js-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::JsReplExecBegin(code_core::protocol::JsReplExecBeginEvent {
+                call_id: parent_call_id.clone(),
+                code: "console.log('hi')".to_string(),
+                runtime_kind: "node".to_string(),
+                runtime_version: "20.11.0".to_string(),
+                cwd: std::env::temp_dir(),
+                timeout_ms: 15_000,
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(1),
+            }),
+        });
+
+        for i in 0..30 {
+            harness.push_user_prompt(format!("filler {i}"));
+        }
+
+        harness.handle_event(Event {
+            id: "exec-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
+                call_id: "sh-child".to_string(),
+                command: vec!["bash".into(), "-lc".into(), "echo child".into()],
+                cwd: std::env::temp_dir(),
+                parsed_cmd: Vec::new(),
+                parent_call_id: Some(parent_call_id.clone()),
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(2),
+            }),
+        });
+
+        // Render once to populate clickable regions. Use a short viewport so we can
+        // verify jumping changes the rendered content.
+        {
+            use crate::test_backend::VT100Backend;
+            use ratatui::Terminal;
+
+            let chat = harness.chat();
+            let mut terminal = Terminal::new(VT100Backend::new(80, 10)).expect("terminal");
+            terminal
+                .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+                .expect("draw");
+        }
+
+        let (x, y) = harness.with_chat(|chat| {
+            let regions = chat.clickable_regions.borrow();
+            let region = regions
+                .iter()
+                .find(|region| {
+                    matches!(
+                        &region.action,
+                        ClickableAction::JumpToExecCall(call_id) if call_id == &parent_call_id
+                    )
+                })
+                .expect("expected a history gutter click region for js parent");
+            let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+            (x, region.rect.y)
+        });
+
+        harness.with_chat(|chat| chat.handle_click((x, y)));
+
+        let output = {
+            use crate::test_backend::VT100Backend;
+            use ratatui::Terminal;
+
+            let chat = harness.chat();
+            let mut terminal = Terminal::new(VT100Backend::new(80, 10)).expect("terminal");
+            terminal
+                .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+                .expect("draw");
+            terminal.backend().to_string()
+        };
+
+        assert!(
+            output.contains("js node 20.11.0"),
+            "expected to jump to the parent JS cell, got:\n{output}",
+        );
+    }
+
+    #[test]
     fn statusline_network_segment_click_on_bottom_opens_network_settings() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();

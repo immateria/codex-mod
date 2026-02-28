@@ -4,6 +4,39 @@ use super::ChatWidget;
 use crate::height_manager::HeightEvent;
 use ratatui::layout::Rect;
 
+pub(super) fn jump_to_history_index(chat: &mut ChatWidget<'_>, idx: usize) {
+    let max_scroll = chat.layout.last_max_scroll.get();
+    if max_scroll == 0 {
+        return;
+    }
+
+    let before = chat.layout.scroll_offset.get();
+    let scroll_from_top = chat
+        .history_render
+        .prefix_sums
+        .borrow()
+        .get(idx)
+        .copied()
+        .unwrap_or(max_scroll)
+        .min(max_scroll);
+    let new_offset = max_scroll.saturating_sub(scroll_from_top);
+    if new_offset == chat.layout.scroll_offset.get() {
+        return;
+    }
+
+    chat.layout.scroll_offset.set(new_offset);
+    chat.bottom_pane.set_compact_compose(new_offset > 0);
+    flash_scrollbar(chat);
+    chat.sync_history_virtualization();
+    chat.app_event_tx
+        .send(crate::app_event::AppEvent::RequestRedraw);
+    chat.height_manager
+        .borrow_mut()
+        .record_event(HeightEvent::UserScroll);
+    chat.maybe_show_history_nav_hint_on_first_scroll();
+    chat.perf_track_scroll_delta(before, chat.layout.scroll_offset.get());
+}
+
 pub(super) fn autoscroll_if_near_bottom(chat: &mut ChatWidget<'_>) {
     if chat.layout.scroll_offset.get() == 0 {
         let before = chat.layout.scroll_offset.get();

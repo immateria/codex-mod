@@ -329,6 +329,22 @@ pub(in super::super::super) fn handle_js_repl_begin_now(
     chat.refresh_auto_drive_visuals();
 }
 
+fn record_js_repl_child_exec(chat: &mut ChatWidget<'_>, parent_call_id: &str, child_call_id: &str) {
+    for cell in chat.history_cells.iter_mut().rev() {
+        if let Some(js_cell) = cell
+            .as_any_mut()
+            .downcast_mut::<crate::history_cell::JsReplCell>()
+            && js_cell.record.call_id.as_deref() == Some(parent_call_id)
+        {
+            if js_cell.record_child_exec_call_id(child_call_id) {
+                chat.invalidate_height_cache();
+                chat.request_redraw();
+            }
+            return;
+        }
+    }
+}
+
 pub(in super::super::super) fn handle_exec_begin_now(
     chat: &mut ChatWidget<'_>,
     ev: ExecCommandBeginEvent,
@@ -515,6 +531,9 @@ pub(in super::super::super) fn handle_exec_begin_now(
             wait_notes: Vec::new(),
         },
     );
+    if let Some(parent_call_id) = ev.parent_call_id.as_deref() {
+        record_js_repl_child_exec(chat, parent_call_id, &ev.call_id);
+    }
     if let Some(running) = chat
         .exec
         .running_commands

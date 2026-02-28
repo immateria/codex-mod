@@ -306,6 +306,26 @@ impl ChatWidget<'_> {
                                 let symbol_style = Style::default().fg(color).bg(gutter_bg);
                                 let symbol_x = gutter_area.x;
                                 buf.set_string(symbol_x, symbol_y, symbol, symbol_style);
+                                if symbol == "↳"
+                                    && let Some(exec) = item
+                                        .as_any()
+                                        .downcast_ref::<crate::history_cell::ExecCell>()
+                                    && let Some(parent_call_id) = exec.parent_call_id.as_ref()
+                                {
+                                    self.clickable_regions.borrow_mut().push(
+                                        crate::chatwidget::ClickableRegion {
+                                            rect: Rect::new(
+                                                symbol_x,
+                                                symbol_y,
+                                                gutter_area.width.min(2),
+                                                1,
+                                            ),
+                                            action: crate::chatwidget::ClickableAction::JumpToExecCall(
+                                                parent_call_id.clone(),
+                                            ),
+                                        },
+                                    );
+                                }
                             }
                         }
                     }

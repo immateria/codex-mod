@@ -42,6 +42,8 @@ impl ChatWidget<'_> {
         }
 
         if self.standard_terminal_mode {
+            self.clickable_regions.borrow_mut().clear();
+            *self.hovered_clickable_action.borrow_mut() = None;
             ratatui::widgets::WidgetRef::render_ref(&(&self.bottom_pane), bottom_pane_area, buf);
             self.clear_backgrounds_in(buf, bottom_pane_area);
             return;

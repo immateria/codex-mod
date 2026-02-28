@@ -672,6 +672,7 @@ enum ClickableAction {
     ShowShellSelector,
     ShowReasoningSelector,
     ShowNetworkSettings,
+    JumpToExecCall(String),
     #[allow(dead_code)]
     ExecuteCommand(String),
 }
