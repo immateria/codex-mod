@@ -2811,6 +2811,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
                 cmd: "cat foo.txt".to_string(),
                 name: "foo.txt".to_string(),
             }],
+            parent_call_id: None,
         }),
         order: Some(order),
     });

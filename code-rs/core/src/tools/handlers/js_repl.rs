@@ -1,7 +1,7 @@
 use crate::codex::Session;
 use crate::protocol::EventMsg;
-use crate::protocol::ExecCommandBeginEvent;
 use crate::protocol::ExecCommandEndEvent;
+use crate::protocol::JsReplExecBeginEvent;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::registry::ToolHandler;
@@ -114,15 +114,22 @@ fn reject_json_or_quoted_source(code: &str) -> Result<(), String> {
     }
 }
 
-async fn emit_js_repl_exec_begin(sess: &Session, ctx: &crate::codex::ToolCallCtx) {
-    let command = vec![crate::openai_tools::JS_REPL_TOOL_NAME.to_string()];
+async fn emit_js_repl_exec_begin(
+    sess: &Session,
+    ctx: &crate::codex::ToolCallCtx,
+    code: &str,
+    manager: &crate::tools::js_repl::JsReplManager,
+    timeout_ms: u64,
+) {
     sess.send_ordered_from_ctx(
         ctx,
-        EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
+        EventMsg::JsReplExecBegin(JsReplExecBeginEvent {
             call_id: ctx.call_id.clone(),
-            command: command.clone(),
+            code: code.to_string(),
+            runtime_kind: manager.runtime_kind_str().to_string(),
+            runtime_version: manager.runtime_version().to_string(),
             cwd: sess.get_cwd().to_path_buf(),
-            parsed_cmd: crate::parse_command::parse_command(&command),
+            timeout_ms,
         }),
     )
     .await;
@@ -202,24 +209,19 @@ impl ToolHandler for JsReplToolHandler {
             }
         };
 
-        let started_at = Instant::now();
-        emit_js_repl_exec_begin(sess, &ctx).await;
-
         let manager = match sess.js_repl_manager().await {
             Ok(manager) => manager,
             Err(err) => {
-                emit_js_repl_exec_end(
-                    sess,
-                    &ctx,
-                    String::new(),
-                    err.clone(),
-                    1,
-                    started_at.elapsed(),
-                )
-                .await;
                 return unsupported_tool_call_output(&ctx.call_id, outputs_custom, err);
             }
         };
+
+        let started_at = Instant::now();
+        let timeout_ms = args
+            .timeout_ms
+            .unwrap_or(crate::tools::js_repl::DEFAULT_TIMEOUT_MS)
+            .min(crate::tools::js_repl::MAX_TIMEOUT_MS);
+        emit_js_repl_exec_begin(sess, &ctx, &args.code, &manager, timeout_ms).await;
 
         match manager
             .execute(

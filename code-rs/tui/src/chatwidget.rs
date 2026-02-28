@@ -1406,6 +1406,14 @@ impl ChatWidget<'_> {
             HistoryCellType::Context => "Context".to_string(),
             HistoryCellType::AnimatedWelcome => "AnimatedWelcome".to_string(),
             HistoryCellType::Loading => "Loading".to_string(),
+            HistoryCellType::JsRepl { status } => {
+                let s = match status {
+                    ExecStatus::Running => "Running",
+                    ExecStatus::Success => "Success",
+                    ExecStatus::Error => "Error",
+                };
+                format!("JsRepl:{s}")
+            }
         }
     }
 

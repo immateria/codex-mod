@@ -225,6 +225,7 @@ impl ChatWidget<'_> {
             pending_manual_terminal: HashMap::new(),
             agents_overview_selected_index: 0,
             agents_terminal: AgentsTerminalState::new(),
+            js_repl_last_runtime: None,
             pending_git_init_resume: None,
             git_init_inflight: false,
             git_init_declined: false,
@@ -582,6 +583,7 @@ impl ChatWidget<'_> {
             pending_manual_terminal: HashMap::new(),
             agents_overview_selected_index: 0,
             agents_terminal: AgentsTerminalState::new(),
+            js_repl_last_runtime: None,
             pending_git_init_resume: None,
             git_init_inflight: false,
             git_init_declined: false,
@@ -751,6 +753,7 @@ impl ChatWidget<'_> {
                 | crate::history_cell::ToolCellStatus::Failed => Some(User),
             },
             HistoryCellType::AnimatedWelcome | HistoryCellType::Loading => None,
+            HistoryCellType::JsRepl { .. } => Some(User),
         }
     }
 

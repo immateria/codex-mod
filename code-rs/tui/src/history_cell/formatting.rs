@@ -14,6 +14,19 @@ const PREVIEW_TAIL_LINES: usize = 5;
 const EXEC_PREVIEW_MAX_CHARS: usize = 16_000;
 const STREAMING_EXIT_CODE: i32 = i32::MIN;
 
+fn describe_exit_code(code: i32) -> &'static str {
+    match code {
+        1 => "general error",
+        2 => "shell built-in misuse",
+        126 => "not executable",
+        127 => "command not found",
+        130 => "interrupted",
+        137 => "killed",
+        139 => "segfault",
+        _ => "",
+    }
+}
+
 pub(crate) fn clean_wait_command(raw: &str) -> String {
     let trimmed = raw.trim();
     let Some((first_token, rest)) = split_token(trimmed) else {
@@ -361,10 +374,13 @@ pub(crate) fn output_lines(
             lines.push(Line::from(""));
         }
         if !is_streaming_preview {
-            lines.push(Line::styled(
-                format!("Error (exit code {exit_code})"),
-                Style::default().fg(crate::colors::error()),
-            ));
+            let description = describe_exit_code(*exit_code);
+            let msg = if description.is_empty() {
+                format!("Error (exit {exit_code})")
+            } else {
+                format!("Error (exit {exit_code}: {description})")
+            };
+            lines.push(Line::styled(msg, Style::default().fg(crate::colors::error())));
         }
         let stderr_norm = sanitize_for_tui(
             &normalize_overwrite_sequences(stderr),

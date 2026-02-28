@@ -878,6 +878,10 @@ pub(crate) struct ChatWidget<'a> {
     // State for the Agents Terminal view
     agents_terminal: AgentsTerminalState,
 
+    /// Last seen JS REPL runtime info (kind, version) from a JsReplExecBegin event.
+    /// Used to populate the JsRepl status line item.
+    js_repl_last_runtime: Option<(String, String)>,
+
     pending_git_init_resume: Option<GitInitResume>,
     git_init_inflight: bool,
     git_init_declined: bool,

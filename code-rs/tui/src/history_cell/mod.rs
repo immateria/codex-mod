@@ -11,6 +11,7 @@ mod diff;
 mod exec;
 mod exec_helpers;
 mod exec_merged;
+mod js_repl;
 mod explore;
 mod formatting;
 mod frozen;
@@ -67,6 +68,7 @@ pub(crate) use exec::{
     new_completed_exec_command,
     ExecCell,
 };
+pub(crate) use js_repl::JsReplCell;
 #[cfg(feature = "test-helpers")]
 pub(crate) use exec::{exec_layout_builds_for_test, reset_exec_layout_builds_for_test};
 #[cfg(feature = "test-helpers")]

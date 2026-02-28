@@ -939,6 +939,11 @@ pub enum EventMsg {
     CustomToolCallUpdate(CustomToolCallUpdateEvent),
     CustomToolCallEnd(CustomToolCallEndEvent),
 
+    /// A JavaScript REPL execution is beginning. Carries source code and runtime
+    /// metadata so the TUI can render a dedicated JS history cell instead of a
+    /// generic exec cell.
+    JsReplExecBegin(JsReplExecBeginEvent),
+
     /// Notification that the server is about to execute a command.
     ExecCommandBegin(ExecCommandBeginEvent),
 
@@ -1329,6 +1334,23 @@ pub struct CustomToolCallEndEvent {
     pub result: Result<String, String>,
 }
 
+/// Metadata emitted at the start of a JavaScript REPL tool call.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct JsReplExecBeginEvent {
+    /// Matches the call_id in the paired ExecCommandEnd event.
+    pub call_id: String,
+    /// JavaScript source code being executed.
+    pub code: String,
+    /// Runtime kind: "node" or "deno".
+    pub runtime_kind: String,
+    /// Resolved runtime version string, e.g. "v20.11.0".
+    pub runtime_version: String,
+    /// Working directory at execution time.
+    pub cwd: PathBuf,
+    /// Effective execution timeout in milliseconds.
+    pub timeout_ms: u64,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ExecCommandBeginEvent {
     /// Identifier so this can be paired with the ExecCommandEnd event.
@@ -1338,6 +1360,10 @@ pub struct ExecCommandBeginEvent {
     /// The command's working directory if not the default cwd for the agent.
     pub cwd: PathBuf,
     pub parsed_cmd: Vec<ParsedCommand>,
+    /// When set, this exec was dispatched by a parent tool (e.g. JS REPL's
+    /// `codex.tool("shell", …)`). The value is the parent tool's call_id.
+    #[serde(default)]
+    pub parent_call_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

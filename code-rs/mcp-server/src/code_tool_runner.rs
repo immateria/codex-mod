@@ -346,7 +346,8 @@ async fn run_code_tool_session_inner(
                     | EventMsg::CustomToolCallBegin(_)
                     | EventMsg::CustomToolCallUpdate(_)
                     | EventMsg::CustomToolCallEnd(_)
-                    | EventMsg::ViewImageToolCall(_) => {
+                    | EventMsg::ViewImageToolCall(_)
+                    | EventMsg::JsReplExecBegin(_) => {
                         // For now, we do not do anything extra for these
                         // events. Note that
                         // send(code_event_to_notification(&event)) above has

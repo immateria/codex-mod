@@ -442,11 +442,13 @@ pub(crate) struct ToolCallCtx {
     pub call_id: String,
     pub seq_hint: Option<u64>,
     pub output_index: Option<u32>,
+    /// The call_id of the parent tool that dispatched this one (e.g. JS REPL).
+    pub parent_call_id: Option<String>,
 }
 
 impl ToolCallCtx {
     pub fn new(sub_id: String, call_id: String, seq_hint: Option<u64>, output_index: Option<u32>) -> Self {
-        Self { sub_id, call_id, seq_hint, output_index }
+        Self { sub_id, call_id, seq_hint, output_index, parent_call_id: None }
     }
 
     pub fn order_meta(&self, req_ordinal: u64) -> crate::protocol::OrderMeta {

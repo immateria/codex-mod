@@ -34,6 +34,7 @@ fn exec_command_completes_properly() {
             command: vec!["ls".into(), "-la".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });

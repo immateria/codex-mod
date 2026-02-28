@@ -106,6 +106,8 @@ pub(crate) struct ExecCommandContext {
     pub(crate) command_for_display: Vec<String>,
     pub(crate) cwd: PathBuf,
     pub(crate) apply_patch: Option<ApplyPatchCommandContext>,
+    /// The call_id of the parent tool that dispatched this one (e.g. JS REPL).
+    pub(crate) parent_call_id: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -309,6 +311,7 @@ impl Session {
             command_for_display,
             cwd,
             apply_patch,
+            parent_call_id,
         } = exec_command_context;
         let msg = match apply_patch {
             Some(ApplyPatchCommandContext {
@@ -328,6 +331,7 @@ impl Session {
                 command: command_for_display.clone(),
                 cwd,
                 parsed_cmd: parse_command(&command_for_display),
+                parent_call_id,
             }),
         };
         let order = crate::protocol::OrderMeta { request_ordinal: attempt_req, output_index, sequence_number: seq_hint };
@@ -821,6 +825,7 @@ impl Session {
             command_for_display: exec_params.command.clone(),
             cwd: exec_params.cwd.clone(),
             apply_patch: None,
+            parent_call_id: None,
         };
 
         let sandbox_type = self.resolve_internal_sandbox(false);
@@ -913,6 +918,7 @@ impl Session {
             command_for_display: exec_params.command.clone(),
             cwd: exec_params.cwd.clone(),
             apply_patch: None,
+            parent_call_id: None,
         };
 
         let sandbox_type = self.resolve_internal_sandbox(false);

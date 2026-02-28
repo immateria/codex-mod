@@ -168,7 +168,8 @@ fn apply_exec_begin_metadata_to_finished_call(
             }
 
             if let Some(idx) = chat.cell_index_for_history_id(history_id) {
-                let cell = history_cell::ExecCell::from_record(exec_record.clone());
+                let mut cell = history_cell::ExecCell::from_record(exec_record.clone());
+                cell.parent_call_id = ev.parent_call_id.clone();
                 chat.history_replace_with_record(
                     idx,
                     Box::new(cell),
@@ -254,6 +255,78 @@ fn apply_exec_begin_metadata_to_finished_call(
         }
         _ => false,
     }
+}
+
+pub(in super::super::super) fn handle_js_repl_begin_now(
+    chat: &mut ChatWidget<'_>,
+    ev: code_core::protocol::JsReplExecBeginEvent,
+    order: &OrderMeta,
+) {
+    use crate::history::state::{ExecAction, ExecRecord, ExecStatus};
+
+    for cell in &chat.history_cells {
+        cell.trigger_fade();
+    }
+    chat.height_manager
+        .borrow_mut()
+        .record_event(HeightEvent::RunBegin);
+
+    let call_id = ev.call_id.clone();
+
+    let exec_record = ExecRecord {
+        id: HistoryId::ZERO,
+        call_id: Some(call_id.clone()),
+        command: vec!["js_repl".to_string()],
+        parsed: Vec::new(),
+        action: ExecAction::Run,
+        status: ExecStatus::Running,
+        stdout_chunks: Vec::new(),
+        stderr_chunks: Vec::new(),
+        exit_code: None,
+        wait_total: None,
+        wait_active: false,
+        wait_notes: Vec::new(),
+        started_at: std::time::SystemTime::now(),
+        completed_at: None,
+        working_dir: Some(ev.cwd.clone()),
+        env: Vec::new(),
+        tags: Vec::new(),
+    };
+
+    let cell = history_cell::JsReplCell::new_active(exec_record.clone(), ev.code, ev.runtime_kind, ev.runtime_version);
+    let key = chat.provider_order_key_from_order_meta(order);
+    let history_idx = chat.history_insert_with_key_global_tagged(
+        Box::new(cell),
+        key,
+        "js-repl-begin",
+        Some(HistoryDomainRecord::Exec(exec_record)),
+    );
+
+    let history_id = chat
+        .history_state
+        .history_id_for_exec_call(&call_id)
+        .or_else(|| chat.history_cell_ids.get(history_idx).and_then(|slot| *slot));
+
+    chat.exec.running_commands.insert(
+        super::ExecCallId(call_id),
+        super::RunningCommand {
+            command: vec!["js_repl".to_string()],
+            parsed: Vec::new(),
+            history_index: Some(history_idx),
+            history_id,
+            explore_entry: None,
+            stdout_offset: 0,
+            stderr_offset: 0,
+            wait_total: None,
+            wait_active: false,
+            wait_notes: Vec::new(),
+        },
+    );
+
+    chat.autoscroll_if_near_bottom();
+    chat.bottom_pane.set_has_chat_history(true);
+    chat.bottom_pane.update_status_text("running js…".to_string());
+    chat.refresh_auto_drive_visuals();
 }
 
 pub(in super::super::super) fn handle_exec_begin_now(
@@ -396,7 +469,8 @@ pub(in super::super::super) fn handle_exec_begin_now(
     let exec_record = exec_record_from_begin(&ev);
     let key = chat.provider_order_key_from_order_meta(order);
     let history_idx = if let Some(idx) = upgraded_tool_idx {
-        let replacement = history_cell::ExecCell::from_record(exec_record.clone());
+        let mut replacement = history_cell::ExecCell::from_record(exec_record.clone());
+        replacement.parent_call_id = ev.parent_call_id.clone();
         chat.history_replace_with_record(
             idx,
             Box::new(replacement),
@@ -417,7 +491,8 @@ pub(in super::super::super) fn handle_exec_begin_now(
         chat.bottom_pane.set_has_chat_history(true);
         idx
     } else {
-        let cell = history_cell::ExecCell::from_record(exec_record.clone());
+        let mut cell = history_cell::ExecCell::from_record(exec_record.clone());
+        cell.parent_call_id = ev.parent_call_id.clone();
         chat.history_insert_with_key_global_tagged(
             Box::new(cell),
             key,

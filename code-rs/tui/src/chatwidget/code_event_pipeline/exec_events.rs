@@ -1,5 +1,6 @@
 use super::*;
 use code_core::protocol::ExecCommandOutputDeltaEvent;
+use code_core::protocol::JsReplExecBeginEvent;
 use code_core::protocol::McpToolCallBeginEvent;
 use code_core::protocol::McpToolCallEndEvent;
 use code_core::protocol::OrderMeta;
@@ -230,6 +231,36 @@ impl ChatWidget<'_> {
                 tools::mcp_end(this, ev2, order_ok)
             },
         );
+    }
+
+    pub(super) fn handle_js_repl_exec_begin_event(
+        &mut self,
+        ev: JsReplExecBeginEvent,
+        order: Option<OrderMeta>,
+        seq: u64,
+    ) {
+        let om = order.unwrap_or_else(|| {
+            tracing::warn!("missing OrderMeta for JsReplExecBegin; using synthetic order");
+            code_core::protocol::OrderMeta {
+                request_ordinal: self.last_seen_request_index,
+                output_index: Some(i32::MAX as u32),
+                sequence_number: Some(seq),
+            }
+        });
+        self.finalize_active_stream();
+        let call_id = ev.call_id.clone();
+        tracing::info!("[order] JsReplExecBegin call_id={call_id} seq={seq}");
+        self.js_repl_last_runtime = Some((ev.runtime_kind.clone(), ev.runtime_version.clone()));
+        exec_tools::handle_js_repl_begin_now(self, ev, &om);
+        self.ensure_spinner_for_activity("js-repl-begin");
+        if let Some((pending_end, order2, _ts)) =
+            self.exec.pending_exec_ends.remove(&ExecCallId(call_id))
+        {
+            self.handle_exec_end_now(pending_end, &order2);
+        }
+        if self.interrupts.has_queued() {
+            self.flush_interrupt_queue();
+        }
     }
 
     pub(super) fn handle_view_image_tool_call_event(

@@ -83,9 +83,12 @@ pub(crate) struct ExecCell {
     has_bold_command: bool,
     wait_state: std::cell::RefCell<ExecWaitState>,
     layout_cache: std::cell::RefCell<ExecLayoutCacheEntry>,
+    collapsed_output: std::cell::Cell<bool>,
+    pub(crate) parent_call_id: Option<String>,
 }
 
 const STREAMING_EXIT_CODE: i32 = i32::MIN;
+const OUTPUT_FOLD_THRESHOLD: usize = 40;
 
 #[derive(Clone)]
 pub(crate) struct ParsedExecMetadata {
@@ -138,7 +141,7 @@ fn chunks_to_string(chunks: &[ExecStreamChunk]) -> String {
     combined
 }
 
-fn render_exec_stream(chunks: &[ExecStreamChunk], stream_name: &str) -> String {
+pub(crate) fn render_exec_stream(chunks: &[ExecStreamChunk], stream_name: &str) -> String {
     let mut body = chunks_to_string(chunks);
     if let Some(first) = chunks.first()
         && first.offset > 0 {
@@ -165,7 +168,7 @@ fn wait_notes_from_record(notes: &[RecordExecWaitNote]) -> Vec<ExecWaitNote> {
         .collect()
 }
 
-fn record_output(record: &ExecRecord) -> Option<CommandOutput> {
+pub(crate) fn record_output(record: &ExecRecord) -> Option<CommandOutput> {
     if !matches!(record.status, ExecStatus::Running) {
         let stdout = render_exec_stream(&record.stdout_chunks, "stdout");
         let stderr = render_exec_stream(&record.stderr_chunks, "stderr");
@@ -177,6 +180,15 @@ fn record_output(record: &ExecRecord) -> Option<CommandOutput> {
         });
     }
     None
+}
+
+fn should_auto_collapse_output(output: Option<&CommandOutput>) -> bool {
+    let Some(out) = output else { return false; };
+    out.stdout
+        .lines()
+        .count()
+        .saturating_add(out.stderr.lines().count())
+        > OUTPUT_FOLD_THRESHOLD
 }
 
 impl HistoryCell for ExecCell {
@@ -204,6 +216,8 @@ impl HistoryCell for ExecCell {
             } => {
                 if matches!(status, ExecStatus::Error) {
                     Some("✗")
+                } else if self.parent_call_id.is_some() {
+                    Some("↳")
                 } else if self.has_bold_command {
                     Some("❯")
                 } else {
@@ -395,6 +409,8 @@ impl ExecCell {
             None
         };
 
+        let collapsed_output = should_auto_collapse_output(output.as_ref());
+
         Self {
             record,
             command,
@@ -409,6 +425,8 @@ impl ExecCell {
                 width: 0,
                 layout: ExecRenderLayout::default(),
             }),
+            collapsed_output: std::cell::Cell::new(collapsed_output),
+            parent_call_id: None,
         }
     }
 
@@ -425,6 +443,11 @@ impl ExecCell {
             width: 0,
             layout: ExecRenderLayout::default(),
         };
+    }
+
+    pub(crate) fn toggle_output_collapsed(&self) {
+        self.collapsed_output.set(!self.collapsed_output.get());
+        self.invalidate_layout_cache();
     }
 
     fn status_line_for_render(&self) -> Option<Line<'static>> {
@@ -475,7 +498,19 @@ impl ExecCell {
             };
 
         let (pre_lines, pre_total) = wrap_and_clamp(pre_trimmed, width);
-        let (out_lines, out_block_total) = wrap_and_clamp(out_trimmed, width.saturating_sub(2));
+        let (mut out_lines, _) = wrap_and_clamp(out_trimmed, width.saturating_sub(2));
+
+        if self.collapsed_output.get() && out_lines.len() > OUTPUT_FOLD_THRESHOLD {
+            let folded_count = out_lines.len() - OUTPUT_FOLD_THRESHOLD;
+            out_lines.truncate(OUTPUT_FOLD_THRESHOLD);
+            out_lines.push(Line::from(Span::styled(
+                format!("… {folded_count} more lines  [ to expand"),
+                Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::DIM),
+            )));
+        }
+        let out_block_total = out_lines.len().min(u16::MAX as usize) as u16;
 
         ExecRenderLayout {
             pre_lines,
@@ -689,7 +724,7 @@ impl ExecCell {
                 let is_error_line = |line: &Line<'static>| {
                     line.spans
                         .first()
-                        .map(|span| span.content.as_ref().starts_with("Error (exit code"))
+                        .map(|span| span.content.as_ref().starts_with("Error (exit"))
                         .unwrap_or(false)
                 };
                 let insert_at = out.iter().position(is_error_line).unwrap_or(out.len());
@@ -716,6 +751,7 @@ impl ExecCell {
     }
 
     pub(crate) fn sync_from_record(&mut self, record: &ExecRecord) {
+        let was_running = matches!(self.record.status, ExecStatus::Running);
         self.record = record.clone();
         self.command = record.command.clone();
         self.parsed = record.parsed.clone();
@@ -756,6 +792,11 @@ impl ExecCell {
         } else {
             self.stream_preview = None;
             self.start_time = None;
+        }
+        if was_running && !matches!(record.status, ExecStatus::Running)
+            && should_auto_collapse_output(self.output.as_ref())
+        {
+            self.collapsed_output.set(true);
         }
         self.invalidate_layout_cache();
     }

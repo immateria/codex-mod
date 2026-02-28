@@ -489,6 +489,7 @@ fn smoke_exec_begin_end_consistency() {
         command: vec!["pwd".into()],
         cwd: PathBuf::from("/workspace"),
         parsed_cmd: Vec::new(),
+        parent_call_id: None,
     };
 
     let end = ExecCommandEndEvent {
@@ -650,6 +651,7 @@ fn smoke_exec_command_stream() {
             command: vec!["echo".to_string(), "hello".to_string()],
             cwd: PathBuf::from("/tmp"),
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(OrderMeta {
             request_ordinal: 1,

@@ -332,6 +332,20 @@ impl ChatWidget<'_> {
                 return;
             }
 
+        // `[` key: toggle output fold on the bottommost completed exec/js-repl cell.
+        // Only intercept when the composer is empty so normal typing is unaffected.
+        if let crossterm::event::KeyEvent {
+            code: crossterm::event::KeyCode::Char('['),
+            modifiers: crossterm::event::KeyModifiers::NONE,
+            kind: KeyEventKind::Press | KeyEventKind::Repeat,
+            ..
+        } = key_event
+            && self.bottom_pane.composer_is_empty()
+        {
+            self.toggle_bottommost_exec_fold();
+            return;
+        }
+
         let composer_was_empty = self.bottom_pane.composer_is_empty();
         let input_result = self.bottom_pane.handle_key_event(key_event);
         let composer_is_empty = self.bottom_pane.composer_is_empty();
@@ -471,6 +485,29 @@ impl ChatWidget<'_> {
             InputResult::None => {
                 // Trigger redraw so input wrapping/height reflects immediately
                 self.app_event_tx.send(AppEvent::RequestRedraw);
+            }
+        }
+    }
+
+    fn toggle_bottommost_exec_fold(&mut self) {
+        use crate::history_cell::{ExecCell, JsReplCell};
+        for cell_box in self.history_cells.iter().rev() {
+            let cell = cell_box.as_ref();
+            if let Some(exec_cell) = cell.as_any().downcast_ref::<ExecCell>()
+                && exec_cell.output.is_some()
+            {
+                exec_cell.toggle_output_collapsed();
+                self.invalidate_height_cache();
+                self.request_redraw();
+                return;
+            }
+            if let Some(js_cell) = cell.as_any().downcast_ref::<JsReplCell>()
+                && js_cell.output.is_some()
+            {
+                js_cell.toggle_output_collapsed();
+                self.invalidate_height_cache();
+                self.request_redraw();
+                return;
             }
         }
     }

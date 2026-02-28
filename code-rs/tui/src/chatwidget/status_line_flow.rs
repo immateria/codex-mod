@@ -277,6 +277,30 @@ impl ChatWidget<'_> {
                 format_si_suffix(self.total_token_usage.output_tokens.min(i64::MAX as u64) as i64)
             )),
             StatusLineItem::SessionId => self.session_id.map(|id| id.to_string()),
+            StatusLineItem::JsRepl => {
+                if !self.config.tools_js_repl {
+                    return None;
+                }
+                let is_executing = self.exec.running_commands.values().any(|rc| {
+                    rc.command.first().map(|c| c == "js_repl").unwrap_or(false)
+                });
+                let suffix = if is_executing { " …" } else { "" };
+                if let Some((kind, version)) = &self.js_repl_last_runtime {
+                    let v = if version.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" {version}")
+                    };
+                    Some(format!("js {kind}{v}{suffix}"))
+                } else {
+                    Some(format!("js{suffix}"))
+                }
+            }
+            StatusLineItem::ActiveProfile => self
+                .config
+                .active_profile
+                .as_deref()
+                .map(|name| format!("profile {name}")),
         }
     }
 

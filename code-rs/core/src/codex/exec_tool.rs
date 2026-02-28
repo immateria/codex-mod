@@ -550,6 +550,7 @@ pub(crate) async fn handle_apply_patch_action(
             user_explicitly_approved_this_action: false,
             changes: changes.clone(),
         }),
+        parent_call_id: ctx.parent_call_id.clone(),
     };
 
     // FileBeforeWrite hook for apply_patch
@@ -1418,6 +1419,7 @@ pub(crate) async fn handle_container_exec_with_params(
         command_for_display: command_for_display.clone(),
         cwd: params.cwd.clone(),
         apply_patch: None,
+        parent_call_id: ctx.parent_call_id.clone(),
     };
 
     let display_label = crate::util::strip_bash_lc_and_escape(&exec_command_context.command_for_display);

@@ -45,6 +45,8 @@ pub(crate) enum StatusLineItem {
     TotalInputTokens,
     TotalOutputTokens,
     SessionId,
+    JsRepl,
+    ActiveProfile,
 }
 
 impl StatusLineItem {
@@ -70,6 +72,8 @@ impl StatusLineItem {
             StatusLineItem::TotalInputTokens => "Total input tokens",
             StatusLineItem::TotalOutputTokens => "Total output tokens",
             StatusLineItem::SessionId => "Session id",
+            StatusLineItem::JsRepl => "JS REPL kernel",
+            StatusLineItem::ActiveProfile => "Active shell profile",
         }
     }
 
@@ -95,6 +99,8 @@ impl StatusLineItem {
             StatusLineItem::TotalInputTokens => "Total input tokens.",
             StatusLineItem::TotalOutputTokens => "Total output tokens.",
             StatusLineItem::SessionId => "Current session identifier.",
+            StatusLineItem::JsRepl => "JS REPL kernel status and runtime version (hidden when js_repl disabled).",
+            StatusLineItem::ActiveProfile => "Active shell profile name (hidden when no profile is set).",
         }
     }
 
@@ -120,6 +126,8 @@ impl StatusLineItem {
             StatusLineItem::TotalInputTokens => "9.3K in",
             StatusLineItem::TotalOutputTokens => "3.1K out",
             StatusLineItem::SessionId => "a18f2f0d-01d4-4dbf-b2b6-2f53",
+            StatusLineItem::JsRepl => "js node v20",
+            StatusLineItem::ActiveProfile => "profile work",
         }
     }
 }

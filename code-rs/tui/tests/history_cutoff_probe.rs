@@ -149,6 +149,7 @@ fn collapsed_reasoning_before_exec_keeps_last_line() {
             command: vec!["bash".into(), "-lc".into(), "printf".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(order(&mut seq)),
     });
@@ -383,6 +384,7 @@ fn exec_history_small_viewport_keeps_last_line() {
             command: vec!["bash".into(), "-lc".into(), "printf".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(order(&mut seq)),
     });

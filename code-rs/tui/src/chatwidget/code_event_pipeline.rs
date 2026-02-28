@@ -354,6 +354,9 @@ impl ChatWidget<'_> {
             EventMsg::ApplyPatchApprovalRequest(ev) => {
                 self.handle_apply_patch_approval_request_event(id, ev, event.event_seq);
             }
+            EventMsg::JsReplExecBegin(ev) => {
+                self.handle_js_repl_exec_begin_event(ev, event.order.clone(), event.event_seq);
+            }
             EventMsg::ExecCommandBegin(ev) => {
                 self.handle_exec_command_begin_event(ev, event.order.clone(), event.event_seq);
             }

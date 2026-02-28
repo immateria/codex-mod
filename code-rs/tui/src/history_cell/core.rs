@@ -41,6 +41,7 @@ pub(crate) enum HistoryCellType {
     Context,
     AnimatedWelcome,
     Loading,
+    JsRepl { status: ExecStatus },
 }
 
 pub(crate) fn gutter_symbol_for_kind(kind: HistoryCellType) -> Option<&'static str> {
@@ -76,6 +77,10 @@ pub(crate) fn gutter_symbol_for_kind(kind: HistoryCellType) -> Option<&'static s
         HistoryCellType::Context => Some("◆"),
         HistoryCellType::AnimatedWelcome => None,
         HistoryCellType::Loading => None,
+        HistoryCellType::JsRepl { status } => match status {
+            ExecStatus::Error => Some("✗"),
+            _ => Some("❯"),
+        },
     }
 }
 

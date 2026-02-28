@@ -63,6 +63,7 @@ fn seed_completed_exec_cells(harness: &mut ChatWidgetHarness, count: usize) {
                 command: vec!["echo".into(), idx.to_string()],
                 cwd: cwd.clone(),
                 parsed_cmd: Vec::new(),
+                parent_call_id: None,
             }),
             order: Some(next_order_meta(1, &mut seq)),
         });

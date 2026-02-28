@@ -23,6 +23,9 @@ pub(crate) struct ToolDispatchMeta<'a> {
     pub(crate) seq_hint: Option<u64>,
     pub(crate) output_index: Option<u32>,
     pub(crate) attempt_req: u64,
+    /// When set, indicates this tool call was dispatched by a parent tool
+    /// (e.g. JS REPL calling `codex.tool("shell", …)`).
+    pub(crate) parent_call_id: Option<&'a str>,
 }
 
 impl<'a> ToolDispatchMeta<'a> {
@@ -37,6 +40,7 @@ impl<'a> ToolDispatchMeta<'a> {
             seq_hint,
             output_index,
             attempt_req,
+            parent_call_id: None,
         }
     }
 }
@@ -143,12 +147,13 @@ impl ToolRouter {
                 call_id,
                 ..
             } => {
-                let ctx = ToolCallCtx::new(
+                let mut ctx = ToolCallCtx::new(
                     meta.sub_id.to_string(),
                     call_id,
                     meta.seq_hint,
                     meta.output_index,
                 );
+                ctx.parent_call_id = meta.parent_call_id.map(str::to_string);
                 Some(
                     self.dispatch_function_call(
                         sess,
@@ -195,12 +200,13 @@ impl ToolRouter {
                     }
                 };
 
-                let ctx = ToolCallCtx::new(
+                let mut ctx = ToolCallCtx::new(
                     meta.sub_id.to_string(),
                     effective_call_id,
                     meta.seq_hint,
                     meta.output_index,
                 );
+                ctx.parent_call_id = meta.parent_call_id.map(str::to_string);
                 Some(
                     self.dispatch_local_shell_call(
                         sess,
@@ -213,12 +219,13 @@ impl ToolRouter {
                 )
             }
             ResponseItem::CustomToolCall { call_id, name, input, .. } => {
-                let ctx = ToolCallCtx::new(
+                let mut ctx = ToolCallCtx::new(
                     meta.sub_id.to_string(),
                     call_id,
                     meta.seq_hint,
                     meta.output_index,
                 );
+                ctx.parent_call_id = meta.parent_call_id.map(str::to_string);
                 Some(
                     self.dispatch_custom_tool_call(
                         sess,

@@ -343,6 +343,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 command,
                 cwd,
                 parsed_cmd: _,
+                ..
             }) => {
                 self.call_id_to_command.insert(
                     call_id,
@@ -356,6 +357,27 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     "exec".style(self.magenta),
                     escape_command(&command).style(self.bold),
                     cwd.to_string_lossy(),
+                );
+            }
+            EventMsg::JsReplExecBegin(ev) => {
+                self.call_id_to_command.insert(
+                    ev.call_id.clone(),
+                    ExecCommandBegin {
+                        command: vec!["js_repl".to_string()],
+                    },
+                );
+
+                let runtime = if ev.runtime_version.is_empty() {
+                    ev.runtime_kind
+                } else {
+                    format!("{} {}", ev.runtime_kind, ev.runtime_version)
+                };
+                ts_println!(
+                    self,
+                    "{} {} in {}",
+                    "js".style(self.magenta),
+                    runtime.style(self.bold),
+                    ev.cwd.to_string_lossy(),
                 );
             }
             EventMsg::ExecCommandOutputDelta(_) => {}

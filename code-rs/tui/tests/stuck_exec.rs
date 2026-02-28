@@ -48,6 +48,7 @@ fn exec_cell_clears_after_patch_flow() {
             command: vec!["bash".into(), "-lc".into(), "apply_patch".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -110,6 +111,7 @@ fn exec_spinner_clears_after_final_answer() {
             command: vec!["bash".into(), "-lc".into(), "echo running".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -152,6 +154,7 @@ fn exec_cell_clears_after_task_started_final_answer_without_task_complete() {
             command: vec!["bash".into(), "-lc".into(), "echo pending".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -192,6 +195,7 @@ fn synthetic_end_clears_cancelled_exec_spinner() {
             command: vec!["bash".into(), "-lc".into(), "sleep 5".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -246,6 +250,7 @@ fn wait_tool_missing_background_job_clears_exec_wait() {
             command: vec!["bash".into(), "-lc".into(), "gh run watch".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -303,6 +308,7 @@ fn wait_interrupt_after_exec_end_does_not_mutate_exec() {
             command: vec!["bash".into(), "-lc".into(), "echo done".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -379,6 +385,7 @@ fn wait_missing_job_skips_merged_exec() {
             command: vec!["rg".into(), "foo".into(), ".".into()],
             cwd: cwd.clone(),
             parsed_cmd: parsed_search.clone(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -415,6 +422,7 @@ fn wait_missing_job_skips_merged_exec() {
             command: vec!["rg".into(), "foo".into(), ".".into()],
             cwd,
             parsed_cmd: parsed_search,
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -488,6 +496,7 @@ fn exec_begin_upgrades_running_tool_cell() {
             command: vec!["bash".into(), "-lc".into(), "echo upgraded".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -537,6 +546,7 @@ fn stale_exec_is_finalized_on_task_complete() {
             command: vec!["bash".into(), "-lc".into(), "git diff".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -589,6 +599,7 @@ fn exec_interrupts_flush_when_stream_idles() {
             command: vec!["bash".into(), "-lc".into(), "echo idle".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -621,6 +632,7 @@ fn queued_exec_end_flushes_after_stream_clears() {
             command: vec!["bash".into(), "-lc".into(), "echo queued".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -701,6 +713,7 @@ fn background_style_exec_end_with_zero_seq_does_not_get_stuck() {
             command: vec!["bash".into(), "-lc".into(), "echo bg".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });
@@ -760,6 +773,7 @@ fn running_exec_is_finalized_when_error_event_arrives() {
             command: vec!["bash".into(), "-lc".into(), "pgrep something".into()],
             cwd,
             parsed_cmd: Vec::new(),
+            parent_call_id: None,
         }),
         order: Some(next_order_meta(1, &mut seq)),
     });

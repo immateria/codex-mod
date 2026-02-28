@@ -59,6 +59,13 @@ impl ChatWidget<'_> {
                     exec.sync_from_record(state);
                     return true;
                 }
+                if let Some(js_cell) = cell
+                    .as_any_mut()
+                    .downcast_mut::<crate::history_cell::JsReplCell>()
+                {
+                    js_cell.sync_from_exec_record(state);
+                    return true;
+                }
             }
             HistoryRecord::AssistantStream(state) => {
                 if let Some(stream) = cell
@@ -253,7 +260,19 @@ impl ChatWidget<'_> {
         self.history_render.invalidate_history_id(id);
 
         if let Some(idx) = self.cell_index_for_history_id(id) {
-            if let Some(mut rebuilt) = self.build_cell_from_record(&record) {
+            // JsReplCell stores JS-specific metadata (code, runtime) that would be
+            // lost if we rebuilt it from a plain ExecRecord. Always hydrate in-place.
+            let existing_is_js_repl = self
+                .history_cells
+                .get(idx)
+                .map(|c| c.as_any().is::<crate::history_cell::JsReplCell>())
+                .unwrap_or(false);
+            if existing_is_js_repl {
+                if let Some(cell_slot) = self.history_cells.get_mut(idx) {
+                    Self::hydrate_cell_from_record_inner(cell_slot, &record, &self.config);
+                    Self::assign_history_id_inner(cell_slot, id);
+                }
+            } else if let Some(mut rebuilt) = self.build_cell_from_record(&record) {
                 Self::assign_history_id_inner(&mut rebuilt, id);
                 self.history_cells[idx] = rebuilt;
             } else if let Some(cell_slot) = self.history_cells.get_mut(idx)
@@ -309,6 +328,11 @@ impl ChatWidget<'_> {
             .downcast_mut::<crate::history_cell::ExecCell>()
         {
             exec.record.id = id;
+        } else if let Some(js_cell) = cell
+            .as_any_mut()
+            .downcast_mut::<crate::history_cell::JsReplCell>()
+        {
+            js_cell.set_history_id(id);
         } else if let Some(merged) = cell
             .as_any_mut()
             .downcast_mut::<crate::history_cell::MergedExecCell>()

@@ -48,4 +48,5 @@ pub(super) use finalization::finalize_all_running_due_to_answer;
 pub(super) use finalization::finalize_wait_missing_exec;
 pub(super) use finalization::try_merge_completed_exec_at;
 pub(super) use lifecycle::handle_exec_begin_now;
+pub(super) use lifecycle::handle_js_repl_begin_now;
 pub(super) use lifecycle::handle_exec_end_now;

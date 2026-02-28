@@ -37,8 +37,8 @@ const KERNEL_SOURCE_NODE: &str = include_str!("kernel.js");
 const KERNEL_SOURCE_DENO: &str = include_str!("kernel_deno.js");
 const MERIYAH_UMD: &str = include_str!("meriyah.umd.min.js");
 
-const DEFAULT_TIMEOUT_MS: u64 = 15_000;
-const MAX_TIMEOUT_MS: u64 = 120_000;
+pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 15_000;
+pub(crate) const MAX_TIMEOUT_MS: u64 = 120_000;
 const MIN_NODE_VERSION: (u64, u64, u64) = (18, 0, 0);
 
 #[derive(Clone, Debug)]
@@ -176,6 +176,17 @@ impl JsReplManager {
             next_id: AtomicU64::new(0),
             next_tool_seq: AtomicU64::new(0),
         }))
+    }
+
+    pub(crate) fn runtime_kind_str(&self) -> &str {
+        match self.runtime.kind {
+            crate::config::JsReplRuntimeKindToml::Node => "node",
+            crate::config::JsReplRuntimeKindToml::Deno => "deno",
+        }
+    }
+
+    pub(crate) fn runtime_version(&self) -> &str {
+        &self.runtime.version
     }
 
     pub(crate) async fn execute(
@@ -605,12 +616,13 @@ impl JsReplManager {
         let base_seq = parent_ctx.seq_hint.unwrap_or(0);
         let local_seq = self.next_tool_seq.fetch_add(1, Ordering::Relaxed);
         let seq_hint = Some(base_seq.saturating_add(1).saturating_add(local_seq));
-        let meta = ToolDispatchMeta::new(
+        let mut meta = ToolDispatchMeta::new(
             &parent_ctx.sub_id,
             seq_hint,
             parent_ctx.output_index,
             attempt_req,
         );
+        meta.parent_call_id = Some(&parent_ctx.call_id);
 
         let tool_name_lower = tool_req.tool_name.to_ascii_lowercase();
         let is_mcp_tool = sess
