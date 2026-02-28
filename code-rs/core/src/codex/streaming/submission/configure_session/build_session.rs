@@ -299,7 +299,12 @@ impl Runner<'_> {
             tools_config,
             dynamic_tools,
             exec_command_manager: Arc::new(crate::exec_command::SessionManager::default()),
-            js_repl: crate::tools::js_repl::JsReplHandle::new(None),
+            js_repl: crate::tools::js_repl::JsReplHandle::new(crate::tools::js_repl::JsReplRuntimeConfig {
+                kind: config.js_repl_runtime,
+                runtime_path: config.js_repl_runtime_path.clone(),
+                runtime_args: config.js_repl_runtime_args.clone(),
+                node_module_dirs: config.js_repl_node_module_dirs.clone(),
+            }),
             network_proxy,
             network_approval: Arc::clone(&network_approval),
             tx_event: self.tx_event.clone(),
@@ -414,4 +419,3 @@ impl Runner<'_> {
         }
     }
 }
-

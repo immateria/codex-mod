@@ -154,24 +154,30 @@ impl ToolHandler for JsReplToolHandler {
     async fn handle(
         &self,
         sess: &Session,
-        _turn_diff_tracker: &mut TurnDiffTracker,
+        turn_diff_tracker: &mut TurnDiffTracker,
         inv: ToolInvocation,
     ) -> ResponseInputItem {
-        let outputs_custom = inv.payload.outputs_custom();
+        let ToolInvocation {
+            ctx,
+            payload,
+            attempt_req,
+            ..
+        } = inv;
+        let outputs_custom = payload.outputs_custom();
 
         if !sess.js_repl_enabled() {
             return unsupported_tool_call_output(
-                &inv.ctx.call_id,
+                &ctx.call_id,
                 outputs_custom,
                 "js_repl is disabled (set `[tools].js_repl=true`)".to_string(),
             );
         }
 
-        let args = match inv.payload {
+        let args = match payload {
             ToolPayload::Custom { input } => match parse_freeform_args(&input) {
                 Ok(args) => args,
                 Err(err) => {
-                    return unsupported_tool_call_output(&inv.ctx.call_id, true, err);
+                    return unsupported_tool_call_output(&ctx.call_id, true, err);
                 }
             },
             ToolPayload::Function { arguments } => match serde_json::from_str::<JsReplFunctionArgs>(&arguments) {
@@ -181,7 +187,7 @@ impl ToolHandler for JsReplToolHandler {
                 },
                 Err(err) => {
                     return unsupported_tool_call_output(
-                        &inv.ctx.call_id,
+                        &ctx.call_id,
                         outputs_custom,
                         format!("invalid js_repl arguments: {err}"),
                     );
@@ -189,7 +195,7 @@ impl ToolHandler for JsReplToolHandler {
             },
             other => {
                 return unsupported_tool_call_output(
-                    &inv.ctx.call_id,
+                    &ctx.call_id,
                     outputs_custom,
                     format!("js_repl received unsupported payload: {other:?}"),
                 );
@@ -197,29 +203,39 @@ impl ToolHandler for JsReplToolHandler {
         };
 
         let started_at = Instant::now();
-        emit_js_repl_exec_begin(sess, &inv.ctx).await;
+        emit_js_repl_exec_begin(sess, &ctx).await;
 
         let manager = match sess.js_repl_manager().await {
             Ok(manager) => manager,
             Err(err) => {
                 emit_js_repl_exec_end(
                     sess,
-                    &inv.ctx,
+                    &ctx,
                     String::new(),
                     err.clone(),
                     1,
                     started_at.elapsed(),
                 )
                 .await;
-                return unsupported_tool_call_output(&inv.ctx.call_id, outputs_custom, err);
+                return unsupported_tool_call_output(&ctx.call_id, outputs_custom, err);
             }
         };
 
-        match manager.execute(sess.get_cwd(), args).await {
+        match manager
+            .execute(
+                sess,
+                turn_diff_tracker,
+                &ctx,
+                attempt_req,
+                sess.get_cwd(),
+                args,
+            )
+            .await
+        {
             Ok(result) => {
                 emit_js_repl_exec_end(
                     sess,
-                    &inv.ctx,
+                    &ctx,
                     result.output.clone(),
                     String::new(),
                     0,
@@ -229,12 +245,12 @@ impl ToolHandler for JsReplToolHandler {
 
                 if outputs_custom {
                     ResponseInputItem::CustomToolCallOutput {
-                        call_id: inv.ctx.call_id,
+                        call_id: ctx.call_id,
                         output: result.output,
                     }
                 } else {
                     ResponseInputItem::FunctionCallOutput {
-                        call_id: inv.ctx.call_id,
+                        call_id: ctx.call_id,
                         output: FunctionCallOutputPayload {
                             body: FunctionCallOutputBody::Text(result.output),
                             success: Some(true),
@@ -246,7 +262,7 @@ impl ToolHandler for JsReplToolHandler {
                 let combined = join_outputs(&err.output, &err.error);
                 emit_js_repl_exec_end(
                     sess,
-                    &inv.ctx,
+                    &ctx,
                     err.output.clone(),
                     err.error.clone(),
                     1,
@@ -256,12 +272,12 @@ impl ToolHandler for JsReplToolHandler {
 
                 if outputs_custom {
                     ResponseInputItem::CustomToolCallOutput {
-                        call_id: inv.ctx.call_id,
+                        call_id: ctx.call_id,
                         output: combined,
                     }
                 } else {
                     ResponseInputItem::FunctionCallOutput {
-                        call_id: inv.ctx.call_id,
+                        call_id: ctx.call_id,
                         output: FunctionCallOutputPayload {
                             body: FunctionCallOutputBody::Text(combined),
                             success: Some(false),
