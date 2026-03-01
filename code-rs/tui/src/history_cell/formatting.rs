@@ -1,20 +1,30 @@
+use crate::history::state::{
+    ExecRecord,
+    ExecStatus,
+    ExecStreamChunk,
+};
 use crate::sanitize::Mode as SanitizeMode;
 use crate::sanitize::Options as SanitizeOptions;
 use crate::sanitize::sanitize_for_tui;
 use crate::text_formatting::format_json_compact;
 use code_ansi_escape::ansi_escape_line;
-use ratatui::style::{Style, Stylize};
-use ratatui::text::Line;
+use code_core::history::state::MAX_EXEC_STREAM_RETAINED_BYTES;
+use ratatui::style::{Modifier, Style, Stylize};
+use ratatui::text::{Line, Span};
+use std::cell::Cell;
+use std::time::Instant;
 
 use super::core::CommandOutput;
+use super::layout_cache::LayoutCache;
 
 // Unified preview format: show first 2 and last 5 non-empty lines with an ellipsis between.
 const PREVIEW_HEAD_LINES: usize = 2;
 const PREVIEW_TAIL_LINES: usize = 5;
 const EXEC_PREVIEW_MAX_CHARS: usize = 16_000;
-const STREAMING_EXIT_CODE: i32 = i32::MIN;
+pub(crate) const STREAMING_EXIT_CODE: i32 = i32::MIN;
+pub(crate) const OUTPUT_FOLD_THRESHOLD: usize = 40;
 
-fn describe_exit_code(code: i32) -> &'static str {
+pub(crate) fn describe_exit_code(code: i32) -> &'static str {
     match code {
         1 => "general error",
         2 => "shell built-in misuse",
@@ -594,4 +604,126 @@ pub(crate) fn trim_empty_lines(mut lines: Vec<Line<'static>>) -> Vec<Line<'stati
     }
 
     result
+}
+
+// ---------------------------------------------------------------------------
+// Shared exec/js-repl output helpers
+// ---------------------------------------------------------------------------
+
+fn chunks_to_string(chunks: &[ExecStreamChunk]) -> String {
+    if chunks.is_empty() {
+        return String::new();
+    }
+    let mut sorted = chunks.to_vec();
+    sorted.sort_by_key(|chunk| chunk.offset);
+    let mut combined = String::new();
+    for chunk in sorted {
+        combined.push_str(&chunk.content);
+    }
+    combined
+}
+
+pub(crate) fn render_exec_stream(chunks: &[ExecStreamChunk], stream_name: &str) -> String {
+    let mut body = chunks_to_string(chunks);
+    if let Some(first) = chunks.first()
+        && first.offset > 0 {
+            let mut notice = String::new();
+            notice.push_str(&format!(
+                "… clipped {} from the start of {} (showing last {}).\n\n",
+                code_core::util::format_bytes(first.offset),
+                stream_name,
+                code_core::util::format_bytes(MAX_EXEC_STREAM_RETAINED_BYTES),
+            ));
+            notice.push_str(&body);
+            body = notice;
+        }
+    body
+}
+
+pub(crate) fn record_output(record: &ExecRecord) -> Option<CommandOutput> {
+    if !matches!(record.status, ExecStatus::Running) {
+        let stdout = render_exec_stream(&record.stdout_chunks, "stdout");
+        let stderr = render_exec_stream(&record.stderr_chunks, "stderr");
+        let exit_code = record.exit_code.unwrap_or_default();
+        return Some(CommandOutput {
+            exit_code,
+            stdout,
+            stderr,
+        });
+    }
+    None
+}
+
+pub(crate) fn should_auto_collapse_output(output: Option<&CommandOutput>) -> bool {
+    let Some(out) = output else { return false; };
+    out.stdout
+        .lines()
+        .count()
+        .saturating_add(out.stderr.lines().count())
+        > OUTPUT_FOLD_THRESHOLD
+}
+
+/// Shared output/streaming state sync used by ExecCell and JsReplCell.
+///
+/// Callers are responsible for capturing `was_running` before overwriting their
+/// stored record so we only auto-collapse on the running -> completed
+/// transition.
+pub(crate) fn sync_exec_output_state<L: Default>(
+    record: &ExecRecord,
+    was_running: bool,
+    output: &mut Option<CommandOutput>,
+    stream_preview: &mut Option<CommandOutput>,
+    start_time: &mut Option<Instant>,
+    collapsed_output: &Cell<bool>,
+    layout_cache: &LayoutCache<L>,
+) {
+    *output = record_output(record);
+    *stream_preview = build_streaming_preview(record);
+
+    if matches!(record.status, ExecStatus::Running) {
+        if start_time.is_none() {
+            *start_time = Some(Instant::now());
+        }
+    } else {
+        *start_time = None;
+    }
+
+    if was_running
+        && !matches!(record.status, ExecStatus::Running)
+        && should_auto_collapse_output(output.as_ref())
+    {
+        collapsed_output.set(true);
+    }
+
+    layout_cache.invalidate();
+}
+
+/// Build a streaming preview `CommandOutput` from a running exec record,
+/// or `None` if the record is not running or has no output yet.
+pub(crate) fn build_streaming_preview(record: &ExecRecord) -> Option<CommandOutput> {
+    if !matches!(record.status, ExecStatus::Running) {
+        return None;
+    }
+    let stdout = render_exec_stream(&record.stdout_chunks, "stdout");
+    let stderr = render_exec_stream(&record.stderr_chunks, "stderr");
+    if stdout.is_empty() && stderr.is_empty() {
+        None
+    } else {
+        Some(CommandOutput::streaming_preview(stdout, stderr))
+    }
+}
+
+/// If `collapsed` is true and `lines` exceeds `OUTPUT_FOLD_THRESHOLD`,
+/// truncate in-place and append a "… N more lines" indicator.
+pub(crate) fn maybe_fold_output(lines: &mut Vec<Line<'static>>, collapsed: bool) {
+    if collapsed && lines.len() > OUTPUT_FOLD_THRESHOLD {
+        let folded_count = lines.len() - OUTPUT_FOLD_THRESHOLD;
+        lines.truncate(OUTPUT_FOLD_THRESHOLD);
+        lines.push(Line::from(Span::styled(
+            format!("… {folded_count} more lines (press [ to expand)"),
+            Style::default()
+                .fg(crate::colors::text_dim())
+                .add_modifier(Modifier::DIM),
+        )));
+    }
 }

@@ -23,19 +23,12 @@ use crate::foundation::wrapping::word_wrap_lines;
 use crate::insert_history::word_wrap_lines;
 
 #[cfg(feature = "test-helpers")]
-thread_local! {
-    static MERGED_EXEC_LAYOUT_BUILDS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-}
-
-#[cfg(feature = "test-helpers")]
-pub(crate) fn reset_merged_exec_layout_builds_for_test() {
-    MERGED_EXEC_LAYOUT_BUILDS.with(|c| c.set(0));
-}
-
-#[cfg(feature = "test-helpers")]
-pub(crate) fn merged_exec_layout_builds_for_test() -> u64 {
-    MERGED_EXEC_LAYOUT_BUILDS.with(std::cell::Cell::get)
-}
+layout_build_counter!(
+    MERGED_EXEC_LAYOUT_BUILDS,
+    reset_merged_exec_layout_builds_for_test,
+    merged_exec_layout_builds_for_test,
+    bump_merged_exec_layout_builds
+);
 
 // ==================== MergedExecCell ====================
 // Represents multiple completed exec results merged into one cell while preserving
@@ -68,7 +61,7 @@ pub(crate) struct MergedExecCell {
     segments: Vec<MergedExecSegment>,
     kind: ExecKind,
     history_id: HistoryId,
-    layout_cache: std::cell::RefCell<MergedExecLayoutCacheEntry>,
+    layout_cache: super::layout_cache::LayoutCache<MergedExecLayout>,
 }
 
 impl MergedExecCell {
@@ -77,10 +70,7 @@ impl MergedExecCell {
     }
 
     fn invalidate_layout_cache(&self) {
-        *self.layout_cache.borrow_mut() = MergedExecLayoutCacheEntry {
-            width: 0,
-            layout: MergedExecLayout::default(),
-        };
+        self.layout_cache.invalidate();
     }
 
     pub(crate) fn set_history_id(&mut self, id: HistoryId) {
@@ -108,10 +98,7 @@ impl MergedExecCell {
             segments: segments.into_iter().map(MergedExecSegment::new).collect(),
             kind: action.into(),
             history_id,
-            layout_cache: std::cell::RefCell::new(MergedExecLayoutCacheEntry {
-                width: 0,
-                layout: MergedExecLayout::default(),
-            }),
+            layout_cache: super::layout_cache::LayoutCache::new(),
         }
     }
 
@@ -127,37 +114,16 @@ impl MergedExecCell {
             segments,
             kind,
             history_id,
-            layout_cache: std::cell::RefCell::new(MergedExecLayoutCacheEntry {
-                width: 0,
-                layout: MergedExecLayout::default(),
-            }),
+            layout_cache: super::layout_cache::LayoutCache::new(),
         }
-    }
-
-    fn ensure_layout_for_width(&self, width: u16) {
-        if width == 0 {
-            *self.layout_cache.borrow_mut() = MergedExecLayoutCacheEntry {
-                width,
-                layout: MergedExecLayout::default(),
-            };
-            return;
-        }
-
-        let needs_rebuild = self.layout_cache.borrow().width != width;
-        if !needs_rebuild {
-            return;
-        }
-
-        #[cfg(feature = "test-helpers")]
-        MERGED_EXEC_LAYOUT_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
-
-        let layout = self.compute_layout_for_width(width);
-        *self.layout_cache.borrow_mut() = MergedExecLayoutCacheEntry { width, layout };
     }
 
     fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, MergedExecLayout> {
-        self.ensure_layout_for_width(width);
-        std::cell::Ref::map(self.layout_cache.borrow(), |cache| &cache.layout)
+        self.layout_cache.get_or_compute(width, |w| {
+            #[cfg(feature = "test-helpers")]
+            bump_merged_exec_layout_builds();
+            self.compute_layout_for_width(w)
+        })
     }
 
     fn compute_layout_for_width(&self, width: u16) -> MergedExecLayout {
@@ -353,18 +319,9 @@ struct MergedExecSegmentLayout {
     out_total: u16,
 }
 
-struct MergedExecLayoutCacheEntry {
-    width: u16,
-    layout: MergedExecLayout,
-}
 
 impl HistoryCell for MergedExecCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Exec {
             kind: self.kind,

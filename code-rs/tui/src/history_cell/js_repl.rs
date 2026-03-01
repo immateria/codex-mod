@@ -7,18 +7,26 @@ use ratatui::prelude::*;
 use crate::history::state::ExecRecord;
 use crate::history::state::ExecStatus;
 use crate::history::state::HistoryId;
+use crate::insert_history::word_wrap_lines;
+use crate::util::buffer::{fill_rect, write_line};
 
 use super::CommandOutput;
 use super::HistoryCell;
 use super::HistoryCellType;
-use super::exec::record_output;
-use super::exec::render_exec_stream;
-use super::formatting::output_lines;
-use super::formatting::trim_empty_lines;
+use super::formatting::{
+    OUTPUT_FOLD_THRESHOLD,
+    describe_exit_code,
+    output_lines,
+    trim_empty_lines,
+};
 use code_common::elapsed::format_duration;
 
-const STREAMING_EXIT_CODE: i32 = i32::MIN;
-const OUTPUT_FOLD_THRESHOLD: usize = 40;
+#[derive(Default)]
+struct JsReplRenderLayout {
+    lines: Vec<Line<'static>>,
+    total: u16,
+}
+
 
 /// A history cell that represents a JavaScript REPL execution.
 /// Unlike the generic `ExecCell`, this stores the JS source code and
@@ -42,6 +50,7 @@ pub(crate) struct JsReplCell {
     /// When true the output block is capped at OUTPUT_FOLD_THRESHOLD lines.
     pub(crate) collapsed_output: Cell<bool>,
     child_call_ids: HashSet<String>,
+    layout_cache: super::layout_cache::LayoutCache<JsReplRenderLayout>,
 }
 
 impl JsReplCell {
@@ -66,6 +75,7 @@ impl JsReplCell {
             code_collapsed: Cell::new(collapse_code_by_default),
             collapsed_output: Cell::new(false),
             child_call_ids: HashSet::new(),
+            layout_cache: super::layout_cache::LayoutCache::new(),
         }
     }
 
@@ -75,10 +85,12 @@ impl JsReplCell {
 
     pub(crate) fn toggle_code_collapsed(&self) {
         self.code_collapsed.set(!self.code_collapsed.get());
+        self.layout_cache.invalidate();
     }
 
     pub(crate) fn toggle_output_collapsed(&self) {
         self.collapsed_output.set(!self.collapsed_output.get());
+        self.layout_cache.invalidate();
     }
 
     /// Update output data from an `ExecRecord` produced by the history domain.
@@ -86,46 +98,63 @@ impl JsReplCell {
     pub(crate) fn sync_from_exec_record(&mut self, record: &ExecRecord) {
         let was_running = matches!(self.record.status, ExecStatus::Running);
         self.record = record.clone();
-        self.output = record_output(record);
-
-        if matches!(record.status, ExecStatus::Running) {
-            let stdout = render_exec_stream(&record.stdout_chunks, "stdout");
-            let stderr = render_exec_stream(&record.stderr_chunks, "stderr");
-            if stdout.is_empty() && stderr.is_empty() {
-                self.stream_preview = None;
-            } else {
-                self.stream_preview = Some(CommandOutput {
-                    exit_code: STREAMING_EXIT_CODE,
-                    stdout,
-                    stderr,
-                });
-            }
-            if self.start_time.is_none() {
-                self.start_time = Some(Instant::now());
-            }
-        } else {
-            self.stream_preview = None;
-            self.start_time = None;
-        }
-        if was_running && !matches!(record.status, ExecStatus::Running) {
-            let line_count = self
-                .output
-                .as_ref()
-                .map(|o| {
-                    o.stdout
-                        .lines()
-                        .count()
-                        .saturating_add(o.stderr.lines().count())
-                })
-                .unwrap_or(0);
-            if line_count > OUTPUT_FOLD_THRESHOLD {
-                self.collapsed_output.set(true);
-            }
-        }
+        super::formatting::sync_exec_output_state(
+            record,
+            was_running,
+            &mut self.output,
+            &mut self.stream_preview,
+            &mut self.start_time,
+            &self.collapsed_output,
+            &self.layout_cache,
+        );
     }
 
     pub(crate) fn set_history_id(&mut self, id: HistoryId) {
         self.record.id = id;
+    }
+
+    fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, JsReplRenderLayout> {
+        self.layout_cache.get_or_compute(width, |w| self.compute_layout_for_width(w))
+    }
+
+    fn compute_layout_for_width(&self, width: u16) -> JsReplRenderLayout {
+        let raw_lines = self.build_display_lines();
+        let trimmed = trim_empty_lines(raw_lines);
+        if width == 0 {
+            return JsReplRenderLayout::default();
+        }
+        let wrapped = word_wrap_lines(&trimmed, width);
+        let total = wrapped.len().min(u16::MAX as usize) as u16;
+        JsReplRenderLayout {
+            lines: wrapped,
+            total,
+        }
+    }
+
+    fn build_display_lines(&self) -> Vec<Line<'static>> {
+        let mut lines = Vec::new();
+
+        lines.push(self.header_line());
+
+        // Code block
+        lines.extend(self.code_lines());
+
+        // Output block
+        let display_output = self.output.as_ref().or(self.stream_preview.as_ref());
+        let mut out = trim_empty_lines(output_lines(display_output, false, false));
+        if !out.is_empty() {
+            if self.output.is_some() {
+                super::formatting::maybe_fold_output(&mut out, self.collapsed_output.get());
+            }
+            lines.extend(out);
+        }
+
+        // Status line when running
+        if let Some(status) = self.status_line() {
+            lines.push(status);
+        }
+
+        lines
     }
 
     fn header_line(&self) -> Line<'static> {
@@ -134,19 +163,12 @@ impl JsReplCell {
         } else {
             format!("{} {}", self.runtime_kind, self.runtime_version)
         };
+        let dim_style = Style::default()
+            .fg(crate::colors::text_dim())
+            .add_modifier(Modifier::DIM);
         let mut spans = vec![
-            Span::styled(
-                "js",
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
-            ),
-            Span::styled(
-                format!(" {runtime_str}"),
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
-            ),
+            Span::styled("js", dim_style),
+            Span::styled(format!(" {runtime_str}"), dim_style),
         ];
 
         if !matches!(self.record.status, ExecStatus::Running)
@@ -156,9 +178,24 @@ impl JsReplCell {
         {
             spans.push(Span::styled(
                 format!(" • {}", format_duration(duration)),
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
+                dim_style,
+            ));
+        }
+
+        // Exit code indicator for failed executions
+        if let Some(exit_code) = self.record.exit_code
+            && exit_code != 0
+            && !matches!(self.record.status, ExecStatus::Running)
+        {
+            let description = describe_exit_code(exit_code);
+            let msg = if description.is_empty() {
+                format!(" • exit {exit_code}")
+            } else {
+                format!(" • exit {exit_code}: {description}")
+            };
+            spans.push(Span::styled(
+                msg,
+                Style::default().fg(crate::colors::error()),
             ));
         }
 
@@ -166,9 +203,7 @@ impl JsReplCell {
         if child_count > 0 {
             spans.push(Span::styled(
                 format!(" • spawned {child_count}"),
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
+                dim_style,
             ));
         }
 
@@ -176,15 +211,12 @@ impl JsReplCell {
             && self
                 .code
                 .lines()
+                .filter(|line| !line.trim().is_empty())
                 .skip(1)
-                .any(|line| !line.trim().is_empty());
+                .next()
+                .is_some();
         if has_hidden_code {
-            spans.push(Span::styled(
-                " • code (\\)",
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
-            ));
+            spans.push(Span::styled(" • code (\\)", dim_style));
         }
 
         let has_hidden_output = self.output.is_some()
@@ -200,12 +232,7 @@ impl JsReplCell {
                         > OUTPUT_FOLD_THRESHOLD
                 });
         if has_hidden_output {
-            spans.push(Span::styled(
-                " • output ([)",
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
-            ));
+            spans.push(Span::styled(" • output ([)", dim_style));
         }
 
         Line::from(spans)
@@ -224,24 +251,48 @@ impl JsReplCell {
 
         if self.code_collapsed.get() {
             // Show first non-empty line with "…" suffix
-            let mut code_lines = self.code.lines();
-            let first = code_lines.find(|line| !line.trim().is_empty()).unwrap_or("");
-            let has_more = code_lines.any(|line| !line.trim().is_empty());
-            let preview = if first.chars().count() > 60 {
+            let non_empty: Vec<&str> = self
+                .code
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .collect();
+            let first = non_empty.first().copied().unwrap_or("");
+            let hidden_lines = non_empty.len().saturating_sub(1);
+
+            let mut preview = if first.is_empty() {
+                "…".to_string()
+            } else if first.chars().count() > 60 {
                 let mut s: String = first.chars().take(60).collect();
                 s.push('…');
                 s
-            } else if has_more {
-                format!("{first} …")
-            } else if first.is_empty() {
-                "…".to_string()
             } else {
                 first.to_string()
             };
-            vec![Line::from(vec![
-                border_span,
+
+            if hidden_lines > 0 {
+                let suffix = if preview.ends_with('…') {
+                    format!(" (+{hidden_lines} lines)")
+                } else {
+                    format!(" … (+{hidden_lines} lines)")
+                };
+                preview.push_str(&suffix);
+            }
+
+            let mut lines = Vec::new();
+            lines.push(Line::from(vec![
+                border_span.clone(),
                 Span::styled(preview, code_style),
-            ])]
+            ]));
+            if hidden_lines > 0 {
+                lines.push(Line::from(vec![
+                    border_span,
+                    Span::styled(
+                        format!("… {hidden_lines} more lines (press \\ to expand)"),
+                        code_style.add_modifier(Modifier::DIM),
+                    ),
+                ]));
+            }
+            lines
         } else {
             self.code
                 .lines()
@@ -277,13 +328,7 @@ impl JsReplCell {
 }
 
 impl HistoryCell for JsReplCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
 
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::JsRepl {
@@ -295,47 +340,55 @@ impl HistoryCell for JsReplCell {
         self.record.call_id.as_deref()
     }
 
-    fn gutter_symbol(&self) -> Option<&'static str> {
-        match self.record.status {
-            ExecStatus::Error => Some("✗"),
-            _ => Some("❯"),
-        }
-    }
-
     fn is_animating(&self) -> bool {
         matches!(self.record.status, ExecStatus::Running) && self.start_time.is_some()
     }
 
+    fn has_custom_render(&self) -> bool {
+        true
+    }
+
+    fn desired_height(&self, width: u16) -> u16 {
+        self.layout_for_width(width).total
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
+        self.build_display_lines()
+    }
 
-        lines.push(self.header_line());
+    fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
+        let layout = self.layout_for_width(area.width);
+        let total = layout.total;
 
-        // Code block
-        lines.extend(self.code_lines());
+        let visible_start = skip_rows.min(total) as usize;
+        let visible_count = (total.saturating_sub(skip_rows)).min(area.height) as usize;
 
-        // Output block
-        let display_output = self.output.as_ref().or(self.stream_preview.as_ref());
-        let mut out = trim_empty_lines(output_lines(display_output, false, false));
-        if !out.is_empty() {
-            if self.output.is_some() && self.collapsed_output.get() && out.len() > OUTPUT_FOLD_THRESHOLD {
-                let folded_count = out.len() - OUTPUT_FOLD_THRESHOLD;
-                out.truncate(OUTPUT_FOLD_THRESHOLD);
-                out.push(Line::from(Span::styled(
-                    format!("… {folded_count} more lines (press [ to expand)"),
-                    Style::default()
-                        .fg(crate::colors::text_dim())
-                        .add_modifier(Modifier::DIM),
-                )));
+        if visible_count == 0 {
+            return;
+        }
+
+        let bg_style = Style::default()
+            .bg(crate::colors::background())
+            .fg(crate::colors::text());
+        fill_rect(buf, Rect {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: visible_count as u16,
+        }, Some(' '), bg_style);
+
+        for (idx, line) in layout
+            .lines
+            .iter()
+            .skip(visible_start)
+            .take(visible_count)
+            .enumerate()
+        {
+            let y = area.y.saturating_add(idx as u16);
+            if y >= area.y.saturating_add(area.height) {
+                break;
             }
-            lines.extend(out);
+            write_line(buf, area.x, y, area.width, line, bg_style);
         }
-
-        // Status line when running
-        if let Some(status) = self.status_line() {
-            lines.push(status);
-        }
-
-        lines
     }
 }

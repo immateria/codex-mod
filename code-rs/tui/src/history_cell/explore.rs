@@ -62,13 +62,7 @@ impl ExploreAggregationCell {
 }
 
 impl HistoryCell for ExploreAggregationCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
 
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Exec {
@@ -89,9 +83,6 @@ impl HistoryCell for ExploreAggregationCell {
             .unwrap_or(0)
     }
 
-    fn gutter_symbol(&self) -> Option<&'static str> {
-        None
-    }
 }
 
 pub(crate) fn explore_record_push_from_parsed(

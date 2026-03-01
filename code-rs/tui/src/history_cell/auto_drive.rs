@@ -1216,13 +1216,7 @@ impl crate::chatwidget::tool_cards::ToolCardCell for AutoDriveCardCell {
 }
 
 impl HistoryCell for AutoDriveCardCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
 
     fn gutter_symbol(&self) -> Option<&'static str> {
         None

@@ -19,19 +19,12 @@ use std::cell::{Cell, RefCell};
 use unicode_width::UnicodeWidthStr as _;
 
 #[cfg(feature = "test-helpers")]
-thread_local! {
-    static REASONING_LAYOUT_BUILDS: Cell<u64> = const { Cell::new(0) };
-}
-
-#[cfg(feature = "test-helpers")]
-pub(crate) fn reset_reasoning_layout_builds_for_test() {
-    REASONING_LAYOUT_BUILDS.with(|c| c.set(0));
-}
-
-#[cfg(feature = "test-helpers")]
-pub(crate) fn reasoning_layout_builds_for_test() -> u64 {
-    REASONING_LAYOUT_BUILDS.with(Cell::get)
-}
+layout_build_counter!(
+    REASONING_LAYOUT_BUILDS,
+    reset_reasoning_layout_builds_for_test,
+    reasoning_layout_builds_for_test,
+    bump_reasoning_layout_builds
+);
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct CollapsibleReasoningState {
@@ -170,7 +163,7 @@ impl CollapsibleReasoningCell {
         }
 
         #[cfg(feature = "test-helpers")]
-        REASONING_LAYOUT_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
+        bump_reasoning_layout_builds();
 
         let layout = self.compute_layout_for_width(width, collapsed);
         *self.layout_cache.borrow_mut() = ReasoningLayoutCacheEntry {
@@ -347,13 +340,7 @@ impl CollapsibleReasoningCell {
 }
 
 impl HistoryCell for CollapsibleReasoningCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
 
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Reasoning
@@ -398,9 +385,6 @@ impl HistoryCell for CollapsibleReasoningCell {
         }
     }
 
-    fn gutter_symbol(&self) -> Option<&'static str> {
-        None
-    }
 
     fn has_custom_render(&self) -> bool {
         true

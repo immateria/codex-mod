@@ -13,6 +13,17 @@ pub(crate) struct CommandOutput {
     pub(crate) stderr: String,
 }
 
+impl CommandOutput {
+    /// Build a placeholder output used while an exec is still streaming.
+    pub(crate) fn streaming_preview(stdout: String, stderr: String) -> Self {
+        Self {
+            exit_code: super::formatting::STREAMING_EXIT_CODE,
+            stdout,
+            stderr,
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(crate) enum PatchEventType {
     ApprovalRequest,

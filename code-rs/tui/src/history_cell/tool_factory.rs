@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 #[cfg(feature = "test-helpers")]
 use std::cell::Cell;
 use std::io::Cursor;
@@ -544,36 +543,26 @@ pub(crate) fn new_completed_web_fetch_tool_call(
             ToolCellStatus::Failed
         },
         parent_call_id: None,
-        layout_cache: RefCell::new(WebFetchLayoutCacheEntry {
-            width: 0,
-            layout: WebFetchLayout::default(),
-        }),
+        layout_cache: super::layout_cache::LayoutCache::new(),
     }
 }
 
 // ==================== WebFetchToolCell ====================
 
 #[cfg(feature = "test-helpers")]
-thread_local! {
-    static WEB_FETCH_LAYOUT_BUILDS: Cell<u64> = const { Cell::new(0) };
-}
-
-#[cfg(feature = "test-helpers")]
-pub(crate) fn reset_web_fetch_layout_builds_for_test() {
-    WEB_FETCH_LAYOUT_BUILDS.with(|c| c.set(0));
-}
-
-#[cfg(feature = "test-helpers")]
-pub(crate) fn web_fetch_layout_builds_for_test() -> u64 {
-    WEB_FETCH_LAYOUT_BUILDS.with(Cell::get)
-}
+layout_build_counter!(
+    WEB_FETCH_LAYOUT_BUILDS,
+    reset_web_fetch_layout_builds_for_test,
+    web_fetch_layout_builds_for_test,
+    bump_web_fetch_layout_builds
+);
 
 pub(crate) struct WebFetchToolCell {
     pre_lines: Vec<Line<'static>>,  // header/invocation
     body_lines: Vec<Line<'static>>, // bordered, dim preview
     state: ToolCellStatus,
     pub(crate) parent_call_id: Option<String>,
-    layout_cache: RefCell<WebFetchLayoutCacheEntry>,
+    layout_cache: super::layout_cache::LayoutCache<WebFetchLayout>,
 }
 
 #[derive(Default)]
@@ -585,36 +574,13 @@ struct WebFetchLayout {
     total_rows: u16,
 }
 
-struct WebFetchLayoutCacheEntry {
-    width: u16,
-    layout: WebFetchLayout,
-}
-
 impl WebFetchToolCell {
-    fn ensure_layout_for_width(&self, width: u16) {
-        if width == 0 {
-            *self.layout_cache.borrow_mut() = WebFetchLayoutCacheEntry {
-                width,
-                layout: WebFetchLayout::default(),
-            };
-            return;
-        }
-
-        let needs_rebuild = self.layout_cache.borrow().width != width;
-        if !needs_rebuild {
-            return;
-        }
-
-        #[cfg(feature = "test-helpers")]
-        WEB_FETCH_LAYOUT_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
-
-        let layout = self.compute_layout_for_width(width);
-        *self.layout_cache.borrow_mut() = WebFetchLayoutCacheEntry { width, layout };
-    }
-
     fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, WebFetchLayout> {
-        self.ensure_layout_for_width(width);
-        std::cell::Ref::map(self.layout_cache.borrow(), |cache| &cache.layout)
+        self.layout_cache.get_or_compute(width, |w| {
+            #[cfg(feature = "test-helpers")]
+            bump_web_fetch_layout_builds();
+            self.compute_layout_for_width(w)
+        })
     }
 
     fn compute_layout_for_width(&self, width: u16) -> WebFetchLayout {
@@ -643,12 +609,7 @@ impl WebFetchToolCell {
 }
 
 impl HistoryCell for WebFetchToolCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Tool { status: self.state }
     }

@@ -1038,13 +1038,7 @@ fn compute_screenshot_rows(&self, screenshot_cols: usize) -> Option<usize> {
 }
 
 impl HistoryCell for BrowserSessionCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
 
     fn gutter_symbol(&self) -> Option<&'static str> {
         if self.completed {

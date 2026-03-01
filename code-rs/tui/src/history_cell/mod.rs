@@ -1,3 +1,5 @@
+#[macro_use]
+mod layout_cache;
 mod agent;
 mod animated;
 mod assistant;

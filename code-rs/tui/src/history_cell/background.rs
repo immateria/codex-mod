@@ -52,13 +52,7 @@ impl BackgroundEventCell {
 }
 
 impl HistoryCell for BackgroundEventCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
 
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::BackgroundEvent

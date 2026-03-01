@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant, SystemTime};
 
 use code_common::elapsed::format_duration;
-use code_core::history::state::MAX_EXEC_STREAM_RETAINED_BYTES;
 use code_core::parse_command::ParsedCommand;
 use ratatui::prelude::{Buffer, Rect};
 use ratatui::style::{Modifier, Style};
@@ -22,20 +21,18 @@ use crate::history::state::{
 use crate::insert_history::word_wrap_lines;
 use crate::util::buffer::{fill_rect, write_line};
 
-#[cfg(feature = "test-helpers")]
-thread_local! {
-    static EXEC_LAYOUT_BUILDS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-}
+use super::formatting::{
+    record_output,
+    should_auto_collapse_output,
+};
 
 #[cfg(feature = "test-helpers")]
-pub(crate) fn reset_exec_layout_builds_for_test() {
-    EXEC_LAYOUT_BUILDS.with(|c| c.set(0));
-}
-
-#[cfg(feature = "test-helpers")]
-pub(crate) fn exec_layout_builds_for_test() -> u64 {
-    EXEC_LAYOUT_BUILDS.with(std::cell::Cell::get)
-}
+layout_build_counter!(
+    EXEC_LAYOUT_BUILDS,
+    reset_exec_layout_builds_for_test,
+    exec_layout_builds_for_test,
+    bump_exec_layout_builds
+);
 
 use super::{
     action_enum_from_parsed,
@@ -82,13 +79,10 @@ pub(crate) struct ExecCell {
     parsed_meta: Option<ParsedExecMetadata>,
     has_bold_command: bool,
     wait_state: std::cell::RefCell<ExecWaitState>,
-    layout_cache: std::cell::RefCell<ExecLayoutCacheEntry>,
+    layout_cache: super::layout_cache::LayoutCache<ExecRenderLayout>,
     collapsed_output: std::cell::Cell<bool>,
     pub(crate) parent_call_id: Option<String>,
 }
-
-const STREAMING_EXIT_CODE: i32 = i32::MIN;
-const OUTPUT_FOLD_THRESHOLD: usize = 40;
 
 #[derive(Clone)]
 pub(crate) struct ParsedExecMetadata {
@@ -123,40 +117,6 @@ struct ExecRenderLayout {
     out_block_total: u16,
 }
 
-struct ExecLayoutCacheEntry {
-    width: u16,
-    layout: ExecRenderLayout,
-}
-
-fn chunks_to_string(chunks: &[ExecStreamChunk]) -> String {
-    if chunks.is_empty() {
-        return String::new();
-    }
-    let mut sorted = chunks.to_vec();
-    sorted.sort_by_key(|chunk| chunk.offset);
-    let mut combined = String::new();
-    for chunk in sorted {
-        combined.push_str(&chunk.content);
-    }
-    combined
-}
-
-pub(crate) fn render_exec_stream(chunks: &[ExecStreamChunk], stream_name: &str) -> String {
-    let mut body = chunks_to_string(chunks);
-    if let Some(first) = chunks.first()
-        && first.offset > 0 {
-            let mut notice = String::new();
-            notice.push_str(&format!(
-                "… clipped {} from the start of {} (showing last {}).\n\n",
-                code_core::util::format_bytes(first.offset),
-                stream_name,
-                code_core::util::format_bytes(MAX_EXEC_STREAM_RETAINED_BYTES),
-            ));
-            notice.push_str(&body);
-            body = notice;
-        }
-    body
-}
 
 fn wait_notes_from_record(notes: &[RecordExecWaitNote]) -> Vec<ExecWaitNote> {
     notes
@@ -168,36 +128,8 @@ fn wait_notes_from_record(notes: &[RecordExecWaitNote]) -> Vec<ExecWaitNote> {
         .collect()
 }
 
-pub(crate) fn record_output(record: &ExecRecord) -> Option<CommandOutput> {
-    if !matches!(record.status, ExecStatus::Running) {
-        let stdout = render_exec_stream(&record.stdout_chunks, "stdout");
-        let stderr = render_exec_stream(&record.stderr_chunks, "stderr");
-        let exit_code = record.exit_code.unwrap_or_default();
-        return Some(CommandOutput {
-            exit_code,
-            stdout,
-            stderr,
-        });
-    }
-    None
-}
-
-fn should_auto_collapse_output(output: Option<&CommandOutput>) -> bool {
-    let Some(out) = output else { return false; };
-    out.stdout
-        .lines()
-        .count()
-        .saturating_add(out.stderr.lines().count())
-        > OUTPUT_FOLD_THRESHOLD
-}
-
 impl HistoryCell for ExecCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
     fn kind(&self) -> HistoryCellType {
         let kind = match self.parsed_action() {
             ExecAction::Read => ExecKind::Read,
@@ -382,21 +314,7 @@ impl ExecCell {
         let command = record.command.clone();
         let parsed = record.parsed.clone();
         let output = record_output(&record);
-        let stream_preview = if matches!(record.status, ExecStatus::Running) {
-            let stdout = render_exec_stream(&record.stdout_chunks, "stdout");
-            let stderr = render_exec_stream(&record.stderr_chunks, "stderr");
-            if stdout.is_empty() && stderr.is_empty() {
-                None
-            } else {
-                Some(CommandOutput {
-                    exit_code: STREAMING_EXIT_CODE,
-                    stdout,
-                    stderr,
-                })
-            }
-        } else {
-            None
-        };
+        let stream_preview = super::formatting::build_streaming_preview(&record);
         let has_bold_command = command_has_bold_token(&command);
         let parsed_meta = if parsed.is_empty() {
             None
@@ -430,10 +348,7 @@ impl ExecCell {
             parsed_meta,
             has_bold_command,
             wait_state: std::cell::RefCell::new(wait_state),
-            layout_cache: std::cell::RefCell::new(ExecLayoutCacheEntry {
-                width: 0,
-                layout: ExecRenderLayout::default(),
-            }),
+            layout_cache: super::layout_cache::LayoutCache::new(),
             collapsed_output: std::cell::Cell::new(collapsed_output),
             parent_call_id: None,
         }
@@ -447,16 +362,9 @@ impl ExecCell {
             .unwrap_or(ExecAction::Run)
     }
 
-    fn invalidate_layout_cache(&self) {
-        *self.layout_cache.borrow_mut() = ExecLayoutCacheEntry {
-            width: 0,
-            layout: ExecRenderLayout::default(),
-        };
-    }
-
     pub(crate) fn toggle_output_collapsed(&self) {
         self.collapsed_output.set(!self.collapsed_output.get());
-        self.invalidate_layout_cache();
+        self.layout_cache.invalidate();
     }
 
     fn status_line_for_render(&self) -> Option<Line<'static>> {
@@ -465,30 +373,12 @@ impl ExecCell {
         self.streaming_status_line_for_label(status_label)
     }
 
-    fn ensure_layout_for_width(&self, width: u16) {
-        if width == 0 {
-            *self.layout_cache.borrow_mut() = ExecLayoutCacheEntry {
-                width,
-                layout: ExecRenderLayout::default(),
-            };
-            return;
-        }
-
-        let needs_rebuild = self.layout_cache.borrow().width != width;
-        if !needs_rebuild {
-            return;
-        }
-
-        #[cfg(feature = "test-helpers")]
-        EXEC_LAYOUT_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
-
-        let layout = self.compute_layout_for_width(width);
-        *self.layout_cache.borrow_mut() = ExecLayoutCacheEntry { width, layout };
-    }
-
     fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, ExecRenderLayout> {
-        self.ensure_layout_for_width(width);
-        std::cell::Ref::map(self.layout_cache.borrow(), |cache| &cache.layout)
+        self.layout_cache.get_or_compute(width, |w| {
+            #[cfg(feature = "test-helpers")]
+            bump_exec_layout_builds();
+            self.compute_layout_for_width(w)
+        })
     }
 
     fn compute_layout_for_width(&self, width: u16) -> ExecRenderLayout {
@@ -509,16 +399,7 @@ impl ExecCell {
         let (pre_lines, pre_total) = wrap_and_clamp(pre_trimmed, width);
         let (mut out_lines, _) = wrap_and_clamp(out_trimmed, width.saturating_sub(2));
 
-        if self.collapsed_output.get() && out_lines.len() > OUTPUT_FOLD_THRESHOLD {
-            let folded_count = out_lines.len() - OUTPUT_FOLD_THRESHOLD;
-            out_lines.truncate(OUTPUT_FOLD_THRESHOLD);
-            out_lines.push(Line::from(Span::styled(
-                format!("… {folded_count} more lines (press [ to expand)"),
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
-            )));
-        }
+        super::formatting::maybe_fold_output(&mut out_lines, self.collapsed_output.get());
         let out_block_total = out_lines.len().min(u16::MAX as usize) as u16;
 
         ExecRenderLayout {
@@ -540,7 +421,7 @@ impl ExecCell {
         }
         if changed {
             self.record.wait_active = waiting;
-            self.invalidate_layout_cache();
+            self.layout_cache.invalidate();
         }
     }
 
@@ -555,7 +436,7 @@ impl ExecCell {
         }
         if changed {
             self.record.wait_total = total;
-            self.invalidate_layout_cache();
+            self.layout_cache.invalidate();
         }
     }
 
@@ -564,7 +445,7 @@ impl ExecCell {
         if state.run_duration != duration {
             state.run_duration = duration;
             drop(state);
-            self.invalidate_layout_cache();
+            self.layout_cache.invalidate();
         }
     }
 
@@ -610,7 +491,7 @@ impl ExecCell {
                 }
             })
             .collect();
-        self.invalidate_layout_cache();
+        self.layout_cache.invalidate();
     }
 
     fn wait_note_lines(&self, state: &ExecWaitState) -> Vec<Line<'static>> {
@@ -685,7 +566,7 @@ impl ExecCell {
         } else {
             Some(ParsedExecMetadata::from_commands(&self.parsed))
         };
-        self.invalidate_layout_cache();
+        self.layout_cache.invalidate();
     }
 
     // Build separate segments: (preamble lines, output lines)
@@ -770,7 +651,6 @@ impl ExecCell {
             Some(ParsedExecMetadata::from_commands(&self.parsed))
         };
         self.has_bold_command = command_has_bold_token(&self.command);
-        self.output = record_output(record);
 
         let run_duration = record
             .completed_at
@@ -783,31 +663,15 @@ impl ExecCell {
             wait_state.notes = wait_notes_from_record(&record.wait_notes);
         }
 
-        if matches!(record.status, ExecStatus::Running) {
-            let stdout = render_exec_stream(&record.stdout_chunks, "stdout");
-            let stderr = render_exec_stream(&record.stderr_chunks, "stderr");
-            if stdout.is_empty() && stderr.is_empty() {
-                self.stream_preview = None;
-            } else {
-                self.stream_preview = Some(CommandOutput {
-                    exit_code: STREAMING_EXIT_CODE,
-                    stdout,
-                    stderr,
-                });
-            }
-            if self.start_time.is_none() {
-                self.start_time = Some(Instant::now());
-            }
-        } else {
-            self.stream_preview = None;
-            self.start_time = None;
-        }
-        if was_running && !matches!(record.status, ExecStatus::Running)
-            && should_auto_collapse_output(self.output.as_ref())
-        {
-            self.collapsed_output.set(true);
-        }
-        self.invalidate_layout_cache();
+        super::formatting::sync_exec_output_state(
+            record,
+            was_running,
+            &mut self.output,
+            &mut self.stream_preview,
+            &mut self.start_time,
+            &self.collapsed_output,
+            &self.layout_cache,
+        );
     }
 
     fn exec_render_parts_generic(

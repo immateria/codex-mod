@@ -8,19 +8,12 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 #[cfg(feature = "test-helpers")]
-thread_local! {
-    static ASSISTANT_LAYOUT_BUILDS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-}
-
-#[cfg(feature = "test-helpers")]
-pub(crate) fn reset_assistant_layout_builds_for_test() {
-    ASSISTANT_LAYOUT_BUILDS.with(|c| c.set(0));
-}
-
-#[cfg(feature = "test-helpers")]
-pub(crate) fn assistant_layout_builds_for_test() -> u64 {
-    ASSISTANT_LAYOUT_BUILDS.with(std::cell::Cell::get)
-}
+layout_build_counter!(
+    ASSISTANT_LAYOUT_BUILDS,
+    reset_assistant_layout_builds_for_test,
+    assistant_layout_builds_for_test,
+    bump_assistant_layout_builds
+);
 
 // ==================== AssistantMarkdownCell ====================
 // Stores assistant markdown state alongside minimal rendering context (file opener + cwd).
@@ -117,7 +110,7 @@ impl AssistantMarkdownCell {
         }
 
         #[cfg(feature = "test-helpers")]
-        ASSISTANT_LAYOUT_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
+        bump_assistant_layout_builds();
 
         let rendered_lines = self.ensure_rendered_lines();
         let plan = Rc::new(compute_assistant_layout_from_rendered_lines(
@@ -283,13 +276,7 @@ impl AssistantMarkdownCell {
 }
 
 impl HistoryCell for AssistantMarkdownCell {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
+    impl_as_any!();
 
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Assistant
