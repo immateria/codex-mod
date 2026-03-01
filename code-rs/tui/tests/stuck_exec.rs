@@ -58,6 +58,7 @@ fn exec_cell_clears_after_patch_flow() {
         event_seq: 0,
         msg: EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
             call_id: call_id.to_string(),
+            parent_call_id: None,
             auto_approved: true,
             changes: HashMap::new(),
         }),
@@ -82,6 +83,7 @@ fn exec_cell_clears_after_patch_flow() {
         event_seq: 1,
         msg: EventMsg::PatchApplyEnd(PatchApplyEndEvent {
             call_id: call_id.to_string(),
+            parent_call_id: None,
             stdout: "Success".into(),
             stderr: String::new(),
             success: true,
@@ -260,6 +262,7 @@ fn wait_tool_missing_background_job_clears_exec_wait() {
         event_seq: 1,
         msg: EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: wait_call_id.to_string(),
+            parent_call_id: None,
             tool_name: "wait".to_string(),
             parameters: Some(serde_json::json!({"call_id": exec_call_id})),
         }),
@@ -271,6 +274,7 @@ fn wait_tool_missing_background_job_clears_exec_wait() {
         event_seq: 2,
         msg: EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: wait_call_id.to_string(),
+            parent_call_id: None,
             tool_name: "wait".to_string(),
             parameters: Some(serde_json::json!({"call_id": exec_call_id})),
             duration: Duration::from_secs(5),
@@ -318,6 +322,7 @@ fn wait_interrupt_after_exec_end_does_not_mutate_exec() {
         event_seq: 1,
         msg: EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: wait_call_id.to_string(),
+            parent_call_id: None,
             tool_name: "wait".to_string(),
             parameters: Some(serde_json::json!({"call_id": exec_call_id})),
         }),
@@ -342,6 +347,7 @@ fn wait_interrupt_after_exec_end_does_not_mutate_exec() {
         event_seq: 3,
         msg: EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: wait_call_id.to_string(),
+            parent_call_id: None,
             tool_name: "wait".to_string(),
             parameters: Some(serde_json::json!({"call_id": exec_call_id})),
             duration: Duration::from_secs(1),
@@ -395,6 +401,7 @@ fn wait_missing_job_skips_merged_exec() {
         event_seq: 1,
         msg: EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: wait_call_id.to_string(),
+            parent_call_id: None,
             tool_name: "wait".to_string(),
             parameters: Some(serde_json::json!({"call_id": exec_call_id})),
         }),
@@ -445,6 +452,7 @@ fn wait_missing_job_skips_merged_exec() {
         event_seq: 5,
         msg: EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: wait_call_id.to_string(),
+            parent_call_id: None,
             tool_name: "wait".to_string(),
             parameters: Some(serde_json::json!({"call_id": exec_call_id})),
             duration: Duration::from_secs(1),
@@ -479,6 +487,7 @@ fn exec_begin_upgrades_running_tool_cell() {
         event_seq: 0,
         msg: EventMsg::McpToolCallBegin(McpToolCallBeginEvent {
             call_id: call_id.clone(),
+            parent_call_id: None,
             invocation: McpInvocation {
                 server: "demo".to_string(),
                 tool: "run_command".to_string(),

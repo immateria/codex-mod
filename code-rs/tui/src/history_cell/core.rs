@@ -156,6 +156,18 @@ pub(crate) trait HistoryCell {
     /// Allow mutable downcasting to concrete types
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
+    /// When present, a stable identifier for this history cell. Used for
+    /// navigation between nested tool calls (e.g. JS REPL spawning tools).
+    fn call_id(&self) -> Option<&str> {
+        None
+    }
+
+    /// When present, indicates this cell was spawned by another tool. The value
+    /// is the parent tool's call_id.
+    fn parent_call_id(&self) -> Option<&str> {
+        None
+    }
+
     /// Get display lines with empty lines trimmed from beginning and end.
     /// This ensures consistent spacing when cells are rendered together.
     fn display_lines_trimmed(&self) -> Vec<Line<'static>> {
@@ -265,6 +277,14 @@ impl HistoryCell for Box<dyn HistoryCell> {
     }
     fn kind(&self) -> HistoryCellType {
         self.as_ref().kind()
+    }
+
+    fn call_id(&self) -> Option<&str> {
+        self.as_ref().call_id()
+    }
+
+    fn parent_call_id(&self) -> Option<&str> {
+        self.as_ref().parent_call_id()
     }
 
     fn display_lines(&self) -> Vec<Line<'static>> {

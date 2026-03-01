@@ -233,6 +233,10 @@ impl HistoryCell for JsReplCell {
         }
     }
 
+    fn call_id(&self) -> Option<&str> {
+        self.record.call_id.as_deref()
+    }
+
     fn gutter_symbol(&self) -> Option<&'static str> {
         match self.record.status {
             ExecStatus::Error => Some("✗"),

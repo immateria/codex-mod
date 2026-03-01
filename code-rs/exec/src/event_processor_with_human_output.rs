@@ -427,6 +427,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             }
             EventMsg::McpToolCallBegin(McpToolCallBeginEvent {
                 call_id: _,
+                parent_call_id: _,
                 invocation,
             }) => {
                 ts_println!(
@@ -440,6 +441,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 let is_success = tool_call_end_event.is_success();
                 let McpToolCallEndEvent {
                     call_id: _,
+                    parent_call_id: _,
                     result,
                     invocation,
                     duration,
@@ -474,6 +476,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
             }
             EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
                 call_id,
+                parent_call_id: _,
                 auto_approved,
                 changes,
             }) => {

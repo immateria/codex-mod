@@ -658,6 +658,7 @@ pub(crate) async fn handle_gh_run_wait(
                         let update_msg =
                             EventMsg::CustomToolCallUpdate(CustomToolCallUpdateEvent {
                                 call_id: call_id.clone(),
+                                parent_call_id: ctx_for_updates.parent_call_id.clone(),
                                 tool_name: "gh_run_wait".to_string(),
                                 parameters: Some(Value::Object(update_params)),
                             });

@@ -208,6 +208,7 @@ async fn emit_tool_call_begin(
         inv,
         EventMsg::McpToolCallBegin(McpToolCallBeginEvent {
             call_id: inv.call_id.clone(),
+            parent_call_id: inv.parent_call_id.clone(),
             invocation,
         }),
     )
@@ -225,6 +226,7 @@ async fn emit_tool_call_end(
         inv,
         EventMsg::McpToolCallEnd(McpToolCallEndEvent {
             call_id: inv.call_id.clone(),
+            parent_call_id: inv.parent_call_id.clone(),
             invocation,
             duration,
             result,

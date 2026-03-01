@@ -1278,6 +1278,10 @@ pub struct McpInvocation {
 pub struct McpToolCallBeginEvent {
     /// Identifier so this can be paired with the McpToolCallEnd event.
     pub call_id: String,
+    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// `codex.tool("mcp", …)`). The value is the parent tool's call_id.
+    #[serde(default)]
+    pub parent_call_id: Option<String>,
     pub invocation: McpInvocation,
 }
 
@@ -1285,6 +1289,10 @@ pub struct McpToolCallBeginEvent {
 pub struct McpToolCallEndEvent {
     /// Identifier for the corresponding McpToolCallBegin that finished.
     pub call_id: String,
+    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// `codex.tool("mcp", …)`). The value is the parent tool's call_id.
+    #[serde(default)]
+    pub parent_call_id: Option<String>,
     pub invocation: McpInvocation,
     pub duration: Duration,
     /// Result of the tool call. Note this could be an error.
@@ -1304,6 +1312,10 @@ impl McpToolCallEndEvent {
 pub struct CustomToolCallBeginEvent {
     /// Identifier so this can be paired with the CustomToolCallEnd event.
     pub call_id: String,
+    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// `codex.tool("shell", …)`). The value is the parent tool's call_id.
+    #[serde(default)]
+    pub parent_call_id: Option<String>,
     /// Name of the tool (e.g., "browser_navigate", "agent")
     pub tool_name: String,
     /// Parameters passed to the tool as JSON
@@ -1314,6 +1326,10 @@ pub struct CustomToolCallBeginEvent {
 pub struct CustomToolCallUpdateEvent {
     /// Identifier for the corresponding CustomToolCallBegin that is still running.
     pub call_id: String,
+    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// `codex.tool("shell", …)`). The value is the parent tool's call_id.
+    #[serde(default)]
+    pub parent_call_id: Option<String>,
     /// Name of the tool
     pub tool_name: String,
     /// Parameters passed to the tool as JSON
@@ -1324,6 +1340,10 @@ pub struct CustomToolCallUpdateEvent {
 pub struct CustomToolCallEndEvent {
     /// Identifier for the corresponding CustomToolCallBegin that finished.
     pub call_id: String,
+    /// When set, this tool call was dispatched by a parent tool (e.g. JS REPL's
+    /// `codex.tool("shell", …)`). The value is the parent tool's call_id.
+    #[serde(default)]
+    pub parent_call_id: Option<String>,
     /// Name of the tool
     pub tool_name: String,
     /// Parameters passed to the tool as JSON
@@ -1473,6 +1493,10 @@ pub struct BackgroundEventEvent {
 pub struct PatchApplyBeginEvent {
     /// Identifier so this can be paired with the PatchApplyEnd event.
     pub call_id: String,
+    /// When set, this patch was dispatched by a parent tool (e.g. JS REPL's
+    /// `codex.tool("apply_patch", …)`). The value is the parent tool's call_id.
+    #[serde(default)]
+    pub parent_call_id: Option<String>,
     /// If true, there was no ApplyPatchApprovalRequest for this patch.
     pub auto_approved: bool,
     /// The changes to be applied.
@@ -1483,6 +1507,10 @@ pub struct PatchApplyBeginEvent {
 pub struct PatchApplyEndEvent {
     /// Identifier for the PatchApplyBegin that finished.
     pub call_id: String,
+    /// When set, this patch was dispatched by a parent tool (e.g. JS REPL's
+    /// `codex.tool("apply_patch", …)`). The value is the parent tool's call_id.
+    #[serde(default)]
+    pub parent_call_id: Option<String>,
     /// Captured stdout (summary printed by apply_patch).
     pub stdout: String,
     /// Captured stderr (parser errors, IO failures, etc.).

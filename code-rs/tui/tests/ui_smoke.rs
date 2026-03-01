@@ -518,12 +518,14 @@ fn smoke_exec_begin_end_consistency() {
 fn smoke_mcp_tool_call_event_structure() {
     let begin = CustomToolCallBeginEvent {
         call_id: "tool-1".into(),
+        parent_call_id: None,
         tool_name: "browser_navigate".into(),
         parameters: Some(json!({"url": "https://example.com"})),
     };
 
     let end = CustomToolCallEndEvent {
         call_id: begin.call_id.clone(),
+        parent_call_id: None,
         tool_name: begin.tool_name.clone(),
         parameters: begin.parameters.clone(),
         duration: Duration::from_millis(120),
@@ -771,6 +773,7 @@ fn smoke_custom_tool_call() {
         event_seq: 0,
         msg: EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "tool-1".into(),
+            parent_call_id: None,
             tool_name: "browser_navigate".into(),
             parameters: Some(json!({ "url": "https://example.com" })),
         }),
@@ -786,6 +789,7 @@ fn smoke_custom_tool_call() {
         event_seq: 1,
         msg: EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "tool-1".into(),
+            parent_call_id: None,
             tool_name: "browser_navigate".into(),
             parameters: Some(json!({ "url": "https://example.com" })),
             duration: Duration::from_millis(40),
@@ -832,6 +836,7 @@ fn smoke_mcp_tool_invocation() {
         event_seq: 0,
         msg: EventMsg::McpToolCallBegin(McpToolCallBeginEvent {
             call_id: "mcp-1".into(),
+            parent_call_id: None,
             invocation: invocation.clone(),
         }),
         order: Some(OrderMeta {
@@ -846,6 +851,7 @@ fn smoke_mcp_tool_invocation() {
         event_seq: 1,
         msg: EventMsg::McpToolCallEnd(McpToolCallEndEvent {
             call_id: "mcp-1".into(),
+            parent_call_id: None,
             invocation,
             duration: Duration::from_millis(60),
             result: Ok(CallToolResult {

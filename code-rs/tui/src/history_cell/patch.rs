@@ -32,6 +32,7 @@ pub(crate) struct PatchSummaryCell {
     pub(crate) title: String,
     pub(crate) kind: PatchKind,
     pub(crate) record: PatchRecord,
+    pub(crate) parent_call_id: Option<String>,
     cached_layout: RefCell<Option<PatchLayoutCache>>,
 }
 
@@ -159,6 +160,7 @@ impl PatchSummaryCell {
             title,
             kind,
             record,
+            parent_call_id: None,
             cached_layout: RefCell::new(None),
         }
     }
@@ -275,6 +277,10 @@ impl HistoryCell for PatchSummaryCell {
     }
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Patch { kind: self.kind }
+    }
+
+    fn parent_call_id(&self) -> Option<&str> {
+        self.parent_call_id.as_deref()
     }
 
     // We compute lines based on width at render time; provide a conservative

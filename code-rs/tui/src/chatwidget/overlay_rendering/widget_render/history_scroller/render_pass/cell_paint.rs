@@ -212,9 +212,48 @@ impl ChatWidget<'_> {
                     }
                 }
 
-                if let Some(symbol) = item.gutter_symbol() {
+                let mut symbol = item.gutter_symbol();
+                if symbol != Some("✗") && item.parent_call_id().is_some() {
+                    symbol = Some("↳");
+                }
+
+                if let Some(symbol) = symbol {
                     let color = if is_auto_review {
                         crate::colors::success()
+                    } else if symbol == "↳" {
+                        match item_kind {
+                            crate::history_cell::HistoryCellType::Tool { status } => match status {
+                                crate::history_cell::ToolCellStatus::Running => crate::colors::info(),
+                                crate::history_cell::ToolCellStatus::Success => crate::colors::success(),
+                                crate::history_cell::ToolCellStatus::Failed => crate::colors::error(),
+                            },
+                            crate::history_cell::HistoryCellType::Exec {
+                                kind: crate::history_cell::ExecKind::Run,
+                                status: _,
+                            } => {
+                                if let Some(exec) = item
+                                    .as_any()
+                                    .downcast_ref::<crate::history_cell::ExecCell>()
+                                {
+                                    match &exec.output {
+                                        None => crate::colors::text(),
+                                        Some(o) if o.exit_code == 0 => crate::colors::text(),
+                                        Some(_) => crate::colors::error(),
+                                    }
+                                } else {
+                                    crate::colors::text()
+                                }
+                            }
+                            crate::history_cell::HistoryCellType::Patch { kind } => match kind {
+                                crate::history_cell::PatchKind::ApplySuccess => {
+                                    crate::colors::success()
+                                }
+                                crate::history_cell::PatchKind::ApplyBegin => crate::colors::success(),
+                                crate::history_cell::PatchKind::Proposed => crate::colors::primary(),
+                                crate::history_cell::PatchKind::ApplyFailure => crate::colors::error(),
+                            },
+                            _ => crate::colors::text_dim(),
+                        }
                     } else if symbol == "❯" {
                         if let Some(exec) = item
                             .as_any()
@@ -307,10 +346,7 @@ impl ChatWidget<'_> {
                                 let symbol_x = gutter_area.x;
                                 buf.set_string(symbol_x, symbol_y, symbol, symbol_style);
                                 if symbol == "↳"
-                                    && let Some(exec) = item
-                                        .as_any()
-                                        .downcast_ref::<crate::history_cell::ExecCell>()
-                                    && let Some(parent_call_id) = exec.parent_call_id.as_ref()
+                                    && let Some(parent_call_id) = item.parent_call_id()
                                 {
                                     self.clickable_regions.borrow_mut().push(
                                         crate::chatwidget::ClickableRegion {
@@ -321,7 +357,7 @@ impl ChatWidget<'_> {
                                                 1,
                                             ),
                                             action: crate::chatwidget::ClickableAction::JumpToExecCall(
-                                                parent_call_id.clone(),
+                                                parent_call_id.to_string(),
                                             ),
                                         },
                                     );

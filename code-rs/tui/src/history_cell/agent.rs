@@ -49,6 +49,7 @@ pub(crate) struct AgentRunCell {
     completed: bool,
     actions: Vec<ActionEntry>,
     cell_key: Option<String>,
+    pub(crate) parent_call_id: Option<String>,
     batch_label: Option<String>,
     write_enabled: Option<bool>,
     first_action_at: Option<Instant>,
@@ -1310,6 +1311,14 @@ impl HistoryCell for AgentRunCell {
             ToolCellStatus::Running
         };
         HistoryCellType::Tool { status }
+    }
+
+    fn call_id(&self) -> Option<&str> {
+        self.cell_key.as_deref()
+    }
+
+    fn parent_call_id(&self) -> Option<&str> {
+        self.parent_call_id.as_deref()
     }
 
     fn display_lines(&self) -> Vec<Line<'static>> {

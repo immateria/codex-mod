@@ -99,6 +99,7 @@ pub(super) fn handle_custom_tool_begin(
     order: Option<&OrderMeta>,
     call_id: &str,
     tool_name: &str,
+    parent_call_id: Option<&str>,
     params: Option<Value>,
 ) -> bool {
     if !tool_name.starts_with("browser_") || tool_name == "browser_fetch" {
@@ -113,6 +114,7 @@ pub(super) fn handle_custom_tool_begin(
         .remove(&key)
         .unwrap_or_else(|| BrowserSessionTracker::new(order_key));
     tracker.slot.set_order_key(order_key);
+    tracker.cell.parent_call_id = parent_call_id.map(str::to_owned);
 
     if let Some(Value::Object(json)) = params.as_ref()
         && tool_name == "browser_open" {

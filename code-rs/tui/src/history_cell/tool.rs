@@ -15,18 +15,25 @@ use std::time::{Duration, Instant, SystemTime};
 
 pub(crate) struct ToolCallCell {
     state: ToolCallState,
+    pub(crate) parent_call_id: Option<String>,
 }
 
 impl ToolCallCell {
     pub(crate) fn new(state: ToolCallState) -> Self {
         let mut state = state;
         state.id = HistoryId::ZERO;
-        Self { state }
+        Self {
+            state,
+            parent_call_id: None,
+        }
     }
 
     #[allow(dead_code)]
     pub(crate) fn from_state(state: ToolCallState) -> Self {
-        Self { state }
+        Self {
+            state,
+            parent_call_id: None,
+        }
     }
 
     pub(crate) fn state(&self) -> &ToolCallState {
@@ -73,6 +80,14 @@ impl HistoryCell for ToolCallCell {
         }
     }
 
+    fn call_id(&self) -> Option<&str> {
+        self.state.call_id.as_deref()
+    }
+
+    fn parent_call_id(&self) -> Option<&str> {
+        self.parent_call_id.as_deref()
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(self.header_line());
@@ -112,6 +127,7 @@ impl HistoryCell for ToolCallCell {
 pub(crate) struct RunningToolCallCell {
     state: RunningToolState,
     start_clock: Instant,
+    pub(crate) parent_call_id: Option<String>,
 }
 
 impl RunningToolCallCell {
@@ -121,6 +137,7 @@ impl RunningToolCallCell {
         Self {
             state,
             start_clock: Instant::now(),
+            parent_call_id: None,
         }
     }
 
@@ -129,6 +146,7 @@ impl RunningToolCallCell {
         Self {
             state,
             start_clock: Instant::now(),
+            parent_call_id: None,
         }
     }
 
@@ -389,6 +407,14 @@ impl HistoryCell for RunningToolCallCell {
         HistoryCellType::Tool {
             status: super::ToolCellStatus::Running,
         }
+    }
+
+    fn call_id(&self) -> Option<&str> {
+        self.state.call_id.as_deref()
+    }
+
+    fn parent_call_id(&self) -> Option<&str> {
+        self.parent_call_id.as_deref()
     }
 
     fn gutter_symbol(&self) -> Option<&'static str> {

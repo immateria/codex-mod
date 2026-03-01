@@ -37,9 +37,10 @@ pub(super) fn handle_custom_tool_begin(
     order: Option<&OrderMeta>,
     call_id: &str,
     tool_name: &str,
+    parent_call_id: Option<&str>,
     params: Option<serde_json::Value>,
 ) -> bool {
-    custom_tool_flow::handle_custom_tool_begin(chat, order, call_id, tool_name, params)
+    custom_tool_flow::handle_custom_tool_begin(chat, order, call_id, tool_name, parent_call_id, params)
 }
 
 pub(super) fn handle_custom_tool_end(

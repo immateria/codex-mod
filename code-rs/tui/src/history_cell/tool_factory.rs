@@ -543,6 +543,7 @@ pub(crate) fn new_completed_web_fetch_tool_call(
         } else {
             ToolCellStatus::Failed
         },
+        parent_call_id: None,
         layout_cache: RefCell::new(WebFetchLayoutCacheEntry {
             width: 0,
             layout: WebFetchLayout::default(),
@@ -571,6 +572,7 @@ pub(crate) struct WebFetchToolCell {
     pre_lines: Vec<Line<'static>>,  // header/invocation
     body_lines: Vec<Line<'static>>, // bordered, dim preview
     state: ToolCellStatus,
+    pub(crate) parent_call_id: Option<String>,
     layout_cache: RefCell<WebFetchLayoutCacheEntry>,
 }
 
@@ -650,6 +652,11 @@ impl HistoryCell for WebFetchToolCell {
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Tool { status: self.state }
     }
+
+    fn parent_call_id(&self) -> Option<&str> {
+        self.parent_call_id.as_deref()
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
         // Fallback textual representation used only for measurement outside custom render
         let mut v = Vec::new();

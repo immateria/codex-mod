@@ -1427,6 +1427,7 @@ fn tool_activity_showcase() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "browser-finished".into(),
+            parent_call_id: None,
             tool_name: "browser_click".into(),
             parameters: Some(json!({
                 "type": "double",
@@ -1442,6 +1443,7 @@ fn tool_activity_showcase() {
         &mut order_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "browser-finished".into(),
+            parent_call_id: None,
             tool_name: "browser_click".into(),
             parameters: Some(json!({
                 "type": "double",
@@ -1461,6 +1463,7 @@ fn tool_activity_showcase() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "browser-running".into(),
+            parent_call_id: None,
             tool_name: "browser_scroll".into(),
             parameters: Some(json!({
                 "dx": 0,
@@ -1478,6 +1481,7 @@ fn tool_activity_showcase() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "agent-done".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -1495,6 +1499,7 @@ fn tool_activity_showcase() {
         &mut order_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "agent-done".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -1516,6 +1521,7 @@ fn tool_activity_showcase() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "agent-pending".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "wait",
@@ -1666,6 +1672,7 @@ fn browser_session_grouped_desired_layout() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "browser-session".into(),
+            parent_call_id: None,
             tool_name: "browser_open".into(),
             parameters: Some(json!({
                 "url": "https://example.com/docs"
@@ -1678,6 +1685,7 @@ fn browser_session_grouped_desired_layout() {
         &mut order_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "browser-session".into(),
+            parent_call_id: None,
             tool_name: "browser_open".into(),
             parameters: Some(json!({
                 "url": "https://example.com/docs"
@@ -1721,6 +1729,7 @@ fn browser_session_grouped_desired_layout() {
             &mut order_seq,
             EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
                 call_id: format!("browser-session-{tool}"),
+                parent_call_id: None,
                 tool_name: tool.into(),
                 parameters: Some(params.clone()),
             }),
@@ -1731,6 +1740,7 @@ fn browser_session_grouped_desired_layout() {
             &mut order_seq,
             EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
                 call_id: format!("browser-session-{tool}"),
+                parent_call_id: None,
                 tool_name: tool.into(),
                 parameters: Some(params),
                 duration: dur,
@@ -1782,6 +1792,7 @@ fn browser_session_grouped_with_unordered_actions() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "browser-session-open".into(),
+            parent_call_id: None,
             tool_name: "browser_open".into(),
             parameters: Some(json!({ "url": "https://example.com" })),
         }),
@@ -1792,6 +1803,7 @@ fn browser_session_grouped_with_unordered_actions() {
         &mut order_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "browser-session-open".into(),
+            parent_call_id: None,
             tool_name: "browser_open".into(),
             parameters: Some(json!({ "url": "https://example.com" })),
             duration: Duration::from_secs(3),
@@ -1804,6 +1816,7 @@ fn browser_session_grouped_with_unordered_actions() {
         &mut event_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "browser-session-type".into(),
+            parent_call_id: None,
             tool_name: "browser_type".into(),
             parameters: Some(json!({ "text": "pizza" })),
         }),
@@ -1820,6 +1833,7 @@ fn browser_session_grouped_with_unordered_actions() {
         &mut event_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "browser-session-type".into(),
+            parent_call_id: None,
             tool_name: "browser_type".into(),
             parameters: Some(json!({ "text": "pizza" })),
             duration: Duration::from_secs(2),
@@ -1832,6 +1846,7 @@ fn browser_session_grouped_with_unordered_actions() {
         &mut event_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "browser-session-key".into(),
+            parent_call_id: None,
             tool_name: "browser_key".into(),
             parameters: Some(json!({ "key": "Enter" })),
         }),
@@ -1841,6 +1856,7 @@ fn browser_session_grouped_with_unordered_actions() {
         &mut event_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "browser-session-key".into(),
+            parent_call_id: None,
             tool_name: "browser_key".into(),
             parameters: Some(json!({ "key": "Enter" })),
             duration: Duration::from_secs(1),
@@ -1870,6 +1886,7 @@ fn browser_session_skips_foreign_background_events() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "browser-session-open".into(),
+            parent_call_id: None,
             tool_name: "browser_open".into(),
             parameters: Some(json!({ "url": "https://example.com" })),
         }),
@@ -1880,6 +1897,7 @@ fn browser_session_skips_foreign_background_events() {
         &mut order_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "browser-session-open".into(),
+            parent_call_id: None,
             tool_name: "browser_open".into(),
             parameters: Some(json!({ "url": "https://example.com" })),
             duration: Duration::from_secs(4),
@@ -1935,6 +1953,7 @@ fn agent_run_grouped_desired_layout() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "agent-run".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -2003,6 +2022,7 @@ fn agent_run_grouped_desired_layout() {
         &mut order_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "agent-run".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -2040,6 +2060,7 @@ fn agent_run_grouped_plain_tool_name() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "agent-run-plain".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -2091,6 +2112,7 @@ fn agent_run_grouped_plain_tool_name() {
         &mut order_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "agent-run-plain".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -2122,6 +2144,7 @@ fn agents_terminal_overlay_full_details() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "agent-run".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -2326,6 +2349,7 @@ fn plan_agent_keeps_single_aggregate_block() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "plan-call".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -2375,6 +2399,7 @@ fn plan_agent_keeps_single_aggregate_block() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "plan-result".into(),
+            parent_call_id: None,
             tool_name: "agent_result".into(),
             parameters: Some(json!({
                 "action": "result"
@@ -2615,6 +2640,7 @@ fn agent_parallel_batches_do_not_duplicate_cells() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "agent-pizza".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -2634,6 +2660,7 @@ fn agent_parallel_batches_do_not_duplicate_cells() {
         &mut order_seq,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: "agent-burger".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -2751,6 +2778,7 @@ fn agent_parallel_batches_do_not_duplicate_cells() {
         &mut order_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "agent-pizza".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",
@@ -2771,6 +2799,7 @@ fn agent_parallel_batches_do_not_duplicate_cells() {
         &mut order_seq,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: "agent-burger".into(),
+            parent_call_id: None,
             tool_name: "agent".into(),
             parameters: Some(json!({
                 "action": "create",

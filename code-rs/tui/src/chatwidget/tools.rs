@@ -31,9 +31,14 @@ pub(super) fn web_search_complete(
 
 pub(super) fn mcp_begin(chat: &mut ChatWidget<'_>, ev: McpToolCallBeginEvent, key: OrderKey) {
     for cell in &chat.history_cells { cell.trigger_fade(); }
-    let McpToolCallBeginEvent { call_id, invocation } = ev;
+    let McpToolCallBeginEvent {
+        call_id,
+        parent_call_id,
+        invocation,
+    } = ev;
     let mut cell = history_cell::new_running_mcp_tool_call(invocation);
     cell.state_mut().call_id = Some(call_id.clone());
+    cell.parent_call_id = parent_call_id;
     let idx = chat.history_insert_with_key_global(Box::new(cell), key);
     let history_id = chat
         .history_state
@@ -48,7 +53,13 @@ pub(super) fn mcp_begin(chat: &mut ChatWidget<'_>, ev: McpToolCallBeginEvent, ke
 }
 
 pub(super) fn mcp_end(chat: &mut ChatWidget<'_>, ev: McpToolCallEndEvent, key: OrderKey) {
-    let McpToolCallEndEvent { call_id, duration, invocation, result } = ev;
+    let McpToolCallEndEvent {
+        call_id,
+        parent_call_id,
+        duration,
+        invocation,
+        result,
+    } = ev;
     let success = !result.as_ref().map(|r| r.is_error.unwrap_or(false)).unwrap_or(false);
     let mut completed = history_cell::new_completed_mcp_tool_call(80, invocation, duration, success, result);
     if let Some(tool_cell) = completed
@@ -56,6 +67,7 @@ pub(super) fn mcp_end(chat: &mut ChatWidget<'_>, ev: McpToolCallEndEvent, key: O
         .downcast_mut::<history_cell::ToolCallCell>()
     {
         tool_cell.state_mut().call_id = Some(call_id.clone());
+        tool_cell.parent_call_id = parent_call_id;
     }
     let map_key = super::ToolCallId(call_id.clone());
     let entry_removed = chat

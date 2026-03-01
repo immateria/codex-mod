@@ -102,6 +102,7 @@ impl ChatWidget<'_> {
     ) {
         let PatchApplyBeginEvent {
             call_id,
+            parent_call_id,
             auto_approved,
             changes,
         } = event;
@@ -151,7 +152,9 @@ impl ChatWidget<'_> {
                 self.next_internal_key()
             }
         };
-        let cell = history_cell::new_patch_event(PatchEventType::ApplyBegin { auto_approved }, changes);
+        let mut cell =
+            history_cell::new_patch_event(PatchEventType::ApplyBegin { auto_approved }, changes);
+        cell.parent_call_id = parent_call_id;
         let _ = self.history_insert_with_key_global(Box::new(cell), ok);
     }
 

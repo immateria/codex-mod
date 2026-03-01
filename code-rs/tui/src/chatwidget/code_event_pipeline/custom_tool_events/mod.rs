@@ -6,6 +6,7 @@ mod end;
 
 struct CustomToolEndContext {
     call_id: String,
+    parent_call_id: Option<String>,
     tool_name: String,
     duration: Duration,
     success: bool,

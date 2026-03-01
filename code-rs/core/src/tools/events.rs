@@ -21,6 +21,7 @@ where
         ctx,
         EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
             call_id: ctx.call_id.clone(),
+            parent_call_id: ctx.parent_call_id.clone(),
             tool_name: tool_name.clone(),
             parameters: parameters.clone(),
         }),
@@ -48,6 +49,7 @@ where
         ctx,
         EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
             call_id: ctx.call_id.clone(),
+            parent_call_id: ctx.parent_call_id.clone(),
             tool_name,
             parameters,
             duration,
@@ -58,4 +60,3 @@ where
 
     result
 }
-

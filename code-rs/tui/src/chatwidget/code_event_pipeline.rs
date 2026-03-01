@@ -381,18 +381,21 @@ impl ChatWidget<'_> {
 
             EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
                 call_id,
+                parent_call_id,
                 tool_name,
                 parameters,
             }) => {
                 self.handle_custom_tool_call_begin_event(
                     event.order.as_ref(),
                     call_id,
+                    parent_call_id,
                     tool_name,
                     parameters,
                 );
             }
             EventMsg::CustomToolCallUpdate(CustomToolCallUpdateEvent {
                 call_id,
+                parent_call_id: _,
                 tool_name: _,
                 parameters,
             }) => {

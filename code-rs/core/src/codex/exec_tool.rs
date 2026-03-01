@@ -607,6 +607,7 @@ pub(crate) async fn handle_apply_patch_action(
             };
             let begin_event = EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
                 call_id: ctx.call_id.clone(),
+                parent_call_id: ctx.parent_call_id.clone(),
                 auto_approved: run.auto_approved,
                 changes,
             });
@@ -620,6 +621,7 @@ pub(crate) async fn handle_apply_patch_action(
             };
             let end_event = EventMsg::PatchApplyEnd(PatchApplyEndEvent {
                 call_id: ctx.call_id.clone(),
+                parent_call_id: ctx.parent_call_id.clone(),
                 stdout: run.stdout.clone(),
                 stderr: run.stderr.clone(),
                 success: run.success,

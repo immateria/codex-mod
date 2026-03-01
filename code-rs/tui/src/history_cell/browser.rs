@@ -93,6 +93,7 @@ pub(crate) struct BrowserSessionCell {
     total_duration: Duration,
     completed: bool,
     cell_key: Option<String>,
+    pub(crate) parent_call_id: Option<String>,
     headless: Option<bool>,
     status_code: Option<String>,
     cached_picker: Rc<RefCell<Option<ratatui_image::picker::Picker>>>,
@@ -111,6 +112,7 @@ impl Clone for BrowserSessionCell {
             total_duration: self.total_duration,
             completed: self.completed,
             cell_key: self.cell_key.clone(),
+            parent_call_id: self.parent_call_id.clone(),
             headless: self.headless,
             status_code: self.status_code.clone(),
             cached_picker: Rc::clone(&self.cached_picker),
@@ -131,6 +133,7 @@ impl Default for BrowserSessionCell {
             total_duration: Duration::ZERO,
             completed: false,
             cell_key: None,
+            parent_call_id: None,
             headless: None,
             status_code: None,
             cached_picker: Rc::new(RefCell::new(None)),
@@ -1058,6 +1061,14 @@ impl HistoryCell for BrowserSessionCell {
             ToolCellStatus::Running
         };
         HistoryCellType::Tool { status }
+    }
+
+    fn call_id(&self) -> Option<&str> {
+        self.cell_key.as_deref()
+    }
+
+    fn parent_call_id(&self) -> Option<&str> {
+        self.parent_call_id.as_deref()
     }
 
     fn display_lines(&self) -> Vec<Line<'static>> {

@@ -346,6 +346,31 @@ impl ChatWidget<'_> {
             return;
         }
 
+        // `]` key: jump to the parent of the bottommost nested tool cell.
+        // Only intercept when the composer is empty so normal typing is unaffected.
+        if let crossterm::event::KeyEvent {
+            code: crossterm::event::KeyCode::Char(']'),
+            modifiers: crossterm::event::KeyModifiers::NONE,
+            kind: KeyEventKind::Press | KeyEventKind::Repeat,
+            ..
+        } = key_event
+            && self.bottom_pane.composer_is_empty()
+        {
+            let Some(parent_call_id) = self
+                .history_cells
+                .iter()
+                .rev()
+                .find_map(|cell| cell.parent_call_id().map(str::to_owned))
+            else {
+                self.bottom_pane
+                    .update_status_text("no parent tool call to jump to".to_string());
+                self.request_redraw();
+                return;
+            };
+            self.jump_to_call_id(&parent_call_id);
+            return;
+        }
+
         let composer_was_empty = self.bottom_pane.composer_is_empty();
         let input_result = self.bottom_pane.handle_key_event(key_event);
         let composer_is_empty = self.bottom_pane.composer_is_empty();

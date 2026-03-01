@@ -14,6 +14,7 @@ pub(in super::super) fn handle_custom_tool_begin(
     order: Option<&OrderMeta>,
     call_id: &str,
     tool_name: &str,
+    parent_call_id: Option<&str>,
     params: Option<Value>,
 ) -> bool {
     if !is_agent_tool(tool_name) {
@@ -52,6 +53,7 @@ pub(in super::super) fn handle_custom_tool_begin(
 
     let header_label = tracker.effective_label().or_else(|| tracker.batch_id.clone());
     tracker.cell.set_batch_label(header_label);
+    tracker.cell.parent_call_id = parent_call_id.map(str::to_owned);
 
     if let Some(action) = begin_action_for(tool_name, &metadata)
         && let Some(message) = normalize_begin_action_text(&tracker, &metadata, action)

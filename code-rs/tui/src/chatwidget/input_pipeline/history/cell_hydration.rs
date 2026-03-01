@@ -42,6 +42,24 @@ impl ChatWidget<'_> {
                     return true;
                 }
             }
+            HistoryRecord::RunningTool(state) => {
+                if let Some(running_tool) = cell
+                    .as_any_mut()
+                    .downcast_mut::<crate::history_cell::RunningToolCallCell>()
+                {
+                    *running_tool.state_mut() = state.clone();
+                    return true;
+                }
+            }
+            HistoryRecord::ToolCall(state) => {
+                if let Some(tool_call) = cell
+                    .as_any_mut()
+                    .downcast_mut::<crate::history_cell::ToolCallCell>()
+                {
+                    *tool_call.state_mut() = state.clone();
+                    return true;
+                }
+            }
             HistoryRecord::BackgroundEvent(state) => {
                 if let Some(background) = cell
                     .as_any_mut()
@@ -261,13 +279,22 @@ impl ChatWidget<'_> {
 
         if let Some(idx) = self.cell_index_for_history_id(id) {
             // JsReplCell stores JS-specific metadata (code, runtime) that would be
-            // lost if we rebuilt it from a plain ExecRecord. Always hydrate in-place.
-            let existing_is_js_repl = self
+            // lost if we rebuilt it from a plain ExecRecord. Additionally, some
+            // cells carry transient metadata (like `parent_call_id`) that is not
+            // stored in the history domain record. For these cells, hydrate
+            // in-place rather than rebuilding.
+            let existing_prefers_hydrate = self
                 .history_cells
                 .get(idx)
-                .map(|c| c.as_any().is::<crate::history_cell::JsReplCell>())
+                .map(|c| {
+                    c.as_any().is::<crate::history_cell::JsReplCell>()
+                        || c.as_any().is::<crate::history_cell::ExecCell>()
+                        || c.as_any().is::<crate::history_cell::PatchSummaryCell>()
+                        || c.as_any().is::<crate::history_cell::ToolCallCell>()
+                        || c.as_any().is::<crate::history_cell::RunningToolCallCell>()
+                })
                 .unwrap_or(false);
-            if existing_is_js_repl {
+            if existing_prefers_hydrate {
                 if let Some(cell_slot) = self.history_cells.get_mut(idx) {
                     Self::hydrate_cell_from_record_inner(cell_slot, &record, &self.config);
                     Self::assign_history_id_inner(cell_slot, id);

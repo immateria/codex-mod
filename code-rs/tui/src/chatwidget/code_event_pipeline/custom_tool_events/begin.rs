@@ -6,6 +6,7 @@ impl ChatWidget<'_> {
         &mut self,
         order: Option<&OrderMeta>,
         call_id: String,
+        parent_call_id: Option<String>,
         tool_name: String,
         parameters: Option<serde_json::Value>,
     ) {
@@ -27,6 +28,7 @@ impl ChatWidget<'_> {
             order,
             &call_id,
             &tool_name,
+            parent_call_id.as_deref(),
             parameters,
         ) {
             return;
@@ -39,7 +41,13 @@ impl ChatWidget<'_> {
         }
 
         // 4) Default path: insert a running tool cell and track it for completion replacement.
-        self.insert_running_custom_tool_entry(order, &call_id, &tool_name, params_string);
+        self.insert_running_custom_tool_entry(
+            order,
+            &call_id,
+            &tool_name,
+            parent_call_id.as_deref(),
+            params_string,
+        );
         self.update_status_for_tool_begin(&tool_name);
     }
     fn update_status_for_tool_begin(&mut self, tool_name: &str) {
@@ -70,6 +78,7 @@ impl ChatWidget<'_> {
         order: Option<&OrderMeta>,
         call_id: &str,
         tool_name: &str,
+        parent_call_id: Option<&str>,
         params_string: Option<String>,
     ) {
         // Animated running cell with live timer and formatted args.
@@ -79,6 +88,7 @@ impl ChatWidget<'_> {
             history_cell::new_running_custom_tool_call(tool_name.to_string(), params_string)
         };
         cell.state_mut().call_id = Some(call_id.to_string());
+        cell.parent_call_id = parent_call_id.map(str::to_owned);
 
         let order_key = self.custom_tool_order_key(order, "CustomToolCallBegin");
         let idx = self.history_insert_with_key_global(Box::new(cell), order_key);
@@ -101,6 +111,7 @@ impl ChatWidget<'_> {
         order: Option<&OrderMeta>,
         call_id: &str,
         tool_name: &str,
+        parent_call_id: Option<&str>,
         params_json: Option<serde_json::Value>,
     ) -> bool {
         if agent_runs::is_agent_tool(tool_name)
@@ -109,6 +120,7 @@ impl ChatWidget<'_> {
                 order,
                 call_id,
                 tool_name,
+                parent_call_id,
                 params_json.clone(),
             )
         {
@@ -117,7 +129,14 @@ impl ChatWidget<'_> {
             return true;
         }
         if tool_name.starts_with("browser_")
-            && browser_sessions::handle_custom_tool_begin(self, order, call_id, tool_name, params_json)
+            && browser_sessions::handle_custom_tool_begin(
+                self,
+                order,
+                call_id,
+                tool_name,
+                parent_call_id,
+                params_json,
+            )
         {
             self.bottom_pane
                 .update_status_text("using browser".to_string());

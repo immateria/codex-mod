@@ -10,6 +10,7 @@ impl ChatWidget<'_> {
     ) {
         let CustomToolCallEndEvent {
             call_id,
+            parent_call_id,
             tool_name,
             parameters,
             duration,
@@ -55,6 +56,7 @@ impl ChatWidget<'_> {
         let ctx = CustomToolEndContext {
             resolved_idx: self.resolve_running_custom_tool_index(&call_id),
             call_id,
+            parent_call_id,
             tool_name,
             duration,
             success,
@@ -236,6 +238,8 @@ impl ChatWidget<'_> {
             ctx.success,
             ctx.content.clone(),
         );
+        let mut completed = completed;
+        completed.parent_call_id = ctx.parent_call_id.clone();
         if let Some(idx) = ctx.resolved_idx {
             self.history_replace_at(idx, Box::new(completed));
         } else {
@@ -252,6 +256,7 @@ impl ChatWidget<'_> {
     fn handle_generic_custom_tool_end(&mut self, ctx: CustomToolEndContext) {
         let CustomToolEndContext {
             call_id,
+            parent_call_id,
             tool_name,
             duration,
             success,
@@ -270,6 +275,7 @@ impl ChatWidget<'_> {
             content,
         );
         completed.state_mut().call_id = Some(call_id.clone());
+        completed.parent_call_id = parent_call_id;
         if let Some(idx) = resolved_idx {
             self.history_debug(format!(
                 "custom_tool_end.in_place call_id={} idx={} order=({}, {}, {})",

@@ -208,6 +208,15 @@ impl HistoryCell for ExecCell {
         let status = self.record.status;
         HistoryCellType::Exec { kind, status }
     }
+
+    fn call_id(&self) -> Option<&str> {
+        self.record.call_id.as_deref()
+    }
+
+    fn parent_call_id(&self) -> Option<&str> {
+        self.parent_call_id.as_deref()
+    }
+
     fn gutter_symbol(&self) -> Option<&'static str> {
         match self.kind() {
             HistoryCellType::Exec {

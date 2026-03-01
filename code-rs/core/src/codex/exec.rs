@@ -322,6 +322,7 @@ impl Session {
 
                 EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
                     call_id,
+                    parent_call_id,
                     auto_approved: !user_explicitly_approved_this_action,
                     changes,
                 })
@@ -366,6 +367,7 @@ impl Session {
         let msg = if is_apply_patch {
             EventMsg::PatchApplyEnd(PatchApplyEndEvent {
                 call_id: call_id.to_string(),
+                parent_call_id: None,
                 stdout,
                 stderr,
                 success: *exit_code == 0,

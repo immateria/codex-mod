@@ -176,7 +176,7 @@ impl ChatWidget<'_> {
                     self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);
                 }
                 ClickableAction::JumpToExecCall(call_id) => {
-                    self.jump_to_exec_call_id(&call_id);
+                    self.jump_to_call_id(&call_id);
                 }
                 ClickableAction::ExecuteCommand(cmd) => {
                     // Parse and dispatch the slash command
@@ -189,12 +189,12 @@ impl ChatWidget<'_> {
         }
     }
 
-    fn jump_to_exec_call_id(&mut self, call_id: &str) {
-        let Some(idx) = self.history_cells.iter().rposition(|cell| {
-            cell.as_any()
-                .downcast_ref::<crate::history_cell::JsReplCell>()
-                .is_some_and(|js| js.record.call_id.as_deref() == Some(call_id))
-        }) else {
+    pub(in crate::chatwidget) fn jump_to_call_id(&mut self, call_id: &str) {
+        let Some(idx) = self
+            .history_cells
+            .iter()
+            .rposition(|cell| cell.call_id() == Some(call_id))
+        else {
             self.bottom_pane.update_status_text("parent tool call not found".to_string());
             self.request_redraw();
             return;
