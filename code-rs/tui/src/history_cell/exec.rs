@@ -513,7 +513,7 @@ impl ExecCell {
             let folded_count = out_lines.len() - OUTPUT_FOLD_THRESHOLD;
             out_lines.truncate(OUTPUT_FOLD_THRESHOLD);
             out_lines.push(Line::from(Span::styled(
-                format!("… {folded_count} more lines  [ to expand"),
+                format!("… {folded_count} more lines (press [ to expand)"),
                 Style::default()
                     .fg(crate::colors::text_dim())
                     .add_modifier(Modifier::DIM),

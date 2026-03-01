@@ -149,6 +149,19 @@ impl JsReplCell {
             ),
         ];
 
+        if !matches!(self.record.status, ExecStatus::Running)
+            && let Some(completed_at) = self.record.completed_at
+            && let Ok(duration) = completed_at.duration_since(self.record.started_at)
+            && !duration.is_zero()
+        {
+            spans.push(Span::styled(
+                format!(" • {}", format_duration(duration)),
+                Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::DIM),
+            ));
+        }
+
         let child_count = self.child_call_ids.len();
         if child_count > 0 {
             spans.push(Span::styled(
@@ -174,6 +187,27 @@ impl JsReplCell {
             ));
         }
 
+        let has_hidden_output = self.output.is_some()
+            && self.collapsed_output.get()
+            && self
+                .output
+                .as_ref()
+                .is_some_and(|o| {
+                    o.stdout
+                        .lines()
+                        .count()
+                        .saturating_add(o.stderr.lines().count())
+                        > OUTPUT_FOLD_THRESHOLD
+                });
+        if has_hidden_output {
+            spans.push(Span::styled(
+                " • output ([)",
+                Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::DIM),
+            ));
+        }
+
         Line::from(spans)
     }
 
@@ -190,18 +224,19 @@ impl JsReplCell {
 
         if self.code_collapsed.get() {
             // Show first non-empty line with "…" suffix
-            let first = self
-                .code
-                .lines()
-                .find(|l| !l.trim().is_empty())
-                .unwrap_or("")
-                .to_string();
+            let mut code_lines = self.code.lines();
+            let first = code_lines.find(|line| !line.trim().is_empty()).unwrap_or("");
+            let has_more = code_lines.any(|line| !line.trim().is_empty());
             let preview = if first.chars().count() > 60 {
                 let mut s: String = first.chars().take(60).collect();
                 s.push('…');
                 s
-            } else {
+            } else if has_more {
                 format!("{first} …")
+            } else if first.is_empty() {
+                "…".to_string()
+            } else {
+                first.to_string()
             };
             vec![Line::from(vec![
                 border_span,
@@ -281,27 +316,19 @@ impl HistoryCell for JsReplCell {
 
         // Output block
         let display_output = self.output.as_ref().or(self.stream_preview.as_ref());
-        let out = output_lines(display_output, false, false);
-        let trimmed_out = trim_empty_lines(out.clone());
-        let has_output = !trimmed_out.is_empty();
-        if has_output {
-            if self.output.is_some()
-                && self.collapsed_output.get()
-                && trimmed_out.len() > OUTPUT_FOLD_THRESHOLD
-            {
-                let folded_count = trimmed_out.len() - OUTPUT_FOLD_THRESHOLD;
-                let mut capped: Vec<Line<'static>> =
-                    trimmed_out.into_iter().take(OUTPUT_FOLD_THRESHOLD).collect();
-                capped.push(Line::from(Span::styled(
-                    format!("… {folded_count} more lines  [ to expand"),
+        let mut out = trim_empty_lines(output_lines(display_output, false, false));
+        if !out.is_empty() {
+            if self.output.is_some() && self.collapsed_output.get() && out.len() > OUTPUT_FOLD_THRESHOLD {
+                let folded_count = out.len() - OUTPUT_FOLD_THRESHOLD;
+                out.truncate(OUTPUT_FOLD_THRESHOLD);
+                out.push(Line::from(Span::styled(
+                    format!("… {folded_count} more lines (press [ to expand)"),
                     Style::default()
                         .fg(crate::colors::text_dim())
                         .add_modifier(Modifier::DIM),
                 )));
-                lines.extend(capped);
-            } else {
-                lines.extend(out);
             }
+            lines.extend(out);
         }
 
         // Status line when running
