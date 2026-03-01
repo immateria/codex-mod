@@ -175,7 +175,7 @@ impl ChatWidget<'_> {
                 ClickableAction::ShowNetworkSettings => {
                     self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);
                 }
-                ClickableAction::JumpToExecCall(call_id) => {
+                ClickableAction::JumpToCallId(call_id) => {
                     self.jump_to_call_id(&call_id);
                 }
                 ClickableAction::ExecuteCommand(cmd) => {

@@ -3974,7 +3974,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
                 .find(|region| {
                     matches!(
                         &region.action,
-                        ClickableAction::JumpToExecCall(call_id) if call_id == &parent_call_id
+                        ClickableAction::JumpToCallId(call_id) if call_id == &parent_call_id
                     )
                 })
                 .expect("expected a history gutter click region for js parent");

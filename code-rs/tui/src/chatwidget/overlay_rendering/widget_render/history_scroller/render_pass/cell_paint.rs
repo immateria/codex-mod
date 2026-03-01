@@ -366,7 +366,7 @@ impl ChatWidget<'_> {
                                             gutter_area.width.min(2),
                                             1,
                                         ),
-                                        action: crate::chatwidget::ClickableAction::JumpToExecCall(
+                                        action: crate::chatwidget::ClickableAction::JumpToCallId(
                                             parent_call_id.to_string(),
                                         ),
                                     },
@@ -433,7 +433,7 @@ impl ChatWidget<'_> {
                             self.clickable_regions.borrow_mut().push(
                                 crate::chatwidget::ClickableRegion {
                                     rect: Rect::new(x, y, w, 1),
-                                    action: crate::chatwidget::ClickableAction::JumpToExecCall(
+                                    action: crate::chatwidget::ClickableAction::JumpToCallId(
                                         call_id,
                                     ),
                                 },
