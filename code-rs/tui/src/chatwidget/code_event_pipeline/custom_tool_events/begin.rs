@@ -10,6 +10,10 @@ impl ChatWidget<'_> {
         tool_name: String,
         parameters: Option<serde_json::Value>,
     ) {
+        if let Some(parent_call_id) = parent_call_id.as_deref() {
+            self.record_js_repl_child_call(parent_call_id, &call_id);
+        }
+
         // 1) Transition UI into "tool activity" mode.
         self.ensure_spinner_for_activity("tool-begin");
         // Any custom tool invocation should fade out the welcome animation.

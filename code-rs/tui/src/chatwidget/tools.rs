@@ -36,6 +36,9 @@ pub(super) fn mcp_begin(chat: &mut ChatWidget<'_>, ev: McpToolCallBeginEvent, ke
         parent_call_id,
         invocation,
     } = ev;
+    if let Some(parent_call_id) = parent_call_id.as_deref() {
+        chat.record_js_repl_child_call(parent_call_id, &call_id);
+    }
     let mut cell = history_cell::new_running_mcp_tool_call(invocation);
     cell.state_mut().call_id = Some(call_id.clone());
     cell.parent_call_id = parent_call_id;

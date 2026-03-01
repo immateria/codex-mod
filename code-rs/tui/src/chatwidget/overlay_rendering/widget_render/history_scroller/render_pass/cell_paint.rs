@@ -212,13 +212,15 @@ impl ChatWidget<'_> {
                     }
                 }
 
-                let mut symbol = item.gutter_symbol();
-                if symbol != Some("✗") && item.parent_call_id().is_some() {
-                    symbol = Some("↳");
-                }
-
-                if let Some(symbol) = symbol {
-                    let color = if is_auto_review {
+                let base_symbol = item.gutter_symbol();
+                let parent_call_id = item.parent_call_id();
+                let (left_symbol, right_symbol) = if parent_call_id.is_some() {
+                    (Some("↳"), base_symbol)
+                } else {
+                    (base_symbol, None)
+                };
+                let color_for_symbol = |symbol: &str| {
+                    if is_auto_review {
                         crate::colors::success()
                     } else if symbol == "↳" {
                         match item_kind {
@@ -245,9 +247,7 @@ impl ChatWidget<'_> {
                                 }
                             }
                             crate::history_cell::HistoryCellType::Patch { kind } => match kind {
-                                crate::history_cell::PatchKind::ApplySuccess => {
-                                    crate::colors::success()
-                                }
+                                crate::history_cell::PatchKind::ApplySuccess => crate::colors::success(),
                                 crate::history_cell::PatchKind::ApplyBegin => crate::colors::success(),
                                 crate::history_cell::PatchKind::Proposed => crate::colors::primary(),
                                 crate::history_cell::PatchKind::ApplyFailure => crate::colors::error(),
@@ -274,9 +274,7 @@ impl ChatWidget<'_> {
                                     kind: crate::history_cell::ExecKind::Run,
                                     status: crate::history::state::ExecStatus::Error,
                                 } => crate::colors::error(),
-                                crate::history_cell::HistoryCellType::Exec { .. } => {
-                                    crate::colors::text()
-                                }
+                                crate::history_cell::HistoryCellType::Exec { .. } => crate::colors::text(),
                                 _ => crate::colors::text(),
                             }
                         }
@@ -327,41 +325,52 @@ impl ChatWidget<'_> {
                             "★" => crate::colors::text_bright(),
                             _ => crate::colors::text_dim(),
                         }
+                    }
+                };
+
+                if gutter_area.width >= 2 && (left_symbol.is_some() || right_symbol.is_some()) {
+                    let anchor_offset: u16 = match item_kind {
+                        crate::history_cell::HistoryCellType::Assistant => 1,
+                        _ if is_auto_review => {
+                            crate::history_cell::PlainHistoryCell::auto_review_padding().0
+                        }
+                        _ => 0,
                     };
 
-                    if gutter_area.width >= 2 {
-                        let anchor_offset: u16 = match item_kind {
-                            crate::history_cell::HistoryCellType::Assistant => 1,
-                            _ if is_auto_review => {
-                                crate::history_cell::PlainHistoryCell::auto_review_padding().0
-                            }
-                            _ => 0,
-                        };
-
-                        if skip_top <= anchor_offset {
-                            let rel = anchor_offset - skip_top;
-                            let symbol_y = gutter_area.y.saturating_add(rel);
-                            if symbol_y < gutter_area.y.saturating_add(gutter_area.height) {
-                                let symbol_style = Style::default().fg(color).bg(gutter_bg);
-                                let symbol_x = gutter_area.x;
+                    if skip_top <= anchor_offset {
+                        let rel = anchor_offset - skip_top;
+                        let symbol_y = gutter_area.y.saturating_add(rel);
+                        if symbol_y < gutter_area.y.saturating_add(gutter_area.height) {
+                            let symbol_x = gutter_area.x;
+                            if let Some(symbol) = left_symbol {
+                                let symbol_style =
+                                    Style::default().fg(color_for_symbol(symbol)).bg(gutter_bg);
                                 buf.set_string(symbol_x, symbol_y, symbol, symbol_style);
-                                if symbol == "↳"
-                                    && let Some(parent_call_id) = item.parent_call_id()
-                                {
-                                    self.clickable_regions.borrow_mut().push(
-                                        crate::chatwidget::ClickableRegion {
-                                            rect: Rect::new(
-                                                symbol_x,
-                                                symbol_y,
-                                                gutter_area.width.min(2),
-                                                1,
-                                            ),
-                                            action: crate::chatwidget::ClickableAction::JumpToExecCall(
-                                                parent_call_id.to_string(),
-                                            ),
-                                        },
-                                    );
-                                }
+                            }
+                            if let Some(symbol) = right_symbol {
+                                let symbol_style =
+                                    Style::default().fg(color_for_symbol(symbol)).bg(gutter_bg);
+                                buf.set_string(
+                                    symbol_x.saturating_add(1),
+                                    symbol_y,
+                                    symbol,
+                                    symbol_style,
+                                );
+                            }
+                            if let Some(parent_call_id) = parent_call_id {
+                                self.clickable_regions.borrow_mut().push(
+                                    crate::chatwidget::ClickableRegion {
+                                        rect: Rect::new(
+                                            symbol_x,
+                                            symbol_y,
+                                            gutter_area.width.min(2),
+                                            1,
+                                        ),
+                                        action: crate::chatwidget::ClickableAction::JumpToExecCall(
+                                            parent_call_id.to_string(),
+                                        ),
+                                    },
+                                );
                             }
                         }
                     }

@@ -41,7 +41,7 @@ pub(crate) struct JsReplCell {
     pub(crate) code_collapsed: Cell<bool>,
     /// When true the output block is capped at OUTPUT_FOLD_THRESHOLD lines.
     pub(crate) collapsed_output: Cell<bool>,
-    child_exec_call_ids: HashSet<String>,
+    child_call_ids: HashSet<String>,
 }
 
 impl JsReplCell {
@@ -51,6 +51,10 @@ impl JsReplCell {
         runtime_kind: String,
         runtime_version: String,
     ) -> Self {
+        let non_empty_lines = code.lines().filter(|l| !l.trim().is_empty()).count();
+        // Default to showing the full code for small snippets. Large scripts are
+        // collapsed to keep the history readable.
+        let collapse_code_by_default = non_empty_lines > 6;
         Self {
             record,
             code,
@@ -59,14 +63,18 @@ impl JsReplCell {
             output: None,
             stream_preview: None,
             start_time: Some(Instant::now()),
-            code_collapsed: Cell::new(true),
+            code_collapsed: Cell::new(collapse_code_by_default),
             collapsed_output: Cell::new(false),
-            child_exec_call_ids: HashSet::new(),
+            child_call_ids: HashSet::new(),
         }
     }
 
-    pub(crate) fn record_child_exec_call_id(&mut self, call_id: &str) -> bool {
-        self.child_exec_call_ids.insert(call_id.to_string())
+    pub(crate) fn record_child_call_id(&mut self, call_id: &str) -> bool {
+        self.child_call_ids.insert(call_id.to_string())
+    }
+
+    pub(crate) fn toggle_code_collapsed(&self) {
+        self.code_collapsed.set(!self.code_collapsed.get());
     }
 
     pub(crate) fn toggle_output_collapsed(&self) {
@@ -141,10 +149,25 @@ impl JsReplCell {
             ),
         ];
 
-        let child_count = self.child_exec_call_ids.len();
+        let child_count = self.child_call_ids.len();
         if child_count > 0 {
             spans.push(Span::styled(
                 format!(" • spawned {child_count}"),
+                Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::DIM),
+            ));
+        }
+
+        let has_hidden_code = self.code_collapsed.get()
+            && self
+                .code
+                .lines()
+                .skip(1)
+                .any(|line| !line.trim().is_empty());
+        if has_hidden_code {
+            spans.push(Span::styled(
+                " • code (\\)",
                 Style::default()
                     .fg(crate::colors::text_dim())
                     .add_modifier(Modifier::DIM),

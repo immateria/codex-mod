@@ -106,6 +106,9 @@ impl ChatWidget<'_> {
             auto_approved,
             changes,
         } = event;
+        if let Some(parent_call_id) = parent_call_id.as_deref() {
+            self.record_js_repl_child_call(parent_call_id, &call_id);
+        }
         let exec_call_id = ExecCallId(call_id);
         self.exec.suppress_exec_end(exec_call_id);
         // Store for session diff popup (clone before moving into history)

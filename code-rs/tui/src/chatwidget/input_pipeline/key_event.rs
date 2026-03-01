@@ -346,6 +346,20 @@ impl ChatWidget<'_> {
             return;
         }
 
+        // `\` key: toggle code fold on the bottommost JS REPL cell.
+        // Only intercept when the composer is empty so normal typing is unaffected.
+        if let crossterm::event::KeyEvent {
+            code: crossterm::event::KeyCode::Char('\\'),
+            modifiers: crossterm::event::KeyModifiers::NONE,
+            kind: KeyEventKind::Press | KeyEventKind::Repeat,
+            ..
+        } = key_event
+            && self.bottom_pane.composer_is_empty()
+        {
+            self.toggle_bottommost_js_repl_code_fold();
+            return;
+        }
+
         // `]` key: jump to the parent of the bottommost nested tool cell.
         // Only intercept when the composer is empty so normal typing is unaffected.
         if let crossterm::event::KeyEvent {
@@ -530,6 +544,19 @@ impl ChatWidget<'_> {
                 && js_cell.output.is_some()
             {
                 js_cell.toggle_output_collapsed();
+                self.invalidate_height_cache();
+                self.request_redraw();
+                return;
+            }
+        }
+    }
+
+    fn toggle_bottommost_js_repl_code_fold(&mut self) {
+        use crate::history_cell::JsReplCell;
+        for cell_box in self.history_cells.iter().rev() {
+            let cell = cell_box.as_ref();
+            if let Some(js_cell) = cell.as_any().downcast_ref::<JsReplCell>() {
+                js_cell.toggle_code_collapsed();
                 self.invalidate_height_cache();
                 self.request_redraw();
                 return;

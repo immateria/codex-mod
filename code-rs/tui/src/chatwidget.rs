@@ -81,6 +81,7 @@ mod context_flow;
 mod diff_ui;
 mod exec_tools;
 mod gh_actions;
+mod history_links;
 mod history_pipeline;
 mod history_render;
 mod history_virtualization_impl;
