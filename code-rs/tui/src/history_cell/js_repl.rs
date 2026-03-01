@@ -289,13 +289,19 @@ impl JsReplCell {
 
         if self.code_collapsed.get() {
             // Show first non-empty line with "…" suffix
-            let non_empty: Vec<&str> = self
-                .code
-                .lines()
-                .filter(|line| !line.trim().is_empty())
-                .collect();
-            let first = non_empty.first().copied().unwrap_or("");
-            let hidden_lines = non_empty.len().saturating_sub(1);
+            let mut first_non_empty = None;
+            let mut non_empty_count = 0usize;
+            for line in self.code.lines() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                non_empty_count += 1;
+                if first_non_empty.is_none() {
+                    first_non_empty = Some(line);
+                }
+            }
+            let first = first_non_empty.unwrap_or("");
+            let hidden_lines = non_empty_count.saturating_sub(1);
 
             let mut preview = if first.is_empty() {
                 "…".to_string()

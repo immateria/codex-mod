@@ -389,11 +389,12 @@ impl ChatWidget<'_> {
         // Only intercept when the composer is empty so normal typing is unaffected.
         if let crossterm::event::KeyEvent {
             code: crossterm::event::KeyCode::Char('}'),
-            modifiers: crossterm::event::KeyModifiers::NONE,
+            modifiers,
             kind: KeyEventKind::Press | KeyEventKind::Repeat,
             ..
         } = key_event
             && self.bottom_pane.composer_is_empty()
+            && (modifiers.is_empty() || modifiers == crossterm::event::KeyModifiers::SHIFT)
         {
             use crate::history_cell::JsReplCell;
             let Some(child_call_id) = self.history_cells.iter().rev().find_map(|cell| {

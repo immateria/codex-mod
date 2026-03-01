@@ -4083,7 +4083,8 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
 
         harness.with_chat(|chat| {
             use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-            chat.handle_key_event(KeyEvent::new(KeyCode::Char('}'), KeyModifiers::NONE));
+            // Many terminals report `}` with the SHIFT modifier (since it's often typed as Shift+]).
+            chat.handle_key_event(KeyEvent::new(KeyCode::Char('}'), KeyModifiers::SHIFT));
         });
 
         let output_child = {
