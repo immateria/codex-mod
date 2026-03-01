@@ -62,8 +62,6 @@ pub(crate) use core::{
     ToolCellStatus,
 };
 pub(crate) use diff::{diff_lines_from_record, diff_record_from_string, DiffCell};
-#[allow(unused_imports)]
-pub(crate) use diff::{new_diff_cell_from_string, new_diff_output};
 pub(crate) use exec::{
     display_lines_from_record as exec_display_lines_from_record,
     new_active_exec_command,
@@ -78,8 +76,6 @@ pub(crate) use exec_merged::{
     merged_exec_layout_builds_for_test,
     reset_merged_exec_layout_builds_for_test,
 };
-#[allow(unused_imports)]
-pub(crate) use exec::ParsedExecMetadata;
 pub(crate) use exec_helpers::{
     action_enum_from_parsed,
     emphasize_shell_command_name,
@@ -102,8 +98,6 @@ pub(crate) use explore::{
     explore_record_update_status,
     ExploreAggregationCell,
 };
-#[allow(unused_imports)]
-pub(crate) use explore::explore_lines_from_record;
 pub(crate) use formatting::{
     clean_wait_command,
     normalize_overwrite_sequences,
@@ -111,13 +105,9 @@ pub(crate) use formatting::{
     pretty_provider_name,
     trim_empty_lines,
 };
-#[allow(unused_imports)]
-pub(crate) use formatting::{build_preview_lines, line_to_plain_text, lines_to_plain_text};
 pub(crate) use frozen::FrozenHistoryCell;
 pub(crate) use image::ImageOutputCell;
 pub(crate) use loading::LoadingCell;
-#[allow(unused_imports)]
-pub(crate) use loading::new_loading_cell;
 pub(crate) use patch::{new_patch_apply_failure, new_patch_event, PatchSummaryCell};
 pub(crate) use plain::{
     new_error_event,
@@ -134,8 +124,6 @@ pub(crate) use plain::{
     plain_role_for_kind,
     PlainHistoryCell,
 };
-#[allow(unused_imports)]
-pub(crate) use plain::new_text_line;
 pub(crate) use plan_update::{new_plan_update, PlanUpdateCell};
 pub(crate) use proposed_plan::ProposedPlanCell;
 pub(crate) use rate_limits::RateLimitsCell;
@@ -162,12 +150,6 @@ pub(crate) use tool_factory::{
     reset_web_fetch_layout_builds_for_test,
     web_fetch_layout_builds_for_test,
 };
-#[allow(unused_imports)]
-pub(crate) use tool_factory::{
-    new_active_custom_tool_call,
-    new_active_mcp_tool_call,
-    WebFetchToolCell,
-};
 pub(crate) use upgrade::{new_upgrade_prelude, UpgradeNoticeCell};
 pub(crate) use wait_status::{new_completed_wait_tool_call, WaitStatusCell};
 pub(crate) use auto_drive::{AutoDriveActionKind, AutoDriveCardCell, AutoDriveStatus};
@@ -184,6 +166,4 @@ pub(crate) use ratatui::prelude::{Buffer, Rect, Stylize};
 pub(crate) use ratatui::style::{Modifier, Style};
 pub(crate) use ratatui::text::{Line, Span, Text};
 pub(crate) use ratatui::widgets::{Block, Borders, Padding, Paragraph, Widget, Wrap};
-#[allow(unused_imports)]
-pub(crate) use ratatui::widgets::WidgetRef;
 pub(crate) use std::path::Path;

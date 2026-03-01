@@ -273,8 +273,13 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
     out
 }
 
-pub(crate) fn build_preview_lines(text: &str, _include_left_pipe: bool) -> Vec<Line<'static>> {
-    build_preview_lines_windowed(text, PREVIEW_HEAD_LINES, PREVIEW_TAIL_LINES, EXEC_PREVIEW_MAX_CHARS)
+pub(crate) fn build_preview_lines(text: &str) -> Vec<Line<'static>> {
+    build_preview_lines_windowed(
+        text,
+        PREVIEW_HEAD_LINES,
+        PREVIEW_TAIL_LINES,
+        EXEC_PREVIEW_MAX_CHARS,
+    )
 }
 
 fn build_preview_lines_windowed(
@@ -394,7 +399,16 @@ pub(crate) fn output_lines(
     let is_streaming_preview = *exit_code == STREAMING_EXIT_CODE;
 
     if !only_err && !stdout.is_empty() {
-        lines.extend(build_preview_lines(stdout, include_angle_pipe));
+        let mut stdout_lines = build_preview_lines(stdout);
+        if include_angle_pipe {
+            let angle_style = Style::default()
+                .fg(crate::colors::text_dim())
+                .add_modifier(Modifier::DIM);
+            for line in stdout_lines.iter_mut() {
+                line.spans.insert(0, Span::styled("> ", angle_style));
+            }
+        }
+        lines.extend(stdout_lines);
     }
 
     if !stderr.is_empty() && (is_streaming_preview || *exit_code != 0) {
@@ -496,7 +510,7 @@ pub(crate) fn select_preview_from_lines(
     out
 }
 
-// Helper: like build_preview_lines but parameterized and preserving ANSI
+// Helper: build a preview window with custom head/tail sizes.
 pub(crate) fn select_preview_from_plain_text(text: &str, head: usize, tail: usize) -> Vec<Line<'static>> {
     build_preview_lines_windowed(text, head, tail, EXEC_PREVIEW_MAX_CHARS)
 }

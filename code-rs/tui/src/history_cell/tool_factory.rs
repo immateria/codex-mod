@@ -373,7 +373,7 @@ pub(crate) fn new_completed_custom_tool_call(
     let result_preview = if result.is_empty() {
         None
     } else {
-        let preview_lines = build_preview_lines(&result, true);
+        let preview_lines = build_preview_lines(&result);
         let preview_strings = preview_lines
             .iter()
             .map(line_to_plain_text)
@@ -424,7 +424,7 @@ fn new_completed_gh_run_wait_tool_call(success: bool, result: &str) -> ToolCallC
             if remaining.trim().is_empty() {
                 None
             } else {
-                let preview_lines = build_preview_lines(&remaining, true);
+                let preview_lines = build_preview_lines(&remaining);
                 let preview_strings = preview_lines
                     .iter()
                     .map(line_to_plain_text)
@@ -1000,7 +1000,7 @@ fn new_completed_browser_tool_call(
     let result_preview = if result.is_empty() {
         None
     } else {
-        let preview_lines = build_preview_lines(&result, true);
+        let preview_lines = build_preview_lines(&result);
         let preview_strings = preview_lines
             .iter()
             .map(line_to_plain_text)
@@ -1098,7 +1098,7 @@ fn new_completed_agent_tool_call(
     let result_preview = if result.is_empty() {
         None
     } else {
-        let preview_lines = build_preview_lines(&result, true);
+        let preview_lines = build_preview_lines(&result);
         let preview_strings = preview_lines
             .iter()
             .map(line_to_plain_text)
@@ -1211,7 +1211,7 @@ pub(crate) fn new_completed_mcp_tool_call(
             for tool_call_result in content {
                 match tool_call_result {
                     mcp_types::ContentBlock::TextContent(text) => {
-                        let preview = build_preview_lines(&text.text, true);
+                        let preview = build_preview_lines(&text.text);
                         for line in preview {
                             preview_lines.push(line_to_plain_text(&line));
                         }
