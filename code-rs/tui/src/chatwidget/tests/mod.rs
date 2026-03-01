@@ -4003,6 +4003,108 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn js_repl_spawned_child_keyboard_jump() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+
+        let parent_call_id = "js-parent".to_string();
+        harness.handle_event(Event {
+            id: "js-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::JsReplExecBegin(code_core::protocol::JsReplExecBeginEvent {
+                call_id: parent_call_id.clone(),
+                code: "console.log('hi')".to_string(),
+                runtime_kind: "node".to_string(),
+                runtime_version: "20.11.0".to_string(),
+                cwd: std::env::temp_dir(),
+                timeout_ms: 15_000,
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(1),
+            }),
+        });
+
+        for i in 0..30 {
+            harness.push_user_prompt(format!("filler {i}"));
+        }
+
+        harness.handle_event(Event {
+            id: "exec-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
+                call_id: "sh-child".to_string(),
+                command: vec!["bash".into(), "-lc".into(), "echo child".into()],
+                cwd: std::env::temp_dir(),
+                parsed_cmd: Vec::new(),
+                parent_call_id: Some(parent_call_id.clone()),
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(2),
+            }),
+        });
+
+        // Render once so prefix sums / max scroll are computed before we jump.
+        {
+            use crate::test_backend::VT100Backend;
+            use ratatui::Terminal;
+
+            let chat = harness.chat();
+            let mut terminal = Terminal::new(VT100Backend::new(80, 10)).expect("terminal");
+            terminal
+                .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+                .expect("draw");
+        }
+
+        harness.with_chat(|chat| {
+            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+            chat.handle_key_event(KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE));
+        });
+
+        let output_parent = {
+            use crate::test_backend::VT100Backend;
+            use ratatui::Terminal;
+
+            let chat = harness.chat();
+            let mut terminal = Terminal::new(VT100Backend::new(80, 10)).expect("terminal");
+            terminal
+                .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+                .expect("draw");
+            terminal.backend().to_string()
+        };
+
+        assert!(
+            output_parent.contains("js node 20.11.0"),
+            "expected to jump to the parent JS cell, got:\n{output_parent}",
+        );
+
+        harness.with_chat(|chat| {
+            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+            chat.handle_key_event(KeyEvent::new(KeyCode::Char('}'), KeyModifiers::NONE));
+        });
+
+        let output_child = {
+            use crate::test_backend::VT100Backend;
+            use ratatui::Terminal;
+
+            let chat = harness.chat();
+            let mut terminal = Terminal::new(VT100Backend::new(80, 10)).expect("terminal");
+            terminal
+                .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+                .expect("draw");
+            terminal.backend().to_string()
+        };
+
+        assert!(
+            output_child.contains("echo child"),
+            "expected to jump to the child exec cell, got:\n{output_child}",
+        );
+    }
+
+    #[test]
     fn statusline_network_segment_click_on_bottom_opens_network_settings() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();

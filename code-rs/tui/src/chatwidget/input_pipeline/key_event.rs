@@ -385,6 +385,31 @@ impl ChatWidget<'_> {
             return;
         }
 
+        // `}` key: jump to the latest child exec spawned by the bottommost JS REPL cell.
+        // Only intercept when the composer is empty so normal typing is unaffected.
+        if let crossterm::event::KeyEvent {
+            code: crossterm::event::KeyCode::Char('}'),
+            modifiers: crossterm::event::KeyModifiers::NONE,
+            kind: KeyEventKind::Press | KeyEventKind::Repeat,
+            ..
+        } = key_event
+            && self.bottom_pane.composer_is_empty()
+        {
+            use crate::history_cell::JsReplCell;
+            let Some(child_call_id) = self.history_cells.iter().rev().find_map(|cell| {
+                cell.as_any()
+                    .downcast_ref::<JsReplCell>()
+                    .and_then(|js_cell| js_cell.latest_child_call_id().map(str::to_owned))
+            }) else {
+                self.bottom_pane
+                    .update_status_text("no spawned tool call to jump to".to_string());
+                self.request_redraw();
+                return;
+            };
+            self.jump_to_call_id(&child_call_id);
+            return;
+        }
+
         let composer_was_empty = self.bottom_pane.composer_is_empty();
         let input_result = self.bottom_pane.handle_key_event(key_event);
         let composer_is_empty = self.bottom_pane.composer_is_empty();

@@ -89,6 +89,10 @@ impl JsReplCell {
         inserted
     }
 
+    pub(crate) fn latest_child_call_id(&self) -> Option<&str> {
+        self.last_child_call_id.as_deref()
+    }
+
     pub(crate) fn toggle_code_collapsed(&self) {
         self.code_collapsed.set(!self.code_collapsed.get());
         self.layout_cache.invalidate();
@@ -241,7 +245,7 @@ impl JsReplCell {
         let child_count = self.child_call_ids.len();
         if child_count > 0 {
             spans.push(Span::styled(
-                format!(" • spawned {child_count}"),
+                format!(" • spawned {child_count} (}})"),
                 dim_style,
             ));
         }
