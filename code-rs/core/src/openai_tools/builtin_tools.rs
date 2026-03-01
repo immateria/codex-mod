@@ -536,7 +536,7 @@ pub(super) fn create_js_repl_tool() -> OpenAiTool {
 
     OpenAiTool::Freeform(FreeformTool {
         name: JS_REPL_TOOL_NAME.to_string(),
-        description: "Runs JavaScript in a persistent JS runtime with top-level await (Node >= 18 by default; configurable to use Deno). This is a freeform tool: send raw JavaScript source text, optionally with a first-line pragma like `// codex-js-repl: timeout_ms=15000`; do not send JSON/quotes/markdown fences."
+        description: "Runs JavaScript in a persistent JS runtime with top-level await (Node >= 18 by default; configurable to use Deno). This is a freeform tool: send raw JavaScript source text, optionally with a first-line pragma like `// codex-js-repl: timeout_ms=15000 runtime=deno`; do not send JSON/quotes/markdown fences."
             .to_string(),
         format: FreeformToolFormat {
             r#type: "grammar".to_string(),

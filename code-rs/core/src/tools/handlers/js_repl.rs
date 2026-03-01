@@ -24,6 +24,8 @@ struct JsReplFunctionArgs {
     code: String,
     #[serde(default)]
     timeout_ms: Option<u64>,
+    #[serde(default)]
+    runtime: Option<crate::config::JsReplRuntimeKindToml>,
 }
 
 fn join_outputs(stdout: &str, stderr: &str) -> String {
@@ -47,6 +49,7 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
     let mut args = crate::tools::js_repl::JsReplArgs {
         code: input.to_string(),
         timeout_ms: None,
+        runtime: None,
     };
 
     let mut lines = input.splitn(2, '\n');
@@ -59,12 +62,13 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
     };
 
     let mut timeout_ms: Option<u64> = None;
+    let mut runtime: Option<crate::config::JsReplRuntimeKindToml> = None;
     let directive = pragma.trim();
     if !directive.is_empty() {
         for token in directive.split_whitespace() {
             let (key, value) = token.split_once('=').ok_or_else(|| {
                 format!(
-                    "js_repl pragma expects space-separated key=value pairs (supported keys: timeout_ms); got `{token}`"
+                    "js_repl pragma expects space-separated key=value pairs (supported keys: timeout_ms, runtime); got `{token}`"
                 )
             })?;
             match key {
@@ -77,8 +81,25 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
                     })?;
                     timeout_ms = Some(parsed);
                 }
+                "runtime" => {
+                    if runtime.is_some() {
+                        return Err("js_repl pragma specifies runtime more than once".to_string());
+                    }
+                    let normalized = value.trim().to_ascii_lowercase();
+                    runtime = match normalized.as_str() {
+                        "node" => Some(crate::config::JsReplRuntimeKindToml::Node),
+                        "deno" => Some(crate::config::JsReplRuntimeKindToml::Deno),
+                        _ => {
+                            return Err(format!(
+                                "js_repl pragma runtime must be `node` or `deno`; got `{value}`"
+                            ));
+                        }
+                    };
+                }
                 _ => {
-                    return Err(format!("js_repl pragma only supports timeout_ms; got `{key}`"));
+                    return Err(format!(
+                        "js_repl pragma only supports timeout_ms and runtime; got `{key}`"
+                    ));
                 }
             }
         }
@@ -91,6 +112,7 @@ fn parse_freeform_args(input: &str) -> Result<crate::tools::js_repl::JsReplArgs,
     reject_json_or_quoted_source(rest)?;
     args.code = rest.to_string();
     args.timeout_ms = timeout_ms;
+    args.runtime = runtime;
     Ok(args)
 }
 
@@ -191,6 +213,7 @@ impl ToolHandler for JsReplToolHandler {
                 Ok(args) => crate::tools::js_repl::JsReplArgs {
                     code: args.code,
                     timeout_ms: args.timeout_ms,
+                    runtime: args.runtime,
                 },
                 Err(err) => {
                     return unsupported_tool_call_output(
@@ -209,7 +232,8 @@ impl ToolHandler for JsReplToolHandler {
             }
         };
 
-        let manager = match sess.js_repl_manager().await {
+        let runtime_kind = args.runtime.unwrap_or_else(|| sess.js_repl_default_runtime());
+        let manager = match sess.js_repl_manager_for_runtime(runtime_kind).await {
             Ok(manager) => manager,
             Err(err) => {
                 return unsupported_tool_call_output(&ctx.call_id, outputs_custom, err);
@@ -309,9 +333,19 @@ impl ToolHandler for JsReplResetToolHandler {
             );
         }
 
-        if let Some(manager) = sess.js_repl_manager_if_started()
-            && let Err(err) = manager.reset().await
-        {
+        let mut first_err: Option<String> = None;
+        for runtime in [
+            crate::config::JsReplRuntimeKindToml::Node,
+            crate::config::JsReplRuntimeKindToml::Deno,
+        ] {
+            if let Some(manager) = sess.js_repl_manager_if_started_for_runtime(runtime)
+                && let Err(err) = manager.reset().await
+                && first_err.is_none()
+            {
+                first_err = Some(err);
+            }
+        }
+        if let Some(err) = first_err {
             return unsupported_tool_call_output(&inv.ctx.call_id, outputs_custom, err);
         }
 
@@ -343,6 +377,16 @@ mod tests {
         let args = parse_freeform_args(input).expect("parse args");
         assert_eq!(args.code, "console.log('ok');");
         assert_eq!(args.timeout_ms, Some(15_000));
+        assert_eq!(args.runtime, None);
+    }
+
+    #[test]
+    fn parse_freeform_args_with_runtime() {
+        let input = "// codex-js-repl: runtime=deno timeout_ms=15000\nconsole.log('ok');";
+        let args = parse_freeform_args(input).expect("parse args");
+        assert_eq!(args.code, "console.log('ok');");
+        assert_eq!(args.timeout_ms, Some(15_000));
+        assert_eq!(args.runtime, Some(crate::config::JsReplRuntimeKindToml::Deno));
     }
 
     #[test]
@@ -351,7 +395,7 @@ mod tests {
             parse_freeform_args("// codex-js-repl: nope=1\nconsole.log('ok');").expect_err("err");
         assert_eq!(
             err,
-            "js_repl pragma only supports timeout_ms; got `nope`"
+            "js_repl pragma only supports timeout_ms and runtime; got `nope`"
         );
     }
 }

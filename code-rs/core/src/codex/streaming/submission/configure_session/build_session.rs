@@ -292,6 +292,24 @@ impl Runner<'_> {
             None
         };
 
+        let js_repl_default_runtime = config.js_repl_runtime;
+        let js_repl_node_runtime_path = match js_repl_default_runtime {
+            crate::config::JsReplRuntimeKindToml::Node => config.js_repl_runtime_path.clone(),
+            crate::config::JsReplRuntimeKindToml::Deno => None,
+        };
+        let js_repl_node_runtime_args = match js_repl_default_runtime {
+            crate::config::JsReplRuntimeKindToml::Node => config.js_repl_runtime_args.clone(),
+            crate::config::JsReplRuntimeKindToml::Deno => Vec::new(),
+        };
+        let js_repl_deno_runtime_path = match js_repl_default_runtime {
+            crate::config::JsReplRuntimeKindToml::Deno => config.js_repl_runtime_path.clone(),
+            crate::config::JsReplRuntimeKindToml::Node => None,
+        };
+        let js_repl_deno_runtime_args = match js_repl_default_runtime {
+            crate::config::JsReplRuntimeKindToml::Deno => config.js_repl_runtime_args.clone(),
+            crate::config::JsReplRuntimeKindToml::Node => Vec::new(),
+        };
+
         let mut new_session = Arc::new(Session {
             id: self.session_id,
             client,
@@ -299,12 +317,23 @@ impl Runner<'_> {
             tools_config,
             dynamic_tools,
             exec_command_manager: Arc::new(crate::exec_command::SessionManager::default()),
-            js_repl: crate::tools::js_repl::JsReplHandle::new(crate::tools::js_repl::JsReplRuntimeConfig {
-                kind: config.js_repl_runtime,
-                runtime_path: config.js_repl_runtime_path.clone(),
-                runtime_args: config.js_repl_runtime_args.clone(),
-                node_module_dirs: config.js_repl_node_module_dirs.clone(),
-            }),
+            js_repl_default_runtime,
+            js_repl_node: crate::tools::js_repl::JsReplHandle::new(
+                crate::tools::js_repl::JsReplRuntimeConfig {
+                    kind: crate::config::JsReplRuntimeKindToml::Node,
+                    runtime_path: js_repl_node_runtime_path,
+                    runtime_args: js_repl_node_runtime_args,
+                    node_module_dirs: config.js_repl_node_module_dirs.clone(),
+                },
+            ),
+            js_repl_deno: crate::tools::js_repl::JsReplHandle::new(
+                crate::tools::js_repl::JsReplRuntimeConfig {
+                    kind: crate::config::JsReplRuntimeKindToml::Deno,
+                    runtime_path: js_repl_deno_runtime_path,
+                    runtime_args: js_repl_deno_runtime_args,
+                    node_module_dirs: Vec::new(),
+                },
+            ),
             network_proxy,
             network_approval: Arc::clone(&network_approval),
             tx_event: self.tx_event.clone(),

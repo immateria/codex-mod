@@ -365,7 +365,9 @@ pub(crate) struct Session {
     pub(super) tools_config: ToolsConfig,
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
     pub(super) exec_command_manager: Arc<crate::exec_command::SessionManager>,
-    pub(super) js_repl: crate::tools::js_repl::JsReplHandle,
+    pub(super) js_repl_default_runtime: crate::config::JsReplRuntimeKindToml,
+    pub(super) js_repl_node: crate::tools::js_repl::JsReplHandle,
+    pub(super) js_repl_deno: crate::tools::js_repl::JsReplHandle,
     pub(super) network_proxy: Option<crate::config::network_proxy_spec::StartedNetworkProxy>,
     pub(super) network_approval: Arc<crate::network_approval::NetworkApprovalService>,
 
@@ -633,6 +635,10 @@ impl Session {
         self.tools_config.js_repl
     }
 
+    pub(crate) fn js_repl_default_runtime(&self) -> crate::config::JsReplRuntimeKindToml {
+        self.js_repl_default_runtime
+    }
+
     pub(crate) fn tools_config_snapshot(&self) -> ToolsConfig {
         self.tools_config.clone()
     }
@@ -655,12 +661,24 @@ impl Session {
         Arc::clone(&self.network_approval)
     }
 
-    pub(crate) async fn js_repl_manager(&self) -> Result<Arc<crate::tools::js_repl::JsReplManager>, String> {
-        self.js_repl.manager().await
+    pub(crate) async fn js_repl_manager_for_runtime(
+        &self,
+        kind: crate::config::JsReplRuntimeKindToml,
+    ) -> Result<Arc<crate::tools::js_repl::JsReplManager>, String> {
+        match kind {
+            crate::config::JsReplRuntimeKindToml::Node => self.js_repl_node.manager().await,
+            crate::config::JsReplRuntimeKindToml::Deno => self.js_repl_deno.manager().await,
+        }
     }
 
-    pub(crate) fn js_repl_manager_if_started(&self) -> Option<Arc<crate::tools::js_repl::JsReplManager>> {
-        self.js_repl.manager_if_started()
+    pub(crate) fn js_repl_manager_if_started_for_runtime(
+        &self,
+        kind: crate::config::JsReplRuntimeKindToml,
+    ) -> Option<Arc<crate::tools::js_repl::JsReplManager>> {
+        match kind {
+            crate::config::JsReplRuntimeKindToml::Node => self.js_repl_node.manager_if_started(),
+            crate::config::JsReplRuntimeKindToml::Deno => self.js_repl_deno.manager_if_started(),
+        }
     }
 
     pub(crate) fn background_exec_cmd_display(&self, call_id: &str) -> Option<String> {
@@ -2221,7 +2239,12 @@ impl Session {
             mgr.kill_all().await;
         });
 
-        if let Some(js_mgr) = self.js_repl_manager_if_started() {
+        if let Some(js_mgr) = self.js_repl_node.manager_if_started() {
+            tokio::spawn(async move {
+                js_mgr.kill().await;
+            });
+        }
+        if let Some(js_mgr) = self.js_repl_deno.manager_if_started() {
             tokio::spawn(async move {
                 js_mgr.kill().await;
             });
