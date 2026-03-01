@@ -68,6 +68,15 @@ pub(crate) fn clean_wait_command(raw: &str) -> String {
     }
 }
 
+pub(crate) fn left_border_span() -> Span<'static> {
+    Span::styled(
+        "│ ",
+        Style::default()
+            .fg(crate::colors::border_dim())
+            .bg(crate::colors::background()),
+    )
+}
+
 fn split_token(input: &str) -> Option<(&str, &str)> {
     let s = input.trim_start();
     if s.is_empty() {
@@ -265,6 +274,15 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
 }
 
 pub(crate) fn build_preview_lines(text: &str, _include_left_pipe: bool) -> Vec<Line<'static>> {
+    build_preview_lines_windowed(text, PREVIEW_HEAD_LINES, PREVIEW_TAIL_LINES, EXEC_PREVIEW_MAX_CHARS)
+}
+
+fn build_preview_lines_windowed(
+    text: &str,
+    head: usize,
+    tail: usize,
+    max_chars: usize,
+) -> Vec<Line<'static>> {
     // Prefer UI‑themed JSON highlighting when the (ANSI‑stripped) text parses as JSON.
     let stripped_plain = sanitize_for_tui(
         text,
@@ -279,13 +297,13 @@ pub(crate) fn build_preview_lines(text: &str, _include_left_pipe: bool) -> Vec<L
         let pretty =
             serde_json::to_string_pretty(&json_val).unwrap_or_else(|_| json_val.to_string());
         let highlighted = crate::syntax_highlight::highlight_code_block(&pretty, Some("json"));
-        return select_preview_from_lines(&highlighted, PREVIEW_HEAD_LINES, PREVIEW_TAIL_LINES);
+        return select_preview_from_lines(&highlighted, head, tail);
     }
 
     // Otherwise, compact valid JSON (without ANSI) to improve wrap, or pass original through.
     let processed = format_json_compact(text).unwrap_or_else(|| text.to_string());
     let processed = normalize_overwrite_sequences(&processed);
-    let (processed, clipped) = clip_preview_text(&processed, EXEC_PREVIEW_MAX_CHARS);
+    let (processed, clipped) = clip_preview_text(&processed, max_chars);
     let processed = sanitize_for_tui(
         &processed,
         SanitizeMode::AnsiPreserving,
@@ -301,17 +319,17 @@ pub(crate) fn build_preview_lines(text: &str, _include_left_pipe: bool) -> Vec<L
         Line(&'a str),
         Ellipsis,
     }
-    let segments: Vec<Seg> = if non_empty.len() <= PREVIEW_HEAD_LINES + PREVIEW_TAIL_LINES {
+    let segments: Vec<Seg> = if non_empty.len() <= head + tail {
         non_empty.iter().map(|s| Seg::Line(s)).collect()
     } else {
-        let mut v: Vec<Seg> = Vec::with_capacity(PREVIEW_HEAD_LINES + PREVIEW_TAIL_LINES + 1);
+        let mut v: Vec<Seg> = Vec::with_capacity(head + tail + 1);
         // Head
-        for line in non_empty.iter().take(PREVIEW_HEAD_LINES) {
+        for line in non_empty.iter().take(head) {
             v.push(Seg::Line(line));
         }
         v.push(Seg::Ellipsis);
         // Tail
-        let start = non_empty.len().saturating_sub(PREVIEW_TAIL_LINES);
+        let start = non_empty.len().saturating_sub(tail);
         for s in &non_empty[start..] {
             v.push(Seg::Line(s));
         }
@@ -329,7 +347,7 @@ pub(crate) fn build_preview_lines(text: &str, _include_left_pipe: bool) -> Vec<L
     let mut out: Vec<Line<'static>> = Vec::new();
     if clipped {
         out.push(Line::styled(
-            format!("… output truncated to last {EXEC_PREVIEW_MAX_CHARS} chars"),
+            format!("… output truncated to last {max_chars} chars"),
             Style::default().fg(crate::colors::text_dim()),
         ));
     }
@@ -480,41 +498,7 @@ pub(crate) fn select_preview_from_lines(
 
 // Helper: like build_preview_lines but parameterized and preserving ANSI
 pub(crate) fn select_preview_from_plain_text(text: &str, head: usize, tail: usize) -> Vec<Line<'static>> {
-    let processed = format_json_compact(text).unwrap_or_else(|| text.to_string());
-    let processed = normalize_overwrite_sequences(&processed);
-    let processed = sanitize_for_tui(
-        &processed,
-        SanitizeMode::AnsiPreserving,
-        SanitizeOptions {
-            expand_tabs: true,
-            tabstop: 4,
-            debug_markers: false,
-        },
-    );
-    let non_empty: Vec<&str> = processed.lines().filter(|line| !line.is_empty()).collect();
-    fn ansi_line_with_theme_bg(s: &str) -> Line<'static> {
-        let mut ln = ansi_escape_line(s);
-        for sp in ln.spans.iter_mut() {
-            sp.style.bg = None;
-        }
-        ln
-    }
-    let mut out: Vec<Line<'static>> = Vec::new();
-    if non_empty.len() <= head + tail {
-        for s in non_empty {
-            out.push(ansi_line_with_theme_bg(s));
-        }
-        return out;
-    }
-    for s in non_empty.iter().take(head) {
-        out.push(ansi_line_with_theme_bg(s));
-    }
-    out.push(Line::from("⋮".dim()));
-    let start = non_empty.len().saturating_sub(tail);
-    for s in &non_empty[start..] {
-        out.push(ansi_line_with_theme_bg(s));
-    }
-    out
+    build_preview_lines_windowed(text, head, tail, EXEC_PREVIEW_MAX_CHARS)
 }
 
 /// Check if a line appears to be a title/header (like "codex", "user", "thinking", etc.)
@@ -725,5 +709,24 @@ pub(crate) fn maybe_fold_output(lines: &mut Vec<Line<'static>>, collapsed: bool)
                 .fg(crate::colors::text_dim())
                 .add_modifier(Modifier::DIM),
         )));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn select_preview_from_plain_text_inserts_ellipsis() {
+        let text = (1..=10)
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        let lines = select_preview_from_plain_text(&text, 2, 2);
+        assert_eq!(lines.len(), 5);
+        assert_eq!(line_to_plain_text(&lines[2]), "⋮");
+        assert!(lines_to_plain_text(&lines).contains("1"));
+        assert!(lines_to_plain_text(&lines).contains("10"));
+        assert!(!lines_to_plain_text(&lines).contains("5"));
     }
 }

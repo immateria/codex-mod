@@ -415,6 +415,33 @@ impl ChatWidget<'_> {
                     }
                 }
 
+                if let Some(js_cell) = item
+                    .as_any()
+                    .downcast_ref::<crate::history_cell::JsReplCell>()
+                    && let Some((call_id, line_idx, start_col, width)) =
+                        js_cell.spawned_click_target(item_area.width)
+                {
+                    let rel = line_idx.saturating_sub(skip_rows as usize);
+                    if rel < visible_height as usize
+                        && start_col < item_area.width
+                        && width > 0
+                    {
+                        let x = item_area.x.saturating_add(start_col);
+                        let y = item_area.y.saturating_add(rel as u16);
+                        let w = width.min(item_area.width.saturating_sub(start_col));
+                        if w > 0 {
+                            self.clickable_regions.borrow_mut().push(
+                                crate::chatwidget::ClickableRegion {
+                                    rect: Rect::new(x, y, w, 1),
+                                    action: crate::chatwidget::ClickableAction::JumpToExecCall(
+                                        call_id,
+                                    ),
+                                },
+                            );
+                        }
+                    }
+                }
+
                 if self.show_order_overlay
                     && let Some(Some(info)) = self.cell_order_dbg.get(idx)
                 {

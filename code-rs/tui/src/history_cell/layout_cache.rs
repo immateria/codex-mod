@@ -46,6 +46,22 @@ macro_rules! layout_build_counter {
     };
 }
 
+pub(crate) trait LayoutCacheKey: Copy + Eq + Default {
+    fn width(&self) -> u16;
+}
+
+impl LayoutCacheKey for u16 {
+    fn width(&self) -> u16 {
+        *self
+    }
+}
+
+impl LayoutCacheKey for (u16, bool) {
+    fn width(&self) -> u16 {
+        self.0
+    }
+}
+
 /// Generic width-keyed layout cache.
 ///
 /// Stores a computed layout `L` alongside the terminal width it was computed
@@ -53,20 +69,20 @@ macro_rules! layout_build_counter {
 /// closure. This eliminates the identical `invalidate` / `ensure_layout` /
 /// `layout_for_width` boilerplate that was duplicated across ExecCell,
 /// JsReplCell, MergedExecCell, and WebFetchToolCell.
-pub(crate) struct LayoutCache<L: Default> {
-    inner: RefCell<CacheEntry<L>>,
+pub(crate) struct LayoutCache<L: Default, K: LayoutCacheKey = u16> {
+    inner: RefCell<CacheEntry<L, K>>,
 }
 
-struct CacheEntry<L> {
-    width: u16,
+struct CacheEntry<L, K> {
+    key: K,
     layout: L,
 }
 
-impl<L: Default> LayoutCache<L> {
+impl<L: Default, K: LayoutCacheKey> LayoutCache<L, K> {
     pub fn new() -> Self {
         Self {
             inner: RefCell::new(CacheEntry {
-                width: 0,
+                key: K::default(),
                 layout: L::default(),
             }),
         }
@@ -76,7 +92,7 @@ impl<L: Default> LayoutCache<L> {
     /// will rebuild it regardless of width.
     pub fn invalidate(&self) {
         *self.inner.borrow_mut() = CacheEntry {
-            width: 0,
+            key: K::default(),
             layout: L::default(),
         };
     }
@@ -85,20 +101,31 @@ impl<L: Default> LayoutCache<L> {
     /// via `compute` when stale or when the width has changed.
     ///
     /// When `width` is zero the layout is reset to its `Default` value.
+    pub fn get_or_compute_key(
+        &self,
+        key: K,
+        compute: impl FnOnce(K) -> L,
+    ) -> std::cell::Ref<'_, L> {
+        if key.width() == 0 {
+            self.invalidate();
+        } else {
+            let needs_rebuild = self.inner.borrow().key != key;
+            if needs_rebuild {
+                let layout = compute(key);
+                *self.inner.borrow_mut() = CacheEntry { key, layout };
+            }
+        }
+        std::cell::Ref::map(self.inner.borrow(), |entry| &entry.layout)
+    }
+}
+
+impl<L: Default> LayoutCache<L, u16> {
+    /// Convenience wrapper for width-only caches.
     pub fn get_or_compute(
         &self,
         width: u16,
         compute: impl FnOnce(u16) -> L,
     ) -> std::cell::Ref<'_, L> {
-        if width == 0 {
-            self.invalidate();
-        } else {
-            let needs_rebuild = self.inner.borrow().width != width;
-            if needs_rebuild {
-                let layout = compute(width);
-                *self.inner.borrow_mut() = CacheEntry { width, layout };
-            }
-        }
-        std::cell::Ref::map(self.inner.borrow(), |entry| &entry.layout)
+        self.get_or_compute_key(width, compute)
     }
 }

@@ -252,32 +252,33 @@ impl RunningToolCallCell {
                 .add_modifier(Modifier::BOLD),
         ));
 
+        let border = super::formatting::left_border_span();
         let dim = Style::default().fg(crate::colors::text_dim());
         let text = Style::default().fg(crate::colors::text());
         if let Some(url) = self.tool_argument_text("url") {
             lines.push(Line::from(vec![
-                Span::styled("│ ", dim),
+                border.clone(),
                 Span::styled("url ", dim),
                 Span::styled(url, text),
             ]));
         }
         if let Some(branch) = self.tool_argument_text("branch") {
             lines.push(Line::from(vec![
-                Span::styled("│ ", dim),
+                border.clone(),
                 Span::styled("branch ", dim),
                 Span::styled(branch, text),
             ]));
         }
         if let Some(run_id) = self.tool_argument_text("run_id") {
             lines.push(Line::from(vec![
-                Span::styled("│ ", dim),
+                border.clone(),
                 Span::styled("run ", dim),
                 Span::styled(run_id, text),
             ]));
         }
         if let Some(workflow) = self.tool_argument_text("workflow") {
             lines.push(Line::from(vec![
-                Span::styled("│ ", dim),
+                border.clone(),
                 Span::styled("workflow ", dim),
                 Span::styled(workflow, text),
             ]));
@@ -311,7 +312,7 @@ impl RunningToolCallCell {
             if progress_total > 0 {
                 let percent = (progress_completed.saturating_mul(100)) / progress_total.max(1);
                 lines.push(Line::from(vec![
-                    Span::styled("│ ", dim),
+                    border.clone(),
                     Span::styled(format!("{progress_label} "), dim),
                     Span::styled(
                         format!(
@@ -321,7 +322,7 @@ impl RunningToolCallCell {
                     ),
                 ]));
                 lines.push(Line::from(vec![
-                    Span::styled("│ ", dim),
+                    border.clone(),
                     Span::styled("jobs ", dim),
                     Span::styled(
                         format!("{completed} completed • {in_progress} running • {queued} queued"),
@@ -352,7 +353,7 @@ impl RunningToolCallCell {
             if !running_names.is_empty() {
                 let list = Self::format_job_list(&running_names, 4);
                 lines.push(Line::from(vec![
-                    Span::styled("│ ", dim),
+                    border.clone(),
                     Span::styled("running ", dim),
                     Span::styled(list, text),
                 ]));
@@ -360,7 +361,7 @@ impl RunningToolCallCell {
             if !queued_names.is_empty() {
                 let list = Self::format_job_list(&queued_names, 4);
                 lines.push(Line::from(vec![
-                    Span::styled("│ ", dim),
+                    border,
                     Span::styled("queued ", dim),
                     Span::styled(list, text),
                 ]));

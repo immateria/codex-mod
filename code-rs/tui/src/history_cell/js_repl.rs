@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::time::Instant;
 
 use ratatui::prelude::*;
+use unicode_width::UnicodeWidthStr as _;
 
 use crate::history::state::ExecRecord;
 use crate::history::state::ExecStatus;
@@ -50,6 +51,7 @@ pub(crate) struct JsReplCell {
     /// When true the output block is capped at OUTPUT_FOLD_THRESHOLD lines.
     pub(crate) collapsed_output: Cell<bool>,
     child_call_ids: HashSet<String>,
+    last_child_call_id: Option<String>,
     layout_cache: super::layout_cache::LayoutCache<JsReplRenderLayout>,
 }
 
@@ -75,12 +77,16 @@ impl JsReplCell {
             code_collapsed: Cell::new(collapse_code_by_default),
             collapsed_output: Cell::new(false),
             child_call_ids: HashSet::new(),
+            last_child_call_id: None,
             layout_cache: super::layout_cache::LayoutCache::new(),
         }
     }
 
     pub(crate) fn record_child_call_id(&mut self, call_id: &str) -> bool {
-        self.child_call_ids.insert(call_id.to_string())
+        let call_id = call_id.to_string();
+        let inserted = self.child_call_ids.insert(call_id.clone());
+        self.last_child_call_id = Some(call_id);
+        inserted
     }
 
     pub(crate) fn toggle_code_collapsed(&self) {
@@ -111,6 +117,39 @@ impl JsReplCell {
 
     pub(crate) fn set_history_id(&mut self, id: HistoryId) {
         self.record.id = id;
+    }
+
+    pub(crate) fn spawned_click_target(&self, width: u16) -> Option<(String, usize, u16, u16)> {
+        if self.child_call_ids.is_empty() {
+            return None;
+        }
+        let call_id = self.last_child_call_id.clone()?;
+        let layout = self.layout_for_width(width);
+        for (idx, line) in layout.lines.iter().enumerate() {
+            let text: String = line
+                .spans
+                .iter()
+                .map(|sp| sp.content.as_ref())
+                .collect();
+            // Header lines come first; stop once we reach the bordered code block.
+            if text.starts_with("│ ") {
+                break;
+            }
+            let Some(start) = text.find("spawned ") else {
+                continue;
+            };
+            let rest = &text[start..];
+            let end_rel = rest.find(" • ").unwrap_or(rest.len());
+            let segment = &rest[..end_rel];
+
+            let start_col = text[..start].width().min(u16::MAX as usize) as u16;
+            let seg_width = segment.width().min(u16::MAX as usize) as u16;
+            if seg_width == 0 {
+                continue;
+            }
+            return Some((call_id, idx, start_col, seg_width));
+        }
+        None
     }
 
     fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, JsReplRenderLayout> {
@@ -239,12 +278,7 @@ impl JsReplCell {
     }
 
     fn code_lines(&self) -> Vec<Line<'static>> {
-        let border_span = Span::styled(
-            "│ ",
-            Style::default()
-                .fg(crate::colors::border_dim())
-                .bg(crate::colors::background()),
-        );
+        let border_span = super::formatting::left_border_span();
         let code_style = Style::default()
             .fg(crate::colors::text_dim())
             .bg(crate::colors::background());

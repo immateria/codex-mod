@@ -67,7 +67,7 @@ impl CollapsibleReasoningState {
 pub(crate) struct CollapsibleReasoningCell {
     state: RefCell<CollapsibleReasoningState>,
     collapsed: Cell<bool>,
-    layout_cache: RefCell<ReasoningLayoutCacheEntry>,
+    layout_cache: super::layout_cache::LayoutCache<ReasoningLayout, (u16, bool)>,
 }
 
 #[derive(Default)]
@@ -76,28 +76,12 @@ struct ReasoningLayout {
     total_rows: u16,
 }
 
-struct ReasoningLayoutCacheEntry {
-    width: u16,
-    collapsed: bool,
-    layout: ReasoningLayout,
-}
-
-impl Default for ReasoningLayoutCacheEntry {
-    fn default() -> Self {
-        Self {
-            width: 0,
-            collapsed: true,
-            layout: ReasoningLayout::default(),
-        }
-    }
-}
-
 impl CollapsibleReasoningCell {
     pub(crate) fn new_with_id(lines: Vec<Line<'static>>, id: Option<String>) -> Self {
         Self {
             state: RefCell::new(CollapsibleReasoningState::new(lines, id)),
             collapsed: Cell::new(true),
-            layout_cache: RefCell::new(ReasoningLayoutCacheEntry::default()),
+            layout_cache: super::layout_cache::LayoutCache::new(),
         }
     }
 
@@ -131,51 +115,21 @@ impl CollapsibleReasoningCell {
         Self {
             state: RefCell::new(cell_state),
             collapsed: Cell::new(true),
-            layout_cache: RefCell::new(ReasoningLayoutCacheEntry::default()),
+            layout_cache: super::layout_cache::LayoutCache::new(),
         }
     }
 
     fn invalidate_layout_cache(&self) {
-        *self.layout_cache.borrow_mut() = ReasoningLayoutCacheEntry {
-            width: 0,
-            collapsed: self.collapsed.get(),
-            layout: ReasoningLayout::default(),
-        };
-    }
-
-    fn ensure_layout_for_width(&self, width: u16) {
-        let collapsed = self.collapsed.get();
-        if width == 0 {
-            *self.layout_cache.borrow_mut() = ReasoningLayoutCacheEntry {
-                width,
-                collapsed,
-                layout: ReasoningLayout::default(),
-            };
-            return;
-        }
-
-        let needs_rebuild = {
-            let entry = self.layout_cache.borrow();
-            entry.width != width || entry.collapsed != collapsed
-        };
-        if !needs_rebuild {
-            return;
-        }
-
-        #[cfg(feature = "test-helpers")]
-        bump_reasoning_layout_builds();
-
-        let layout = self.compute_layout_for_width(width, collapsed);
-        *self.layout_cache.borrow_mut() = ReasoningLayoutCacheEntry {
-            width,
-            collapsed,
-            layout,
-        };
+        self.layout_cache.invalidate();
     }
 
     fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, ReasoningLayout> {
-        self.ensure_layout_for_width(width);
-        std::cell::Ref::map(self.layout_cache.borrow(), |cache| &cache.layout)
+        let collapsed = self.collapsed.get();
+        self.layout_cache.get_or_compute_key((width, collapsed), |(w, c)| {
+            #[cfg(feature = "test-helpers")]
+            bump_reasoning_layout_builds();
+            self.compute_layout_for_width(w, c)
+        })
     }
 
     fn compute_layout_for_width(&self, width: u16, collapsed: bool) -> ReasoningLayout {
