@@ -3908,6 +3908,112 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn statusline_shortcut_f5_opens_network_settings() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        chat.handle_key_event(KeyEvent::new(KeyCode::F(5), KeyModifiers::NONE));
+    });
+
+    let output = {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    assert!(
+        output.contains("Coverage: exec, exec_command, web_fetch"),
+        "expected Network settings view after F5, got:\n{output}",
+    );
+    }
+
+    #[test]
+    fn statusline_shortcut_f4_opens_shell_selector() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        chat.handle_key_event(KeyEvent::new(KeyCode::F(4), KeyModifiers::NONE));
+    });
+
+    let output = {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    assert!(
+        output.contains("Select Shell"),
+        "expected shell selector after F4, got:\n{output}",
+    );
+    }
+
+    #[test]
+    fn statusline_shortcut_f2_opens_model_selector() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        chat.remote_model_presets =
+            Some(code_common::model_presets::builtin_model_presets(None, true));
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        chat.handle_key_event(KeyEvent::new(KeyCode::F(2), KeyModifiers::NONE));
+    });
+
+    let output = {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    assert!(
+        output.contains("Select Model & Reasoning"),
+        "expected model selector after F2, got:\n{output}",
+    );
+    }
+
+    #[test]
+    fn statusline_shortcut_f3_cycles_reasoning_effort() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    let preferred = harness.with_chat(|chat| {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        chat.config.model_reasoning_effort = code_core::config_types::ReasoningEffort::None;
+        chat.config.preferred_model_reasoning_effort = None;
+        chat.handle_key_event(KeyEvent::new(KeyCode::F(3), KeyModifiers::NONE));
+        chat.config.preferred_model_reasoning_effort
+    });
+
+    assert_eq!(
+        preferred,
+        Some(code_core::config_types::ReasoningEffort::Minimal),
+        "expected F3 to set preferred reasoning effort",
+    );
+    }
+
+    #[test]
     fn exec_child_gutter_click_jumps_to_parent_js_repl_cell() {
         let _guard = enter_test_runtime_guard();
         let mut harness = ChatWidgetHarness::new();

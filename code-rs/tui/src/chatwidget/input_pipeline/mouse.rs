@@ -150,40 +150,44 @@ impl ChatWidget<'_> {
 
         // Execute the action after dropping the borrow
         if let Some(action) = action_opt {
-            match action {
-                ClickableAction::ShowModelSelector => {
-                    // Open model selector with empty args (opens selector UI)
-                    self.handle_model_command(String::new());
-                }
-                ClickableAction::ShowShellSelector => {
-                    self.app_event_tx.send(AppEvent::ShowShellSelector);
-                }
-                ClickableAction::ShowReasoningSelector => {
-                    // Cycle through reasoning efforts
-                    use code_core::config_types::ReasoningEffort;
-                    let current = self.config.model_reasoning_effort;
-                    let next = match current {
-                        ReasoningEffort::None => ReasoningEffort::Minimal,
-                        ReasoningEffort::Minimal => ReasoningEffort::Low,
-                        ReasoningEffort::Low => ReasoningEffort::Medium,
-                        ReasoningEffort::Medium => ReasoningEffort::High,
-                        ReasoningEffort::High => ReasoningEffort::XHigh,
-                        ReasoningEffort::XHigh => ReasoningEffort::None,
-                    };
-                    self.set_reasoning_effort(next);
-                }
-                ClickableAction::ShowNetworkSettings => {
-                    self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);
-                }
-                ClickableAction::JumpToCallId(call_id) => {
-                    self.jump_to_call_id(&call_id);
-                }
-                ClickableAction::ExecuteCommand(cmd) => {
-                    // Parse and dispatch the slash command
-                    let trimmed = cmd.trim_start_matches('/').trim();
-                    if let Ok(slash_cmd) = trimmed.parse::<SlashCommand>() {
-                        self.app_event_tx.send(AppEvent::DispatchCommand(slash_cmd, cmd));
-                    }
+            self.handle_clickable_action(action);
+        }
+    }
+
+    pub(in crate::chatwidget) fn handle_clickable_action(&mut self, action: ClickableAction) {
+        match action {
+            ClickableAction::ShowModelSelector => {
+                // Open model selector with empty args (opens selector UI)
+                self.handle_model_command(String::new());
+            }
+            ClickableAction::ShowShellSelector => {
+                self.show_shell_selector();
+            }
+            ClickableAction::ShowReasoningSelector => {
+                // Cycle through reasoning efforts
+                use code_core::config_types::ReasoningEffort;
+                let current = self.config.model_reasoning_effort;
+                let next = match current {
+                    ReasoningEffort::None => ReasoningEffort::Minimal,
+                    ReasoningEffort::Minimal => ReasoningEffort::Low,
+                    ReasoningEffort::Low => ReasoningEffort::Medium,
+                    ReasoningEffort::Medium => ReasoningEffort::High,
+                    ReasoningEffort::High => ReasoningEffort::XHigh,
+                    ReasoningEffort::XHigh => ReasoningEffort::None,
+                };
+                self.set_reasoning_effort(next);
+            }
+            ClickableAction::ShowNetworkSettings => {
+                self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);
+            }
+            ClickableAction::JumpToCallId(call_id) => {
+                self.jump_to_call_id(&call_id);
+            }
+            ClickableAction::ExecuteCommand(cmd) => {
+                // Parse and dispatch the slash command
+                let trimmed = cmd.trim_start_matches('/').trim();
+                if let Ok(slash_cmd) = trimmed.parse::<SlashCommand>() {
+                    self.app_event_tx.send(AppEvent::DispatchCommand(slash_cmd, cmd));
                 }
             }
         }

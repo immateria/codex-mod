@@ -4482,6 +4482,10 @@ fi\n\
 
         // Global
         lines.push(kv("F1", "Help overlay"));
+        lines.push(kv("F2", "Model + reasoning selector"));
+        lines.push(kv("F3", "Cycle reasoning effort"));
+        lines.push(kv("F4", "Shell selector"));
+        lines.push(kv("F5", "Network settings"));
         lines.push(kv("Ctrl+G", "Open external editor"));
         lines.push(kv("Ctrl+R", "Toggle reasoning"));
         lines.push(kv("Ctrl+T", "Toggle screen"));

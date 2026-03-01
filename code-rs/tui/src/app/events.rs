@@ -1821,11 +1821,6 @@ impl App<'_> {
                         widget.apply_shell_style_profile_summary_generation_failed(style, error);
                     }
                 }
-                AppEvent::ShowShellSelector => {
-                    if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.show_shell_selector();
-                    }
-                }
                 AppEvent::UpdateReviewModelSelection { model, effort } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.apply_review_model_selection(model, effort);

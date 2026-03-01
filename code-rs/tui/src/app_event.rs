@@ -407,9 +407,6 @@ pub(crate) enum AppEvent {
         error: String,
     },
 
-    /// Open the shell selector overlay
-    ShowShellSelector,
-
     /// Update the text verbosity level
     UpdateTextVerbosity(TextVerbosity),
 

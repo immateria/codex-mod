@@ -278,6 +278,25 @@ impl ChatWidget<'_> {
             }
         }
 
+        // Status line shortcuts (mirror clickable status line segments).
+        if !self.bottom_pane.has_active_modal_view()
+            && matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat)
+            && key_event.modifiers.is_empty()
+            && let crossterm::event::KeyCode::F(n) = key_event.code
+        {
+            let action = match n {
+                2 => Some(ClickableAction::ShowModelSelector),
+                3 => Some(ClickableAction::ShowReasoningSelector),
+                4 => Some(ClickableAction::ShowShellSelector),
+                5 => Some(ClickableAction::ShowNetworkSettings),
+                _ => None,
+            };
+            if let Some(action) = action {
+                self.handle_clickable_action(action);
+                return;
+            }
+        }
+
         if let KeyEvent {
             code: crossterm::event::KeyCode::Char('g'),
             modifiers: crossterm::event::KeyModifiers::CONTROL,
