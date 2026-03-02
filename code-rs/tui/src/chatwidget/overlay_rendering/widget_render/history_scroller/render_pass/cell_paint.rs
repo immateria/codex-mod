@@ -442,6 +442,23 @@ impl ChatWidget<'_> {
                     }
                 }
 
+                // Register fold toggle click target for foldable cells.
+                // Use the first visible row (header) as the click region.
+                if item.is_fold_toggleable() && visible_height > 0 && item_area.width > 0 {
+                    let header_y = item_area.y;
+                    self.clickable_regions.borrow_mut().push(
+                        crate::chatwidget::ClickableRegion {
+                            rect: Rect::new(
+                                item_area.x,
+                                header_y,
+                                item_area.width,
+                                1,
+                            ),
+                            action: crate::chatwidget::ClickableAction::ToggleFoldAtIndex(idx),
+                        },
+                    );
+                }
+
                 if self.show_order_overlay
                     && let Some(Some(info)) = self.cell_order_dbg.get(idx)
                 {

@@ -1,26 +1,26 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 1157
-expression: scrolled
+assertion_line: 2912
+expression: output
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-   Assistant reply number two with multiple paragraphs.
- •
-   Here is another paragraph to expand height.
+   File written successfully
+   ... 1 more lines (use Fold Output to expand)
 
-   Yet another paragraph for good measure.
+ ✓ Complete, duration: Xs (bash({"command":"cargo build --release 2>&1"})) • 2
+   args, 4 result lines
+   + invocation: bash({"command":"cargo build --release 2>&1"})
+   + command: cargo build --release 2>&1
+   Compiling my-app v0.1.0
+   ... 3 more lines (use Fold Output to expand)
 
- › Third user prompt to push history further.
-
-   Assistant reply number three, still going strong.
- •
-   - Bullet one
-   - Bullet two
-   - Bullet three
-
- › Fourth user prompt to guarantee overflow beyond the viewport height.
+ ✓ Complete, duration: Xs (list_dir({"path":"/src"})) • 2 args, 7 result lines
+   + invocation: list_dir({"path":"/src"})
+   + path: /src
+   main.rs
+   ... 6 more lines (use Fold Output to expand)
 
  +----------------------------------------------------------------------------+
  | What can I code for you today?                                             |

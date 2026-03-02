@@ -149,6 +149,10 @@ impl HistoryCell for ExecCell {
         self.parent_call_id.as_deref()
     }
 
+    fn is_fold_toggleable(&self) -> bool {
+        self.output.is_some()
+    }
+
     fn gutter_symbol(&self) -> Option<&'static str> {
         match self.kind() {
             HistoryCellType::Exec {

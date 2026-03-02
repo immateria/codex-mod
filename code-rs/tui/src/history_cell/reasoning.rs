@@ -67,7 +67,7 @@ impl CollapsibleReasoningState {
 pub(crate) struct CollapsibleReasoningCell {
     state: RefCell<CollapsibleReasoningState>,
     collapsed: Cell<bool>,
-    layout_cache: super::layout_cache::LayoutCache<ReasoningLayout, (u16, bool)>,
+    layout_cache: super::layout_cache::DualLayoutCache<ReasoningLayout>,
 }
 
 #[derive(Default)]
@@ -81,7 +81,7 @@ impl CollapsibleReasoningCell {
         Self {
             state: RefCell::new(CollapsibleReasoningState::new(lines, id)),
             collapsed: Cell::new(true),
-            layout_cache: super::layout_cache::LayoutCache::new(),
+            layout_cache: super::layout_cache::DualLayoutCache::new(),
         }
     }
 
@@ -115,7 +115,7 @@ impl CollapsibleReasoningCell {
         Self {
             state: RefCell::new(cell_state),
             collapsed: Cell::new(true),
-            layout_cache: super::layout_cache::LayoutCache::new(),
+            layout_cache: super::layout_cache::DualLayoutCache::new(),
         }
     }
 
@@ -125,7 +125,7 @@ impl CollapsibleReasoningCell {
 
     fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, ReasoningLayout> {
         let collapsed = self.collapsed.get();
-        self.layout_cache.get_or_compute_key((width, collapsed), |(w, c)| {
+        self.layout_cache.get_or_compute(width, collapsed, |w, c| {
             #[cfg(feature = "test-helpers")]
             bump_reasoning_layout_builds();
             self.compute_layout_for_width(w, c)

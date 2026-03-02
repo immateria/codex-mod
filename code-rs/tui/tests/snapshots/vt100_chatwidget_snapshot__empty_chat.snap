@@ -1,5 +1,6 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 493
 expression: output
 ---
  +----------------------------------------------------------------------------+
@@ -7,7 +8,7 @@ expression: output
  +----------------------------------------------------------------------------+
 
 
- ★   /code - perform a coding task (multiple agents)
+
 
 
  • Hello! How can I help you today?

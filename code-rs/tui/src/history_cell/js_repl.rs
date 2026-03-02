@@ -387,6 +387,10 @@ impl HistoryCell for JsReplCell {
         matches!(self.record.status, ExecStatus::Running) && self.start_time.is_some()
     }
 
+    fn is_fold_toggleable(&self) -> bool {
+        self.output.is_some()
+    }
+
     fn has_custom_render(&self) -> bool {
         true
     }

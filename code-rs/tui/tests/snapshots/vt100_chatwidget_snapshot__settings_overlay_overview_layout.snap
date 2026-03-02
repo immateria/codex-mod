@@ -1,31 +1,32 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 2424
 expression: output
 ---
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
- +Settings ▸ Overview-----------------------------------------------------------------------------+
- |                                                                                                |
- | › Model              Model: GPT-5.3-Codex (Medium)                                             |
- |   + Choose the language model used for new completions.                                        |
- |                                                                                                |
- |   Theme              Theme: Light - Photon (16-color) · Spinner: Diamond                       |
- |   + Switch between preset color palettes and adjust contrast.                                  |
- |                                                                                                |
- |   Updates            Auto update: Disabled                                                     |
- |   + Control CLI auto-update cadence and release channels.                                      |
- |                                                                                                |
- |                                                                                                |
 
- |   Accounts           Auto-switch: On · API key fallback: Off                                   |
- |   + Configure account switching behavior under rate and usage limits.                          |
- |                                                                                                |
- | ↑ ↓ Move    Enter Open    Esc Close    ? Help                                                  |
- |                                                                                                |
- +------------------------------------------------------------------------------------------------+
 
+
+ • I can help with various tasks including:
+
+   - Writing code
+   - Reading files
+   - Running commands
+
+
+ +------------------------------------------- Settings -------------------------------------------+
+ | ↑↓/jk move  Enter open  Esc close                                                              |
+ | > Model           Model: GPT-5.3-Codex (Medium)                                                |
+ |   Theme           Theme: Light - Photon (16-color) · Spinner: Diamond                          |
+ |   Interface       Mode: auto · Overlay >= 100                                                  |
+ |   Shell           Shell: auto                                                                  |
+ |   Shell profiles  Active: auto                                                                 |
+ |   Updates         Auto update: Disabled                                                        |
+ |   Accounts        Auto-switch: On · API key fallback: Off                                      |
+ |   Agents          Enabled: 10/11                                                               |
+ |   Prompts         Prompts enabled: 0                                                           |
+ |   Skills          Skills loaded: 0                                                             |
+ | Choose the language model used for new completions.                                            |
  +------------------------------------------------------------------------------------------------+
- | What can I code for you today?                                                                 |
- +------------------------------------------------------------------------------------------------+
- Read Only  (Shift+Tab change)                                           Ctrl+G editor  •  API key

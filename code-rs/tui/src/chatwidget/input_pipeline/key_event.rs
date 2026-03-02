@@ -728,6 +728,35 @@ impl ChatWidget<'_> {
         }
     }
 
+    /// Toggle fold/collapse for a specific history cell by index (used by mouse clicks).
+    pub(in crate::chatwidget) fn toggle_fold_at_index(&mut self, idx: usize) {
+        use crate::history_cell::{
+            ExecCell,
+            JsReplCell,
+            RunningToolCallCell,
+            ToolCallCell,
+            WebFetchToolCell,
+        };
+
+        let Some(cell_box) = self.history_cells.get(idx) else { return };
+        let cell = cell_box.as_ref();
+        if let Some(exec_cell) = cell.as_any().downcast_ref::<ExecCell>() {
+            exec_cell.toggle_output_collapsed();
+        } else if let Some(js_cell) = cell.as_any().downcast_ref::<JsReplCell>() {
+            js_cell.toggle_output_collapsed();
+        } else if let Some(tool_cell) = cell.as_any().downcast_ref::<ToolCallCell>() {
+            tool_cell.toggle_details_collapsed();
+        } else if let Some(tool_cell) = cell.as_any().downcast_ref::<RunningToolCallCell>() {
+            tool_cell.toggle_details_collapsed();
+        } else if let Some(web_fetch_cell) = cell.as_any().downcast_ref::<WebFetchToolCell>() {
+            web_fetch_cell.toggle_body_collapsed();
+        } else {
+            return;
+        }
+        self.invalidate_height_cache();
+        self.request_redraw();
+    }
+
     fn toggle_bottommost_js_repl_code_fold(&mut self) {
         use crate::history_cell::JsReplCell;
         let (start, end) = self

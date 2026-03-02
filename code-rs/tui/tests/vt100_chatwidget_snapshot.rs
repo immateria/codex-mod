@@ -2862,3 +2862,52 @@ fn auto_drive_intro_animation_during_settings_toggle() {
         frames.join("\n---FRAME---\n"),
     );
 }
+
+/// Snapshot test: multiple completed tool calls in a row, all collapsed by default.
+/// Verifies that tool spam renders compactly with fold indicators and improved
+/// collapsed summaries (invocation hint + hidden counts).
+#[test]
+fn tool_spam_folded_scrollback() {
+    init_tracing_once();
+    let mut harness = ChatWidgetHarness::new();
+    let mut event_seq: u64 = 1;
+    let mut order_seq: u64 = 1;
+
+    // 4 completed tool calls: read_file, write_file, bash, list_dir
+    let tools = vec![
+        ("tc-1", "read_file", json!({"path": "/src/main.rs"}), Ok("fn main() {\n    println!(\"hello\");\n}\n".to_string()), 1),
+        ("tc-2", "write_file", json!({"path": "/src/lib.rs", "content": "pub mod api;\npub mod utils;\npub mod config;\n"}), Ok("File written successfully".to_string()), 2),
+        ("tc-3", "bash", json!({"command": "cargo build --release 2>&1"}), Ok("Compiling my-app v0.1.0\nFinished release profile\nwarning: unused import\nwarning: dead code\n".to_string()), 3),
+        ("tc-4", "list_dir", json!({"path": "/src"}), Ok("main.rs\nlib.rs\napi/\nutils/\nconfig/\ntests/\nbenches/\n".to_string()), 1),
+    ];
+
+    for (call_id, tool_name, params, result, secs) in tools {
+        push_ordered_event(
+            &mut harness,
+            &mut event_seq,
+            &mut order_seq,
+            EventMsg::CustomToolCallBegin(CustomToolCallBeginEvent {
+                call_id: call_id.into(),
+                parent_call_id: None,
+                tool_name: tool_name.into(),
+                parameters: Some(params.clone()),
+            }),
+        );
+        push_ordered_event(
+            &mut harness,
+            &mut event_seq,
+            &mut order_seq,
+            EventMsg::CustomToolCallEnd(CustomToolCallEndEvent {
+                call_id: call_id.into(),
+                parent_call_id: None,
+                tool_name: tool_name.into(),
+                parameters: Some(params),
+                duration: Duration::from_secs(secs),
+                result,
+            }),
+        );
+    }
+
+    let output = normalize_output(render_chat_widget_to_vt100(&mut harness, 80, 24));
+    insta::assert_snapshot!("tool_spam_folded_scrollback", output);
+}

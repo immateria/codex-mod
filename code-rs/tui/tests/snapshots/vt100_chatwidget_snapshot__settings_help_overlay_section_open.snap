@@ -1,10 +1,21 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 2508
 expression: section_open
 ---
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
+                                 Code · v0.0.0
+
+
+
+
+
+
+
+
+ • Hello! How can I help you today?
 
 
 
@@ -15,17 +26,7 @@ expression: section_open
    - Running commands
 
 
- +----------------------------------- Select Model & Reasoning -----------------------------------+
- | Current model: GPT-5.2-Codex                                                                   |
- | Reasoning effort: Medium                                                                       |
- |                                                                                                |
- | GPT-5.2                                                                                        |
- | Latest frontier model with improvements across knowledge, reasoning, and coding.               |
- |    XHigh - Extra high reasoning depth for complex problems                                     |
- |    High - Maximizes reasoning depth for complex or ambiguous problems                          |
- |    Medium - Provides a solid balance of reasoning depth and latency for general-purpose tasks  |
- |    Low - Balances speed with some reasoning; useful for straightforward queries and short expla|
- |                                                                                                |
- | GPT-5.1-Codex-Max                                                                              |
- | Latest Codex-optimized flagship for deep and fast reasoning.                                   |
  +------------------------------------------------------------------------------------------------+
+ | ?                                                                                              |
+ +------------------------------------------------------------------------------------------------+
+ Read Only  (Shift+Tab change)                                           Ctrl+G editor  •  API key

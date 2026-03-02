@@ -1,29 +1,30 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 2495
 expression: closed
 ---
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
- +Settings ▸ Overview-----------------------------------------------------------------------------+
- |                                                                                                |
- | › Model              Model: GPT-5.3-Codex (Medium)                                             |
- |   + Choose the language model used for new completions.                                        |
- |                                                                                                |
- |   Theme              Theme: Light - Photon (16-color) · Spinner: Diamond                       |
- |   + Switch between preset color palettes and adjust contrast.                                  |
- |                                                                                                |
- |   Updates            Auto update: Disabled                                                     |
- |   + Control CLI auto-update cadence and release channels.                                      |
- |                                                                                                |
- |                                                                                                |
 
- |   Accounts           Auto-switch: On · API key fallback: Off                                   |
- |   + Configure account switching behavior under rate and usage limits.                          |
- |                                                                                                |
- | ↑ ↓ Move    Enter Open    Esc Close    ? Help                                                  |
- |                                                                                                |
- +------------------------------------------------------------------------------------------------+
+
+
+
+
+
+
+
+
+ • Hello! How can I help you today?
+
+
+
+ • I can help with various tasks including:
+
+   - Writing code
+   - Reading files
+   - Running commands
+
 
  +------------------------------------------------------------------------------------------------+
  | What can I code for you today?                                                                 |

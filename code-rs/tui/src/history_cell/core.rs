@@ -276,6 +276,11 @@ pub(crate) trait HistoryCell {
     fn gutter_symbol(&self) -> Option<&'static str> {
         gutter_symbol_for_kind(self.kind())
     }
+
+    /// Returns true if this cell supports fold/collapse toggling via click.
+    fn is_fold_toggleable(&self) -> bool {
+        false
+    }
 }
 
 // Allow Box<dyn HistoryCell> to implement HistoryCell
@@ -340,5 +345,9 @@ impl HistoryCell for Box<dyn HistoryCell> {
 
     fn gutter_symbol(&self) -> Option<&'static str> {
         self.as_ref().gutter_symbol()
+    }
+
+    fn is_fold_toggleable(&self) -> bool {
+        self.as_ref().is_fold_toggleable()
     }
 }

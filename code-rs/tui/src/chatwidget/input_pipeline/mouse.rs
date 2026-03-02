@@ -190,6 +190,9 @@ impl ChatWidget<'_> {
                     self.app_event_tx.send(AppEvent::DispatchCommand(slash_cmd, cmd));
                 }
             }
+            ClickableAction::ToggleFoldAtIndex(idx) => {
+                self.toggle_fold_at_index(idx);
+            }
         }
     }
 

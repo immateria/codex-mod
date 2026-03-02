@@ -675,6 +675,8 @@ enum ClickableAction {
     JumpToCallId(String),
     #[allow(dead_code)]
     ExecuteCommand(String),
+    /// Toggle fold/collapse for a history cell at the given index.
+    ToggleFoldAtIndex(usize),
 }
 
 /// A clickable region with its screen coordinates and associated action

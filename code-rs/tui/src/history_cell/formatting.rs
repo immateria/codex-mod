@@ -711,19 +711,79 @@ pub(crate) fn build_streaming_preview(record: &ExecRecord) -> Option<CommandOutp
     }
 }
 
-/// If `collapsed` is true and `lines` exceeds `OUTPUT_FOLD_THRESHOLD`,
-/// truncate in-place and append a "… N more lines" indicator.
-pub(crate) fn maybe_fold_output(lines: &mut Vec<Line<'static>>, collapsed: bool) {
-    if collapsed && lines.len() > OUTPUT_FOLD_THRESHOLD {
-        let folded_count = lines.len() - OUTPUT_FOLD_THRESHOLD;
-        lines.truncate(OUTPUT_FOLD_THRESHOLD);
-        lines.push(Line::from(Span::styled(
-            format!("… {folded_count} more lines (use Fold Output to expand)"),
-            Style::default()
-                .fg(crate::colors::text_dim())
-                .add_modifier(Modifier::DIM),
-        )));
+/// Configuration for folding (collapsing) a block of lines.
+pub(crate) struct FoldConfig {
+    /// Maximum visible lines when collapsed.
+    pub threshold: usize,
+}
+
+/// Per-section limits for structured folds (e.g. ToolCallCell with args + result + error).
+pub(crate) struct FoldSectionLimits {
+    pub args: usize,
+    pub result: usize,
+    pub error: usize,
+}
+
+impl FoldConfig {
+    /// Standard output fold (ExecCell, JsReplCell, WebFetchToolCell).
+    pub(crate) fn output() -> Self {
+        Self { threshold: OUTPUT_FOLD_THRESHOLD }
     }
+
+    /// Custom threshold (e.g. WebFetchToolCell body preview).
+    pub(crate) fn with_threshold(threshold: usize) -> Self {
+        Self { threshold }
+    }
+}
+
+/// Fold indicator line used by all fold types.
+pub(crate) fn fold_indicator(hidden_count: usize) -> Line<'static> {
+    Line::from(Span::styled(
+        format!("… {hidden_count} more lines (use Fold Output to expand)"),
+        Style::default()
+            .fg(crate::colors::text_dim())
+            .add_modifier(Modifier::DIM),
+    ))
+}
+
+/// If `collapsed` is true and `lines` exceeds the fold threshold,
+/// truncate in-place and append a fold indicator.
+pub(crate) fn maybe_fold_output(lines: &mut Vec<Line<'static>>, collapsed: bool) {
+    fold_lines(lines, collapsed, &FoldConfig::output());
+}
+
+/// Generic fold: if `collapsed` is true and `lines` exceeds `config.threshold`,
+/// truncate in-place and append a fold indicator.
+pub(crate) fn fold_lines(lines: &mut Vec<Line<'static>>, collapsed: bool, config: &FoldConfig) {
+    if collapsed && lines.len() > config.threshold {
+        let folded_count = lines.len() - config.threshold;
+        lines.truncate(config.threshold);
+        lines.push(fold_indicator(folded_count));
+    }
+}
+
+/// Fold multiple sections (args, result, error) into a collapsed preview.
+/// Returns the folded lines and the total hidden count.
+pub(crate) fn fold_sections(
+    args: Vec<Line<'static>>,
+    result: Vec<Line<'static>>,
+    error: Vec<Line<'static>>,
+    limits: &FoldSectionLimits,
+) -> Vec<Line<'static>> {
+    let total = args.len()
+        .saturating_add(result.len())
+        .saturating_add(error.len());
+
+    let mut shown: Vec<Line<'static>> = Vec::new();
+    shown.extend(args.into_iter().take(limits.args));
+    shown.extend(result.into_iter().take(limits.result));
+    shown.extend(error.into_iter().take(limits.error));
+
+    let hidden = total.saturating_sub(shown.len());
+    if hidden > 0 {
+        shown.push(fold_indicator(hidden));
+    }
+    shown
 }
 
 #[cfg(test)]

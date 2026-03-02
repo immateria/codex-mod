@@ -84,7 +84,64 @@ impl ToolCallCell {
                 Style::default().fg(crate::colors::text_dim()),
             ));
         }
+
+        // When collapsed, append a compact invocation hint so you rarely need to expand.
+        if self.details_collapsed() {
+            if let Some(hint) = self.compact_invocation_hint() {
+                spans.push(Span::styled(
+                    format!(" ({hint})"),
+                    Style::default().fg(crate::colors::text_dim()),
+                ));
+            }
+            let args_count = self.state.arguments.len();
+            let result_count = self.state.result_preview
+                .as_ref()
+                .map(|r| r.lines.len())
+                .unwrap_or(0);
+            let total_hidden = args_count.saturating_add(result_count);
+            if total_hidden > 0 {
+                let mut parts: Vec<String> = Vec::new();
+                if args_count > 0 {
+                    parts.push(format!("{args_count} arg{}", if args_count == 1 { "" } else { "s" }));
+                }
+                if result_count > 0 {
+                    parts.push(format!("{result_count} result line{}", if result_count == 1 { "" } else { "s" }));
+                }
+                spans.push(Span::styled(
+                    format!(" • {}", parts.join(", ")),
+                    Style::default()
+                        .fg(crate::colors::text_dim())
+                        .add_modifier(Modifier::DIM),
+                ));
+            }
+        }
+
         Line::from(spans)
+    }
+
+    /// Extract a compact one-liner from the first argument value for collapsed display.
+    fn compact_invocation_hint(&self) -> Option<String> {
+        let arg = self.state.arguments.first()?;
+        let raw = match &arg.value {
+            ArgumentValue::Text(text) => text.clone(),
+            ArgumentValue::Json(json) => {
+                format_json_compact(&json.to_string()).unwrap_or_else(|| json.to_string())
+            }
+            ArgumentValue::Secret => return None,
+        };
+        let trimmed = raw.trim().to_string();
+        if trimmed.is_empty() {
+            return None;
+        }
+        // Truncate to ~60 chars for the header
+        let first_line = trimmed.lines().next().unwrap_or(&trimmed);
+        if first_line.len() > 60 {
+            Some(format!("{}…", &first_line[..57]))
+        } else if trimmed.lines().count() > 1 {
+            Some(format!("{first_line}…"))
+        } else {
+            Some(first_line.to_string())
+        }
     }
 
     fn result_preview_lines(&self) -> Vec<Line<'static>> {
@@ -142,43 +199,25 @@ impl ToolCallCell {
     }
 
     fn collapsed_detail_lines(&self) -> Vec<Line<'static>> {
-        let args_lines = render_arguments(&self.state.arguments);
-        let result_lines = self.result_preview_lines();
-        let error_lines = self.error_lines();
-
-        let total = args_lines
-            .len()
-            .saturating_add(result_lines.len())
-            .saturating_add(error_lines.len());
-
-        let mut shown: Vec<Line<'static>> = Vec::new();
-        shown.extend(
-            args_lines
-                .into_iter()
-                .take(TOOL_DETAILS_PREVIEW_ARGS),
-        );
-        shown.extend(
-            result_lines
-                .into_iter()
-                .take(TOOL_DETAILS_PREVIEW_RESULT_LINES),
-        );
-        shown.extend(error_lines.into_iter().take(1));
-
-        let hidden = total.saturating_sub(shown.len());
-        if hidden > 0 {
-            shown.push(Line::from(Span::styled(
-                format!("… {hidden} more lines (use Fold Output to expand)"),
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
-            )));
-        }
-        shown
+        super::formatting::fold_sections(
+            render_arguments(&self.state.arguments),
+            self.result_preview_lines(),
+            self.error_lines(),
+            &super::formatting::FoldSectionLimits {
+                args: TOOL_DETAILS_PREVIEW_ARGS,
+                result: TOOL_DETAILS_PREVIEW_RESULT_LINES,
+                error: 1,
+            },
+        )
     }
 }
 
 impl HistoryCell for ToolCallCell {
     impl_as_any!();
+
+    fn is_fold_toggleable(&self) -> bool {
+        true
+    }
 
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Tool {
@@ -498,26 +537,22 @@ impl RunningToolCallCell {
         if args_lines.is_empty() {
             return Vec::new();
         }
-        let total = args_lines.len();
-        let mut shown: Vec<Line<'static>> = args_lines
-            .into_iter()
-            .take(TOOL_DETAILS_PREVIEW_ARGS)
-            .collect();
-        let hidden = total.saturating_sub(shown.len());
-        if hidden > 0 {
-            shown.push(Line::from(Span::styled(
-                format!("… {hidden} more lines (use Fold Output to expand)"),
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
-            )));
-        }
+        let mut shown = args_lines;
+        super::formatting::fold_lines(
+            &mut shown,
+            true,
+            &super::formatting::FoldConfig::with_threshold(TOOL_DETAILS_PREVIEW_ARGS),
+        );
         shown
     }
 }
 
 impl HistoryCell for RunningToolCallCell {
     impl_as_any!();
+
+    fn is_fold_toggleable(&self) -> bool {
+        true
+    }
 
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Tool {

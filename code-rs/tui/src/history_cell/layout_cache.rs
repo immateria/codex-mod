@@ -46,43 +46,27 @@ macro_rules! layout_build_counter {
     };
 }
 
-pub(crate) trait LayoutCacheKey: Copy + Eq + Default {
-    fn width(&self) -> u16;
-}
-
-impl LayoutCacheKey for u16 {
-    fn width(&self) -> u16 {
-        *self
-    }
-}
-
-impl LayoutCacheKey for (u16, bool) {
-    fn width(&self) -> u16 {
-        self.0
-    }
-}
-
-/// Generic width-keyed layout cache.
+/// Width-keyed layout cache.
 ///
 /// Stores a computed layout `L` alongside the terminal width it was computed
 /// for. When the width changes the layout is recomputed via a caller-supplied
 /// closure. This eliminates the identical `invalidate` / `ensure_layout` /
 /// `layout_for_width` boilerplate that was duplicated across ExecCell,
 /// JsReplCell, MergedExecCell, and WebFetchToolCell.
-pub(crate) struct LayoutCache<L: Default, K: LayoutCacheKey = u16> {
-    inner: RefCell<CacheEntry<L, K>>,
+pub(crate) struct LayoutCache<L: Default> {
+    inner: RefCell<CacheEntry<L>>,
 }
 
-struct CacheEntry<L, K> {
-    key: K,
+struct CacheEntry<L> {
+    width: u16,
     layout: L,
 }
 
-impl<L: Default, K: LayoutCacheKey> LayoutCache<L, K> {
+impl<L: Default> LayoutCache<L> {
     pub fn new() -> Self {
         Self {
             inner: RefCell::new(CacheEntry {
-                key: K::default(),
+                width: 0,
                 layout: L::default(),
             }),
         }
@@ -92,7 +76,7 @@ impl<L: Default, K: LayoutCacheKey> LayoutCache<L, K> {
     /// will rebuild it regardless of width.
     pub fn invalidate(&self) {
         *self.inner.borrow_mut() = CacheEntry {
-            key: K::default(),
+            width: 0,
             layout: L::default(),
         };
     }
@@ -101,31 +85,59 @@ impl<L: Default, K: LayoutCacheKey> LayoutCache<L, K> {
     /// via `compute` when stale or when the width has changed.
     ///
     /// When `width` is zero the layout is reset to its `Default` value.
-    pub fn get_or_compute_key(
+    pub fn get_or_compute(
         &self,
-        key: K,
-        compute: impl FnOnce(K) -> L,
+        width: u16,
+        compute: impl FnOnce(u16) -> L,
     ) -> std::cell::Ref<'_, L> {
-        if key.width() == 0 {
+        if width == 0 {
             self.invalidate();
         } else {
-            let needs_rebuild = self.inner.borrow().key != key;
+            let needs_rebuild = self.inner.borrow().width != width;
             if needs_rebuild {
-                let layout = compute(key);
-                *self.inner.borrow_mut() = CacheEntry { key, layout };
+                let layout = compute(width);
+                *self.inner.borrow_mut() = CacheEntry { width, layout };
             }
         }
         std::cell::Ref::map(self.inner.borrow(), |entry| &entry.layout)
     }
 }
 
-impl<L: Default> LayoutCache<L, u16> {
-    /// Convenience wrapper for width-only caches.
+/// Two-slot layout cache keyed by `(width, bool)`.
+///
+/// Keeps **both** bool states cached so toggling between collapsed/expanded
+/// at the same width is free — no recompute on toggle.
+///
+/// Content mutations (append, retint, etc.) call `invalidate()` which
+/// clears both slots.
+pub(crate) struct DualLayoutCache<L: Default> {
+    slot_false: LayoutCache<L>,
+    slot_true: LayoutCache<L>,
+}
+
+impl<L: Default> DualLayoutCache<L> {
+    pub fn new() -> Self {
+        Self {
+            slot_false: LayoutCache::new(),
+            slot_true: LayoutCache::new(),
+        }
+    }
+
+    /// Mark both slots as stale.
+    pub fn invalidate(&self) {
+        self.slot_false.invalidate();
+        self.slot_true.invalidate();
+    }
+
+    /// Return a reference to the cached layout for `(width, flag)`,
+    /// recomputing only the relevant slot when stale or width-changed.
     pub fn get_or_compute(
         &self,
         width: u16,
-        compute: impl FnOnce(u16) -> L,
+        flag: bool,
+        compute: impl FnOnce(u16, bool) -> L,
     ) -> std::cell::Ref<'_, L> {
-        self.get_or_compute_key(width, compute)
+        let slot = if flag { &self.slot_true } else { &self.slot_false };
+        slot.get_or_compute(width, |w| compute(w, flag))
     }
 }

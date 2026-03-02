@@ -550,26 +550,16 @@ impl WebFetchToolCell {
     }
 
     fn folded_body_lines(&self) -> Vec<Line<'static>> {
-        let body = trim_empty_lines(self.body_lines.clone());
-        if !self.body_collapsed() || body.is_empty() {
+        let mut body = trim_empty_lines(self.body_lines.clone());
+        if body.is_empty() {
             return body;
         }
-
-        let total = body.len();
-        let mut shown: Vec<Line<'static>> = body
-            .into_iter()
-            .take(WEB_FETCH_COLLAPSED_PREVIEW_LINES)
-            .collect();
-        let hidden = total.saturating_sub(shown.len());
-        if hidden > 0 {
-            shown.push(Line::from(Span::styled(
-                format!("… {hidden} more lines (use Fold Output to expand)"),
-                Style::default()
-                    .fg(crate::colors::text_dim())
-                    .add_modifier(Modifier::DIM),
-            )));
-        }
-        shown
+        super::formatting::fold_lines(
+            &mut body,
+            self.body_collapsed(),
+            &super::formatting::FoldConfig::with_threshold(WEB_FETCH_COLLAPSED_PREVIEW_LINES),
+        );
+        body
     }
 
     fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, WebFetchLayout> {
@@ -607,6 +597,11 @@ impl WebFetchToolCell {
 
 impl HistoryCell for WebFetchToolCell {
     impl_as_any!();
+
+    fn is_fold_toggleable(&self) -> bool {
+        true
+    }
+
     fn kind(&self) -> HistoryCellType {
         HistoryCellType::Tool { status: self.state }
     }
