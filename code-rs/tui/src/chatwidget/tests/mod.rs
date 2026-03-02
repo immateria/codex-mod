@@ -4351,6 +4351,255 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn history_exec_output_fold_targets_visible_exec_cell_when_scrolled() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+        let cwd = std::env::temp_dir();
+
+        harness.with_chat(reset_history);
+
+        let mk_stdout = |prefix: &str| -> String {
+            let mut out = String::new();
+            for i in 0..50 {
+                out.push_str(&format!("{prefix}-{i}\n"));
+            }
+            out
+        };
+
+        harness.handle_event(Event {
+            id: "exec-a-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
+                call_id: "exec-a".to_string(),
+                command: vec!["bash".into(), "-lc".into(), "echo a".into()],
+                cwd: cwd.clone(),
+                parsed_cmd: Vec::new(),
+                parent_call_id: None,
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(1),
+            }),
+        });
+        harness.handle_event(Event {
+            id: "exec-a-end".to_string(),
+            event_seq: 1,
+            msg: EventMsg::ExecCommandEnd(code_core::protocol::ExecCommandEndEvent {
+                call_id: "exec-a".to_string(),
+                stdout: mk_stdout("a"),
+                stderr: String::new(),
+                exit_code: 0,
+                duration: std::time::Duration::from_millis(10),
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(2),
+            }),
+        });
+
+        for i in 0..30 {
+            harness.push_user_prompt(format!("filler {i}"));
+        }
+
+        harness.handle_event(Event {
+            id: "exec-b-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
+                call_id: "exec-b".to_string(),
+                command: vec!["bash".into(), "-lc".into(), "echo b".into()],
+                cwd,
+                parsed_cmd: Vec::new(),
+                parent_call_id: None,
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(3),
+            }),
+        });
+        harness.handle_event(Event {
+            id: "exec-b-end".to_string(),
+            event_seq: 1,
+            msg: EventMsg::ExecCommandEnd(code_core::protocol::ExecCommandEndEvent {
+                call_id: "exec-b".to_string(),
+                stdout: mk_stdout("b"),
+                stderr: String::new(),
+                exit_code: 0,
+                duration: std::time::Duration::from_millis(10),
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(4),
+            }),
+        });
+
+        // Render once so prefix sums / scroll bounds are computed before we scroll.
+        {
+            use crate::test_backend::VT100Backend;
+            use ratatui::Terminal;
+
+            let chat = harness.chat();
+            let mut terminal = Terminal::new(VT100Backend::new(80, 10)).expect("terminal");
+            terminal
+                .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+                .expect("draw");
+        }
+
+        let (a_before, b_before) = harness.with_chat(|chat| {
+            let a = chat
+                .history_cells
+                .iter()
+                .find_map(|cell| (cell.call_id() == Some("exec-a")).then_some(cell.desired_height(80)));
+            let b = chat
+                .history_cells
+                .iter()
+                .find_map(|cell| (cell.call_id() == Some("exec-b")).then_some(cell.desired_height(80)));
+            (a.expect("expected exec-a cell"), b.expect("expected exec-b cell"))
+        });
+
+        // Scroll to top so exec-b is offscreen, then fold output. The shortcut
+        // should operate on the bottom-most visible exec cell (exec-a), not the
+        // newest exec cell in history.
+        harness.with_chat(|chat| {
+            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+            chat.handle_key_event(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+            chat.handle_key_event(KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE));
+        });
+
+        let (a_after, b_after) = harness.with_chat(|chat| {
+            let a = chat
+                .history_cells
+                .iter()
+                .find_map(|cell| (cell.call_id() == Some("exec-a")).then_some(cell.desired_height(80)));
+            let b = chat
+                .history_cells
+                .iter()
+                .find_map(|cell| (cell.call_id() == Some("exec-b")).then_some(cell.desired_height(80)));
+            (a.expect("expected exec-a cell"), b.expect("expected exec-b cell"))
+        });
+
+        assert_ne!(
+            a_after, a_before,
+            "expected exec-a output fold to toggle when scrolled to top"
+        );
+        assert_eq!(
+            b_after, b_before,
+            "expected exec-b output fold to remain unchanged when scrolled to top"
+        );
+    }
+
+    #[test]
+    fn history_js_repl_code_fold_targets_visible_js_cell_when_scrolled() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+        let cwd = std::env::temp_dir();
+
+        harness.with_chat(reset_history);
+
+        harness.handle_event(Event {
+            id: "js-a-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::JsReplExecBegin(code_core::protocol::JsReplExecBeginEvent {
+                call_id: "js-a".to_string(),
+                code: "console.log('a')".to_string(),
+                runtime_kind: "node".to_string(),
+                runtime_version: "20.11.0".to_string(),
+                cwd: cwd.clone(),
+                timeout_ms: 15_000,
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(1),
+            }),
+        });
+
+        for i in 0..30 {
+            harness.push_user_prompt(format!("filler {i}"));
+        }
+
+        harness.handle_event(Event {
+            id: "js-b-begin".to_string(),
+            event_seq: 0,
+            msg: EventMsg::JsReplExecBegin(code_core::protocol::JsReplExecBeginEvent {
+                call_id: "js-b".to_string(),
+                code: "console.log('b')".to_string(),
+                runtime_kind: "node".to_string(),
+                runtime_version: "20.11.0".to_string(),
+                cwd,
+                timeout_ms: 15_000,
+            }),
+            order: Some(OrderMeta {
+                request_ordinal: 1,
+                output_index: Some(0),
+                sequence_number: Some(2),
+            }),
+        });
+
+        // Render once so prefix sums / scroll bounds are computed before we scroll.
+        {
+            use crate::test_backend::VT100Backend;
+            use ratatui::Terminal;
+
+            let chat = harness.chat();
+            let mut terminal = Terminal::new(VT100Backend::new(80, 10)).expect("terminal");
+            terminal
+                .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+                .expect("draw");
+        }
+
+        let (a_before, b_before) = harness.with_chat(|chat| {
+            use crate::history_cell::JsReplCell;
+
+            let a = chat.history_cells.iter().find_map(|cell| {
+                cell.as_any().downcast_ref::<JsReplCell>().and_then(|js| {
+                    (js.call_id() == Some("js-a")).then_some(js.code_collapsed.get())
+                })
+            });
+            let b = chat.history_cells.iter().find_map(|cell| {
+                cell.as_any().downcast_ref::<JsReplCell>().and_then(|js| {
+                    (js.call_id() == Some("js-b")).then_some(js.code_collapsed.get())
+                })
+            });
+            (a.expect("expected js-a cell"), b.expect("expected js-b cell"))
+        });
+
+        harness.with_chat(|chat| {
+            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+            chat.handle_key_event(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+            chat.handle_key_event(KeyEvent::new(KeyCode::Char('\\'), KeyModifiers::NONE));
+        });
+
+        let (a_after, b_after) = harness.with_chat(|chat| {
+            use crate::history_cell::JsReplCell;
+
+            let a = chat.history_cells.iter().find_map(|cell| {
+                cell.as_any().downcast_ref::<JsReplCell>().and_then(|js| {
+                    (js.call_id() == Some("js-a")).then_some(js.code_collapsed.get())
+                })
+            });
+            let b = chat.history_cells.iter().find_map(|cell| {
+                cell.as_any().downcast_ref::<JsReplCell>().and_then(|js| {
+                    (js.call_id() == Some("js-b")).then_some(js.code_collapsed.get())
+                })
+            });
+            (a.expect("expected js-a cell"), b.expect("expected js-b cell"))
+        });
+
+        assert_ne!(
+            a_after, a_before,
+            "expected js-a code fold to toggle when scrolled to top"
+        );
+        assert_eq!(
+            b_after, b_before,
+            "expected js-b code fold to remain unchanged when scrolled to top"
+        );
+    }
+
+    #[test]
     fn statusline_network_segment_click_on_bottom_opens_network_settings() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
