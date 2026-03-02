@@ -279,19 +279,48 @@ impl ChatWidget<'_> {
         }
 
         // Status line shortcuts (mirror clickable status line segments).
+        //
+        // These are configured under `[tui.hotkeys]` and may be function keys
+        // or modifier chords (e.g. ctrl+h), so we match against the resolved
+        // `TuiHotkey` values instead of hard-coding KeyCode::F(n).
         if !self.bottom_pane.has_active_modal_view()
             && matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat)
-            && key_event.modifiers.is_empty()
-            && let crossterm::event::KeyCode::F(n) = key_event.code
         {
-            let hotkeys = &self.config.tui.hotkeys;
-            let action = if hotkeys.model_selector.as_u8() == Some(n) {
+            fn matches_hotkey(hk: code_core::config_types::TuiHotkey, ev: &KeyEvent) -> bool {
+                use crossterm::event::{KeyCode, KeyModifiers};
+
+                let mods = ev.modifiers.difference(KeyModifiers::SHIFT);
+                match hk {
+                    code_core::config_types::TuiHotkey::Function(fk) => {
+                        let Some(n) = fk.as_u8() else {
+                            return false;
+                        };
+                        matches!(ev.code, KeyCode::F(code_n) if code_n == n)
+                            && !mods.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER)
+                    }
+                    code_core::config_types::TuiHotkey::Chord(chord) => {
+                        let required = match (chord.ctrl, chord.alt) {
+                            (true, true) => KeyModifiers::CONTROL | KeyModifiers::ALT,
+                            (true, false) => KeyModifiers::CONTROL,
+                            (false, true) => KeyModifiers::ALT,
+                            (false, false) => KeyModifiers::NONE,
+                        };
+                        matches!(
+                            ev.code,
+                            KeyCode::Char(c) if c.to_ascii_lowercase() == chord.key
+                        ) && mods == required
+                    }
+                }
+            }
+
+            let hotkeys = self.config.tui.hotkeys.effective_for_runtime();
+            let action = if matches_hotkey(hotkeys.model_selector, &key_event) {
                 Some(ClickableAction::ShowModelSelector)
-            } else if hotkeys.reasoning_effort.as_u8() == Some(n) {
+            } else if matches_hotkey(hotkeys.reasoning_effort, &key_event) {
                 Some(ClickableAction::ShowReasoningSelector)
-            } else if hotkeys.shell_selector.as_u8() == Some(n) {
+            } else if matches_hotkey(hotkeys.shell_selector, &key_event) {
                 Some(ClickableAction::ShowShellSelector)
-            } else if hotkeys.network_settings.as_u8() == Some(n) {
+            } else if matches_hotkey(hotkeys.network_settings, &key_event) {
                 Some(ClickableAction::ShowNetworkSettings)
             } else {
                 None

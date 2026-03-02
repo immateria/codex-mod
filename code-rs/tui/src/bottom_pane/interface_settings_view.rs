@@ -1,4 +1,12 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{
+    KeyCode,
+    KeyEvent,
+    KeyEventKind,
+    KeyModifiers,
+    MouseButton,
+    MouseEvent,
+    MouseEventKind,
+};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Modifier, Style};
@@ -6,9 +14,14 @@ use ratatui::text::{Line, Span};
 
 use code_core::config_types::{
     FunctionKeyHotkey,
+    ResolvedTuiHotkeys,
     SettingsMenuConfig,
     SettingsMenuOpenMode,
+    TuiHotkey,
     TuiHotkeysConfig,
+    TuiHotkeysEnv,
+    TuiHotkeysOverrides,
+    TuiHotkeysPlatform,
 };
 
 use crate::app_event::AppEvent;
@@ -34,6 +47,7 @@ use super::BottomPane;
 enum RowKind {
     OpenMode,
     OverlayMinWidth,
+    HotkeyScope,
     ModelSelectorHotkey,
     ReasoningEffortHotkey,
     ShellSelectorHotkey,
@@ -44,20 +58,150 @@ enum RowKind {
     Close,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum HotkeyScope {
+    Global,
+    Macos,
+    Windows,
+    Linux,
+    Android,
+    Termux,
+    FreeBsd,
+    OpenBsd,
+    NetBsd,
+    Dragonfly,
+}
+
+impl HotkeyScope {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Global => "global",
+            Self::Macos => "macos",
+            Self::Windows => "windows",
+            Self::Linux => "linux",
+            Self::Android => "android",
+            Self::Termux => "termux",
+            Self::FreeBsd => "freebsd",
+            Self::OpenBsd => "openbsd",
+            Self::NetBsd => "netbsd",
+            Self::Dragonfly => "dragonfly",
+        }
+    }
+
+    fn env(self) -> TuiHotkeysEnv {
+        match self {
+            Self::Global => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::Other,
+                termux: false,
+            },
+            Self::Macos => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::Macos,
+                termux: false,
+            },
+            Self::Windows => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::Windows,
+                termux: false,
+            },
+            Self::Linux => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::Linux,
+                termux: false,
+            },
+            Self::Android => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::Android,
+                termux: false,
+            },
+            Self::Termux => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::Android,
+                termux: true,
+            },
+            Self::FreeBsd => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::FreeBsd,
+                termux: false,
+            },
+            Self::OpenBsd => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::OpenBsd,
+                termux: false,
+            },
+            Self::NetBsd => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::NetBsd,
+                termux: false,
+            },
+            Self::Dragonfly => TuiHotkeysEnv {
+                platform: TuiHotkeysPlatform::Dragonfly,
+                termux: false,
+            },
+        }
+    }
+
+    fn max_function_key(self) -> u8 {
+        match self {
+            Self::Macos => 20,
+            _ => 24,
+        }
+    }
+
+    fn platform_override(self) -> Option<TuiHotkeysPlatform> {
+        match self {
+            Self::Global | Self::Termux => None,
+            Self::Macos => Some(TuiHotkeysPlatform::Macos),
+            Self::Windows => Some(TuiHotkeysPlatform::Windows),
+            Self::Linux => Some(TuiHotkeysPlatform::Linux),
+            Self::Android => Some(TuiHotkeysPlatform::Android),
+            Self::FreeBsd => Some(TuiHotkeysPlatform::FreeBsd),
+            Self::OpenBsd => Some(TuiHotkeysPlatform::OpenBsd),
+            Self::NetBsd => Some(TuiHotkeysPlatform::NetBsd),
+            Self::Dragonfly => Some(TuiHotkeysPlatform::Dragonfly),
+        }
+    }
+
+    fn next(self) -> Self {
+        match self {
+            Self::Global => Self::Macos,
+            Self::Macos => Self::Windows,
+            Self::Windows => Self::Linux,
+            Self::Linux => Self::Android,
+            Self::Android => Self::Termux,
+            Self::Termux => Self::FreeBsd,
+            Self::FreeBsd => Self::OpenBsd,
+            Self::OpenBsd => Self::NetBsd,
+            Self::NetBsd => Self::Dragonfly,
+            Self::Dragonfly => Self::Global,
+        }
+    }
+
+    fn prev(self) -> Self {
+        match self {
+            Self::Global => Self::Dragonfly,
+            Self::Macos => Self::Global,
+            Self::Windows => Self::Macos,
+            Self::Linux => Self::Windows,
+            Self::Android => Self::Linux,
+            Self::Termux => Self::Android,
+            Self::FreeBsd => Self::Termux,
+            Self::OpenBsd => Self::FreeBsd,
+            Self::NetBsd => Self::OpenBsd,
+            Self::Dragonfly => Self::NetBsd,
+        }
+    }
+}
+
 #[derive(Debug)]
 enum ViewMode {
     Transition,
     Main,
     EditWidth { field: FormTextField, error: Option<String> },
+    CaptureHotkey { row: RowKind, error: Option<String> },
 }
 
 pub(crate) struct InterfaceSettingsView {
     settings: SettingsMenuConfig,
     hotkeys: TuiHotkeysConfig,
+    hotkey_scope: HotkeyScope,
     code_home: PathBuf,
     app_event_tx: AppEventSender,
     is_complete: bool,
-    dirty: bool,
+    dirty_settings: bool,
+    dirty_hotkeys: bool,
     status: Option<(String, bool)>,
     mode: ViewMode,
     state: ScrollState,
@@ -76,10 +220,12 @@ impl InterfaceSettingsView {
         Self {
             settings,
             hotkeys,
+            hotkey_scope: HotkeyScope::Global,
             code_home,
             app_event_tx,
             is_complete: false,
-            dirty: false,
+            dirty_settings: false,
+            dirty_hotkeys: false,
             status: None,
             mode: ViewMode::Main,
             state,
@@ -103,10 +249,11 @@ impl InterfaceSettingsView {
         }
     }
 
-    fn build_rows(&self) -> [RowKind; 10] {
+    fn build_rows(&self) -> [RowKind; 11] {
         [
             RowKind::OpenMode,
             RowKind::OverlayMinWidth,
+            RowKind::HotkeyScope,
             RowKind::ModelSelectorHotkey,
             RowKind::ReasoningEffortHotkey,
             RowKind::ShellSelectorHotkey,
@@ -130,7 +277,7 @@ impl InterfaceSettingsView {
             SettingsMenuOpenMode::Overlay => SettingsMenuOpenMode::Bottom,
             SettingsMenuOpenMode::Bottom => SettingsMenuOpenMode::Auto,
         };
-        self.dirty = true;
+        self.dirty_settings = true;
     }
 
     fn adjust_min_width(&mut self, delta: i16) {
@@ -138,7 +285,7 @@ impl InterfaceSettingsView {
         let next = (current + delta).clamp(40, 300) as u16;
         if next != self.settings.overlay_min_width {
             self.settings.overlay_min_width = next;
-            self.dirty = true;
+            self.dirty_settings = true;
         }
     }
 
@@ -157,101 +304,355 @@ impl InterfaceSettingsView {
         // Keep sane bounds so accidental paste doesn't make it unusable.
         let clamped = parsed.clamp(40, 300);
         self.settings.overlay_min_width = clamped;
-        self.dirty = true;
+        self.dirty_settings = true;
         Ok(())
     }
 
-    fn cycle_function_hotkey_next(hotkey: FunctionKeyHotkey) -> FunctionKeyHotkey {
+    fn cycle_hotkey_scope_next(&mut self) {
+        self.hotkey_scope = self.hotkey_scope.next();
+    }
+
+    fn cycle_hotkey_scope_prev(&mut self) {
+        self.hotkey_scope = self.hotkey_scope.prev();
+    }
+
+    fn prune_empty_overrides(overrides: &mut Option<TuiHotkeysOverrides>) {
+        let Some(value) = overrides.as_ref() else {
+            return;
+        };
+        if value.model_selector.is_none()
+            && value.reasoning_effort.is_none()
+            && value.shell_selector.is_none()
+            && value.network_settings.is_none()
+        {
+            *overrides = None;
+        }
+    }
+
+    fn cycle_function_hotkey_next(hotkey: FunctionKeyHotkey, max_key: u8) -> FunctionKeyHotkey {
         match hotkey {
             FunctionKeyHotkey::Disabled => FunctionKeyHotkey::F2,
-            FunctionKeyHotkey::F2 => FunctionKeyHotkey::F3,
-            FunctionKeyHotkey::F3 => FunctionKeyHotkey::F4,
-            FunctionKeyHotkey::F4 => FunctionKeyHotkey::F5,
-            FunctionKeyHotkey::F5 => FunctionKeyHotkey::F6,
-            FunctionKeyHotkey::F6 => FunctionKeyHotkey::F7,
-            FunctionKeyHotkey::F7 => FunctionKeyHotkey::F8,
-            FunctionKeyHotkey::F8 => FunctionKeyHotkey::F9,
-            FunctionKeyHotkey::F9 => FunctionKeyHotkey::F10,
-            FunctionKeyHotkey::F10 => FunctionKeyHotkey::F11,
-            FunctionKeyHotkey::F11 => FunctionKeyHotkey::F12,
-            FunctionKeyHotkey::F12 => FunctionKeyHotkey::Disabled,
+            _ => match hotkey.as_u8() {
+                Some(n) if n < 2 || n >= max_key => FunctionKeyHotkey::Disabled,
+                Some(n) => FunctionKeyHotkey::from_u8(n.saturating_add(1))
+                    .unwrap_or(FunctionKeyHotkey::Disabled),
+                None => FunctionKeyHotkey::Disabled,
+            },
         }
     }
 
-    fn cycle_function_hotkey_prev(hotkey: FunctionKeyHotkey) -> FunctionKeyHotkey {
+    fn cycle_function_hotkey_prev(hotkey: FunctionKeyHotkey, max_key: u8) -> FunctionKeyHotkey {
         match hotkey {
-            FunctionKeyHotkey::Disabled => FunctionKeyHotkey::F12,
-            FunctionKeyHotkey::F2 => FunctionKeyHotkey::Disabled,
-            FunctionKeyHotkey::F3 => FunctionKeyHotkey::F2,
-            FunctionKeyHotkey::F4 => FunctionKeyHotkey::F3,
-            FunctionKeyHotkey::F5 => FunctionKeyHotkey::F4,
-            FunctionKeyHotkey::F6 => FunctionKeyHotkey::F5,
-            FunctionKeyHotkey::F7 => FunctionKeyHotkey::F6,
-            FunctionKeyHotkey::F8 => FunctionKeyHotkey::F7,
-            FunctionKeyHotkey::F9 => FunctionKeyHotkey::F8,
-            FunctionKeyHotkey::F10 => FunctionKeyHotkey::F9,
-            FunctionKeyHotkey::F11 => FunctionKeyHotkey::F10,
-            FunctionKeyHotkey::F12 => FunctionKeyHotkey::F11,
+            FunctionKeyHotkey::Disabled => {
+                FunctionKeyHotkey::from_u8(max_key).unwrap_or(FunctionKeyHotkey::Disabled)
+            }
+            _ => match hotkey.as_u8() {
+                Some(n) if n <= 2 => FunctionKeyHotkey::Disabled,
+                Some(n) => FunctionKeyHotkey::from_u8(n.saturating_sub(1))
+                    .unwrap_or(FunctionKeyHotkey::Disabled),
+                None => FunctionKeyHotkey::Disabled,
+            },
         }
     }
 
-    fn adjust_hotkey_for_row(&mut self, row: RowKind, forward: bool) {
-        let next = |hk| if forward { Self::cycle_function_hotkey_next(hk) } else { Self::cycle_function_hotkey_prev(hk) };
+    fn cycle_hotkey_next(hotkey: TuiHotkey, max_key: u8) -> TuiHotkey {
+        match hotkey {
+            TuiHotkey::Function(hk) => TuiHotkey::Function(Self::cycle_function_hotkey_next(hk, max_key)),
+            // Cycling is function-key focused. Chords are set via the capture UI.
+            TuiHotkey::Chord(_) => TuiHotkey::Function(FunctionKeyHotkey::Disabled),
+        }
+    }
+
+    fn cycle_hotkey_prev(hotkey: TuiHotkey, max_key: u8) -> TuiHotkey {
+        match hotkey {
+            TuiHotkey::Function(hk) => TuiHotkey::Function(Self::cycle_function_hotkey_prev(hk, max_key)),
+            // Cycling is function-key focused. Chords are set via the capture UI.
+            TuiHotkey::Chord(_) => TuiHotkey::Function(FunctionKeyHotkey::Disabled),
+        }
+    }
+
+    fn cycle_optional_hotkey_next(hotkey: Option<TuiHotkey>, max_key: u8) -> Option<TuiHotkey> {
+        match hotkey {
+            None => Some(TuiHotkey::disabled()),
+            Some(hk) if hk.is_disabled() => Some(TuiHotkey::Function(FunctionKeyHotkey::F2)),
+            Some(TuiHotkey::Function(value)) => match value.as_u8() {
+                Some(n) if n < 2 => None,
+                Some(n) if n >= max_key => None,
+                Some(n) => FunctionKeyHotkey::from_u8(n.saturating_add(1)).map(TuiHotkey::Function),
+                None => None,
+            },
+            Some(TuiHotkey::Chord(_)) => Some(TuiHotkey::disabled()),
+        }
+    }
+
+    fn cycle_optional_hotkey_prev(hotkey: Option<TuiHotkey>, max_key: u8) -> Option<TuiHotkey> {
+        match hotkey {
+            None => FunctionKeyHotkey::from_u8(max_key).map(TuiHotkey::Function),
+            Some(hk) if hk.is_disabled() => None,
+            Some(TuiHotkey::Function(value)) => match value.as_u8() {
+                Some(n) if n <= 2 => Some(TuiHotkey::disabled()),
+                Some(n) => FunctionKeyHotkey::from_u8(n.saturating_sub(1)).map(TuiHotkey::Function),
+                None => None,
+            },
+            Some(TuiHotkey::Chord(_)) => Some(TuiHotkey::disabled()),
+        }
+    }
+
+    fn adjust_overrides_for_row(
+        overrides: &mut Option<TuiHotkeysOverrides>,
+        row: RowKind,
+        forward: bool,
+        max_key: u8,
+    ) -> bool {
+        let next = |hk| {
+            if forward {
+                Self::cycle_optional_hotkey_next(hk, max_key)
+            } else {
+                Self::cycle_optional_hotkey_prev(hk, max_key)
+            }
+        };
+
+        let mut changed = false;
         match row {
             RowKind::ModelSelectorHotkey => {
-                self.hotkeys.model_selector = next(self.hotkeys.model_selector);
-                self.dirty = true;
+                let table = overrides.get_or_insert_with(TuiHotkeysOverrides::default);
+                table.model_selector = next(table.model_selector);
+                changed = true;
             }
             RowKind::ReasoningEffortHotkey => {
-                self.hotkeys.reasoning_effort = next(self.hotkeys.reasoning_effort);
-                self.dirty = true;
+                let table = overrides.get_or_insert_with(TuiHotkeysOverrides::default);
+                table.reasoning_effort = next(table.reasoning_effort);
+                changed = true;
             }
             RowKind::ShellSelectorHotkey => {
-                self.hotkeys.shell_selector = next(self.hotkeys.shell_selector);
-                self.dirty = true;
+                let table = overrides.get_or_insert_with(TuiHotkeysOverrides::default);
+                table.shell_selector = next(table.shell_selector);
+                changed = true;
             }
             RowKind::NetworkSettingsHotkey => {
-                self.hotkeys.network_settings = next(self.hotkeys.network_settings);
-                self.dirty = true;
+                let table = overrides.get_or_insert_with(TuiHotkeysOverrides::default);
+                table.network_settings = next(table.network_settings);
+                changed = true;
             }
             _ => {}
         }
+
+        if changed {
+            Self::prune_empty_overrides(overrides);
+        }
+        changed
     }
 
-    fn validate_hotkeys(&self) -> Result<(), String> {
+    fn adjust_hotkey_for_row(&mut self, row: RowKind, forward: bool) {
+        let max_key = self.hotkey_scope.max_function_key();
+
+        match self.hotkey_scope {
+            HotkeyScope::Global => {
+                let next = |hk| {
+                    if forward {
+                        Self::cycle_hotkey_next(hk, max_key)
+                    } else {
+                        Self::cycle_hotkey_prev(hk, max_key)
+                    }
+                };
+                match row {
+                    RowKind::ModelSelectorHotkey => {
+                        self.hotkeys.model_selector = next(self.hotkeys.model_selector);
+                        self.dirty_hotkeys = true;
+                    }
+                    RowKind::ReasoningEffortHotkey => {
+                        self.hotkeys.reasoning_effort = next(self.hotkeys.reasoning_effort);
+                        self.dirty_hotkeys = true;
+                    }
+                    RowKind::ShellSelectorHotkey => {
+                        self.hotkeys.shell_selector = next(self.hotkeys.shell_selector);
+                        self.dirty_hotkeys = true;
+                    }
+                    RowKind::NetworkSettingsHotkey => {
+                        self.hotkeys.network_settings = next(self.hotkeys.network_settings);
+                        self.dirty_hotkeys = true;
+                    }
+                    _ => {}
+                }
+            }
+            HotkeyScope::Termux => {
+                let changed =
+                    Self::adjust_overrides_for_row(&mut self.hotkeys.termux, row, forward, max_key);
+                if changed {
+                    self.dirty_hotkeys = true;
+                }
+            }
+            scope => {
+                let Some(platform) = scope.platform_override() else {
+                    return;
+                };
+                let changed = {
+                    let Some(overrides) = self.hotkeys.overrides_for_platform_mut(platform) else {
+                        return;
+                    };
+                    Self::adjust_overrides_for_row(overrides, row, forward, max_key)
+                };
+                if changed {
+                    self.dirty_hotkeys = true;
+                }
+            }
+        }
+    }
+
+    fn validate_hotkeys_for_env(
+        &self,
+        label: &str,
+        env: TuiHotkeysEnv,
+        max_key: u8,
+    ) -> Result<(), String> {
         use std::collections::HashMap;
 
-        let mut seen: HashMap<u8, &'static str> = HashMap::new();
+        let resolved = self.hotkeys.resolved_for_env(env);
         let pairs = [
-            ("model_selector", self.hotkeys.model_selector),
-            ("reasoning_effort", self.hotkeys.reasoning_effort),
-            ("shell_selector", self.hotkeys.shell_selector),
-            ("network_settings", self.hotkeys.network_settings),
+            ("model_selector", resolved.model_selector),
+            ("reasoning_effort", resolved.reasoning_effort),
+            ("shell_selector", resolved.shell_selector),
+            ("network_settings", resolved.network_settings),
         ];
-        for (label, hk) in pairs {
-            let Some(n) = hk.as_u8() else { continue };
-            if let Some(prev) = seen.insert(n, label) {
+
+        let mut seen: HashMap<TuiHotkey, &'static str> = HashMap::new();
+        for (field, hk) in pairs {
+            if matches!(hk.function_key(), Some(FunctionKeyHotkey::F1)) {
+                return Err(format!("{label}: F1 is reserved for the Help overlay."));
+            }
+            if hk.is_disabled() {
+                continue;
+            }
+            if let Some(fk) = hk.function_key() {
+                let Some(n) = fk.as_u8() else {
+                    continue;
+                };
+                if n > max_key {
+                    let key = hk.display_name();
+                    return Err(format!(
+                        "{label}: {field} uses {key}, but this platform supports up to F{max_key}.",
+                        key = key.as_ref()
+                    ));
+                }
+            }
+            if hk.is_reserved_for_statusline_shortcuts() {
+                let key = hk.display_name();
+                return Err(format!("{label}: {key} is reserved and cannot be remapped.", key = key.as_ref()));
+            }
+            if let Some(prev) = seen.insert(hk, field) {
+                let key = hk.display_name();
                 return Err(format!(
-                    "Hotkeys must be unique (both {prev} and {label} use {key}).",
-                    key = hk.display_name()
+                    "{label}: hotkeys must be unique (both {prev} and {field} use {key}).",
+                    key = key.as_ref()
                 ));
             }
         }
         Ok(())
     }
 
-    fn apply_settings(&mut self) {
-        if let Err(err) = self.validate_hotkeys() {
-            self.status = Some((err, true));
-            return;
+    fn validate_hotkeys(&self) -> Result<(), String> {
+        let global_max = HotkeyScope::Global.max_function_key();
+        self.validate_hotkeys_for_env("global", HotkeyScope::Global.env(), global_max)?;
+
+        if self.hotkeys.macos.is_some() {
+            self.validate_hotkeys_for_env(
+                "macos",
+                HotkeyScope::Macos.env(),
+                HotkeyScope::Macos.max_function_key(),
+            )?;
+        }
+        if self.hotkeys.windows.is_some() {
+            self.validate_hotkeys_for_env(
+                "windows",
+                HotkeyScope::Windows.env(),
+                HotkeyScope::Windows.max_function_key(),
+            )?;
+        }
+        if self.hotkeys.linux.is_some() {
+            self.validate_hotkeys_for_env(
+                "linux",
+                HotkeyScope::Linux.env(),
+                HotkeyScope::Linux.max_function_key(),
+            )?;
+        }
+        if self.hotkeys.android.is_some() {
+            self.validate_hotkeys_for_env(
+                "android",
+                HotkeyScope::Android.env(),
+                HotkeyScope::Android.max_function_key(),
+            )?;
+        }
+        if self.hotkeys.termux.is_some() {
+            self.validate_hotkeys_for_env(
+                "termux",
+                HotkeyScope::Termux.env(),
+                HotkeyScope::Termux.max_function_key(),
+            )?;
+        }
+        if self.hotkeys.freebsd.is_some() {
+            self.validate_hotkeys_for_env(
+                "freebsd",
+                HotkeyScope::FreeBsd.env(),
+                HotkeyScope::FreeBsd.max_function_key(),
+            )?;
+        }
+        if self.hotkeys.openbsd.is_some() {
+            self.validate_hotkeys_for_env(
+                "openbsd",
+                HotkeyScope::OpenBsd.env(),
+                HotkeyScope::OpenBsd.max_function_key(),
+            )?;
+        }
+        if self.hotkeys.netbsd.is_some() {
+            self.validate_hotkeys_for_env(
+                "netbsd",
+                HotkeyScope::NetBsd.env(),
+                HotkeyScope::NetBsd.max_function_key(),
+            )?;
+        }
+        if self.hotkeys.dragonfly.is_some() {
+            self.validate_hotkeys_for_env(
+                "dragonfly",
+                HotkeyScope::Dragonfly.env(),
+                HotkeyScope::Dragonfly.max_function_key(),
+            )?;
         }
 
-        self.app_event_tx
-            .send(AppEvent::SetTuiSettingsMenuConfig(self.settings.clone()));
-        self.app_event_tx
-            .send(AppEvent::SetTuiHotkeysConfig(self.hotkeys.clone()));
-        self.dirty = false;
-        self.status = Some(("Saved interface settings".to_string(), false));
+        Ok(())
+    }
+
+    fn apply_settings(&mut self) {
+        let mut saved_any = false;
+
+        if self.dirty_settings {
+            self.app_event_tx
+                .send(AppEvent::SetTuiSettingsMenuConfig(self.settings.clone()));
+            self.dirty_settings = false;
+            saved_any = true;
+        }
+
+        if self.dirty_hotkeys {
+            if let Err(err) = self.validate_hotkeys() {
+                let msg = if saved_any {
+                    format!("Saved settings menu. Hotkeys not saved: {err}")
+                } else {
+                    err
+                };
+                self.status = Some((msg, true));
+                return;
+            }
+
+            self.app_event_tx
+                .send(AppEvent::SetTuiHotkeysConfig(self.hotkeys.clone()));
+            self.dirty_hotkeys = false;
+            saved_any = true;
+        }
+
+        if saved_any {
+            self.status = Some(("Saved interface settings".to_string(), false));
+        } else {
+            self.status = Some(("No changes to save".to_string(), false));
+        }
     }
 
     fn show_path(&mut self, path: &std::path::Path, label: &str) {
@@ -274,16 +675,90 @@ impl InterfaceSettingsView {
         self.show_path(&code_home, "CODE_HOME");
     }
 
+    fn scoped_hotkeys_resolved(&self) -> ResolvedTuiHotkeys {
+        self.hotkeys.effective_for_env(self.hotkey_scope.env())
+    }
+
+    fn override_value_for_row(&self, row: RowKind) -> Option<TuiHotkey> {
+        let overrides = match self.hotkey_scope {
+            HotkeyScope::Global => return None,
+            HotkeyScope::Termux => self.hotkeys.termux.as_ref(),
+            scope => scope
+                .platform_override()
+                .and_then(|platform| self.hotkeys.overrides_for_platform(platform)),
+        };
+
+        let overrides = overrides?;
+        match row {
+            RowKind::ModelSelectorHotkey => overrides.model_selector,
+            RowKind::ReasoningEffortHotkey => overrides.reasoning_effort,
+            RowKind::ShellSelectorHotkey => overrides.shell_selector,
+            RowKind::NetworkSettingsHotkey => overrides.network_settings,
+            _ => None,
+        }
+    }
+
+    fn effective_value_for_row(resolved: ResolvedTuiHotkeys, row: RowKind) -> TuiHotkey {
+        match row {
+            RowKind::ModelSelectorHotkey => resolved.model_selector,
+            RowKind::ReasoningEffortHotkey => resolved.reasoning_effort,
+            RowKind::ShellSelectorHotkey => resolved.shell_selector,
+            RowKind::NetworkSettingsHotkey => resolved.network_settings,
+            _ => TuiHotkey::disabled(),
+        }
+    }
+
+    fn hotkey_value_label_for_row(&self, row: RowKind) -> String {
+        match self.hotkey_scope {
+            HotkeyScope::Global => {
+                let hk = match row {
+                    RowKind::ModelSelectorHotkey => self.hotkeys.model_selector,
+                    RowKind::ReasoningEffortHotkey => self.hotkeys.reasoning_effort,
+                    RowKind::ShellSelectorHotkey => self.hotkeys.shell_selector,
+                    RowKind::NetworkSettingsHotkey => self.hotkeys.network_settings,
+                    _ => TuiHotkey::disabled(),
+                };
+                let effective_hk =
+                    Self::effective_value_for_row(self.hotkeys.effective_for_runtime(), row);
+                let configured_name = hk.display_name();
+                let effective_name = effective_hk.display_name();
+                if hk == effective_hk {
+                    configured_name.into_owned()
+                } else {
+                    format!(
+                        "{configured} (here: {effective})",
+                        configured = configured_name.as_ref(),
+                        effective = effective_name.as_ref()
+                    )
+                }
+            }
+            _ => {
+                let resolved = self.scoped_hotkeys_resolved();
+                let effective = Self::effective_value_for_row(resolved, row);
+                let effective_name = effective.display_name();
+                match self.override_value_for_row(row) {
+                    Some(_) => effective_name.into_owned(),
+                    None => format!("inherit ({})", effective_name.as_ref()),
+                }
+            }
+        }
+    }
+
+    fn open_hotkey_capture(&mut self, row: RowKind) {
+        self.mode = ViewMode::CaptureHotkey { row, error: None };
+    }
+
     fn activate_selected_row(&mut self) {
         match self.selected_row() {
             RowKind::OpenMode => self.cycle_open_mode_next(),
             RowKind::OverlayMinWidth => self.open_width_editor(),
+            RowKind::HotkeyScope => self.cycle_hotkey_scope_next(),
             RowKind::ModelSelectorHotkey
             | RowKind::ReasoningEffortHotkey
             | RowKind::ShellSelectorHotkey
             | RowKind::NetworkSettingsHotkey => {
                 let row = self.selected_row();
-                self.adjust_hotkey_for_row(row, true);
+                self.open_hotkey_capture(row);
             }
             RowKind::ShowConfigToml => self.show_config_toml(),
             RowKind::ShowCodeHome => self.show_code_home(),
@@ -449,9 +924,10 @@ impl InterfaceSettingsView {
                             SettingsMenuOpenMode::Overlay => SettingsMenuOpenMode::Auto,
                             SettingsMenuOpenMode::Bottom => SettingsMenuOpenMode::Overlay,
                         };
-                        self.dirty = true;
+                        self.dirty_settings = true;
                     }
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(-5),
+                    Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_prev(),
                     Some(RowKind::ModelSelectorHotkey)
                     | Some(RowKind::ReasoningEffortHotkey)
                     | Some(RowKind::ShellSelectorHotkey)
@@ -467,6 +943,7 @@ impl InterfaceSettingsView {
                 match current_row {
                     Some(RowKind::OpenMode) => self.cycle_open_mode_next(),
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(5),
+                    Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_next(),
                     Some(RowKind::ModelSelectorHotkey)
                     | Some(RowKind::ReasoningEffortHotkey)
                     | Some(RowKind::ShellSelectorHotkey)
@@ -535,8 +1012,190 @@ impl InterfaceSettingsView {
             }
             _ => match &mut self.mode {
                 ViewMode::EditWidth { field, .. } => field.handle_key(key_event),
-                ViewMode::Main | ViewMode::Transition => false,
+                ViewMode::Main | ViewMode::Transition | ViewMode::CaptureHotkey { .. } => false,
             },
+        }
+    }
+
+    fn set_hotkey_for_row(&mut self, row: RowKind, value: TuiHotkey) {
+        match self.hotkey_scope {
+            HotkeyScope::Global => {
+                match row {
+                    RowKind::ModelSelectorHotkey => self.hotkeys.model_selector = value,
+                    RowKind::ReasoningEffortHotkey => self.hotkeys.reasoning_effort = value,
+                    RowKind::ShellSelectorHotkey => self.hotkeys.shell_selector = value,
+                    RowKind::NetworkSettingsHotkey => self.hotkeys.network_settings = value,
+                    _ => {}
+                }
+            }
+            HotkeyScope::Termux => {
+                let table = self.hotkeys.termux.get_or_insert_with(TuiHotkeysOverrides::default);
+                match row {
+                    RowKind::ModelSelectorHotkey => table.model_selector = Some(value),
+                    RowKind::ReasoningEffortHotkey => table.reasoning_effort = Some(value),
+                    RowKind::ShellSelectorHotkey => table.shell_selector = Some(value),
+                    RowKind::NetworkSettingsHotkey => table.network_settings = Some(value),
+                    _ => {}
+                }
+                Self::prune_empty_overrides(&mut self.hotkeys.termux);
+            }
+            scope => {
+                let Some(platform) = scope.platform_override() else {
+                    return;
+                };
+                let Some(overrides) = self.hotkeys.overrides_for_platform_mut(platform) else {
+                    return;
+                };
+                let table = overrides.get_or_insert_with(TuiHotkeysOverrides::default);
+                match row {
+                    RowKind::ModelSelectorHotkey => table.model_selector = Some(value),
+                    RowKind::ReasoningEffortHotkey => table.reasoning_effort = Some(value),
+                    RowKind::ShellSelectorHotkey => table.shell_selector = Some(value),
+                    RowKind::NetworkSettingsHotkey => table.network_settings = Some(value),
+                    _ => {}
+                }
+                Self::prune_empty_overrides(overrides);
+            }
+        }
+        self.dirty_hotkeys = true;
+    }
+
+    fn clear_hotkey_override_for_row(&mut self, row: RowKind) {
+        let overrides: Option<&mut Option<TuiHotkeysOverrides>> = match self.hotkey_scope {
+            HotkeyScope::Global => None,
+            HotkeyScope::Termux => Some(&mut self.hotkeys.termux),
+            scope => scope
+                .platform_override()
+                .and_then(|platform| self.hotkeys.overrides_for_platform_mut(platform)),
+        };
+        let Some(overrides) = overrides else {
+            return;
+        };
+        let Some(table) = overrides.as_mut() else {
+            return;
+        };
+        match row {
+            RowKind::ModelSelectorHotkey => table.model_selector = None,
+            RowKind::ReasoningEffortHotkey => table.reasoning_effort = None,
+            RowKind::ShellSelectorHotkey => table.shell_selector = None,
+            RowKind::NetworkSettingsHotkey => table.network_settings = None,
+            _ => {}
+        }
+        Self::prune_empty_overrides(overrides);
+        self.dirty_hotkeys = true;
+    }
+
+    fn process_key_event_capture_hotkey(&mut self, row: RowKind, key_event: KeyEvent) -> bool {
+        use crossterm::event::{KeyCode, KeyModifiers};
+
+        match key_event {
+            KeyEvent { code: KeyCode::Esc, .. } => {
+                self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent { code: KeyCode::Char('d'), modifiers, .. }
+                if modifiers.is_empty() || modifiers == KeyModifiers::SHIFT =>
+            {
+                self.set_hotkey_for_row(row, TuiHotkey::disabled());
+                self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent { code: KeyCode::Char('i'), modifiers, .. }
+                if (modifiers.is_empty() || modifiers == KeyModifiers::SHIFT)
+                    && !matches!(self.hotkey_scope, HotkeyScope::Global) =>
+            {
+                self.clear_hotkey_override_for_row(row);
+                self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent {
+                code: KeyCode::F(n),
+                modifiers,
+                kind: KeyEventKind::Press | KeyEventKind::Repeat,
+                ..
+            } if modifiers.is_empty() || modifiers == KeyModifiers::SHIFT => {
+                if n == 1 {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("F1 is reserved for the Help overlay.".to_string()),
+                    };
+                    return true;
+                }
+                let max_key = self.hotkey_scope.max_function_key();
+                if n > max_key {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some(format!("This scope supports up to F{max_key}.")),
+                    };
+                    return true;
+                }
+                let Some(fk) = FunctionKeyHotkey::from_u8(n) else {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("Unsupported function key.".to_string()),
+                    };
+                    return true;
+                };
+                let hk = TuiHotkey::Function(fk);
+                self.set_hotkey_for_row(row, hk);
+                self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent {
+                code: KeyCode::Char(c),
+                modifiers,
+                kind: KeyEventKind::Press | KeyEventKind::Repeat,
+                ..
+            } => {
+                let mods = modifiers.difference(KeyModifiers::SHIFT);
+                if mods.intersects(KeyModifiers::SUPER) {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("Super modifier is not supported for hotkeys.".to_string()),
+                    };
+                    return true;
+                }
+                let ctrl = mods.contains(KeyModifiers::CONTROL);
+                let alt = mods.contains(KeyModifiers::ALT);
+                if !ctrl && !alt {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("Use Ctrl/Alt+letter or a function key.".to_string()),
+                    };
+                    return true;
+                }
+                if !c.is_ascii_alphabetic() {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("Hotkey chords currently support ASCII letters only.".to_string()),
+                    };
+                    return true;
+                }
+
+                let hk = TuiHotkey::Chord(code_core::config_types::TuiHotkeyChord {
+                    ctrl,
+                    alt,
+                    key: c.to_ascii_lowercase(),
+                });
+                if hk.is_reserved_for_statusline_shortcuts() {
+                    let label = hk.display_name();
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some(format!(
+                            "{label} is reserved and cannot be remapped.",
+                            label = label.as_ref()
+                        )),
+                    };
+                    return true;
+                }
+                self.set_hotkey_for_row(row, hk);
+                self.mode = ViewMode::Main;
+                true
+            }
+            _ => {
+                self.mode = ViewMode::CaptureHotkey { row, error: None };
+                true
+            }
         }
     }
 
@@ -550,6 +1209,10 @@ impl InterfaceSettingsView {
             ViewMode::EditWidth { field, error } => {
                 self.mode = ViewMode::EditWidth { field, error };
                 self.process_key_event_edit(key_event)
+            }
+            ViewMode::CaptureHotkey { row, error } => {
+                self.mode = ViewMode::CaptureHotkey { row, error };
+                self.process_key_event_capture_hotkey(row, key_event)
             }
             ViewMode::Transition => {
                 self.mode = ViewMode::Main;
@@ -568,7 +1231,7 @@ impl InterfaceSettingsView {
                 field.handle_paste(text);
                 true
             }
-            ViewMode::Main | ViewMode::Transition => false,
+            ViewMode::Main | ViewMode::Transition | ViewMode::CaptureHotkey { .. } => false,
         }
     }
 
@@ -576,7 +1239,7 @@ impl InterfaceSettingsView {
         match &self.mode {
             ViewMode::Main => self.handle_mouse_event_main(mouse_event, area),
             ViewMode::EditWidth { .. } => self.handle_mouse_event_edit(mouse_event, area),
-            ViewMode::Transition => false,
+            ViewMode::CaptureHotkey { .. } | ViewMode::Transition => false,
         }
     }
 
@@ -588,10 +1251,21 @@ impl InterfaceSettingsView {
         match row {
             RowKind::OpenMode => "Auto uses overlay on wide terminals; override with overlay/bottom.",
             RowKind::OverlayMinWidth => "Terminal width (columns) at which auto prefers overlay.",
-            RowKind::ModelSelectorHotkey => "Hotkey for opening model selector (F2-F12 or disabled).",
-            RowKind::ReasoningEffortHotkey => "Hotkey for cycling reasoning effort (F2-F12 or disabled).",
-            RowKind::ShellSelectorHotkey => "Hotkey for opening shell selector (F2-F12 or disabled).",
-            RowKind::NetworkSettingsHotkey => "Hotkey for opening Settings -> Network (F2-F12 or disabled).",
+            RowKind::HotkeyScope => {
+                "Choose which scope to edit. Platform scopes write to [tui.hotkeys.<platform>] and can inherit."
+            }
+            RowKind::ModelSelectorHotkey => {
+                "Hotkey for opening model selector (F2-F24 or Ctrl/Alt+letter; macOS supports up to F20 for function keys)."
+            }
+            RowKind::ReasoningEffortHotkey => {
+                "Hotkey for cycling reasoning effort (F2-F24 or Ctrl/Alt+letter; macOS supports up to F20 for function keys)."
+            }
+            RowKind::ShellSelectorHotkey => {
+                "Hotkey for opening shell selector (F2-F24 or Ctrl/Alt+letter; macOS supports up to F20 for function keys)."
+            }
+            RowKind::NetworkSettingsHotkey => {
+                "Hotkey for opening Settings -> Network (F2-F24 or Ctrl/Alt+letter; macOS supports up to F20 for function keys)."
+            }
             RowKind::ShowConfigToml => "Open config.toml in your file manager (Finder/Explorer).",
             RowKind::ShowCodeHome => "Open CODE_HOME in your file manager.",
             RowKind::Apply => "Persist these preferences to config.toml.",
@@ -659,26 +1333,31 @@ impl InterfaceSettingsView {
                         "Overlay min width",
                         format!("{}", self.settings.overlay_min_width),
                     ),
+                    RowKind::HotkeyScope => ("Hotkey scope", self.hotkey_scope.label().to_string()),
                     RowKind::ModelSelectorHotkey => (
                         "Hotkey: model selector",
-                        self.hotkeys.model_selector.display_name().to_string(),
+                        self.hotkey_value_label_for_row(kind),
                     ),
                     RowKind::ReasoningEffortHotkey => (
                         "Hotkey: reasoning effort",
-                        self.hotkeys.reasoning_effort.display_name().to_string(),
+                        self.hotkey_value_label_for_row(kind),
                     ),
                     RowKind::ShellSelectorHotkey => (
                         "Hotkey: shell selector",
-                        self.hotkeys.shell_selector.display_name().to_string(),
+                        self.hotkey_value_label_for_row(kind),
                     ),
                     RowKind::NetworkSettingsHotkey => (
                         "Hotkey: network settings",
-                        self.hotkeys.network_settings.display_name().to_string(),
+                        self.hotkey_value_label_for_row(kind),
                     ),
                     RowKind::ShowConfigToml => ("Show config.toml", String::new()),
                     RowKind::ShowCodeHome => ("Show CODE_HOME", String::new()),
                     RowKind::Apply => {
-                        let suffix = if self.dirty { " *" } else { "" };
+                        let suffix = if self.dirty_settings || self.dirty_hotkeys {
+                            " *"
+                        } else {
+                            ""
+                        };
                         ("Apply", suffix.to_string())
                     }
                     RowKind::Close => ("Close", String::new()),
@@ -776,6 +1455,68 @@ impl InterfaceSettingsView {
             }
         });
     }
+
+    fn render_capture_hotkey(&self, area: Rect, buf: &mut Buffer, row: RowKind, error: Option<&str>) {
+        let style = PanelFrameStyle::bottom_pane().with_margin(Margin::new(1, 0));
+        render_panel(area, buf, "Interface", style, |content, buf| {
+            if content.width == 0 || content.height == 0 {
+                return;
+            }
+            let base = Style::default().bg(crate::colors::background()).fg(crate::colors::text());
+
+            let label = match row {
+                RowKind::ModelSelectorHotkey => "Hotkey: model selector",
+                RowKind::ReasoningEffortHotkey => "Hotkey: reasoning effort",
+                RowKind::ShellSelectorHotkey => "Hotkey: shell selector",
+                RowKind::NetworkSettingsHotkey => "Hotkey: network settings",
+                _ => "Hotkey",
+            };
+            let current = self.hotkey_value_label_for_row(row);
+            let title = Line::from(vec![Span::styled(
+                format!("{label} (current: {current})"),
+                Style::default().fg(crate::colors::text()),
+            )]);
+            write_line(buf, content.x, content.y, content.width, &title, base);
+
+            if let Some(error) = error {
+                let err_y = content.y.saturating_add(1);
+                if err_y < content.y.saturating_add(content.height) {
+                    let err_line = Line::from(vec![Span::styled(
+                        error.to_string(),
+                        Style::default().fg(crate::colors::warning()),
+                    )]);
+                    write_line(buf, content.x, err_y, content.width, &err_line, base);
+                }
+            }
+
+            let hint_y = content.y.saturating_add(2);
+            if hint_y < content.y.saturating_add(content.height) {
+                let inherit_hint = match self.hotkey_scope {
+                    HotkeyScope::Global => None,
+                    _ => Some("  i inherit"),
+                };
+                let max_key = self.hotkey_scope.max_function_key();
+                let hint = format!(
+                    "Press F2-F{max_key} or Ctrl/Alt+letter (e.g. ctrl+h).  d disable{inherit}",
+                    inherit = inherit_hint.unwrap_or("")
+                );
+                let hint_line = Line::from(vec![Span::styled(
+                    hint,
+                    Style::default().fg(crate::colors::text_dim()),
+                )]);
+                write_line(buf, content.x, hint_y, content.width, &hint_line, base);
+            }
+
+            let hint2_y = content.y.saturating_add(3);
+            if hint2_y < content.y.saturating_add(content.height) {
+                let hint2 = Line::from(vec![
+                    Span::styled("Esc", Style::default().fg(crate::colors::function())),
+                    Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
+                ]);
+                write_line(buf, content.x, hint2_y, content.width, &hint2, base);
+            }
+        });
+    }
 }
 
 impl<'a> BottomPaneView<'a> for InterfaceSettingsView {
@@ -811,6 +1552,7 @@ impl<'a> BottomPaneView<'a> for InterfaceSettingsView {
                 base.max(12).min(20)
             }
             ViewMode::EditWidth { .. } => 8,
+            ViewMode::CaptureHotkey { .. } => 8,
             ViewMode::Transition => 8,
         }
     }
@@ -820,6 +1562,9 @@ impl<'a> BottomPaneView<'a> for InterfaceSettingsView {
             ViewMode::Main => self.render_main(area, buf),
             ViewMode::EditWidth { field, error } => {
                 self.render_edit_width(area, buf, field, error.as_deref())
+            }
+            ViewMode::CaptureHotkey { row, error } => {
+                self.render_capture_hotkey(area, buf, *row, error.as_deref())
             }
             ViewMode::Transition => self.render_main(area, buf),
         }

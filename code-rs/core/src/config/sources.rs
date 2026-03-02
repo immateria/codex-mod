@@ -1598,12 +1598,101 @@ pub fn set_tui_hotkeys(
         Err(e) => return Err(e.into()),
     };
 
-    doc["tui"]["hotkeys"]["model_selector"] = toml_edit::value(hotkeys.model_selector.toml_value());
-    doc["tui"]["hotkeys"]["reasoning_effort"] =
-        toml_edit::value(hotkeys.reasoning_effort.toml_value());
-    doc["tui"]["hotkeys"]["shell_selector"] = toml_edit::value(hotkeys.shell_selector.toml_value());
-    doc["tui"]["hotkeys"]["network_settings"] =
-        toml_edit::value(hotkeys.network_settings.toml_value());
+    let tui_table = doc["tui"]
+        .or_insert(TomlItem::Table(TomlTable::new()))
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("`tui` must be a TOML table"))?;
+
+    let hotkeys_table = tui_table["hotkeys"]
+        .or_insert(TomlItem::Table(TomlTable::new()))
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("`tui.hotkeys` must be a TOML table"))?;
+
+    hotkeys_table["model_selector"] =
+        toml_edit::value(hotkeys.model_selector.toml_value().as_ref());
+    hotkeys_table["reasoning_effort"] =
+        toml_edit::value(hotkeys.reasoning_effort.toml_value().as_ref());
+    hotkeys_table["shell_selector"] =
+        toml_edit::value(hotkeys.shell_selector.toml_value().as_ref());
+    hotkeys_table["network_settings"] =
+        toml_edit::value(hotkeys.network_settings.toml_value().as_ref());
+
+    fn write_hotkey_override_field(
+        table: &mut TomlTable,
+        key: &str,
+        value: Option<crate::config_types::TuiHotkey>,
+    ) {
+        match value {
+            Some(value) => {
+                table[key] = toml_edit::value(value.toml_value().as_ref());
+            }
+            None => {
+                table.remove(key);
+            }
+        }
+    }
+
+    fn write_hotkey_overrides_table(
+        hotkeys_table: &mut TomlTable,
+        platform_key: &str,
+        overrides: Option<&crate::config_types::TuiHotkeysOverrides>,
+    ) -> anyhow::Result<()> {
+        match overrides {
+            Some(overrides) => {
+                let platform_table = hotkeys_table[platform_key]
+                    .or_insert(TomlItem::Table(TomlTable::new()))
+                    .as_table_mut()
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("`tui.hotkeys.{platform_key}` must be a TOML table")
+                    })?;
+
+                write_hotkey_override_field(platform_table, "model_selector", overrides.model_selector);
+                write_hotkey_override_field(
+                    platform_table,
+                    "reasoning_effort",
+                    overrides.reasoning_effort,
+                );
+                write_hotkey_override_field(platform_table, "shell_selector", overrides.shell_selector);
+                write_hotkey_override_field(
+                    platform_table,
+                    "network_settings",
+                    overrides.network_settings,
+                );
+
+                if platform_table.is_empty() {
+                    hotkeys_table.remove(platform_key);
+                }
+            }
+            None => {
+                let Some(item) = hotkeys_table.get_mut(platform_key) else {
+                    return Ok(());
+                };
+                let platform_table = item.as_table_mut().ok_or_else(|| {
+                    anyhow::anyhow!("`tui.hotkeys.{platform_key}` must be a TOML table")
+                })?;
+
+                platform_table.remove("model_selector");
+                platform_table.remove("reasoning_effort");
+                platform_table.remove("shell_selector");
+                platform_table.remove("network_settings");
+
+                if platform_table.is_empty() {
+                    hotkeys_table.remove(platform_key);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    write_hotkey_overrides_table(hotkeys_table, "macos", hotkeys.macos.as_ref())?;
+    write_hotkey_overrides_table(hotkeys_table, "windows", hotkeys.windows.as_ref())?;
+    write_hotkey_overrides_table(hotkeys_table, "linux", hotkeys.linux.as_ref())?;
+    write_hotkey_overrides_table(hotkeys_table, "android", hotkeys.android.as_ref())?;
+    write_hotkey_overrides_table(hotkeys_table, "termux", hotkeys.termux.as_ref())?;
+    write_hotkey_overrides_table(hotkeys_table, "freebsd", hotkeys.freebsd.as_ref())?;
+    write_hotkey_overrides_table(hotkeys_table, "openbsd", hotkeys.openbsd.as_ref())?;
+    write_hotkey_overrides_table(hotkeys_table, "netbsd", hotkeys.netbsd.as_ref())?;
+    write_hotkey_overrides_table(hotkeys_table, "dragonfly", hotkeys.dragonfly.as_ref())?;
 
     std::fs::create_dir_all(code_home)?;
     let tmp_file = NamedTempFile::new_in(code_home)?;

@@ -3,6 +3,7 @@
 // Note this file should generally be restricted to simple struct/enum
 // definitions that do not contain business logic.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -909,103 +910,362 @@ fn default_settings_overlay_min_width() -> u16 {
     100
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Default, JsonSchema)]
+#[repr(u8)]
 #[serde(rename_all = "kebab-case")]
 pub enum FunctionKeyHotkey {
     #[default]
     #[serde(alias = "Disabled", alias = "off", alias = "Off", alias = "none", alias = "None")]
-    Disabled,
+    Disabled = 0,
+    #[serde(alias = "F1")]
+    F1 = 1,
     #[serde(alias = "F2")]
-    F2,
+    F2 = 2,
     #[serde(alias = "F3")]
-    F3,
+    F3 = 3,
     #[serde(alias = "F4")]
-    F4,
+    F4 = 4,
     #[serde(alias = "F5")]
-    F5,
+    F5 = 5,
     #[serde(alias = "F6")]
-    F6,
+    F6 = 6,
     #[serde(alias = "F7")]
-    F7,
+    F7 = 7,
     #[serde(alias = "F8")]
-    F8,
+    F8 = 8,
     #[serde(alias = "F9")]
-    F9,
+    F9 = 9,
     #[serde(alias = "F10")]
-    F10,
+    F10 = 10,
     #[serde(alias = "F11")]
-    F11,
+    F11 = 11,
     #[serde(alias = "F12")]
-    F12,
+    F12 = 12,
+    #[serde(alias = "F13")]
+    F13 = 13,
+    #[serde(alias = "F14")]
+    F14 = 14,
+    #[serde(alias = "F15")]
+    F15 = 15,
+    #[serde(alias = "F16")]
+    F16 = 16,
+    #[serde(alias = "F17")]
+    F17 = 17,
+    #[serde(alias = "F18")]
+    F18 = 18,
+    #[serde(alias = "F19")]
+    F19 = 19,
+    #[serde(alias = "F20")]
+    F20 = 20,
+    #[serde(alias = "F21")]
+    F21 = 21,
+    #[serde(alias = "F22")]
+    F22 = 22,
+    #[serde(alias = "F23")]
+    F23 = 23,
+    #[serde(alias = "F24")]
+    F24 = 24,
 }
 
 impl FunctionKeyHotkey {
+    fn idx(self) -> usize {
+        self as usize
+    }
+
+    pub fn from_u8(value: u8) -> Option<Self> {
+        if value <= 24 {
+            Some(ALL_FUNCTION_KEY_HOTKEYS[value as usize])
+        } else {
+            None
+        }
+    }
+
     pub fn as_u8(self) -> Option<u8> {
         match self {
             Self::Disabled => None,
-            Self::F2 => Some(2),
-            Self::F3 => Some(3),
-            Self::F4 => Some(4),
-            Self::F5 => Some(5),
-            Self::F6 => Some(6),
-            Self::F7 => Some(7),
-            Self::F8 => Some(8),
-            Self::F9 => Some(9),
-            Self::F10 => Some(10),
-            Self::F11 => Some(11),
-            Self::F12 => Some(12),
+            _ => Some(self as u8),
         }
     }
 
     pub fn display_name(self) -> &'static str {
-        match self {
-            Self::Disabled => "disabled",
-            Self::F2 => "F2",
-            Self::F3 => "F3",
-            Self::F4 => "F4",
-            Self::F5 => "F5",
-            Self::F6 => "F6",
-            Self::F7 => "F7",
-            Self::F8 => "F8",
-            Self::F9 => "F9",
-            Self::F10 => "F10",
-            Self::F11 => "F11",
-            Self::F12 => "F12",
-        }
+        FUNCTION_KEY_HOTKEY_DISPLAY_NAMES[self.idx()]
     }
 
     pub fn toml_value(self) -> &'static str {
+        FUNCTION_KEY_HOTKEY_TOML_VALUES[self.idx()]
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TuiHotkeyChord {
+    pub ctrl: bool,
+    pub alt: bool,
+    pub key: char,
+}
+
+impl TuiHotkeyChord {
+    fn normalize_key(key: char) -> Result<char, String> {
+        if !key.is_ascii_alphabetic() {
+            return Err("hotkey chords currently support ASCII letters only".to_string());
+        }
+        Ok(key.to_ascii_lowercase())
+    }
+
+    fn try_new(ctrl: bool, alt: bool, key: char) -> Result<Self, String> {
+        if !ctrl && !alt {
+            return Err("hotkey chords must include ctrl or alt (e.g. ctrl+h)".to_string());
+        }
+        Ok(Self {
+            ctrl,
+            alt,
+            key: Self::normalize_key(key)?,
+        })
+    }
+
+    pub fn display_name(self) -> String {
+        let mut out = String::new();
+        if self.ctrl {
+            out.push_str("Ctrl+");
+        }
+        if self.alt {
+            out.push_str("Alt+");
+        }
+        out.push(self.key.to_ascii_uppercase());
+        out
+    }
+
+    pub fn toml_value(self) -> String {
+        let mut out = String::new();
+        if self.ctrl {
+            out.push_str("ctrl+");
+        }
+        if self.alt {
+            out.push_str("alt+");
+        }
+        out.push(self.key);
+        out
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TuiHotkey {
+    Function(FunctionKeyHotkey),
+    Chord(TuiHotkeyChord),
+}
+
+impl Default for TuiHotkey {
+    fn default() -> Self {
+        Self::disabled()
+    }
+}
+
+impl TuiHotkey {
+    pub fn disabled() -> Self {
+        Self::Function(FunctionKeyHotkey::Disabled)
+    }
+
+    pub fn is_disabled(self) -> bool {
+        matches!(self, Self::Function(FunctionKeyHotkey::Disabled))
+    }
+
+    pub fn display_name(self) -> Cow<'static, str> {
         match self {
-            Self::Disabled => "disabled",
-            Self::F2 => "f2",
-            Self::F3 => "f3",
-            Self::F4 => "f4",
-            Self::F5 => "f5",
-            Self::F6 => "f6",
-            Self::F7 => "f7",
-            Self::F8 => "f8",
-            Self::F9 => "f9",
-            Self::F10 => "f10",
-            Self::F11 => "f11",
-            Self::F12 => "f12",
+            Self::Function(hk) => Cow::Borrowed(hk.display_name()),
+            Self::Chord(chord) => Cow::Owned(chord.display_name()),
+        }
+    }
+
+    pub fn toml_value(self) -> Cow<'static, str> {
+        match self {
+            Self::Function(hk) => Cow::Borrowed(hk.toml_value()),
+            Self::Chord(chord) => Cow::Owned(chord.toml_value()),
+        }
+    }
+
+    pub fn function_key(self) -> Option<FunctionKeyHotkey> {
+        match self {
+            Self::Function(hk) => Some(hk),
+            Self::Chord(_) => None,
+        }
+    }
+
+    /// Returns true for key bindings that must remain reserved for built-in UI
+    /// shortcuts. These are disallowed for the status-line shortcut actions.
+    pub fn is_reserved_for_statusline_shortcuts(self) -> bool {
+        match self {
+            Self::Function(FunctionKeyHotkey::F1) => true,
+            Self::Chord(chord) => {
+                // Keep common global controls reserved (Help/Browser/Agents/Editor/Diff/etc).
+                chord.ctrl
+                    && !chord.alt
+                    && matches!(chord.key, 'a' | 'b' | 'c' | 'd' | 'g' | 'r' | 't')
+            }
+            _ => false,
         }
     }
 }
 
-fn default_hotkey_model_selector() -> FunctionKeyHotkey {
-    FunctionKeyHotkey::F2
+fn parse_tui_hotkey(raw: &str) -> Result<TuiHotkey, String> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Err("hotkey cannot be empty".to_string());
+    }
+
+    let lowered = raw.to_ascii_lowercase().replace(' ', "");
+    let lowered = lowered.replace('-', "+");
+
+    if matches!(lowered.as_str(), "disabled" | "off" | "none") {
+        return Ok(TuiHotkey::disabled());
+    }
+
+    if let Some(rest) = lowered.strip_prefix('f') {
+        let n: u8 = rest
+            .parse()
+            .map_err(|_| "function hotkeys must be f1-f24 (e.g. f2)".to_string())?;
+        let hk = FunctionKeyHotkey::from_u8(n)
+            .ok_or_else(|| "function hotkeys must be f1-f24 (e.g. f2)".to_string())?;
+        return Ok(TuiHotkey::Function(hk));
+    }
+
+    let mut ctrl = false;
+    let mut alt = false;
+    let mut key: Option<char> = None;
+
+    for part in lowered.split('+').filter(|p| !p.is_empty()) {
+        match part {
+            "ctrl" | "control" => ctrl = true,
+            "alt" => alt = true,
+            _ => {
+                if key.is_some() {
+                    return Err(format!("unexpected hotkey token: {part}"));
+                }
+                if part.chars().count() != 1 {
+                    return Err(format!("invalid hotkey key token: {part}"));
+                }
+                key = part.chars().next();
+            }
+        }
+    }
+
+    let Some(key) = key else {
+        return Err("hotkey chords must specify a key (e.g. ctrl+h)".to_string());
+    };
+    Ok(TuiHotkey::Chord(TuiHotkeyChord::try_new(ctrl, alt, key)?))
 }
 
-fn default_hotkey_reasoning_effort() -> FunctionKeyHotkey {
-    FunctionKeyHotkey::F3
+impl Serialize for TuiHotkey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.toml_value().as_ref())
+    }
 }
 
-fn default_hotkey_shell_selector() -> FunctionKeyHotkey {
-    FunctionKeyHotkey::F4
+impl<'de> Deserialize<'de> for TuiHotkey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        parse_tui_hotkey(&s).map_err(SerdeError::custom)
+    }
 }
 
-fn default_hotkey_network_settings() -> FunctionKeyHotkey {
-    FunctionKeyHotkey::F5
+impl JsonSchema for TuiHotkey {
+    fn schema_name() -> String {
+        "TuiHotkey".to_string()
+    }
+
+    fn json_schema(_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec};
+
+        let mut schema = SchemaObject::default();
+        schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::String)));
+        schema.metadata = Some(Box::new(Metadata {
+            description: Some(
+                "Hotkey binding. Examples: \"f2\", \"ctrl+h\", \"alt+h\", \"ctrl+alt+h\", \"disabled\". Note: F1 is reserved for the Help overlay."
+                    .to_string(),
+            ),
+            examples: vec![
+                "f2".into(),
+                "ctrl+h".into(),
+                "ctrl+alt+h".into(),
+                "disabled".into(),
+            ],
+            ..Default::default()
+        }));
+        Schema::Object(schema)
+    }
+}
+
+const ALL_FUNCTION_KEY_HOTKEYS: [FunctionKeyHotkey; 25] = [
+    FunctionKeyHotkey::Disabled,
+    FunctionKeyHotkey::F1,
+    FunctionKeyHotkey::F2,
+    FunctionKeyHotkey::F3,
+    FunctionKeyHotkey::F4,
+    FunctionKeyHotkey::F5,
+    FunctionKeyHotkey::F6,
+    FunctionKeyHotkey::F7,
+    FunctionKeyHotkey::F8,
+    FunctionKeyHotkey::F9,
+    FunctionKeyHotkey::F10,
+    FunctionKeyHotkey::F11,
+    FunctionKeyHotkey::F12,
+    FunctionKeyHotkey::F13,
+    FunctionKeyHotkey::F14,
+    FunctionKeyHotkey::F15,
+    FunctionKeyHotkey::F16,
+    FunctionKeyHotkey::F17,
+    FunctionKeyHotkey::F18,
+    FunctionKeyHotkey::F19,
+    FunctionKeyHotkey::F20,
+    FunctionKeyHotkey::F21,
+    FunctionKeyHotkey::F22,
+    FunctionKeyHotkey::F23,
+    FunctionKeyHotkey::F24,
+];
+
+const FUNCTION_KEY_HOTKEY_DISPLAY_NAMES: [&str; 25] = [
+    "disabled", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13",
+    "F14", "F15", "F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24",
+];
+
+const FUNCTION_KEY_HOTKEY_TOML_VALUES: [&str; 25] = [
+    "disabled", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "f13",
+    "f14", "f15", "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23", "f24",
+];
+
+fn default_hotkey_model_selector() -> TuiHotkey {
+    TuiHotkey::Function(FunctionKeyHotkey::F2)
+}
+
+fn default_hotkey_reasoning_effort() -> TuiHotkey {
+    TuiHotkey::Function(FunctionKeyHotkey::F3)
+}
+
+fn default_hotkey_shell_selector() -> TuiHotkey {
+    TuiHotkey::Function(FunctionKeyHotkey::F4)
+}
+
+fn default_hotkey_network_settings() -> TuiHotkey {
+    TuiHotkey::Function(FunctionKeyHotkey::F5)
+}
+
+/// Optional per-platform overrides for hotkey preferences.
+///
+/// Nested under `[tui.hotkeys.<platform>]`.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
+pub struct TuiHotkeysOverrides {
+    #[serde(default)]
+    pub model_selector: Option<TuiHotkey>,
+    #[serde(default)]
+    pub reasoning_effort: Option<TuiHotkey>,
+    #[serde(default)]
+    pub shell_selector: Option<TuiHotkey>,
+    #[serde(default)]
+    pub network_settings: Option<TuiHotkey>,
 }
 
 /// Key binding preferences under `[tui.hotkeys]`.
@@ -1013,19 +1273,55 @@ fn default_hotkey_network_settings() -> FunctionKeyHotkey {
 pub struct TuiHotkeysConfig {
     /// Keyboard shortcut for opening the model selector (mirrors clicking the status line).
     #[serde(default = "default_hotkey_model_selector")]
-    pub model_selector: FunctionKeyHotkey,
+    pub model_selector: TuiHotkey,
 
     /// Keyboard shortcut for cycling reasoning effort (mirrors clicking the status line).
     #[serde(default = "default_hotkey_reasoning_effort")]
-    pub reasoning_effort: FunctionKeyHotkey,
+    pub reasoning_effort: TuiHotkey,
 
     /// Keyboard shortcut for opening the shell selector (mirrors clicking the status line).
     #[serde(default = "default_hotkey_shell_selector")]
-    pub shell_selector: FunctionKeyHotkey,
+    pub shell_selector: TuiHotkey,
 
     /// Keyboard shortcut for opening Settings -> Network (mirrors clicking the status line).
     #[serde(default = "default_hotkey_network_settings")]
-    pub network_settings: FunctionKeyHotkey,
+    pub network_settings: TuiHotkey,
+
+    /// Optional overrides under `[tui.hotkeys.macos]`.
+    #[serde(default)]
+    pub macos: Option<TuiHotkeysOverrides>,
+
+    /// Optional overrides under `[tui.hotkeys.windows]`.
+    #[serde(default)]
+    pub windows: Option<TuiHotkeysOverrides>,
+
+    /// Optional overrides under `[tui.hotkeys.linux]`.
+    #[serde(default)]
+    pub linux: Option<TuiHotkeysOverrides>,
+
+    /// Optional overrides under `[tui.hotkeys.android]`.
+    #[serde(default)]
+    pub android: Option<TuiHotkeysOverrides>,
+
+    /// Optional overrides under `[tui.hotkeys.termux]` (applied on top of android).
+    #[serde(default)]
+    pub termux: Option<TuiHotkeysOverrides>,
+
+    /// Optional overrides under `[tui.hotkeys.freebsd]`.
+    #[serde(default)]
+    pub freebsd: Option<TuiHotkeysOverrides>,
+
+    /// Optional overrides under `[tui.hotkeys.openbsd]`.
+    #[serde(default)]
+    pub openbsd: Option<TuiHotkeysOverrides>,
+
+    /// Optional overrides under `[tui.hotkeys.netbsd]`.
+    #[serde(default)]
+    pub netbsd: Option<TuiHotkeysOverrides>,
+
+    /// Optional overrides under `[tui.hotkeys.dragonfly]`.
+    #[serde(default)]
+    pub dragonfly: Option<TuiHotkeysOverrides>,
 }
 
 impl Default for TuiHotkeysConfig {
@@ -1035,6 +1331,210 @@ impl Default for TuiHotkeysConfig {
             reasoning_effort: default_hotkey_reasoning_effort(),
             shell_selector: default_hotkey_shell_selector(),
             network_settings: default_hotkey_network_settings(),
+            macos: None,
+            windows: None,
+            linux: None,
+            android: None,
+            termux: None,
+            freebsd: None,
+            openbsd: None,
+            netbsd: None,
+            dragonfly: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TuiHotkeysPlatform {
+    Macos,
+    Windows,
+    Linux,
+    Android,
+    FreeBsd,
+    OpenBsd,
+    NetBsd,
+    Dragonfly,
+    Other,
+}
+
+impl TuiHotkeysPlatform {
+    pub fn for_runtime() -> Self {
+        if cfg!(target_os = "macos") {
+            Self::Macos
+        } else if cfg!(target_os = "windows") {
+            Self::Windows
+        } else if cfg!(target_os = "linux") {
+            Self::Linux
+        } else if cfg!(target_os = "android") {
+            Self::Android
+        } else if cfg!(target_os = "freebsd") {
+            Self::FreeBsd
+        } else if cfg!(target_os = "openbsd") {
+            Self::OpenBsd
+        } else if cfg!(target_os = "netbsd") {
+            Self::NetBsd
+        } else if cfg!(target_os = "dragonfly") {
+            Self::Dragonfly
+        } else {
+            Self::Other
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TuiHotkeysEnv {
+    pub platform: TuiHotkeysPlatform,
+    pub termux: bool,
+}
+
+impl TuiHotkeysEnv {
+    pub fn for_runtime() -> Self {
+        let platform = TuiHotkeysPlatform::for_runtime();
+        let termux = match platform {
+            TuiHotkeysPlatform::Android => std::env::var("TERMUX_VERSION").is_ok(),
+            _ => false,
+        };
+        Self { platform, termux }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResolvedTuiHotkeys {
+    pub model_selector: TuiHotkey,
+    pub reasoning_effort: TuiHotkey,
+    pub shell_selector: TuiHotkey,
+    pub network_settings: TuiHotkey,
+}
+
+impl TuiHotkeysConfig {
+    pub fn overrides_for_platform(&self, platform: TuiHotkeysPlatform) -> Option<&TuiHotkeysOverrides> {
+        match platform {
+            TuiHotkeysPlatform::Macos => self.macos.as_ref(),
+            TuiHotkeysPlatform::Windows => self.windows.as_ref(),
+            TuiHotkeysPlatform::Linux => self.linux.as_ref(),
+            TuiHotkeysPlatform::Android => self.android.as_ref(),
+            TuiHotkeysPlatform::FreeBsd => self.freebsd.as_ref(),
+            TuiHotkeysPlatform::OpenBsd => self.openbsd.as_ref(),
+            TuiHotkeysPlatform::NetBsd => self.netbsd.as_ref(),
+            TuiHotkeysPlatform::Dragonfly => self.dragonfly.as_ref(),
+            TuiHotkeysPlatform::Other => None,
+        }
+    }
+
+    pub fn overrides_for_platform_mut(
+        &mut self,
+        platform: TuiHotkeysPlatform,
+    ) -> Option<&mut Option<TuiHotkeysOverrides>> {
+        match platform {
+            TuiHotkeysPlatform::Macos => Some(&mut self.macos),
+            TuiHotkeysPlatform::Windows => Some(&mut self.windows),
+            TuiHotkeysPlatform::Linux => Some(&mut self.linux),
+            TuiHotkeysPlatform::Android => Some(&mut self.android),
+            TuiHotkeysPlatform::FreeBsd => Some(&mut self.freebsd),
+            TuiHotkeysPlatform::OpenBsd => Some(&mut self.openbsd),
+            TuiHotkeysPlatform::NetBsd => Some(&mut self.netbsd),
+            TuiHotkeysPlatform::Dragonfly => Some(&mut self.dragonfly),
+            TuiHotkeysPlatform::Other => None,
+        }
+    }
+
+    pub fn resolved_for_env(&self, env: TuiHotkeysEnv) -> ResolvedTuiHotkeys {
+        let mut resolved = ResolvedTuiHotkeys {
+            model_selector: self.model_selector,
+            reasoning_effort: self.reasoning_effort,
+            shell_selector: self.shell_selector,
+            network_settings: self.network_settings,
+        };
+
+        if let Some(overrides) = self.overrides_for_platform(env.platform) {
+            apply_tui_hotkey_overrides(&mut resolved, overrides);
+        }
+
+        if env.termux
+            && let Some(overrides) = self.termux.as_ref()
+        {
+            apply_tui_hotkey_overrides(&mut resolved, overrides);
+        }
+
+        resolved
+    }
+
+    pub fn resolved_for_runtime(&self) -> ResolvedTuiHotkeys {
+        self.resolved_for_env(TuiHotkeysEnv::for_runtime())
+    }
+
+    pub fn effective_for_env(&self, env: TuiHotkeysEnv) -> ResolvedTuiHotkeys {
+        let mut resolved = self.resolved_for_env(env);
+        sanitize_resolved_hotkeys(&mut resolved, env);
+        resolved
+    }
+
+    pub fn effective_for_runtime(&self) -> ResolvedTuiHotkeys {
+        self.effective_for_env(TuiHotkeysEnv::for_runtime())
+    }
+}
+
+fn apply_tui_hotkey_overrides(out: &mut ResolvedTuiHotkeys, overrides: &TuiHotkeysOverrides) {
+    if let Some(value) = overrides.model_selector {
+        out.model_selector = value;
+    }
+    if let Some(value) = overrides.reasoning_effort {
+        out.reasoning_effort = value;
+    }
+    if let Some(value) = overrides.shell_selector {
+        out.shell_selector = value;
+    }
+    if let Some(value) = overrides.network_settings {
+        out.network_settings = value;
+    }
+}
+
+fn sanitize_resolved_hotkeys(out: &mut ResolvedTuiHotkeys, env: TuiHotkeysEnv) {
+    let max_key = match env.platform {
+        TuiHotkeysPlatform::Macos => 20,
+        _ => 24,
+    };
+
+    // Enforce platform limits and keep F1 reserved for the Help overlay.
+    let ordered = [
+        &mut out.model_selector,
+        &mut out.reasoning_effort,
+        &mut out.shell_selector,
+        &mut out.network_settings,
+    ];
+    for hk in ordered {
+        match hk.function_key() {
+            Some(FunctionKeyHotkey::F1) => {
+                *hk = TuiHotkey::disabled();
+                continue;
+            }
+            Some(fk) => {
+                if fk.as_u8().is_some_and(|n| n > max_key) {
+                    *hk = TuiHotkey::disabled();
+                }
+            }
+            None => {}
+        }
+        if hk.is_reserved_for_statusline_shortcuts() {
+            *hk = TuiHotkey::disabled();
+        }
+    }
+
+    // Make duplicates deterministic by disabling later duplicates (in priority order).
+    use std::collections::HashSet;
+    let ordered = [
+        &mut out.model_selector,
+        &mut out.reasoning_effort,
+        &mut out.shell_selector,
+        &mut out.network_settings,
+    ];
+    let mut seen: HashSet<TuiHotkey> = HashSet::new();
+    for hk in ordered {
+        if hk.is_disabled() {
+            continue;
+        }
+        if !seen.insert(*hk) {
+            *hk = TuiHotkey::disabled();
         }
     }
 }
@@ -2338,6 +2838,62 @@ mod tests {
         assert_eq!(
             profile.prepend_developer_messages,
             vec!["Use shared bash/zsh syntax.".to_string()]
+        );
+    }
+
+    #[test]
+    fn tui_hotkeys_resolves_platform_overrides() {
+        let mut hotkeys = TuiHotkeysConfig::default();
+        hotkeys.model_selector = TuiHotkey::Function(FunctionKeyHotkey::F2);
+        hotkeys.network_settings = TuiHotkey::Function(FunctionKeyHotkey::F5);
+        hotkeys.macos = Some(TuiHotkeysOverrides {
+            model_selector: Some(TuiHotkey::Function(FunctionKeyHotkey::F13)),
+            ..Default::default()
+        });
+
+        let resolved = hotkeys.resolved_for_env(TuiHotkeysEnv {
+            platform: TuiHotkeysPlatform::Macos,
+            termux: false,
+        });
+
+        assert_eq!(
+            resolved.model_selector,
+            TuiHotkey::Function(FunctionKeyHotkey::F13)
+        );
+        assert_eq!(
+            resolved.network_settings,
+            TuiHotkey::Function(FunctionKeyHotkey::F5)
+        );
+    }
+
+    #[test]
+    fn tui_hotkeys_resolves_termux_overrides_after_android() {
+        let mut hotkeys = TuiHotkeysConfig::default();
+        hotkeys.android = Some(TuiHotkeysOverrides {
+            model_selector: Some(TuiHotkey::Function(FunctionKeyHotkey::F10)),
+            ..Default::default()
+        });
+        hotkeys.termux = Some(TuiHotkeysOverrides {
+            model_selector: Some(TuiHotkey::Function(FunctionKeyHotkey::F11)),
+            ..Default::default()
+        });
+
+        let resolved_android = hotkeys.resolved_for_env(TuiHotkeysEnv {
+            platform: TuiHotkeysPlatform::Android,
+            termux: false,
+        });
+        assert_eq!(
+            resolved_android.model_selector,
+            TuiHotkey::Function(FunctionKeyHotkey::F10)
+        );
+
+        let resolved_termux = hotkeys.resolved_for_env(TuiHotkeysEnv {
+            platform: TuiHotkeysPlatform::Android,
+            termux: true,
+        });
+        assert_eq!(
+            resolved_termux.model_selector,
+            TuiHotkey::Function(FunctionKeyHotkey::F11)
         );
     }
 }

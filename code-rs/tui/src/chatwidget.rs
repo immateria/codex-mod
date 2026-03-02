@@ -4481,21 +4481,26 @@ fi\n\
         ));
 
         // Global
+        let hotkeys = self.config.tui.hotkeys.effective_for_runtime();
         lines.push(kv("F1", "Help overlay"));
+        let model_hotkey = hotkeys.model_selector.display_name();
         lines.push(kv(
-            self.config.tui.hotkeys.model_selector.display_name(),
+            model_hotkey.as_ref(),
             "Model + reasoning selector",
         ));
+        let reasoning_hotkey = hotkeys.reasoning_effort.display_name();
         lines.push(kv(
-            self.config.tui.hotkeys.reasoning_effort.display_name(),
+            reasoning_hotkey.as_ref(),
             "Cycle reasoning effort",
         ));
+        let shell_hotkey = hotkeys.shell_selector.display_name();
         lines.push(kv(
-            self.config.tui.hotkeys.shell_selector.display_name(),
+            shell_hotkey.as_ref(),
             "Shell selector",
         ));
+        let network_hotkey = hotkeys.network_settings.display_name();
         lines.push(kv(
-            self.config.tui.hotkeys.network_settings.display_name(),
+            network_hotkey.as_ref(),
             "Network settings",
         ));
         lines.push(kv("Ctrl+G", "Open external editor"));
