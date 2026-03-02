@@ -40,49 +40,6 @@ use crate::history::compat::{
 use ::image::ImageReader;
 use crate::util::buffer::{fill_rect, write_line};
 
-#[allow(dead_code)]
-pub(crate) fn new_active_mcp_tool_call(invocation: McpInvocation) -> ToolCallCell {
-    let invocation_line = format_mcp_invocation(invocation);
-    let invocation_text = line_to_plain_text(&invocation_line);
-    let state = ToolCallState {
-        id: HistoryId::ZERO,
-        call_id: None,
-        status: HistoryToolStatus::Running,
-        title: "Working".to_string(),
-        duration: None,
-        arguments: vec![ToolArgument {
-            name: "invocation".to_string(),
-            value: ArgumentValue::Text(invocation_text),
-        }],
-        result_preview: None,
-        error_message: None,
-    };
-    ToolCallCell::new(state)
-}
-
-#[allow(dead_code)]
-pub(crate) fn new_active_custom_tool_call(tool_name: String, args: Option<String>) -> ToolCallCell {
-    let invocation_str = if let Some(args) = args {
-        format!("{tool_name}({args})")
-    } else {
-        format!("{tool_name}()")
-    };
-    let state = ToolCallState {
-        id: HistoryId::ZERO,
-        call_id: None,
-        status: HistoryToolStatus::Running,
-        title: "Working".to_string(),
-        duration: None,
-        arguments: vec![ToolArgument {
-            name: "invocation".to_string(),
-            value: ArgumentValue::Text(invocation_str),
-        }],
-        result_preview: None,
-        error_message: None,
-    };
-    ToolCallCell::new(state)
-}
-
 // Friendly present-participle titles for running browser tools
 fn browser_running_title(tool_name: &str) -> &'static str {
     match tool_name {
