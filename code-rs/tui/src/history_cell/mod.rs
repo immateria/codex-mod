@@ -144,6 +144,7 @@ pub(crate) use tool_factory::{
     new_running_browser_tool_call,
     new_running_custom_tool_call,
     new_running_mcp_tool_call,
+    WebFetchToolCell,
 };
 #[cfg(feature = "test-helpers")]
 pub(crate) use tool_factory::{

@@ -678,7 +678,13 @@ impl ChatWidget<'_> {
     }
 
     fn toggle_bottommost_exec_fold(&mut self) {
-        use crate::history_cell::{ExecCell, JsReplCell};
+        use crate::history_cell::{
+            ExecCell,
+            JsReplCell,
+            RunningToolCallCell,
+            ToolCallCell,
+            WebFetchToolCell,
+        };
 
         let (start, end) = self
             .visible_history_cell_range_for_shortcuts()
@@ -697,6 +703,24 @@ impl ChatWidget<'_> {
                 && js_cell.output.is_some()
             {
                 js_cell.toggle_output_collapsed();
+                self.invalidate_height_cache();
+                self.request_redraw();
+                return;
+            }
+            if let Some(tool_cell) = cell.as_any().downcast_ref::<ToolCallCell>() {
+                tool_cell.toggle_details_collapsed();
+                self.invalidate_height_cache();
+                self.request_redraw();
+                return;
+            }
+            if let Some(tool_cell) = cell.as_any().downcast_ref::<RunningToolCallCell>() {
+                tool_cell.toggle_details_collapsed();
+                self.invalidate_height_cache();
+                self.request_redraw();
+                return;
+            }
+            if let Some(web_fetch_cell) = cell.as_any().downcast_ref::<WebFetchToolCell>() {
+                web_fetch_cell.toggle_body_collapsed();
                 self.invalidate_height_cache();
                 self.request_redraw();
                 return;

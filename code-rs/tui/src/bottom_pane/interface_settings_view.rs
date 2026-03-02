@@ -1510,7 +1510,7 @@ impl InterfaceSettingsView {
                         self.hotkey_value_label_for_row(kind),
                     ),
                     RowKind::ExecOutputFoldHotkey => (
-                        "Hotkey: fold exec output",
+                        "Hotkey: fold output/details",
                         self.hotkey_value_label_for_row(kind),
                     ),
                     RowKind::JsReplCodeFoldHotkey => (
@@ -1644,7 +1644,7 @@ impl InterfaceSettingsView {
                 RowKind::ReasoningEffortHotkey => "Hotkey: reasoning effort",
                 RowKind::ShellSelectorHotkey => "Hotkey: shell selector",
                 RowKind::NetworkSettingsHotkey => "Hotkey: network settings",
-                RowKind::ExecOutputFoldHotkey => "Hotkey: fold exec output",
+                RowKind::ExecOutputFoldHotkey => "Hotkey: fold output/details",
                 RowKind::JsReplCodeFoldHotkey => "Hotkey: fold JS REPL code",
                 RowKind::JumpToParentCallHotkey => "Hotkey: jump to parent call",
                 RowKind::JumpToLatestChildCallHotkey => "Hotkey: jump to child call",

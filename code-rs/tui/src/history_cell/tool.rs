@@ -11,28 +11,39 @@ use crate::history::state::{
 };
 use crate::text_formatting::format_json_compact;
 use serde_json::Value;
+use std::cell::Cell;
 use std::time::{Duration, Instant, SystemTime};
+
+const TOOL_DETAILS_PREVIEW_ARGS: usize = 2;
+const TOOL_DETAILS_PREVIEW_RESULT_LINES: usize = 1;
 
 pub(crate) struct ToolCallCell {
     state: ToolCallState,
     pub(crate) parent_call_id: Option<String>,
+    collapsed_details: Cell<bool>,
 }
 
 impl ToolCallCell {
     pub(crate) fn new(state: ToolCallState) -> Self {
         let mut state = state;
+        // Successful tool calls are often noisy (arguments + result previews). Default
+        // to collapsed details so history stays readable; failures remain expanded.
+        let collapse_by_default = matches!(state.status, HistoryToolStatus::Success);
         state.id = HistoryId::ZERO;
         Self {
             state,
             parent_call_id: None,
+            collapsed_details: Cell::new(collapse_by_default),
         }
     }
 
     #[allow(dead_code)]
     pub(crate) fn from_state(state: ToolCallState) -> Self {
+        let collapse_by_default = matches!(state.status, HistoryToolStatus::Success);
         Self {
             state,
             parent_call_id: None,
+            collapsed_details: Cell::new(collapse_by_default),
         }
     }
 
@@ -42,6 +53,18 @@ impl ToolCallCell {
 
     pub(crate) fn state_mut(&mut self) -> &mut ToolCallState {
         &mut self.state
+    }
+
+    pub(crate) fn details_collapsed(&self) -> bool {
+        self.collapsed_details.get()
+    }
+
+    pub(crate) fn set_details_collapsed(&self, collapsed: bool) {
+        self.collapsed_details.set(collapsed);
+    }
+
+    pub(crate) fn toggle_details_collapsed(&self) {
+        self.collapsed_details.set(!self.collapsed_details.get());
     }
 
     pub(crate) fn retint(&mut self, _old: &crate::theme::Theme, _new: &crate::theme::Theme) {}
@@ -62,6 +85,95 @@ impl ToolCallCell {
             ));
         }
         Line::from(spans)
+    }
+
+    fn result_preview_lines(&self) -> Vec<Line<'static>> {
+        let Some(result) = &self.state.result_preview else {
+            return Vec::new();
+        };
+        if result.lines.is_empty() {
+            return Vec::new();
+        }
+        let dim = Style::default().fg(crate::colors::text_dim());
+        let mut lines = result
+            .lines
+            .iter()
+            .map(|line| Line::styled(line.clone(), dim))
+            .collect::<Vec<_>>();
+        if result.truncated {
+            lines.push(Line::styled(
+                "… truncated ",
+                dim,
+            ));
+        }
+        lines
+    }
+
+    fn error_lines(&self) -> Vec<Line<'static>> {
+        let Some(error) = &self.state.error_message else {
+            return Vec::new();
+        };
+        if error.is_empty() {
+            return Vec::new();
+        }
+        vec![Line::styled(
+            error.clone(),
+            Style::default().fg(crate::colors::error()),
+        )]
+    }
+
+    fn expanded_detail_lines(&self) -> Vec<Line<'static>> {
+        let mut lines: Vec<Line<'static>> = Vec::new();
+        lines.extend(render_arguments(&self.state.arguments));
+
+        let result_lines = self.result_preview_lines();
+        if !result_lines.is_empty() {
+            lines.push(Line::from(""));
+            lines.extend(result_lines);
+        }
+
+        let error_lines = self.error_lines();
+        if !error_lines.is_empty() {
+            lines.push(Line::from(""));
+            lines.extend(error_lines);
+        }
+
+        lines
+    }
+
+    fn collapsed_detail_lines(&self) -> Vec<Line<'static>> {
+        let args_lines = render_arguments(&self.state.arguments);
+        let result_lines = self.result_preview_lines();
+        let error_lines = self.error_lines();
+
+        let total = args_lines
+            .len()
+            .saturating_add(result_lines.len())
+            .saturating_add(error_lines.len());
+
+        let mut shown: Vec<Line<'static>> = Vec::new();
+        shown.extend(
+            args_lines
+                .into_iter()
+                .take(TOOL_DETAILS_PREVIEW_ARGS),
+        );
+        shown.extend(
+            result_lines
+                .into_iter()
+                .take(TOOL_DETAILS_PREVIEW_RESULT_LINES),
+        );
+        shown.extend(error_lines.into_iter().take(1));
+
+        let hidden = total.saturating_sub(shown.len());
+        if hidden > 0 {
+            shown.push(Line::from(Span::styled(
+                format!("… {hidden} more lines (use Fold Output to expand)"),
+                Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::DIM),
+            )));
+        }
+        shown
     }
 }
 
@@ -85,33 +197,11 @@ impl HistoryCell for ToolCallCell {
     fn display_lines(&self) -> Vec<Line<'static>> {
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(self.header_line());
-        lines.extend(render_arguments(&self.state.arguments));
-
-        if let Some(result) = &self.state.result_preview
-            && !result.lines.is_empty() {
-                lines.push(Line::from(""));
-                for line in &result.lines {
-                    lines.push(Line::styled(
-                        line.clone(),
-                        Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                if result.truncated {
-                    lines.push(Line::styled(
-                        "… truncated ",
-                        Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-            }
-
-        if let Some(error) = &self.state.error_message
-            && !error.is_empty() {
-                lines.push(Line::from(""));
-                lines.push(Line::styled(
-                    error.clone(),
-                    Style::default().fg(crate::colors::error()),
-                ));
-            }
+        if self.details_collapsed() {
+            lines.extend(self.collapsed_detail_lines());
+        } else {
+            lines.extend(self.expanded_detail_lines());
+        }
 
         lines.push(Line::from(""));
         lines
@@ -122,6 +212,7 @@ pub(crate) struct RunningToolCallCell {
     state: RunningToolState,
     start_clock: Instant,
     pub(crate) parent_call_id: Option<String>,
+    collapsed_details: Cell<bool>,
 }
 
 impl RunningToolCallCell {
@@ -132,6 +223,7 @@ impl RunningToolCallCell {
             state,
             start_clock: Instant::now(),
             parent_call_id: None,
+            collapsed_details: Cell::new(false),
         }
     }
 
@@ -141,6 +233,7 @@ impl RunningToolCallCell {
             state,
             start_clock: Instant::now(),
             parent_call_id: None,
+            collapsed_details: Cell::new(false),
         }
     }
 
@@ -150,6 +243,18 @@ impl RunningToolCallCell {
 
     pub(crate) fn state_mut(&mut self) -> &mut RunningToolState {
         &mut self.state
+    }
+
+    pub(crate) fn details_collapsed(&self) -> bool {
+        self.collapsed_details.get()
+    }
+
+    pub(crate) fn set_details_collapsed(&self, collapsed: bool) {
+        self.collapsed_details.set(collapsed);
+    }
+
+    pub(crate) fn toggle_details_collapsed(&self) {
+        self.collapsed_details.set(!self.collapsed_details.get());
     }
 
     #[cfg(any(test, feature = "test-helpers"))]
@@ -387,6 +492,28 @@ impl RunningToolCallCell {
             .duration_since(self.state.started_at)
             .unwrap_or_else(|_| self.start_clock.elapsed())
     }
+
+    fn collapsed_argument_lines(&self) -> Vec<Line<'static>> {
+        let args_lines = render_arguments(&self.state.arguments);
+        if args_lines.is_empty() {
+            return Vec::new();
+        }
+        let total = args_lines.len();
+        let mut shown: Vec<Line<'static>> = args_lines
+            .into_iter()
+            .take(TOOL_DETAILS_PREVIEW_ARGS)
+            .collect();
+        let hidden = total.saturating_sub(shown.len());
+        if hidden > 0 {
+            shown.push(Line::from(Span::styled(
+                format!("… {hidden} more lines (use Fold Output to expand)"),
+                Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::DIM),
+            )));
+        }
+        shown
+    }
 }
 
 impl HistoryCell for RunningToolCallCell {
@@ -461,7 +588,11 @@ impl HistoryCell for RunningToolCallCell {
                     .add_modifier(Modifier::BOLD),
             ));
         }
-        lines.extend(render_arguments(&self.state.arguments));
+        if self.collapsed_details.get() {
+            lines.extend(self.collapsed_argument_lines());
+        } else {
+            lines.extend(render_arguments(&self.state.arguments));
+        }
         lines.push(Line::from(""));
         lines
     }

@@ -4492,6 +4492,95 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn history_exec_output_fold_toggles_tool_details_on_latest_tool_cell() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+
+        harness.with_chat(reset_history);
+
+        let idx = harness.with_chat(|chat| {
+            use crate::history_cell::ToolCallCell;
+            use code_core::history::state::{
+                ArgumentValue,
+                HistoryId,
+                ToolArgument,
+                ToolCallState,
+                ToolResultPreview,
+                ToolStatus,
+            };
+
+            let state = ToolCallState {
+                id: HistoryId::ZERO,
+                call_id: Some("tool-1".to_string()),
+                status: ToolStatus::Success,
+                title: "Tool...".to_string(),
+                duration: None,
+                arguments: vec![
+                    ToolArgument {
+                        name: "invocation".to_string(),
+                        value: ArgumentValue::Text("some_tool({\"x\":1})".to_string()),
+                    },
+                    ToolArgument {
+                        name: "path".to_string(),
+                        value: ArgumentValue::Text("/tmp/example.txt".to_string()),
+                    },
+                    ToolArgument {
+                        name: "mode".to_string(),
+                        value: ArgumentValue::Text("fast".to_string()),
+                    },
+                    ToolArgument {
+                        name: "flag".to_string(),
+                        value: ArgumentValue::Text("true".to_string()),
+                    },
+                ],
+                result_preview: Some(ToolResultPreview {
+                    lines: (0..10).map(|n| format!("line {n}")).collect(),
+                    truncated: false,
+                }),
+                error_message: None,
+            };
+
+            let cell = ToolCallCell::new(state);
+            let key = chat.next_req_key_top();
+            chat.history_insert_with_key_global(Box::new(cell), key)
+        });
+
+        let (before_height, before_collapsed) = harness.with_chat(|chat| {
+            let cell = chat.history_cells[idx]
+                .as_any()
+                .downcast_ref::<crate::history_cell::ToolCallCell>()
+                .expect("expected tool cell");
+            (cell.desired_height(80), cell.details_collapsed())
+        });
+        assert!(
+            before_collapsed,
+            "expected successful tool cells to start with collapsed details"
+        );
+
+        harness.with_chat(|chat| {
+            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+            chat.handle_key_event(KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE));
+        });
+
+        let (after_height, after_collapsed) = harness.with_chat(|chat| {
+            let cell = chat.history_cells[idx]
+                .as_any()
+                .downcast_ref::<crate::history_cell::ToolCallCell>()
+                .expect("expected tool cell");
+            (cell.desired_height(80), cell.details_collapsed())
+        });
+
+        assert_ne!(
+            after_height, before_height,
+            "expected fold hotkey to toggle tool details"
+        );
+        assert_ne!(
+            after_collapsed, before_collapsed,
+            "expected tool details collapsed state to toggle"
+        );
+    }
+
+    #[test]
     fn history_js_repl_code_fold_targets_visible_js_cell_when_scrolled() {
         let _guard = enter_test_runtime_guard();
         let mut harness = ChatWidgetHarness::new();

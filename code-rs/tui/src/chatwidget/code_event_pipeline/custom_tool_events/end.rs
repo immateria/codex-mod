@@ -267,6 +267,14 @@ impl ChatWidget<'_> {
             image_view_path,
         } = ctx;
 
+        let collapsed_from_running = resolved_idx
+            .and_then(|idx| self.history_cells.get(idx))
+            .and_then(|cell| {
+                cell.as_any()
+                    .downcast_ref::<history_cell::RunningToolCallCell>()
+                    .map(|cell| cell.details_collapsed())
+            });
+
         let mut completed = history_cell::new_completed_custom_tool_call(
             tool_name,
             params_string,
@@ -276,6 +284,9 @@ impl ChatWidget<'_> {
         );
         completed.state_mut().call_id = Some(call_id.clone());
         completed.parent_call_id = parent_call_id;
+        if let Some(collapsed) = collapsed_from_running {
+            completed.set_details_collapsed(collapsed);
+        }
         if let Some(idx) = resolved_idx {
             self.history_debug(format!(
                 "custom_tool_end.in_place call_id={} idx={} order=({}, {}, {})",

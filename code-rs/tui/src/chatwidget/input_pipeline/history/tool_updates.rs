@@ -47,10 +47,12 @@ impl ChatWidget<'_> {
             return;
         };
 
+        let collapsed_details = running_cell.details_collapsed();
         let mut state = running_cell.state().clone();
         Self::merge_tool_arguments(&mut state.arguments, updates);
         let mut updated_cell = history_cell::RunningToolCallCell::from_state(state.clone());
         updated_cell.state_mut().call_id = Some(call_id.to_string());
+        updated_cell.set_details_collapsed(collapsed_details);
         self.history_replace_with_record(
             idx,
             Box::new(updated_cell),

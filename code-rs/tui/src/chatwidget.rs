@@ -4513,7 +4513,7 @@ fi\n\
         let fold_exec_hotkey = history_label(hotkeys.exec_output_fold, "[");
         lines.push(kv(
             &fold_exec_hotkey,
-            "Fold latest exec output (composer empty)",
+            "Fold latest exec output/tool details (composer empty)",
         ));
         let fold_js_hotkey = history_label(hotkeys.js_repl_code_fold, "\\");
         lines.push(kv(

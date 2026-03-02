@@ -81,8 +81,22 @@ pub(super) fn mcp_end(chat: &mut ChatWidget<'_>, ev: McpToolCallEndEvent, key: O
         .as_ref()
         .and_then(|entry| running_tools::resolve_entry_index(chat, entry, &call_id))
         .or_else(|| running_tools::find_by_call_id(chat, &call_id));
+    let collapsed_from_running = resolved_idx
+        .and_then(|idx| chat.history_cells.get(idx))
+        .and_then(|cell| {
+            cell.as_any()
+                .downcast_ref::<history_cell::RunningToolCallCell>()
+                .map(|cell| cell.details_collapsed())
+        });
 
     if let Some(idx) = resolved_idx {
+        if let Some(collapsed) = collapsed_from_running
+            && let Some(tool_cell) = completed
+                .as_any_mut()
+                .downcast_mut::<history_cell::ToolCallCell>()
+        {
+            tool_cell.set_details_collapsed(collapsed);
+        }
         chat.history_replace_at(idx, Box::new(completed));
         chat.history_debug(format!(
             "mcp_tool_end.in_place call_id={} idx={} order=({}, {}, {})",

@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::io::Cursor;
 use std::time::{Duration, SystemTime};
 
@@ -423,6 +424,7 @@ fn gh_run_wait_title(result: &str, success: bool) -> String {
 // Web fetch preview sizing: show 10 lines at the start and 5 at the end.
 const WEB_FETCH_HEAD_LINES: usize = 10;
 const WEB_FETCH_TAIL_LINES: usize = 5;
+const WEB_FETCH_COLLAPSED_PREVIEW_LINES: usize = 3;
 
 pub(crate) fn new_completed_web_fetch_tool_call(
     cfg: &Config,
@@ -483,6 +485,12 @@ pub(crate) fn new_completed_web_fetch_tool_call(
         body_lines.extend(pv);
     }
 
+    let non_empty_body_lines = body_lines
+        .iter()
+        .filter(|line| !line_to_plain_text(line).trim().is_empty())
+        .count();
+    let collapse_by_default = success && non_empty_body_lines > 8;
+
     // Spacer below header and below body to match exec styling
     pre_lines.push(Line::from(""));
     if !body_lines.is_empty() {
@@ -492,6 +500,7 @@ pub(crate) fn new_completed_web_fetch_tool_call(
     WebFetchToolCell {
         pre_lines,
         body_lines,
+        collapsed_body: Cell::new(collapse_by_default),
         state: if success {
             ToolCellStatus::Success
         } else {
@@ -515,6 +524,7 @@ layout_build_counter!(
 pub(crate) struct WebFetchToolCell {
     pre_lines: Vec<Line<'static>>,  // header/invocation
     body_lines: Vec<Line<'static>>, // bordered, dim preview
+    collapsed_body: Cell<bool>,
     state: ToolCellStatus,
     pub(crate) parent_call_id: Option<String>,
     layout_cache: super::layout_cache::LayoutCache<WebFetchLayout>,
@@ -530,6 +540,38 @@ struct WebFetchLayout {
 }
 
 impl WebFetchToolCell {
+    pub(crate) fn body_collapsed(&self) -> bool {
+        self.collapsed_body.get()
+    }
+
+    pub(crate) fn toggle_body_collapsed(&self) {
+        self.collapsed_body.set(!self.collapsed_body.get());
+        self.layout_cache.invalidate();
+    }
+
+    fn folded_body_lines(&self) -> Vec<Line<'static>> {
+        let body = trim_empty_lines(self.body_lines.clone());
+        if !self.body_collapsed() || body.is_empty() {
+            return body;
+        }
+
+        let total = body.len();
+        let mut shown: Vec<Line<'static>> = body
+            .into_iter()
+            .take(WEB_FETCH_COLLAPSED_PREVIEW_LINES)
+            .collect();
+        let hidden = total.saturating_sub(shown.len());
+        if hidden > 0 {
+            shown.push(Line::from(Span::styled(
+                format!("… {hidden} more lines (use Fold Output to expand)"),
+                Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::DIM),
+            )));
+        }
+        shown
+    }
+
     fn layout_for_width(&self, width: u16) -> std::cell::Ref<'_, WebFetchLayout> {
         self.layout_cache.get_or_compute(width, |w| {
             #[cfg(feature = "test-helpers")]
@@ -544,7 +586,7 @@ impl WebFetchToolCell {
         }
 
         let pre = trim_empty_lines(self.pre_lines.clone());
-        let body = trim_empty_lines(self.body_lines.clone());
+        let body = self.folded_body_lines();
 
         let pre_wrapped = super::word_wrap_lines(&pre, width);
         let pre_total = pre_wrapped.len().min(u16::MAX as usize) as u16;
@@ -577,7 +619,7 @@ impl HistoryCell for WebFetchToolCell {
         // Fallback textual representation used only for measurement outside custom render
         let mut v = Vec::new();
         v.extend(self.pre_lines.clone());
-        v.extend(self.body_lines.clone());
+        v.extend(self.folded_body_lines());
         v
     }
     fn has_custom_render(&self) -> bool {
