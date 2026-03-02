@@ -330,7 +330,7 @@ impl JsReplCell {
                 lines.push(Line::from(vec![
                     border_span,
                     Span::styled(
-                        format!("… {hidden_lines} more lines (press \\ to expand)"),
+                        format!("… {hidden_lines} more lines (use Code Fold to expand)"),
                         code_style.add_modifier(Modifier::DIM),
                     ),
                 ]));

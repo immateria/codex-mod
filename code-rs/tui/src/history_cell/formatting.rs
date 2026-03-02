@@ -718,7 +718,7 @@ pub(crate) fn maybe_fold_output(lines: &mut Vec<Line<'static>>, collapsed: bool)
         let folded_count = lines.len() - OUTPUT_FOLD_THRESHOLD;
         lines.truncate(OUTPUT_FOLD_THRESHOLD);
         lines.push(Line::from(Span::styled(
-            format!("… {folded_count} more lines (press [ to expand)"),
+            format!("… {folded_count} more lines (use Fold Output to expand)"),
             Style::default()
                 .fg(crate::colors::text_dim())
                 .add_modifier(Modifier::DIM),
