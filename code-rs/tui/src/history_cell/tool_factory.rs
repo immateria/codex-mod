@@ -1,5 +1,3 @@
-#[cfg(feature = "test-helpers")]
-use std::cell::Cell;
 use std::io::Cursor;
 use std::time::{Duration, SystemTime};
 

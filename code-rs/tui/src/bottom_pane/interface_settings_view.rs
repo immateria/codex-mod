@@ -52,6 +52,10 @@ enum RowKind {
     ReasoningEffortHotkey,
     ShellSelectorHotkey,
     NetworkSettingsHotkey,
+    ExecOutputFoldHotkey,
+    JsReplCodeFoldHotkey,
+    JumpToParentCallHotkey,
+    JumpToLatestChildCallHotkey,
     ShowConfigToml,
     ShowCodeHome,
     Apply,
@@ -249,7 +253,7 @@ impl InterfaceSettingsView {
         }
     }
 
-    fn build_rows(&self) -> [RowKind; 11] {
+    fn build_rows(&self) -> [RowKind; 15] {
         [
             RowKind::OpenMode,
             RowKind::OverlayMinWidth,
@@ -258,6 +262,10 @@ impl InterfaceSettingsView {
             RowKind::ReasoningEffortHotkey,
             RowKind::ShellSelectorHotkey,
             RowKind::NetworkSettingsHotkey,
+            RowKind::ExecOutputFoldHotkey,
+            RowKind::JsReplCodeFoldHotkey,
+            RowKind::JumpToParentCallHotkey,
+            RowKind::JumpToLatestChildCallHotkey,
             RowKind::ShowConfigToml,
             RowKind::ShowCodeHome,
             RowKind::Apply,
@@ -359,7 +367,7 @@ impl InterfaceSettingsView {
         match hotkey {
             TuiHotkey::Function(hk) => TuiHotkey::Function(Self::cycle_function_hotkey_next(hk, max_key)),
             // Cycling is function-key focused. Chords are set via the capture UI.
-            TuiHotkey::Chord(_) => TuiHotkey::Function(FunctionKeyHotkey::Disabled),
+            TuiHotkey::Chord(_) | TuiHotkey::Legacy => TuiHotkey::Function(FunctionKeyHotkey::Disabled),
         }
     }
 
@@ -367,7 +375,7 @@ impl InterfaceSettingsView {
         match hotkey {
             TuiHotkey::Function(hk) => TuiHotkey::Function(Self::cycle_function_hotkey_prev(hk, max_key)),
             // Cycling is function-key focused. Chords are set via the capture UI.
-            TuiHotkey::Chord(_) => TuiHotkey::Function(FunctionKeyHotkey::Disabled),
+            TuiHotkey::Chord(_) | TuiHotkey::Legacy => TuiHotkey::Function(FunctionKeyHotkey::Disabled),
         }
     }
 
@@ -375,6 +383,7 @@ impl InterfaceSettingsView {
         match hotkey {
             None => Some(TuiHotkey::disabled()),
             Some(hk) if hk.is_disabled() => Some(TuiHotkey::Function(FunctionKeyHotkey::F2)),
+            Some(TuiHotkey::Legacy) => Some(TuiHotkey::disabled()),
             Some(TuiHotkey::Function(value)) => match value.as_u8() {
                 Some(n) if n < 2 => None,
                 Some(n) if n >= max_key => None,
@@ -389,6 +398,7 @@ impl InterfaceSettingsView {
         match hotkey {
             None => FunctionKeyHotkey::from_u8(max_key).map(TuiHotkey::Function),
             Some(hk) if hk.is_disabled() => None,
+            Some(TuiHotkey::Legacy) => None,
             Some(TuiHotkey::Function(value)) => match value.as_u8() {
                 Some(n) if n <= 2 => Some(TuiHotkey::disabled()),
                 Some(n) => FunctionKeyHotkey::from_u8(n.saturating_sub(1)).map(TuiHotkey::Function),
@@ -434,6 +444,26 @@ impl InterfaceSettingsView {
                 table.network_settings = next(table.network_settings);
                 changed = true;
             }
+            RowKind::ExecOutputFoldHotkey => {
+                let table = overrides.get_or_insert_with(TuiHotkeysOverrides::default);
+                table.exec_output_fold = next(table.exec_output_fold);
+                changed = true;
+            }
+            RowKind::JsReplCodeFoldHotkey => {
+                let table = overrides.get_or_insert_with(TuiHotkeysOverrides::default);
+                table.js_repl_code_fold = next(table.js_repl_code_fold);
+                changed = true;
+            }
+            RowKind::JumpToParentCallHotkey => {
+                let table = overrides.get_or_insert_with(TuiHotkeysOverrides::default);
+                table.jump_to_parent_call = next(table.jump_to_parent_call);
+                changed = true;
+            }
+            RowKind::JumpToLatestChildCallHotkey => {
+                let table = overrides.get_or_insert_with(TuiHotkeysOverrides::default);
+                table.jump_to_latest_child_call = next(table.jump_to_latest_child_call);
+                changed = true;
+            }
             _ => {}
         }
 
@@ -470,6 +500,23 @@ impl InterfaceSettingsView {
                     }
                     RowKind::NetworkSettingsHotkey => {
                         self.hotkeys.network_settings = next(self.hotkeys.network_settings);
+                        self.dirty_hotkeys = true;
+                    }
+                    RowKind::ExecOutputFoldHotkey => {
+                        self.hotkeys.exec_output_fold = next(self.hotkeys.exec_output_fold);
+                        self.dirty_hotkeys = true;
+                    }
+                    RowKind::JsReplCodeFoldHotkey => {
+                        self.hotkeys.js_repl_code_fold = next(self.hotkeys.js_repl_code_fold);
+                        self.dirty_hotkeys = true;
+                    }
+                    RowKind::JumpToParentCallHotkey => {
+                        self.hotkeys.jump_to_parent_call = next(self.hotkeys.jump_to_parent_call);
+                        self.dirty_hotkeys = true;
+                    }
+                    RowKind::JumpToLatestChildCallHotkey => {
+                        self.hotkeys.jump_to_latest_child_call =
+                            next(self.hotkeys.jump_to_latest_child_call);
                         self.dirty_hotkeys = true;
                     }
                     _ => {}
@@ -509,14 +556,30 @@ impl InterfaceSettingsView {
 
         let resolved = self.hotkeys.resolved_for_env(env);
         let pairs = [
-            ("model_selector", resolved.model_selector),
-            ("reasoning_effort", resolved.reasoning_effort),
-            ("shell_selector", resolved.shell_selector),
-            ("network_settings", resolved.network_settings),
+            ("model_selector", resolved.model_selector, false),
+            ("reasoning_effort", resolved.reasoning_effort, false),
+            ("shell_selector", resolved.shell_selector, false),
+            ("network_settings", resolved.network_settings, false),
+            ("exec_output_fold", resolved.exec_output_fold, true),
+            ("js_repl_code_fold", resolved.js_repl_code_fold, true),
+            ("jump_to_parent_call", resolved.jump_to_parent_call, true),
+            (
+                "jump_to_latest_child_call",
+                resolved.jump_to_latest_child_call,
+                true,
+            ),
         ];
 
         let mut seen: HashMap<TuiHotkey, &'static str> = HashMap::new();
-        for (field, hk) in pairs {
+        for (field, hk, allow_legacy) in pairs {
+            if hk.is_legacy() {
+                if allow_legacy {
+                    continue;
+                }
+                return Err(format!(
+                    "{label}: {field} does not support the legacy mapping."
+                ));
+            }
             if matches!(hk.function_key(), Some(FunctionKeyHotkey::F1)) {
                 return Err(format!("{label}: F1 is reserved for the Help overlay."));
             }
@@ -694,6 +757,10 @@ impl InterfaceSettingsView {
             RowKind::ReasoningEffortHotkey => overrides.reasoning_effort,
             RowKind::ShellSelectorHotkey => overrides.shell_selector,
             RowKind::NetworkSettingsHotkey => overrides.network_settings,
+            RowKind::ExecOutputFoldHotkey => overrides.exec_output_fold,
+            RowKind::JsReplCodeFoldHotkey => overrides.js_repl_code_fold,
+            RowKind::JumpToParentCallHotkey => overrides.jump_to_parent_call,
+            RowKind::JumpToLatestChildCallHotkey => overrides.jump_to_latest_child_call,
             _ => None,
         }
     }
@@ -704,11 +771,37 @@ impl InterfaceSettingsView {
             RowKind::ReasoningEffortHotkey => resolved.reasoning_effort,
             RowKind::ShellSelectorHotkey => resolved.shell_selector,
             RowKind::NetworkSettingsHotkey => resolved.network_settings,
+            RowKind::ExecOutputFoldHotkey => resolved.exec_output_fold,
+            RowKind::JsReplCodeFoldHotkey => resolved.js_repl_code_fold,
+            RowKind::JumpToParentCallHotkey => resolved.jump_to_parent_call,
+            RowKind::JumpToLatestChildCallHotkey => resolved.jump_to_latest_child_call,
             _ => TuiHotkey::disabled(),
         }
     }
 
     fn hotkey_value_label_for_row(&self, row: RowKind) -> String {
+        fn legacy_label_for_row(row: RowKind) -> Option<&'static str> {
+            match row {
+                RowKind::ExecOutputFoldHotkey => Some("["),
+                RowKind::JsReplCodeFoldHotkey => Some("\\"),
+                RowKind::JumpToParentCallHotkey => Some("]"),
+                RowKind::JumpToLatestChildCallHotkey => Some("}"),
+                _ => None,
+            }
+        }
+
+        let format_hotkey = |hk: TuiHotkey| -> String {
+            if hk.is_legacy() {
+                if let Some(label) = legacy_label_for_row(row) {
+                    format!("legacy ({label})")
+                } else {
+                    "legacy".to_string()
+                }
+            } else {
+                hk.display_name().into_owned()
+            }
+        };
+
         match self.hotkey_scope {
             HotkeyScope::Global => {
                 let hk = match row {
@@ -716,29 +809,29 @@ impl InterfaceSettingsView {
                     RowKind::ReasoningEffortHotkey => self.hotkeys.reasoning_effort,
                     RowKind::ShellSelectorHotkey => self.hotkeys.shell_selector,
                     RowKind::NetworkSettingsHotkey => self.hotkeys.network_settings,
+                    RowKind::ExecOutputFoldHotkey => self.hotkeys.exec_output_fold,
+                    RowKind::JsReplCodeFoldHotkey => self.hotkeys.js_repl_code_fold,
+                    RowKind::JumpToParentCallHotkey => self.hotkeys.jump_to_parent_call,
+                    RowKind::JumpToLatestChildCallHotkey => self.hotkeys.jump_to_latest_child_call,
                     _ => TuiHotkey::disabled(),
                 };
                 let effective_hk =
                     Self::effective_value_for_row(self.hotkeys.effective_for_runtime(), row);
-                let configured_name = hk.display_name();
-                let effective_name = effective_hk.display_name();
+                let configured_name = format_hotkey(hk);
+                let effective_name = format_hotkey(effective_hk);
                 if hk == effective_hk {
-                    configured_name.into_owned()
+                    configured_name
                 } else {
-                    format!(
-                        "{configured} (here: {effective})",
-                        configured = configured_name.as_ref(),
-                        effective = effective_name.as_ref()
-                    )
+                    format!("{configured_name} (here: {effective_name})")
                 }
             }
             _ => {
                 let resolved = self.scoped_hotkeys_resolved();
                 let effective = Self::effective_value_for_row(resolved, row);
-                let effective_name = effective.display_name();
+                let effective_name = format_hotkey(effective);
                 match self.override_value_for_row(row) {
-                    Some(_) => effective_name.into_owned(),
-                    None => format!("inherit ({})", effective_name.as_ref()),
+                    Some(_) => effective_name,
+                    None => format!("inherit ({effective_name})"),
                 }
             }
         }
@@ -756,7 +849,11 @@ impl InterfaceSettingsView {
             RowKind::ModelSelectorHotkey
             | RowKind::ReasoningEffortHotkey
             | RowKind::ShellSelectorHotkey
-            | RowKind::NetworkSettingsHotkey => {
+            | RowKind::NetworkSettingsHotkey
+            | RowKind::ExecOutputFoldHotkey
+            | RowKind::JsReplCodeFoldHotkey
+            | RowKind::JumpToParentCallHotkey
+            | RowKind::JumpToLatestChildCallHotkey => {
                 let row = self.selected_row();
                 self.open_hotkey_capture(row);
             }
@@ -928,11 +1025,15 @@ impl InterfaceSettingsView {
                     }
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(-5),
                     Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_prev(),
-                    Some(RowKind::ModelSelectorHotkey)
-                    | Some(RowKind::ReasoningEffortHotkey)
-                    | Some(RowKind::ShellSelectorHotkey)
-                    | Some(RowKind::NetworkSettingsHotkey) => {
-                        self.adjust_hotkey_for_row(current_row.unwrap(), false);
+                    Some(row @ RowKind::ModelSelectorHotkey)
+                    | Some(row @ RowKind::ReasoningEffortHotkey)
+                    | Some(row @ RowKind::ShellSelectorHotkey)
+                    | Some(row @ RowKind::NetworkSettingsHotkey)
+                    | Some(row @ RowKind::ExecOutputFoldHotkey)
+                    | Some(row @ RowKind::JsReplCodeFoldHotkey)
+                    | Some(row @ RowKind::JumpToParentCallHotkey)
+                    | Some(row @ RowKind::JumpToLatestChildCallHotkey) => {
+                        self.adjust_hotkey_for_row(row, false);
                     }
                     _ => {}
                 }
@@ -944,11 +1045,15 @@ impl InterfaceSettingsView {
                     Some(RowKind::OpenMode) => self.cycle_open_mode_next(),
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(5),
                     Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_next(),
-                    Some(RowKind::ModelSelectorHotkey)
-                    | Some(RowKind::ReasoningEffortHotkey)
-                    | Some(RowKind::ShellSelectorHotkey)
-                    | Some(RowKind::NetworkSettingsHotkey) => {
-                        self.adjust_hotkey_for_row(current_row.unwrap(), true);
+                    Some(row @ RowKind::ModelSelectorHotkey)
+                    | Some(row @ RowKind::ReasoningEffortHotkey)
+                    | Some(row @ RowKind::ShellSelectorHotkey)
+                    | Some(row @ RowKind::NetworkSettingsHotkey)
+                    | Some(row @ RowKind::ExecOutputFoldHotkey)
+                    | Some(row @ RowKind::JsReplCodeFoldHotkey)
+                    | Some(row @ RowKind::JumpToParentCallHotkey)
+                    | Some(row @ RowKind::JumpToLatestChildCallHotkey) => {
+                        self.adjust_hotkey_for_row(row, true);
                     }
                     _ => {}
                 }
@@ -1025,6 +1130,12 @@ impl InterfaceSettingsView {
                     RowKind::ReasoningEffortHotkey => self.hotkeys.reasoning_effort = value,
                     RowKind::ShellSelectorHotkey => self.hotkeys.shell_selector = value,
                     RowKind::NetworkSettingsHotkey => self.hotkeys.network_settings = value,
+                    RowKind::ExecOutputFoldHotkey => self.hotkeys.exec_output_fold = value,
+                    RowKind::JsReplCodeFoldHotkey => self.hotkeys.js_repl_code_fold = value,
+                    RowKind::JumpToParentCallHotkey => self.hotkeys.jump_to_parent_call = value,
+                    RowKind::JumpToLatestChildCallHotkey => {
+                        self.hotkeys.jump_to_latest_child_call = value
+                    }
                     _ => {}
                 }
             }
@@ -1035,6 +1146,12 @@ impl InterfaceSettingsView {
                     RowKind::ReasoningEffortHotkey => table.reasoning_effort = Some(value),
                     RowKind::ShellSelectorHotkey => table.shell_selector = Some(value),
                     RowKind::NetworkSettingsHotkey => table.network_settings = Some(value),
+                    RowKind::ExecOutputFoldHotkey => table.exec_output_fold = Some(value),
+                    RowKind::JsReplCodeFoldHotkey => table.js_repl_code_fold = Some(value),
+                    RowKind::JumpToParentCallHotkey => table.jump_to_parent_call = Some(value),
+                    RowKind::JumpToLatestChildCallHotkey => {
+                        table.jump_to_latest_child_call = Some(value)
+                    }
                     _ => {}
                 }
                 Self::prune_empty_overrides(&mut self.hotkeys.termux);
@@ -1052,6 +1169,12 @@ impl InterfaceSettingsView {
                     RowKind::ReasoningEffortHotkey => table.reasoning_effort = Some(value),
                     RowKind::ShellSelectorHotkey => table.shell_selector = Some(value),
                     RowKind::NetworkSettingsHotkey => table.network_settings = Some(value),
+                    RowKind::ExecOutputFoldHotkey => table.exec_output_fold = Some(value),
+                    RowKind::JsReplCodeFoldHotkey => table.js_repl_code_fold = Some(value),
+                    RowKind::JumpToParentCallHotkey => table.jump_to_parent_call = Some(value),
+                    RowKind::JumpToLatestChildCallHotkey => {
+                        table.jump_to_latest_child_call = Some(value)
+                    }
                     _ => {}
                 }
                 Self::prune_empty_overrides(overrides);
@@ -1079,6 +1202,10 @@ impl InterfaceSettingsView {
             RowKind::ReasoningEffortHotkey => table.reasoning_effort = None,
             RowKind::ShellSelectorHotkey => table.shell_selector = None,
             RowKind::NetworkSettingsHotkey => table.network_settings = None,
+            RowKind::ExecOutputFoldHotkey => table.exec_output_fold = None,
+            RowKind::JsReplCodeFoldHotkey => table.js_repl_code_fold = None,
+            RowKind::JumpToParentCallHotkey => table.jump_to_parent_call = None,
+            RowKind::JumpToLatestChildCallHotkey => table.jump_to_latest_child_call = None,
             _ => {}
         }
         Self::prune_empty_overrides(overrides);
@@ -1098,6 +1225,26 @@ impl InterfaceSettingsView {
             {
                 self.set_hotkey_for_row(row, TuiHotkey::disabled());
                 self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent { code: KeyCode::Char('l'), modifiers, .. }
+                if modifiers.is_empty() || modifiers == KeyModifiers::SHIFT =>
+            {
+                match row {
+                    RowKind::ExecOutputFoldHotkey
+                    | RowKind::JsReplCodeFoldHotkey
+                    | RowKind::JumpToParentCallHotkey
+                    | RowKind::JumpToLatestChildCallHotkey => {
+                        self.set_hotkey_for_row(row, TuiHotkey::legacy());
+                        self.mode = ViewMode::Main;
+                    }
+                    _ => {
+                        self.mode = ViewMode::CaptureHotkey {
+                            row,
+                            error: Some("Legacy is only available for history shortcuts.".to_string()),
+                        };
+                    }
+                }
                 true
             }
             KeyEvent { code: KeyCode::Char('i'), modifiers, .. }
@@ -1266,6 +1413,18 @@ impl InterfaceSettingsView {
             RowKind::NetworkSettingsHotkey => {
                 "Hotkey for opening Settings -> Network (F2-F24 or Ctrl/Alt+letter; macOS supports up to F20 for function keys)."
             }
+            RowKind::ExecOutputFoldHotkey => {
+                "Hotkey for folding/unfolding the latest exec output (function key or Ctrl/Alt+letter). Defaults to legacy `[`, while composer is empty."
+            }
+            RowKind::JsReplCodeFoldHotkey => {
+                "Hotkey for folding/unfolding the latest JS REPL code (function key or Ctrl/Alt+letter). Defaults to legacy `\\`, while composer is empty."
+            }
+            RowKind::JumpToParentCallHotkey => {
+                "Hotkey for jumping to a parent tool call when a nested call is shown (function key or Ctrl/Alt+letter). Defaults to legacy `]`, while composer is empty."
+            }
+            RowKind::JumpToLatestChildCallHotkey => {
+                "Hotkey for jumping to the latest tool call spawned by JS REPL (function key or Ctrl/Alt+letter). Defaults to legacy `}`, while composer is empty."
+            }
             RowKind::ShowConfigToml => "Open config.toml in your file manager (Finder/Explorer).",
             RowKind::ShowCodeHome => "Open CODE_HOME in your file manager.",
             RowKind::Apply => "Persist these preferences to config.toml.",
@@ -1348,6 +1507,22 @@ impl InterfaceSettingsView {
                     ),
                     RowKind::NetworkSettingsHotkey => (
                         "Hotkey: network settings",
+                        self.hotkey_value_label_for_row(kind),
+                    ),
+                    RowKind::ExecOutputFoldHotkey => (
+                        "Hotkey: fold exec output",
+                        self.hotkey_value_label_for_row(kind),
+                    ),
+                    RowKind::JsReplCodeFoldHotkey => (
+                        "Hotkey: fold JS REPL code",
+                        self.hotkey_value_label_for_row(kind),
+                    ),
+                    RowKind::JumpToParentCallHotkey => (
+                        "Hotkey: jump to parent call",
+                        self.hotkey_value_label_for_row(kind),
+                    ),
+                    RowKind::JumpToLatestChildCallHotkey => (
+                        "Hotkey: jump to child call",
                         self.hotkey_value_label_for_row(kind),
                     ),
                     RowKind::ShowConfigToml => ("Show config.toml", String::new()),
@@ -1469,6 +1644,10 @@ impl InterfaceSettingsView {
                 RowKind::ReasoningEffortHotkey => "Hotkey: reasoning effort",
                 RowKind::ShellSelectorHotkey => "Hotkey: shell selector",
                 RowKind::NetworkSettingsHotkey => "Hotkey: network settings",
+                RowKind::ExecOutputFoldHotkey => "Hotkey: fold exec output",
+                RowKind::JsReplCodeFoldHotkey => "Hotkey: fold JS REPL code",
+                RowKind::JumpToParentCallHotkey => "Hotkey: jump to parent call",
+                RowKind::JumpToLatestChildCallHotkey => "Hotkey: jump to child call",
                 _ => "Hotkey",
             };
             let current = self.hotkey_value_label_for_row(row);
@@ -1495,10 +1674,18 @@ impl InterfaceSettingsView {
                     HotkeyScope::Global => None,
                     _ => Some("  i inherit"),
                 };
+                let legacy_hint = match row {
+                    RowKind::ExecOutputFoldHotkey
+                    | RowKind::JsReplCodeFoldHotkey
+                    | RowKind::JumpToParentCallHotkey
+                    | RowKind::JumpToLatestChildCallHotkey => Some("  l legacy"),
+                    _ => None,
+                };
                 let max_key = self.hotkey_scope.max_function_key();
                 let hint = format!(
-                    "Press F2-F{max_key} or Ctrl/Alt+letter (e.g. ctrl+h).  d disable{inherit}",
-                    inherit = inherit_hint.unwrap_or("")
+                    "Press F2-F{max_key} or Ctrl/Alt+letter (e.g. ctrl+h).  d disable{legacy}{inherit}",
+                    legacy = legacy_hint.unwrap_or(""),
+                    inherit = inherit_hint.unwrap_or(""),
                 );
                 let hint_line = Line::from(vec![Span::styled(
                     hint,
@@ -1549,7 +1736,7 @@ impl<'a> BottomPaneView<'a> for InterfaceSettingsView {
         match &self.mode {
             ViewMode::Main => {
                 let base = self.build_rows().len() as u16 + 4;
-                base.max(12).min(20)
+                base.clamp(12, 20)
             }
             ViewMode::EditWidth { .. } => 8,
             ViewMode::CaptureHotkey { .. } => 8,

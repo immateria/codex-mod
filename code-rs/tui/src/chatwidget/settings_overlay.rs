@@ -35,11 +35,18 @@ pub(crate) use self::contents::{
 pub(crate) use self::limits::LimitsSettingsContent;
 pub(crate) use self::types::{SettingsContent, SettingsOverviewRow};
 
-use self::types::{MenuState, SectionState, SettingsHelpOverlay, SettingsOverlayMode};
+use self::types::{
+    MenuState,
+    SectionState,
+    SettingsHelpOverlay,
+    SettingsOverlayFocus,
+    SettingsOverlayMode,
+};
 
 pub(crate) struct SettingsOverlayView {
     overview_rows: Vec<SettingsOverviewRow>,
     mode: SettingsOverlayMode,
+    focus: SettingsOverlayFocus,
     last_section: SettingsSection,
     help: Option<SettingsHelpOverlay>,
     model_content: Option<ModelSettingsContent>,
@@ -84,6 +91,7 @@ impl SettingsOverlayView {
         Self {
             overview_rows: Vec::new(),
             mode: SettingsOverlayMode::Section(section_state),
+            focus: SettingsOverlayFocus::Content,
             last_section: section,
             help: None,
             model_content: None,
@@ -127,17 +135,46 @@ impl SettingsOverlayView {
         matches!(self.mode, SettingsOverlayMode::Menu(_))
     }
 
+    pub(crate) fn is_sidebar_focused(&self) -> bool {
+        matches!(self.focus, SettingsOverlayFocus::Sidebar)
+    }
+
+    pub(crate) fn is_content_focused(&self) -> bool {
+        matches!(self.focus, SettingsOverlayFocus::Content)
+    }
+
+    pub(crate) fn set_focus_sidebar(&mut self) -> bool {
+        self.set_focus(SettingsOverlayFocus::Sidebar)
+    }
+
+    pub(crate) fn set_focus_content(&mut self) -> bool {
+        self.set_focus(SettingsOverlayFocus::Content)
+    }
+
+    fn set_focus(&mut self, focus: SettingsOverlayFocus) -> bool {
+        if self.focus == focus {
+            return false;
+        }
+        self.focus = focus;
+        true
+    }
+
     pub(crate) fn set_mode_menu(&mut self, selected: Option<SettingsSection>) {
         let section = selected.unwrap_or(self.last_section);
         self.mode = SettingsOverlayMode::Menu(MenuState::new(section));
+        self.focus = SettingsOverlayFocus::Sidebar;
         if self.help.is_some() {
             self.show_help(true);
         }
     }
 
     pub(crate) fn set_mode_section(&mut self, section: SettingsSection) {
+        let was_menu = self.is_menu_active();
         self.mode = SettingsOverlayMode::Section(SectionState::new(section));
         self.last_section = section;
+        if was_menu {
+            self.focus = SettingsOverlayFocus::Content;
+        }
         if self.help.is_some() {
             self.show_help(false);
         }

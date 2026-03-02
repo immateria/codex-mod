@@ -1,5 +1,30 @@
 use super::prelude::*;
 
+fn matches_tui_hotkey(hk: code_core::config_types::TuiHotkey, ev: &KeyEvent) -> bool {
+    use crossterm::event::{KeyCode, KeyModifiers};
+
+    let mods = ev.modifiers.difference(KeyModifiers::SHIFT);
+    match hk {
+        code_core::config_types::TuiHotkey::Legacy => false,
+        code_core::config_types::TuiHotkey::Function(fk) => {
+            let Some(n) = fk.as_u8() else {
+                return false;
+            };
+            matches!(ev.code, KeyCode::F(code_n) if code_n == n)
+                && !mods.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER)
+        }
+        code_core::config_types::TuiHotkey::Chord(chord) => {
+            let required = match (chord.ctrl, chord.alt) {
+                (true, true) => KeyModifiers::CONTROL | KeyModifiers::ALT,
+                (true, false) => KeyModifiers::CONTROL,
+                (false, true) => KeyModifiers::ALT,
+                (false, false) => KeyModifiers::NONE,
+            };
+            matches!(ev.code, KeyCode::Char(c) if c.to_ascii_lowercase() == chord.key) && mods == required
+        }
+    }
+}
+
 impl ChatWidget<'_> {
     pub(crate) fn handle_key_event(&mut self, key_event: KeyEvent) {
         if settings_handlers::handle_settings_key(self, key_event) {
@@ -286,41 +311,14 @@ impl ChatWidget<'_> {
         if !self.bottom_pane.has_active_modal_view()
             && matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat)
         {
-            fn matches_hotkey(hk: code_core::config_types::TuiHotkey, ev: &KeyEvent) -> bool {
-                use crossterm::event::{KeyCode, KeyModifiers};
-
-                let mods = ev.modifiers.difference(KeyModifiers::SHIFT);
-                match hk {
-                    code_core::config_types::TuiHotkey::Function(fk) => {
-                        let Some(n) = fk.as_u8() else {
-                            return false;
-                        };
-                        matches!(ev.code, KeyCode::F(code_n) if code_n == n)
-                            && !mods.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER)
-                    }
-                    code_core::config_types::TuiHotkey::Chord(chord) => {
-                        let required = match (chord.ctrl, chord.alt) {
-                            (true, true) => KeyModifiers::CONTROL | KeyModifiers::ALT,
-                            (true, false) => KeyModifiers::CONTROL,
-                            (false, true) => KeyModifiers::ALT,
-                            (false, false) => KeyModifiers::NONE,
-                        };
-                        matches!(
-                            ev.code,
-                            KeyCode::Char(c) if c.to_ascii_lowercase() == chord.key
-                        ) && mods == required
-                    }
-                }
-            }
-
             let hotkeys = self.config.tui.hotkeys.effective_for_runtime();
-            let action = if matches_hotkey(hotkeys.model_selector, &key_event) {
+            let action = if matches_tui_hotkey(hotkeys.model_selector, &key_event) {
                 Some(ClickableAction::ShowModelSelector)
-            } else if matches_hotkey(hotkeys.reasoning_effort, &key_event) {
+            } else if matches_tui_hotkey(hotkeys.reasoning_effort, &key_event) {
                 Some(ClickableAction::ShowReasoningSelector)
-            } else if matches_hotkey(hotkeys.shell_selector, &key_event) {
+            } else if matches_tui_hotkey(hotkeys.shell_selector, &key_event) {
                 Some(ClickableAction::ShowShellSelector)
-            } else if matches_hotkey(hotkeys.network_settings, &key_event) {
+            } else if matches_tui_hotkey(hotkeys.network_settings, &key_event) {
                 Some(ClickableAction::ShowNetworkSettings)
             } else {
                 None
@@ -385,83 +383,77 @@ impl ChatWidget<'_> {
                 return;
             }
 
-        // `[` key: toggle output fold on the bottommost completed exec/js-repl cell.
+        // History shortcuts (fold/jump) configured under `[tui.hotkeys]`.
         // Only intercept when the composer is empty so normal typing is unaffected.
-        if let crossterm::event::KeyEvent {
-            code: crossterm::event::KeyCode::Char('['),
-            modifiers: crossterm::event::KeyModifiers::NONE,
-            kind: KeyEventKind::Press | KeyEventKind::Repeat,
-            ..
-        } = key_event
+        if !self.bottom_pane.has_active_modal_view()
             && self.bottom_pane.composer_is_empty()
+            && matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat)
         {
-            self.toggle_bottommost_exec_fold();
-            return;
-        }
+            use crossterm::event::{KeyCode, KeyModifiers};
 
-        // `\` key: toggle code fold on the bottommost JS REPL cell.
-        // Only intercept when the composer is empty so normal typing is unaffected.
-        if let crossterm::event::KeyEvent {
-            code: crossterm::event::KeyCode::Char('\\'),
-            modifiers: crossterm::event::KeyModifiers::NONE,
-            kind: KeyEventKind::Press | KeyEventKind::Repeat,
-            ..
-        } = key_event
-            && self.bottom_pane.composer_is_empty()
-        {
-            self.toggle_bottommost_js_repl_code_fold();
-            return;
-        }
+            fn matches_legacy_char(ev: &KeyEvent, expected: char, allow_shift: bool) -> bool {
+                if !matches!(ev.code, KeyCode::Char(c) if c == expected) {
+                    return false;
+                }
+                if allow_shift {
+                    ev.modifiers.difference(KeyModifiers::SHIFT).is_empty()
+                } else {
+                    ev.modifiers.is_empty()
+                }
+            }
 
-        // `]` key: jump to the parent of the bottommost nested tool cell.
-        // Only intercept when the composer is empty so normal typing is unaffected.
-        if let crossterm::event::KeyEvent {
-            code: crossterm::event::KeyCode::Char(']'),
-            modifiers: crossterm::event::KeyModifiers::NONE,
-            kind: KeyEventKind::Press | KeyEventKind::Repeat,
-            ..
-        } = key_event
-            && self.bottom_pane.composer_is_empty()
-        {
-            let Some(parent_call_id) = self
-                .history_cells
-                .iter()
-                .rev()
-                .find_map(|cell| cell.parent_call_id().map(str::to_owned))
-            else {
-                self.bottom_pane
-                    .update_status_text("no parent tool call to jump to".to_string());
-                self.request_redraw();
-                return;
+            let hotkeys = self.config.tui.hotkeys.effective_for_runtime();
+            let matches_binding = |binding: code_core::config_types::TuiHotkey,
+                                   legacy_char: char,
+                                   legacy_allows_shift: bool| {
+                if binding.is_legacy() {
+                    matches_legacy_char(&key_event, legacy_char, legacy_allows_shift)
+                } else {
+                    matches_tui_hotkey(binding, &key_event)
+                }
             };
-            self.jump_to_call_id(&parent_call_id);
-            return;
-        }
 
-        // `}` key: jump to the latest child exec spawned by the bottommost JS REPL cell.
-        // Only intercept when the composer is empty so normal typing is unaffected.
-        if let crossterm::event::KeyEvent {
-            code: crossterm::event::KeyCode::Char('}'),
-            modifiers,
-            kind: KeyEventKind::Press | KeyEventKind::Repeat,
-            ..
-        } = key_event
-            && self.bottom_pane.composer_is_empty()
-            && (modifiers.is_empty() || modifiers == crossterm::event::KeyModifiers::SHIFT)
-        {
-            use crate::history_cell::JsReplCell;
-            let Some(child_call_id) = self.history_cells.iter().rev().find_map(|cell| {
-                cell.as_any()
-                    .downcast_ref::<JsReplCell>()
-                    .and_then(|js_cell| js_cell.latest_child_call_id().map(str::to_owned))
-            }) else {
-                self.bottom_pane
-                    .update_status_text("no spawned tool call to jump to".to_string());
-                self.request_redraw();
+            if matches_binding(hotkeys.exec_output_fold, '[', false) {
+                self.toggle_bottommost_exec_fold();
                 return;
-            };
-            self.jump_to_call_id(&child_call_id);
-            return;
+            }
+
+            if matches_binding(hotkeys.js_repl_code_fold, '\\', false) {
+                self.toggle_bottommost_js_repl_code_fold();
+                return;
+            }
+
+            if matches_binding(hotkeys.jump_to_parent_call, ']', false) {
+                let Some(parent_call_id) = self
+                    .history_cells
+                    .iter()
+                    .rev()
+                    .find_map(|cell| cell.parent_call_id().map(str::to_owned))
+                else {
+                    self.bottom_pane
+                        .update_status_text("no parent tool call to jump to".to_string());
+                    self.request_redraw();
+                    return;
+                };
+                self.jump_to_call_id(&parent_call_id);
+                return;
+            }
+
+            if matches_binding(hotkeys.jump_to_latest_child_call, '}', true) {
+                use crate::history_cell::JsReplCell;
+                let Some(child_call_id) = self.history_cells.iter().rev().find_map(|cell| {
+                    cell.as_any()
+                        .downcast_ref::<JsReplCell>()
+                        .and_then(|js_cell| js_cell.latest_child_call_id().map(str::to_owned))
+                }) else {
+                    self.bottom_pane
+                        .update_status_text("no spawned tool call to jump to".to_string());
+                    self.request_redraw();
+                    return;
+                };
+                self.jump_to_call_id(&child_call_id);
+                return;
+            }
         }
 
         let composer_was_empty = self.bottom_pane.composer_is_empty();

@@ -191,7 +191,8 @@ impl ChatWidget<'_> {
                 let was_menu = overlay.is_menu_active();
                 let changed_section = overlay.active_section() != section;
                 overlay.set_mode_section(section);
-                if was_menu || changed_section {
+                let focus_changed = overlay.set_focus_content();
+                if was_menu || changed_section || focus_changed {
                     self.request_redraw();
                 }
             }

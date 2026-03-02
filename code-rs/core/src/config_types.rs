@@ -1049,6 +1049,12 @@ impl TuiHotkeyChord {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TuiHotkey {
+    /// Use the built-in legacy mapping for this action (when supported).
+    ///
+    /// This is primarily intended for history navigation shortcuts that have
+    /// existing single-key bindings (e.g. `[`, `]`). Status-line shortcuts
+    /// sanitize this value to `disabled`.
+    Legacy,
     Function(FunctionKeyHotkey),
     Chord(TuiHotkeyChord),
 }
@@ -1064,12 +1070,21 @@ impl TuiHotkey {
         Self::Function(FunctionKeyHotkey::Disabled)
     }
 
+    pub fn legacy() -> Self {
+        Self::Legacy
+    }
+
     pub fn is_disabled(self) -> bool {
         matches!(self, Self::Function(FunctionKeyHotkey::Disabled))
     }
 
+    pub fn is_legacy(self) -> bool {
+        matches!(self, Self::Legacy)
+    }
+
     pub fn display_name(self) -> Cow<'static, str> {
         match self {
+            Self::Legacy => Cow::Borrowed("legacy"),
             Self::Function(hk) => Cow::Borrowed(hk.display_name()),
             Self::Chord(chord) => Cow::Owned(chord.display_name()),
         }
@@ -1077,6 +1092,7 @@ impl TuiHotkey {
 
     pub fn toml_value(self) -> Cow<'static, str> {
         match self {
+            Self::Legacy => Cow::Borrowed("legacy"),
             Self::Function(hk) => Cow::Borrowed(hk.toml_value()),
             Self::Chord(chord) => Cow::Owned(chord.toml_value()),
         }
@@ -1084,6 +1100,7 @@ impl TuiHotkey {
 
     pub fn function_key(self) -> Option<FunctionKeyHotkey> {
         match self {
+            Self::Legacy => None,
             Self::Function(hk) => Some(hk),
             Self::Chord(_) => None,
         }
@@ -1116,6 +1133,10 @@ fn parse_tui_hotkey(raw: &str) -> Result<TuiHotkey, String> {
 
     if matches!(lowered.as_str(), "disabled" | "off" | "none") {
         return Ok(TuiHotkey::disabled());
+    }
+
+    if matches!(lowered.as_str(), "legacy" | "default") {
+        return Ok(TuiHotkey::legacy());
     }
 
     if let Some(rest) = lowered.strip_prefix('f') {
@@ -1180,22 +1201,24 @@ impl JsonSchema for TuiHotkey {
     fn json_schema(_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
         use schemars::schema::{InstanceType, Metadata, Schema, SchemaObject, SingleOrVec};
 
-        let mut schema = SchemaObject::default();
-        schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::String)));
-        schema.metadata = Some(Box::new(Metadata {
-            description: Some(
-                "Hotkey binding. Examples: \"f2\", \"ctrl+h\", \"alt+h\", \"ctrl+alt+h\", \"disabled\". Note: F1 is reserved for the Help overlay."
-                    .to_string(),
-            ),
-            examples: vec![
-                "f2".into(),
-                "ctrl+h".into(),
-                "ctrl+alt+h".into(),
-                "disabled".into(),
-            ],
+        Schema::Object(SchemaObject {
+            instance_type: Some(SingleOrVec::Single(Box::new(InstanceType::String))),
+            metadata: Some(Box::new(Metadata {
+                description: Some(
+                    "Hotkey binding. Examples: \"f2\", \"ctrl+h\", \"alt+h\", \"ctrl+alt+h\", \"disabled\". Some actions also accept \"legacy\". Note: F1 is reserved for the Help overlay."
+                        .to_string(),
+                ),
+                examples: vec![
+                    "f2".into(),
+                    "ctrl+h".into(),
+                    "ctrl+alt+h".into(),
+                    "disabled".into(),
+                    "legacy".into(),
+                ],
+                ..Default::default()
+            })),
             ..Default::default()
-        }));
-        Schema::Object(schema)
+        })
     }
 }
 
@@ -1253,6 +1276,22 @@ fn default_hotkey_network_settings() -> TuiHotkey {
     TuiHotkey::Function(FunctionKeyHotkey::F5)
 }
 
+fn default_hotkey_exec_output_fold() -> TuiHotkey {
+    TuiHotkey::legacy()
+}
+
+fn default_hotkey_js_repl_code_fold() -> TuiHotkey {
+    TuiHotkey::legacy()
+}
+
+fn default_hotkey_jump_to_parent_call() -> TuiHotkey {
+    TuiHotkey::legacy()
+}
+
+fn default_hotkey_jump_to_latest_child_call() -> TuiHotkey {
+    TuiHotkey::legacy()
+}
+
 /// Optional per-platform overrides for hotkey preferences.
 ///
 /// Nested under `[tui.hotkeys.<platform>]`.
@@ -1266,6 +1305,22 @@ pub struct TuiHotkeysOverrides {
     pub shell_selector: Option<TuiHotkey>,
     #[serde(default)]
     pub network_settings: Option<TuiHotkey>,
+
+    /// Keyboard shortcut for toggling exec output folding (history shortcut).
+    #[serde(default)]
+    pub exec_output_fold: Option<TuiHotkey>,
+
+    /// Keyboard shortcut for toggling JS REPL code folding (history shortcut).
+    #[serde(default)]
+    pub js_repl_code_fold: Option<TuiHotkey>,
+
+    /// Keyboard shortcut for jumping to the parent tool call (history shortcut).
+    #[serde(default)]
+    pub jump_to_parent_call: Option<TuiHotkey>,
+
+    /// Keyboard shortcut for jumping to the latest child tool call (history shortcut).
+    #[serde(default)]
+    pub jump_to_latest_child_call: Option<TuiHotkey>,
 }
 
 /// Key binding preferences under `[tui.hotkeys]`.
@@ -1286,6 +1341,30 @@ pub struct TuiHotkeysConfig {
     /// Keyboard shortcut for opening Settings -> Network (mirrors clicking the status line).
     #[serde(default = "default_hotkey_network_settings")]
     pub network_settings: TuiHotkey,
+
+    /// Keyboard shortcut for toggling output folding on the latest exec cell.
+    ///
+    /// Defaults to the legacy mapping (`[` while the composer is empty).
+    #[serde(default = "default_hotkey_exec_output_fold")]
+    pub exec_output_fold: TuiHotkey,
+
+    /// Keyboard shortcut for toggling code folding on the latest JS REPL cell.
+    ///
+    /// Defaults to the legacy mapping (`\\` while the composer is empty).
+    #[serde(default = "default_hotkey_js_repl_code_fold")]
+    pub js_repl_code_fold: TuiHotkey,
+
+    /// Keyboard shortcut for jumping to the parent of the latest nested tool call.
+    ///
+    /// Defaults to the legacy mapping (`]` while the composer is empty).
+    #[serde(default = "default_hotkey_jump_to_parent_call")]
+    pub jump_to_parent_call: TuiHotkey,
+
+    /// Keyboard shortcut for jumping to the latest tool call spawned by the latest JS REPL cell.
+    ///
+    /// Defaults to the legacy mapping (`}` while the composer is empty).
+    #[serde(default = "default_hotkey_jump_to_latest_child_call")]
+    pub jump_to_latest_child_call: TuiHotkey,
 
     /// Optional overrides under `[tui.hotkeys.macos]`.
     #[serde(default)]
@@ -1331,6 +1410,10 @@ impl Default for TuiHotkeysConfig {
             reasoning_effort: default_hotkey_reasoning_effort(),
             shell_selector: default_hotkey_shell_selector(),
             network_settings: default_hotkey_network_settings(),
+            exec_output_fold: default_hotkey_exec_output_fold(),
+            js_repl_code_fold: default_hotkey_js_repl_code_fold(),
+            jump_to_parent_call: default_hotkey_jump_to_parent_call(),
+            jump_to_latest_child_call: default_hotkey_jump_to_latest_child_call(),
             macos: None,
             windows: None,
             linux: None,
@@ -1404,6 +1487,10 @@ pub struct ResolvedTuiHotkeys {
     pub reasoning_effort: TuiHotkey,
     pub shell_selector: TuiHotkey,
     pub network_settings: TuiHotkey,
+    pub exec_output_fold: TuiHotkey,
+    pub js_repl_code_fold: TuiHotkey,
+    pub jump_to_parent_call: TuiHotkey,
+    pub jump_to_latest_child_call: TuiHotkey,
 }
 
 impl TuiHotkeysConfig {
@@ -1444,6 +1531,10 @@ impl TuiHotkeysConfig {
             reasoning_effort: self.reasoning_effort,
             shell_selector: self.shell_selector,
             network_settings: self.network_settings,
+            exec_output_fold: self.exec_output_fold,
+            js_repl_code_fold: self.js_repl_code_fold,
+            jump_to_parent_call: self.jump_to_parent_call,
+            jump_to_latest_child_call: self.jump_to_latest_child_call,
         };
 
         if let Some(overrides) = self.overrides_for_platform(env.platform) {
@@ -1487,6 +1578,18 @@ fn apply_tui_hotkey_overrides(out: &mut ResolvedTuiHotkeys, overrides: &TuiHotke
     if let Some(value) = overrides.network_settings {
         out.network_settings = value;
     }
+    if let Some(value) = overrides.exec_output_fold {
+        out.exec_output_fold = value;
+    }
+    if let Some(value) = overrides.js_repl_code_fold {
+        out.js_repl_code_fold = value;
+    }
+    if let Some(value) = overrides.jump_to_parent_call {
+        out.jump_to_parent_call = value;
+    }
+    if let Some(value) = overrides.jump_to_latest_child_call {
+        out.jump_to_latest_child_call = value;
+    }
 }
 
 fn sanitize_resolved_hotkeys(out: &mut ResolvedTuiHotkeys, env: TuiHotkeysEnv) {
@@ -1496,13 +1599,47 @@ fn sanitize_resolved_hotkeys(out: &mut ResolvedTuiHotkeys, env: TuiHotkeysEnv) {
     };
 
     // Enforce platform limits and keep F1 reserved for the Help overlay.
-    let ordered = [
+    //
+    // Status-line shortcuts do not support legacy mappings; treat them as disabled
+    // so they cannot shadow normal typing.
+    let statusline = [
         &mut out.model_selector,
         &mut out.reasoning_effort,
         &mut out.shell_selector,
         &mut out.network_settings,
     ];
-    for hk in ordered {
+    for hk in statusline {
+        if hk.is_legacy() {
+            *hk = TuiHotkey::disabled();
+            continue;
+        }
+        match hk.function_key() {
+            Some(FunctionKeyHotkey::F1) => {
+                *hk = TuiHotkey::disabled();
+                continue;
+            }
+            Some(fk) => {
+                if fk.as_u8().is_some_and(|n| n > max_key) {
+                    *hk = TuiHotkey::disabled();
+                }
+            }
+            None => {}
+        }
+        if hk.is_reserved_for_statusline_shortcuts() {
+            *hk = TuiHotkey::disabled();
+        }
+    }
+
+    let history = [
+        &mut out.exec_output_fold,
+        &mut out.js_repl_code_fold,
+        &mut out.jump_to_parent_call,
+        &mut out.jump_to_latest_child_call,
+    ];
+    for hk in history {
+        if hk.is_legacy() {
+            continue;
+        }
         match hk.function_key() {
             Some(FunctionKeyHotkey::F1) => {
                 *hk = TuiHotkey::disabled();
@@ -1527,10 +1664,14 @@ fn sanitize_resolved_hotkeys(out: &mut ResolvedTuiHotkeys, env: TuiHotkeysEnv) {
         &mut out.reasoning_effort,
         &mut out.shell_selector,
         &mut out.network_settings,
+        &mut out.exec_output_fold,
+        &mut out.js_repl_code_fold,
+        &mut out.jump_to_parent_call,
+        &mut out.jump_to_latest_child_call,
     ];
     let mut seen: HashSet<TuiHotkey> = HashSet::new();
     for hk in ordered {
-        if hk.is_disabled() {
+        if hk.is_disabled() || hk.is_legacy() {
             continue;
         }
         if !seen.insert(*hk) {
@@ -2843,13 +2984,15 @@ mod tests {
 
     #[test]
     fn tui_hotkeys_resolves_platform_overrides() {
-        let mut hotkeys = TuiHotkeysConfig::default();
-        hotkeys.model_selector = TuiHotkey::Function(FunctionKeyHotkey::F2);
-        hotkeys.network_settings = TuiHotkey::Function(FunctionKeyHotkey::F5);
-        hotkeys.macos = Some(TuiHotkeysOverrides {
-            model_selector: Some(TuiHotkey::Function(FunctionKeyHotkey::F13)),
+        let hotkeys = TuiHotkeysConfig {
+            model_selector: TuiHotkey::Function(FunctionKeyHotkey::F2),
+            network_settings: TuiHotkey::Function(FunctionKeyHotkey::F5),
+            macos: Some(TuiHotkeysOverrides {
+                model_selector: Some(TuiHotkey::Function(FunctionKeyHotkey::F13)),
+                ..Default::default()
+            }),
             ..Default::default()
-        });
+        };
 
         let resolved = hotkeys.resolved_for_env(TuiHotkeysEnv {
             platform: TuiHotkeysPlatform::Macos,
@@ -2868,15 +3011,17 @@ mod tests {
 
     #[test]
     fn tui_hotkeys_resolves_termux_overrides_after_android() {
-        let mut hotkeys = TuiHotkeysConfig::default();
-        hotkeys.android = Some(TuiHotkeysOverrides {
-            model_selector: Some(TuiHotkey::Function(FunctionKeyHotkey::F10)),
+        let hotkeys = TuiHotkeysConfig {
+            android: Some(TuiHotkeysOverrides {
+                model_selector: Some(TuiHotkey::Function(FunctionKeyHotkey::F10)),
+                ..Default::default()
+            }),
+            termux: Some(TuiHotkeysOverrides {
+                model_selector: Some(TuiHotkey::Function(FunctionKeyHotkey::F11)),
+                ..Default::default()
+            }),
             ..Default::default()
-        });
-        hotkeys.termux = Some(TuiHotkeysOverrides {
-            model_selector: Some(TuiHotkey::Function(FunctionKeyHotkey::F11)),
-            ..Default::default()
-        });
+        };
 
         let resolved_android = hotkeys.resolved_for_env(TuiHotkeysEnv {
             platform: TuiHotkeysPlatform::Android,

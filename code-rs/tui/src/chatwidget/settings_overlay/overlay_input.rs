@@ -104,7 +104,13 @@ impl SettingsOverlayView {
                 );
 
                 match result {
-                    SelectableListMouseResult::Ignored => self.forward_mouse_to_content(mouse_event),
+                    SelectableListMouseResult::Ignored => {
+                        let handled = self.forward_mouse_to_content(mouse_event);
+                        if handled {
+                            self.set_focus_content();
+                        }
+                        handled
+                    }
                     SelectableListMouseResult::SelectionChanged
                     | SelectableListMouseResult::Activated => {
                         let Some(section) = self.sidebar_section_at(selected_idx) else {
@@ -112,9 +118,14 @@ impl SettingsOverlayView {
                         };
                         if section != self.active_section() {
                             self.set_mode_section(section);
+                            self.set_focus_sidebar();
                             true
                         } else {
-                            matches!(result, SelectableListMouseResult::Activated)
+                            let activated = matches!(result, SelectableListMouseResult::Activated);
+                            if activated {
+                                self.set_focus_sidebar();
+                            }
+                            activated
                         }
                     }
                 }

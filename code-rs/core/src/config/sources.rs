@@ -1616,6 +1616,14 @@ pub fn set_tui_hotkeys(
         toml_edit::value(hotkeys.shell_selector.toml_value().as_ref());
     hotkeys_table["network_settings"] =
         toml_edit::value(hotkeys.network_settings.toml_value().as_ref());
+    hotkeys_table["exec_output_fold"] =
+        toml_edit::value(hotkeys.exec_output_fold.toml_value().as_ref());
+    hotkeys_table["js_repl_code_fold"] =
+        toml_edit::value(hotkeys.js_repl_code_fold.toml_value().as_ref());
+    hotkeys_table["jump_to_parent_call"] =
+        toml_edit::value(hotkeys.jump_to_parent_call.toml_value().as_ref());
+    hotkeys_table["jump_to_latest_child_call"] =
+        toml_edit::value(hotkeys.jump_to_latest_child_call.toml_value().as_ref());
 
     fn write_hotkey_override_field(
         table: &mut TomlTable,
@@ -1658,6 +1666,26 @@ pub fn set_tui_hotkeys(
                     "network_settings",
                     overrides.network_settings,
                 );
+                write_hotkey_override_field(
+                    platform_table,
+                    "exec_output_fold",
+                    overrides.exec_output_fold,
+                );
+                write_hotkey_override_field(
+                    platform_table,
+                    "js_repl_code_fold",
+                    overrides.js_repl_code_fold,
+                );
+                write_hotkey_override_field(
+                    platform_table,
+                    "jump_to_parent_call",
+                    overrides.jump_to_parent_call,
+                );
+                write_hotkey_override_field(
+                    platform_table,
+                    "jump_to_latest_child_call",
+                    overrides.jump_to_latest_child_call,
+                );
 
                 if platform_table.is_empty() {
                     hotkeys_table.remove(platform_key);
@@ -1675,6 +1703,10 @@ pub fn set_tui_hotkeys(
                 platform_table.remove("reasoning_effort");
                 platform_table.remove("shell_selector");
                 platform_table.remove("network_settings");
+                platform_table.remove("exec_output_fold");
+                platform_table.remove("js_repl_code_fold");
+                platform_table.remove("jump_to_parent_call");
+                platform_table.remove("jump_to_latest_child_call");
 
                 if platform_table.is_empty() {
                     hotkeys_table.remove(platform_key);

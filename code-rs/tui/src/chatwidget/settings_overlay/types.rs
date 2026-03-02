@@ -23,6 +23,12 @@ pub(crate) trait SettingsContent {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum SettingsOverlayFocus {
+    Sidebar,
+    Content,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct MenuState {
     selected: SettingsSection,
 }
@@ -119,8 +125,12 @@ impl SettingsHelpOverlay {
             )]),
             Line::default(),
             Line::from(vec![Span::styled("• Esc    Return to overview", hint)]),
-            Line::from(vec![Span::styled("• Tab    Cycle sections", hint)]),
-            Line::from(vec![Span::styled("• Shift+Tab  Cycle backwards", hint)]),
+            Line::from(vec![Span::styled("• Tab    Focus content", hint)]),
+            Line::from(vec![Span::styled("• Shift+Tab  Focus sidebar", hint)]),
+            Line::from(vec![Span::styled(
+                "• ↑/↓    Change section (sidebar focus)",
+                hint,
+            )]),
         ];
         if matches!(section, SettingsSection::Shell | SettingsSection::ShellProfiles) {
             lines.push(Line::from(vec![Span::styled(
@@ -147,7 +157,7 @@ impl SettingsHelpOverlay {
         lines.push(Line::from(vec![Span::styled("• ?      Toggle this help", hint)]));
         lines.push(Line::default());
         lines.push(Line::from(vec![Span::styled(
-            "Press Esc to close",
+            "Press Esc twice to close",
             Style::default().fg(crate::colors::text_dim()),
         )]));
         Self { lines }

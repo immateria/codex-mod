@@ -97,7 +97,7 @@ impl SettingsOverlayView {
 
         self.render_overview_list(list_area, buf);
         if let Some(hint_area) = hint_area {
-            self.render_footer_hints(hint_area, buf);
+            self.render_footer_hints_overview(hint_area, buf);
         }
     }
 
@@ -337,7 +337,7 @@ impl SettingsOverlayView {
         }
     }
 
-    fn render_footer_hints(&self, area: Rect, buf: &mut Buffer) {
+    fn render_footer_hints_overview(&self, area: Rect, buf: &mut Buffer) {
         if area.width == 0 || area.height == 0 {
             return;
         }
@@ -351,6 +351,41 @@ impl SettingsOverlayView {
             Span::styled(" Close    ", Style::default().fg(crate::colors::text_dim())),
             Span::styled("?", Style::default().fg(crate::colors::text())),
             Span::styled(" Help", Style::default().fg(crate::colors::text_dim())),
+        ]);
+
+        Paragraph::new(line)
+            .style(Style::default().bg(crate::colors::background()))
+            .alignment(Alignment::Left)
+            .render(area, buf);
+    }
+
+    fn render_footer_hints_section(&self, area: Rect, buf: &mut Buffer) {
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+
+        let key = Style::default().fg(crate::colors::text());
+        let hint = Style::default().fg(crate::colors::text_dim());
+        let focus = Style::default()
+            .fg(crate::colors::primary())
+            .add_modifier(Modifier::BOLD);
+        let focus_label = if self.is_sidebar_focused() {
+            "Sidebar"
+        } else {
+            "Content"
+        };
+
+        let line = Line::from(vec![
+            Span::styled("Tab", key),
+            Span::styled(" Content    ", hint),
+            Span::styled("Shift+Tab", key),
+            Span::styled(" Sidebar    ", hint),
+            Span::styled("Esc", key),
+            Span::styled(" Overview    ", hint),
+            Span::styled("?", key),
+            Span::styled(" Help    ", hint),
+            Span::styled("Focus:", hint),
+            Span::styled(format!(" {focus_label}"), focus),
         ]);
 
         Paragraph::new(line)
@@ -374,7 +409,7 @@ impl SettingsOverlayView {
 
         self.render_section_main(main_area, buf);
         if let Some(hint_area) = hint_area {
-            self.render_footer_hints(hint_area, buf);
+            self.render_footer_hints_section(hint_area, buf);
         }
     }
 
@@ -397,11 +432,19 @@ impl SettingsOverlayView {
         }
 
         let title = Self::section_panel_title(self.active_section());
+        let mut style = PanelFrameStyle::overlay().with_margin(Margin::new(1, 1));
+        style.border_style = Style::default()
+            .fg(if self.is_content_focused() {
+                crate::colors::border_focused()
+            } else {
+                crate::colors::border_dim()
+            })
+            .bg(crate::colors::background());
         render_panel(
             area,
             buf,
             title,
-            PanelFrameStyle::overlay().with_margin(Margin::new(1, 1)),
+            style,
             |inner, buf| {
                 self.render_content(inner, buf);
                 self.strip_child_border(inner, buf);
@@ -647,7 +690,11 @@ impl SettingsOverlayView {
             let is_last_visible = idx + 1 == end;
 
             let selection_indicator = if is_active {
-                "›"
+                if self.is_sidebar_focused() {
+                    "»"
+                } else {
+                    "›"
+                }
             } else if is_hovered {
                 "▸"
             } else {

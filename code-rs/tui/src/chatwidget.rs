@@ -4503,6 +4503,33 @@ fi\n\
             network_hotkey.as_ref(),
             "Network settings",
         ));
+        let history_label = |hk: code_core::config_types::TuiHotkey, legacy_key: &str| -> String {
+            if hk.is_legacy() {
+                legacy_key.to_string()
+            } else {
+                hk.display_name().into_owned()
+            }
+        };
+        let fold_exec_hotkey = history_label(hotkeys.exec_output_fold, "[");
+        lines.push(kv(
+            &fold_exec_hotkey,
+            "Fold latest exec output (composer empty)",
+        ));
+        let fold_js_hotkey = history_label(hotkeys.js_repl_code_fold, "\\");
+        lines.push(kv(
+            &fold_js_hotkey,
+            "Fold latest JS REPL code (composer empty)",
+        ));
+        let jump_parent_hotkey = history_label(hotkeys.jump_to_parent_call, "]");
+        lines.push(kv(
+            &jump_parent_hotkey,
+            "Jump to parent tool call (composer empty)",
+        ));
+        let jump_child_hotkey = history_label(hotkeys.jump_to_latest_child_call, "}");
+        lines.push(kv(
+            &jump_child_hotkey,
+            "Jump to latest spawned tool call (composer empty)",
+        ));
         lines.push(kv("Ctrl+G", "Open external editor"));
         lines.push(kv("Ctrl+R", "Toggle reasoning"));
         lines.push(kv("Ctrl+T", "Toggle screen"));

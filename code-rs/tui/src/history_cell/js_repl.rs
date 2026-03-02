@@ -255,8 +255,7 @@ impl JsReplCell {
                 .code
                 .lines()
                 .filter(|line| !line.trim().is_empty())
-                .skip(1)
-                .next()
+                .nth(1)
                 .is_some();
         if has_hidden_code {
             spans.push(Span::styled(" • code (\\)", dim_style));

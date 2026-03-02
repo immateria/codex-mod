@@ -3777,6 +3777,80 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn settings_overlay_focus_allows_sidebar_navigation_without_getting_stuck() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    use crate::bottom_pane::SettingsSection;
+
+    {
+        let chat = harness.chat();
+        chat.show_settings_overlay(Some(SettingsSection::Network));
+    }
+    harness.flush_into_widget();
+
+    let render = |harness: &mut ChatWidgetHarness| -> String {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    // Default focus is content. Home should not switch sections while content is focused.
+    let output_before = render(&mut harness);
+    assert!(
+        output_before.contains("Network Mediation") && output_before.contains("Focus: Content"),
+        "expected Network settings with content focus, got:\n{output_before}",
+    );
+
+    harness.with_chat(|chat| {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        chat.handle_key_event(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+    });
+    let output_after_home = render(&mut harness);
+    assert!(
+        output_after_home.contains("Network Mediation"),
+        "expected Home to not switch sections while content is focused, got:\n{output_after_home}",
+    );
+
+    // Shift+Tab switches to the sidebar, where Home should jump to the Model page.
+    harness.with_chat(|chat| {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        chat.handle_key_event(KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT));
+    });
+    let output_sidebar = render(&mut harness);
+    assert!(
+        output_sidebar.contains("Focus: Sidebar"),
+        "expected sidebar focus after Shift+Tab, got:\n{output_sidebar}",
+    );
+
+    harness.with_chat(|chat| {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        chat.handle_key_event(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+    });
+    let output_model = render(&mut harness);
+    assert!(
+        output_model.contains("Select Model & Reasoning"),
+        "expected sidebar navigation to reach Model settings, got:\n{output_model}",
+    );
+
+    // Tab returns focus to content.
+    harness.with_chat(|chat| {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        chat.handle_key_event(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    });
+    let output_content = render(&mut harness);
+    assert!(
+        output_content.contains("Focus: Content"),
+        "expected content focus after Tab, got:\n{output_content}",
+    );
+    }
+
+    #[test]
     fn network_approval_renders_network_modal_without_exec_persist_options() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
@@ -4209,7 +4283,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
                 command: vec!["bash".into(), "-lc".into(), "echo child".into()],
                 cwd: std::env::temp_dir(),
                 parsed_cmd: Vec::new(),
-                parent_call_id: Some(parent_call_id.clone()),
+                parent_call_id: Some(parent_call_id),
             }),
             order: Some(OrderMeta {
                 request_ordinal: 1,
