@@ -235,6 +235,7 @@ impl ChatWidget<'_> {
         InterfaceSettingsView::new(
             self.config.code_home.clone(),
             self.config.tui.settings_menu.clone(),
+            self.config.tui.hotkeys.clone(),
             self.app_event_tx.clone(),
         )
     }
@@ -1047,6 +1048,19 @@ impl ChatWidget<'_> {
         settings: code_core::config_types::SettingsMenuConfig,
     ) {
         self.config.tui.settings_menu = settings;
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
+    pub(crate) fn apply_tui_hotkeys(
+        &mut self,
+        hotkeys: code_core::config_types::TuiHotkeysConfig,
+    ) {
+        self.config.tui.hotkeys = hotkeys;
+        if self.help.overlay.is_some() {
+            // Rebuild the overlay so the shortcut labels reflect the new mapping.
+            self.show_help_popup();
+        }
         self.refresh_settings_overview_rows();
         self.request_redraw();
     }

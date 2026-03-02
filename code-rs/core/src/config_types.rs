@@ -909,6 +909,136 @@ fn default_settings_overlay_min_width() -> u16 {
     100
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum FunctionKeyHotkey {
+    #[default]
+    #[serde(alias = "Disabled", alias = "off", alias = "Off", alias = "none", alias = "None")]
+    Disabled,
+    #[serde(alias = "F2")]
+    F2,
+    #[serde(alias = "F3")]
+    F3,
+    #[serde(alias = "F4")]
+    F4,
+    #[serde(alias = "F5")]
+    F5,
+    #[serde(alias = "F6")]
+    F6,
+    #[serde(alias = "F7")]
+    F7,
+    #[serde(alias = "F8")]
+    F8,
+    #[serde(alias = "F9")]
+    F9,
+    #[serde(alias = "F10")]
+    F10,
+    #[serde(alias = "F11")]
+    F11,
+    #[serde(alias = "F12")]
+    F12,
+}
+
+impl FunctionKeyHotkey {
+    pub fn as_u8(self) -> Option<u8> {
+        match self {
+            Self::Disabled => None,
+            Self::F2 => Some(2),
+            Self::F3 => Some(3),
+            Self::F4 => Some(4),
+            Self::F5 => Some(5),
+            Self::F6 => Some(6),
+            Self::F7 => Some(7),
+            Self::F8 => Some(8),
+            Self::F9 => Some(9),
+            Self::F10 => Some(10),
+            Self::F11 => Some(11),
+            Self::F12 => Some(12),
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Disabled => "disabled",
+            Self::F2 => "F2",
+            Self::F3 => "F3",
+            Self::F4 => "F4",
+            Self::F5 => "F5",
+            Self::F6 => "F6",
+            Self::F7 => "F7",
+            Self::F8 => "F8",
+            Self::F9 => "F9",
+            Self::F10 => "F10",
+            Self::F11 => "F11",
+            Self::F12 => "F12",
+        }
+    }
+
+    pub fn toml_value(self) -> &'static str {
+        match self {
+            Self::Disabled => "disabled",
+            Self::F2 => "f2",
+            Self::F3 => "f3",
+            Self::F4 => "f4",
+            Self::F5 => "f5",
+            Self::F6 => "f6",
+            Self::F7 => "f7",
+            Self::F8 => "f8",
+            Self::F9 => "f9",
+            Self::F10 => "f10",
+            Self::F11 => "f11",
+            Self::F12 => "f12",
+        }
+    }
+}
+
+fn default_hotkey_model_selector() -> FunctionKeyHotkey {
+    FunctionKeyHotkey::F2
+}
+
+fn default_hotkey_reasoning_effort() -> FunctionKeyHotkey {
+    FunctionKeyHotkey::F3
+}
+
+fn default_hotkey_shell_selector() -> FunctionKeyHotkey {
+    FunctionKeyHotkey::F4
+}
+
+fn default_hotkey_network_settings() -> FunctionKeyHotkey {
+    FunctionKeyHotkey::F5
+}
+
+/// Key binding preferences under `[tui.hotkeys]`.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+pub struct TuiHotkeysConfig {
+    /// Keyboard shortcut for opening the model selector (mirrors clicking the status line).
+    #[serde(default = "default_hotkey_model_selector")]
+    pub model_selector: FunctionKeyHotkey,
+
+    /// Keyboard shortcut for cycling reasoning effort (mirrors clicking the status line).
+    #[serde(default = "default_hotkey_reasoning_effort")]
+    pub reasoning_effort: FunctionKeyHotkey,
+
+    /// Keyboard shortcut for opening the shell selector (mirrors clicking the status line).
+    #[serde(default = "default_hotkey_shell_selector")]
+    pub shell_selector: FunctionKeyHotkey,
+
+    /// Keyboard shortcut for opening Settings -> Network (mirrors clicking the status line).
+    #[serde(default = "default_hotkey_network_settings")]
+    pub network_settings: FunctionKeyHotkey,
+}
+
+impl Default for TuiHotkeysConfig {
+    fn default() -> Self {
+        Self {
+            model_selector: default_hotkey_model_selector(),
+            reasoning_effort: default_hotkey_reasoning_effort(),
+            shell_selector: default_hotkey_shell_selector(),
+            network_settings: default_hotkey_network_settings(),
+        }
+    }
+}
+
 /// Settings UI routing preferences under `[tui.settings_menu]`.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct SettingsMenuConfig {
@@ -1032,6 +1162,10 @@ pub struct Tui {
     /// Routing preferences for the Settings UI (overlay vs bottom pane).
     #[serde(default)]
     pub settings_menu: SettingsMenuConfig,
+
+    /// Keyboard shortcut preferences (for status line quick actions).
+    #[serde(default)]
+    pub hotkeys: TuiHotkeysConfig,
 }
 
 /// Branding options under `[tui.branding]`.
@@ -1148,6 +1282,7 @@ impl Default for Tui {
             shell_presets_file: None,
             limits: LimitsUiConfig::default(),
             settings_menu: SettingsMenuConfig::default(),
+            hotkeys: TuiHotkeysConfig::default(),
         }
     }
 }

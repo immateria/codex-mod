@@ -4,7 +4,12 @@ use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
-use code_core::config_types::{SettingsMenuConfig, SettingsMenuOpenMode};
+use code_core::config_types::{
+    FunctionKeyHotkey,
+    SettingsMenuConfig,
+    SettingsMenuOpenMode,
+    TuiHotkeysConfig,
+};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -29,6 +34,10 @@ use super::BottomPane;
 enum RowKind {
     OpenMode,
     OverlayMinWidth,
+    ModelSelectorHotkey,
+    ReasoningEffortHotkey,
+    ShellSelectorHotkey,
+    NetworkSettingsHotkey,
     ShowConfigToml,
     ShowCodeHome,
     Apply,
@@ -44,6 +53,7 @@ enum ViewMode {
 
 pub(crate) struct InterfaceSettingsView {
     settings: SettingsMenuConfig,
+    hotkeys: TuiHotkeysConfig,
     code_home: PathBuf,
     app_event_tx: AppEventSender,
     is_complete: bool,
@@ -55,11 +65,17 @@ pub(crate) struct InterfaceSettingsView {
 }
 
 impl InterfaceSettingsView {
-    pub fn new(code_home: PathBuf, settings: SettingsMenuConfig, app_event_tx: AppEventSender) -> Self {
+    pub fn new(
+        code_home: PathBuf,
+        settings: SettingsMenuConfig,
+        hotkeys: TuiHotkeysConfig,
+        app_event_tx: AppEventSender,
+    ) -> Self {
         let mut state = ScrollState::new();
         state.selected_idx = Some(0);
         Self {
             settings,
+            hotkeys,
             code_home,
             app_event_tx,
             is_complete: false,
@@ -87,10 +103,14 @@ impl InterfaceSettingsView {
         }
     }
 
-    fn build_rows(&self) -> [RowKind; 6] {
+    fn build_rows(&self) -> [RowKind; 10] {
         [
             RowKind::OpenMode,
             RowKind::OverlayMinWidth,
+            RowKind::ModelSelectorHotkey,
+            RowKind::ReasoningEffortHotkey,
+            RowKind::ShellSelectorHotkey,
+            RowKind::NetworkSettingsHotkey,
             RowKind::ShowConfigToml,
             RowKind::ShowCodeHome,
             RowKind::Apply,
@@ -141,9 +161,95 @@ impl InterfaceSettingsView {
         Ok(())
     }
 
+    fn cycle_function_hotkey_next(hotkey: FunctionKeyHotkey) -> FunctionKeyHotkey {
+        match hotkey {
+            FunctionKeyHotkey::Disabled => FunctionKeyHotkey::F2,
+            FunctionKeyHotkey::F2 => FunctionKeyHotkey::F3,
+            FunctionKeyHotkey::F3 => FunctionKeyHotkey::F4,
+            FunctionKeyHotkey::F4 => FunctionKeyHotkey::F5,
+            FunctionKeyHotkey::F5 => FunctionKeyHotkey::F6,
+            FunctionKeyHotkey::F6 => FunctionKeyHotkey::F7,
+            FunctionKeyHotkey::F7 => FunctionKeyHotkey::F8,
+            FunctionKeyHotkey::F8 => FunctionKeyHotkey::F9,
+            FunctionKeyHotkey::F9 => FunctionKeyHotkey::F10,
+            FunctionKeyHotkey::F10 => FunctionKeyHotkey::F11,
+            FunctionKeyHotkey::F11 => FunctionKeyHotkey::F12,
+            FunctionKeyHotkey::F12 => FunctionKeyHotkey::Disabled,
+        }
+    }
+
+    fn cycle_function_hotkey_prev(hotkey: FunctionKeyHotkey) -> FunctionKeyHotkey {
+        match hotkey {
+            FunctionKeyHotkey::Disabled => FunctionKeyHotkey::F12,
+            FunctionKeyHotkey::F2 => FunctionKeyHotkey::Disabled,
+            FunctionKeyHotkey::F3 => FunctionKeyHotkey::F2,
+            FunctionKeyHotkey::F4 => FunctionKeyHotkey::F3,
+            FunctionKeyHotkey::F5 => FunctionKeyHotkey::F4,
+            FunctionKeyHotkey::F6 => FunctionKeyHotkey::F5,
+            FunctionKeyHotkey::F7 => FunctionKeyHotkey::F6,
+            FunctionKeyHotkey::F8 => FunctionKeyHotkey::F7,
+            FunctionKeyHotkey::F9 => FunctionKeyHotkey::F8,
+            FunctionKeyHotkey::F10 => FunctionKeyHotkey::F9,
+            FunctionKeyHotkey::F11 => FunctionKeyHotkey::F10,
+            FunctionKeyHotkey::F12 => FunctionKeyHotkey::F11,
+        }
+    }
+
+    fn adjust_hotkey_for_row(&mut self, row: RowKind, forward: bool) {
+        let next = |hk| if forward { Self::cycle_function_hotkey_next(hk) } else { Self::cycle_function_hotkey_prev(hk) };
+        match row {
+            RowKind::ModelSelectorHotkey => {
+                self.hotkeys.model_selector = next(self.hotkeys.model_selector);
+                self.dirty = true;
+            }
+            RowKind::ReasoningEffortHotkey => {
+                self.hotkeys.reasoning_effort = next(self.hotkeys.reasoning_effort);
+                self.dirty = true;
+            }
+            RowKind::ShellSelectorHotkey => {
+                self.hotkeys.shell_selector = next(self.hotkeys.shell_selector);
+                self.dirty = true;
+            }
+            RowKind::NetworkSettingsHotkey => {
+                self.hotkeys.network_settings = next(self.hotkeys.network_settings);
+                self.dirty = true;
+            }
+            _ => {}
+        }
+    }
+
+    fn validate_hotkeys(&self) -> Result<(), String> {
+        use std::collections::HashMap;
+
+        let mut seen: HashMap<u8, &'static str> = HashMap::new();
+        let pairs = [
+            ("model_selector", self.hotkeys.model_selector),
+            ("reasoning_effort", self.hotkeys.reasoning_effort),
+            ("shell_selector", self.hotkeys.shell_selector),
+            ("network_settings", self.hotkeys.network_settings),
+        ];
+        for (label, hk) in pairs {
+            let Some(n) = hk.as_u8() else { continue };
+            if let Some(prev) = seen.insert(n, label) {
+                return Err(format!(
+                    "Hotkeys must be unique (both {prev} and {label} use {key}).",
+                    key = hk.display_name()
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn apply_settings(&mut self) {
+        if let Err(err) = self.validate_hotkeys() {
+            self.status = Some((err, true));
+            return;
+        }
+
         self.app_event_tx
             .send(AppEvent::SetTuiSettingsMenuConfig(self.settings.clone()));
+        self.app_event_tx
+            .send(AppEvent::SetTuiHotkeysConfig(self.hotkeys.clone()));
         self.dirty = false;
         self.status = Some(("Saved interface settings".to_string(), false));
     }
@@ -172,6 +278,13 @@ impl InterfaceSettingsView {
         match self.selected_row() {
             RowKind::OpenMode => self.cycle_open_mode_next(),
             RowKind::OverlayMinWidth => self.open_width_editor(),
+            RowKind::ModelSelectorHotkey
+            | RowKind::ReasoningEffortHotkey
+            | RowKind::ShellSelectorHotkey
+            | RowKind::NetworkSettingsHotkey => {
+                let row = self.selected_row();
+                self.adjust_hotkey_for_row(row, true);
+            }
             RowKind::ShowConfigToml => self.show_config_toml(),
             RowKind::ShowCodeHome => self.show_code_home(),
             RowKind::Apply => self.apply_settings(),
@@ -339,6 +452,12 @@ impl InterfaceSettingsView {
                         self.dirty = true;
                     }
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(-5),
+                    Some(RowKind::ModelSelectorHotkey)
+                    | Some(RowKind::ReasoningEffortHotkey)
+                    | Some(RowKind::ShellSelectorHotkey)
+                    | Some(RowKind::NetworkSettingsHotkey) => {
+                        self.adjust_hotkey_for_row(current_row.unwrap(), false);
+                    }
                     _ => {}
                 }
                 true
@@ -348,6 +467,12 @@ impl InterfaceSettingsView {
                 match current_row {
                     Some(RowKind::OpenMode) => self.cycle_open_mode_next(),
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(5),
+                    Some(RowKind::ModelSelectorHotkey)
+                    | Some(RowKind::ReasoningEffortHotkey)
+                    | Some(RowKind::ShellSelectorHotkey)
+                    | Some(RowKind::NetworkSettingsHotkey) => {
+                        self.adjust_hotkey_for_row(current_row.unwrap(), true);
+                    }
                     _ => {}
                 }
                 true
@@ -463,6 +588,10 @@ impl InterfaceSettingsView {
         match row {
             RowKind::OpenMode => "Auto uses overlay on wide terminals; override with overlay/bottom.",
             RowKind::OverlayMinWidth => "Terminal width (columns) at which auto prefers overlay.",
+            RowKind::ModelSelectorHotkey => "Hotkey for opening model selector (F2-F12 or disabled).",
+            RowKind::ReasoningEffortHotkey => "Hotkey for cycling reasoning effort (F2-F12 or disabled).",
+            RowKind::ShellSelectorHotkey => "Hotkey for opening shell selector (F2-F12 or disabled).",
+            RowKind::NetworkSettingsHotkey => "Hotkey for opening Settings -> Network (F2-F12 or disabled).",
             RowKind::ShowConfigToml => "Open config.toml in your file manager (Finder/Explorer).",
             RowKind::ShowCodeHome => "Open CODE_HOME in your file manager.",
             RowKind::Apply => "Persist these preferences to config.toml.",
@@ -480,6 +609,8 @@ impl InterfaceSettingsView {
             let header_line = Line::from(vec![
                 Span::styled("Enter", Style::default().fg(crate::colors::function())),
                 Span::styled(" activate  ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("←/→", Style::default().fg(crate::colors::function())),
+                Span::styled(" adjust  ", Style::default().fg(crate::colors::text_dim())),
                 Span::styled("Esc", Style::default().fg(crate::colors::function())),
                 Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
             ]);
@@ -527,6 +658,22 @@ impl InterfaceSettingsView {
                     RowKind::OverlayMinWidth => (
                         "Overlay min width",
                         format!("{}", self.settings.overlay_min_width),
+                    ),
+                    RowKind::ModelSelectorHotkey => (
+                        "Hotkey: model selector",
+                        self.hotkeys.model_selector.display_name().to_string(),
+                    ),
+                    RowKind::ReasoningEffortHotkey => (
+                        "Hotkey: reasoning effort",
+                        self.hotkeys.reasoning_effort.display_name().to_string(),
+                    ),
+                    RowKind::ShellSelectorHotkey => (
+                        "Hotkey: shell selector",
+                        self.hotkeys.shell_selector.display_name().to_string(),
+                    ),
+                    RowKind::NetworkSettingsHotkey => (
+                        "Hotkey: network settings",
+                        self.hotkeys.network_settings.display_name().to_string(),
                     ),
                     RowKind::ShowConfigToml => ("Show config.toml", String::new()),
                     RowKind::ShowCodeHome => ("Show CODE_HOME", String::new()),
@@ -659,7 +806,10 @@ impl<'a> BottomPaneView<'a> for InterfaceSettingsView {
 
     fn desired_height(&self, _width: u16) -> u16 {
         match &self.mode {
-            ViewMode::Main => 8,
+            ViewMode::Main => {
+                let base = self.build_rows().len() as u16 + 4;
+                base.max(12).min(20)
+            }
             ViewMode::EditWidth { .. } => 8,
             ViewMode::Transition => 8,
         }

@@ -284,12 +284,17 @@ impl ChatWidget<'_> {
             && key_event.modifiers.is_empty()
             && let crossterm::event::KeyCode::F(n) = key_event.code
         {
-            let action = match n {
-                2 => Some(ClickableAction::ShowModelSelector),
-                3 => Some(ClickableAction::ShowReasoningSelector),
-                4 => Some(ClickableAction::ShowShellSelector),
-                5 => Some(ClickableAction::ShowNetworkSettings),
-                _ => None,
+            let hotkeys = &self.config.tui.hotkeys;
+            let action = if hotkeys.model_selector.as_u8() == Some(n) {
+                Some(ClickableAction::ShowModelSelector)
+            } else if hotkeys.reasoning_effort.as_u8() == Some(n) {
+                Some(ClickableAction::ShowReasoningSelector)
+            } else if hotkeys.shell_selector.as_u8() == Some(n) {
+                Some(ClickableAction::ShowShellSelector)
+            } else if hotkeys.network_settings.as_u8() == Some(n) {
+                Some(ClickableAction::ShowNetworkSettings)
+            } else {
+                None
             };
             if let Some(action) = action {
                 self.handle_clickable_action(action);

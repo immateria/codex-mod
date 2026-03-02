@@ -958,6 +958,25 @@ impl App<'_> {
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::SetTuiHotkeysConfig(hotkeys) => {
+                    match code_core::config::set_tui_hotkeys(&self.config.code_home, &hotkeys) {
+                        Ok(()) => {
+                            self.config.tui.hotkeys = hotkeys.clone();
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.apply_tui_hotkeys(hotkeys.clone());
+                                widget.flash_footer_notice("Hotkeys saved".to_string());
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to persist hotkeys: {err}",
+                                ));
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::StatusLineSetup {
                     top_items,
                     bottom_items,

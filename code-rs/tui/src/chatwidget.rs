@@ -4482,10 +4482,22 @@ fi\n\
 
         // Global
         lines.push(kv("F1", "Help overlay"));
-        lines.push(kv("F2", "Model + reasoning selector"));
-        lines.push(kv("F3", "Cycle reasoning effort"));
-        lines.push(kv("F4", "Shell selector"));
-        lines.push(kv("F5", "Network settings"));
+        lines.push(kv(
+            self.config.tui.hotkeys.model_selector.display_name(),
+            "Model + reasoning selector",
+        ));
+        lines.push(kv(
+            self.config.tui.hotkeys.reasoning_effort.display_name(),
+            "Cycle reasoning effort",
+        ));
+        lines.push(kv(
+            self.config.tui.hotkeys.shell_selector.display_name(),
+            "Shell selector",
+        ));
+        lines.push(kv(
+            self.config.tui.hotkeys.network_settings.display_name(),
+            "Network settings",
+        ));
         lines.push(kv("Ctrl+G", "Open external editor"));
         lines.push(kv("Ctrl+R", "Toggle reasoning"));
         lines.push(kv("Ctrl+T", "Toggle screen"));

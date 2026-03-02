@@ -1584,6 +1584,35 @@ pub fn set_tui_settings_menu(
     Ok(())
 }
 
+/// Persist TUI hotkey preferences into `CODEX_HOME/config.toml` at
+/// `[tui.hotkeys]`.
+pub fn set_tui_hotkeys(
+    code_home: &Path,
+    hotkeys: &crate::config_types::TuiHotkeysConfig,
+) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    doc["tui"]["hotkeys"]["model_selector"] = toml_edit::value(hotkeys.model_selector.toml_value());
+    doc["tui"]["hotkeys"]["reasoning_effort"] =
+        toml_edit::value(hotkeys.reasoning_effort.toml_value());
+    doc["tui"]["hotkeys"]["shell_selector"] = toml_edit::value(hotkeys.shell_selector.toml_value());
+    doc["tui"]["hotkeys"]["network_settings"] =
+        toml_edit::value(hotkeys.network_settings.toml_value());
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+
+    Ok(())
+}
+
 /// Persist the TUI notifications preference into `CODEX_HOME/config.toml` at `[tui].notifications`.
 pub fn set_tui_notifications(
     code_home: &Path,

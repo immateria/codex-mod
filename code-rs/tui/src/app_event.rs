@@ -8,6 +8,7 @@ use code_core::config_types::SettingsMenuConfig;
 use code_core::config_types::StatusLineLane;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
+use code_core::config_types::TuiHotkeysConfig;
 use code_core::config::NetworkProxySettingsToml;
 use code_core::protocol::Event;
 use code_core::protocol::OrderMeta;
@@ -761,6 +762,7 @@ pub(crate) enum AppEvent {
     SetNetworkProxySettings(NetworkProxySettingsToml),
     SetJsReplSettings(code_core::config::JsReplSettingsToml),
     SetTuiSettingsMenuConfig(SettingsMenuConfig),
+    SetTuiHotkeysConfig(TuiHotkeysConfig),
     StatusLineSetup {
         top_items: Vec<StatusLineItem>,
         bottom_items: Vec<StatusLineItem>,

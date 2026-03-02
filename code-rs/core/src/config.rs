@@ -108,6 +108,7 @@ pub use sources::{
     set_tui_alternate_screen,
     set_tui_auto_review_enabled,
     set_tui_header_show_bottom_line,
+    set_tui_hotkeys,
     set_tui_limits_layout_mode,
     set_tui_notifications,
     set_tui_settings_menu,

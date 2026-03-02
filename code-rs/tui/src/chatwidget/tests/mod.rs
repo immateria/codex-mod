@@ -4014,6 +4014,35 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn statusline_shortcut_remap_f6_opens_network_settings() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        chat.config.tui.hotkeys.network_settings = code_core::config_types::FunctionKeyHotkey::F6;
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        chat.handle_key_event(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
+    });
+
+    let output = {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    assert!(
+        output.contains("Coverage: exec, exec_command, web_fetch"),
+        "expected Network settings view after remapped F6, got:\n{output}",
+    );
+    }
+
+    #[test]
     fn exec_child_gutter_click_jumps_to_parent_js_repl_cell() {
         let _guard = enter_test_runtime_guard();
         let mut harness = ChatWidgetHarness::new();
