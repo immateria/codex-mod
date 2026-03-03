@@ -11,24 +11,24 @@ use std::collections::{HashMap, HashSet};
 const CLAUDE_ALLOWED_TOOLS: &str = "Bash(ls:*), Bash(cat:*), Bash(grep:*), Bash(git status:*), Bash(git log:*), Bash(find:*), Read, Grep, Glob, LS, WebFetch, TodoRead, TodoWrite, WebSearch";
 const CLOUD_MODEL_ENV_FLAG: &str = "CODE_ENABLE_CLOUD_AGENT_MODEL";
 
-const CODE_GPT5_CODEX_READ_ONLY: &[&str] = &["-s", "read-only", "exec", "--skip-git-repo-check"];
-const CODE_GPT5_CODEX_WRITE: &[&str] = &["-s", "workspace-write", "--dangerously-bypass-approvals-and-sandbox", "exec", "--skip-git-repo-check"];
-const CODE_GPT5_READ_ONLY: &[&str] = &["-s", "read-only", "exec", "--skip-git-repo-check"];
-const CODE_GPT5_WRITE: &[&str] = &["-s", "workspace-write", "--dangerously-bypass-approvals-and-sandbox", "exec", "--skip-git-repo-check"];
-const CLAUDE_SONNET_READ_ONLY: &[&str] = &["--allowedTools", CLAUDE_ALLOWED_TOOLS];
-const CLAUDE_SONNET_WRITE: &[&str] = &["--dangerously-skip-permissions"];
-const CLAUDE_OPUS_READ_ONLY: &[&str] = &["--allowedTools", CLAUDE_ALLOWED_TOOLS];
-const CLAUDE_OPUS_WRITE: &[&str] = &["--dangerously-skip-permissions"];
-const CLAUDE_HAIKU_READ_ONLY: &[&str] = &["--allowedTools", CLAUDE_ALLOWED_TOOLS];
-const CLAUDE_HAIKU_WRITE: &[&str] = &["--dangerously-skip-permissions"];
-const GEMINI_PRO_READ_ONLY: &[&str] = &[];
-const GEMINI_PRO_WRITE: &[&str] = &["-y"];
-const GEMINI_FLASH_READ_ONLY: &[&str] = &[];
-const GEMINI_FLASH_WRITE: &[&str] = &["-y"];
-const QWEN_3_CODER_READ_ONLY: &[&str] = &[];
-const QWEN_3_CODER_WRITE: &[&str] = &["-y"];
+const CODE_GPT5_CODEX_READ_ONLY:  &[&str] = &["-s", "read-only", "exec", "--skip-git-repo-check"];
+const CODE_GPT5_CODEX_WRITE:      &[&str] = &["-s", "workspace-write", "--dangerously-bypass-approvals-and-sandbox", "exec", "--skip-git-repo-check"];
+const CODE_GPT5_READ_ONLY:        &[&str] = &["-s", "read-only", "exec", "--skip-git-repo-check"];
+const CODE_GPT5_WRITE:            &[&str] = &["-s", "workspace-write", "--dangerously-bypass-approvals-and-sandbox", "exec", "--skip-git-repo-check"];
+const CLAUDE_SONNET_READ_ONLY:    &[&str] = &["--allowedTools", CLAUDE_ALLOWED_TOOLS];
+const CLAUDE_SONNET_WRITE:        &[&str] = &["--dangerously-skip-permissions"];
+const CLAUDE_OPUS_READ_ONLY:      &[&str] = &["--allowedTools", CLAUDE_ALLOWED_TOOLS];
+const CLAUDE_OPUS_WRITE:          &[&str] = &["--dangerously-skip-permissions"];
+const CLAUDE_HAIKU_READ_ONLY:     &[&str] = &["--allowedTools", CLAUDE_ALLOWED_TOOLS];
+const CLAUDE_HAIKU_WRITE:         &[&str] = &["--dangerously-skip-permissions"];
+const GEMINI_PRO_READ_ONLY:       &[&str] = &[];
+const GEMINI_PRO_WRITE:           &[&str] = &["-y"];
+const GEMINI_FLASH_READ_ONLY:     &[&str] = &[];
+const GEMINI_FLASH_WRITE:         &[&str] = &["-y"];
+const QWEN_3_CODER_READ_ONLY:     &[&str] = &[];
+const QWEN_3_CODER_WRITE:         &[&str] = &["-y"];
 const CLOUD_GPT5_CODEX_READ_ONLY: &[&str] = &[];
-const CLOUD_GPT5_CODEX_WRITE: &[&str] = &[];
+const CLOUD_GPT5_CODEX_WRITE:     &[&str] = &[];
 
 /// Canonical list of built-in agent model slugs used when no `[[agents]]`
 /// entries are configured. The ordering here controls priority for legacy
@@ -52,18 +52,18 @@ pub const DEFAULT_AGENT_NAMES: &[&str] = &[
 
 #[derive(Debug, Clone)]
 pub struct AgentModelSpec {
-    pub slug: &'static str,
-    pub family: &'static str,
-    pub cli: &'static str,
-    pub read_only_args: &'static [&'static str],
-    pub write_args: &'static [&'static str],
-    pub model_args: &'static [&'static str],
-    pub description: &'static str,
+    pub slug:               &'static str,
+    pub family:             &'static str,
+    pub cli:                &'static str,
+    pub read_only_args:     &'static [&'static str],
+    pub write_args:         &'static [&'static str],
+    pub model_args:         &'static [&'static str],
+    pub description:        &'static str,
     pub enabled_by_default: bool,
-    pub aliases: &'static [&'static str],
-    pub gating_env: Option<&'static str>,
-    pub is_frontline: bool,
-    pub pro_only: bool,
+    pub aliases:            &'static [&'static str],
+    pub gating_env:         Option<&'static str>,
+    pub is_frontline:       bool,
+    pub pro_only:           bool,
 }
 
 impl AgentModelSpec {
