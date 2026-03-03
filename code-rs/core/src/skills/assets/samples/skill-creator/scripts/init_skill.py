@@ -263,7 +263,8 @@ def _ensure_list_contains_path(
     if span_end - span_start == 1:
         items = existing + [value_to_add]
         rendered = ", ".join(f"\"{_toml_escape_string(v)}\"" for v in items)
-        indent = re.match(r"^(\s*)", block[0]).group(1)
+        m_indent = re.match(r"^(\s*)", block[0])
+        indent = m_indent.group(1) if m_indent else ""
         return (True, [f"{indent}{key} = [{rendered}]\n"])
 
     # Multi-line: insert before the closing bracket line, keep indentation.
@@ -276,7 +277,8 @@ def _ensure_list_contains_path(
         # Fallback: rewrite as a single-line array.
         items = existing + [value_to_add]
         rendered = ", ".join(f"\"{_toml_escape_string(v)}\"" for v in items)
-        indent = re.match(r"^(\s*)", block[0]).group(1)
+        m_indent = re.match(r"^(\s*)", block[0])
+        indent = m_indent.group(1) if m_indent else ""
         return (True, [f"{indent}{key} = [{rendered}]\n"])
 
     entry_indent = "  "
