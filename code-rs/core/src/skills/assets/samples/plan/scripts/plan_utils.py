@@ -54,20 +54,47 @@ def parse_frontmatter(path: Path) -> dict:
         if first.strip() != "---":
             raise ValueError("Frontmatter must start with '---'.")
 
-        data: dict[str, str] = {}
+        frontmatter_lines: list[str] = []
         for line in handle:
             stripped = line.strip()
             if stripped == "---":
-                return data
-            if not stripped or stripped.startswith("#"):
-                continue
-            if ":" not in line:
-                raise ValueError(f"Invalid frontmatter line: {line.rstrip()}")
-            key, value = line.split(":", 1)
-            key = key.strip()
-            value = value.strip()
-            if value and len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
-                value = value[1:-1]
-            data[key] = value
+                return parse_frontmatter_lines(frontmatter_lines)
+            frontmatter_lines.append(line)
+
+    raise ValueError("Frontmatter must end with '---'.")
+
+
+def parse_frontmatter_lines(lines: list[str]) -> dict[str, str]:
+    """Parse frontmatter key/value pairs from raw lines (no delimiter lines)."""
+    data: dict[str, str] = {}
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if ":" not in line:
+            raise ValueError(f"Invalid frontmatter line: {line.rstrip()}")
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if value and len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+            value = value[1:-1]
+        data[key] = value
+    return data
+
+
+def read_plan_file(path: Path) -> tuple[dict[str, str], str]:
+    """Read a plan file and return (frontmatter, body)."""
+    with path.open("r", encoding="utf-8") as handle:
+        first = handle.readline()
+        if first.strip() != "---":
+            raise ValueError("Frontmatter must start with '---'.")
+
+        frontmatter_lines: list[str] = []
+        for line in handle:
+            stripped = line.strip()
+            if stripped == "---":
+                body = handle.read()
+                return parse_frontmatter_lines(frontmatter_lines), body
+            frontmatter_lines.append(line)
 
     raise ValueError("Frontmatter must end with '---'.")

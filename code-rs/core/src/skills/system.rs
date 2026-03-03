@@ -37,6 +37,10 @@ const EMBEDDED_SYSTEM_SKILLS: &[(&str, &[u8])] = &[
         include_bytes!("assets/samples/plan/scripts/read_plan_frontmatter.py"),
     ),
     (
+        "plan/scripts/update_plan.py",
+        include_bytes!("assets/samples/plan/scripts/update_plan.py"),
+    ),
+    (
         "skill-creator/SKILL.md",
         include_bytes!("assets/samples/skill-creator/SKILL.md"),
     ),

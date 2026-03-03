@@ -44,6 +44,8 @@ This skill can also be used to draft codebase or system overviews.
 ## Plan discovery
 
 - Prefer `scripts/list_plans.py` for quick summaries.
+- Use `--sort mtime` + `--long` when you want “what changed recently” with file metadata.
+- Use `--include-broken` to surface plans with invalid/missing frontmatter so they can be fixed.
 - Use `scripts/read_plan_frontmatter.py` to validate a specific plan.
 - If name mismatches filename or frontmatter is missing fields, call it out and ask whether to fix.
 
@@ -62,6 +64,10 @@ This skill can also be used to draft codebase or system overviews.
 - Re-read the plan and related code/docs before updating.
 - Keep the plan name stable unless the user explicitly wants a rename.
 - If renaming, update both frontmatter `name` and filename together.
+- Prefer `scripts/update_plan.py` for edits:
+  - `--description` updates the frontmatter summary.
+  - `--append-file` appends a markdown snippet to the existing body.
+  - body replacement (stdin or `--body-file`) requires `--overwrite` to avoid accidents.
 
 ## Scripts (low-freedom helpers)
 
@@ -84,6 +90,16 @@ List plan summaries (optional filter; run from the plan skill directory):
 
 ```bash
 python ./scripts/list_plans.py --query "rate limit"
+python ./scripts/list_plans.py --sort mtime --long --limit 20
+python ./scripts/list_plans.py --include-broken --long
+```
+
+Update an existing plan (run from the plan skill directory):
+
+```bash
+python ./scripts/update_plan.py codex-rate-limit-overview --description "Revised scope and steps"
+python ./scripts/update_plan.py codex-rate-limit-overview --append-file /tmp/plan-append.md
+python ./scripts/update_plan.py codex-rate-limit-overview --body-file /tmp/new-body.md --overwrite
 ```
 
 ## Plan file format

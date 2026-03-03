@@ -85,6 +85,11 @@ actions-runner/
 *.tsbuildinfo
 playwright-report/
 
+# Python bytecode caches
+__pycache__/
+*.pyc
+*.pyo
+
 # temp files
 .tmp/
 tmp/
