@@ -1550,6 +1550,7 @@ dependencies = [
  "code-utils-json-to-toml",
  "code-version",
  "codex-context-timeline",
+ "codex-message-history",
  "codex-network-proxy",
  "codex-utils-absolute-path",
  "core-foundation 0.9.4",
@@ -2054,6 +2055,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.108",
+]
+
+[[package]]
+name = "codex-message-history"
+version = "0.0.0"
+dependencies = [
+ "fs2",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

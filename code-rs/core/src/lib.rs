@@ -70,7 +70,6 @@ mod mcp_rate_limiter;
 pub mod mcp_snapshot;
 mod mcp;
 mod mcp_tool_call;
-mod message_history;
 mod model_provider_info;
 pub mod remote_models;
 // Remote model discovery caches its own on-disk state within the module.

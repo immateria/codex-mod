@@ -18,6 +18,7 @@ members = [
     "core",
     "exec",
     "execpolicy",
+    "message-history",
     "file-search",
     "git-tooling",
     "keyring-store",
@@ -70,6 +71,7 @@ code-chatgpt = { path = "chatgpt" }
 code-common = { path = "common" }
 code-core = { path = "core" }
 code-context-timeline = { path = "context-timeline", package = "codex-context-timeline" }
+code-message-history = { path = "message-history", package = "codex-message-history" }
 code-skills = { path = "skills" }
 code-backend-client = { path = "backend-client" }
 code-backend-openapi-models = { path = "code-backend-openapi-models" }

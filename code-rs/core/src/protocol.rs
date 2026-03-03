@@ -28,7 +28,7 @@ use crate::config_types::ShellConfig;
 use crate::config_types::ShellScriptStyle;
 use crate::config_types::ShellStyleProfileConfig;
 use crate::config_types::TextVerbosity as TextVerbosityConfig;
-use crate::message_history::HistoryEntry;
+use code_message_history::HistoryEntry;
 use crate::model_provider_info::ModelProviderInfo;
 use crate::client_common::TextFormat;
 use crate::parse_command::ParsedCommand;

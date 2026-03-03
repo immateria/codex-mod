@@ -15,7 +15,8 @@ impl Runner<'_> {
         let config = Arc::clone(&self.config);
 
         // Gather history metadata for SessionConfiguredEvent.
-        let (history_log_id, history_entry_count) = crate::message_history::history_metadata(&config).await;
+        let (history_log_id, history_entry_count) =
+            code_message_history::history_metadata(&config.code_home).await;
 
         // ack
         let Some(sess_arc) = self.sess.as_ref() else {
@@ -118,4 +119,3 @@ impl Runner<'_> {
         self.agent_manager_initialized = true;
     }
 }
-

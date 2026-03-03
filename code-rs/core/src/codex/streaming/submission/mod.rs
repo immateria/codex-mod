@@ -297,7 +297,17 @@ pub(in crate::codex) async fn submission_loop(
                 let id = session_id;
                 let config = config.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = crate::message_history::append_entry(&text, &id, &config).await
+                    let persistence_enabled = matches!(
+                        config.history.persistence,
+                        crate::config_types::HistoryPersistence::SaveAll
+                    );
+                    if let Err(e) = code_message_history::append_entry(
+                        &text,
+                        &id,
+                        &config.code_home,
+                        persistence_enabled,
+                    )
+                    .await
                     {
                         warn!("failed to append to message history: {e}");
                     }
@@ -340,7 +350,7 @@ pub(in crate::codex) async fn submission_loop(
                 tokio::spawn(async move {
                     // Run lookup in blocking thread because it does file IO + locking.
                     let entry_opt = tokio::task::spawn_blocking(move || {
-                        crate::message_history::lookup(log_id, offset, &config)
+                        code_message_history::lookup(log_id, offset, &config.code_home)
                     })
                     .await
                     .unwrap_or(None);
