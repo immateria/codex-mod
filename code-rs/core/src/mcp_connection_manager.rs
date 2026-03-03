@@ -44,7 +44,7 @@ use crate::config_types::McpDispatchMode;
 use crate::config_types::McpServerSchedulingToml;
 use crate::config_types::McpServerTransportConfig;
 use crate::config_types::McpToolSchedulingOverrideToml;
-use crate::mcp_rate_limiter::{McpRateLimiter, acquire_and_schedule};
+use code_mcp_call_limiter::{McpCallLimiter, acquire_and_schedule};
 use crate::protocol::{McpServerFailure, McpServerFailurePhase};
 
 /// Delimiter used to separate the server name from the tool name in a fully
@@ -312,8 +312,8 @@ pub struct McpConnectionManager {
     server_transports: StdRwLock<HashMap<String, McpServerTransportConfig>>,
     server_scheduling: StdRwLock<HashMap<String, McpServerSchedulingToml>>,
     tool_scheduling: StdRwLock<HashMap<(String, String), McpToolSchedulingOverrideToml>>,
-    server_limiters: StdRwLock<HashMap<String, Arc<McpRateLimiter>>>,
-    tool_limiters: StdRwLock<HashMap<(String, String), Arc<McpRateLimiter>>>,
+    server_limiters: StdRwLock<HashMap<String, Arc<McpCallLimiter>>>,
+    tool_limiters: StdRwLock<HashMap<(String, String), Arc<McpCallLimiter>>>,
 
     /// Server-name -> client instance.
     ///
@@ -372,9 +372,9 @@ impl McpConnectionManager {
             HashMap::with_capacity(mcp_servers.len());
         let mut tool_scheduling: HashMap<(String, String), McpToolSchedulingOverrideToml> =
             HashMap::new();
-        let mut server_limiters: HashMap<String, Arc<McpRateLimiter>> =
+        let mut server_limiters: HashMap<String, Arc<McpCallLimiter>> =
             HashMap::with_capacity(mcp_servers.len());
-        let mut tool_limiters: HashMap<(String, String), Arc<McpRateLimiter>> = HashMap::new();
+        let mut tool_limiters: HashMap<(String, String), Arc<McpCallLimiter>> = HashMap::new();
 
         for (server_name, cfg) in mcp_servers {
             // Validate server name before spawning
@@ -393,7 +393,7 @@ impl McpConnectionManager {
             server_scheduling.insert(server_name.clone(), cfg.scheduling.clone());
             server_limiters.insert(
                 server_name.clone(),
-                McpRateLimiter::new(
+                McpCallLimiter::new(
                     cfg.scheduling.max_concurrent,
                     cfg.scheduling.min_interval_sec,
                     cfg.scheduling.queue_timeout_sec,
@@ -408,7 +408,7 @@ impl McpConnectionManager {
                 tool_scheduling.insert(key.clone(), override_cfg.clone());
                 tool_limiters.insert(
                     key,
-                    McpRateLimiter::new(
+                    McpCallLimiter::new(
                         override_cfg
                             .max_concurrent
                             .unwrap_or(cfg.scheduling.max_concurrent),
@@ -628,7 +628,7 @@ impl McpConnectionManager {
 
     fn server_limiters_read(
         &self,
-    ) -> std::sync::RwLockReadGuard<'_, HashMap<String, Arc<McpRateLimiter>>> {
+    ) -> std::sync::RwLockReadGuard<'_, HashMap<String, Arc<McpCallLimiter>>> {
         match self.server_limiters.read() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -640,7 +640,7 @@ impl McpConnectionManager {
 
     fn server_limiters_write(
         &self,
-    ) -> std::sync::RwLockWriteGuard<'_, HashMap<String, Arc<McpRateLimiter>>> {
+    ) -> std::sync::RwLockWriteGuard<'_, HashMap<String, Arc<McpCallLimiter>>> {
         match self.server_limiters.write() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -652,7 +652,7 @@ impl McpConnectionManager {
 
     fn tool_limiters_read(
         &self,
-    ) -> std::sync::RwLockReadGuard<'_, HashMap<(String, String), Arc<McpRateLimiter>>> {
+    ) -> std::sync::RwLockReadGuard<'_, HashMap<(String, String), Arc<McpCallLimiter>>> {
         match self.tool_limiters.read() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -664,7 +664,7 @@ impl McpConnectionManager {
 
     fn tool_limiters_write(
         &self,
-    ) -> std::sync::RwLockWriteGuard<'_, HashMap<(String, String), Arc<McpRateLimiter>>> {
+    ) -> std::sync::RwLockWriteGuard<'_, HashMap<(String, String), Arc<McpCallLimiter>>> {
         match self.tool_limiters.write() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -1130,7 +1130,7 @@ impl McpConnectionManager {
             scheduling.insert(server_name.to_string(), cfg.scheduling.clone());
         }
         {
-            let limiter = McpRateLimiter::new(
+            let limiter = McpCallLimiter::new(
                 cfg.scheduling.max_concurrent,
                 cfg.scheduling.min_interval_sec,
                 cfg.scheduling.queue_timeout_sec,
@@ -1152,7 +1152,7 @@ impl McpConnectionManager {
                 scheduling.insert(key.clone(), override_cfg.clone());
                 limiters.insert(
                     key,
-                    McpRateLimiter::new(
+                    McpCallLimiter::new(
                         override_cfg
                             .max_concurrent
                             .unwrap_or(cfg.scheduling.max_concurrent),
@@ -1282,7 +1282,7 @@ impl McpConnectionManager {
             .cloned()
             .unwrap_or_else(|| {
                 let default = McpServerSchedulingToml::default();
-                McpRateLimiter::new(
+                McpCallLimiter::new(
                     default.max_concurrent,
                     default.min_interval_sec,
                     default.queue_timeout_sec,
@@ -1324,7 +1324,7 @@ impl McpConnectionManager {
             .insert(server.to_string(), scheduling.clone());
         self.server_limiters_write().insert(
             server.to_string(),
-            McpRateLimiter::new(
+            McpCallLimiter::new(
                 scheduling.max_concurrent,
                 scheduling.min_interval_sec,
                 scheduling.queue_timeout_sec,
@@ -1356,7 +1356,7 @@ impl McpConnectionManager {
             let key = (server.to_string(), tool);
             limiters.insert(
                 key,
-                McpRateLimiter::new(
+                McpCallLimiter::new(
                     scheduling.max_concurrent,
                     cfg.min_interval_sec,
                     None,
@@ -1383,7 +1383,7 @@ impl McpConnectionManager {
             self.tool_scheduling_write().insert(key.clone(), cfg.clone());
             self.tool_limiters_write().insert(
                 key,
-                McpRateLimiter::new(
+                McpCallLimiter::new(
                     cfg.max_concurrent.unwrap_or(server_max),
                     cfg.min_interval_sec,
                     None,

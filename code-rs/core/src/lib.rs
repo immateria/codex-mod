@@ -66,7 +66,6 @@ pub mod landlock;
 pub mod http_client;
 pub mod housekeeping;
 pub mod mcp_connection_manager;
-mod mcp_rate_limiter;
 pub mod mcp_snapshot;
 mod mcp;
 mod mcp_tool_call;

@@ -1550,6 +1550,7 @@ dependencies = [
  "code-utils-json-to-toml",
  "code-version",
  "codex-context-timeline",
+ "codex-mcp-call-limiter",
  "codex-message-history",
  "codex-network-proxy",
  "codex-utils-absolute-path",
@@ -2055,6 +2056,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.108",
+]
+
+[[package]]
+name = "codex-mcp-call-limiter"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "tokio",
 ]
 
 [[package]]

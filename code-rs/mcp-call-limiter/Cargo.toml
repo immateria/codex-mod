@@ -1,0 +1,13 @@
+[package]
+name = "codex-mcp-call-limiter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "sync", "test-util", "time"] }
+

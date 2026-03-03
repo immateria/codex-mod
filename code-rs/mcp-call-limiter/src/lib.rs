@@ -8,7 +8,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::time::{Instant, sleep_until, timeout};
 
 #[derive(Debug)]
-pub(crate) struct McpRateLimiter {
+pub struct McpCallLimiter {
     semaphore: Arc<Semaphore>,
     min_interval: Duration,
     next_start: Mutex<Instant>,
@@ -17,8 +17,8 @@ pub(crate) struct McpRateLimiter {
     queued: AtomicUsize,
 }
 
-impl McpRateLimiter {
-    pub(crate) fn new(
+impl McpCallLimiter {
+    pub fn new(
         max_concurrent: u32,
         min_interval: Option<Duration>,
         queue_timeout: Option<Duration>,
@@ -34,18 +34,18 @@ impl McpRateLimiter {
         })
     }
 
-    pub(crate) fn min_interval(&self) -> Duration { self.min_interval }
+    fn min_interval(&self) -> Duration { self.min_interval }
 
-    pub(crate) fn queue_timeout(&self) -> Option<Duration> { self.queue_timeout }
+    fn queue_timeout(&self) -> Option<Duration> { self.queue_timeout }
 
-    pub(crate) fn lock_next_start(&self) -> std::sync::MutexGuard<'_, Instant> {
+    fn lock_next_start(&self) -> std::sync::MutexGuard<'_, Instant> {
         match self.next_start.lock() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
         }
     }
 
-    pub(crate) async fn acquire(self: &Arc<Self>) -> Result<McpLimiterGuard> {
+    async fn acquire(self: &Arc<Self>) -> Result<McpLimiterGuard> {
         let queued_guard = QueuedGuard::enter(Arc::clone(self))?;
 
         let entered_at = Instant::now();
@@ -70,22 +70,22 @@ impl McpRateLimiter {
     }
 }
 
-pub(crate) struct McpLimiterGuard {
-    limiter: Arc<McpRateLimiter>,
+pub struct McpLimiterGuard {
+    limiter: Arc<McpCallLimiter>,
     _queued_guard: QueuedGuard,
     _permit: OwnedSemaphorePermit,
     entered_at: Instant,
 }
 
 impl McpLimiterGuard {
-    pub(crate) fn limiter(&self) -> &Arc<McpRateLimiter> { &self.limiter }
+    fn limiter(&self) -> &Arc<McpCallLimiter> { &self.limiter }
 
-    pub(crate) fn entered_at(&self) -> Instant { self.entered_at }
+    fn entered_at(&self) -> Instant { self.entered_at }
 }
 
-pub(crate) async fn acquire_and_schedule(
-    server: &Arc<McpRateLimiter>,
-    tool: Option<&Arc<McpRateLimiter>>,
+pub async fn acquire_and_schedule(
+    server: &Arc<McpCallLimiter>,
+    tool: Option<&Arc<McpCallLimiter>>,
 ) -> Result<(McpLimiterGuard, Option<McpLimiterGuard>)> {
     let server_guard = server.acquire().await?;
     let tool_guard = match tool {
@@ -110,8 +110,7 @@ pub(crate) async fn acquire_and_schedule(
     };
 
     if let Some(queue_timeout) = server_guard.limiter().queue_timeout() {
-        let waited = scheduled
-            .saturating_duration_since(server_guard.entered_at());
+        let waited = scheduled.saturating_duration_since(server_guard.entered_at());
         if waited > queue_timeout {
             return Err(anyhow!("MCP tool call queue timeout exceeded"));
         }
@@ -125,19 +124,17 @@ pub(crate) async fn acquire_and_schedule(
 }
 
 struct QueuedGuard {
-    limiter: Arc<McpRateLimiter>,
+    limiter: Arc<McpCallLimiter>,
 }
 
 impl QueuedGuard {
-    fn enter(limiter: Arc<McpRateLimiter>) -> Result<Self> {
+    fn enter(limiter: Arc<McpCallLimiter>) -> Result<Self> {
         let next = limiter.queued.fetch_add(1, Ordering::SeqCst) + 1;
         if let Some(max) = limiter.max_queue_depth
             && next > max as usize
         {
             limiter.queued.fetch_sub(1, Ordering::SeqCst);
-            return Err(anyhow!(
-                "MCP queue depth exceeded (max {max})"
-            ));
+            return Err(anyhow!("MCP queue depth exceeded (max {max})"));
         }
         Ok(Self { limiter })
     }
@@ -155,12 +152,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn max_concurrent_blocks_second_call() {
-        let limiter = McpRateLimiter::new(
-            1,
-            None,
-            None,
-            None,
-        );
+        let limiter = McpCallLimiter::new(1, None, None, None);
 
         let (first, _tool) =
             acquire_and_schedule(&limiter, None).await.expect("first acquire");
@@ -175,15 +167,9 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn min_interval_delays_second_call() {
-        let limiter = McpRateLimiter::new(
-            10,
-            Some(Duration::from_secs(1)),
-            None,
-            None,
-        );
+        let limiter = McpCallLimiter::new(10, Some(Duration::from_secs(1)), None, None);
 
-        let (_first, _tool) =
-            acquire_and_schedule(&limiter, None).await.expect("first");
+        let (_first, _tool) = acquire_and_schedule(&limiter, None).await.expect("first");
 
         let limiter2 = Arc::clone(&limiter);
         let second = tokio::spawn(async move { acquire_and_schedule(&limiter2, None).await });
@@ -196,15 +182,14 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn queue_timeout_fails_when_delay_exceeds() {
-        let limiter = McpRateLimiter::new(
+        let limiter = McpCallLimiter::new(
             10,
             Some(Duration::from_secs(10)),
             Some(Duration::from_secs(1)),
             None,
         );
 
-        let (_first, _tool) =
-            acquire_and_schedule(&limiter, None).await.expect("first");
+        let (_first, _tool) = acquire_and_schedule(&limiter, None).await.expect("first");
 
         let limiter2 = Arc::clone(&limiter);
         let second = tokio::spawn(async move { acquire_and_schedule(&limiter2, None).await });
@@ -215,3 +200,4 @@ mod tests {
         assert!(result.is_err());
     }
 }
+

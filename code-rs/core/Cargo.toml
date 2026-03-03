@@ -33,6 +33,7 @@ code-otel = { workspace = true, features = ["otel"] }
 code-browser = { path = "../browser" }
 code-context-timeline = { workspace = true }
 code-message-history = { workspace = true }
+code-mcp-call-limiter = { workspace = true }
 code-version = { path = "../code-version" }
 code-keyring-store = { workspace = true }
 code-skills = { workspace = true }
