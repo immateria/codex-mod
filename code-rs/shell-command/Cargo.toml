@@ -1,0 +1,19 @@
+[package]
+name = "codex-shell-command"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+code-protocol = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+shlex = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-bash = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+pretty_assertions = { workspace = true }

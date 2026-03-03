@@ -1,64 +1,8 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use shlex::try_join;
-
-pub(crate) fn escape_command(command: &[String]) -> String {
-    try_join(command.iter().map(String::as_str)).unwrap_or_else(|_| command.join(" "))
-}
-
 pub(crate) fn strip_bash_lc_and_escape(command: &[String]) -> String {
-    match command {
-        // exactly three items
-        [first, second, third]
-            // first two must be "bash", "-lc" or "bash", "-c"
-            if is_bash_like(first) && (second == "-lc" || second == "-c") =>
-        {
-            strip_rc_source_wrapper(third)
-                .unwrap_or(third.as_str())
-                .to_string()
-        }
-        _ => escape_command(command),
-    }
-}
-
-fn strip_rc_source_wrapper(script: &str) -> Option<&str> {
-    let trimmed = script.trim();
-    if !trimmed.starts_with("source ") {
-        return None;
-    }
-
-    let start = trimmed.find("&& (")?;
-    let inner_start = start + "&& (".len();
-    let end = trimmed.rfind(')')?;
-    if end <= inner_start {
-        return None;
-    }
-
-    Some(trimmed[inner_start..end].trim())
-}
-
-fn is_bash_like(cmd: &str) -> bool {
-    let trimmed = cmd.trim_matches('"').trim_matches('\'');
-    let lowered = Path::new(trimmed)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(trimmed)
-        .to_ascii_lowercase();
-    matches!(
-        lowered.as_str(),
-        "bash"
-            | "bash.exe"
-            | "sh"
-            | "sh.exe"
-            | "dash"
-            | "dash.exe"
-            | "zsh"
-            | "zsh.exe"
-            | "ksh"
-            | "ksh.exe"
-            | "busybox"
-    )
+    code_core::util::strip_bash_lc_and_escape(command)
 }
 
 /// If `path` is absolute and inside $HOME, return the part *after* the home

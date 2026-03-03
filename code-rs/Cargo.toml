@@ -28,6 +28,7 @@ members = [
     "mcp-client",
     "mcp-server",
     "mcp-types",
+    "shell-command",
     "skills",
     "network-proxy",
     "ollama",
@@ -74,6 +75,7 @@ code-core = { path = "core" }
 code-context-timeline = { path = "context-timeline", package = "codex-context-timeline" }
 code-message-history = { path = "message-history", package = "codex-message-history" }
 code-mcp-call-limiter = { path = "mcp-call-limiter", package = "codex-mcp-call-limiter" }
+code-shell-command = { path = "shell-command", package = "codex-shell-command" }
 code-skills = { path = "skills" }
 code-backend-client = { path = "backend-client" }
 code-backend-openapi-models = { path = "code-backend-openapi-models" }

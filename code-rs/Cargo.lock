@@ -1553,6 +1553,7 @@ dependencies = [
  "codex-mcp-call-limiter",
  "codex-message-history",
  "codex-network-proxy",
+ "codex-shell-command",
  "codex-utils-absolute-path",
  "core-foundation 0.9.4",
  "crc32fast",
@@ -2106,6 +2107,19 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "codex-shell-command"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "code-protocol",
+ "pretty_assertions",
+ "serde",
+ "shlex",
+ "tree-sitter",
+ "tree-sitter-bash",
 ]
 
 [[package]]

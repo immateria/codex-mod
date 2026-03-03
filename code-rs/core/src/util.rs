@@ -1,11 +1,9 @@
-use std::path::Path;
 use std::time::Duration;
 
 use std::sync::Arc;
 
 use rand::Rng;
 use reqwest;
-use shlex::try_join;
 use tokio::sync::Notify;
 use tracing::debug;
 
@@ -64,60 +62,15 @@ pub(crate) async fn wait_for_connectivity(probe_url: &str) {
 }
 
 pub fn escape_command(command: &[String]) -> String {
-    try_join(command.iter().map(std::string::String::as_str)).unwrap_or_else(|_| command.join(" "))
+    code_shell_command::escape_command(command)
 }
 
 pub fn strip_bash_lc_and_escape(command: &[String]) -> String {
-    match command {
-        [first, second, third]
-            if is_shell_like_executable(first)
-                && (second == "-lc" || second == "-c") =>
-        {
-            strip_rc_source_wrapper(third)
-                .unwrap_or(third.as_str())
-                .to_string()
-        }
-        _ => escape_command(command),
-    }
-}
-
-fn strip_rc_source_wrapper(script: &str) -> Option<&str> {
-    let trimmed = script.trim();
-    if !trimmed.starts_with("source ") {
-        return None;
-    }
-
-    let start = trimmed.find("&& (")?;
-    let inner_start = start + "&& (".len();
-    let end = trimmed.rfind(')')?;
-    if end <= inner_start {
-        return None;
-    }
-
-    Some(trimmed[inner_start..end].trim())
+    code_shell_command::strip_bash_lc_and_escape(command)
 }
 
 pub(crate) fn is_shell_like_executable(token: &str) -> bool {
-    let trimmed = token.trim_matches('"').trim_matches('\'');
-    let name = Path::new(trimmed)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(trimmed)
-        .to_ascii_lowercase();
-    matches!(
-        name.as_str(),
-        "bash"
-            | "bash.exe"
-            | "sh"
-            | "sh.exe"
-            | "zsh"
-            | "zsh.exe"
-            | "dash"
-            | "dash.exe"
-            | "ksh"
-            | "ksh.exe"
-            | "busybox"
-    )
+    code_shell_command::is_shell_like_executable(token)
 }
 
 #[allow(dead_code)]
