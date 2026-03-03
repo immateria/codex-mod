@@ -857,7 +857,6 @@ use crate::apply_patch::convert_apply_patch_to_protocol;
 use crate::apply_patch::{self, ApplyPatchResult};
 use crate::client::ModelClient;
 use crate::client_common::{Prompt, ResponseEvent, TextFormat};
-use crate::context_timeline::ContextTimeline;
 use crate::environment_context::{
     BrowserSnapshot,
     EnvironmentContext,
@@ -866,6 +865,10 @@ use crate::environment_context::{
     EnvironmentContextTracker,
     ViewportDimensions,
 };
+
+pub(super) type ContextTimeline =
+    code_context_timeline::ContextTimeline<EnvironmentContextSnapshot, EnvironmentContextDelta>;
+pub(super) use code_context_timeline::TimelineError;
 use crate::user_instructions::UserInstructions;
 use crate::config::{persist_model_selection, Config};
 use crate::timeboxed_exec_guidance::{

@@ -1840,7 +1840,7 @@ impl Session {
                                 .apply_delta(*sequence, delta.clone())
                             {
                                 tracing::warn!("env_ctx_v2: failed to apply delta to timeline: {err}");
-                                if matches!(err, crate::context_timeline::TimelineError::DeltaSequenceOutOfOrder { .. }) {
+                                if matches!(err, TimelineError::DeltaSequenceOutOfOrder { .. }) {
                                     crate::telemetry::global_telemetry().record_delta_gap();
                                 }
                             }
@@ -1928,7 +1928,11 @@ impl Session {
             )
         };
 
-        match timeline.assemble_prompt_items(max_deltas, Some(&stream_id)) {
+        match crate::environment_context::assemble_env_context_prompt_items(
+            &timeline,
+            max_deltas,
+            Some(&stream_id),
+        ) {
             Ok(items) if !items.is_empty() => Some(items),
             Ok(_) => None,
             Err(err) => {

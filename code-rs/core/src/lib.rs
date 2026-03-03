@@ -36,7 +36,6 @@ pub mod config_types;
 pub mod config_loader;
 pub mod personality_migration;
 mod conversation_history;
-pub mod context_timeline;
 pub mod acp;
 pub mod custom_prompts;
 pub mod debug_logger;

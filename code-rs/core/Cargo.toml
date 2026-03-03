@@ -31,6 +31,7 @@ code-rmcp-client = { workspace = true }
 code-app-server-protocol = { workspace = true }
 code-otel = { workspace = true, features = ["otel"] }
 code-browser = { path = "../browser" }
+code-context-timeline = { workspace = true }
 code-version = { path = "../code-version" }
 code-keyring-store = { workspace = true }
 code-skills = { workspace = true }

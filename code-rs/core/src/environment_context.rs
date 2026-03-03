@@ -513,6 +513,12 @@ impl EnvironmentContextSnapshot {
     }
 }
 
+impl code_context_timeline::Fingerprint for EnvironmentContextSnapshot {
+    fn fingerprint(&self) -> String {
+        EnvironmentContextSnapshot::fingerprint(self)
+    }
+}
+
 impl From<&EnvironmentContext> for EnvironmentContextSnapshot {
     fn from(ctx: &EnvironmentContext) -> Self {
         EnvironmentContextSnapshot::from_context(ctx)
@@ -544,6 +550,24 @@ impl EnvironmentContextDelta {
     ) -> serde_json::Result<ResponseItem> {
         delta_to_response_item(self, stream_id)
     }
+}
+
+pub(crate) fn assemble_env_context_prompt_items(
+    timeline: &code_context_timeline::ContextTimeline<EnvironmentContextSnapshot, EnvironmentContextDelta>,
+    max_deltas: usize,
+    stream_id: Option<&str>,
+) -> serde_json::Result<Vec<ResponseItem>> {
+    let mut items = Vec::new();
+
+    if let Some(snapshot) = timeline.baseline() {
+        items.push(snapshot.to_response_item_with_id(stream_id)?);
+    }
+
+    for entry in timeline.recent_deltas(max_deltas) {
+        items.push(entry.delta.to_response_item_with_id(stream_id)?);
+    }
+
+    Ok(items)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -12,6 +12,7 @@ members = [
     "cloud-tasks",
     "cloud-tasks-client",
     "cli",
+    "context-timeline",
     "codex-experimental-api-macros",
     "common",
     "core",
@@ -68,6 +69,7 @@ code-browser = { path = "browser" }
 code-chatgpt = { path = "chatgpt" }
 code-common = { path = "common" }
 code-core = { path = "core" }
+code-context-timeline = { path = "context-timeline", package = "codex-context-timeline" }
 code-skills = { path = "skills" }
 code-backend-client = { path = "backend-client" }
 code-backend-openapi-models = { path = "code-backend-openapi-models" }
