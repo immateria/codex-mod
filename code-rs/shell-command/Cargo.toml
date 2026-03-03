@@ -8,11 +8,18 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+base64 = { workspace = true }
 code-protocol = { workspace = true }
+once_cell = { workspace = true }
+regex-lite = { workspace = true }
+schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 shlex = { workspace = true }
+strum_macros = { workspace = true }
 tree-sitter = { workspace = true }
 tree-sitter-bash = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

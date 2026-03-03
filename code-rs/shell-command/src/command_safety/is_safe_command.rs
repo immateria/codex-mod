@@ -3,7 +3,7 @@ use crate::bash::try_parse_word_only_commands_sequence;
 use crate::command_safety::context::CommandSafetyContext;
 use crate::command_safety::context::CommandSafetyOs;
 use crate::command_safety::context::CommandSafetyShellFamily;
-use crate::config_types::CommandSafetyRuleset;
+use crate::command_safety::CommandSafetyRuleset;
 use std::path::Path;
 
 fn is_bash(cmd: &str) -> bool {

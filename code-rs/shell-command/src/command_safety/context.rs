@@ -1,7 +1,6 @@
 use std::path::Path;
 
-use crate::shell::Shell;
-use crate::util::is_shell_like_executable;
+use crate::is_shell_like_executable;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CommandSafetyOs {
@@ -35,20 +34,11 @@ impl CommandSafetyContext {
         }
     }
 
-    pub fn from_shell(shell: &Shell) -> Self {
-        let shell_family = shell
-            .name()
-            .as_deref()
-            .and_then(infer_shell_family_from_token)
-            .or(match shell {
-                Shell::PowerShell(_) => Some(CommandSafetyShellFamily::PowerShell),
-                _ => None,
-            })
-            .unwrap_or(CommandSafetyShellFamily::Unknown);
-
-        Self {
-            os: current_os(),
-            shell: shell_family,
+    pub fn with_shell_program(self, shell_program: &str) -> Self {
+        if let Some(shell) = infer_shell_family_from_token(shell_program) {
+            Self { shell, ..self }
+        } else {
+            self
         }
     }
 

@@ -2114,12 +2114,19 @@ name = "codex-shell-command"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "code-protocol",
+ "once_cell",
  "pretty_assertions",
+ "regex-lite",
+ "schemars 0.8.22",
  "serde",
+ "serde_json",
  "shlex",
+ "strum_macros 0.27.2",
  "tree-sitter",
  "tree-sitter-bash",
+ "url",
 ]
 
 [[package]]

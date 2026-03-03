@@ -5,6 +5,7 @@ use std::path::Path;
 use shlex::try_join;
 
 pub mod bash;
+pub mod command_safety;
 pub mod command_canonicalization;
 pub mod parse_command;
 
@@ -71,4 +72,3 @@ pub fn is_shell_like_executable(token: &str) -> bool {
             | "busybox"
     )
 }
-

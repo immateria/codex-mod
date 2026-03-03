@@ -7,8 +7,8 @@ use crate::command_safety::context::CommandSafetyOs;
 use crate::command_safety::context::CommandSafetyShellFamily;
 use crate::command_safety::windows_dangerous_commands::is_dangerous_command_windows;
 use crate::command_safety::windows_dangerous_commands::is_dangerous_windows_token_sequence;
-use crate::config_types::CommandSafetyRuleset;
-use crate::util::is_shell_like_executable;
+use crate::command_safety::CommandSafetyRuleset;
+use crate::is_shell_like_executable;
 
 pub fn command_might_be_dangerous(command: &[String]) -> bool {
     let context = CommandSafetyContext::current().with_command_shell(command);

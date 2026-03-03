@@ -1311,9 +1311,18 @@ pub(crate) async fn handle_container_exec_with_params(
 
     let safety = {
         let state = sess.state.lock().unwrap();
-        let command_safety_context =
-            crate::command_safety::context::CommandSafetyContext::from_shell(&sess.user_shell)
-                .with_command_shell(&params.command);
+        let mut command_safety_context =
+            crate::command_safety::context::CommandSafetyContext::current();
+        if let Some(shell_program) = sess.user_shell.name() {
+            command_safety_context = command_safety_context.with_shell_program(&shell_program);
+        }
+        if matches!(sess.user_shell, crate::shell::Shell::PowerShell(_)) {
+            command_safety_context = crate::command_safety::context::CommandSafetyContext {
+                shell: crate::command_safety::context::CommandSafetyShellFamily::PowerShell,
+                ..command_safety_context
+            };
+        }
+        let command_safety_context = command_safety_context.with_command_shell(&params.command);
         let safety_config = crate::safety::CommandSafetyEvaluationConfig {
             context: command_safety_context,
             safe_rules: sess.safe_command_rules,

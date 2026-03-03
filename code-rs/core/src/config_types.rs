@@ -432,14 +432,7 @@ impl ShellScriptStyle {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Display, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-#[strum(serialize_all = "kebab-case")]
-pub enum CommandSafetyRuleset {
-    Auto,
-    Posix,
-    Windows,
-}
+pub use code_shell_command::command_safety::CommandSafetyRuleset;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct CommandSafetyRuleConfig {
