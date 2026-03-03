@@ -20,7 +20,10 @@ def main() -> int:
     if not path.exists():
         raise SystemExit(f"Plan not found: {path}")
 
-    data = parse_frontmatter(path)
+    try:
+        data = parse_frontmatter(path)
+    except ValueError as e:
+        raise SystemExit(str(e)) from None
     name = data.get("name")
     description = data.get("description")
     if not name or not description:

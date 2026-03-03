@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Shared helpers for plan scripts."""
+"""Shared helpers for plan scripts.
+
+This fork supports both `CODE_HOME` and upstream `CODEX_HOME`.
+
+Defaults:
+- If neither env var is set, prefer `~/.code` (fork default).
+- If legacy `~/.codex/plans` exists and `~/.code` does not, use `~/.codex`.
+"""
 
 from __future__ import annotations
 
@@ -10,13 +17,26 @@ from pathlib import Path
 _NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
-def get_codex_home() -> Path:
-    """Return CODEX_HOME if set, else ~/.codex."""
-    return Path(os.environ.get("CODEX_HOME", "~/.codex")).expanduser()
+def get_code_home() -> Path:
+    """Return CODE_HOME/CODEX_HOME if set, else default to ~/.code (with legacy fallback)."""
+    for key in ("CODE_HOME", "CODEX_HOME"):
+        raw = os.environ.get(key)
+        if raw and raw.strip():
+            return Path(raw).expanduser()
+
+    home = Path.home()
+    default = home / ".code"
+    legacy = home / ".codex"
+
+    # Prefer legacy only when it looks like it's the active home already.
+    if not default.exists() and (legacy / "plans").exists():
+        return legacy
+
+    return default
 
 
 def get_plans_dir() -> Path:
-    return get_codex_home() / "plans"
+    return get_code_home() / "plans"
 
 
 def validate_plan_name(name: str) -> None:

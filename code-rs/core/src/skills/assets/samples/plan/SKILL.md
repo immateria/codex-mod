@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Generate a plan for how an agent should accomplish a complex coding task. Use when a user asks for a plan, and optionally when they want to save, find, read, update, or delete plan files in $CODEX_HOME/plans (default ~/.codex/plans).
+description: Generate a plan for how an agent should accomplish a complex coding task. Use when a user asks for a plan, and optionally when they want to save, find, read, update, or delete plan files in $CODE_HOME/plans (or $CODEX_HOME/plans). Defaults to ~/.code/plans (legacy: ~/.codex/plans).
 metadata:
   short-description: Generate a plan for a complex task
 ---
@@ -11,20 +11,27 @@ metadata:
 
 Draft structured plans that clarify intent, scope, requirements, action items, testing/validation, and risks.
 
-Optionally, save plans to disk as markdown files with YAML frontmatter and free-form content. When drafting in chat, output only the plan body without frontmatter; add frontmatter only when saving to disk. Only write to the plans folder; do not modify the repository codebase.
+Optionally, save plans to disk as markdown files with YAML frontmatter and free-form content. When drafting in chat, output only the plan body without frontmatter; add frontmatter only when saving to disk.
+
+When saving/updating plan files, only write inside the plans folder. Do not modify the repository unless the user explicitly asks you to implement changes.
 
 This skill can also be used to draft codebase or system overviews.
 
 ## Core rules
 
-- Resolve the plans directory as `$CODEX_HOME/plans` or `~/.codex/plans` when `CODEX_HOME` is not set.
+- Resolve the plans directory as `$CODE_HOME/plans` (or `$CODEX_HOME/plans`). If neither env var is set, default to `~/.code/plans` (legacy: `~/.codex/plans` if it already exists).
 - Create the plans directory if it does not exist.
-- Never write to the repo; only read files to understand context.
 - Require frontmatter with **only** `name` and `description` (single-line values) for on-disk plans.
 - When presenting a draft plan in chat, omit frontmatter and start at `# Plan`.
 - Enforce naming rules: short, lower-case, hyphen-delimited; filename must equal `<name>.md`.
 - If a plan is not found, state it clearly and offer to create one.
 - Allow overview-style plans that document flows, architecture, or context without a work checklist.
+
+## Fork notes (this repo)
+
+- When available, include `./build-fast.sh` in validation steps. In this fork it’s expected to pass cleanly (treat warnings as failures).
+- For Rust work, `cargo clippy --workspace --all-targets -- -D warnings` is a good baseline.
+- Avoid formatting-only churn (for example `rustfmt`) unless the user explicitly asks.
 
 ## Decide the task
 
@@ -70,7 +77,7 @@ python ./scripts/create_plan.py \
 Read frontmatter summary for a plan (run from the plan skill directory):
 
 ```bash
-python ./scripts/read_plan_frontmatter.py ~/.codex/plans/codex-rate-limit-overview.md
+python ./scripts/read_plan_frontmatter.py ~/.code/plans/codex-rate-limit-overview.md
 ```
 
 List plan summaries (optional filter; run from the plan skill directory):
@@ -113,12 +120,12 @@ description: <1-line summary>
 - <If applicable, describe schema or contract changes>
 
 ## Action items
-[ ] <Step 1>
-[ ] <Step 2>
-[ ] <Step 3>
-[ ] <Step 4>
-[ ] <Step 5>
-[ ] <Step 6>
+- [ ] <Step 1>
+- [ ] <Step 2>
+- [ ] <Step 3>
+- [ ] <Step 4>
+- [ ] <Step 5>
+- [ ] <Step 6>
 
 ## Testing and validation
 - <Tests, commands, or validation steps>

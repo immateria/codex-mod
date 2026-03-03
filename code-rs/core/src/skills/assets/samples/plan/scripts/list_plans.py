@@ -10,14 +10,15 @@ from plan_utils import get_plans_dir, parse_frontmatter
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="List plan summaries from $CODEX_HOME/plans.")
+    parser = argparse.ArgumentParser(
+        description="List plan summaries from $CODE_HOME/plans (or $CODEX_HOME/plans)."
+    )
     parser.add_argument("--query", help="Case-insensitive substring to filter name/description.")
     parser.add_argument("--json", action="store_true", help="Emit JSON output.")
     args = parser.parse_args()
 
     plans_dir = get_plans_dir()
-    if not plans_dir.exists():
-        raise SystemExit(f"Plans directory not found: {plans_dir}")
+    plans_dir.mkdir(parents=True, exist_ok=True)
 
     query = args.query.lower() if args.query else None
     items = []

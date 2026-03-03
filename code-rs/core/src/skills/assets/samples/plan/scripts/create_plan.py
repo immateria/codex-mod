@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create or overwrite a plan markdown file in $CODEX_HOME/plans."""
+"""Create or overwrite a plan markdown file in $CODE_HOME/plans (or $CODEX_HOME/plans)."""
 
 from __future__ import annotations
 
@@ -29,12 +29,12 @@ DEFAULT_TEMPLATE = """# Plan
 - <If applicable, describe schema or contract changes>
 
 ## Action items
-[ ] <Step 1>
-[ ] <Step 2>
-[ ] <Step 3>
-[ ] <Step 4>
-[ ] <Step 5>
-[ ] <Step 6>
+- [ ] <Step 1>
+- [ ] <Step 2>
+- [ ] <Step 3>
+- [ ] <Step 4>
+- [ ] <Step 5>
+- [ ] <Step 6>
 
 ## Testing and validation
 - <Tests, commands, or validation steps>
@@ -61,7 +61,7 @@ def read_body(args: argparse.Namespace) -> str | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Create a plan file under $CODEX_HOME/plans or ~/.codex/plans."
+        description="Create a plan file under $CODE_HOME/plans (or $CODEX_HOME/plans)."
     )
     parser.add_argument("--name", required=True, help="Plan name (lower-case, hyphen-delimited).")
     parser.add_argument("--description", required=True, help="Short plan description.")
@@ -83,7 +83,10 @@ def main() -> int:
 
     name = args.name.strip()
     description = args.description.strip()
-    validate_plan_name(name)
+    try:
+        validate_plan_name(name)
+    except ValueError as e:
+        raise SystemExit(str(e)) from None
     if not description or "\n" in description:
         raise SystemExit("Description must be a single line.")
 
