@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Install a skill from a GitHub repo path into $CODEX_HOME/skills."""
+"""Install a skill from a GitHub repo path into $CODE_HOME/skills (or $CODEX_HOME/skills)."""
 
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 import os
 import shutil
 import subprocess
@@ -13,8 +12,10 @@ import tempfile
 import urllib.error
 import urllib.parse
 import zipfile
+from dataclasses import dataclass
 
 from github_utils import github_request
+from skill_utils import get_config_path, get_skills_dir, resolve_style_skill_roots
 
 DEFAULT_REF = "main"
 
@@ -26,8 +27,10 @@ class Args:
     path: list[str] | None = None
     ref: str = DEFAULT_REF
     dest: str | None = None
+    style: str | None = None
     name: str | None = None
     method: str = "auto"
+    overwrite: bool = False
 
 
 @dataclass
@@ -41,10 +44,6 @@ class Source:
 
 class InstallError(Exception):
     pass
-
-
-def _codex_home() -> str:
-    return os.environ.get("CODEX_HOME", os.path.expanduser("~/.codex"))
 
 
 def _tmp_root() -> str:
@@ -170,13 +169,6 @@ def _validate_skill(path: str) -> None:
         raise InstallError("SKILL.md not found in selected skill directory.")
 
 
-def _copy_skill(src: str, dest_dir: str) -> None:
-    os.makedirs(os.path.dirname(dest_dir), exist_ok=True)
-    if os.path.exists(dest_dir):
-        raise InstallError(f"Destination already exists: {dest_dir}")
-    shutil.copytree(src, dest_dir)
-
-
 def _build_repo_url(owner: str, repo: str) -> str:
     return f"https://github.com/{owner}/{repo}.git"
 
@@ -240,7 +232,52 @@ def _resolve_source(args: Args) -> Source:
 
 
 def _default_dest() -> str:
-    return os.path.join(_codex_home(), "skills")
+    return str(get_skills_dir())
+
+
+def _resolve_dest_root(args: Args) -> str:
+    if args.dest:
+        return args.dest
+
+    if args.style:
+        roots = resolve_style_skill_roots(args.style)
+        if roots:
+            return str(roots[0])
+
+        cfg_path = get_config_path()
+        if not cfg_path.exists():
+            raise InstallError(
+                f"No config found at {cfg_path}. Use --dest to pick an install root, "
+                "or create config with shell_style_profiles.<style>.skill_roots."
+            )
+        raise InstallError(
+            f"No skill_roots configured for style '{args.style}' in {cfg_path}. "
+            "Use --dest to pick an install root, or update config."
+        )
+
+    return _default_dest()
+
+
+def _copy_skill(src: str, dest_dir: str, overwrite: bool) -> None:
+    os.makedirs(os.path.dirname(dest_dir), exist_ok=True)
+
+    if os.path.exists(dest_dir):
+        if not overwrite:
+            raise InstallError(f"Destination already exists: {dest_dir}")
+
+        # Guard: only overwrite directories that already look like skills.
+        skill_md = os.path.join(dest_dir, "SKILL.md")
+        if not os.path.isfile(skill_md):
+            raise InstallError(
+                f"Refusing to overwrite non-skill directory (missing SKILL.md): {dest_dir}"
+            )
+
+        if os.path.islink(dest_dir) or os.path.isfile(dest_dir):
+            os.unlink(dest_dir)
+        else:
+            shutil.rmtree(dest_dir, ignore_errors=False)
+
+    shutil.copytree(src, dest_dir)
 
 
 def _parse_args(argv: list[str]) -> Args:
@@ -251,12 +288,21 @@ def _parse_args(argv: list[str]) -> Args:
     parser.add_argument("--ref", default=DEFAULT_REF)
     parser.add_argument("--dest", help="Destination skills directory")
     parser.add_argument(
+        "--style",
+        help="Shell style profile name (uses shell_style_profiles.<style>.skill_roots[0]).",
+    )
+    parser.add_argument(
         "--name", help="Destination skill name (defaults to basename of path)"
     )
     parser.add_argument(
         "--method",
         choices=["auto", "download", "git"],
         default="auto",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Replace the destination skill directory if it already exists (requires SKILL.md).",
     )
     return parser.parse_args(argv, namespace=Args())
 
@@ -270,7 +316,9 @@ def main(argv: list[str]) -> int:
             raise InstallError("No skill paths provided.")
         for path in source.paths:
             _validate_relative_path(path)
-        dest_root = args.dest or _default_dest()
+        dest_root = _resolve_dest_root(args)
+        if os.path.exists(dest_root) and not os.path.isdir(dest_root):
+            raise InstallError(f"Destination root is not a directory: {dest_root}")
         tmp_dir = tempfile.mkdtemp(prefix="skill-install-", dir=_tmp_root())
         try:
             repo_root = _prepare_repo(source, args.method, tmp_dir)
@@ -282,11 +330,9 @@ def main(argv: list[str]) -> int:
                 if not skill_name:
                     raise InstallError("Unable to derive skill name.")
                 dest_dir = os.path.join(dest_root, skill_name)
-                if os.path.exists(dest_dir):
-                    raise InstallError(f"Destination already exists: {dest_dir}")
                 skill_src = os.path.join(repo_root, path)
                 _validate_skill(skill_src)
-                _copy_skill(skill_src, dest_dir)
+                _copy_skill(skill_src, dest_dir, args.overwrite)
                 installed.append((skill_name, dest_dir))
         finally:
             if os.path.isdir(tmp_dir):

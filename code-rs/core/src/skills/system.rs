@@ -73,12 +73,24 @@ const EMBEDDED_SYSTEM_SKILLS: &[(&str, &[u8])] = &[
         include_bytes!("assets/samples/skill-installer/scripts/github_utils.py"),
     ),
     (
+        "skill-installer/scripts/install-curated-skill.py",
+        include_bytes!("assets/samples/skill-installer/scripts/install-curated-skill.py"),
+    ),
+    (
         "skill-installer/scripts/install-skill-from-github.py",
         include_bytes!("assets/samples/skill-installer/scripts/install-skill-from-github.py"),
     ),
     (
         "skill-installer/scripts/list-curated-skills.py",
         include_bytes!("assets/samples/skill-installer/scripts/list-curated-skills.py"),
+    ),
+    (
+        "skill-installer/scripts/list-skills.py",
+        include_bytes!("assets/samples/skill-installer/scripts/list-skills.py"),
+    ),
+    (
+        "skill-installer/scripts/skill_utils.py",
+        include_bytes!("assets/samples/skill-installer/scripts/skill_utils.py"),
     ),
 ];
 

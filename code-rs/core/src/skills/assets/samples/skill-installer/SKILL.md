@@ -1,6 +1,6 @@
 ---
 name: skill-installer
-description: Install Codex skills into $CODEX_HOME/skills from a curated list or a GitHub repo path. Use when a user asks to list installable skills, install a curated skill, or install a skill from another repo (including private repos).
+description: Install Codex skills into $CODE_HOME/skills (or $CODEX_HOME/skills) from a curated list or a GitHub repo path. Use when a user asks to list installable skills, install a curated skill, or install a skill from another repo (including private repos).
 metadata:
   short-description: Install curated skills from openai/skills or other repos
 ---
@@ -34,7 +34,9 @@ After installing a skill, tell the user: "Restart Codex to pick up new skills."
 All of these scripts use network, so when running in the sandbox, request escalation when running them.
 
 - `scripts/list-curated-skills.py` (prints curated list with installed annotations)
-- `scripts/list-curated-skills.py --format json`
+- `scripts/list-curated-skills.py --format json --query zsh --limit 20`
+- `scripts/list-skills.py` (alias for upstream parity)
+- `scripts/install-curated-skill.py <skill-name> [<skill-name> ...]` (convenience wrapper)
 - `scripts/install-skill-from-github.py --repo <owner>/<repo> --path <path/to/skill> [<path/to/skill> ...]`
 - `scripts/install-skill-from-github.py --url https://github.com/<owner>/<repo>/tree/<ref>/<path>`
 
@@ -42,16 +44,19 @@ All of these scripts use network, so when running in the sandbox, request escala
 
 - Defaults to direct download for public GitHub repos.
 - If download fails with auth/permission errors, falls back to git sparse checkout.
-- Aborts if the destination skill directory already exists.
-- Installs into `$CODEX_HOME/skills/<skill-name>` (defaults to `~/.codex/skills`).
+- By default, aborts if the destination skill directory already exists.
+  - Use `--overwrite` to replace an existing skill directory (guarded by requiring `SKILL.md`).
+- Installs into `$CODE_HOME/skills/<skill-name>` (or `$CODEX_HOME/skills/<skill-name>`).
+  - If neither is set, defaults to `~/.code/skills` (legacy fallback: `~/.codex/skills` if that exists and `~/.code` does not).
 - Multiple `--path` values install multiple skills in one run, each named from the path basename unless `--name` is supplied.
-- Options: `--ref <ref>` (default `main`), `--dest <path>`, `--method auto|download|git`.
+- Options: `--ref <ref>` (default `main`), `--dest <path>`, `--style <style>`, `--method auto|download|git`.
 
 ## Shell-style-aware installs
 
 When users have shell-style profiles configured, do not assume a global install location is correct.
 
 - If the user asks for style-specific behavior, install into the style root referenced by `shell_style_profiles.<style>.skill_roots` (use `--dest`).
+- If they have a style configured, you can also use `install-skill-from-github.py --style <style>` to install into the first configured style root.
 - If no style root exists yet, install to a user-chosen path and provide a config snippet that adds it to `shell_style_profiles.<style>.skill_roots`.
 - If the user wants stricter control, recommend:
   - `shell_style_profiles.<style>.skills` as an allow-list
