@@ -5,99 +5,17 @@ use std::hash::Hasher;
 use std::path::Path;
 use std::path::PathBuf;
 
+use include_dir::Dir;
 use thiserror::Error;
+
+const SYSTEM_SKILLS_DIR: Dir = include_dir::include_dir!(
+    "$CARGO_MANIFEST_DIR/src/skills/assets/system_skills"
+);
 
 const SYSTEM_SKILLS_DIR_NAME: &str = ".system";
 const SKILLS_DIR_NAME: &str = "skills";
 const SYSTEM_SKILLS_MARKER_FILENAME: &str = ".codex-system-skills.marker";
-
-// Embedded system skills source files live under `assets/system_skills/`.
-const EMBEDDED_SYSTEM_SKILLS: &[(&str, &[u8])] = &[
-    (
-        "plan/SKILL.md",
-        include_bytes!("assets/system_skills/plan/SKILL.md"),
-    ),
-    (
-        "plan/LICENSE.txt",
-        include_bytes!("assets/system_skills/plan/LICENSE.txt"),
-    ),
-    (
-        "plan/scripts/create_plan.py",
-        include_bytes!("assets/system_skills/plan/scripts/create_plan.py"),
-    ),
-    (
-        "plan/scripts/list_plans.py",
-        include_bytes!("assets/system_skills/plan/scripts/list_plans.py"),
-    ),
-    (
-        "plan/scripts/plan_utils.py",
-        include_bytes!("assets/system_skills/plan/scripts/plan_utils.py"),
-    ),
-    (
-        "plan/scripts/read_plan_frontmatter.py",
-        include_bytes!("assets/system_skills/plan/scripts/read_plan_frontmatter.py"),
-    ),
-    (
-        "plan/scripts/update_plan.py",
-        include_bytes!("assets/system_skills/plan/scripts/update_plan.py"),
-    ),
-    (
-        "skill-creator/SKILL.md",
-        include_bytes!("assets/system_skills/skill-creator/SKILL.md"),
-    ),
-    (
-        "skill-creator/license.txt",
-        include_bytes!("assets/system_skills/skill-creator/license.txt"),
-    ),
-    (
-        "skill-creator/scripts/init_skill.py",
-        include_bytes!("assets/system_skills/skill-creator/scripts/init_skill.py"),
-    ),
-    (
-        "skill-creator/scripts/package_skill.py",
-        include_bytes!("assets/system_skills/skill-creator/scripts/package_skill.py"),
-    ),
-    (
-        "skill-creator/scripts/quick_validate.py",
-        include_bytes!("assets/system_skills/skill-creator/scripts/quick_validate.py"),
-    ),
-    (
-        "skill-installer/SKILL.md",
-        include_bytes!("assets/system_skills/skill-installer/SKILL.md"),
-    ),
-    (
-        "skill-installer/LICENSE.txt",
-        include_bytes!("assets/system_skills/skill-installer/LICENSE.txt"),
-    ),
-    (
-        "skill-installer/scripts/github_utils.py",
-        include_bytes!("assets/system_skills/skill-installer/scripts/github_utils.py"),
-    ),
-    (
-        "skill-installer/scripts/install-curated-skill.py",
-        include_bytes!("assets/system_skills/skill-installer/scripts/install-curated-skill.py"),
-    ),
-    (
-        "skill-installer/scripts/install-skill-from-github.py",
-        include_bytes!(
-            "assets/system_skills/skill-installer/scripts/install-skill-from-github.py"
-        ),
-    ),
-    (
-        "skill-installer/scripts/list-curated-skills.py",
-        include_bytes!(
-            "assets/system_skills/skill-installer/scripts/list-curated-skills.py"
-        ),
-    ),
-    (
-        "skill-installer/scripts/list-skills.py",
-        include_bytes!("assets/system_skills/skill-installer/scripts/list-skills.py"),
-    ),
-    (
-        "skill-installer/scripts/skill_utils.py",
-        include_bytes!("assets/system_skills/skill-installer/scripts/skill_utils.py"),
-    ),
-];
+const SYSTEM_SKILLS_MARKER_SALT: &str = "v1";
 
 /// Returns the on-disk cache location for embedded system skills.
 ///
@@ -132,7 +50,7 @@ pub(crate) fn install_system_skills(code_home: &Path) -> Result<(), SystemSkills
             .map_err(|source| SystemSkillsError::io("remove existing system skills dir", source))?;
     }
 
-    write_embedded_files(&dest_system)?;
+    write_embedded_dir(&SYSTEM_SKILLS_DIR, &dest_system)?;
     fs::write(&marker_path, format!("{expected_fingerprint}\n"))
         .map_err(|source| SystemSkillsError::io("write system skills marker", source))?;
     Ok(())
@@ -146,17 +64,12 @@ fn read_marker(path: &Path) -> Result<String, SystemSkillsError> {
 }
 
 fn embedded_system_skills_fingerprint() -> String {
-    let mut items: Vec<(&str, u64)> = EMBEDDED_SYSTEM_SKILLS
-        .iter()
-        .map(|&(rel, bytes)| {
-            let mut file_hasher = DefaultHasher::new();
-            bytes.hash(&mut file_hasher);
-            (rel, file_hasher.finish())
-        })
-        .collect();
+    let mut items = Vec::new();
+    collect_fingerprint_items(&SYSTEM_SKILLS_DIR, &mut items);
     items.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
 
     let mut hasher = DefaultHasher::new();
+    SYSTEM_SKILLS_MARKER_SALT.hash(&mut hasher);
     for (path, contents_hash) in items {
         path.hash(&mut hasher);
         contents_hash.hash(&mut hasher);
@@ -164,18 +77,52 @@ fn embedded_system_skills_fingerprint() -> String {
     format!("{:x}", hasher.finish())
 }
 
-fn write_embedded_files(dest_root: &Path) -> Result<(), SystemSkillsError> {
+fn collect_fingerprint_items(dir: &Dir<'_>, items: &mut Vec<(String, Option<u64>)>) {
+    for entry in dir.entries() {
+        match entry {
+            include_dir::DirEntry::Dir(subdir) => {
+                items.push((subdir.path().to_string_lossy().to_string(), None));
+                collect_fingerprint_items(subdir, items);
+            }
+            include_dir::DirEntry::File(file) => {
+                let mut file_hasher = DefaultHasher::new();
+                file.contents().hash(&mut file_hasher);
+                items.push((
+                    file.path().to_string_lossy().to_string(),
+                    Some(file_hasher.finish()),
+                ));
+            }
+        }
+    }
+}
+
+/// Writes the embedded `include_dir::Dir` to disk under `dest_root`.
+///
+/// Preserves the embedded directory structure.
+fn write_embedded_dir(dir: &Dir<'_>, dest_root: &Path) -> Result<(), SystemSkillsError> {
     fs::create_dir_all(dest_root)
         .map_err(|source| SystemSkillsError::io("create system skills dir", source))?;
 
-    for &(rel, bytes) in EMBEDDED_SYSTEM_SKILLS {
-        let path = dest_root.join(rel);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|source| SystemSkillsError::io("create system skills file parent", source))?;
+    for entry in dir.entries() {
+        match entry {
+            include_dir::DirEntry::Dir(subdir) => {
+                let subdir_dest = dest_root.join(subdir.path());
+                fs::create_dir_all(&subdir_dest).map_err(|source| {
+                    SystemSkillsError::io("create system skills subdir", source)
+                })?;
+                write_embedded_dir(subdir, dest_root)?;
+            }
+            include_dir::DirEntry::File(file) => {
+                let path = dest_root.join(file.path());
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent).map_err(|source| {
+                        SystemSkillsError::io("create system skills file parent", source)
+                    })?;
+                }
+                fs::write(&path, file.contents())
+                    .map_err(|source| SystemSkillsError::io("write system skill file", source))?;
+            }
         }
-        fs::write(&path, bytes)
-            .map_err(|source| SystemSkillsError::io("write system skill file", source))?;
     }
 
     Ok(())
@@ -194,5 +141,30 @@ pub(crate) enum SystemSkillsError {
 impl SystemSkillsError {
     fn io(action: &'static str, source: std::io::Error) -> Self {
         Self::Io { action, source }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SYSTEM_SKILLS_DIR;
+    use super::collect_fingerprint_items;
+
+    #[test]
+    fn fingerprint_traverses_nested_entries() {
+        let mut items = Vec::new();
+        collect_fingerprint_items(&SYSTEM_SKILLS_DIR, &mut items);
+        let mut paths: Vec<String> = items.into_iter().map(|(path, _)| path).collect();
+        paths.sort_unstable();
+
+        assert!(
+            paths
+                .binary_search_by(|probe| probe.as_str().cmp("skill-creator/SKILL.md"))
+                .is_ok()
+        );
+        assert!(
+            paths
+                .binary_search_by(|probe| probe.as_str().cmp("plan/scripts/create_plan.py"))
+                .is_ok()
+        );
     }
 }

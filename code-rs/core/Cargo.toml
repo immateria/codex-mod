@@ -41,6 +41,7 @@ encoding_rs = { workspace = true }
 eventsource-stream = { workspace = true }
 futures = { workspace = true }
 futures-util = "0.3"
+include_dir = { workspace = true }
 indexmap = { workspace = true }
 lazy_static = { workspace = true }
 libc = { workspace = true }
