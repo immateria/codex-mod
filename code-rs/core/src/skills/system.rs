@@ -11,86 +11,91 @@ const SYSTEM_SKILLS_DIR_NAME: &str = ".system";
 const SKILLS_DIR_NAME: &str = "skills";
 const SYSTEM_SKILLS_MARKER_FILENAME: &str = ".codex-system-skills.marker";
 
+// Embedded system skills source files live under `assets/system_skills/`.
 const EMBEDDED_SYSTEM_SKILLS: &[(&str, &[u8])] = &[
     (
         "plan/SKILL.md",
-        include_bytes!("assets/samples/plan/SKILL.md"),
+        include_bytes!("assets/system_skills/plan/SKILL.md"),
     ),
     (
         "plan/LICENSE.txt",
-        include_bytes!("assets/samples/plan/LICENSE.txt"),
+        include_bytes!("assets/system_skills/plan/LICENSE.txt"),
     ),
     (
         "plan/scripts/create_plan.py",
-        include_bytes!("assets/samples/plan/scripts/create_plan.py"),
+        include_bytes!("assets/system_skills/plan/scripts/create_plan.py"),
     ),
     (
         "plan/scripts/list_plans.py",
-        include_bytes!("assets/samples/plan/scripts/list_plans.py"),
+        include_bytes!("assets/system_skills/plan/scripts/list_plans.py"),
     ),
     (
         "plan/scripts/plan_utils.py",
-        include_bytes!("assets/samples/plan/scripts/plan_utils.py"),
+        include_bytes!("assets/system_skills/plan/scripts/plan_utils.py"),
     ),
     (
         "plan/scripts/read_plan_frontmatter.py",
-        include_bytes!("assets/samples/plan/scripts/read_plan_frontmatter.py"),
+        include_bytes!("assets/system_skills/plan/scripts/read_plan_frontmatter.py"),
     ),
     (
         "plan/scripts/update_plan.py",
-        include_bytes!("assets/samples/plan/scripts/update_plan.py"),
+        include_bytes!("assets/system_skills/plan/scripts/update_plan.py"),
     ),
     (
         "skill-creator/SKILL.md",
-        include_bytes!("assets/samples/skill-creator/SKILL.md"),
+        include_bytes!("assets/system_skills/skill-creator/SKILL.md"),
     ),
     (
         "skill-creator/license.txt",
-        include_bytes!("assets/samples/skill-creator/license.txt"),
+        include_bytes!("assets/system_skills/skill-creator/license.txt"),
     ),
     (
         "skill-creator/scripts/init_skill.py",
-        include_bytes!("assets/samples/skill-creator/scripts/init_skill.py"),
+        include_bytes!("assets/system_skills/skill-creator/scripts/init_skill.py"),
     ),
     (
         "skill-creator/scripts/package_skill.py",
-        include_bytes!("assets/samples/skill-creator/scripts/package_skill.py"),
+        include_bytes!("assets/system_skills/skill-creator/scripts/package_skill.py"),
     ),
     (
         "skill-creator/scripts/quick_validate.py",
-        include_bytes!("assets/samples/skill-creator/scripts/quick_validate.py"),
+        include_bytes!("assets/system_skills/skill-creator/scripts/quick_validate.py"),
     ),
     (
         "skill-installer/SKILL.md",
-        include_bytes!("assets/samples/skill-installer/SKILL.md"),
+        include_bytes!("assets/system_skills/skill-installer/SKILL.md"),
     ),
     (
         "skill-installer/LICENSE.txt",
-        include_bytes!("assets/samples/skill-installer/LICENSE.txt"),
+        include_bytes!("assets/system_skills/skill-installer/LICENSE.txt"),
     ),
     (
         "skill-installer/scripts/github_utils.py",
-        include_bytes!("assets/samples/skill-installer/scripts/github_utils.py"),
+        include_bytes!("assets/system_skills/skill-installer/scripts/github_utils.py"),
     ),
     (
         "skill-installer/scripts/install-curated-skill.py",
-        include_bytes!("assets/samples/skill-installer/scripts/install-curated-skill.py"),
+        include_bytes!("assets/system_skills/skill-installer/scripts/install-curated-skill.py"),
     ),
     (
         "skill-installer/scripts/install-skill-from-github.py",
-        include_bytes!("assets/samples/skill-installer/scripts/install-skill-from-github.py"),
+        include_bytes!(
+            "assets/system_skills/skill-installer/scripts/install-skill-from-github.py"
+        ),
     ),
     (
         "skill-installer/scripts/list-curated-skills.py",
-        include_bytes!("assets/samples/skill-installer/scripts/list-curated-skills.py"),
+        include_bytes!(
+            "assets/system_skills/skill-installer/scripts/list-curated-skills.py"
+        ),
     ),
     (
         "skill-installer/scripts/list-skills.py",
-        include_bytes!("assets/samples/skill-installer/scripts/list-skills.py"),
+        include_bytes!("assets/system_skills/skill-installer/scripts/list-skills.py"),
     ),
     (
         "skill-installer/scripts/skill_utils.py",
-        include_bytes!("assets/samples/skill-installer/scripts/skill_utils.py"),
+        include_bytes!("assets/system_skills/skill-installer/scripts/skill_utils.py"),
     ),
 ];
 
