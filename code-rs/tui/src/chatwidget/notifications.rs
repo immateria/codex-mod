@@ -194,4 +194,96 @@ impl ChatWidget<'_> {
             }
         }
     }
+
+    pub(crate) fn set_mcp_server_scheduling(
+        &mut self,
+        server_name: &str,
+        scheduling: code_core::config_types::McpServerSchedulingToml,
+    ) {
+        match code_core::config::find_code_home() {
+            Ok(home) => match code_core::config::set_mcp_server_scheduling(
+                &home,
+                server_name,
+                scheduling.clone(),
+            ) {
+                Ok(()) => {
+                    if let Some(server_cfg) = self.config.mcp_servers.get_mut(server_name) {
+                        server_cfg.scheduling = scheduling.clone();
+                    }
+
+                    self.submit_op(Op::SetMcpServerScheduling {
+                        server: server_name.to_string(),
+                        scheduling,
+                    });
+
+                    self.push_background_tail(format!(
+                        "Updated MCP scheduling for '{server_name}'.",
+                    ));
+                }
+                Err(err) => {
+                    let msg = format!(
+                        "Failed to update MCP scheduling for '{server_name}': {err}"
+                    );
+                    self.history_push_plain_state(history_cell::new_error_event(msg));
+                }
+            },
+            Err(err) => {
+                let msg = format!("Failed to locate CODEX_HOME: {err}");
+                self.history_push_plain_state(history_cell::new_error_event(msg));
+            }
+        }
+    }
+
+    pub(crate) fn set_mcp_tool_scheduling_override(
+        &mut self,
+        server_name: &str,
+        tool_name: &str,
+        override_cfg: Option<code_core::config_types::McpToolSchedulingOverrideToml>,
+    ) {
+        match code_core::config::find_code_home() {
+            Ok(home) => match code_core::config::set_mcp_tool_scheduling_override(
+                &home,
+                server_name,
+                tool_name,
+                override_cfg.clone(),
+            ) {
+                Ok(()) => {
+                    if let Some(server_cfg) = self.config.mcp_servers.get_mut(server_name) {
+                        let normalized_tool = tool_name.trim();
+                        if !normalized_tool.is_empty() {
+                            if let Some(cfg) = override_cfg.as_ref()
+                                && (cfg.max_concurrent.is_some() || cfg.min_interval_sec.is_some())
+                            {
+                                server_cfg
+                                    .tool_scheduling
+                                    .insert(normalized_tool.to_string(), cfg.clone());
+                            } else {
+                                server_cfg.tool_scheduling.remove(normalized_tool);
+                            }
+                        }
+                    }
+
+                    self.submit_op(Op::SetMcpToolSchedulingOverride {
+                        server: server_name.to_string(),
+                        tool: tool_name.to_string(),
+                        override_cfg,
+                    });
+
+                    self.push_background_tail(format!(
+                        "Updated MCP tool scheduling for '{server_name}::{tool_name}'.",
+                    ));
+                }
+                Err(err) => {
+                    let msg = format!(
+                        "Failed to update MCP tool scheduling for '{server_name}::{tool_name}': {err}"
+                    );
+                    self.history_push_plain_state(history_cell::new_error_event(msg));
+                }
+            },
+            Err(err) => {
+                let msg = format!("Failed to locate CODEX_HOME: {err}");
+                self.history_push_plain_state(history_cell::new_error_event(msg));
+            }
+        }
+    }
 }

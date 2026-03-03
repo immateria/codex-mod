@@ -3,11 +3,14 @@ use std::cell::Cell;
 use std::time::Duration;
 
 use crate::app_event_sender::AppEventSender;
+use code_core::config_types::McpServerSchedulingToml;
+use code_core::config_types::McpToolSchedulingOverrideToml;
 use code_core::protocol::McpAuthStatus;
 
 mod input;
 mod layout;
 mod pane_impl;
+mod policy_editor;
 mod presentation;
 mod selection;
 mod state;
@@ -23,6 +26,8 @@ pub(crate) struct McpServerRow {
     pub auth_status: McpAuthStatus,
     pub startup_timeout: Option<Duration>,
     pub tool_timeout: Option<Duration>,
+    pub scheduling: McpServerSchedulingToml,
+    pub tool_scheduling: BTreeMap<String, McpToolSchedulingOverrideToml>,
     pub tools: Vec<String>,
     pub disabled_tools: Vec<String>,
     pub resources: Vec<code_protocol::mcp::Resource>,
@@ -39,6 +44,13 @@ enum McpSettingsFocus {
     Servers,
     Summary,
     Tools,
+}
+
+#[derive(Debug)]
+enum McpSettingsMode {
+    Main,
+    EditServerScheduling(Box<policy_editor::ServerSchedulingEditor>),
+    EditToolScheduling(Box<policy_editor::ToolSchedulingEditor>),
 }
 
 #[derive(Clone, Debug)]
@@ -104,6 +116,7 @@ pub(crate) struct McpSettingsView {
     rows: McpServerRows,
     selected: usize,
     focus: McpSettingsFocus,
+    mode: McpSettingsMode,
     hovered_pane: McpPaneHit,
     hovered_list_index: Option<usize>,
     hovered_tool_index: Option<usize>,
@@ -128,6 +141,7 @@ impl McpSettingsView {
             rows,
             selected: 0,
             focus: McpSettingsFocus::Servers,
+            mode: McpSettingsMode::Main,
             hovered_pane: McpPaneHit::Outside,
             hovered_list_index: None,
             hovered_tool_index: None,
@@ -166,7 +180,9 @@ mod tests {
         McpToolHoverPart,
         McpViewLayout,
     };
+    use crate::app_event::AppEvent;
     use crate::app_event_sender::AppEventSender;
+    use code_core::config_types::McpDispatchMode;
 
     fn make_server_row(name: &str) -> McpServerRow {
         McpServerRow {
@@ -176,6 +192,8 @@ mod tests {
             auth_status: super::McpAuthStatus::Unsupported,
             startup_timeout: Some(Duration::from_secs(30)),
             tool_timeout: Some(Duration::from_secs(30)),
+            scheduling: super::McpServerSchedulingToml::default(),
+            tool_scheduling: BTreeMap::new(),
             tools: vec!["tool_a".to_string(), "tool_b".to_string()],
             disabled_tools: Vec::new(),
             resources: Vec::new(),
@@ -193,6 +211,11 @@ mod tests {
         McpSettingsView::new(rows, AppEventSender::new(tx))
     }
 
+    fn make_view_with_rx(rows: Vec<McpServerRow>) -> (McpSettingsView, std::sync::mpsc::Receiver<AppEvent>) {
+        let (tx, rx) = channel();
+        (McpSettingsView::new(rows, AppEventSender::new(tx)), rx)
+    }
+
     fn mouse_event(kind: MouseEventKind, x: u16, y: u16) -> MouseEvent {
         MouseEvent {
             kind,
@@ -207,6 +230,74 @@ mod tests {
         let mut view = make_view(vec![make_server_row("server_a")]);
         let handled = view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
         assert!(!handled);
+    }
+
+    #[test]
+    fn server_scheduling_editor_emits_app_event() {
+        let (mut view, rx) = make_view_with_rx(vec![make_server_row("server_a")]);
+
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE)));
+        // Dispatch row -> parallel
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+
+        // Max concurrent row -> set to 2
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)));
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE)));
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE)));
+
+        // Min interval row -> set to 1 sec
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)));
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('1'), KeyModifiers::NONE)));
+
+        // Save
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL)));
+
+        let event = rx.try_recv().expect("expected a scheduling update AppEvent");
+        match event {
+            AppEvent::SetMcpServerScheduling { server, scheduling } => {
+                assert_eq!(server, "server_a");
+                assert_eq!(scheduling.dispatch, McpDispatchMode::Parallel);
+                assert_eq!(scheduling.max_concurrent, 2);
+                assert_eq!(scheduling.min_interval_sec, Some(Duration::from_secs(1)));
+                assert_eq!(scheduling.queue_timeout_sec, None);
+                assert_eq!(scheduling.max_queue_depth, None);
+            }
+            other => panic!("unexpected AppEvent: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn tool_scheduling_editor_emits_app_event() {
+        let (mut view, rx) = make_view_with_rx(vec![make_server_row("server_a")]);
+
+        // Focus tools pane.
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)));
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)));
+        assert_eq!(view.focus, McpSettingsFocus::Tools);
+
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE)));
+
+        // Min interval row toggles inherit -> override (defaults to 1); set to 2.
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE)));
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE)));
+
+        // Save
+        assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL)));
+
+        let event = rx.try_recv().expect("expected a tool scheduling update AppEvent");
+        match event {
+            AppEvent::SetMcpToolSchedulingOverride { server, tool, override_cfg } => {
+                assert_eq!(server, "server_a");
+                assert_eq!(tool, "tool_a");
+                let cfg = override_cfg.expect("override cfg should be set");
+                assert_eq!(cfg.max_concurrent, None);
+                assert_eq!(cfg.min_interval_sec, Some(Duration::from_secs(2)));
+            }
+            other => panic!("unexpected AppEvent: {other:?}"),
+        }
     }
 
     #[test]

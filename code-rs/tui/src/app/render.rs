@@ -137,6 +137,7 @@ impl App<'_> {
             match &mut self.app_state {
                 AppState::Chat { widget } => {
                     let area = frame.area();
+                    widget.sync_settings_route_for_width(area.width);
                     let cursor_pos = widget.cursor_pos(area);
                     if let Some(split) = split_preview {
                         apply_runtime_theme_for_render(split.current);

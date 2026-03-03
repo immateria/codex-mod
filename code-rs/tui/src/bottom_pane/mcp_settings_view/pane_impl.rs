@@ -17,7 +17,7 @@ use crate::ui_interaction::{redraw_if, render_vertical_scrollbar};
 use super::super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::super::BottomPane;
 use super::layout::{McpPaneHit, McpViewLayout};
-use super::{McpSettingsFocus, McpSettingsView};
+use super::{McpSettingsFocus, McpSettingsMode, McpSettingsView};
 
 impl McpSettingsView {
     fn pane_border_style(&self, focused_pane: McpSettingsFocus, pane_hit: McpPaneHit) -> Style {
@@ -157,9 +157,9 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
             .borders(Borders::ALL)
             .border_style(self.pane_border_style(McpSettingsFocus::Tools, McpPaneHit::Tools))
             .title(if self.focus == McpSettingsFocus::Tools {
-                " Tools (Focused) "
+                " Tools (*=override) (Focused) "
             } else {
-                " Tools "
+                " Tools (*=override) "
             });
         tools_block.render(layout.tools_rect, buf);
 
@@ -199,33 +199,52 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
         }
 
         if let Some(hint_area) = layout.hint_area {
-            Paragraph::new(Line::from(vec![
-                Span::styled("↑↓", Style::default().fg(crate::colors::function())),
-                Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Space", Style::default().fg(crate::colors::success())),
-                Span::styled(" toggle tool  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                Span::styled(" expand tool  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Tab", Style::default().fg(crate::colors::function())),
-                Span::styled(" /Click", Style::default().fg(crate::colors::function())),
-                Span::styled(" focus pane  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("PgUp/PgDn", Style::default().fg(crate::colors::function())),
-                Span::styled(" scroll details  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Shift+Wheel", Style::default().fg(crate::colors::function())),
-                Span::styled(" h-scroll  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("R", Style::default().fg(crate::colors::function())),
-                Span::styled(" refresh  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("S", Style::default().fg(crate::colors::function())),
-                Span::styled(" /mcp status  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("W", Style::default().fg(crate::colors::function())),
-                Span::styled(
-                    format!(" wrap:{}  ", if self.summary_wrap { "on" } else { "off" }),
-                    Style::default().fg(crate::colors::text_dim()),
-                ),
-                Span::styled("Esc", Style::default().fg(crate::colors::error())),
-                Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
-            ]))
-            .render(hint_area, buf);
+            match self.mode {
+                McpSettingsMode::Main => Paragraph::new(Line::from(vec![
+                    Span::styled("↑↓", Style::default().fg(crate::colors::function())),
+                    Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Space", Style::default().fg(crate::colors::success())),
+                    Span::styled(" toggle tool  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                    Span::styled(" expand tool  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Tab", Style::default().fg(crate::colors::function())),
+                    Span::styled(" /Click", Style::default().fg(crate::colors::function())),
+                    Span::styled(" focus pane  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("E", Style::default().fg(crate::colors::function())),
+                    Span::styled(" edit scheduling  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("PgUp/PgDn", Style::default().fg(crate::colors::function())),
+                    Span::styled(" scroll details  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Shift+Wheel", Style::default().fg(crate::colors::function())),
+                    Span::styled(" h-scroll  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("R", Style::default().fg(crate::colors::function())),
+                    Span::styled(" refresh  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("S", Style::default().fg(crate::colors::function())),
+                    Span::styled(" /mcp status  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("W", Style::default().fg(crate::colors::function())),
+                    Span::styled(
+                        format!(" wrap:{}  ", if self.summary_wrap { "on" } else { "off" }),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                    Span::styled("Esc", Style::default().fg(crate::colors::error())),
+                    Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
+                ]))
+                .render(hint_area, buf),
+                _ => Paragraph::new(Line::from(vec![
+                    Span::styled("↑↓", Style::default().fg(crate::colors::function())),
+                    Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                    Span::styled(" edit/toggle  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Ctrl+S", Style::default().fg(crate::colors::function())),
+                    Span::styled(" save  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Esc", Style::default().fg(crate::colors::error())),
+                    Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
+                ]))
+                .render(hint_area, buf),
+            };
+        }
+
+        if !matches!(self.mode, McpSettingsMode::Main) {
+            self.render_policy_editor(area, buf);
         }
     }
 }

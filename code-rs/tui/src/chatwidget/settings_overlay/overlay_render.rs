@@ -137,8 +137,6 @@ impl SettingsOverlayView {
             let is_active = row.section == active_section;
             let indicator = if is_active { "›" } else { " " };
 
-            let row_start = lines.len();
-
             if row.section == SettingsSection::Limits && !lines.is_empty() {
                 lines.push(Line::from(""));
                 line_sections.push(None);
@@ -153,6 +151,8 @@ impl SettingsOverlayView {
                     line_sections.push(None);
                 }
             }
+            // Anchor selection to the row itself, not any pre-row separators.
+            let row_start = lines.len();
 
             let label_style = if is_active {
                 Style::default()

@@ -7795,6 +7795,8 @@ fi\n\
                             transport,
                             startup_timeout_sec: None,
                             tool_timeout_sec: None,
+                            scheduling: code_core::config_types::McpServerSchedulingToml::default(),
+                            tool_scheduling: std::collections::BTreeMap::new(),
                             disabled_tools: Vec::new(),
                         };
                         match code_core::config::add_mcp_server(&home, &name, cfg.clone()) {

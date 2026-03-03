@@ -135,6 +135,7 @@ fn build_server_row(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
 
     #[test]
     fn transport_summary_for_stdio_and_http() {
@@ -146,6 +147,8 @@ mod tests {
             },
             startup_timeout_sec: None,
             tool_timeout_sec: None,
+            scheduling: crate::config_types::McpServerSchedulingToml::default(),
+            tool_scheduling: BTreeMap::new(),
             disabled_tools: Vec::new(),
         };
         assert_eq!(format_transport_summary(&stdio), "npx -y @x/y");
@@ -160,6 +163,8 @@ mod tests {
             },
             startup_timeout_sec: None,
             tool_timeout_sec: None,
+            scheduling: crate::config_types::McpServerSchedulingToml::default(),
+            tool_scheduling: BTreeMap::new(),
             disabled_tools: Vec::new(),
         };
         assert_eq!(format_transport_summary(&http), "HTTP https://example.test/mcp");

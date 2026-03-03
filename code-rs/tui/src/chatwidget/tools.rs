@@ -86,7 +86,7 @@ pub(super) fn mcp_end(chat: &mut ChatWidget<'_>, ev: McpToolCallEndEvent, key: O
         .and_then(|cell| {
             cell.as_any()
                 .downcast_ref::<history_cell::RunningToolCallCell>()
-                .map(|cell| cell.details_collapsed())
+                .map(history_cell::RunningToolCallCell::details_collapsed)
         });
 
     if let Some(idx) = resolved_idx {

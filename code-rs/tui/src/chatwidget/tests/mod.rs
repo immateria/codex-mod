@@ -121,6 +121,8 @@
             startup_timeout_sec: None,
             tool_timeout_sec: None,
             disabled_tools: Vec::new(),
+            scheduling: code_core::config_types::McpServerSchedulingToml::default(),
+            tool_scheduling: BTreeMap::new(),
         };
         let fail_cfg = McpServerConfig {
             transport: McpServerTransportConfig::Stdio {
@@ -131,6 +133,8 @@
             startup_timeout_sec: None,
             tool_timeout_sec: None,
             disabled_tools: Vec::new(),
+            scheduling: code_core::config_types::McpServerSchedulingToml::default(),
+            tool_scheduling: BTreeMap::new(),
         };
     
         let ok_summary = format!(
@@ -165,6 +169,8 @@
             auth_status: McpAuthStatus::OAuth,
             startup_timeout: Some(Duration::from_secs(12)),
             tool_timeout: Some(Duration::from_secs(4)),
+            scheduling: code_core::config_types::McpServerSchedulingToml::default(),
+            tool_scheduling: BTreeMap::new(),
             tools: vec!["fetch".to_string(), "search".to_string()],
             disabled_tools: vec!["legacy".to_string()],
             resources: Vec::new(),
@@ -180,6 +186,8 @@
             auth_status: McpAuthStatus::Unsupported,
             startup_timeout: None,
             tool_timeout: None,
+            scheduling: code_core::config_types::McpServerSchedulingToml::default(),
+            tool_scheduling: BTreeMap::new(),
             tools: Vec::new(),
             disabled_tools: Vec::new(),
             resources: Vec::new(),
@@ -3847,6 +3855,117 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     assert!(
         output_content.contains("Focus: Content"),
         "expected content focus after Tab, got:\n{output_content}",
+    );
+    }
+
+    #[test]
+    fn auto_settings_menu_switches_between_overlay_and_bottom_on_resize() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    use crate::bottom_pane::SettingsSection;
+    use code_core::config_types::{SettingsMenuConfig, SettingsMenuOpenMode};
+
+    {
+        let chat = harness.chat();
+        chat.apply_tui_settings_menu(SettingsMenuConfig {
+            open_mode: SettingsMenuOpenMode::Auto,
+            overlay_min_width: 100,
+        });
+        chat.layout.last_frame_width.set(120);
+        chat.show_settings_overlay(Some(SettingsSection::Network));
+        assert!(
+            chat.settings.overlay.is_some(),
+            "expected overlay settings at wide width",
+        );
+    }
+
+    {
+        let chat = harness.chat();
+        chat.sync_settings_route_for_width(80);
+        assert!(
+            chat.settings.overlay.is_none(),
+            "expected bottom-pane settings after narrowing width",
+        );
+        assert!(
+            chat.bottom_pane.has_active_view(),
+            "expected an active bottom-pane settings view",
+        );
+    }
+
+    {
+        let chat = harness.chat();
+        chat.sync_settings_route_for_width(120);
+        let overlay = chat
+            .settings
+            .overlay
+            .as_ref()
+            .expect("expected overlay settings after widening width");
+        assert_eq!(
+            overlay.active_section(),
+            SettingsSection::Network,
+            "expected active settings section to be preserved across mode switches",
+        );
+        assert!(
+            !chat.bottom_pane.has_active_view(),
+            "expected bottom-pane settings view to be cleared when overlay route is restored",
+        );
+    }
+    }
+
+    #[test]
+    fn settings_overlay_overview_keeps_selected_row_visible_when_scrolling() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    use crate::bottom_pane::SettingsSection;
+    use code_core::config_types::{SettingsMenuConfig, SettingsMenuOpenMode};
+
+    {
+        let chat = harness.chat();
+        chat.apply_tui_settings_menu(SettingsMenuConfig {
+            open_mode: SettingsMenuOpenMode::Overlay,
+            overlay_min_width: 80,
+        });
+        chat.show_settings_overlay(None);
+    }
+    harness.flush_into_widget();
+
+    harness.with_chat(|chat| {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        for _ in 0..40 {
+            if chat
+                .settings
+                .overlay
+                .as_ref()
+                .is_some_and(|overlay| overlay.active_section() == SettingsSection::Limits)
+            {
+                break;
+            }
+            chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        }
+        assert!(
+            chat.settings
+                .overlay
+                .as_ref()
+                .is_some_and(|overlay| overlay.active_section() == SettingsSection::Limits),
+            "expected to navigate to Limits section in overlay overview",
+        );
+    });
+
+    let output = {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(72, 16)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    assert!(
+        output.contains("› Limits") || output.contains("» Limits"),
+        "expected selected Limits row to remain visible in overview:\n{output}",
     );
     }
 

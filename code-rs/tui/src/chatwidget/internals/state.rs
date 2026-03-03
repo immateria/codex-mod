@@ -270,6 +270,9 @@ pub(crate) struct HelpState {
 #[derive(Default)]
 pub(crate) struct SettingsState {
     pub(crate) overlay: Option<SettingsOverlayView>,
+    /// `Some(Some(section))` means bottom-pane settings is open in a section,
+    /// `Some(None)` means bottom-pane settings overview menu is open.
+    pub(crate) bottom_route: Option<Option<SettingsSection>>,
 }
 
 pub(crate) struct BrowserOverlayState {

@@ -248,6 +248,8 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
         transport: transport.clone(),
         startup_timeout_sec: None,
         tool_timeout_sec: None,
+        scheduling: code_core::config_types::McpServerSchedulingToml::default(),
+        tool_scheduling: std::collections::BTreeMap::new(),
         disabled_tools: Vec::new(),
     };
 
@@ -932,6 +934,8 @@ mod tests {
                 startup_timeout_sec: Some(Duration::from_secs(15)),
                 tool_timeout_sec: Some(Duration::from_secs(5)),
                 disabled_tools: vec!["brave_news_search".to_string()],
+                scheduling: code_core::config_types::McpServerSchedulingToml::default(),
+                tool_scheduling: std::collections::BTreeMap::new(),
             },
             tools: vec!["brave_web_search".to_string()],
             disabled_tools: vec!["brave_news_search".to_string()],

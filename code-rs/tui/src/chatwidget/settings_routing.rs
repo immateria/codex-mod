@@ -143,6 +143,7 @@ impl ChatWidget<'_> {
         Self::apply_settings_overlay_mode(&mut overlay, section);
 
         self.settings.overlay = Some(overlay);
+        self.settings.bottom_route = None;
         self.request_redraw();
     }
 
@@ -158,6 +159,7 @@ impl ChatWidget<'_> {
 
         if let Some(section) = section {
             if self.open_settings_section_in_bottom_pane(section) {
+                self.settings.bottom_route = Some(Some(section));
                 return;
             }
             // Some sections only exist in the overlay; fall back.
@@ -175,6 +177,7 @@ impl ChatWidget<'_> {
             .collect();
         let view = SettingsOverviewView::new(rows, initial_section, self.app_event_tx.clone());
         self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_overview(view));
+        self.settings.bottom_route = Some(None);
     }
 
     pub(crate) fn show_settings_overlay(&mut self, section: Option<SettingsSection>) {
@@ -182,6 +185,45 @@ impl ChatWidget<'_> {
             self.show_settings_overlay_view(section);
         } else {
             self.show_settings_bottom_pane(section);
+        }
+    }
+
+    pub(crate) fn sync_settings_route_for_width(&mut self, width: u16) {
+        use code_core::config_types::SettingsMenuOpenMode;
+
+        if self.config.tui.settings_menu.open_mode != SettingsMenuOpenMode::Auto {
+            return;
+        }
+
+        // If a prior bottom-pane settings view was closed, drop stale routing state.
+        if self.settings.bottom_route.is_some() && !self.bottom_pane.has_active_view() {
+            self.settings.bottom_route = None;
+        }
+
+        let prefer_overlay = width >= self.config.tui.settings_menu.overlay_min_width;
+
+        if let Some(overlay) = self.settings.overlay.as_ref() {
+            if !prefer_overlay {
+                let target_section = if overlay.is_menu_active() {
+                    None
+                } else {
+                    Some(overlay.active_section())
+                };
+                if let Some(section) = target_section
+                    && !Self::section_supported_in_bottom_pane(section)
+                {
+                    return;
+                }
+                self.show_settings_bottom_pane(target_section);
+            }
+            return;
+        }
+
+        if let Some(route) = self.settings.bottom_route
+            && prefer_overlay
+        {
+            self.bottom_pane.clear_active_view();
+            self.show_settings_overlay_view(route);
         }
     }
 
@@ -415,6 +457,8 @@ impl ChatWidget<'_> {
                 auth_status: server.auth_status,
                 startup_timeout: server.config.startup_timeout_sec,
                 tool_timeout: server.config.tool_timeout_sec,
+                scheduling: server.config.scheduling.clone(),
+                tool_scheduling: server.config.tool_scheduling.clone(),
                 tools: server.tools,
                 disabled_tools: server.disabled_tools,
                 resources,
@@ -1312,7 +1356,7 @@ impl ChatWidget<'_> {
         &mut self,
         section: SettingsSection,
     ) -> bool {
-        match section {
+        let opened = match section {
             SettingsSection::Model                              => self.open_model_settings_section(),
             SettingsSection::Theme                              => self.open_theme_settings_section(),
             SettingsSection::Interface                          => self.open_interface_settings_section(),
@@ -1332,7 +1376,19 @@ impl ChatWidget<'_> {
             SettingsSection::Network                            => self.open_network_settings_section(),
 
             SettingsSection::Agents | SettingsSection::Limits | SettingsSection::Chrome => false,
+        };
+
+        if opened {
+            self.settings.bottom_route = Some(Some(section));
         }
+        opened
+    }
+
+    fn section_supported_in_bottom_pane(section: SettingsSection) -> bool {
+        !matches!(
+            section,
+            SettingsSection::Agents | SettingsSection::Limits | SettingsSection::Chrome
+        )
     }
 
     pub(crate) fn activate_current_settings_section(&mut self) -> bool {

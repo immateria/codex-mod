@@ -559,6 +559,34 @@ pub(in crate::codex) async fn submission_loop(
                     warn!("failed to send McpListToolsResponse event: {e}");
                 }
             }
+            Op::SetMcpServerScheduling { server, scheduling } => {
+                let sess = match sess.as_ref() {
+                    Some(sess) => Arc::clone(sess),
+                    None => {
+                        send_no_session_event(sub.id).await;
+                        continue;
+                    }
+                };
+
+                sess.mcp_connection_manager
+                    .set_server_scheduling(&server, scheduling);
+            }
+            Op::SetMcpToolSchedulingOverride {
+                server,
+                tool,
+                override_cfg,
+            } => {
+                let sess = match sess.as_ref() {
+                    Some(sess) => Arc::clone(sess),
+                    None => {
+                        send_no_session_event(sub.id).await;
+                        continue;
+                    }
+                };
+
+                sess.mcp_connection_manager
+                    .set_tool_override(&server, &tool, override_cfg);
+            }
             Op::ListCustomPrompts => {
                 let sess = match sess.as_ref() {
                     Some(sess) => Arc::clone(sess),
@@ -763,4 +791,3 @@ pub(in crate::codex) async fn submission_loop(
     }
     debug!("Agent loop exited");
 }
-

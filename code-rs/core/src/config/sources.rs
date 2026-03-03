@@ -4,8 +4,11 @@ use crate::config_types::{
     AutoDriveSettings,
     CachedTerminalBackground,
     LimitsLayoutMode,
+    McpDispatchMode,
     McpServerConfig,
+    McpServerSchedulingToml,
     McpServerTransportConfig,
+    McpToolSchedulingOverrideToml,
     ReasoningEffort,
     SettingsMenuConfig,
     SettingsMenuOpenMode,
@@ -166,6 +169,62 @@ pub fn write_global_mcp_servers(
 
             if let Some(timeout) = config.tool_timeout_sec {
                 entry["tool_timeout_sec"] = toml_edit::value(timeout.as_secs_f64());
+            }
+
+            if !config.disabled_tools.is_empty() {
+                let mut disabled = config.disabled_tools.clone();
+                disabled.sort();
+                disabled.dedup();
+
+                let mut arr = TomlArray::new();
+                for tool in disabled {
+                    arr.push(toml_edit::Value::from(tool));
+                }
+                entry["disabled_tools"] = TomlItem::Value(toml_edit::Value::Array(arr));
+            }
+
+            let default_scheduling = McpServerSchedulingToml::default();
+            if config.scheduling != default_scheduling {
+                let mut sched_table = TomlTable::new();
+                sched_table.set_implicit(false);
+                if config.scheduling.dispatch != default_scheduling.dispatch {
+                    sched_table["dispatch"] = toml_edit::value(config.scheduling.dispatch.to_string());
+                }
+                if config.scheduling.max_concurrent != default_scheduling.max_concurrent {
+                    sched_table["max_concurrent"] = toml_edit::value(config.scheduling.max_concurrent as i64);
+                }
+                if let Some(duration) = config.scheduling.min_interval_sec {
+                    sched_table["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
+                }
+                if let Some(duration) = config.scheduling.queue_timeout_sec {
+                    sched_table["queue_timeout_sec"] = toml_edit::value(duration.as_secs_f64());
+                }
+                if let Some(depth) = config.scheduling.max_queue_depth {
+                    sched_table["max_queue_depth"] = toml_edit::value(depth as i64);
+                }
+                entry["scheduling"] = TomlItem::Table(sched_table);
+            }
+
+            if !config.tool_scheduling.is_empty() {
+                let mut tool_sched_table = TomlTable::new();
+                tool_sched_table.set_implicit(false);
+                for (tool, override_cfg) in &config.tool_scheduling {
+                    if override_cfg.is_empty() {
+                        continue;
+                    }
+                    let mut override_tbl = TomlTable::new();
+                    override_tbl.set_implicit(false);
+                    if let Some(max) = override_cfg.max_concurrent {
+                        override_tbl["max_concurrent"] = toml_edit::value(max as i64);
+                    }
+                    if let Some(duration) = override_cfg.min_interval_sec {
+                        override_tbl["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
+                    }
+                    tool_sched_table[tool.as_str()] = TomlItem::Table(override_tbl);
+                }
+                if !tool_sched_table.is_empty() {
+                    entry["tool_scheduling"] = TomlItem::Table(tool_sched_table);
+                }
             }
 
             doc["mcp_servers"][name.as_str()] = TomlItem::Table(entry);
@@ -2537,7 +2596,162 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
     let doc_str = std::fs::read_to_string(&read_path).unwrap_or_default();
     let doc = doc_str.parse::<DocumentMut>().unwrap_or_else(|_| DocumentMut::new());
 
-    fn table_to_list(tbl: &toml_edit::Table) -> Vec<(String, McpServerConfig)> {
+    fn parse_duration_field(
+        table: &toml_edit::Table,
+        key: &str,
+    ) -> anyhow::Result<Option<Duration>> {
+        let Some(item) = table.get(key) else {
+            return Ok(None);
+        };
+        if let Some(f) = item.as_float() {
+            return Ok(Some(Duration::try_from_secs_f64(f)?));
+        }
+        if let Some(i) = item.as_integer() {
+            if i < 0 {
+                return Err(anyhow::anyhow!("{key} must be non-negative"));
+            }
+            return Ok(Some(Duration::from_secs(i as u64)));
+        }
+        Err(anyhow::anyhow!("{key} must be a number (seconds)"))
+    }
+
+    fn parse_u32_field(
+        table: &toml_edit::Table,
+        key: &str,
+    ) -> anyhow::Result<Option<u32>> {
+        let Some(item) = table.get(key) else {
+            return Ok(None);
+        };
+        let Some(i) = item.as_integer() else {
+            return Err(anyhow::anyhow!("{key} must be an integer"));
+        };
+        if i < 0 {
+            return Err(anyhow::anyhow!("{key} must be non-negative"));
+        }
+        if i > i64::from(u32::MAX) {
+            return Err(anyhow::anyhow!("{key} is too large"));
+        }
+        Ok(Some(i as u32))
+    }
+
+    fn parse_duration_value(value: &toml_edit::Value, key: &str) -> anyhow::Result<Duration> {
+        if let Some(f) = value.as_float() {
+            return Ok(Duration::try_from_secs_f64(f)?);
+        }
+        if let Some(i) = value.as_integer() {
+            if i < 0 {
+                return Err(anyhow::anyhow!("{key} must be non-negative"));
+            }
+            return Ok(Duration::from_secs(i as u64));
+        }
+        Err(anyhow::anyhow!("{key} must be a number (seconds)"))
+    }
+
+    fn parse_duration_inline_field(
+        table: &toml_edit::InlineTable,
+        key: &str,
+    ) -> anyhow::Result<Option<Duration>> {
+        let Some(value) = table.get(key) else {
+            return Ok(None);
+        };
+        parse_duration_value(value, key).map(Some)
+    }
+
+    fn parse_u32_inline_field(
+        table: &toml_edit::InlineTable,
+        key: &str,
+    ) -> anyhow::Result<Option<u32>> {
+        let Some(value) = table.get(key) else {
+            return Ok(None);
+        };
+        let Some(i) = value.as_integer() else {
+            return Err(anyhow::anyhow!("{key} must be an integer"));
+        };
+        if i < 0 {
+            return Err(anyhow::anyhow!("{key} must be non-negative"));
+        }
+        if i > i64::from(u32::MAX) {
+            return Err(anyhow::anyhow!("{key} is too large"));
+        }
+        Ok(Some(i as u32))
+    }
+
+    fn parse_mcp_scheduling(item: &toml_edit::Item) -> anyhow::Result<McpServerSchedulingToml> {
+        let mut scheduling = McpServerSchedulingToml::default();
+
+        if let Some(tbl) = item.as_table() {
+            if let Some(dispatch) = tbl.get("dispatch").and_then(toml_edit::Item::as_str) {
+                scheduling.dispatch = match dispatch.trim().to_ascii_lowercase().as_str() {
+                    "exclusive" => McpDispatchMode::Exclusive,
+                    "parallel" => McpDispatchMode::Parallel,
+                    _ => {
+                        return Err(anyhow::anyhow!(
+                            "scheduling.dispatch must be 'exclusive' or 'parallel'",
+                        ));
+                    }
+                };
+            }
+
+            if let Some(max) = parse_u32_field(tbl, "max_concurrent")? {
+                if max == 0 {
+                    return Err(anyhow::anyhow!("scheduling.max_concurrent must be >= 1"));
+                }
+                scheduling.max_concurrent = max;
+            }
+
+            scheduling.min_interval_sec = parse_duration_field(tbl, "min_interval_sec")?;
+            scheduling.queue_timeout_sec = parse_duration_field(tbl, "queue_timeout_sec")?;
+
+            if let Some(depth) = parse_u32_field(tbl, "max_queue_depth")? {
+                if depth == 0 {
+                    return Err(anyhow::anyhow!("scheduling.max_queue_depth must be >= 1"));
+                }
+                scheduling.max_queue_depth = Some(depth);
+            }
+
+            return Ok(scheduling);
+        }
+
+        if let Some(tbl) = item.as_inline_table() {
+            if let Some(dispatch) = tbl.get("dispatch").and_then(toml_edit::Value::as_str) {
+                scheduling.dispatch = match dispatch.trim().to_ascii_lowercase().as_str() {
+                    "exclusive" => McpDispatchMode::Exclusive,
+                    "parallel" => McpDispatchMode::Parallel,
+                    _ => {
+                        return Err(anyhow::anyhow!(
+                            "scheduling.dispatch must be 'exclusive' or 'parallel'",
+                        ));
+                    }
+                };
+            }
+
+            if let Some(max) = parse_u32_inline_field(tbl, "max_concurrent")? {
+                if max == 0 {
+                    return Err(anyhow::anyhow!("scheduling.max_concurrent must be >= 1"));
+                }
+                scheduling.max_concurrent = max;
+            }
+
+            scheduling.min_interval_sec = parse_duration_inline_field(tbl, "min_interval_sec")?;
+            scheduling.queue_timeout_sec =
+                parse_duration_inline_field(tbl, "queue_timeout_sec")?;
+
+            if let Some(depth) = parse_u32_inline_field(tbl, "max_queue_depth")? {
+                if depth == 0 {
+                    return Err(anyhow::anyhow!("scheduling.max_queue_depth must be >= 1"));
+                }
+                scheduling.max_queue_depth = Some(depth);
+            }
+
+            return Ok(scheduling);
+        }
+
+        Err(anyhow::anyhow!(
+            "scheduling for an MCP server must be a table",
+        ))
+    }
+
+    fn table_to_list(tbl: &toml_edit::Table) -> anyhow::Result<Vec<(String, McpServerConfig)>> {
         let mut out = Vec::new();
         for (name, item) in tbl.iter() {
             if let Some(t) = item.as_table() {
@@ -2621,32 +2835,88 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                     continue;
                 };
 
-                let startup_timeout_sec = t
-                    .get("startup_timeout_sec")
-                    .and_then(|v| {
-                        v.as_float()
-                            .map(|f| Duration::try_from_secs_f64(f).ok())
-                            .or_else(|| {
-                                Some(v.as_integer().map(|i| Duration::from_secs(i as u64)))
-                            })
-                    })
-                    .flatten()
-                    .or_else(|| {
-                        t.get("startup_timeout_ms")
-                            .and_then(toml_edit::Item::as_integer)
-                            .map(|ms| Duration::from_millis(ms as u64))
-                    });
+                let startup_timeout_sec = match parse_duration_field(t, "startup_timeout_sec")? {
+                    Some(duration) => Some(duration),
+                    None => t
+                        .get("startup_timeout_ms")
+                        .and_then(toml_edit::Item::as_integer)
+                        .map(|ms| {
+                            if ms < 0 {
+                                Err(anyhow::anyhow!(
+                                    "startup_timeout_ms must be non-negative",
+                                ))
+                            } else {
+                                Ok(Duration::from_millis(ms as u64))
+                            }
+                        })
+                        .transpose()?,
+                };
 
-                let tool_timeout_sec = t
-                    .get("tool_timeout_sec")
-                    .and_then(|v| {
-                        v.as_float()
-                            .map(|f| Duration::try_from_secs_f64(f).ok())
-                            .or_else(|| {
-                                Some(v.as_integer().map(|i| Duration::from_secs(i as u64)))
-                            })
-                    })
-                    .flatten();
+                let tool_timeout_sec = parse_duration_field(t, "tool_timeout_sec")?;
+
+                let scheduling = match t.get("scheduling") {
+                    Some(item) => parse_mcp_scheduling(item)?,
+                    None => McpServerSchedulingToml::default(),
+                };
+
+                let mut tool_scheduling: BTreeMap<String, McpToolSchedulingOverrideToml> = BTreeMap::new();
+                if let Some(tool_sched_item) = t.get("tool_scheduling") {
+                    let Some(tool_sched_tbl) = tool_sched_item.as_table() else {
+                        return Err(anyhow::anyhow!(
+                            "tool_scheduling for MCP server '{name}' must be a table",
+                        ));
+                    };
+                    for (tool_name_raw, override_item) in tool_sched_tbl.iter() {
+                        let tool_name = tool_name_raw.trim();
+                        if tool_name.is_empty() {
+                            return Err(anyhow::anyhow!(
+                                "tool_scheduling keys cannot be empty",
+                            ));
+                        }
+                        if tool_scheduling.contains_key(tool_name) {
+                            return Err(anyhow::anyhow!(
+                                "duplicated tool_scheduling entry for '{tool_name}'",
+                            ));
+                        }
+
+                        let override_cfg = if let Some(override_tbl) = override_item.as_table() {
+                            let max_concurrent = parse_u32_field(override_tbl, "max_concurrent")?;
+                            if max_concurrent == Some(0) {
+                                return Err(anyhow::anyhow!(
+                                    "tool_scheduling.{tool_name}.max_concurrent must be >= 1",
+                                ));
+                            }
+                            let min_interval_sec =
+                                parse_duration_field(override_tbl, "min_interval_sec")?;
+                            McpToolSchedulingOverrideToml {
+                                max_concurrent,
+                                min_interval_sec,
+                            }
+                        } else if let Some(override_tbl) = override_item.as_inline_table() {
+                            let max_concurrent = parse_u32_inline_field(override_tbl, "max_concurrent")?;
+                            if max_concurrent == Some(0) {
+                                return Err(anyhow::anyhow!(
+                                    "tool_scheduling.{tool_name}.max_concurrent must be >= 1",
+                                ));
+                            }
+                            let min_interval_sec = parse_duration_inline_field(override_tbl, "min_interval_sec")?;
+                            McpToolSchedulingOverrideToml {
+                                max_concurrent,
+                                min_interval_sec,
+                            }
+                        } else {
+                            return Err(anyhow::anyhow!(
+                                "tool_scheduling.{tool_name} must be a table",
+                            ));
+                        };
+
+                        if override_cfg.is_empty() {
+                            continue;
+                        }
+
+                        tool_scheduling.insert(tool_name.to_string(), override_cfg);
+                    }
+                }
 
                 let mut disabled_tools: Vec<String> = t
                     .get("disabled_tools")
@@ -2668,27 +2938,33 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                         transport,
                         startup_timeout_sec,
                         tool_timeout_sec,
+                        scheduling,
+                        tool_scheduling,
                         disabled_tools,
                     },
                 ));
             }
         }
-        out
+        Ok(out)
     }
 
-    let enabled = doc
+    let enabled = match doc
         .as_table()
         .get("mcp_servers")
         .and_then(|i| i.as_table())
-        .map(table_to_list)
-        .unwrap_or_default();
+    {
+        Some(table) => table_to_list(table)?,
+        None => Vec::new(),
+    };
 
-    let disabled = doc
+    let disabled = match doc
         .as_table()
         .get("mcp_servers_disabled")
         .and_then(|i| i.as_table())
-        .map(table_to_list)
-        .unwrap_or_default();
+    {
+        Some(table) => table_to_list(table)?,
+        None => Vec::new(),
+    };
 
     Ok((enabled, disabled))
 }
@@ -2727,6 +3003,8 @@ pub fn add_mcp_server(
         transport,
         startup_timeout_sec,
         tool_timeout_sec,
+        scheduling,
+        tool_scheduling,
         disabled_tools,
     } = cfg;
 
@@ -2806,6 +3084,50 @@ pub fn add_mcp_server(
             "disabled_tools",
             TomlItem::Value(toml_edit::Value::Array(arr)),
         );
+    }
+
+    let default_scheduling = McpServerSchedulingToml::default();
+    if scheduling != default_scheduling {
+        let mut sched_table = toml_edit::Table::new();
+        sched_table.set_implicit(false);
+        if scheduling.dispatch != default_scheduling.dispatch {
+            sched_table["dispatch"] = toml_edit::value(scheduling.dispatch.to_string());
+        }
+        if scheduling.max_concurrent != default_scheduling.max_concurrent {
+            sched_table["max_concurrent"] = toml_edit::value(scheduling.max_concurrent as i64);
+        }
+        if let Some(duration) = scheduling.min_interval_sec {
+            sched_table["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
+        }
+        if let Some(duration) = scheduling.queue_timeout_sec {
+            sched_table["queue_timeout_sec"] = toml_edit::value(duration.as_secs_f64());
+        }
+        if let Some(depth) = scheduling.max_queue_depth {
+            sched_table["max_queue_depth"] = toml_edit::value(depth as i64);
+        }
+        server_tbl.insert("scheduling", TomlItem::Table(sched_table));
+    }
+
+    if !tool_scheduling.is_empty() {
+        let mut tool_sched_tbl = toml_edit::Table::new();
+        tool_sched_tbl.set_implicit(false);
+        for (tool, override_cfg) in tool_scheduling {
+            if override_cfg.is_empty() {
+                continue;
+            }
+            let mut override_tbl = toml_edit::Table::new();
+            override_tbl.set_implicit(false);
+            if let Some(max) = override_cfg.max_concurrent {
+                override_tbl["max_concurrent"] = toml_edit::value(max as i64);
+            }
+            if let Some(duration) = override_cfg.min_interval_sec {
+                override_tbl["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
+            }
+            tool_sched_tbl[tool.as_str()] = TomlItem::Table(override_tbl);
+        }
+        if !tool_sched_tbl.is_empty() {
+            server_tbl.insert("tool_scheduling", TomlItem::Table(tool_sched_tbl));
+        }
     }
 
     // Write into enabled table
@@ -2988,6 +3310,212 @@ pub fn set_mcp_server_tool_enabled(
     tmp.persist(config_path)?;
 
     Ok(true)
+}
+
+pub fn set_mcp_server_scheduling(
+    code_home: &Path,
+    server_name: &str,
+    scheduling: McpServerSchedulingToml,
+) -> anyhow::Result<()> {
+    if scheduling.max_concurrent == 0 {
+        return Err(anyhow::anyhow!("scheduling.max_concurrent must be >= 1"));
+    }
+    if let Some(depth) = scheduling.max_queue_depth
+        && depth == 0
+    {
+        return Err(anyhow::anyhow!("scheduling.max_queue_depth must be >= 1"));
+    }
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    fn find_server_table_mut<'a>(
+        doc: &'a mut DocumentMut,
+        server_name: &str,
+    ) -> Option<&'a mut toml_edit::Table> {
+        let section_key = if doc
+            .as_table()
+            .get("mcp_servers")
+            .and_then(toml_edit::Item::as_table)
+            .and_then(|table| table.get(server_name))
+            .is_some()
+        {
+            Some("mcp_servers")
+        } else if doc
+            .as_table()
+            .get("mcp_servers_disabled")
+            .and_then(toml_edit::Item::as_table)
+            .and_then(|table| table.get(server_name))
+            .is_some()
+        {
+            Some("mcp_servers_disabled")
+        } else {
+            None
+        }?;
+
+        doc.as_table_mut()
+            .get_mut(section_key)
+            .and_then(toml_edit::Item::as_table_mut)
+            .and_then(|section| section.get_mut(server_name))
+            .and_then(toml_edit::Item::as_table_mut)
+    }
+
+    let Some(server_table) = find_server_table_mut(&mut doc, server_name) else {
+        return Err(anyhow::anyhow!("MCP server '{server_name}' not found"));
+    };
+
+    let default_scheduling = McpServerSchedulingToml::default();
+    if scheduling == default_scheduling {
+        server_table.remove("scheduling");
+    } else {
+        let mut sched_table = toml_edit::Table::new();
+        sched_table.set_implicit(false);
+        if scheduling.dispatch != default_scheduling.dispatch {
+            sched_table["dispatch"] = toml_edit::value(scheduling.dispatch.to_string());
+        }
+        if scheduling.max_concurrent != default_scheduling.max_concurrent {
+            sched_table["max_concurrent"] =
+                toml_edit::value(scheduling.max_concurrent as i64);
+        }
+        if let Some(duration) = scheduling.min_interval_sec {
+            sched_table["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
+        }
+        if let Some(duration) = scheduling.queue_timeout_sec {
+            sched_table["queue_timeout_sec"] = toml_edit::value(duration.as_secs_f64());
+        }
+        if let Some(depth) = scheduling.max_queue_depth {
+            sched_table["max_queue_depth"] = toml_edit::value(depth as i64);
+        }
+        server_table["scheduling"] = TomlItem::Table(sched_table);
+    }
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp.path(), doc.to_string())?;
+    tmp.persist(config_path)?;
+
+    Ok(())
+}
+
+pub fn set_mcp_tool_scheduling_override(
+    code_home: &Path,
+    server_name: &str,
+    tool_name: &str,
+    override_cfg: Option<McpToolSchedulingOverrideToml>,
+) -> anyhow::Result<()> {
+    let normalized_tool = tool_name.trim();
+    if normalized_tool.is_empty() {
+        return Err(anyhow::anyhow!("tool name cannot be empty"));
+    }
+
+    if let Some(cfg) = override_cfg.as_ref()
+        && cfg.max_concurrent == Some(0)
+    {
+        return Err(anyhow::anyhow!(
+            "tool_scheduling.{normalized_tool}.max_concurrent must be >= 1",
+        ));
+    }
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    fn find_server_table_mut<'a>(
+        doc: &'a mut DocumentMut,
+        server_name: &str,
+    ) -> Option<&'a mut toml_edit::Table> {
+        let section_key = if doc
+            .as_table()
+            .get("mcp_servers")
+            .and_then(toml_edit::Item::as_table)
+            .and_then(|table| table.get(server_name))
+            .is_some()
+        {
+            Some("mcp_servers")
+        } else if doc
+            .as_table()
+            .get("mcp_servers_disabled")
+            .and_then(toml_edit::Item::as_table)
+            .and_then(|table| table.get(server_name))
+            .is_some()
+        {
+            Some("mcp_servers_disabled")
+        } else {
+            None
+        }?;
+
+        doc.as_table_mut()
+            .get_mut(section_key)
+            .and_then(toml_edit::Item::as_table_mut)
+            .and_then(|section| section.get_mut(server_name))
+            .and_then(toml_edit::Item::as_table_mut)
+    }
+
+    let Some(server_table) = find_server_table_mut(&mut doc, server_name) else {
+        return Err(anyhow::anyhow!("MCP server '{server_name}' not found"));
+    };
+
+    let override_cfg = override_cfg.filter(|cfg| !cfg.is_empty());
+
+    if let Some(cfg) = override_cfg {
+        let tool_sched_item = server_table
+            .entry("tool_scheduling")
+            .or_insert_with(|| {
+                let mut t = toml_edit::Table::new();
+                t.set_implicit(false);
+                TomlItem::Table(t)
+            });
+        let Some(tool_sched_table) = tool_sched_item.as_table_mut() else {
+            return Err(anyhow::anyhow!(
+                "tool_scheduling for MCP server '{server_name}' must be a table",
+            ));
+        };
+
+        let mut override_tbl = toml_edit::Table::new();
+        override_tbl.set_implicit(false);
+        if let Some(max) = cfg.max_concurrent {
+            override_tbl["max_concurrent"] = toml_edit::value(max as i64);
+        }
+        if let Some(duration) = cfg.min_interval_sec {
+            override_tbl["min_interval_sec"] = toml_edit::value(duration.as_secs_f64());
+        }
+        tool_sched_table[normalized_tool] = TomlItem::Table(override_tbl);
+    } else {
+        let should_remove = server_table
+            .get_mut("tool_scheduling")
+            .and_then(toml_edit::Item::as_table_mut)
+            .and_then(|tool_sched| tool_sched.remove(normalized_tool))
+            .is_some();
+        if should_remove {
+            let remove_whole_table = server_table
+                .get("tool_scheduling")
+                .and_then(toml_edit::Item::as_table)
+                .map(toml_edit::Table::is_empty)
+                .unwrap_or(false);
+            if remove_whole_table {
+                server_table.remove("tool_scheduling");
+            }
+        } else {
+            // No-op: nothing to clear.
+            return Ok(());
+        }
+    }
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp.path(), doc.to_string())?;
+    tmp.persist(config_path)?;
+
+    Ok(())
 }
 
 /// Apply a single dotted-path override onto a TOML value.

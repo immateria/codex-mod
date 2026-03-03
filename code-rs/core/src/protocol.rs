@@ -22,6 +22,8 @@ use uuid::Uuid;
 
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use crate::config_types::McpServerSchedulingToml;
+use crate::config_types::McpToolSchedulingOverrideToml;
 use crate::config_types::ShellConfig;
 use crate::config_types::ShellScriptStyle;
 use crate::config_types::ShellStyleProfileConfig;
@@ -343,6 +345,19 @@ pub enum Op {
         server: String,
         tool: String,
         enable: bool,
+    },
+
+    /// Update runtime scheduling policy for a specific MCP server.
+    SetMcpServerScheduling {
+        server: String,
+        scheduling: McpServerSchedulingToml,
+    },
+
+    /// Update (or clear) a per-tool scheduling override for a server/tool pair.
+    SetMcpToolSchedulingOverride {
+        server: String,
+        tool: String,
+        override_cfg: Option<McpToolSchedulingOverrideToml>,
     },
 
     /// Request the list of available custom prompts.

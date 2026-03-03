@@ -1945,6 +1945,20 @@ impl App<'_> {
                         widget.toggle_mcp_server_tool(&server_name, &tool_name, enable);
                     }
                 }
+                AppEvent::SetMcpServerScheduling { server, scheduling } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.set_mcp_server_scheduling(&server, scheduling);
+                    }
+                }
+                AppEvent::SetMcpToolSchedulingOverride {
+                    server,
+                    tool,
+                    override_cfg,
+                } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.set_mcp_tool_scheduling_override(&server, &tool, override_cfg);
+                    }
+                }
                 AppEvent::UpdateSubagentCommand(cmd) => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.apply_subagent_update(cmd);

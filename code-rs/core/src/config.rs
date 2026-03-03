@@ -97,7 +97,9 @@ pub use sources::{
     set_github_actionlint_on_patch,
     set_github_check_on_push,
     set_mcp_server_enabled,
+    set_mcp_server_scheduling,
     set_mcp_server_tool_enabled,
+    set_mcp_tool_scheduling_override,
     set_network_proxy_settings,
     set_js_repl_settings,
     set_planning_model,
@@ -2421,6 +2423,8 @@ exclude_slash_tmp = true
                 startup_timeout_sec: None,
                 tool_timeout_sec: None,
                 disabled_tools: Vec::new(),
+                scheduling: crate::config_types::McpServerSchedulingToml::default(),
+                tool_scheduling: BTreeMap::new(),
             },
         );
 

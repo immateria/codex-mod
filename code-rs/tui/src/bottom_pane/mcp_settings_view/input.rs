@@ -18,6 +18,7 @@ use super::{
     McpScrollbarDragState,
     McpScrollbarTarget,
     McpSettingsFocus,
+    McpSettingsMode,
     McpSettingsView,
     McpToolHoverPart,
     McpViewLayout,
@@ -637,6 +638,10 @@ impl McpSettingsView {
     }
 
     pub(super) fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
+        if !matches!(self.mode, McpSettingsMode::Main) {
+            return self.handle_policy_editor_key(key_event);
+        }
+
         self.clear_server_row_click_arm();
         self.clear_list_hover();
         let handled = match key_event {
@@ -800,6 +805,13 @@ impl McpSettingsView {
                 true
             }
             KeyEvent {
+                code: KeyCode::Char('e' | 'E'),
+                modifiers,
+                ..
+            } if modifiers.is_empty() || modifiers == KeyModifiers::SHIFT => {
+                self.open_scheduling_editor_from_focus()
+            }
+            KeyEvent {
                 code: KeyCode::Esc, ..
             } => {
                 self.is_complete = true;
@@ -831,6 +843,10 @@ impl McpSettingsView {
     }
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        if !matches!(self.mode, McpSettingsMode::Main) {
+            return self.handle_policy_editor_mouse(mouse_event, area);
+        }
+
         let Some(layout) = McpViewLayout::from_area_with_scroll(area, self.stacked_scroll_top) else {
             return false;
         };

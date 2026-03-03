@@ -272,7 +272,7 @@ impl ChatWidget<'_> {
             .and_then(|cell| {
                 cell.as_any()
                     .downcast_ref::<history_cell::RunningToolCallCell>()
-                    .map(|cell| cell.details_collapsed())
+                    .map(history_cell::RunningToolCallCell::details_collapsed)
             });
 
         let mut completed = history_cell::new_completed_custom_tool_call(

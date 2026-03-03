@@ -1,4 +1,6 @@
 use crate::codex::Session;
+use crate::mcp::ids::McpServerId;
+use crate::mcp::policy::server_access_for_turn;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use code_protocol::models::ResponseInputItem;
 use code_protocol::models::ResponseItem;
@@ -51,6 +53,7 @@ fn build_tool_call_batches(
 
 fn classify_tool_call_parallelism(
     sess: &Session,
+    sub_id: &str,
     item: &ResponseItem,
 ) -> ToolCallParallelism {
     let ResponseItem::FunctionCall { name, .. } = item else {
@@ -58,16 +61,27 @@ fn classify_tool_call_parallelism(
     };
     let tool_name = name.as_str();
 
-    // Dynamic and MCP tool calls are always Exclusive for now (they can mutate
-    // session-level state and rely on strict ordering / user interaction).
+    // Dynamic tool calls are Exclusive for now (they can mutate session-level
+    // state and rely on strict ordering / user interaction).
     if sess.is_dynamic_tool(tool_name) {
         return ToolCallParallelism::Exclusive;
     }
-    if sess
-        .mcp_connection_manager()
-        .parse_tool_name(tool_name)
-        .is_some()
+    if let Some((server_name, _tool_name)) =
+        sess.mcp_connection_manager().parse_tool_name(tool_name)
     {
+        let Some(server_id) = McpServerId::parse(server_name.as_str()) else {
+            return ToolCallParallelism::Exclusive;
+        };
+        let decision =
+            server_access_for_turn(&sess.mcp_access_snapshot(), sub_id, &server_id);
+        if !decision.is_allowed() {
+            return ToolCallParallelism::Exclusive;
+        }
+        if sess.mcp_connection_manager().server_dispatch_mode(server_name.as_str())
+            == crate::config_types::McpDispatchMode::Parallel
+        {
+            return ToolCallParallelism::Parallel;
+        }
         return ToolCallParallelism::Exclusive;
     }
 
@@ -93,7 +107,7 @@ where
 
     let calls_with_parallelism = pending_calls.iter().filter_map(|call| {
         let item = item_for_pos(call.output_pos)?;
-        let mut parallelism = classify_tool_call_parallelism(sess, item);
+        let mut parallelism = classify_tool_call_parallelism(sess, sub_id, item);
 
         // If the provider did not supply any ordering metadata, avoid parallel execution
         // so tool-call begin/end events remain deterministic for the TUI.

@@ -8,7 +8,7 @@ use code_core::protocol::McpAuthStatus;
 use super::{McpPaneHit, McpSettingsFocus, McpSettingsView, McpToolEntry, McpToolHoverPart};
 
 impl McpSettingsView {
-    fn selected_tool_entry(&self) -> Option<McpToolEntry<'_>> {
+    pub(super) fn selected_tool_entry(&self) -> Option<McpToolEntry<'_>> {
         self.tool_entries().get(self.tools_selected).copied()
     }
 
@@ -385,6 +385,62 @@ impl McpSettingsView {
                         value_style,
                     );
                 }
+
+                lines.push(Line::from(""));
+                lines.push(Line::from(vec![Span::styled("Scheduling", heading_style)]));
+                Self::push_key_value_line(
+                    &mut lines,
+                    "Dispatch: ",
+                    row.scheduling.dispatch.to_string(),
+                    key_style,
+                    value_style,
+                );
+                Self::push_key_value_line(
+                    &mut lines,
+                    "Max concurrent: ",
+                    row.scheduling.max_concurrent.to_string(),
+                    key_style,
+                    value_style,
+                );
+                Self::push_key_value_line(
+                    &mut lines,
+                    "Min interval: ",
+                    row.scheduling
+                        .min_interval_sec
+                        .map(Self::format_duration)
+                        .unwrap_or_else(|| "none".to_string()),
+                    key_style,
+                    value_style,
+                );
+                Self::push_key_value_line(
+                    &mut lines,
+                    "Queue timeout: ",
+                    row.scheduling
+                        .queue_timeout_sec
+                        .map(Self::format_duration)
+                        .unwrap_or_else(|| "none".to_string()),
+                    key_style,
+                    value_style,
+                );
+                Self::push_key_value_line(
+                    &mut lines,
+                    "Max queue depth: ",
+                    row.scheduling
+                        .max_queue_depth
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| "none".to_string()),
+                    key_style,
+                    value_style,
+                );
+                if !row.tool_scheduling.is_empty() {
+                    Self::push_key_value_line(
+                        &mut lines,
+                        "Tool overrides: ",
+                        row.tool_scheduling.len().to_string(),
+                        key_style,
+                        value_style,
+                    );
+                }
                 Self::push_resource_sections(
                     &mut lines,
                     row,
@@ -444,6 +500,41 @@ impl McpSettingsView {
                     )]));
 
                     if expanded {
+                        if let Some(tool_override) = row.tool_scheduling.get(entry.name)
+                            && (tool_override.max_concurrent.is_some()
+                                || tool_override.min_interval_sec.is_some())
+                        {
+                            lines.push(Line::from(""));
+                            lines.push(Line::from(vec![Span::styled(
+                                "Scheduling Override",
+                                heading_style,
+                            )]));
+                            Self::push_key_value_line(
+                                &mut lines,
+                                "Max concurrent: ",
+                                tool_override
+                                    .max_concurrent
+                                    .map(|v| v.to_string())
+                                    .unwrap_or_else(|| "inherit".to_string()),
+                                key_style,
+                                value_style,
+                            );
+                            Self::push_key_value_line(
+                                &mut lines,
+                                "Min interval: ",
+                                tool_override
+                                    .min_interval_sec
+                                    .map(Self::format_duration)
+                                    .unwrap_or_else(|| "inherit".to_string()),
+                                key_style,
+                                value_style,
+                            );
+                            lines.push(Line::from(vec![Span::styled(
+                                "Overrides are additive restrictions; server limits still apply.",
+                                dim_style,
+                            )]));
+                        }
+
                         lines.push(Line::from(""));
                         match entry.definition {
                             Some(tool) => {
@@ -563,7 +654,7 @@ impl McpSettingsView {
             .bg(crate::colors::selection())
             .add_modifier(Modifier::BOLD);
         let dim_style = Style::default().fg(crate::colors::text_dim());
-        let label_width = width.saturating_sub(10);
+        let overrides = self.selected_server().map(|row| &row.tool_scheduling);
 
         if entries.is_empty() {
             lines.push(Line::from(vec![Span::styled(
@@ -595,7 +686,14 @@ impl McpSettingsView {
             };
             let marker = if entry.enabled { "[x]" } else { "[ ]" };
             let expansion = if self.is_tool_expanded(entry.name) { "▼" } else { "▶" };
-            let label = crate::text_formatting::truncate_chars_with_ellipsis(entry.name, label_width);
+            let has_override = overrides.is_some_and(|map| {
+                map.get(entry.name).is_some_and(|cfg| {
+                    cfg.max_concurrent.is_some() || cfg.min_interval_sec.is_some()
+                })
+            });
+            let label_width = width.saturating_sub(if has_override { 12 } else { 10 });
+            let label =
+                crate::text_formatting::truncate_chars_with_ellipsis(entry.name, label_width);
             let marker_style = if hover_part == Some(McpToolHoverPart::Toggle) {
                 row_style.fg(crate::colors::primary()).add_modifier(Modifier::BOLD)
             } else if entry.enabled {
@@ -613,14 +711,18 @@ impl McpSettingsView {
             } else {
                 row_style
             };
-            lines.push(Line::from(vec![
+            let mut spans = vec![
                 Span::styled(if focused { "› " } else if hovered_row { "> " } else { "  " }, row_style),
                 Span::styled(marker, marker_style),
                 Span::raw(" "),
                 Span::styled(expansion.to_string(), expansion_style),
                 Span::raw(" "),
                 Span::styled(label, label_style),
-            ]));
+            ];
+            if has_override {
+                spans.push(Span::styled(" *", row_style.fg(crate::colors::primary())));
+            }
+            lines.push(Line::from(spans));
         }
 
         lines

@@ -26,7 +26,13 @@ use code_protocol::protocol::SessionSource;
 use code_common::model_presets::{builtin_model_presets, clamp_reasoning_effort_for_model, ModelPreset};
 use code_core::AuthManager;
 use code_core::ConversationManager;
-use code_core::config_types::{ClientTools, McpServerConfig, McpServerTransportConfig, ReasoningEffort};
+use code_core::config_types::{
+    ClientTools,
+    McpServerConfig,
+    McpServerSchedulingToml,
+    McpServerTransportConfig,
+    ReasoningEffort,
+};
 use code_core::config::Config;
 use code_core::default_client::USER_AGENT_SUFFIX;
 use code_core::default_client::get_code_user_agent_default;
@@ -1459,6 +1465,8 @@ fn convert_mcp_servers(
                         },
                         startup_timeout_sec: None,
                         tool_timeout_sec: None,
+                        scheduling: McpServerSchedulingToml::default(),
+                        tool_scheduling: std::collections::BTreeMap::new(),
                         disabled_tools: Vec::new(),
                     },
                 );

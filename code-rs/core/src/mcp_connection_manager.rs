@@ -40,7 +40,11 @@ use tracing::info;
 use tracing::warn;
 
 use crate::config_types::McpServerConfig;
+use crate::config_types::McpDispatchMode;
+use crate::config_types::McpServerSchedulingToml;
 use crate::config_types::McpServerTransportConfig;
+use crate::config_types::McpToolSchedulingOverrideToml;
+use crate::mcp_rate_limiter::{McpRateLimiter, acquire_and_schedule};
 use crate::protocol::{McpServerFailure, McpServerFailurePhase};
 
 /// Delimiter used to separate the server name from the tool name in a fully
@@ -306,6 +310,10 @@ pub struct McpConnectionManager {
     code_home: PathBuf,
     mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode,
     server_transports: StdRwLock<HashMap<String, McpServerTransportConfig>>,
+    server_scheduling: StdRwLock<HashMap<String, McpServerSchedulingToml>>,
+    tool_scheduling: StdRwLock<HashMap<(String, String), McpToolSchedulingOverrideToml>>,
+    server_limiters: StdRwLock<HashMap<String, Arc<McpRateLimiter>>>,
+    tool_limiters: StdRwLock<HashMap<(String, String), Arc<McpRateLimiter>>>,
 
     /// Server-name -> client instance.
     ///
@@ -342,6 +350,10 @@ impl McpConnectionManager {
                     code_home,
                     mcp_oauth_credentials_store_mode,
                     server_transports: StdRwLock::new(HashMap::new()),
+                    server_scheduling: StdRwLock::new(HashMap::new()),
+                    tool_scheduling: StdRwLock::new(HashMap::new()),
+                    server_limiters: StdRwLock::new(HashMap::new()),
+                    tool_limiters: StdRwLock::new(HashMap::new()),
                     clients: TokioRwLock::new(HashMap::new()),
                     tools: StdRwLock::new(HashMap::new()),
                     excluded_tools: StdRwLock::new(excluded_tools),
@@ -356,6 +368,13 @@ impl McpConnectionManager {
         let mut join_set = JoinSet::new();
         let mut errors = ClientStartErrors::new();
         let mut server_transports = HashMap::with_capacity(mcp_servers.len());
+        let mut server_scheduling: HashMap<String, McpServerSchedulingToml> =
+            HashMap::with_capacity(mcp_servers.len());
+        let mut tool_scheduling: HashMap<(String, String), McpToolSchedulingOverrideToml> =
+            HashMap::new();
+        let mut server_limiters: HashMap<String, Arc<McpRateLimiter>> =
+            HashMap::with_capacity(mcp_servers.len());
+        let mut tool_limiters: HashMap<(String, String), Arc<McpRateLimiter>> = HashMap::new();
 
         for (server_name, cfg) in mcp_servers {
             // Validate server name before spawning
@@ -371,6 +390,34 @@ impl McpConnectionManager {
             }
 
             server_transports.insert(server_name.clone(), cfg.transport.clone());
+            server_scheduling.insert(server_name.clone(), cfg.scheduling.clone());
+            server_limiters.insert(
+                server_name.clone(),
+                McpRateLimiter::new(
+                    cfg.scheduling.max_concurrent,
+                    cfg.scheduling.min_interval_sec,
+                    cfg.scheduling.queue_timeout_sec,
+                    cfg.scheduling.max_queue_depth,
+                ),
+            );
+            for (tool_name, override_cfg) in &cfg.tool_scheduling {
+                if override_cfg.is_empty() {
+                    continue;
+                }
+                let key = (server_name.clone(), tool_name.clone());
+                tool_scheduling.insert(key.clone(), override_cfg.clone());
+                tool_limiters.insert(
+                    key,
+                    McpRateLimiter::new(
+                        override_cfg
+                            .max_concurrent
+                            .unwrap_or(cfg.scheduling.max_concurrent),
+                        override_cfg.min_interval_sec,
+                        None,
+                        None,
+                    ),
+                );
+            }
 
             let startup_timeout = cfg.startup_timeout_sec.unwrap_or(DEFAULT_STARTUP_TIMEOUT);
             let tool_timeout = cfg.tool_timeout_sec;
@@ -511,6 +558,10 @@ impl McpConnectionManager {
             code_home,
             mcp_oauth_credentials_store_mode,
             server_transports: StdRwLock::new(server_transports),
+            server_scheduling: StdRwLock::new(server_scheduling),
+            tool_scheduling: StdRwLock::new(tool_scheduling),
+            server_limiters: StdRwLock::new(server_limiters),
+            tool_limiters: StdRwLock::new(tool_limiters),
             clients: TokioRwLock::new(clients),
             tools: StdRwLock::new(tools),
             excluded_tools: StdRwLock::new(excluded_tools),
@@ -519,6 +570,108 @@ impl McpConnectionManager {
         },
             errors,
         ))
+    }
+
+    fn server_scheduling_read(
+        &self,
+    ) -> std::sync::RwLockReadGuard<'_, HashMap<String, McpServerSchedulingToml>> {
+        match self.server_scheduling.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP server scheduling lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn server_scheduling_write(
+        &self,
+    ) -> std::sync::RwLockWriteGuard<'_, HashMap<String, McpServerSchedulingToml>> {
+        match self.server_scheduling.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP server scheduling lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn tool_scheduling_write(
+        &self,
+    ) -> std::sync::RwLockWriteGuard<
+        '_,
+        HashMap<(String, String), McpToolSchedulingOverrideToml>,
+    > {
+        match self.tool_scheduling.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP tool scheduling lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn tool_scheduling_read(
+        &self,
+    ) -> std::sync::RwLockReadGuard<
+        '_,
+        HashMap<(String, String), McpToolSchedulingOverrideToml>,
+    > {
+        match self.tool_scheduling.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP tool scheduling lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn server_limiters_read(
+        &self,
+    ) -> std::sync::RwLockReadGuard<'_, HashMap<String, Arc<McpRateLimiter>>> {
+        match self.server_limiters.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP server limiters lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn server_limiters_write(
+        &self,
+    ) -> std::sync::RwLockWriteGuard<'_, HashMap<String, Arc<McpRateLimiter>>> {
+        match self.server_limiters.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP server limiters lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn tool_limiters_read(
+        &self,
+    ) -> std::sync::RwLockReadGuard<'_, HashMap<(String, String), Arc<McpRateLimiter>>> {
+        match self.tool_limiters.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP tool limiters lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
+    }
+
+    fn tool_limiters_write(
+        &self,
+    ) -> std::sync::RwLockWriteGuard<'_, HashMap<(String, String), Arc<McpRateLimiter>>> {
+        match self.tool_limiters.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("MCP tool limiters lock poisoned; recovering inner state");
+                poisoned.into_inner()
+            }
+        }
     }
 
     fn server_transports_read(
@@ -972,6 +1125,44 @@ impl McpConnectionManager {
         let cfg = cfg.clone();
         let startup_timeout = cfg.startup_timeout_sec.unwrap_or(DEFAULT_STARTUP_TIMEOUT);
         let tool_timeout = cfg.tool_timeout_sec;
+        {
+            let mut scheduling = self.server_scheduling_write();
+            scheduling.insert(server_name.to_string(), cfg.scheduling.clone());
+        }
+        {
+            let limiter = McpRateLimiter::new(
+                cfg.scheduling.max_concurrent,
+                cfg.scheduling.min_interval_sec,
+                cfg.scheduling.queue_timeout_sec,
+                cfg.scheduling.max_queue_depth,
+            );
+            let mut limiters = self.server_limiters_write();
+            limiters.insert(server_name.to_string(), limiter);
+        }
+        {
+            let mut scheduling = self.tool_scheduling_write();
+            let mut limiters = self.tool_limiters_write();
+            for (tool_name, override_cfg) in &cfg.tool_scheduling {
+                let key = (server_name.to_string(), tool_name.to_string());
+                if override_cfg.is_empty() {
+                    scheduling.remove(&key);
+                    limiters.remove(&key);
+                    continue;
+                }
+                scheduling.insert(key.clone(), override_cfg.clone());
+                limiters.insert(
+                    key,
+                    McpRateLimiter::new(
+                        override_cfg
+                            .max_concurrent
+                            .unwrap_or(cfg.scheduling.max_concurrent),
+                        override_cfg.min_interval_sec,
+                        None,
+                        None,
+                    ),
+                );
+            }
+        }
 
         let params = mcp_types::InitializeRequestParams {
             capabilities: ClientCapabilities {
@@ -1085,6 +1276,24 @@ impl McpConnectionManager {
         arguments: Option<serde_json::Value>,
         timeout_override: Option<Duration>,
     ) -> Result<mcp_types::CallToolResult> {
+        let server_limiter = self
+            .server_limiters_read()
+            .get(server)
+            .cloned()
+            .unwrap_or_else(|| {
+                let default = McpServerSchedulingToml::default();
+                McpRateLimiter::new(
+                    default.max_concurrent,
+                    default.min_interval_sec,
+                    default.queue_timeout_sec,
+                    default.max_queue_depth,
+                )
+            });
+        let tool_limiter = self
+            .tool_limiters_read()
+            .get(&(server.to_string(), tool.to_string()))
+            .cloned();
+
         let (client, timeout) = {
             let clients = self.clients.read().await;
             let managed = clients
@@ -1094,10 +1303,97 @@ impl McpConnectionManager {
             (managed.client.clone(), timeout)
         };
 
+        let (_server_guard, _tool_guard) =
+            acquire_and_schedule(&server_limiter, tool_limiter.as_ref()).await?;
+
         client
             .call_tool(tool.to_string(), arguments, timeout)
             .await
             .with_context(|| format!("tool call failed for `{server}/{tool}`"))
+    }
+
+    pub fn server_dispatch_mode(&self, server: &str) -> McpDispatchMode {
+        self.server_scheduling_read()
+            .get(server)
+            .map(|cfg| cfg.dispatch)
+            .unwrap_or_default()
+    }
+
+    pub fn set_server_scheduling(&self, server: &str, scheduling: McpServerSchedulingToml) {
+        self.server_scheduling_write()
+            .insert(server.to_string(), scheduling.clone());
+        self.server_limiters_write().insert(
+            server.to_string(),
+            McpRateLimiter::new(
+                scheduling.max_concurrent,
+                scheduling.min_interval_sec,
+                scheduling.queue_timeout_sec,
+                scheduling.max_queue_depth,
+            ),
+        );
+
+        // Keep per-tool limiters that inherit max_concurrent in sync with the
+        // server default when the server scheduling changes.
+        let overrides = {
+            let tool_scheduling = self.tool_scheduling_read();
+            tool_scheduling
+                .iter()
+                .filter_map(|((srv, tool), cfg)| {
+                    if srv == server && cfg.max_concurrent.is_none() && !cfg.is_empty() {
+                        Some((tool.clone(), cfg.clone()))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+        if overrides.is_empty() {
+            return;
+        }
+
+        let mut limiters = self.tool_limiters_write();
+        for (tool, cfg) in overrides {
+            let key = (server.to_string(), tool);
+            limiters.insert(
+                key,
+                McpRateLimiter::new(
+                    scheduling.max_concurrent,
+                    cfg.min_interval_sec,
+                    None,
+                    None,
+                ),
+            );
+        }
+    }
+
+    pub fn set_tool_override(
+        &self,
+        server: &str,
+        tool: &str,
+        override_cfg: Option<McpToolSchedulingOverrideToml>,
+    ) {
+        let key = (server.to_string(), tool.to_string());
+        let override_cfg = override_cfg.filter(|cfg| !cfg.is_empty());
+        if let Some(cfg) = override_cfg.as_ref() {
+            let server_max = self
+                .server_scheduling_read()
+                .get(server)
+                .map(|cfg| cfg.max_concurrent)
+                .unwrap_or_else(|| McpServerSchedulingToml::default().max_concurrent);
+            self.tool_scheduling_write().insert(key.clone(), cfg.clone());
+            self.tool_limiters_write().insert(
+                key,
+                McpRateLimiter::new(
+                    cfg.max_concurrent.unwrap_or(server_max),
+                    cfg.min_interval_sec,
+                    None,
+                    None,
+                ),
+            );
+        } else {
+            self.tool_scheduling_write().remove(&key);
+            self.tool_limiters_write().remove(&key);
+        }
     }
 
     pub fn parse_tool_name(&self, tool_name: &str) -> Option<(String, String)> {
@@ -1354,6 +1650,8 @@ mod tests {
                 startup_timeout_sec: None,
                 tool_timeout_sec: None,
                 disabled_tools: Vec::new(),
+                scheduling: crate::config_types::McpServerSchedulingToml::default(),
+                tool_scheduling: std::collections::BTreeMap::new(),
             },
         );
 

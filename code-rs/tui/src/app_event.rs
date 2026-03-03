@@ -9,6 +9,8 @@ use code_core::config_types::StatusLineLane;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
 use code_core::config_types::TuiHotkeysConfig;
+use code_core::config_types::McpServerSchedulingToml;
+use code_core::config_types::McpToolSchedulingOverrideToml;
 use code_core::config::NetworkProxySettingsToml;
 use code_core::protocol::Event;
 use code_core::protocol::OrderMeta;
@@ -449,6 +451,16 @@ pub(crate) enum AppEvent {
         server_name: String,
         tool_name: String,
         enable: bool,
+    },
+
+    /// Update scheduling policy for an MCP server.
+    SetMcpServerScheduling { server: String, scheduling: McpServerSchedulingToml },
+
+    /// Set (or clear) a per-tool scheduling override.
+    SetMcpToolSchedulingOverride {
+        server: String,
+        tool: String,
+        override_cfg: Option<McpToolSchedulingOverrideToml>,
     },
 
     /// Prefill the composer input with the given text

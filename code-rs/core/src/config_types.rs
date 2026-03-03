@@ -4,6 +4,7 @@
 // definitions that do not contain business logic.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -80,6 +81,83 @@ impl Default for OtelConfig {
     }
 }
 
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Display,
+    JsonSchema,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum McpDispatchMode {
+    #[default]
+    Exclusive,
+    Parallel,
+}
+
+fn default_mcp_max_concurrent() -> u32 {
+    1
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+pub struct McpServerSchedulingToml {
+    #[serde(default)]
+    pub dispatch: McpDispatchMode,
+
+    #[serde(default = "default_mcp_max_concurrent")]
+    pub max_concurrent: u32,
+
+    #[serde(default, with = "option_duration_secs", skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<f64>")]
+    pub min_interval_sec: Option<Duration>,
+
+    #[serde(default, with = "option_duration_secs", skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<f64>")]
+    pub queue_timeout_sec: Option<Duration>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_queue_depth: Option<u32>,
+}
+
+impl Default for McpServerSchedulingToml {
+    fn default() -> Self {
+        Self {
+            dispatch: McpDispatchMode::Exclusive,
+            max_concurrent: default_mcp_max_concurrent(),
+            min_interval_sec: None,
+            queue_timeout_sec: None,
+            max_queue_depth: None,
+        }
+    }
+}
+
+fn is_default_mcp_server_scheduling(scheduling: &McpServerSchedulingToml) -> bool {
+    *scheduling == McpServerSchedulingToml::default()
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
+pub struct McpToolSchedulingOverrideToml {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_concurrent: Option<u32>,
+
+    #[serde(default, with = "option_duration_secs", skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<f64>")]
+    pub min_interval_sec: Option<Duration>,
+}
+
+impl McpToolSchedulingOverrideToml {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.max_concurrent.is_none() && self.min_interval_sec.is_none()
+    }
+}
+
 #[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct McpServerConfig {
     #[serde(flatten)]
@@ -96,6 +174,14 @@ pub struct McpServerConfig {
     /// Default timeout for MCP tool calls initiated via this server.
     #[serde(default, with = "option_duration_secs")]
     pub tool_timeout_sec: Option<Duration>,
+
+    /// Scheduling policy for tool calls initiated via this server.
+    #[serde(default, skip_serializing_if = "is_default_mcp_server_scheduling")]
+    pub scheduling: McpServerSchedulingToml,
+
+    /// Optional per-tool scheduling overrides for this server.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub tool_scheduling: BTreeMap<String, McpToolSchedulingOverrideToml>,
 
     /// Optional list of tool names disabled for this server.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -131,6 +217,10 @@ pub(crate) struct RawMcpServerConfig {
     #[schemars(with = "Option<f64>")]
     pub tool_timeout_sec: Option<Duration>,
     #[serde(default)]
+    pub scheduling: McpServerSchedulingToml,
+    #[serde(default)]
+    pub tool_scheduling: BTreeMap<String, McpToolSchedulingOverrideToml>,
+    #[serde(default)]
     pub disabled_tools: Vec<String>,
 }
 
@@ -162,7 +252,7 @@ impl<'de> Deserialize<'de> for McpServerConfig {
             )))
         }
 
-        let transport = match raw {
+        let transport = match &raw {
             RawMcpServerConfig {
                 command: Some(command),
                 args,
@@ -184,9 +274,9 @@ impl<'de> Deserialize<'de> for McpServerConfig {
                 throw_if_set("stdio", "http_headers", http_headers.as_ref())?;
                 throw_if_set("stdio", "env_http_headers", env_http_headers.as_ref())?;
                 McpServerTransportConfig::Stdio {
-                    command,
-                    args: args.unwrap_or_default(),
-                    env,
+                    command: command.clone(),
+                    args: args.clone().unwrap_or_default(),
+                    env: env.clone(),
                 }
             }
             RawMcpServerConfig {
@@ -204,21 +294,69 @@ impl<'de> Deserialize<'de> for McpServerConfig {
                 throw_if_set("streamable_http", "args", args.as_ref())?;
                 throw_if_set("streamable_http", "env", env.as_ref())?;
                 McpServerTransportConfig::StreamableHttp {
-                    url,
-                    bearer_token,
-                    bearer_token_env_var,
-                    http_headers,
-                    env_http_headers,
+                    url: url.clone(),
+                    bearer_token: bearer_token.clone(),
+                    bearer_token_env_var: bearer_token_env_var.clone(),
+                    http_headers: http_headers.clone(),
+                    env_http_headers: env_http_headers.clone(),
                 }
             }
             _ => return Err(SerdeError::custom("invalid transport")),
         };
 
+        let RawMcpServerConfig {
+            tool_timeout_sec,
+            scheduling,
+            tool_scheduling: raw_tool_scheduling,
+            disabled_tools,
+            ..
+        } = raw;
+
+        if scheduling.max_concurrent == 0 {
+            return Err(SerdeError::custom(
+                "scheduling.max_concurrent must be >= 1",
+            ));
+        }
+        if let Some(depth) = scheduling.max_queue_depth
+            && depth == 0
+        {
+            return Err(SerdeError::custom(
+                "scheduling.max_queue_depth must be >= 1",
+            ));
+        }
+
+        // Normalize tool override keys (trim whitespace, drop empty entries).
+        let mut tool_scheduling: BTreeMap<String, McpToolSchedulingOverrideToml> = BTreeMap::new();
+        for (tool_name, override_cfg) in raw_tool_scheduling {
+            let normalized = tool_name.trim();
+            if normalized.is_empty() {
+                return Err(SerdeError::custom(
+                    "tool_scheduling keys cannot be empty",
+                ));
+            }
+            if override_cfg.max_concurrent == Some(0) {
+                return Err(SerdeError::custom(format!(
+                    "tool_scheduling.{normalized}.max_concurrent must be >= 1",
+                )));
+            }
+            if override_cfg.is_empty() {
+                continue;
+            }
+            if tool_scheduling.contains_key(normalized) {
+                return Err(SerdeError::custom(format!(
+                    "duplicated tool_scheduling entry for '{normalized}'",
+                )));
+            }
+            tool_scheduling.insert(normalized.to_string(), override_cfg);
+        }
+
         Ok(Self {
             transport,
             startup_timeout_sec,
-            tool_timeout_sec: raw.tool_timeout_sec,
-            disabled_tools: raw.disabled_tools,
+            tool_timeout_sec,
+            scheduling,
+            tool_scheduling,
+            disabled_tools,
         })
     }
 }
