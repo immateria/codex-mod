@@ -36,18 +36,28 @@ skill-name/
 When a skill is shell-specific (for example, POSIX `sh` vs Bash/Zsh-compatible vs idiomatic Zsh), structure it so users can toggle it cleanly through `shell_style_profiles`.
 
 - Place style-specific skills in dedicated roots and wire those roots through `shell_style_profiles.<style>.skill_roots`.
-- Use `shell_style_profiles.<style>.skills` when users want an allow-list.
+- Use `shell_style_profiles.<style>.skills` when you intentionally want an allow-list (when non-empty, it filters to only those skills).
 - Use `shell_style_profiles.<style>.disabled_skills` for explicit opt-outs.
 - Treat `disabled_skills` as the highest-priority filter.
 - Prefer explicit, unique skill names unless you intentionally want style-specific skills to override shared defaults.
+
+Style profiles apply when the session shell is using that script style (`shell.script_style`), or when the style can be inferred from the configured shell program name (for example `zsh`).
+
+Important: the default skill roots (for example `CODE_HOME/skills` and repo `.codex/skills`) are scanned recursively. If you put a "style-only" skill under one of those roots, it will still be discovered outside that style. For style-only skills, use a root that is not part of the default scan set (for example `CODE_HOME/skills-style/zsh`), and add that root to the style profile.
 
 Example:
 
 ```toml
 [shell_style_profiles.zsh]
-skill_roots = [".codex/skills/zsh"]
+skill_roots = [".codex/skills-style/zsh"]
 skills = ["zsh-arrays", "termux-zsh"]
 disabled_skills = ["bash-compat-fallbacks"]
+```
+
+Initializer shortcut (creates the skill under `CODE_HOME/skills-style/<style>` and prints or applies the config snippet):
+
+```bash
+scripts/init_skill.py zsh-arrays --shell-style zsh --apply-config
 ```
 
 ## When to create a new skill
@@ -238,7 +248,23 @@ If the user is not sure how the skill will be used, prompt them with a few examp
 Run:
 
 ```bash
-scripts/init_skill.py my-skill --path skills/public
+scripts/init_skill.py my-skill
+```
+
+Common variants:
+
+```bash
+# Custom location
+scripts/init_skill.py my-skill --path ./skills/public
+
+# Create only the directories you need
+scripts/init_skill.py my-skill --resources scripts,references
+
+# Add example files (placeholders you can delete later)
+scripts/init_skill.py my-skill --resources scripts,references,assets --examples
+
+# Style-scoped skill root + attach to shell style profile
+scripts/init_skill.py zsh-arrays --shell-style zsh --apply-config
 ```
 
 ### Step 4: Write SKILL.md
@@ -252,7 +278,7 @@ scripts/init_skill.py my-skill --path skills/public
 Use the packager if needed:
 
 ```bash
-python scripts/package_skill.py skills/public/my-skill
+python scripts/package_skill.py ~/.codex/skills/my-skill ./dist
 ```
 
 ## Additional guidance
