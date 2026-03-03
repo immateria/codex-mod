@@ -216,7 +216,7 @@ fn parse_skill_mcp_dependencies(
         return Ok(Vec::new());
     };
 
-    let parsed: SkillFrontmatterMcpDeps = serde_yaml::from_str(&frontmatter)
+    let parsed: SkillFrontmatterMcpDeps = serde_yaml::from_str(frontmatter)
         .map_err(|err| format!("invalid YAML frontmatter: {err}"))?;
 
     let mut dedupe: HashSet<(String, Option<String>)> = HashSet::new();
@@ -276,4 +276,105 @@ fn normalize_path_for_compare(path: &std::path::Path) -> String {
 
 fn is_skill_path_like(path: &str) -> bool {
     path.starts_with("skill://") || path.ends_with("SKILL.md") || path.ends_with("skill.md")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::skills::model::SkillMetadata;
+    use crate::skills::model::SkillScope;
+    use std::collections::HashSet;
+    use std::path::PathBuf;
+
+    fn meta(name: &str, path: &str) -> SkillMetadata {
+        SkillMetadata {
+            name: name.to_string(),
+            description: format!("desc for {name}"),
+            path: PathBuf::from(path),
+            scope: SkillScope::Repo,
+        }
+    }
+
+    #[test]
+    fn ambiguous_plain_name_emits_warning_and_selects_nothing() {
+        let skills = vec![meta("dup", "/a/SKILL.md"), meta("dup", "/b/SKILL.md")];
+        let messages = vec!["please use $dup".to_string()];
+
+        let outcome = collect_explicit_skill_mentions(&messages, &skills);
+
+        assert!(outcome.mentioned.is_empty());
+        assert_eq!(outcome.warnings.len(), 1);
+        let warning = &outcome.warnings[0];
+        assert!(warning.contains("Ambiguous skill mention `$dup`"));
+        assert!(warning.contains("/a/SKILL.md"));
+        assert!(warning.contains("/b/SKILL.md"));
+    }
+
+    #[test]
+    fn linked_skill_path_matches_after_normalization() {
+        let skills = vec![meta("my-skill", r"C:\skills\dup\SKILL.md")];
+        let messages = vec![r"use [$x](skill://C:\skills\dup\SKILL.md)".to_string()];
+
+        let outcome = collect_explicit_skill_mentions(&messages, &skills);
+
+        assert_eq!(outcome.mentioned.len(), 1);
+        assert_eq!(outcome.mentioned[0].name, "my-skill");
+        assert_eq!(outcome.mentioned[0].path, PathBuf::from(r"C:\skills\dup\SKILL.md"));
+    }
+
+    #[test]
+    fn parses_mcp_dependencies_from_frontmatter() {
+        let contents = r#"---
+name: example
+description: demo
+mcp_servers:
+  - Brave
+  - brave
+mcp_tools:
+  - brave/web_search
+  - mcp://BRAVE::image_search
+  - { server: brave, tool: Web_Search }
+---
+body
+"#;
+
+        let deps = parse_skill_mcp_dependencies("example", contents).expect("deps parse ok");
+        let set: HashSet<SkillMcpDependency> = deps.into_iter().collect();
+
+        assert!(set.contains(&SkillMcpDependency {
+            skill_name: "example".to_string(),
+            server: "brave".to_string(),
+            tool: None,
+        }));
+        assert!(set.contains(&SkillMcpDependency {
+            skill_name: "example".to_string(),
+            server: "brave".to_string(),
+            tool: Some("web_search".to_string()),
+        }));
+        assert!(set.contains(&SkillMcpDependency {
+            skill_name: "example".to_string(),
+            server: "brave".to_string(),
+            tool: Some("image_search".to_string()),
+        }));
+
+        // Ensure duplicates are deduped (server listed twice; web_search listed twice).
+        assert_eq!(set.iter().filter(|dep| dep.tool.is_none()).count(), 1);
+        assert_eq!(
+            set.iter()
+                .filter(|dep| dep.tool.as_deref() == Some("web_search"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn invalid_mcp_tool_spec_errors() {
+        let contents = r#"---
+mcp_tools:
+  - brave
+---
+"#;
+        let err = parse_skill_mcp_dependencies("example", contents).expect_err("should fail");
+        assert!(err.contains("invalid mcp_tools entry"));
+    }
 }

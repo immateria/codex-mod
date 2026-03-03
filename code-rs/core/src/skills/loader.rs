@@ -6,8 +6,8 @@ use crate::skills::model::SkillLoadOutcome;
 use crate::skills::model::SkillMetadata;
 use crate::skills::model::SkillScope;
 use crate::skills::frontmatter::extract_frontmatter;
-use crate::skills::system::system_cache_root_dir;
-use crate::skills::system::install_system_skills;
+use code_skills::install_system_skills;
+use code_skills::system_cache_root_dir;
 use dunce::canonicalize as normalize_path;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -33,6 +33,12 @@ const REPO_ROOT_CONFIG_DIR_NAME: &str = ".codex";
 const ADMIN_SKILLS_ROOT: &str = "/etc/codex/skills";
 const MAX_NAME_LEN: usize = 64;
 const MAX_DESCRIPTION_LEN: usize = 1024;
+
+fn is_ignored_skills_scan_dir(name: &str) -> bool {
+    // These directories frequently exist at repo roots and can be huge; skills
+    // are not expected to live under them.
+    matches!(name, "__pycache__" | "node_modules" | "target" | "venv")
+}
 
 #[derive(Debug)]
 enum SkillParseError {
@@ -312,6 +318,12 @@ fn discover_skills_under_root(root: &Path, scope: SkillScope, outcome: &mut Skil
                 continue;
             };
 
+            if (file_type.is_dir() || file_type.is_symlink())
+                && is_ignored_skills_scan_dir(file_name)
+            {
+                continue;
+            }
+
             if file_type.is_symlink() {
                 if !follow_symlinks {
                     continue;
@@ -375,10 +387,11 @@ fn discover_skills_under_root(root: &Path, scope: SkillScope, outcome: &mut Skil
 fn parse_skill_file(path: &Path, scope: SkillScope) -> Result<SkillMetadata, SkillParseError> {
     let contents = fs::read_to_string(path).map_err(SkillParseError::Read)?;
 
-    let frontmatter = extract_frontmatter(&contents).ok_or(SkillParseError::MissingFrontmatter)?;
+    let frontmatter =
+        extract_frontmatter(&contents).ok_or(SkillParseError::MissingFrontmatter)?;
 
     let parsed: SkillFrontmatter =
-        serde_yaml::from_str(&frontmatter).map_err(SkillParseError::InvalidYaml)?;
+        serde_yaml::from_str(frontmatter).map_err(SkillParseError::InvalidYaml)?;
 
     let name = sanitize_single_line(&parsed.name);
     let description = sanitize_single_line(&parsed.description);
@@ -393,7 +406,6 @@ fn parse_skill_file(path: &Path, scope: SkillScope) -> Result<SkillMetadata, Ski
         description,
         path: resolved_path,
         scope,
-        content: contents,
     })
 }
 

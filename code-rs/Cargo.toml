@@ -25,6 +25,7 @@ members = [
     "mcp-client",
     "mcp-server",
     "mcp-types",
+    "skills",
     "network-proxy",
     "ollama",
     "process-hardening",
@@ -67,6 +68,7 @@ code-browser = { path = "browser" }
 code-chatgpt = { path = "chatgpt" }
 code-common = { path = "common" }
 code-core = { path = "core" }
+code-skills = { path = "skills" }
 code-backend-client = { path = "backend-client" }
 code-backend-openapi-models = { path = "code-backend-openapi-models" }
 code-cloud-tasks = { path = "cloud-tasks" }

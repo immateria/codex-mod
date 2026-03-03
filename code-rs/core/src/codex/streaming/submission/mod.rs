@@ -629,10 +629,23 @@ pub(in crate::codex) async fn submission_loop(
                 )
                 .await;
 
-                let skills: Vec<code_protocol::skills::Skill> = inventory
-                    .skills
-                    .iter()
-                    .map(|skill| code_protocol::skills::Skill {
+                let mut skills: Vec<code_protocol::skills::Skill> =
+                    Vec::with_capacity(inventory.skills.len());
+                for skill in &inventory.skills {
+                    // Content is only needed for explicit listing; avoid holding it in memory for
+                    // the general skills inventory / session state.
+                    let content = match tokio::fs::read_to_string(&skill.path).await {
+                        Ok(contents) => contents,
+                        Err(err) => {
+                            warn!(
+                                "failed to read skill content {}: {err:#}",
+                                skill.path.display()
+                            );
+                            String::new()
+                        }
+                    };
+
+                    skills.push(code_protocol::skills::Skill {
                         name: skill.name.clone(),
                         description: skill.description.clone(),
                         path: skill.path.clone(),
@@ -650,9 +663,9 @@ pub(in crate::codex) async fn submission_loop(
                                 code_protocol::skills::SkillScope::System
                             }
                         },
-                        content: skill.content.clone(),
-                    })
-                    .collect();
+                        content,
+                    });
+                }
 
                 let event = Event {
                     id: sub.id.clone(),

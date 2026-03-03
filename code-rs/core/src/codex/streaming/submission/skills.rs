@@ -96,7 +96,6 @@ pub(super) async fn load_skills_inventory_and_refresh_session(
                 description: skill.description.clone(),
                 path: skill.path.clone(),
                 scope: skill.scope,
-                content: String::new(),
             });
         }
 
@@ -131,16 +130,5 @@ pub(super) async fn load_skills_inventory_and_refresh_session(
 pub(super) fn strip_skill_contents(
     skills: &[crate::skills::model::SkillMetadata],
 ) -> Vec<crate::skills::model::SkillMetadata> {
-    let mut out: Vec<crate::skills::model::SkillMetadata> = Vec::with_capacity(skills.len());
-    for skill in skills {
-        out.push(crate::skills::model::SkillMetadata {
-            name: skill.name.clone(),
-            description: skill.description.clone(),
-            path: skill.path.clone(),
-            scope: skill.scope,
-            content: String::new(),
-        });
-    }
-    out
+    skills.to_vec()
 }
-

@@ -1,0 +1,20 @@
+[package]
+name = "code-skills"
+edition = "2024"
+version = { workspace = true }
+license.workspace = true
+build = "build.rs"
+
+[lib]
+doctest = false
+name = "code_skills"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+code-utils-absolute-path = { workspace = true }
+include_dir = { workspace = true }
+thiserror = { workspace = true }
+

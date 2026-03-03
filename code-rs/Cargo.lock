@@ -1546,6 +1546,7 @@ dependencies = [
  "code-otel",
  "code-protocol",
  "code-rmcp-client",
+ "code-skills",
  "code-utils-json-to-toml",
  "code-version",
  "codex-network-proxy",
@@ -1564,7 +1565,6 @@ dependencies = [
  "htmd",
  "httpdate",
  "img_hash",
- "include_dir",
  "indexmap 2.12.0",
  "keyring",
  "landlock",
@@ -1921,6 +1921,15 @@ dependencies = [
  "urlencoding",
  "webbrowser",
  "which",
+]
+
+[[package]]
+name = "code-skills"
+version = "0.0.0"
+dependencies = [
+ "codex-utils-absolute-path",
+ "include_dir",
+ "thiserror 2.0.17",
 ]
 
 [[package]]

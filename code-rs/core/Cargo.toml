@@ -33,6 +33,7 @@ code-otel = { workspace = true, features = ["otel"] }
 code-browser = { path = "../browser" }
 code-version = { path = "../code-version" }
 code-keyring-store = { workspace = true }
+code-skills = { workspace = true }
 agent-client-protocol = "0.4.3"
 dirs = { workspace = true }
 dunce = { workspace = true }
@@ -41,7 +42,6 @@ encoding_rs = { workspace = true }
 eventsource-stream = { workspace = true }
 futures = { workspace = true }
 futures-util = "0.3"
-include_dir = { workspace = true }
 indexmap = { workspace = true }
 lazy_static = { workspace = true }
 libc = { workspace = true }
