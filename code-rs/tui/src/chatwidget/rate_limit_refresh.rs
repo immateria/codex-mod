@@ -145,6 +145,7 @@ fn run_refresh(
         let client = build_model_client(&config, auth_mgr, debug_enabled)?;
 
         let mut prompt = Prompt::default();
+        // This request is synthetic (rate limit probe) and should never be persisted in history.
         prompt.store = false;
         prompt.user_instructions = config.user_instructions.clone();
         prompt.base_instructions_override = config.base_instructions.clone();
@@ -169,7 +170,6 @@ fn run_refresh(
             match event? {
                 ResponseEvent::RateLimits(s) => {
                     snapshot = Some(s);
-                    break;
                 }
                 ResponseEvent::Completed { .. } => break,
                 _ => {}
@@ -220,8 +220,10 @@ fn run_refresh(
 
         if emit_ui {
             let event = Event {
-                id: "rate-limit-refresh".to_string(),
-                event_seq: 0,
+                // Internal, synthetic event (no provider ordering meta). Use unique IDs and a
+                // non-colliding event seq to avoid confusing future ordering/dedup logic.
+                id: format!("rate-limit-refresh-{}", Uuid::new_v4()),
+                event_seq: u64::MAX,
                 msg: EventMsg::TokenCount(TokenCountEvent {
                     info: None,
                     rate_limits: Some(snapshot),
@@ -238,7 +240,8 @@ fn run_refresh(
 }
 
 fn build_runtime() -> Result<Runtime> {
-    tokio::runtime::Builder::new_multi_thread()
+    // This runs on a dedicated thread already and does one sequential async request.
+    tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .context("building rate limit refresh runtime")
@@ -250,7 +253,12 @@ fn build_model_client(
     debug_enabled: bool,
 ) -> Result<ModelClient> {
     let debug_logger = DebugLogger::new(debug_enabled)
-        .or_else(|_| DebugLogger::new(false))
+        .or_else(|err| {
+            if debug_enabled {
+                tracing::warn!("debug logger init failed, falling back: {err}");
+            }
+            DebugLogger::new(false)
+        })
         .context("initializing debug logger")?;
 
     let client = ModelClient::new(code_core::ModelClientInit {
