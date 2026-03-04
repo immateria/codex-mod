@@ -58,10 +58,19 @@ pub(crate) struct ExecLimitsSettingsView {
     last_applied: code_core::config::ExecLimitsToml,
     last_apply_at: Option<Instant>,
     mode: ViewMode,
+    // Interior mutability so `render_main(&self, ...)` can clamp/scroll the
+    // selection as the viewport changes without needing an outer `&mut self`.
     state: Cell<ScrollState>,
     viewport_rows: Cell<usize>,
     is_complete: bool,
     app_event_tx: AppEventSender,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct MainLayout {
+    inner: Rect,
+    header_height: usize,
+    visible_slots: usize,
 }
 
 impl ExecLimitsSettingsView {
@@ -93,6 +102,55 @@ impl ExecLimitsSettingsView {
             RowKind::Apply,
             RowKind::Close,
         ]
+    }
+
+    fn compute_main_heights(
+        available_height: usize,
+        header_height: usize,
+        footer_lines_len: usize,
+    ) -> (usize, usize) {
+        let footer_height = if available_height > header_height {
+            1 + footer_lines_len
+        } else {
+            0
+        };
+        let list_height = available_height.saturating_sub(header_height + footer_height);
+        // Even if we can't fit the footer, we still render at least one selectable row.
+        let visible_slots = list_height.max(1);
+        (footer_height, visible_slots)
+    }
+
+    fn compute_main_layout(&self, area: Rect) -> Option<MainLayout> {
+        if area.width == 0 || area.height == 0 {
+            return None;
+        }
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        if inner.width == 0 || inner.height == 0 {
+            return None;
+        }
+
+        let header_height = self.render_header_lines().len().min(inner.height as usize);
+        let (_footer_height, visible_slots) = Self::compute_main_heights(
+            inner.height as usize,
+            header_height,
+            self.render_footer_lines().len(),
+        );
+        Some(MainLayout {
+            inner,
+            header_height,
+            visible_slots,
+        })
+    }
+
+    fn edit_field_area(area: Rect) -> Rect {
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        Rect {
+            x: inner.x.saturating_add(2),
+            // Matches `render_edit` ("Enter/Ctrl+S…" + blank + "Value:" -> 3 lines)
+            y: inner.y.saturating_add(3),
+            width: inner.width.saturating_sub(4),
+            height: 1,
+        }
     }
 
     fn format_limit_pids(limit: code_core::config::ExecLimitToml) -> String {
@@ -293,13 +351,19 @@ impl ExecLimitsSettingsView {
             }
             KeyCode::Enter => {
                 let selected_idx = state.selected_idx.unwrap_or(0).min(len.saturating_sub(1));
-                let selected = rows.get(selected_idx).copied().unwrap_or(RowKind::PidsMax);
-                self.activate_row(selected);
-                true
+                if let Some(selected) = rows.get(selected_idx).copied() {
+                    self.activate_row(selected);
+                    true
+                } else {
+                    false
+                }
             }
             KeyCode::Char('a') if key_event.modifiers.is_empty() => {
                 let selected_idx = state.selected_idx.unwrap_or(0).min(len.saturating_sub(1));
-                let selected = rows.get(selected_idx).copied().unwrap_or(RowKind::PidsMax);
+                let Some(&selected) = rows.get(selected_idx) else {
+                    self.state.set(state);
+                    return false;
+                };
                 let target = match selected {
                     RowKind::PidsMax => Some(EditTarget::PidsMax),
                     RowKind::MemoryMax => Some(EditTarget::MemoryMax),
@@ -317,7 +381,10 @@ impl ExecLimitsSettingsView {
             }
             KeyCode::Char('d') if key_event.modifiers.is_empty() => {
                 let selected_idx = state.selected_idx.unwrap_or(0).min(len.saturating_sub(1));
-                let selected = rows.get(selected_idx).copied().unwrap_or(RowKind::PidsMax);
+                let Some(&selected) = rows.get(selected_idx) else {
+                    self.state.set(state);
+                    return false;
+                };
                 let target = match selected {
                     RowKind::PidsMax => Some(EditTarget::PidsMax),
                     RowKind::MemoryMax => Some(EditTarget::MemoryMax),
@@ -433,13 +500,8 @@ impl ExecLimitsSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        if area.width == 0 || area.height == 0 {
-            return None;
-        }
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return None;
-        }
+        let layout = self.compute_main_layout(area)?;
+        let inner = layout.inner;
 
         if x < inner.x
             || x >= inner.x.saturating_add(inner.width)
@@ -449,24 +511,11 @@ impl ExecLimitsSettingsView {
             return None;
         }
 
-        let header_lines = self.render_header_lines();
-        let footer_lines = self.render_footer_lines();
-        let available_height = inner.height as usize;
-        let header_height = header_lines.len().min(available_height);
-        let footer_height = if available_height > header_height {
-            1 + footer_lines.len()
-        } else {
-            0
-        };
-        let list_height = available_height.saturating_sub(header_height + footer_height);
-        // Even if we can't fit the footer, we still render at least one selectable row.
-        let visible_slots = list_height.max(1);
-
         let rel_y = y.saturating_sub(inner.y) as usize;
-        if rel_y < header_height || rel_y >= header_height + visible_slots {
+        if rel_y < layout.header_height || rel_y >= layout.header_height + layout.visible_slots {
             return None;
         }
-        let line_offset = rel_y - header_height;
+        let line_offset = rel_y - layout.header_height;
 
         let rows = Self::build_rows();
         let total = rows.len();
@@ -494,18 +543,11 @@ impl ExecLimitsSettingsView {
 
                 // Keep visible-row metrics in sync with current area so mouse navigation
                 // can't move selection off-screen.
-                let inner = Block::default().borders(Borders::ALL).inner(area);
-                let header_lines = self.render_header_lines();
-                let footer_lines = self.render_footer_lines();
-                let available_height = inner.height as usize;
-                let header_height = header_lines.len().min(available_height);
-                let footer_height = if available_height > header_height {
-                    1 + footer_lines.len()
-                } else {
-                    0
+                let Some(layout) = self.compute_main_layout(area) else {
+                    self.mode = ViewMode::Main;
+                    return false;
                 };
-                let list_height = available_height.saturating_sub(header_height + footer_height);
-                let visible_slots = list_height.max(1);
+                let visible_slots = layout.visible_slots;
                 self.viewport_rows.set(visible_slots);
 
                 let mut state = self.state.get();
@@ -542,15 +584,11 @@ impl ExecLimitsSettingsView {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         // Focus click inside the input field area.
-                        let inner = Block::default().borders(Borders::ALL).inner(area);
-                        let field_area = Rect {
-                            x: inner.x.saturating_add(2),
-                            // Matches `render_edit` ("Ctrl+S…" + blank + "Value:" -> 3 lines)
-                            y: inner.y.saturating_add(3),
-                            width: inner.width.saturating_sub(4),
-                            height: 1,
-                        };
-                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                        field.handle_mouse_click(
+                            mouse_event.column,
+                            mouse_event.row,
+                            Self::edit_field_area(area),
+                        )
                     }
                     _ => false,
                 };
@@ -580,13 +618,8 @@ impl ExecLimitsSettingsView {
 
         let available_height = inner.height as usize;
         let header_height = header_lines.len().min(available_height);
-        let footer_height = if available_height > header_height {
-            1 + footer_lines.len()
-        } else {
-            0
-        };
-        let list_height = available_height.saturating_sub(header_height + footer_height);
-        let visible_slots = list_height.max(1);
+        let (_footer_height, visible_slots) =
+            Self::compute_main_heights(available_height, header_height, footer_lines.len());
         self.viewport_rows.set(visible_slots);
 
         let rows = Self::build_rows();
@@ -678,7 +711,14 @@ impl ExecLimitsSettingsView {
             .render(inner, buf);
     }
 
-    fn render_edit(&self, area: Rect, buf: &mut Buffer, target: EditTarget, field: &FormTextField, error: Option<&str>) {
+    fn render_edit(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        target: EditTarget,
+        field: &FormTextField,
+        error: Option<&str>,
+    ) {
         Clear.render(area, buf);
         let title = match target {
             EditTarget::PidsMax => " Edit Process Limit ",
@@ -700,14 +740,7 @@ impl ExecLimitsSettingsView {
             Line::from(Span::styled("Value:", hint)),
         ];
 
-        let field_area = Rect {
-            x: inner.x.saturating_add(2),
-            y: inner.y.saturating_add(lines.len() as u16),
-            width: inner.width.saturating_sub(4),
-            height: 1,
-        };
-        // Render field
-        field.render(field_area, buf, true);
+        // Placeholder line (the field renders over it).
         lines.push(Line::from(""));
 
         if let Some(err) = error {
@@ -726,6 +759,9 @@ impl ExecLimitsSettingsView {
             .alignment(Alignment::Left)
             .style(Style::default().bg(colors::background()))
             .render(inner, buf);
+
+        // Render the input *after* the paragraph so it doesn't get overwritten.
+        field.render(Self::edit_field_area(area), buf, true);
     }
 }
 
@@ -801,15 +837,20 @@ mod tests {
         let settings = code_core::config::ExecLimitsToml::default();
         let mut view = ExecLimitsSettingsView::new(settings, app_event_tx);
 
+        let header_height = view.render_header_lines().len() as u16;
+        let footer_height = 1 + view.render_footer_lines().len() as u16;
+        let rows_len = ExecLimitsSettingsView::build_rows().len() as u16;
+        let required_inner_height = header_height + footer_height + rows_len;
+
         let area = Rect {
             x: 0,
             y: 0,
             width: 80,
-            height: 12,
+            // Ensure all rows are visible regardless of OS-specific header lines.
+            height: required_inner_height.saturating_add(2),
         };
 
         let inner = Block::default().borders(Borders::ALL).inner(area);
-        let header_height = view.render_header_lines().len() as u16;
         let apply_idx = ExecLimitsSettingsView::build_rows()
             .iter()
             .position(|row| *row == RowKind::Apply)
