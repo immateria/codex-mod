@@ -144,6 +144,7 @@ impl SettingsHelpOverlay {
                 | SettingsSection::Mcp
                 | SettingsSection::JsRepl
                 | SettingsSection::Network
+                | SettingsSection::ExecLimits
                 | SettingsSection::Accounts
                 | SettingsSection::Shell
                 | SettingsSection::ShellProfiles

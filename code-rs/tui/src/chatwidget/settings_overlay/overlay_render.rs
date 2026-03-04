@@ -459,6 +459,7 @@ impl SettingsOverlayView {
             SettingsSection::Interface => "Interface",
             SettingsSection::Shell => "Shell Selection",
             SettingsSection::ShellProfiles => "Shell Profiles",
+            SettingsSection::ExecLimits => "Exec Limits",
             SettingsSection::Planning => "Planning Settings",
             SettingsSection::Updates => "Upgrade",
             SettingsSection::Accounts => "Account Switching",
@@ -810,6 +811,13 @@ impl SettingsOverlayView {
                     return;
                 }
                 self.render_placeholder(area, buf, SettingsSection::ShellProfiles.placeholder());
+            }
+            SettingsSection::ExecLimits => {
+                if let Some(content) = self.exec_limits_content.as_ref() {
+                    content.render(area, buf);
+                    return;
+                }
+                self.render_placeholder(area, buf, SettingsSection::ExecLimits.placeholder());
             }
             SettingsSection::Updates => {
                 if let Some(content) = self.updates_content.as_ref() {

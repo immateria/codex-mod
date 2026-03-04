@@ -1,5 +1,6 @@
 mod accounts;
 mod auto_drive;
+mod exec_limits;
 mod interface;
 mod js_repl;
 mod mcp;
@@ -18,6 +19,7 @@ mod validation;
 
 pub(crate) use accounts::AccountsSettingsContent;
 pub(crate) use auto_drive::AutoDriveSettingsContent;
+pub(crate) use exec_limits::ExecLimitsSettingsContent;
 pub(crate) use interface::InterfaceSettingsContent;
 pub(crate) use js_repl::JsReplSettingsContent;
 pub(crate) use mcp::McpSettingsContent;

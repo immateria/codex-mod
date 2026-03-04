@@ -101,6 +101,7 @@ pub use sources::{
     set_mcp_server_tool_enabled,
     set_mcp_tool_scheduling_override,
     set_network_proxy_settings,
+    set_exec_limits_settings,
     set_js_repl_settings,
     set_planning_model,
     set_project_access_mode,
@@ -282,6 +283,9 @@ pub struct Config {
     pub approval_policy: AskForApproval,
 
     pub sandbox_policy: SandboxPolicy,
+
+    /// Limits applied to tool-spawned processes (Linux cgroup v2 when available).
+    pub exec_limits: ExecLimitsToml,
 
     /// User-provided managed network proxy configuration.
     ///
@@ -725,6 +729,12 @@ pub struct ConfigToml {
     /// Sandbox configuration to apply if `sandbox` is `WorkspaceWrite`.
     pub sandbox_workspace_write: Option<SandboxWorkspaceWrite>,
 
+    /// Limits applied to tool-spawned processes (Linux cgroup v2 when available).
+    ///
+    /// Persisted under `[exec_limits]` in `config.toml`.
+    #[serde(default)]
+    pub exec_limits: ExecLimitsToml,
+
     #[serde(default)]
     pub confirm_guard: Option<ConfirmGuardConfig>,
 
@@ -1043,6 +1053,108 @@ pub struct ToolsToml {
     /// Enable the `image_view` tool that lets the agent attach local images.
     #[serde(default)]
     pub view_image: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ExecLimitModeToml {
+    #[default]
+    Auto,
+    Disabled,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
+#[serde(untagged)]
+pub enum ExecLimitToml {
+    Mode(ExecLimitModeToml),
+    Value(u64),
+}
+
+impl Default for ExecLimitToml {
+    fn default() -> Self {
+        Self::Mode(ExecLimitModeToml::Auto)
+    }
+}
+
+/// Execution limits for tool-spawned processes.
+///
+/// These are enforced via Linux cgroup v2 when available. On other platforms,
+/// the settings are currently best-effort and primarily affect what we attach
+/// to the environment/sandbox runner.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema, Default)]
+#[schemars(deny_unknown_fields)]
+#[serde(default)]
+pub struct ExecLimitsToml {
+    /// Process limit applied via cgroup `pids.max`.
+    ///
+    /// - `"auto"`: dynamic default
+    /// - `"disabled"`: no process cap
+    /// - `<int>`: explicit cap
+    pub pids_max: ExecLimitToml,
+
+    /// Memory limit applied via cgroup `memory.max` (mebibytes).
+    ///
+    /// - `"auto"`: dynamic default
+    /// - `"disabled"`: no memory cap
+    /// - `<int>`: explicit cap
+    pub memory_max_mb: ExecLimitToml,
+}
+
+pub fn apply_exec_limits_settings(settings: &ExecLimitsToml) -> anyhow::Result<()> {
+    fn validate_limit(label: &str, value: ExecLimitToml) -> anyhow::Result<()> {
+        match value {
+            ExecLimitToml::Value(0) => {
+                anyhow::bail!("{label} must be >= 1 (use \"disabled\" to turn off)");
+            }
+            ExecLimitToml::Value(_) | ExecLimitToml::Mode(_) => Ok(()),
+        }
+    }
+
+    validate_limit("exec_limits.pids_max", settings.pids_max)?;
+    validate_limit("exec_limits.memory_max_mb", settings.memory_max_mb)?;
+
+    #[cfg(target_os = "linux")]
+    {
+        use crate::cgroup::{ExecCgroupLimitOverrides, ExecLimitOverride};
+        let memory_max_bytes = match settings.memory_max_mb {
+            ExecLimitToml::Mode(ExecLimitModeToml::Auto) => ExecLimitOverride::Auto,
+            ExecLimitToml::Mode(ExecLimitModeToml::Disabled) => ExecLimitOverride::Disabled,
+            ExecLimitToml::Value(mb) => {
+                ExecLimitOverride::Value(mb.saturating_mul(1024 * 1024))
+            }
+        };
+
+        let pids_max = match settings.pids_max {
+            ExecLimitToml::Mode(ExecLimitModeToml::Auto) => ExecLimitOverride::Auto,
+            ExecLimitToml::Mode(ExecLimitModeToml::Disabled) => ExecLimitOverride::Disabled,
+            ExecLimitToml::Value(value) => ExecLimitOverride::Value(value),
+        };
+
+        crate::cgroup::set_exec_cgroup_limit_overrides(ExecCgroupLimitOverrides {
+            memory_max_bytes,
+            pids_max,
+        });
+    }
+
+    Ok(())
+}
+
+pub fn exec_limits_current_pids_max() -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        return crate::cgroup::default_exec_pids_max();
+    }
+    #[cfg(not(target_os = "linux"))]
+    None
+}
+
+pub fn exec_limits_current_memory_max_bytes() -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        return crate::cgroup::default_exec_memory_max_bytes();
+    }
+    #[cfg(not(target_os = "linux"))]
+    None
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Default)]
@@ -1885,6 +1997,7 @@ impl Config {
             cwd: resolved_cwd,
             approval_policy: effective_approval,
             sandbox_policy,
+            exec_limits: cfg.exec_limits,
             network: cfg.network.clone(),
             network_proxy,
             always_allow_commands,
@@ -2015,6 +2128,8 @@ impl Config {
                 }
             },
         };
+        apply_exec_limits_settings(&config.exec_limits)
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string()))?;
         Ok(config)
     }
 

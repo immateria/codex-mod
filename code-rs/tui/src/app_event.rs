@@ -772,6 +772,7 @@ pub(crate) enum AppEvent {
     },
     SetAutoUpgradeEnabled(bool),
     SetNetworkProxySettings(NetworkProxySettingsToml),
+    SetExecLimitsSettings(code_core::config::ExecLimitsToml),
     SetJsReplSettings(code_core::config::JsReplSettingsToml),
     SetTuiSettingsMenuConfig(SettingsMenuConfig),
     SetTuiHotkeysConfig(TuiHotkeysConfig),

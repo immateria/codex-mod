@@ -11,6 +11,9 @@ impl SettingsSection {
             "shell-profiles" | "shell-profile" | "profiles" | "profile" => {
                 Some(SettingsSection::ShellProfiles)
             }
+            "exec" | "execution" | "exec-limits" | "exec_limits" | "cgroup" | "cgroups" => {
+                Some(SettingsSection::ExecLimits)
+            }
             "planning" | "plan" => Some(SettingsSection::Planning),
             "update" | "updates" => Some(SettingsSection::Updates),
             "account" | "accounts" | "auth" => Some(SettingsSection::Accounts),

@@ -3804,6 +3804,60 @@ pub fn set_network_proxy_settings(
     Ok(())
 }
 
+fn write_exec_limit_value(
+    table: &mut TomlTable,
+    key: &str,
+    value: super::ExecLimitToml,
+) -> anyhow::Result<()> {
+    match value {
+        super::ExecLimitToml::Mode(super::ExecLimitModeToml::Auto) => {
+            table.remove(key);
+        }
+        super::ExecLimitToml::Mode(super::ExecLimitModeToml::Disabled) => {
+            table[key] = toml_edit::value("disabled");
+        }
+        super::ExecLimitToml::Value(v) => {
+            let value_i64: i64 = v
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("{key} is too large"))?;
+            table[key] = toml_edit::value(value_i64);
+        }
+    }
+    Ok(())
+}
+
+/// Persist execution limits into `CODEX_HOME/config.toml` at `[exec_limits]`.
+pub fn set_exec_limits_settings(
+    code_home: &Path,
+    settings: &super::ExecLimitsToml,
+) -> anyhow::Result<()> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+
+    let exec_table = doc["exec_limits"]
+        .or_insert(TomlItem::Table(TomlTable::new()))
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("`exec_limits` must be a TOML table"))?;
+
+    write_exec_limit_value(exec_table, "pids_max", settings.pids_max)?;
+    write_exec_limit_value(exec_table, "memory_max_mb", settings.memory_max_mb)?;
+
+    if exec_table.is_empty() {
+        doc.as_table_mut().remove("exec_limits");
+    }
+
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+    Ok(())
+}
+
 /// Persist `js_repl` runtime settings into `CODEX_HOME/config.toml` at `[tools]`.
 pub fn set_js_repl_settings(
     code_home: &Path,

@@ -1,5 +1,6 @@
 use super::*;
 use crate::bottom_pane::{
+    ExecLimitsSettingsView,
     InterfaceSettingsView,
     JsReplSettingsView,
     NetworkSettingsView,
@@ -9,6 +10,7 @@ use crate::bottom_pane::{
     SettingsOverviewView,
 };
 use crate::chatwidget::settings_overlay::{
+    ExecLimitsSettingsContent,
     InterfaceSettingsContent,
     JsReplSettingsContent,
     NetworkSettingsContent,
@@ -85,6 +87,7 @@ impl ChatWidget<'_> {
         overlay.set_interface_content(self.build_interface_settings_content());
         overlay.set_shell_content(self.build_shell_settings_content());
         overlay.set_shell_profiles_content(self.build_shell_profiles_settings_content());
+        overlay.set_exec_limits_content(self.build_exec_limits_settings_content());
         if let Some(update_content) = self.build_updates_settings_content() {
             overlay.set_updates_content(update_content);
         }
@@ -342,6 +345,14 @@ impl ChatWidget<'_> {
 
     pub(super) fn build_network_settings_content(&mut self) -> NetworkSettingsContent {
         NetworkSettingsContent::new(self.build_network_settings_view())
+    }
+
+    pub(super) fn build_exec_limits_settings_view(&mut self) -> ExecLimitsSettingsView {
+        ExecLimitsSettingsView::new(self.config.exec_limits.clone(), self.app_event_tx.clone())
+    }
+
+    pub(super) fn build_exec_limits_settings_content(&mut self) -> ExecLimitsSettingsContent {
+        ExecLimitsSettingsContent::new(self.build_exec_limits_settings_view())
     }
 
     pub(super) fn build_js_repl_settings_view(&mut self) -> JsReplSettingsView {
@@ -717,6 +728,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Interface     => self.settings_summary_interface(),
                     SettingsSection::Shell         => self.settings_summary_shell(),
                     SettingsSection::ShellProfiles => self.settings_summary_shell_profiles(),
+                    SettingsSection::ExecLimits    => self.settings_summary_exec_limits(),
                     SettingsSection::Planning      => self.settings_summary_planning(),
                     SettingsSection::Updates       => self.settings_summary_updates(),
                     SettingsSection::Accounts      => self.settings_summary_accounts(),
@@ -753,6 +765,29 @@ impl ChatWidget<'_> {
 
         Some(format!(
             "Status: {enabled} · Runtime: {runtime} · Path: {runtime_path}"
+        ))
+    }
+
+    pub(super) fn settings_summary_exec_limits(&self) -> Option<String> {
+        fn fmt_limit(limit: code_core::config::ExecLimitToml, unit: Option<&'static str>) -> String {
+            match limit {
+                code_core::config::ExecLimitToml::Mode(code_core::config::ExecLimitModeToml::Auto) => {
+                    "Auto".to_string()
+                }
+                code_core::config::ExecLimitToml::Mode(code_core::config::ExecLimitModeToml::Disabled) => {
+                    "Disabled".to_string()
+                }
+                code_core::config::ExecLimitToml::Value(v) => match unit {
+                    Some(unit) => format!("{v} {unit}"),
+                    None => v.to_string(),
+                },
+            }
+        }
+
+        Some(format!(
+            "PIDs: {} · Mem: {}",
+            fmt_limit(self.config.exec_limits.pids_max, None),
+            fmt_limit(self.config.exec_limits.memory_max_mb, Some("MiB")),
         ))
     }
 
@@ -1298,6 +1333,13 @@ impl ChatWidget<'_> {
         })
     }
 
+    fn open_exec_limits_settings_section(&mut self) -> bool {
+        let view = self.build_exec_limits_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_exec_limits_settings(view);
+        })
+    }
+
     fn open_js_repl_settings_section(&mut self) -> bool {
         let view = self.build_js_repl_settings_view();
         self.open_bottom_pane_settings(move |this| {
@@ -1362,6 +1404,7 @@ impl ChatWidget<'_> {
             SettingsSection::Interface                          => self.open_interface_settings_section(),
             SettingsSection::Shell                              => self.open_shell_settings_section(),
             SettingsSection::ShellProfiles                       => self.open_shell_profiles_settings_section(),
+            SettingsSection::ExecLimits                         => self.open_exec_limits_settings_section(),
             SettingsSection::Updates                            => self.open_updates_settings_section(),
             SettingsSection::Accounts                           => false,
             SettingsSection::Prompts                            => self.open_prompts_settings_section(),
@@ -1420,6 +1463,7 @@ impl ChatWidget<'_> {
             | SettingsSection::Interface
             | SettingsSection::Shell
             | SettingsSection::ShellProfiles
+            | SettingsSection::ExecLimits
             | SettingsSection::Planning
             | SettingsSection::Updates
             | SettingsSection::Review

@@ -16,6 +16,7 @@ pub(crate) use self::chrome::ChromeSettingsContent;
 pub(crate) use self::contents::{
     AccountsSettingsContent,
     AutoDriveSettingsContent,
+    ExecLimitsSettingsContent,
     InterfaceSettingsContent,
     JsReplSettingsContent,
     McpSettingsContent,
@@ -55,6 +56,7 @@ pub(crate) struct SettingsOverlayView {
     interface_content: Option<InterfaceSettingsContent>,
     shell_content: Option<ShellSettingsContent>,
     shell_profiles_content: Option<ShellProfilesSettingsContent>,
+    exec_limits_content: Option<ExecLimitsSettingsContent>,
     updates_content: Option<UpdatesSettingsContent>,
     notifications_content: Option<NotificationsSettingsContent>,
     accounts_content: Option<AccountsSettingsContent>,
@@ -100,6 +102,7 @@ impl SettingsOverlayView {
             interface_content: None,
             shell_content: None,
             shell_profiles_content: None,
+            exec_limits_content: None,
             updates_content: None,
             notifications_content: None,
             accounts_content: None,
@@ -227,6 +230,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn set_shell_profiles_content(&mut self, content: ShellProfilesSettingsContent) {
         self.shell_profiles_content = Some(content);
+    }
+
+    pub(crate) fn set_exec_limits_content(&mut self, content: ExecLimitsSettingsContent) {
+        self.exec_limits_content = Some(content);
     }
 
     pub(crate) fn shell_profiles_content_mut(&mut self) -> Option<&mut ShellProfilesSettingsContent> {
@@ -402,6 +409,10 @@ impl SettingsOverlayView {
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::ShellProfiles => self
                 .shell_profiles_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::ExecLimits => self
+                .exec_limits_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Planning => self

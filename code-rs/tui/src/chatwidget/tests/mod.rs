@@ -3785,6 +3785,54 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn exec_limits_settings_emits_apply_event_with_expected_fields() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    use crate::bottom_pane::SettingsSection;
+
+    {
+        let chat = harness.chat();
+        chat.ensure_settings_overlay_section(SettingsSection::ExecLimits);
+        chat.show_settings_overlay(Some(SettingsSection::ExecLimits));
+    }
+    harness.flush_into_widget();
+
+    {
+        let chat = harness.chat();
+
+        // PIDs row: Auto -> Disabled -> Edit.
+        chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        for ch in ['5', '1', '2'] {
+            chat.handle_key_event(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
+        }
+        chat.handle_key_event(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL));
+
+        // Move to Apply and activate.
+        for _ in 0..2 {
+            chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        }
+        chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    }
+
+    let mut applied = None;
+    for event in harness.drain_events() {
+        if let AppEvent::SetExecLimitsSettings(settings) = event {
+            applied = Some(settings);
+            break;
+        }
+    }
+
+    let applied = applied.expect("expected SetExecLimitsSettings event");
+    assert!(
+        matches!(applied.pids_max, code_core::config::ExecLimitToml::Value(512)),
+        "expected pids_max=512, got: {:?}",
+        applied.pids_max
+    );
+    }
+
+    #[test]
     fn settings_overlay_focus_allows_sidebar_navigation_without_getting_stuck() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();

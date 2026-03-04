@@ -2,6 +2,9 @@
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "linux")]
+use std::sync::{OnceLock, RwLock};
+
+#[cfg(target_os = "linux")]
 const CGROUP_MOUNT: &str = "/sys/fs/cgroup";
 
 #[cfg(target_os = "linux")]
@@ -18,7 +21,48 @@ pub(crate) struct ExecCgroupLimits {
 }
 
 #[cfg(target_os = "linux")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum ExecLimitOverride {
+    #[default]
+    Auto,
+    Disabled,
+    Value(u64),
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct ExecCgroupLimitOverrides {
+    pub(crate) memory_max_bytes: ExecLimitOverride,
+    pub(crate) pids_max: ExecLimitOverride,
+}
+
+#[cfg(target_os = "linux")]
+static EXEC_CGROUP_LIMIT_OVERRIDES: OnceLock<RwLock<ExecCgroupLimitOverrides>> = OnceLock::new();
+
+#[cfg(target_os = "linux")]
+pub(crate) fn set_exec_cgroup_limit_overrides(overrides: ExecCgroupLimitOverrides) {
+    let lock = EXEC_CGROUP_LIMIT_OVERRIDES
+        .get_or_init(|| RwLock::new(ExecCgroupLimitOverrides::default()));
+    if let Ok(mut guard) = lock.write() {
+        *guard = overrides;
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn exec_cgroup_limit_overrides_snapshot() -> ExecCgroupLimitOverrides {
+    let lock = EXEC_CGROUP_LIMIT_OVERRIDES
+        .get_or_init(|| RwLock::new(ExecCgroupLimitOverrides::default()));
+    lock.read().map(|guard| *guard).unwrap_or_default()
+}
+
+#[cfg(target_os = "linux")]
 pub(crate) fn default_exec_memory_max_bytes() -> Option<u64> {
+    match exec_cgroup_limit_overrides_snapshot().memory_max_bytes {
+        ExecLimitOverride::Disabled => return None,
+        ExecLimitOverride::Value(value) => return Some(value),
+        ExecLimitOverride::Auto => {}
+    }
+
     if let Ok(raw) = std::env::var("CODEX_EXEC_MEMORY_MAX_BYTES") {
         if let Ok(value) = raw.trim().parse::<u64>() {
             if value > 0 {
@@ -53,6 +97,12 @@ fn default_exec_pids_max_for_cpus(cpus: u64) -> u64 {
 
 #[cfg(target_os = "linux")]
 pub(crate) fn default_exec_pids_max() -> Option<u64> {
+    match exec_cgroup_limit_overrides_snapshot().pids_max {
+        ExecLimitOverride::Disabled => return None,
+        ExecLimitOverride::Value(value) => return Some(value),
+        ExecLimitOverride::Auto => {}
+    }
+
     if let Ok(raw) = std::env::var("CODEX_EXEC_PIDS_MAX") {
         if let Ok(value) = raw.trim().parse::<u64>() {
             if value >= 1 {

@@ -904,6 +904,34 @@ impl App<'_> {
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::SetExecLimitsSettings(settings) => {
+                    match code_core::config::set_exec_limits_settings(&self.config.code_home, &settings) {
+                        Ok(()) => {
+                            self.config.exec_limits = settings.clone();
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                match code_core::config::apply_exec_limits_settings(&settings) {
+                                    Ok(()) => {
+                                        widget.apply_exec_limits_settings(settings);
+                                        widget.flash_footer_notice("Exec limits: updated".to_string());
+                                    }
+                                    Err(err) => {
+                                        widget.flash_footer_notice(format!(
+                                            "Failed to apply exec limits: {err}",
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to persist exec limits: {err}",
+                                ));
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::SetJsReplSettings(settings) => {
                     match code_core::config::set_js_repl_settings(&self.config.code_home, &settings) {
                         Ok(()) => {

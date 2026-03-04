@@ -8,6 +8,7 @@ impl SettingsSection {
             SettingsSection::Interface => "Interface",
             SettingsSection::Shell => "Shell",
             SettingsSection::ShellProfiles => "Shell profiles",
+            SettingsSection::ExecLimits => "Exec limits",
             SettingsSection::Planning => "Planning",
             SettingsSection::Updates => "Updates",
             SettingsSection::Accounts => "Accounts",
@@ -34,6 +35,9 @@ impl SettingsSection {
             SettingsSection::Shell => "Select the shell used for tool execution.",
             SettingsSection::ShellProfiles => {
                 "Configure shell-style profiles (skills, references, MCP filters)."
+            }
+            SettingsSection::ExecLimits => {
+                "Set process and memory limits for tool-spawned commands (Linux cgroups)."
             }
             SettingsSection::Planning => "Choose the model used in Plan Mode (Read Only).",
             SettingsSection::Updates => "Control CLI auto-update cadence and release channels.",
@@ -66,6 +70,7 @@ impl SettingsSection {
             SettingsSection::ShellProfiles => {
                 "Configure shell-style profiles (skills, references, MCP filters)."
             }
+            SettingsSection::ExecLimits => "Configure execution resource limits for tool commands.",
             SettingsSection::Planning => "Planning settings coming soon.",
             SettingsSection::Updates => "Upgrade Codex and manage automatic updates.",
             SettingsSection::Accounts => "Account switching settings coming soon.",

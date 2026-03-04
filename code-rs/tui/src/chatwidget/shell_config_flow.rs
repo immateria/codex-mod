@@ -307,6 +307,12 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    pub(crate) fn apply_exec_limits_settings(&mut self, settings: code_core::config::ExecLimitsToml) {
+        self.config.exec_limits = settings;
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
     pub(crate) fn on_shell_persisted(&mut self, shell: Option<ShellConfig>) {
         if self.config.shell != shell {
             return;

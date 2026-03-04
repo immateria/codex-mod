@@ -61,6 +61,7 @@ mod update_settings_view;
 mod undo_timeline_view;
 mod notifications_settings_view;
 mod network_settings_view;
+mod exec_limits_settings_view;
 mod js_repl_settings_view;
 mod interface_settings_view;
 mod shell_profiles_settings_view;
@@ -99,6 +100,7 @@ pub(crate) use login_accounts_view::{
 pub(crate) use update_settings_view::{UpdateSettingsInit, UpdateSettingsView, UpdateSharedState};
 pub(crate) use notifications_settings_view::{NotificationsMode, NotificationsSettingsView};
 pub(crate) use network_settings_view::NetworkSettingsView;
+pub(crate) use exec_limits_settings_view::ExecLimitsSettingsView;
 pub(crate) use js_repl_settings_view::JsReplSettingsView;
 pub(crate) use interface_settings_view::InterfaceSettingsView;
 pub(crate) use shell_profiles_settings_view::ShellProfilesSettingsView;
@@ -289,6 +291,13 @@ impl BottomPane<'_> {
     }
 
     pub fn show_network_settings(&mut self, view: NetworkSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_exec_limits_settings(&mut self, view: ExecLimitsSettingsView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
