@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Borders};
 
@@ -97,9 +95,10 @@ impl McpViewLayout {
         let (list_h, summary_h, tools_h) = if available_h >= base_total_h {
             let extra = available_h - base_total_h;
             // Give additional space to details first, then tools, then servers.
-            let summary_extra = extra / 2;
-            let tools_extra = (extra.saturating_sub(summary_extra)) / 2;
-            let list_extra = extra.saturating_sub(summary_extra + tools_extra);
+            let summary_extra = extra.div_ceil(2);
+            let remaining = extra.saturating_sub(summary_extra);
+            let tools_extra = remaining.div_ceil(2);
+            let list_extra = remaining.saturating_sub(tools_extra);
             (
                 base_list_h + list_extra,
                 base_summary_h + summary_extra,
@@ -153,28 +152,28 @@ impl McpViewLayout {
     }
 
     pub(super) fn contains_list(self, x: u16, y: u16) -> bool {
-        in_rect(self.list_rect, x, y)
+        contains_point(self.list_rect, x, y)
     }
 
     pub(super) fn contains_summary(self, x: u16, y: u16) -> bool {
-        in_rect(self.summary_rect, x, y)
+        contains_point(self.summary_rect, x, y)
     }
 
     pub(super) fn contains_tools(self, x: u16, y: u16) -> bool {
-        in_rect(self.tools_rect, x, y)
+        contains_point(self.tools_rect, x, y)
     }
 
     pub(super) fn summary_scrollbar_area(self) -> Rect {
-        inset_scrollbar_area(self.summary_inner)
+        inset_rect_right(self.summary_inner, 1)
     }
 
     pub(super) fn tools_scrollbar_area(self) -> Rect {
-        inset_scrollbar_area(self.tools_inner)
+        inset_rect_right(self.tools_inner, 1)
     }
 }
 
 fn split_content_wide(content: Rect) -> (Rect, Rect) {
-    let list_width = max(30u16, content.width / 3);
+    let list_width = (content.width / 3).max(30u16);
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(list_width), Constraint::Min(24)])
@@ -183,22 +182,17 @@ fn split_content_wide(content: Rect) -> (Rect, Rect) {
 }
 
 fn split_details_wide(content: Rect) -> (Rect, Rect) {
-    let summary_h = if content.height <= 10 {
+    let desired = if content.height <= 10 {
         content.height.saturating_sub(4).max(1)
     } else {
-        max(8, content.height / 3)
+        (content.height / 3).max(8u16)
     };
+    // Ensure we leave room for the tools pane's min height when possible.
+    let cap = content.height.saturating_sub(4).max(1);
+    let summary_h = desired.min(cap);
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(summary_h), Constraint::Min(4)])
         .split(content);
     (chunks[0], chunks[1])
-}
-
-fn in_rect(rect: Rect, x: u16, y: u16) -> bool {
-    contains_point(rect, x, y)
-}
-
-fn inset_scrollbar_area(area: Rect) -> Rect {
-    inset_rect_right(area, 1)
 }
