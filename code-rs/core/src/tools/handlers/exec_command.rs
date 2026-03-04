@@ -1,4 +1,9 @@
 use crate::codex::Session;
+use crate::codex::{ApprovedCommandPattern, CommandApprovalRequest};
+use crate::command_safety::context::CommandSafetyContext;
+use crate::protocol::ApprovedCommandMatchKind;
+use crate::protocol::AskForApproval;
+use crate::protocol::ReviewDecision;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::events::execute_custom_tool;
@@ -121,6 +126,68 @@ impl ToolHandler for ExecCommandToolHandler {
                         }
                         code_apply_patch::MaybeApplyPatchVerified::ShellParseError(_)
                         | code_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {}
+                    }
+
+                    // Dangerous-command gating: exec_command previously bypassed command safety.
+                    // Keep behavior minimal and non-regressive by prompting only for commands
+                    // classified as dangerous (fork bomb / destructive operations), and honor
+                    // session approvals.
+                    let command_safety_context = CommandSafetyContext::current().with_command_shell(&wrapper);
+                    let wrapper_is_trusted = crate::is_safe_command::is_known_safe_command_with_context_and_rules(
+                        &wrapper,
+                        command_safety_context,
+                        sess.safe_command_rules(),
+                    ) || sess.is_command_approved(&wrapper);
+                    if !wrapper_is_trusted
+                        && sess.dangerous_command_detection_enabled()
+                        && crate::is_dangerous_command::command_might_be_dangerous_with_context_and_rules(
+                            &wrapper,
+                            command_safety_context,
+                            sess.dangerous_command_rules(),
+                        )
+                    {
+                        if matches!(sess.get_approval_policy(), AskForApproval::Never) {
+                            return unsupported_tool_call_output(
+                                &call_id,
+                                false,
+                                "exec_command rejected: approval policy is set to never, but command is considered dangerous"
+                                    .to_string(),
+                            );
+                        }
+
+                        let rx_approve = sess
+                            .request_command_approval(CommandApprovalRequest {
+                                sub_id: sub_id.clone(),
+                                call_id: call_id.clone(),
+                                approval_id: None,
+                                command: wrapper.clone(),
+                                cwd: effective_workdir.clone(),
+                                reason: Some(
+                                    "Command flagged as dangerous (possible fork bomb / destructive operation)"
+                                        .to_string(),
+                                ),
+                                network_approval_context: None,
+                                additional_permissions: None,
+                            })
+                            .await;
+                        let decision = rx_approve.await.unwrap_or_default();
+                        match decision {
+                            ReviewDecision::Approved => {}
+                            ReviewDecision::ApprovedForSession => {
+                                sess.add_approved_command(ApprovedCommandPattern::new(
+                                    wrapper.clone(),
+                                    ApprovedCommandMatchKind::Exact,
+                                    None,
+                                ));
+                            }
+                            ReviewDecision::Denied | ReviewDecision::Abort => {
+                                return unsupported_tool_call_output(
+                                    &call_id,
+                                    false,
+                                    "exec_command rejected by user".to_string(),
+                                );
+                            }
+                        }
                     }
 
                     let mut env_overrides = HashMap::new();

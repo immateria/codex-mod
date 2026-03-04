@@ -135,6 +135,11 @@ pub(crate) async fn spawn_child_async(
             StdioPolicy::RedirectForShellTool => crate::cgroup::default_exec_memory_max_bytes(),
             StdioPolicy::Inherit => None,
         };
+        #[cfg(target_os = "linux")]
+        let exec_pids_max = match stdio_policy {
+            StdioPolicy::RedirectForShellTool => crate::cgroup::default_exec_pids_max(),
+            StdioPolicy::Inherit => None,
+        };
         cmd.pre_exec(move || {
             // Start a new process group
             let _ = libc::setpgid(0, 0);
@@ -147,10 +152,13 @@ pub(crate) async fn spawn_child_async(
                     libc::raise(libc::SIGTERM);
                 }
 
-                if let Some(memory_max_bytes) = exec_memory_max_bytes {
+                if exec_memory_max_bytes.is_some() || exec_pids_max.is_some() {
                     crate::cgroup::best_effort_attach_self_to_exec_cgroup(
                         libc::getpid() as u32,
-                        memory_max_bytes,
+                        crate::cgroup::ExecCgroupLimits {
+                            memory_max_bytes: exec_memory_max_bytes,
+                            pids_max: exec_pids_max,
+                        },
                     );
                 }
             }

@@ -1,6 +1,7 @@
 use crate::command_safety::context::CommandSafetyContext;
 use crate::command_safety::context::CommandSafetyOs;
 use crate::command_safety::context::CommandSafetyShellFamily;
+use crate::command_safety::fork_bomb::looks_like_posix_fork_bomb;
 use crate::command_safety::windows_dangerous_commands::is_dangerous_command_windows;
 use crate::command_safety::windows_dangerous_commands::is_dangerous_windows_token_sequence;
 use crate::command_safety::CommandSafetyRuleset;
@@ -59,6 +60,12 @@ pub fn command_might_be_dangerous_with_context_and_rules(
 
     // Support `<shell> -c|-lc "<script>"` for shell-like wrappers (bash, sh,
     // zsh, etc.) and nushell's common `nu -c` form.
+    if let Invocation::ScriptWrapper { script, .. } = &classified.invocation
+        && looks_like_posix_fork_bomb(script)
+    {
+        return true;
+    }
+
     if let Invocation::ScriptWrapper { script, .. } = &classified.invocation
         && let Some(all_commands) = invocation::parse_word_only_commands_with_fallback(script)
         && all_commands.iter().any(|cmd| {
@@ -164,13 +171,63 @@ fn is_dangerous_to_call_with_exec(command: &[String]) -> bool {
             }
         }
 
-        Some("rm") => matches!(command.get(1).map(String::as_str), Some("-f" | "-rf")),
+        Some("rm") => rm_is_dangerous(&command[1..]),
 
         // For `sudo <cmd>`, recurse into `<cmd>`.
         Some("sudo") => is_dangerous_to_call_with_exec(&command[1..]),
 
         _ => false,
     }
+}
+
+fn rm_is_dangerous(args: &[String]) -> bool {
+    // Treat common destructive modes as dangerous. We stay conservative here:
+    // - `-f/--force` (non-interactive deletion)
+    // - `-r/-R/--recursive` (recursive deletion)
+    // - `--no-preserve-root` (explicitly dangerous)
+    //
+    // We intentionally do not mark plain `rm <file>` as dangerous so the check
+    // focuses on the higher-risk variants.
+    let mut has_force = false;
+    let mut has_recursive = false;
+
+    for arg in args {
+        if arg == "--" {
+            break;
+        }
+
+        match arg.as_str() {
+            "--force" => {
+                has_force = true;
+                continue;
+            }
+            "--recursive" => {
+                has_recursive = true;
+                continue;
+            }
+            "--no-preserve-root" => {
+                return true;
+            }
+            _ => {}
+        }
+
+        if arg.starts_with("--") {
+            continue;
+        }
+
+        // Short flags (including combined forms like `-rf` / `-fr` / `-R`)
+        if arg.starts_with('-') && arg != "-" {
+            for ch in arg.chars().skip(1) {
+                match ch {
+                    'f' => has_force = true,
+                    'r' | 'R' => has_recursive = true,
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    has_force || has_recursive
 }
 
 fn git_branch_is_delete(branch_args: &[String]) -> bool {
@@ -424,6 +481,16 @@ mod tests {
     #[test]
     fn rm_f_is_dangerous() {
         assert!(command_might_be_dangerous(&vec_str(&["rm", "-f", "/"])));
+    }
+
+    #[test]
+    fn rm_r_is_dangerous() {
+        assert!(command_might_be_dangerous(&vec_str(&["rm", "-r", "/tmp/foo"])));
+    }
+
+    #[test]
+    fn rm_fr_is_dangerous() {
+        assert!(command_might_be_dangerous(&vec_str(&["rm", "-fr", "/tmp/foo"])));
     }
 
     #[test]

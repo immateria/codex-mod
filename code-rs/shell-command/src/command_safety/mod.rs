@@ -1,5 +1,6 @@
 pub mod context;
 mod cmd_safe_commands;
+mod fork_bomb;
 pub mod is_dangerous_command;
 pub mod is_safe_command;
 pub mod windows_dangerous_commands;

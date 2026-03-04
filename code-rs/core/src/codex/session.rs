@@ -474,6 +474,23 @@ impl Session {
         self.approval_policy
     }
 
+    pub(crate) fn dangerous_command_detection_enabled(&self) -> bool {
+        self.dangerous_command_detection_enabled
+    }
+
+    pub(crate) fn safe_command_rules(&self) -> crate::config_types::CommandSafetyRuleset {
+        self.safe_command_rules
+    }
+
+    pub(crate) fn dangerous_command_rules(&self) -> crate::config_types::CommandSafetyRuleset {
+        self.dangerous_command_rules
+    }
+
+    pub(crate) fn is_command_approved(&self, command: &[String]) -> bool {
+        let state = self.state.lock().unwrap();
+        state.approved_commands.iter().any(|pattern| pattern.matches(command))
+    }
+
     pub(crate) fn is_dynamic_tool(&self, name: &str) -> bool {
         self.dynamic_tools.iter().any(|tool| tool.name == name)
     }

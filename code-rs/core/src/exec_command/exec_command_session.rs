@@ -10,6 +10,8 @@ pub(crate) struct ExecCommandSessionParts {
     pub(crate) killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
     #[cfg(unix)]
     pub(crate) process_group_id: Option<u32>,
+    #[cfg(target_os = "linux")]
+    pub(crate) cgroup_pid: Option<u32>,
     pub(crate) reader_handle: JoinHandle<()>,
     pub(crate) writer_handle: JoinHandle<()>,
     pub(crate) wait_handle: JoinHandle<()>,
@@ -28,6 +30,10 @@ pub(crate) struct ExecCommandSession {
     #[cfg(unix)]
     /// Cached process group id so drop can hard-kill descendants on Unix.
     process_group_id: Option<u32>,
+
+    #[cfg(target_os = "linux")]
+    /// PID used for Linux exec cgroup cleanup (best-effort).
+    cgroup_pid: Option<u32>,
 
     /// Child killer handle for termination on drop (can signal independently
     /// of a thread blocked in `.wait()`).
@@ -61,6 +67,8 @@ impl ExecCommandSession {
             killer,
             #[cfg(unix)]
             process_group_id,
+            #[cfg(target_os = "linux")]
+            cgroup_pid,
             reader_handle,
             writer_handle,
             wait_handle,
@@ -74,6 +82,8 @@ impl ExecCommandSession {
                 output_tx,
                 #[cfg(unix)]
                 process_group_id,
+                #[cfg(target_os = "linux")]
+                cgroup_pid,
                 killer: StdMutex::new(Some(killer)),
                 reader_handle: StdMutex::new(Some(reader_handle)),
                 writer_handle: StdMutex::new(Some(writer_handle)),
@@ -106,6 +116,11 @@ impl Drop for ExecCommandSession {
         #[cfg(unix)]
         if let Some(process_group_id) = self.process_group_id.take() {
             let _ = crate::exec_command::process_group::kill_process_group(process_group_id);
+        }
+
+        #[cfg(target_os = "linux")]
+        if let Some(pid) = self.cgroup_pid.take() {
+            crate::cgroup::best_effort_cleanup_exec_cgroup(pid);
         }
 
         // Best-effort: terminate child first so blocking tasks can complete.

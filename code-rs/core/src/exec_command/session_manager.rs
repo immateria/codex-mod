@@ -542,6 +542,19 @@ async fn create_exec_command_session(
     let killer = child.clone_killer();
     #[cfg(unix)]
     let process_group_id = child.process_id();
+    #[cfg(target_os = "linux")]
+    let cgroup_pid = process_group_id;
+
+    #[cfg(target_os = "linux")]
+    if let Some(pid) = cgroup_pid {
+        let limits = crate::cgroup::ExecCgroupLimits {
+            memory_max_bytes: crate::cgroup::default_exec_memory_max_bytes(),
+            pids_max: crate::cgroup::default_exec_pids_max(),
+        };
+        if limits.memory_max_bytes.is_some() || limits.pids_max.is_some() {
+            crate::cgroup::best_effort_attach_pid_to_exec_cgroup(pid, limits);
+        }
+    }
 
     // Channel to forward write requests to the PTY writer.
     let (writer_tx, mut writer_rx) = mpsc::channel::<Vec<u8>>(128);
@@ -614,6 +627,8 @@ async fn create_exec_command_session(
         killer,
         #[cfg(unix)]
         process_group_id,
+        #[cfg(target_os = "linux")]
+        cgroup_pid,
         reader_handle,
         writer_handle,
         wait_handle,
