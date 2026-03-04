@@ -1,14 +1,11 @@
-use std::path::Path;
-
-use crate::bash::try_parse_bash;
-use crate::bash::try_parse_word_only_commands_sequence;
 use crate::command_safety::context::CommandSafetyContext;
 use crate::command_safety::context::CommandSafetyOs;
 use crate::command_safety::context::CommandSafetyShellFamily;
 use crate::command_safety::windows_dangerous_commands::is_dangerous_command_windows;
 use crate::command_safety::windows_dangerous_commands::is_dangerous_windows_token_sequence;
 use crate::command_safety::CommandSafetyRuleset;
-use crate::is_shell_like_executable;
+use crate::invocation;
+use crate::invocation::Invocation;
 
 pub fn command_might_be_dangerous(command: &[String]) -> bool {
     let context = CommandSafetyContext::current().with_command_shell(command);
@@ -27,7 +24,8 @@ pub fn command_might_be_dangerous_with_context_and_rules(
     context: CommandSafetyContext,
     ruleset: CommandSafetyRuleset,
 ) -> bool {
-    let effective_context = context.with_command_shell(command);
+    let classified = invocation::classify(command);
+    let effective_context = context.with_command_shell(&classified.peeled_argv);
 
     // Keep PowerShell/CMD/URL-launch protections active on all platforms so
     // pwsh-on-macOS/Linux users get the same guardrails, and so Windows users
@@ -43,84 +41,35 @@ pub fn command_might_be_dangerous_with_context_and_rules(
         CommandSafetyRuleset::Auto => shell_is_windows_like || platform_is_windows,
     };
     if use_windows_checks
-        && (is_dangerous_command_windows(command) || is_dangerous_windows_token_sequence(command))
+        && (is_dangerous_command_windows(&classified.peeled_argv)
+            || is_dangerous_windows_token_sequence(&classified.peeled_argv))
     {
         return true;
     }
 
-    if is_dangerous_to_call_with_exec(command) {
+    // `sudo ...` implies privilege escalation; treat it as dangerous even if
+    // the inner command looks read-only.
+    if classified.prefix.sudo {
+        return true;
+    }
+
+    if is_dangerous_to_call_with_exec(&classified.peeled_argv) {
         return true;
     }
 
     // Support `<shell> -c|-lc "<script>"` for shell-like wrappers (bash, sh,
     // zsh, etc.) and nushell's common `nu -c` form.
-    if let Some(all_commands) = parse_shell_c_plain_commands(command)
+    if let Invocation::ScriptWrapper { script, .. } = &classified.invocation
+        && let Some(all_commands) = invocation::parse_word_only_commands_with_fallback(script)
         && all_commands.iter().any(|cmd| {
             is_dangerous_to_call_with_exec(cmd)
-                || (use_windows_checks && is_dangerous_windows_token_sequence(cmd))
+                || (use_windows_checks && is_dangerous_command_windows(cmd))
         })
     {
         return true;
     }
 
     false
-}
-
-fn parse_shell_c_plain_commands(command: &[String]) -> Option<Vec<Vec<String>>> {
-    let [shell, flag, script] = command else {
-        return None;
-    };
-
-    if !matches!(flag.as_str(), "-c" | "-lc") {
-        return None;
-    }
-
-    if !is_shell_like_executable(shell) && !is_nushell(shell) {
-        return None;
-    }
-
-    if let Some(tree) = try_parse_bash(script)
-        && let Some(commands) = try_parse_word_only_commands_sequence(&tree, script)
-    {
-        return Some(commands);
-    }
-
-    parse_plain_word_commands_fallback(script)
-}
-
-fn parse_plain_word_commands_fallback(script: &str) -> Option<Vec<Vec<String>>> {
-    let tokens = shlex::split(script)?;
-    if tokens.is_empty() {
-        return None;
-    }
-
-    let mut all_commands: Vec<Vec<String>> = Vec::new();
-    let mut current: Vec<String> = Vec::new();
-    for token in tokens {
-        if matches!(token.as_str(), "|" | "||" | "&&" | ";") {
-            if current.is_empty() {
-                return None;
-            }
-            all_commands.push(std::mem::take(&mut current));
-        } else {
-            current.push(token);
-        }
-    }
-
-    if current.is_empty() {
-        return None;
-    }
-    all_commands.push(current);
-    Some(all_commands)
-}
-
-fn is_nushell(token: &str) -> bool {
-    let trimmed = token.trim_matches('"').trim_matches('\'');
-    Path::new(trimmed)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .map(|name| name.eq_ignore_ascii_case("nu") || name.eq_ignore_ascii_case("nu.exe"))
-        .unwrap_or(false)
 }
 
 fn is_git_global_option_with_value(arg: &str) -> bool {
@@ -284,6 +233,20 @@ mod tests {
             "-lc",
             "git reset --hard",
         ])));
+    }
+
+    #[test]
+    fn bash_cmd_force_delete_is_dangerous_when_windows_checks_enabled() {
+        let cmd = vec_str(&["bash", "-lc", "cmd /c del /f foo"]);
+        let ctx = CommandSafetyContext {
+            os: CommandSafetyOs::Windows,
+            shell: CommandSafetyShellFamily::Unknown,
+        };
+        assert!(command_might_be_dangerous_with_context_and_rules(
+            &cmd,
+            ctx,
+            CommandSafetyRuleset::Auto
+        ));
     }
 
     #[test]
@@ -461,5 +424,24 @@ mod tests {
     #[test]
     fn rm_f_is_dangerous() {
         assert!(command_might_be_dangerous(&vec_str(&["rm", "-f", "/"])));
+    }
+
+    #[test]
+    fn elvish_rm_rf_is_dangerous() {
+        assert!(command_might_be_dangerous(&vec_str(&[
+            "elvish",
+            "-c",
+            "rm -rf /",
+        ])));
+    }
+
+    #[test]
+    fn sudo_shell_wrapper_script_is_dangerous() {
+        assert!(command_might_be_dangerous(&vec_str(&[
+            "sudo",
+            "bash",
+            "-lc",
+            "rm -rf /",
+        ])));
     }
 }

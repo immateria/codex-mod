@@ -387,6 +387,13 @@ pub enum ShellScriptStyle {
     BashZshCompatible,
     #[serde(alias = "zsh-idiomatic")]
     Zsh,
+    #[serde(alias = "powershell", alias = "pwsh")]
+    PowerShell,
+    #[serde(alias = "cmd.exe")]
+    Cmd,
+    #[serde(alias = "nu")]
+    Nushell,
+    Elvish,
 }
 
 impl ShellScriptStyle {
@@ -395,6 +402,10 @@ impl ShellScriptStyle {
             "posix-sh" | "posix" | "sh" => Some(Self::PosixSh),
             "bash-zsh-compatible" | "bash-zsh" => Some(Self::BashZshCompatible),
             "zsh" | "zsh-idiomatic" => Some(Self::Zsh),
+            "powershell" | "pwsh" | "power-shell" => Some(Self::PowerShell),
+            "cmd" | "cmd.exe" => Some(Self::Cmd),
+            "nushell" | "nu" => Some(Self::Nushell),
+            "elvish" => Some(Self::Elvish),
             _ => None,
         }
     }
@@ -413,6 +424,10 @@ impl ShellScriptStyle {
             "sh" | "dash" | "ash" => Some(Self::PosixSh),
             "bash" => Some(Self::BashZshCompatible),
             "zsh" => Some(Self::Zsh),
+            "powershell" | "pwsh" => Some(Self::PowerShell),
+            "cmd" => Some(Self::Cmd),
+            "nu" => Some(Self::Nushell),
+            "elvish" => Some(Self::Elvish),
             _ => None,
         }
     }
@@ -427,6 +442,18 @@ impl ShellScriptStyle {
             }
             Self::Zsh => {
                 "When writing shell code, use idiomatic Zsh. Prefer native Zsh array/expansion forms (for example `${(@)array}`) over compatibility-oriented Bash forms."
+            }
+            Self::PowerShell => {
+                "When writing shell code, use PowerShell syntax and idioms. Avoid Bash/Zsh syntax like `&&`, `[[ ... ]]`, and `$VAR` expansions."
+            }
+            Self::Cmd => {
+                "When writing shell code, use Windows `cmd.exe` syntax. Avoid Bash/Zsh pipelines and expansions; prefer `dir`, `type`, `where`, and `findstr` patterns."
+            }
+            Self::Nushell => {
+                "When writing shell code, use Nushell syntax and pipelines. Avoid Bash/Zsh idioms like `&&`, `[[ ... ]]`, and globs that rely on POSIX shell behavior."
+            }
+            Self::Elvish => {
+                "When writing shell code, use Elvish syntax and idioms. Avoid Bash/Zsh-only constructs like `[[ ... ]]` and `$VAR` expansions."
             }
         }
     }
@@ -3003,6 +3030,14 @@ mod tests {
             Some(ShellScriptStyle::BashZshCompatible)
         );
         assert_eq!(ShellScriptStyle::parse("zsh"), Some(ShellScriptStyle::Zsh));
+        assert_eq!(
+            ShellScriptStyle::parse("powershell"),
+            Some(ShellScriptStyle::PowerShell)
+        );
+        assert_eq!(ShellScriptStyle::parse("pwsh"), Some(ShellScriptStyle::PowerShell));
+        assert_eq!(ShellScriptStyle::parse("cmd"), Some(ShellScriptStyle::Cmd));
+        assert_eq!(ShellScriptStyle::parse("nu"), Some(ShellScriptStyle::Nushell));
+        assert_eq!(ShellScriptStyle::parse("elvish"), Some(ShellScriptStyle::Elvish));
     }
 
     #[test]
@@ -3040,6 +3075,22 @@ mod tests {
         assert_eq!(
             ShellScriptStyle::infer_from_shell_program("zsh.exe"),
             Some(ShellScriptStyle::Zsh)
+        );
+        assert_eq!(
+            ShellScriptStyle::infer_from_shell_program("pwsh"),
+            Some(ShellScriptStyle::PowerShell)
+        );
+        assert_eq!(
+            ShellScriptStyle::infer_from_shell_program("cmd.exe"),
+            Some(ShellScriptStyle::Cmd)
+        );
+        assert_eq!(
+            ShellScriptStyle::infer_from_shell_program("nu"),
+            Some(ShellScriptStyle::Nushell)
+        );
+        assert_eq!(
+            ShellScriptStyle::infer_from_shell_program("elvish"),
+            Some(ShellScriptStyle::Elvish)
         );
         assert_eq!(ShellScriptStyle::infer_from_shell_program("fish"), None);
     }

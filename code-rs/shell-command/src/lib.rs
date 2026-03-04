@@ -8,6 +8,7 @@ pub mod bash;
 pub mod command_safety;
 pub mod command_canonicalization;
 pub mod parse_command;
+mod invocation;
 
 /// Escape a command argv for display.
 ///
@@ -20,33 +21,15 @@ pub fn escape_command(command: &[String]) -> String {
 /// If the argv looks like `bash -lc <script>` or `bash -c <script>`, return the
 /// inner script (stripping any `source … && (...)` wrapper), otherwise return
 /// the escaped argv.
+///
+/// Note: despite the legacy name, this recognizes common script wrappers for
+/// POSIX-like shells (bash/sh/zsh/dash/ksh/ash) plus `nu` and `elvish`.
 pub fn strip_bash_lc_and_escape(command: &[String]) -> String {
-    match command {
-        [first, second, third]
-            if is_shell_like_executable(first) && (second == "-lc" || second == "-c") =>
-        {
-            strip_rc_source_wrapper(third)
-                .unwrap_or(third.as_str())
-                .to_string()
-        }
-        _ => escape_command(command),
+    if let Some(wrapper) = invocation::extract_script_wrapper(command) {
+        wrapper.script
+    } else {
+        escape_command(command)
     }
-}
-
-fn strip_rc_source_wrapper(script: &str) -> Option<&str> {
-    let trimmed = script.trim();
-    if !trimmed.starts_with("source ") {
-        return None;
-    }
-
-    let start = trimmed.find("&& (")?;
-    let inner_start = start + "&& (".len();
-    let end = trimmed.rfind(')')?;
-    if end <= inner_start {
-        return None;
-    }
-
-    Some(trimmed[inner_start..end].trim())
 }
 
 /// True if `token` looks like a common POSIX shell program (or a path to one).
@@ -61,6 +44,8 @@ pub fn is_shell_like_executable(token: &str) -> bool {
         name.as_str(),
         "bash"
             | "bash.exe"
+            | "ash"
+            | "ash.exe"
             | "sh"
             | "sh.exe"
             | "zsh"
@@ -69,6 +54,5 @@ pub fn is_shell_like_executable(token: &str) -> bool {
             | "dash.exe"
             | "ksh"
             | "ksh.exe"
-            | "busybox"
     )
 }

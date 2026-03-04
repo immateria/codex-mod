@@ -500,7 +500,11 @@ impl ShellSelectionView {
                                     Some(ShellScriptStyle::BashZshCompatible) => {
                                         Some(ShellScriptStyle::Zsh)
                                     }
-                                    Some(ShellScriptStyle::Zsh) => None,
+                                    Some(ShellScriptStyle::Zsh) => Some(ShellScriptStyle::PowerShell),
+                                    Some(ShellScriptStyle::PowerShell) => Some(ShellScriptStyle::Cmd),
+                                    Some(ShellScriptStyle::Cmd) => Some(ShellScriptStyle::Nushell),
+                                    Some(ShellScriptStyle::Nushell) => Some(ShellScriptStyle::Elvish),
+                                    Some(ShellScriptStyle::Elvish) => None,
                                 };
                             }
                             CustomHelpAction::Back => {
@@ -642,7 +646,11 @@ impl ShellSelectionView {
                         None => Some(ShellScriptStyle::PosixSh),
                         Some(ShellScriptStyle::PosixSh) => Some(ShellScriptStyle::BashZshCompatible),
                         Some(ShellScriptStyle::BashZshCompatible) => Some(ShellScriptStyle::Zsh),
-                        Some(ShellScriptStyle::Zsh) => None,
+                        Some(ShellScriptStyle::Zsh) => Some(ShellScriptStyle::PowerShell),
+                        Some(ShellScriptStyle::PowerShell) => Some(ShellScriptStyle::Cmd),
+                        Some(ShellScriptStyle::Cmd) => Some(ShellScriptStyle::Nushell),
+                        Some(ShellScriptStyle::Nushell) => Some(ShellScriptStyle::Elvish),
+                        Some(ShellScriptStyle::Elvish) => None,
                     };
                     true
                 }

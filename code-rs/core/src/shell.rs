@@ -53,7 +53,8 @@ impl Shell {
                         .first()
                         .and_then(|program| ShellScriptStyle::infer_from_shell_program(program))
                 }),
-            Shell::PowerShell(_) | Shell::Unknown => None,
+            Shell::PowerShell(_) => Some(ShellScriptStyle::PowerShell),
+            Shell::Unknown => None,
         }
     }
 
@@ -217,6 +218,32 @@ fn detect_default_user_shell() -> Shell {
                 return Shell::Bash(BashShell {
                     shell_path,
                     bashrc_path: format!("{home_path}/.bashrc"),
+                });
+            }
+
+            // For non-Bash/Zsh shells, prefer a generic `-c` invocation with a
+            // best-effort script style so downstream UX (instructions, safety)
+            // can be shell-aware.
+            if shell_path.ends_with("/sh")
+                || shell_path.ends_with("/dash")
+                || shell_path.ends_with("/ash")
+                || shell_path.ends_with("/ksh")
+            {
+                return Shell::Generic(GenericShell {
+                    command: vec![shell_path, "-c".to_string()],
+                    script_style: Some(ShellScriptStyle::PosixSh),
+                });
+            }
+            if shell_path.ends_with("/nu") {
+                return Shell::Generic(GenericShell {
+                    command: vec![shell_path, "-c".to_string()],
+                    script_style: Some(ShellScriptStyle::Nushell),
+                });
+            }
+            if shell_path.ends_with("/elvish") {
+                return Shell::Generic(GenericShell {
+                    command: vec![shell_path, "-c".to_string()],
+                    script_style: Some(ShellScriptStyle::Elvish),
                 });
             }
         }

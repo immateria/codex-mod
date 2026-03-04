@@ -39,6 +39,10 @@ fn default_dangerous_command_detection_for_style(style: Option<ShellScriptStyle>
             ShellScriptStyle::PosixSh
                 | ShellScriptStyle::BashZshCompatible
                 | ShellScriptStyle::Zsh
+                | ShellScriptStyle::PowerShell
+                | ShellScriptStyle::Cmd
+                | ShellScriptStyle::Nushell
+                | ShellScriptStyle::Elvish
         )
     )
 }

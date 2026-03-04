@@ -1,22 +1,9 @@
-use crate::bash::try_parse_bash;
-use crate::bash::try_parse_word_only_commands_sequence;
 use crate::command_safety::context::CommandSafetyContext;
 use crate::command_safety::context::CommandSafetyOs;
 use crate::command_safety::context::CommandSafetyShellFamily;
 use crate::command_safety::CommandSafetyRuleset;
-use std::path::Path;
-
-fn is_bash(cmd: &str) -> bool {
-    let trimmed = cmd.trim_matches('"').trim_matches('\'');
-    if trimmed.eq_ignore_ascii_case("bash") || trimmed.eq_ignore_ascii_case("bash.exe") {
-        return true;
-    }
-    Path::new(trimmed)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .map(|name| name.eq_ignore_ascii_case("bash") || name.eq_ignore_ascii_case("bash.exe"))
-        .unwrap_or(false)
-}
+use crate::invocation;
+use crate::invocation::Invocation;
 
 pub fn is_known_safe_command(command: &[String]) -> bool {
     let context = CommandSafetyContext::current().with_command_shell(command);
@@ -35,11 +22,26 @@ pub fn is_known_safe_command_with_context_and_rules(
     context: CommandSafetyContext,
     ruleset: CommandSafetyRuleset,
 ) -> bool {
-    let effective_context = context.with_command_shell(command);
+    let classified = invocation::classify(command);
+
+    // Never auto-approve `sudo ...` as "known safe", even if the inner command
+    // is read-only. `sudo` implies privilege escalation and should always be
+    // treated as untrusted.
+    if classified.prefix.sudo {
+        return false;
+    }
+
+    let effective_context = context.with_command_shell(&classified.peeled_argv);
     match ruleset {
         CommandSafetyRuleset::Windows => {
             use super::windows_safe_commands::is_safe_command_windows;
-            return is_safe_command_windows(command);
+            return match &classified.invocation {
+                Invocation::PowerShellScript { .. } => is_safe_command_windows(&classified.peeled_argv),
+                Invocation::CmdScript { mode, script } => {
+                    super::cmd_safe_commands::is_safe_cmd_script(mode, script)
+                }
+                _ => false,
+            };
         }
         CommandSafetyRuleset::Auto => {
             let is_windows_shell = matches!(
@@ -48,7 +50,12 @@ pub fn is_known_safe_command_with_context_and_rules(
             );
             if matches!(effective_context.os, CommandSafetyOs::Windows) || is_windows_shell {
                 use super::windows_safe_commands::is_safe_command_windows;
-                if is_safe_command_windows(command) {
+                if is_safe_command_windows(&classified.peeled_argv) {
+                    return true;
+                }
+                if let Invocation::CmdScript { mode, script } = &classified.invocation
+                    && super::cmd_safe_commands::is_safe_cmd_script(mode, script)
+                {
                     return true;
                 }
             }
@@ -56,32 +63,26 @@ pub fn is_known_safe_command_with_context_and_rules(
         CommandSafetyRuleset::Posix => {}
     }
 
-    if is_safe_to_call_with_exec(command) {
+    if is_safe_to_call_with_exec(&classified.peeled_argv) {
         return true;
     }
 
-    // Support `bash -lc "..."` where the script consists solely of one or
+    // Support `<shell> -c|-lc "..."` where the script consists solely of one or
     // more "plain" commands (only bare words / quoted strings) combined with
     // a conservative allow‑list of shell operators that themselves do not
     // introduce side effects ( "&&", "||", ";", and "|" ). If every
     // individual command in the script is itself a known‑safe command, then
     // the composite expression is considered safe.
-    if let [bash, flag, script] = command
-        && is_bash(bash) && flag == "-lc"
-            && let Some(tree) = try_parse_bash(script)
-                && let Some(all_commands) =
-                    try_parse_word_only_commands_sequence(&tree, script)
-                    && !all_commands.is_empty()
-                        && all_commands
-                            .iter()
-                            .all(|cmd| is_safe_to_call_with_exec(cmd))
-                    {
-                        return true;
-                    }
+    if let Invocation::ScriptWrapper { script, .. } = &classified.invocation
+        && let Some(all_commands) = invocation::parse_word_only_commands(script)
+        && all_commands.iter().all(|cmd| is_safe_to_call_with_exec(cmd))
+    {
+        return true;
+    }
     false
 }
 
-fn is_safe_to_call_with_exec(command: &[String]) -> bool {
+pub(crate) fn is_safe_to_call_with_exec(command: &[String]) -> bool {
     let cmd0 = command.first().map(String::as_str);
 
     match cmd0 {
@@ -302,7 +303,7 @@ mod tests {
     }
 
     #[test]
-    fn bash_lc_safe_examples() {
+    fn posix_shell_wrapper_safe_examples() {
         assert!(is_known_safe_command(&vec_str(&["bash", "-lc", "ls"])));
         assert!(is_known_safe_command(&vec_str(&["bash", "-lc", "ls -1"])));
         assert!(is_known_safe_command(&vec_str(&[
@@ -310,6 +311,8 @@ mod tests {
             "-lc",
             "git status"
         ])));
+        assert!(is_known_safe_command(&vec_str(&["sh", "-lc", "git status"])));
+        assert!(is_known_safe_command(&vec_str(&["zsh", "-c", "pwd"])));
         assert!(is_known_safe_command(&vec_str(&[
             "bash",
             "-lc",
@@ -334,7 +337,7 @@ mod tests {
     }
 
     #[test]
-    fn bash_lc_safe_examples_with_operators() {
+    fn posix_shell_wrapper_safe_examples_with_operators() {
         assert!(is_known_safe_command(&vec_str(&[
             "bash",
             "-lc",
@@ -355,10 +358,15 @@ mod tests {
             "-lc",
             "ls | wc -l"
         ])));
+        assert!(is_known_safe_command(&vec_str(&[
+            "sh",
+            "-c",
+            "ls && pwd"
+        ])));
     }
 
     #[test]
-    fn bash_lc_unsafe_examples() {
+    fn posix_shell_wrapper_unsafe_examples() {
         assert!(
             !is_known_safe_command(&vec_str(&["bash", "-lc", "git", "status"])),
             "Four arg version is not known to be safe."
@@ -394,6 +402,10 @@ mod tests {
             !is_known_safe_command(&vec_str(&["bash", "-lc", "ls > out.txt"])),
             "> redirection should be rejected"
         );
+        assert!(
+            !is_known_safe_command(&vec_str(&["sh", "-c", "echo hi > out.txt"])),
+            "Shell wrappers with redirection should be rejected"
+        );
     }
 
     #[test]
@@ -418,5 +430,36 @@ mod tests {
             windows_context,
             CommandSafetyRuleset::Posix,
         ));
+    }
+
+    #[test]
+    fn non_posix_shell_wrappers_can_still_be_auto_safe_for_read_only_commands() {
+        // Shell wrappers that support `-c` should still be recognized when the
+        // script is parseable as a plain word-only command sequence.
+        assert!(is_known_safe_command(&vec_str(&["nu", "-c", "ls"])));
+        assert!(is_known_safe_command(&vec_str(&["elvish", "-c", "pwd"])));
+
+        // env VAR=... <cmd> should not prevent read-only safelist matches.
+        assert!(is_known_safe_command(&vec_str(&["env", "FOO=bar", "ls"])));
+        assert!(is_known_safe_command(&vec_str(&[
+            "env",
+            "-i",
+            "FOO=bar",
+            "ls",
+        ])));
+
+        // `sudo` is never treated as known-safe.
+        assert!(!is_known_safe_command(&vec_str(&["sudo", "ls"])));
+    }
+
+    #[test]
+    fn cmd_wrappers_can_be_auto_safe_for_read_only_commands() {
+        assert!(is_known_safe_command(&vec_str(&["cmd", "/c", "dir"])));
+        assert!(!is_known_safe_command(&vec_str(&["cmd", "/k", "dir"])));
+        assert!(!is_known_safe_command(&vec_str(&[
+            "cmd",
+            "/c",
+            "dir > out.txt",
+        ])));
     }
 }

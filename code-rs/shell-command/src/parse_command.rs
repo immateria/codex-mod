@@ -1,6 +1,7 @@
 use crate::bash::try_parse_bash;
 use crate::bash::try_parse_word_only_commands_sequence;
-use crate::is_shell_like_executable;
+use crate::invocation;
+use crate::invocation::Invocation;
 use serde::Deserialize;
 use serde::Serialize;
 use shlex::split as shlex_split;
@@ -58,10 +59,6 @@ fn simple_space_join(tokens: &[String]) -> Option<String> {
         return None;
     }
     Some(tokens.join(" "))
-}
-
-fn is_shell_executable(cmd: &str) -> bool {
-    is_shell_like_executable(cmd)
 }
 
 /// DO NOT REVIEW THIS CODE BY HAND
@@ -1049,7 +1046,7 @@ mod tests {
 }
 
 pub fn parse_command_impl(command: &[String]) -> Vec<ParsedCommand> {
-    if let Some(commands) = parse_bash_lc_commands(command) {
+    if let Some(commands) = parse_wrapped_commands(command) {
         return commands;
     }
 
@@ -1061,7 +1058,7 @@ pub fn parse_command_impl(command: &[String]) -> Vec<ParsedCommand> {
         vec![normalized]
     };
 
-    // Preserve left-to-right execution order for all commands, including bash -c/-lc
+    // Preserve left-to-right execution order for all commands, including <shell> -c/-lc
     // so summaries reflect the order they will run.
 
     // Map each pipeline segment to its parsed summary.
@@ -1161,24 +1158,29 @@ fn is_valid_sed_n_arg(arg: Option<&str>) -> bool {
 }
 
 /// Normalize a command by:
-/// - Removing `yes`/`no`/`bash -c`/`bash -lc` prefixes.
+/// - Removing `yes`/`no`/`<shell> -c`/`<shell> -lc` prefixes.
 /// - Splitting on `|` and `&&`/`||`/`;
 fn normalize_tokens(cmd: &[String]) -> Vec<String> {
-    match cmd {
-        [first, pipe, rest @ ..] if (first == "yes" || first == "y") && pipe == "|" => {
-            // Do not re-shlex already-tokenized input; just drop the prefix.
-            rest.to_vec()
-        }
-        [first, pipe, rest @ ..] if (first == "no" || first == "n") && pipe == "|" => {
-            // Do not re-shlex already-tokenized input; just drop the prefix.
-            rest.to_vec()
-        }
-        [bash, flag, script] if is_shell_executable(bash) && (flag == "-c" || flag == "-lc") => {
-            shlex_split(script)
-                .unwrap_or_else(|| vec!["bash".to_string(), flag.clone(), script.clone()])
-        }
-        _ => cmd.to_vec(),
+    if let [first, pipe, rest @ ..] = cmd
+        && (first == "yes" || first == "y")
+        && pipe == "|"
+    {
+        // Do not re-shlex already-tokenized input; just drop the prefix.
+        return rest.to_vec();
     }
+    if let [first, pipe, rest @ ..] = cmd
+        && (first == "no" || first == "n")
+        && pipe == "|"
+    {
+        // Do not re-shlex already-tokenized input; just drop the prefix.
+        return rest.to_vec();
+    }
+
+    if let Some(wrapper) = invocation::extract_script_wrapper(cmd) {
+        return shlex_split(&wrapper.script).unwrap_or_else(|| cmd.to_vec());
+    }
+
+    cmd.to_vec()
 }
 
 fn contains_connectors(tokens: &[String]) -> bool {
@@ -1450,116 +1452,122 @@ fn parse_git_grep_query_and_path(args: &[String]) -> (Option<String>, Option<Str
     (query, path)
 }
 
-fn parse_bash_lc_commands(original: &[String]) -> Option<Vec<ParsedCommand>> {
-    let [bash, flag, script] = original else {
-        return None;
-    };
-    if !is_shell_executable(bash) || flag != "-lc" {
+fn parse_wrapped_commands(original: &[String]) -> Option<Vec<ParsedCommand>> {
+    let classified = invocation::classify(original);
+    if classified.prefix.sudo {
+        // Keep `sudo` visible in summaries rather than collapsing to the inner
+        // script/argv, which can hide privilege escalation context.
         return None;
     }
-    if let Some(tree) = try_parse_bash(script)
-        && let Some(all_commands) = try_parse_word_only_commands_sequence(&tree, script) {
-            if all_commands.is_empty() {
-                return None;
-            }
-            let script_tokens = shlex_split(script)
-                .unwrap_or_else(|| vec!["bash".to_string(), flag.clone(), script.clone()]);
-            // Strip small formatting helpers (e.g., head/tail/awk/wc/etc) so we
-            // bias toward the primary command when pipelines are present.
-            let had_multiple_commands = all_commands.len() > 1;
-            // The bash AST walker yields commands in right-to-left order for
-            // connector/pipeline sequences. Reverse to reflect actual execution order.
-            let mut filtered_commands = drop_small_formatting_commands(all_commands);
-            filtered_commands.reverse();
-            if filtered_commands.is_empty() {
-                return None;
-            }
-            let mut commands: Vec<ParsedCommand> = filtered_commands
-                .into_iter()
-                .map(|tokens| summarize_main_tokens(&tokens))
-                .collect();
-            if commands.len() > 1 {
-                commands
-                    .retain(|pc| !matches!(pc, ParsedCommand::Unknown { cmd } if cmd == "true"));
-                // Apply the same simplifications used for non-bash parsing, e.g., drop leading `cd`.
-                while let Some(next) = simplify_once(&commands) {
-                    commands = next;
+    match &classified.invocation {
+        Invocation::ScriptWrapper { script, .. } => {
+            if let Some(tree) = try_parse_bash(script)
+                && let Some(all_commands) = try_parse_word_only_commands_sequence(&tree, script)
+            {
+                if all_commands.is_empty() {
+                    return None;
                 }
-            }
-            if commands.len() == 1 {
-                // If we reduced to a single command, attribute the full original script
-                // for clearer UX in file-reading and listing scenarios, or when there were
-                // no connectors in the original script. For search commands that came from
-                // a pipeline (e.g. `rg --files | sed -n`), keep only the primary command.
-                let had_connectors = had_multiple_commands
-                    || script_tokens
-                        .iter()
-                        .any(|t| t == "|" || t == "&&" || t == "||" || t == ";");
-                commands = commands
+                let script_tokens = shlex_split(script).unwrap_or_else(|| original.to_vec());
+                // Strip small formatting helpers (e.g., head/tail/awk/wc/etc) so we
+                // bias toward the primary command when pipelines are present.
+                let had_multiple_commands = all_commands.len() > 1;
+                // The bash AST walker yields commands in right-to-left order for
+                // connector/pipeline sequences. Reverse to reflect actual execution order.
+                let mut filtered_commands = drop_small_formatting_commands(all_commands);
+                filtered_commands.reverse();
+                if filtered_commands.is_empty() {
+                    return None;
+                }
+                let mut commands: Vec<ParsedCommand> = filtered_commands
                     .into_iter()
-                    .map(|pc| match pc {
-                        ParsedCommand::Read { name, cmd, .. } => {
-                            if had_connectors {
-                                let has_pipe = script_tokens.iter().any(|t| t == "|");
-                                let has_sed_n = script_tokens.windows(2).any(|w| {
-                                    w.first().map(std::string::String::as_str) == Some("sed")
-                                        && w.get(1).map(std::string::String::as_str) == Some("-n")
-                                });
-                                if has_pipe && has_sed_n {
-                                    ParsedCommand::Read {
-                                        cmd: script.clone(),
-                                        name,
+                    .map(|tokens| summarize_main_tokens(&tokens))
+                    .collect();
+                if commands.len() > 1 {
+                    commands.retain(|pc| {
+                        !matches!(pc, ParsedCommand::Unknown { cmd } if cmd == "true")
+                    });
+                    // Apply the same simplifications used for non-bash parsing, e.g., drop leading `cd`.
+                    while let Some(next) = simplify_once(&commands) {
+                        commands = next;
+                    }
+                }
+                if commands.len() == 1 {
+                    // If we reduced to a single command, attribute the full original script
+                    // for clearer UX in file-reading and listing scenarios, or when there were
+                    // no connectors in the original script. For search commands that came from
+                    // a pipeline (e.g. `rg --files | sed -n`), keep only the primary command.
+                    let had_connectors = had_multiple_commands
+                        || script_tokens
+                            .iter()
+                            .any(|t| t == "|" || t == "&&" || t == "||" || t == ";");
+                    commands = commands
+                        .into_iter()
+                        .map(|pc| match pc {
+                            ParsedCommand::Read { name, cmd, .. } => {
+                                if had_connectors {
+                                    let has_pipe = script_tokens.iter().any(|t| t == "|");
+                                    let has_sed_n = script_tokens.windows(2).any(|w| {
+                                        w.first().map(std::string::String::as_str) == Some("sed")
+                                            && w.get(1).map(std::string::String::as_str)
+                                                == Some("-n")
+                                    });
+                                    if has_pipe && has_sed_n {
+                                        ParsedCommand::Read {
+                                            cmd: script.clone(),
+                                            name,
+                                        }
+                                    } else {
+                                        ParsedCommand::Read { cmd, name }
                                     }
                                 } else {
                                     ParsedCommand::Read {
-                                        cmd,
+                                        cmd: shlex_join(&script_tokens),
                                         name,
                                     }
                                 }
-                            } else {
-                                ParsedCommand::Read {
-                                    cmd: shlex_join(&script_tokens),
-                                    name,
+                            }
+                            ParsedCommand::ListFiles { path, cmd, .. } => {
+                                if had_connectors {
+                                    ParsedCommand::ListFiles { cmd, path }
+                                } else {
+                                    ParsedCommand::ListFiles {
+                                        cmd: shlex_join(&script_tokens),
+                                        path,
+                                    }
                                 }
                             }
-                        }
-                        ParsedCommand::ListFiles { path, cmd, .. } => {
-                            if had_connectors {
-                                ParsedCommand::ListFiles {
-                                    cmd,
-                                    path,
-                                }
-                            } else {
-                                ParsedCommand::ListFiles {
-                                    cmd: shlex_join(&script_tokens),
-                                    path,
-                                }
-                            }
-                        }
-                        ParsedCommand::Search {
-                            query, path, cmd, ..
-                        } => {
-                            if had_connectors {
-                                ParsedCommand::Search {
-                                    cmd,
-                                    query,
-                                    path,
-                                }
-                            } else {
-                                ParsedCommand::Search {
-                                    cmd: shlex_join(&script_tokens),
-                                    query,
-                                    path,
+                            ParsedCommand::Search {
+                                query, path, cmd, ..
+                            } => {
+                                if had_connectors {
+                                    ParsedCommand::Search { cmd, query, path }
+                                } else {
+                                    ParsedCommand::Search {
+                                        cmd: shlex_join(&script_tokens),
+                                        query,
+                                        path,
+                                    }
                                 }
                             }
-                        }
-                        other => other,
-                    })
-                    .collect();
+                            other => other,
+                        })
+                        .collect();
+                }
+                Some(commands)
+            } else {
+                None
             }
-            return Some(commands);
         }
-    None
+        Invocation::CmdScript { script, .. } => {
+            let segments = invocation::split_cmd_script_into_segments(script)?;
+            let first = segments.first()?;
+            Some(vec![summarize_main_tokens(first)])
+        }
+        Invocation::PowerShellScript { script } => Some(vec![ParsedCommand::Unknown {
+            cmd: script.clone(),
+        }]),
+        Invocation::Argv(_) => None,
+    }
 }
 
 /// Return true if this looks like a small formatting helper in a pipeline.

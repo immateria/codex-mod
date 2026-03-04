@@ -330,7 +330,11 @@ impl ShellProfilesSettingsView {
         self.selected_style = match self.selected_style {
             ShellScriptStyle::PosixSh => ShellScriptStyle::BashZshCompatible,
             ShellScriptStyle::BashZshCompatible => ShellScriptStyle::Zsh,
-            ShellScriptStyle::Zsh => ShellScriptStyle::PosixSh,
+            ShellScriptStyle::Zsh => ShellScriptStyle::PowerShell,
+            ShellScriptStyle::PowerShell => ShellScriptStyle::Cmd,
+            ShellScriptStyle::Cmd => ShellScriptStyle::Nushell,
+            ShellScriptStyle::Nushell => ShellScriptStyle::Elvish,
+            ShellScriptStyle::Elvish => ShellScriptStyle::PosixSh,
         };
         self.load_fields_for_style(self.selected_style);
         self.status = None;

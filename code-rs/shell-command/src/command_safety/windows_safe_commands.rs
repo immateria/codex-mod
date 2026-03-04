@@ -7,15 +7,18 @@ use std::sync::LazyLock;
 
 const POWERSHELL_PARSER_SCRIPT: &str = include_str!("powershell_parser.ps1");
 
-/// On Windows, we conservatively allow only clearly read-only PowerShell invocations
-/// that match a small safelist. Anything else (including direct CMD commands) is unsafe.
+/// Parse and validate read-only PowerShell invocations against a small safelist.
+///
+/// This is intentionally PowerShell-specific: callers may still auto-approve
+/// other read-only commands via non-PowerShell rules (for example an argv
+/// safelist or POSIX-shell wrapper parsing).
 pub fn is_safe_command_windows(command: &[String]) -> bool {
     if let Some(commands) = try_parse_powershell_command_sequence(command) {
         commands
             .iter()
             .all(|cmd| is_safe_powershell_command(cmd.as_slice()))
     } else {
-        // Only PowerShell invocations are allowed on Windows for now; anything else is unsafe.
+        // Not a PowerShell invocation we can prove safe.
         false
     }
 }
