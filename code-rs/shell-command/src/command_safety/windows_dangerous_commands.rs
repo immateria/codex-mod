@@ -106,6 +106,33 @@ fn is_dangerous_powershell(command: &[String]) -> bool {
     if !is_powershell_executable(exe) {
         return false;
     }
+
+    // Treat opaque/scripted PowerShell entry points as dangerous. We cannot
+    // safely reason about what the script does without executing it.
+    if rest.iter().any(|arg| {
+        let lowered = arg
+            .trim_matches('\'')
+            .trim_matches('"')
+            .to_ascii_lowercase();
+        let lowered = lowered.as_str();
+
+        // `-EncodedCommand` / `-enc` hides the script body behind base64.
+        lowered == "-encodedcommand"
+            || lowered == "-enc"
+            || lowered.starts_with("-encodedcommand:")
+            || lowered.starts_with("-encodedcommand=")
+            || lowered.starts_with("-enc:")
+            || lowered.starts_with("-enc=")
+            // `-File` runs an opaque script file.
+            || lowered == "-file"
+            || lowered == "/file"
+            || lowered.starts_with("-file:")
+            || lowered.starts_with("-file=")
+            || lowered.starts_with("/file:")
+            || lowered.starts_with("/file=")
+    }) {
+        return true;
+    }
     // Parse the PowerShell invocation to get a flat token list we can scan for
     // dangerous cmdlets/COM calls plus any URL-looking arguments. This is a
     // best-effort shlex split of the script text, not a full PS parser.
@@ -520,6 +547,29 @@ mod tests {
             "powershell",
             "-Command",
             "Start-Process notepad.exe"
+        ])));
+    }
+
+    #[test]
+    fn powershell_encoded_command_is_dangerous() {
+        assert!(is_dangerous_command_windows(&vec_str(&[
+            "powershell",
+            "-EncodedCommand",
+            "AAAA"
+        ])));
+    }
+
+    #[test]
+    fn powershell_enc_alias_is_dangerous() {
+        assert!(is_dangerous_command_windows(&vec_str(&["powershell", "-enc", "AAAA"])));
+    }
+
+    #[test]
+    fn powershell_file_is_dangerous() {
+        assert!(is_dangerous_command_windows(&vec_str(&[
+            "powershell",
+            "-File",
+            "script.ps1"
         ])));
     }
 
