@@ -75,6 +75,10 @@ fn format_secs_for_edit(duration: Duration) -> String {
 
 fn parse_secs_field(label: &str, text: &str) -> Result<Option<Duration>, String> {
     let trimmed = text.trim();
+    let trimmed = trimmed
+        .strip_suffix('s')
+        .or_else(|| trimmed.strip_suffix('S'))
+        .unwrap_or(trimmed);
     if trimmed.is_empty() {
         return Ok(None);
     }
@@ -173,6 +177,7 @@ impl ServerSchedulingEditor {
     }
 
     fn selected(&self) -> ServerRow {
+        debug_assert!(self.selected_row < SERVER_ROWS.len());
         SERVER_ROWS
             .get(self.selected_row)
             .copied()
@@ -291,6 +296,7 @@ impl ToolSchedulingEditor {
     }
 
     fn selected(&self) -> ToolRow {
+        debug_assert!(self.selected_row < TOOL_ROWS.len());
         TOOL_ROWS
             .get(self.selected_row)
             .copied()
@@ -392,7 +398,19 @@ impl ToolSchedulingEditor {
 
     fn commit(&mut self) -> Result<Option<McpToolSchedulingOverrideToml>, String> {
         let min_interval_sec = if self.override_min_interval {
-            parse_secs_field("Min interval", self.min_interval_field.text())?
+            let raw = self.min_interval_field.text().trim();
+            if raw.is_empty() {
+                return Err(
+                    "Min interval: enter a value or toggle override off".to_string(),
+                );
+            }
+            let parsed = parse_secs_field("Min interval", raw)?;
+            let Some(value) = parsed else {
+                return Err(
+                    "Min interval: enter a value or toggle override off".to_string(),
+                );
+            };
+            Some(value)
         } else {
             None
         };
@@ -492,22 +510,7 @@ impl McpSettingsView {
                 ..
             } if modifiers.contains(KeyModifiers::CONTROL)
         ) {
-            match editor.commit() {
-                Ok(cfg) => {
-                    self.app_event_tx.send(AppEvent::SetMcpServerScheduling {
-                        server: editor.server.clone(),
-                        scheduling: cfg.clone(),
-                    });
-                    if let Some(row) = self.rows.iter_mut().find(|r| r.name == editor.server) {
-                        row.scheduling = cfg;
-                    }
-                    return (true, true);
-                }
-                Err(err) => {
-                    editor.error = Some(err);
-                    return (true, false);
-                }
-            }
+            return self.save_server_editor(editor);
         }
 
         let selected = editor.selected();
@@ -616,26 +619,7 @@ impl McpSettingsView {
                         true
                     }
                     ServerRow::Save => {
-                        match editor.commit() {
-                            Ok(cfg) => {
-                                self.app_event_tx.send(AppEvent::SetMcpServerScheduling {
-                                    server: editor.server.clone(),
-                                    scheduling: cfg.clone(),
-                                });
-                                if let Some(row) = self
-                                    .rows
-                                    .iter_mut()
-                                    .find(|r| r.name == editor.server)
-                                {
-                                    row.scheduling = cfg;
-                                }
-                                return (true, true);
-                            }
-                            Err(err) => {
-                                editor.error = Some(err);
-                                true
-                            }
-                        }
+                        return self.save_server_editor(editor);
                     }
                     ServerRow::Cancel => {
                         return (true, true);
@@ -657,6 +641,25 @@ impl McpSettingsView {
         (handled, false)
     }
 
+    fn save_server_editor(&mut self, editor: &mut ServerSchedulingEditor) -> (bool, bool) {
+        match editor.commit() {
+            Ok(cfg) => {
+                self.app_event_tx.send(AppEvent::SetMcpServerScheduling {
+                    server: editor.server.clone(),
+                    scheduling: cfg.clone(),
+                });
+                if let Some(row) = self.rows.iter_mut().find(|r| r.name == editor.server) {
+                    row.scheduling = cfg;
+                }
+                (true, true)
+            }
+            Err(err) => {
+                editor.error = Some(err);
+                (true, false)
+            }
+        }
+    }
+
     fn step_tool_editor_key(
         &mut self,
         editor: &mut ToolSchedulingEditor,
@@ -676,31 +679,7 @@ impl McpSettingsView {
                 ..
             } if modifiers.contains(KeyModifiers::CONTROL)
         ) {
-            match editor.commit() {
-                Ok(cfg_opt) => {
-                    self.app_event_tx.send(AppEvent::SetMcpToolSchedulingOverride {
-                        server: editor.server.clone(),
-                        tool: editor.tool.clone(),
-                        override_cfg: cfg_opt.clone(),
-                    });
-                    if let Some(row) = self.rows.iter_mut().find(|r| r.name == editor.server) {
-                        let tool_key = editor.tool.trim();
-                        if !tool_key.is_empty() {
-                            if let Some(cfg) = cfg_opt.as_ref() {
-                                row.tool_scheduling
-                                    .insert(tool_key.to_string(), cfg.clone());
-                            } else {
-                                row.tool_scheduling.remove(tool_key);
-                            }
-                        }
-                    }
-                    return (true, true);
-                }
-                Err(err) => {
-                    editor.error = Some(err);
-                    return (true, false);
-                }
-            }
+            return self.save_tool_editor(editor);
         }
 
         let selected = editor.selected();
@@ -797,32 +776,7 @@ impl McpSettingsView {
                     true
                 }
                 ToolRow::Save => {
-                    match editor.commit() {
-                        Ok(cfg_opt) => {
-                            self.app_event_tx.send(AppEvent::SetMcpToolSchedulingOverride {
-                                server: editor.server.clone(),
-                                tool: editor.tool.clone(),
-                                override_cfg: cfg_opt.clone(),
-                            });
-                            if let Some(row) = self.rows.iter_mut().find(|r| r.name == editor.server)
-                            {
-                                let tool_key = editor.tool.trim();
-                                if !tool_key.is_empty() {
-                                    if let Some(cfg) = cfg_opt.as_ref() {
-                                        row.tool_scheduling
-                                            .insert(tool_key.to_string(), cfg.clone());
-                                    } else {
-                                        row.tool_scheduling.remove(tool_key);
-                                    }
-                                }
-                            }
-                            return (true, true);
-                        }
-                        Err(err) => {
-                            editor.error = Some(err);
-                            true
-                        }
-                    }
+                    return self.save_tool_editor(editor);
                 }
                 ToolRow::Cancel => {
                     return (true, true);
@@ -834,6 +788,33 @@ impl McpSettingsView {
         (handled, false)
     }
 
+    fn save_tool_editor(&mut self, editor: &mut ToolSchedulingEditor) -> (bool, bool) {
+        match editor.commit() {
+            Ok(cfg_opt) => {
+                self.app_event_tx.send(AppEvent::SetMcpToolSchedulingOverride {
+                    server: editor.server.clone(),
+                    tool: editor.tool.clone(),
+                    override_cfg: cfg_opt.clone(),
+                });
+                if let Some(row) = self.rows.iter_mut().find(|r| r.name == editor.server) {
+                    let tool_key = editor.tool.trim();
+                    if !tool_key.is_empty() {
+                        if let Some(cfg) = cfg_opt.as_ref() {
+                            row.tool_scheduling.insert(tool_key.to_string(), cfg.clone());
+                        } else {
+                            row.tool_scheduling.remove(tool_key);
+                        }
+                    }
+                }
+                (true, true)
+            }
+            Err(err) => {
+                editor.error = Some(err);
+                (true, false)
+            }
+        }
+    }
+
     pub(super) fn handle_policy_editor_mouse(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         match mouse_event.kind {
             MouseEventKind::Down(MouseButton::Left) => {}
@@ -843,16 +824,21 @@ impl McpSettingsView {
         let outer = Block::default().borders(Borders::ALL).inner(area);
         let overlay = centered_overlay_rect(outer, 76, 14);
         let inner = Block::default().borders(Borders::ALL).inner(overlay);
-        // Row rendering starts after the help line (and the effective preview line for tools).
-        let row_start_y = match &self.mode {
-            McpSettingsMode::EditToolScheduling(_) => inner.y.saturating_add(2),
-            McpSettingsMode::EditServerScheduling(_) => inner.y.saturating_add(1),
-            McpSettingsMode::Main => inner.y.saturating_add(1),
+        let (row_start_y, row_count) = match &self.mode {
+            McpSettingsMode::EditToolScheduling(_) => (inner.y.saturating_add(2), TOOL_ROWS.len()),
+            McpSettingsMode::EditServerScheduling(_) => {
+                (inner.y.saturating_add(1), SERVER_ROWS.len())
+            }
+            McpSettingsMode::Main => return false,
         };
-        if mouse_event.row < row_start_y || mouse_event.row >= inner.y + inner.height {
+        let rows_end_y = inner.y.saturating_add(inner.height).saturating_sub(1);
+        if mouse_event.row < row_start_y || mouse_event.row >= rows_end_y {
             return false;
         }
         let idx = mouse_event.row.saturating_sub(row_start_y) as usize;
+        if idx >= row_count {
+            return false;
+        }
 
         let mut activate = false;
         let mode = std::mem::replace(&mut self.mode, McpSettingsMode::Main);
@@ -929,9 +915,10 @@ impl McpSettingsView {
             .clamp(12, 28);
         let value_width = inner.width.saturating_sub(label_width);
 
+        let rows_end_y = inner.y.saturating_add(inner.height).saturating_sub(1);
         let mut y = inner.y.saturating_add(1);
         for (idx, row) in SERVER_ROWS.iter().enumerate() {
-            if y >= inner.y + inner.height {
+            if y >= rows_end_y {
                 break;
             }
             let selected = idx == editor.selected_row;
@@ -993,7 +980,7 @@ impl McpSettingsView {
             if let Some((field, focused)) = field_opt {
                 field.render(value_rect, buf, focused);
             } else {
-                let value = value_text.unwrap_or_else(|| "".to_string());
+                let value = value_text.unwrap_or_default();
                 Paragraph::new(Line::from(vec![Span::styled(value, value_style)]))
                     .render(value_rect, buf);
             }
@@ -1003,7 +990,7 @@ impl McpSettingsView {
         if let Some(err) = editor.error.as_deref() {
             let err_area = Rect {
                 x: inner.x,
-                y: inner.y.saturating_add(inner.height.saturating_sub(1)),
+                y: rows_end_y,
                 width: inner.width,
                 height: 1,
             };
@@ -1043,9 +1030,14 @@ impl McpSettingsView {
         let override_min_interval_text = editor.min_interval_field.text();
         let (override_min_interval_value, override_min_interval_invalid) =
             if editor.override_min_interval {
-                match parse_secs_field("Min interval", override_min_interval_text) {
-                    Ok(v) => (v, false),
-                    Err(_) => (None, true),
+                if override_min_interval_text.trim().is_empty() {
+                    (None, true)
+                } else {
+                    match parse_secs_field("Min interval", override_min_interval_text) {
+                        Ok(Some(v)) => (Some(v), false),
+                        Ok(None) => (None, true),
+                        Err(_) => (None, true),
+                    }
                 }
             } else {
                 (None, false)
@@ -1115,9 +1107,10 @@ impl McpSettingsView {
             .clamp(12, 30);
         let value_width = inner.width.saturating_sub(label_width);
 
+        let rows_end_y = inner.y.saturating_add(inner.height).saturating_sub(1);
         let mut y = inner.y.saturating_add(2);
         for (idx, row) in TOOL_ROWS.iter().enumerate() {
-            if y >= inner.y + inner.height {
+            if y >= rows_end_y {
                 break;
             }
             let selected = idx == editor.selected_row;
@@ -1190,7 +1183,7 @@ impl McpSettingsView {
             if let Some((field, focused)) = field_opt {
                 field.render(value_rect, buf, focused);
             } else {
-                let value = value_text.unwrap_or_else(|| "".to_string());
+                let value = value_text.unwrap_or_default();
                 Paragraph::new(Line::from(vec![Span::styled(value, value_style)]))
                     .render(value_rect, buf);
             }
@@ -1200,7 +1193,7 @@ impl McpSettingsView {
         if let Some(err) = editor.error.as_deref() {
             let err_area = Rect {
                 x: inner.x,
-                y: inner.y.saturating_add(inner.height.saturating_sub(1)),
+                y: rows_end_y,
                 width: inner.width,
                 height: 1,
             };
