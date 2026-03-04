@@ -648,8 +648,16 @@ impl McpSettingsView {
     }
 
     pub(super) fn tools_lines(&self, width: usize) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
         let entries = self.tool_entries();
+        self.tools_lines_for_entries(width, &entries)
+    }
+
+    pub(super) fn tools_lines_for_entries(
+        &self,
+        width: usize,
+        entries: &[McpToolEntry<'_>],
+    ) -> Vec<Line<'static>> {
+        let mut lines = Vec::new();
         let selected_style = Style::default()
             .bg(crate::colors::selection())
             .add_modifier(Modifier::BOLD);

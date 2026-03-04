@@ -12,12 +12,14 @@ use ratatui::widgets::{
     Wrap,
 };
 
-use crate::ui_interaction::{redraw_if, render_vertical_scrollbar};
+use crate::ui_interaction::{inset_rect_right, redraw_if, render_vertical_scrollbar};
 
 use super::super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::super::BottomPane;
 use super::layout::{McpPaneHit, McpViewLayout};
 use super::{McpSettingsFocus, McpSettingsMode, McpSettingsView};
+
+const MCP_SETTINGS_DESIRED_HEIGHT: u16 = 16;
 
 impl McpSettingsView {
     fn pane_border_style(&self, focused_pane: McpSettingsFocus, pane_hit: McpPaneHit) -> Style {
@@ -58,12 +60,17 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        16
+        // Keep MCP settings stable; the view can scroll in stacked mode when content grows.
+        MCP_SETTINGS_DESIRED_HEIGHT
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
         Clear.render(area, buf);
         self.last_render_area.set(Some(area));
+        let Some(layout) = McpViewLayout::from_area_with_scroll(area, self.stacked_scroll_top) else {
+            return;
+        };
+
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(crate::colors::border()))
@@ -75,10 +82,6 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
             .title(" MCP Servers ")
             .title_alignment(Alignment::Center);
         block.render(area, buf);
-
-        let Some(layout) = McpViewLayout::from_area_with_scroll(area, self.stacked_scroll_top) else {
-            return;
-        };
 
         let list_block = Block::default()
             .borders(Borders::ALL)
@@ -164,7 +167,7 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
         tools_block.render(layout.tools_rect, buf);
 
         let tool_entries = self.tool_entries();
-        let tool_lines = self.tools_lines(layout.tools_inner.width as usize);
+        let tool_lines = self.tools_lines_for_entries(layout.tools_inner.width as usize, &tool_entries);
         let tools_scroll_top = self.tools_scroll_top(layout.tools_inner.height);
         Paragraph::new(tool_lines)
             .style(
@@ -191,7 +194,7 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
             let viewport_len = layout.stack_viewport.height as usize;
             render_vertical_scrollbar(
                 buf,
-                layout.stack_viewport,
+                inset_rect_right(layout.stack_viewport, 1),
                 layout.stack_scroll_top,
                 layout.stack_max_scroll,
                 viewport_len,
@@ -222,7 +225,7 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
                     Span::styled(" /mcp status  ", Style::default().fg(crate::colors::text_dim())),
                     Span::styled("W", Style::default().fg(crate::colors::function())),
                     Span::styled(
-                        format!(" wrap:{}  ", if self.summary_wrap { "on" } else { "off" }),
+                        if self.summary_wrap { " wrap:on  " } else { " wrap:off  " },
                         Style::default().fg(crate::colors::text_dim()),
                     ),
                     Span::styled("Esc", Style::default().fg(crate::colors::error())),
