@@ -317,7 +317,9 @@ impl McpSettingsView {
         let viewport_len = layout.tools_inner.height as usize;
         if viewport_len > 0 && entries_len > viewport_len {
             let max_scroll = entries_len.saturating_sub(viewport_len);
-            let scroll_top = self.tools_scroll_top(layout.tools_inner.height).min(max_scroll);
+            let scroll_top = self
+                .tools_scroll_top_for_entries_len(layout.tools_inner.height, entries_len)
+                .min(max_scroll);
             let content_length = max_scroll.saturating_add(1);
             if let Some(metrics) = vertical_scrollbar_metrics(
                 tools_scrollbar_area,
@@ -433,7 +435,9 @@ impl McpSettingsView {
                     return self.clear_scrollbar_drag();
                 }
                 let max_scroll = entries_len.saturating_sub(viewport_len);
-                let scroll_top = self.tools_scroll_top(layout.tools_inner.height).min(max_scroll);
+                let scroll_top = self
+                    .tools_scroll_top_for_entries_len(layout.tools_inner.height, entries_len)
+                    .min(max_scroll);
                 let content_length = max_scroll.saturating_add(1);
                 let Some(metrics) =
                     vertical_scrollbar_metrics(

@@ -167,8 +167,12 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
         tools_block.render(layout.tools_rect, buf);
 
         let tool_entries = self.tool_entries();
-        let tool_lines = self.tools_lines_for_entries(layout.tools_inner.width as usize, &tool_entries);
-        let tools_scroll_top = self.tools_scroll_top(layout.tools_inner.height);
+        let tool_lines =
+            self.tools_lines_for_entries(layout.tools_inner.width as usize, &tool_entries);
+        let tools_scroll_top = self.tools_scroll_top_for_entries_len(
+            layout.tools_inner.height,
+            tool_entries.len(),
+        );
         Paragraph::new(tool_lines)
             .style(
                 Style::default()

@@ -647,11 +647,6 @@ impl McpSettingsView {
         lines
     }
 
-    pub(super) fn tools_lines(&self, width: usize) -> Vec<Line<'static>> {
-        let entries = self.tool_entries();
-        self.tools_lines_for_entries(width, &entries)
-    }
-
     pub(super) fn tools_lines_for_entries(
         &self,
         width: usize,
