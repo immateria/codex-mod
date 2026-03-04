@@ -3810,7 +3810,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
         chat.handle_key_event(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL));
 
         // Move to Apply and activate.
-        for _ in 0..2 {
+        for _ in 0..4 {
             chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
         }
         chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));

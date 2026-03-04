@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::time::{Duration, Instant};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
@@ -29,6 +30,8 @@ const DEFAULT_VISIBLE_ROWS: usize = 8;
 enum RowKind {
     PidsMax,
     MemoryMax,
+    ResetBothAuto,
+    DisableBoth,
     Apply,
     Close,
 }
@@ -52,6 +55,8 @@ enum ViewMode {
 
 pub(crate) struct ExecLimitsSettingsView {
     settings: code_core::config::ExecLimitsToml,
+    last_applied: code_core::config::ExecLimitsToml,
+    last_apply_at: Option<Instant>,
     mode: ViewMode,
     state: Cell<ScrollState>,
     viewport_rows: Cell<usize>,
@@ -66,8 +71,11 @@ impl ExecLimitsSettingsView {
     ) -> Self {
         let mut state = ScrollState::new();
         state.selected_idx = Some(0);
+        let last_applied = settings.clone();
         Self {
             settings,
+            last_applied,
+            last_apply_at: None,
             mode: ViewMode::Main,
             state: Cell::new(state),
             viewport_rows: Cell::new(DEFAULT_VISIBLE_ROWS),
@@ -76,8 +84,15 @@ impl ExecLimitsSettingsView {
         }
     }
 
-    fn build_rows() -> [RowKind; 4] {
-        [RowKind::PidsMax, RowKind::MemoryMax, RowKind::Apply, RowKind::Close]
+    fn build_rows() -> [RowKind; 6] {
+        [
+            RowKind::PidsMax,
+            RowKind::MemoryMax,
+            RowKind::ResetBothAuto,
+            RowKind::DisableBoth,
+            RowKind::Apply,
+            RowKind::Close,
+        ]
     }
 
     fn format_limit_pids(limit: code_core::config::ExecLimitToml) -> String {
@@ -112,15 +127,45 @@ impl ExecLimitsSettingsView {
         ))];
 
         #[cfg(target_os = "linux")]
-        lines.push(Line::from(Span::styled(
-            "Linux: enforced via cgroup v2 when available.",
-            hint,
-        )));
+        {
+            lines.push(Line::from(Span::styled(
+                "Linux: enforced via cgroup v2 when available.",
+                hint,
+            )));
+
+            // Make "Auto" less opaque by showing what it would currently resolve to.
+            let auto_pids = code_core::config::exec_limits_auto_pids_max();
+            let auto_mem_bytes = code_core::config::exec_limits_auto_memory_max_bytes();
+            let auto_mem_mib = auto_mem_bytes.map(|b| (b.saturating_add(1024 * 1024 - 1)) / (1024 * 1024));
+            let auto_line = match (auto_pids, auto_mem_mib) {
+                (Some(pids), Some(mib)) => format!("Auto currently: pids_max={pids} · memory_max={mib} MiB"),
+                (Some(pids), None) => format!("Auto currently: pids_max={pids}"),
+                (None, Some(mib)) => format!("Auto currently: memory_max={mib} MiB"),
+                (None, None) => "Auto currently: (not available)".to_string(),
+            };
+            lines.push(Line::from(Span::styled(auto_line, hint)));
+        }
         #[cfg(not(target_os = "linux"))]
         lines.push(Line::from(Span::styled(
             "This platform: best-effort (no cgroup enforcement yet).",
             hint,
         )));
+
+        let is_dirty = self.settings != self.last_applied;
+        if is_dirty {
+            lines.push(Line::from(Span::styled(
+                "Pending changes: select Apply to save.",
+                Style::default().fg(colors::warning()),
+            )));
+        } else if self
+            .last_apply_at
+            .is_some_and(|t| t.elapsed() < Duration::from_secs(2))
+        {
+            lines.push(Line::from(Span::styled(
+                "Applied.",
+                Style::default().fg(colors::success()),
+            )));
+        }
 
         lines.push(Line::from(""));
         lines
@@ -145,7 +190,7 @@ impl ExecLimitsSettingsView {
 
     fn open_edit_for(&mut self, target: EditTarget) {
         let mut field = FormTextField::new_single_line();
-        field.set_placeholder("enter a number");
+        field.set_placeholder("number, auto, or disabled");
         match target {
             EditTarget::PidsMax => {
                 if let code_core::config::ExecLimitToml::Value(v) = self.settings.pids_max {
@@ -200,9 +245,27 @@ impl ExecLimitsSettingsView {
         match row {
             RowKind::PidsMax => self.cycle_limit(EditTarget::PidsMax),
             RowKind::MemoryMax => self.cycle_limit(EditTarget::MemoryMax),
+            RowKind::ResetBothAuto => {
+                self.settings.pids_max = code_core::config::ExecLimitToml::Mode(
+                    code_core::config::ExecLimitModeToml::Auto,
+                );
+                self.settings.memory_max_mb = code_core::config::ExecLimitToml::Mode(
+                    code_core::config::ExecLimitModeToml::Auto,
+                );
+            }
+            RowKind::DisableBoth => {
+                self.settings.pids_max = code_core::config::ExecLimitToml::Mode(
+                    code_core::config::ExecLimitModeToml::Disabled,
+                );
+                self.settings.memory_max_mb = code_core::config::ExecLimitToml::Mode(
+                    code_core::config::ExecLimitModeToml::Disabled,
+                );
+            }
             RowKind::Apply => {
                 self.app_event_tx
                     .send(AppEvent::SetExecLimitsSettings(self.settings.clone()));
+                self.last_applied = self.settings.clone();
+                self.last_apply_at = Some(Instant::now());
             }
             RowKind::Close => self.is_complete = true,
         }
@@ -293,21 +356,51 @@ impl ExecLimitsSettingsView {
                         self.mode = ViewMode::Main;
                         return true;
                     }
-                    (KeyCode::Char('s'), KeyModifiers::CONTROL) => {
+                    (KeyCode::Char('s'), KeyModifiers::CONTROL) | (KeyCode::Enter, _) => {
                         let text = field.text().trim();
+                        if text.is_empty() {
+                            error = Some("Enter a number, or \"auto\"/\"disabled\"".to_string());
+                            self.mode = ViewMode::Edit { target, field, error };
+                            return true;
+                        }
+
+                        let lowered = text.to_ascii_lowercase();
+                        if lowered == "auto" {
+                            self.set_limit(
+                                target,
+                                code_core::config::ExecLimitToml::Mode(
+                                    code_core::config::ExecLimitModeToml::Auto,
+                                ),
+                            );
+                            self.mode = ViewMode::Main;
+                            return true;
+                        }
+                        if lowered == "disabled" || lowered == "disable" {
+                            self.set_limit(
+                                target,
+                                code_core::config::ExecLimitToml::Mode(
+                                    code_core::config::ExecLimitModeToml::Disabled,
+                                ),
+                            );
+                            self.mode = ViewMode::Main;
+                            return true;
+                        }
+
                         let parsed: u64 = match text.parse() {
                             Ok(v) if v >= 1 => v,
                             Ok(_) => {
-                                error = Some("Value must be >= 1".to_string());
+                                error = Some("Value must be >= 1 (or \"disabled\")".to_string());
                                 self.mode = ViewMode::Edit { target, field, error };
                                 return true;
                             }
                             Err(_) => {
-                                error = Some("Value must be an integer".to_string());
+                                error =
+                                    Some("Value must be an integer (or \"auto\"/\"disabled\")".to_string());
                                 self.mode = ViewMode::Edit { target, field, error };
                                 return true;
                             }
                         };
+
                         self.set_limit(target, code_core::config::ExecLimitToml::Value(parsed));
                         self.mode = ViewMode::Main;
                         return true;
@@ -518,10 +611,26 @@ impl ExecLimitsSettingsView {
             .take(end.saturating_sub(start))
         {
             let is_selected = abs_idx == selected_idx;
+            let is_dirty = self.settings != self.last_applied;
             let (label, value) = match row {
-                RowKind::PidsMax => ("Process limit (pids.max)", Self::format_limit_pids(self.settings.pids_max)),
-                RowKind::MemoryMax => ("Memory limit (memory.max)", Self::format_limit_memory(self.settings.memory_max_mb)),
-                RowKind::Apply => ("Apply", "".to_string()),
+                RowKind::PidsMax => (
+                    "Process limit (pids.max)",
+                    Self::format_limit_pids(self.settings.pids_max),
+                ),
+                RowKind::MemoryMax => (
+                    "Memory limit (memory.max)",
+                    Self::format_limit_memory(self.settings.memory_max_mb),
+                ),
+                RowKind::ResetBothAuto => ("Reset both to Auto", "".to_string()),
+                RowKind::DisableBoth => ("Disable both", "".to_string()),
+                RowKind::Apply => (
+                    "Apply",
+                    if is_dirty {
+                        "Pending".to_string()
+                    } else {
+                        "Saved".to_string()
+                    },
+                ),
                 RowKind::Close => ("Close", "".to_string()),
             };
 
@@ -586,7 +695,7 @@ impl ExecLimitsSettingsView {
 
         let hint = Style::default().fg(colors::text_dim());
         let mut lines: Vec<Line<'static>> = vec![
-            Line::from(Span::styled("Ctrl+S save · Esc cancel", hint)),
+            Line::from(Span::styled("Enter/Ctrl+S save · Esc cancel", hint)),
             Line::from(""),
             Line::from(Span::styled("Value:", hint)),
         ];
@@ -608,7 +717,7 @@ impl ExecLimitsSettingsView {
             )));
         } else {
             lines.push(Line::from(Span::styled(
-                "Tip: use \"Disabled\" mode to remove the cap.",
+                "Tip: type \"auto\" or \"disabled\".",
                 hint,
             )));
         }
@@ -677,12 +786,13 @@ mod tests {
     use std::sync::mpsc;
 
     use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use ratatui::widgets::{Block, Borders};
     use ratatui::layout::Rect;
 
     use crate::app_event::AppEvent;
     use crate::app_event_sender::AppEventSender;
 
-    use super::ExecLimitsSettingsView;
+    use super::{ExecLimitsSettingsView, RowKind};
 
     #[test]
     fn mouse_click_apply_emits_set_exec_limits_event() {
@@ -691,17 +801,24 @@ mod tests {
         let settings = code_core::config::ExecLimitsToml::default();
         let mut view = ExecLimitsSettingsView::new(settings, app_event_tx);
 
-        // Click the "Apply" row: inner.y=1, header_lines=3 => row index 2 at y=6 for this size.
         let area = Rect {
             x: 0,
             y: 0,
             width: 80,
             height: 12,
         };
+
+        let inner = Block::default().borders(Borders::ALL).inner(area);
+        let header_height = view.render_header_lines().len() as u16;
+        let apply_idx = ExecLimitsSettingsView::build_rows()
+            .iter()
+            .position(|row| *row == RowKind::Apply)
+            .expect("apply row");
+
         let mouse_event = MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
-            column: 2,
-            row: 6,
+            column: inner.x.saturating_add(2),
+            row: inner.y.saturating_add(header_height).saturating_add(apply_idx as u16),
             modifiers: KeyModifiers::NONE,
         };
 

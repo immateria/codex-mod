@@ -63,6 +63,11 @@ pub(crate) fn default_exec_memory_max_bytes() -> Option<u64> {
         ExecLimitOverride::Auto => {}
     }
 
+    auto_exec_memory_max_bytes()
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn auto_exec_memory_max_bytes() -> Option<u64> {
     if let Ok(raw) = std::env::var("CODEX_EXEC_MEMORY_MAX_BYTES") {
         if let Ok(value) = raw.trim().parse::<u64>() {
             if value > 0 {
@@ -103,6 +108,11 @@ pub(crate) fn default_exec_pids_max() -> Option<u64> {
         ExecLimitOverride::Auto => {}
     }
 
+    auto_exec_pids_max()
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn auto_exec_pids_max() -> Option<u64> {
     if let Ok(raw) = std::env::var("CODEX_EXEC_PIDS_MAX") {
         if let Ok(value) = raw.trim().parse::<u64>() {
             if value >= 1 {

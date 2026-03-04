@@ -1148,10 +1148,28 @@ pub fn exec_limits_current_pids_max() -> Option<u64> {
     None
 }
 
+pub fn exec_limits_auto_pids_max() -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        return crate::cgroup::auto_exec_pids_max();
+    }
+    #[cfg(not(target_os = "linux"))]
+    None
+}
+
 pub fn exec_limits_current_memory_max_bytes() -> Option<u64> {
     #[cfg(target_os = "linux")]
     {
         return crate::cgroup::default_exec_memory_max_bytes();
+    }
+    #[cfg(not(target_os = "linux"))]
+    None
+}
+
+pub fn exec_limits_auto_memory_max_bytes() -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        return crate::cgroup::auto_exec_memory_max_bytes();
     }
     #[cfg(not(target_os = "linux"))]
     None
