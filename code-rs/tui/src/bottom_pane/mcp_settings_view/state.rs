@@ -32,6 +32,7 @@ impl McpSettingsView {
         } else if self.selected == self.add_index() {
             McpSelectionKey::Add
         } else {
+            debug_assert_eq!(self.selected, self.close_index());
             McpSelectionKey::Close
         }
     }
@@ -75,6 +76,7 @@ impl McpSettingsView {
         if let Some(idx) = entries.iter().position(|entry| entry.name == expanded_tool_name) {
             self.tools_selected = idx;
             self.summary_scroll_top = 0;
+            self.summary_hscroll = 0;
         } else {
             self.expanded_tool_by_server.remove(&server_name);
         }
@@ -102,29 +104,39 @@ impl McpSettingsView {
     }
 
     pub(crate) fn restore_state(&mut self, state: &McpSettingsViewState) {
-        let selected = self.selection_index_from_key(&state.selection);
-        self.set_selected(selected);
         self.summary_wrap = state.summary_wrap;
         self.stacked_scroll_top = state.stacked_scroll_top;
+        self.expanded_tool_by_server = state.expanded_tool_by_server.clone();
+
+        let selected = self.selection_index_from_key(&state.selection);
+        self.set_selected(selected);
+
         self.summary_scroll_top = state.summary_scroll_top;
         self.summary_hscroll = state.summary_hscroll;
-        self.tools_selected = state.tools_selected;
-        self.expanded_tool_by_server = state.expanded_tool_by_server.clone();
+        let has_expanded_tool = self
+            .selected_server()
+            .is_some_and(|row| self.expanded_tool_by_server.contains_key(&row.name));
+        if !has_expanded_tool {
+            self.tools_selected = state.tools_selected;
+        }
         self.set_focus(state.focus);
     }
 
     pub(super) fn cycle_focus(&mut self, reverse: bool) {
-        let has_tools = !self.tool_entries().is_empty();
-        let order = if has_tools {
-            [
+        let has_tools = self.selected_server().is_some_and(|row| {
+            row.tools.iter().any(|tool| !tool.trim().is_empty())
+                || row.disabled_tools.iter().any(|tool| !tool.trim().is_empty())
+        });
+        let order: &[McpSettingsFocus] = if has_tools {
+            &[
                 McpSettingsFocus::Servers,
                 McpSettingsFocus::Summary,
                 McpSettingsFocus::Tools,
             ]
         } else {
-            [McpSettingsFocus::Servers, McpSettingsFocus::Summary, McpSettingsFocus::Summary]
+            &[McpSettingsFocus::Servers, McpSettingsFocus::Summary]
         };
-        let current_idx = match self.focus {
+        let current_idx: usize = match self.focus {
             McpSettingsFocus::Servers => 0,
             McpSettingsFocus::Summary => 1,
             McpSettingsFocus::Tools => {
@@ -137,16 +149,12 @@ impl McpSettingsView {
         };
         let next_idx = if reverse {
             if current_idx == 0 {
-                if has_tools { 2 } else { 1 }
+                order.len().saturating_sub(1)
             } else {
                 current_idx - 1
             }
-        } else if has_tools {
-            (current_idx + 1) % 3
-        } else if current_idx == 0 {
-            1
         } else {
-            0
+            (current_idx + 1) % order.len()
         };
         self.set_focus(order[next_idx]);
     }
@@ -185,15 +193,15 @@ impl McpSettingsView {
     }
 
     pub(super) fn on_enter_server_selection(&mut self) {
-        match self.selected {
-            idx if idx < self.rows.len() => self.on_toggle_server(),
-            idx if idx == self.refresh_index() => self.request_refresh(),
-            idx if idx == self.add_index() => {
+        match self.selection_key() {
+            McpSelectionKey::Server(_) => self.on_toggle_server(),
+            McpSelectionKey::Refresh => self.request_refresh(),
+            McpSelectionKey::Add => {
                 self.app_event_tx
                     .send(AppEvent::PrefillComposer("/mcp add ".to_string()));
                 self.is_complete = true;
             }
-            _ => {
+            McpSelectionKey::Close => {
                 self.is_complete = true;
             }
         }
@@ -216,9 +224,8 @@ impl McpSettingsView {
 
     pub(super) fn shift_summary_hscroll(&mut self, delta: i32) {
         if delta < 0 {
-            self.summary_hscroll = self
-                .summary_hscroll
-                .saturating_sub(delta.unsigned_abs() as usize);
+            self.summary_hscroll =
+                self.summary_hscroll.saturating_sub(delta.unsigned_abs() as usize);
         } else {
             self.summary_hscroll = self.summary_hscroll.saturating_add(delta as usize);
         }
