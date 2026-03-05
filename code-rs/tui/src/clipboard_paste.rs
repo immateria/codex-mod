@@ -7,7 +7,7 @@ use arboard;
 #[derive(Debug)]
 pub enum PasteImageError {
     ClipboardUnavailable(String),
-    #[allow(dead_code)]
+    #[cfg(feature = "clipboard")]
     NoImage(String),
     DecodeFailed(String),
     EncodeFailed(String),
@@ -18,6 +18,7 @@ impl std::fmt::Display for PasteImageError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PasteImageError::ClipboardUnavailable(msg) => write!(f, "clipboard unavailable: {msg}"),
+            #[cfg(feature = "clipboard")]
             PasteImageError::NoImage(msg) => write!(f, "no image on clipboard: {msg}"),
             PasteImageError::DecodeFailed(msg) => write!(f, "could not decode image: {msg}"),
             PasteImageError::EncodeFailed(msg) => write!(f, "could not encode image: {msg}"),
@@ -27,17 +28,10 @@ impl std::fmt::Display for PasteImageError {
 }
 impl std::error::Error for PasteImageError {}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EncodedImageFormat {
-    Png,
-}
-
 #[derive(Debug, Clone)]
 pub struct PastedImageInfo {
     pub width: u32,
     pub height: u32,
-    #[allow(dead_code)]
-    pub encoded_format: EncodedImageFormat,
 }
 
 /// Capture image from system clipboard, encode to PNG, and return bytes plus metadata.
@@ -73,7 +67,7 @@ pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageErro
     );
     Ok((
         png,
-        PastedImageInfo { width: w, height: h, encoded_format: EncodedImageFormat::Png },
+        PastedImageInfo { width: w, height: h },
     ))
 }
 
@@ -152,7 +146,7 @@ pub fn try_decode_base64_image_to_temp_png(pasted: &str) -> Result<(PathBuf, Pas
     let (_file, path) = tmp.keep().map_err(|e| PasteImageError::IoError(e.error.to_string()))?;
 
     tracing::debug!("decoded pasted base64 image to {w}x{h} PNG at {}", path.to_string_lossy());
-    Ok((path, PastedImageInfo { width: w, height: h, encoded_format: EncodedImageFormat::Png }))
+    Ok((path, PastedImageInfo { width: w, height: h }))
 }
 
 /// Normalize pasted text that may represent a filesystem path.

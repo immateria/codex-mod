@@ -70,7 +70,6 @@ pub fn init(config: &Config) -> Result<(Tui, TerminalInfo)> {
             custom.push(crate::spinner::Spinner {
                 name: name.clone(),
                 label,
-                group: "Custom".to_string(),
                 interval_ms: cs.interval,
                 frames: cs.frames.clone(),
             });

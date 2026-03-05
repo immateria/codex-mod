@@ -77,12 +77,6 @@ pub fn parse_slash_name(line: &str) -> Option<(&str, &str)> {
     Some((name, rest))
 }
 
-/// Parse positional arguments using shlex semantics (supports quoted tokens).
-#[allow(dead_code)]
-pub fn parse_positional_args(rest: &str) -> Vec<String> {
-    Shlex::new(rest).collect()
-}
-
 /// Extracts the unique placeholder variable names from a prompt template.
 ///
 /// A placeholder is any token that matches the pattern `$[A-Z][A-Z0-9_]*`
@@ -243,50 +237,6 @@ pub fn prompt_has_numeric_placeholders(content: &str) -> bool {
     false
 }
 
-/// Extract positional arguments from a composer first line like "/name a b" for a given prompt name.
-/// Returns empty when the command name does not match or when there are no args.
-#[allow(dead_code)]
-pub fn extract_positional_args_for_prompt_line(line: &str, prompt_name: &str) -> Vec<String> {
-    let trimmed = line.trim_start();
-    let Some(rest) = trimmed.strip_prefix('/') else {
-        return Vec::new();
-    };
-    // Require the explicit prompts prefix for custom prompt invocations.
-    let Some(after_prefix) = rest.strip_prefix(&format!("{PROMPTS_CMD_PREFIX}:")) else {
-        return Vec::new();
-    };
-    let mut parts = after_prefix.splitn(2, char::is_whitespace);
-    let cmd = parts.next().unwrap_or("");
-    if cmd != prompt_name {
-        return Vec::new();
-    }
-    let args_str = parts.next().unwrap_or("").trim();
-    if args_str.is_empty() {
-        return Vec::new();
-    }
-    parse_positional_args(args_str)
-}
-
-/// If the prompt only uses numeric placeholders and the first line contains
-/// positional args for it, expand and return Some(expanded); otherwise None.
-#[allow(dead_code)]
-pub fn expand_if_numeric_with_positional_args(
-    prompt: &CustomPrompt,
-    first_line: &str,
-) -> Option<String> {
-    if !prompt_argument_names(&prompt.content).is_empty() {
-        return None;
-    }
-    if !prompt_has_numeric_placeholders(&prompt.content) {
-        return None;
-    }
-    let args = extract_positional_args_for_prompt_line(first_line, &prompt.name);
-    if args.is_empty() {
-        return None;
-    }
-    Some(expand_numeric_placeholders(&prompt.content, &args))
-}
-
 /// Expand `$1..$9` and `$ARGUMENTS` in `content` with values from `args`.
 pub fn expand_numeric_placeholders(content: &str, args: &[String]) -> String {
     let mut out = String::with_capacity(content.len());
@@ -328,21 +278,6 @@ pub fn expand_numeric_placeholders(content: &str, args: &[String]) -> String {
     }
     out.push_str(&content[i..]);
     out
-}
-
-/// Constructs a command text for a custom prompt with arguments.
-/// Returns the text and the cursor position (inside the first double quote).
-#[allow(dead_code)]
-pub fn prompt_command_with_arg_placeholders(name: &str, args: &[String]) -> (String, usize) {
-    let mut text = format!("/{PROMPTS_CMD_PREFIX}:{name}");
-    let mut cursor: usize = text.len();
-    for (i, arg) in args.iter().enumerate() {
-        text.push_str(format!(" {arg}=\"\"").as_str());
-        if i == 0 {
-            cursor = text.len() - 1; // inside first ""
-        }
-    }
-    (text, cursor)
 }
 
 #[cfg(test)]

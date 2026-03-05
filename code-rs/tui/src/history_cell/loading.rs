@@ -1,21 +1,11 @@
 use super::*;
-use crate::history::state::{HistoryId, LoadingState};
+use crate::history::state::LoadingState;
 
 pub(crate) struct LoadingCell {
     state: LoadingState,
 }
 
 impl LoadingCell {
-    pub(crate) fn new(message: String) -> Self {
-        Self {
-            state: LoadingState {
-                id: HistoryId::ZERO,
-                message,
-            },
-        }
-    }
-
-    #[allow(dead_code)]
     pub(crate) fn from_state(state: LoadingState) -> Self {
         Self { state }
     }
@@ -62,9 +52,4 @@ impl HistoryCell for LoadingCell {
     fn is_loading_cell(&self) -> bool {
         true
     }
-}
-
-#[allow(dead_code)]
-pub(crate) fn new_loading_cell(message: String) -> LoadingCell {
-    LoadingCell::new(message)
 }

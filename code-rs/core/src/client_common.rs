@@ -36,7 +36,6 @@ const ENVIRONMENT_CONTEXT_START: &str = "<environment_context>\n\n";
 const ENVIRONMENT_CONTEXT_END: &str = "\n\n</environment_context>";
 
 /// Review thread system prompt. Edit `core/src/review_prompt.md` to customize.
-#[allow(dead_code)]
 pub const REVIEW_PROMPT: &str = include_str!("../review_prompt.md");
 
 /// API request payload for a single model turn
@@ -233,16 +232,6 @@ impl Prompt {
 
     pub fn set_tools(&mut self, tools: Vec<OpenAiTool>) {
         self.tools = tools;
-    }
-
-    /// Creates a formatted user instructions message from a string
-    #[allow(dead_code)]
-    pub(crate) fn format_user_instructions_message(ui: &str) -> ResponseItem {
-        UserInstructions {
-            directory: String::new(),
-            text: ui.to_string(),
-        }
-        .into()
     }
 }
 

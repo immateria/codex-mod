@@ -78,7 +78,6 @@ impl ChatWidget<'_> {
         let hint = "Let's do this! What's your goal?".to_string();
         let status_lines = vec![hint];
         let model = AutoCoordinatorViewModel::Active(AutoActiveViewModel {
-            goal: None,
             status_lines,
             cli_prompt: None,
             cli_context: None,

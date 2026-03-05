@@ -243,19 +243,6 @@ fn to_proto_review_decision(decision: ReviewDecision) -> ProtoReviewDecision {
     }
 }
 
-#[allow(dead_code)]
-trait MutexExt<T> {
-    fn lock_unchecked(&self) -> std::sync::MutexGuard<'_, T>;
-}
-
-#[allow(dead_code)]
-impl<T> MutexExt<T> for Mutex<T> {
-    fn lock_unchecked(&self) -> std::sync::MutexGuard<'_, T> {
-        #[expect(clippy::expect_used)]
-        self.lock().expect("poisoned lock")
-    }
-}
-
 #[derive(Clone)]
 pub(crate) struct TurnContext {
     pub(crate) client: ModelClient,

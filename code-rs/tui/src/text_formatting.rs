@@ -1,26 +1,5 @@
-use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthChar;
 use unicode_width::UnicodeWidthStr;
-
-/// Truncate a tool result to fit within the given height and width. If the text is valid JSON, we format it in a
-/// compact way before truncating. This is a best-effort approach that may not work perfectly for text where one
-/// grapheme spans multiple terminal cells.
-#[allow(dead_code)]
-pub(crate) fn format_and_truncate_tool_result(
-    text: &str,
-    max_lines: usize,
-    line_width: usize,
-) -> String {
-    // Work out the maximum number of graphemes we can display for a result. It's not guaranteed that one grapheme
-    // equals one cell, so we subtract 1 per line as a conservative buffer.
-    let max_graphemes = (max_lines * line_width).saturating_sub(max_lines);
-
-    if let Some(formatted_json) = format_json_compact(text) {
-        truncate_text(&formatted_json, max_graphemes)
-    } else {
-        truncate_text(text, max_graphemes)
-    }
-}
 
 /// Format JSON text in a compact single-line format with spaces to improve Ratatui wrapping. Returns `None` if the
 /// input is not valid JSON.
@@ -64,26 +43,6 @@ pub(crate) fn format_json_compact(text: &str) -> Option<String> {
     }
 
     Some(result)
-}
-
-/// Truncate `text` to at most `max_graphemes` graphemes, avoiding partial graphemes and adding an ellipsis when there
-/// is enough space.
-#[allow(dead_code)]
-pub(crate) fn truncate_text(text: &str, max_graphemes: usize) -> String {
-    let mut graphemes = text.grapheme_indices(true);
-
-    if let Some((byte_index, _)) = graphemes.nth(max_graphemes) {
-        if max_graphemes >= 3 {
-            let mut truncate_graphemes = text.grapheme_indices(true);
-            if let Some((truncate_byte_index, _)) = truncate_graphemes.nth(max_graphemes - 3) {
-                let truncated = &text[..truncate_byte_index];
-                return format!("{truncated}...");
-            }
-        }
-        text[..byte_index].to_string()
-    } else {
-        text.to_string()
-    }
 }
 
 /// Truncate by character count and append a single ellipsis when truncated.

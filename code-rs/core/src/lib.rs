@@ -97,7 +97,6 @@ pub use model_provider_info::built_in_model_providers;
 pub use model_provider_info::create_oss_provider_with_base_url;
 mod conversation_manager;
 pub mod protocol;
-mod event_mapping;
 pub mod review_format;
 #[cfg(test)]
 mod prompt_assembly_tests;
@@ -136,7 +135,7 @@ pub use rollout::RolloutRecorder;
 pub use rollout::SESSIONS_SUBDIR;
 pub use rollout::SessionMeta;
 pub use rollout::fork::fork_rollout;
-pub use rollout::find_conversation_path_by_id_str;
+pub use rollout::list::find_conversation_path_by_id_str;
 pub use rollout::list::ConversationItem;
 pub use rollout::list::ConversationsPage;
 pub use rollout::list::Cursor;

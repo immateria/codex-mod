@@ -79,38 +79,22 @@ impl AutoDriveVariant {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct AutoDriveStyle {
     pub variant: AutoDriveVariant,
     pub frame: FrameStyle,
     pub button: ButtonStyle,
     pub composer: ComposerStyle,
-    pub footer_separator: &'static str,
-    pub summary_style: Style,
 }
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct FrameStyle {
-    pub title_prefix: &'static str,
     pub title_text: &'static str,
-    pub title_suffix: &'static str,
     pub title_style: Style,
     pub border_style: Style,
-    pub border_type: BorderType,
-    pub accent: Option<AccentStyle>,
+    pub accent: Option<Style>,
 }
 
-#[allow(dead_code)]
-#[derive(Clone)]
-pub struct AccentStyle {
-    pub symbol: char,
-    pub style: Style,
-    pub width: u16,
-}
-
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct ButtonStyle {
     pub glyphs: ButtonGlyphs,
@@ -118,7 +102,6 @@ pub struct ButtonStyle {
     pub disabled_style: Style,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub struct ButtonGlyphs {
     pub top_left: char,
@@ -212,16 +195,13 @@ fn sentinel_style() -> AutoDriveStyle {
     AutoDriveStyle {
         variant: AutoDriveVariant::Sentinel,
         frame: FrameStyle {
-            title_prefix: " ▶ ",
             title_text: "Auto Drive",
-            title_suffix: "",
             title_style: Style::default()
                 .fg(colors::text())
                 .add_modifier(Modifier::BOLD),
             border_style: Style::default()
                 .fg(primary)
                 .add_modifier(Modifier::BOLD),
-            border_type: BorderType::Rounded,
             accent: None,
         },
         button: ButtonStyle {
@@ -242,10 +222,6 @@ fn sentinel_style() -> AutoDriveStyle {
                 .add_modifier(Modifier::BOLD),
             border_gradient: Some(auto_drive_border_gradient()),
         },
-        footer_separator: "  •  ",
-        summary_style: Style::default()
-            .fg(primary)
-            .add_modifier(Modifier::BOLD),
     }
 }
 
@@ -254,14 +230,11 @@ fn whisper_style() -> AutoDriveStyle {
     AutoDriveStyle {
         variant: AutoDriveVariant::Whisper,
         frame: FrameStyle {
-            title_prefix: " ∙ ",
             title_text: "Auto Drive",
-            title_suffix: " ∙",
             title_style: Style::default()
                 .fg(colors::text_dim())
                 .add_modifier(Modifier::ITALIC),
             border_style: Style::default().fg(border),
-            border_type: BorderType::Plain,
             accent: None,
         },
         button: ButtonStyle {
@@ -282,10 +255,6 @@ fn whisper_style() -> AutoDriveStyle {
                 .add_modifier(Modifier::ITALIC),
             border_gradient: Some(auto_drive_border_gradient()),
         },
-        footer_separator: "  ∙  ",
-        summary_style: Style::default()
-            .fg(colors::text_dim())
-            .add_modifier(Modifier::ITALIC),
     }
 }
 
@@ -293,21 +262,16 @@ fn beacon_style() -> AutoDriveStyle {
     AutoDriveStyle {
         variant: AutoDriveVariant::Beacon,
         frame: FrameStyle {
-            title_prefix: "",
             title_text: "Auto Drive",
-            title_suffix: "",
             title_style: Style::default()
                 .fg(colors::keyword())
                 .add_modifier(Modifier::BOLD),
             border_style: Style::default().fg(colors::border()),
-            border_type: BorderType::Plain,
-            accent: Some(AccentStyle {
-                symbol: '█',
-                style: Style::default()
+            accent: Some(
+                Style::default()
                     .fg(colors::primary())
                     .add_modifier(Modifier::BOLD),
-                width: 1,
-            }),
+            ),
         },
         button: ButtonStyle {
             glyphs: ButtonGlyphs::heavy(),
@@ -329,10 +293,6 @@ fn beacon_style() -> AutoDriveStyle {
                 .add_modifier(Modifier::BOLD),
             border_gradient: Some(auto_drive_border_gradient()),
         },
-        footer_separator: "  |  ",
-        summary_style: Style::default()
-            .fg(colors::warning())
-            .add_modifier(Modifier::BOLD),
     }
 }
 
@@ -341,16 +301,13 @@ fn horizon_style() -> AutoDriveStyle {
     AutoDriveStyle {
         variant: AutoDriveVariant::Horizon,
         frame: FrameStyle {
-            title_prefix: "━━ ",
             title_text: "Auto Drive",
-            title_suffix: " ━━",
             title_style: Style::default()
                 .fg(info)
                 .add_modifier(Modifier::BOLD),
             border_style: Style::default()
                 .fg(info)
                 .add_modifier(Modifier::BOLD),
-            border_type: BorderType::Double,
             accent: None,
         },
         button: ButtonStyle {
@@ -373,10 +330,6 @@ fn horizon_style() -> AutoDriveStyle {
                 .add_modifier(Modifier::BOLD),
             border_gradient: Some(auto_drive_border_gradient()),
         },
-        footer_separator: "  ≡  ",
-        summary_style: Style::default()
-            .fg(info)
-            .add_modifier(Modifier::BOLD),
     }
 }
 
@@ -385,16 +338,13 @@ fn pulse_style() -> AutoDriveStyle {
     AutoDriveStyle {
         variant: AutoDriveVariant::Pulse,
         frame: FrameStyle {
-            title_prefix: " ◆ ",
             title_text: "Auto Drive",
-            title_suffix: " ◆",
             title_style: Style::default()
                 .fg(success)
                 .add_modifier(Modifier::BOLD),
             border_style: Style::default()
                 .fg(success)
                 .add_modifier(Modifier::BOLD),
-            border_type: BorderType::Thick,
             accent: None,
         },
         button: ButtonStyle {
@@ -417,10 +367,6 @@ fn pulse_style() -> AutoDriveStyle {
                 .add_modifier(Modifier::BOLD),
             border_gradient: Some(auto_drive_border_gradient()),
         },
-        footer_separator: "  ✶  ",
-        summary_style: Style::default()
-            .fg(success)
-            .add_modifier(Modifier::BOLD),
     }
 }
 

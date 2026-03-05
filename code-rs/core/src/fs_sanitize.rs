@@ -1,8 +1,24 @@
+// This module is for turning user-/model-controlled identifiers (e.g. `sub_id`, `call_id`) into
+// a single filesystem-safe path component. It is intentionally *not* a general-purpose path
+// sanitizer: it does not make arbitrary relative/absolute paths safe to read/write.
+//
+// Usage today is primarily: build subdirectories for spooled stdout/stderr and for storing
+// oversized tool outputs under a base directory we already control.
+//
+// If you need to validate that a user-provided path stays within a base directory, use a
+// dedicated "path within base" check (see `core/src/apply_patch.rs` for that pattern).
 const MAX_COMPONENT_LEN: usize = 64;
 const HASH_HEX_LEN: usize = 16;
 const HASH_SEPARATOR_LEN: usize = 1; // '-'
 const MAX_SLUG_LEN: usize = MAX_COMPONENT_LEN - HASH_SEPARATOR_LEN - HASH_HEX_LEN;
 
+/// Returns a safe, single path component derived from `value`.
+///
+/// - Output is always `<= 64` bytes (ASCII-only) and contains no separators or `..`-style
+///   traversal components.
+/// - If `value` is already safe, it is returned as-is (preserves readability).
+/// - Otherwise we return a slug (best-effort human readable) with a stable hash suffix for
+///   uniqueness and to prevent collisions between distinct unsafe inputs.
 pub(crate) fn safe_path_component(value: &str, fallback: &str) -> String {
     if is_safe_single_component(value) {
         return value.to_string();
