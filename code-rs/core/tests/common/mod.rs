@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -16,7 +14,7 @@ use wiremock::{Match, Mock, MockServer, Request, ResponseTemplate};
 /// Returns a default `Config` whose on-disk state is confined to the provided
 /// temporary directory. Using a per-test directory keeps tests hermetic and
 /// avoids clobbering a developer's real `~/.code` directory.
-pub fn load_default_config_for_test(code_home: &TempDir) -> Config {
+pub(crate) fn load_default_config_for_test(code_home: &TempDir) -> Config {
     match Config::load_from_base_config_with_overrides(
         ConfigToml::default(),
         default_test_overrides(),
@@ -67,7 +65,12 @@ fn default_test_overrides() -> ConfigOverrides {
 
 /// Builds an SSE stream body from a JSON fixture template, replacing `__ID__`
 /// before parsing so a single template can be reused across tests.
-pub fn load_sse_fixture_with_id(path: impl AsRef<Path>, id: &str) -> String {
+// These shared integration-test helpers are compiled into multiple separate
+// test binaries. Some binaries only use the config helper above, so keep
+// narrow dead-code allowances on the optional SSE/network utilities instead of
+// suppressing the whole module.
+#[allow(dead_code)]
+pub(crate) fn load_sse_fixture_with_id(path: impl AsRef<Path>, id: &str) -> String {
     let raw = match std::fs::read_to_string(path) {
         Ok(contents) => contents,
         Err(err) => panic!("read fixture template: {err}"),
@@ -99,7 +102,11 @@ pub fn load_sse_fixture_with_id(path: impl AsRef<Path>, id: &str) -> String {
 
 /// Waits for the next event that matches `predicate`, timing out to surface
 /// hung conversations quickly during tests.
-pub async fn wait_for_event<F>(conversation: &CodexConversation, mut predicate: F) -> EventMsg
+#[allow(dead_code)]
+pub(crate) async fn wait_for_event<F>(
+    conversation: &CodexConversation,
+    mut predicate: F,
+) -> EventMsg
 where
     F: FnMut(&EventMsg) -> bool,
 {
@@ -116,7 +123,8 @@ where
 }
 
 /// Returns true when network-dependent tests should be skipped.
-pub fn skip_if_no_network() -> bool {
+#[allow(dead_code)]
+pub(crate) fn skip_if_no_network() -> bool {
     if std::env::var(CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
         println!(
             "Skipping test because network access is disabled inside the sandbox."
@@ -128,12 +136,13 @@ pub fn skip_if_no_network() -> bool {
 }
 
 #[derive(Debug, Clone)]
-pub struct ResponseMock {
+#[allow(dead_code)]
+pub(crate) struct ResponseMock {
     requests: Arc<Mutex<Vec<Request>>>,
 }
 
 impl ResponseMock {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             requests: Arc::new(Mutex::new(Vec::new())),
         }
@@ -149,7 +158,8 @@ impl ResponseMock {
 
     /// Returns the JSON body for the only recorded request, panicking if the
     /// mock saw zero or multiple requests.
-    pub fn single_body_json(&self) -> Value {
+    #[allow(dead_code)]
+    pub(crate) fn single_body_json(&self) -> Value {
         let requests = self
             .requests
             .lock()
@@ -186,7 +196,8 @@ fn sse_response(body: String) -> ResponseTemplate {
 
 /// Mounts a single-use SSE response handler that also captures request bodies
 /// so tests can assert against the payload that was sent to the model.
-pub async fn mount_sse_once(server: &MockServer, body: String) -> ResponseMock {
+#[allow(dead_code)]
+pub(crate) async fn mount_sse_once(server: &MockServer, body: String) -> ResponseMock {
     let recorder = ResponseMock::new();
     let capture = RequestCapture {
         recorder: recorder.clone(),
