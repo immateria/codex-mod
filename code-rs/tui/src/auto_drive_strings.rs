@@ -63,6 +63,7 @@ const AUTO_DRIVE_PHRASES: [&str; 60] = [
     "Envisioning next move…",
 ];
 
+#[allow(dead_code)]
 pub fn next_auto_drive_phrase() -> &'static str {
     let len = AUTO_DRIVE_PHRASES.len();
     if len == 0 {

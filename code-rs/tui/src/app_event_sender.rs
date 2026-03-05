@@ -20,6 +20,7 @@ impl AppEventSender {
     }
     /// Backward‑compatible constructor for tests/fixtures that expect a single
     /// channel. Routes both high‑priority and bulk events to the same sender.
+    #[allow(dead_code)]
     pub(crate) fn new(app_event_tx: Sender<AppEvent>) -> Self {
         Self { high_tx: app_event_tx.clone(), bulk_tx: app_event_tx }
     }

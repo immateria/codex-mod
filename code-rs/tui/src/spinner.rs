@@ -13,6 +13,8 @@ pub struct Spinner {
     pub name: String,
     /// Human‑readable label (Title Case)
     pub label: String,
+    /// Logical group for browsing
+    pub group: String,
     pub interval_ms: u64,
     pub frames: Vec<String>,
 }
@@ -23,6 +25,8 @@ struct SpinnerJson {
     frames: Vec<String>,
     #[serde(default)]
     label: Option<String>,
+    #[serde(default)]
+    group: Option<String>,
 }
 
 // The full upstream set (commit pinned) with our classic "diamond" added.
@@ -35,6 +39,7 @@ lazy_static! {
     static ref FALLBACK_SPINNER: Spinner = Spinner {
         name: "fallback".to_string(),
         label: "Fallback".to_string(),
+        group: "Other".to_string(),
         interval_ms: 120,
         frames: vec!["-".into(), "\\".into(), "|".into(), "/".into()],
     };
@@ -53,13 +58,13 @@ lazy_static! {
                     if inner.get("interval").is_some() {
                         // Flat entry
                         if let Ok(sj) = serde_json::from_value::<SpinnerJson>(Value::Object(inner)) {
-                            vpush(&mut list, &k, sj);
+                            vpush(&mut list, &k, sj, None);
                         }
                     } else {
                         // Group container
                         for (name, val_entry) in inner.into_iter() {
                             if let Ok(sj) = serde_json::from_value::<SpinnerJson>(val_entry) {
-                                vpush(&mut list, &name, sj);
+                                vpush(&mut list, &name, sj, Some(k.clone()));
                             }
                         }
                     }
@@ -141,6 +146,7 @@ pub fn find_spinner_by_name(name: &str) -> Option<&'static Spinner> {
         })
 }
 
+#[allow(dead_code)]
 pub fn spinner_names() -> Vec<String> {
     let mut v: Vec<String> = ALL_SPINNERS.iter().map(|s| s.name.clone()).collect();
     v.extend(read_lock(&CUSTOM_SPINNERS).iter().map(|s| s.name.clone()));
@@ -151,6 +157,12 @@ pub fn spinner_label_for(name: &str) -> String {
     find_spinner_by_name(name)
         .map(|s| s.label.clone())
         .unwrap_or_else(|| humanize(name))
+}
+
+#[allow(dead_code)]
+pub fn spinner_group_for(name: &str) -> &'static str {
+    if let Some(s) = find_spinner_by_name(name) { return &s.group; }
+    derive_group(name)
 }
 
 pub fn frame_at_time(def: &Spinner, now_ms: u128) -> String {
@@ -191,11 +203,28 @@ fn humanize(name: &str) -> String {
         .join(" ")
 }
 
-fn vpush(out: &mut Vec<Spinner>, name: &str, sj: SpinnerJson) {
-    let label = sj.label.clone().unwrap_or_else(|| humanize(name));
-    out.push(Spinner { name: name.to_string(), label, interval_ms: sj.interval, frames: sj.frames });
+fn derive_group(name: &str) -> &'static str {
+    let n = name.to_ascii_lowercase();
+    let key = n.as_str();
+    if key.contains("dot") { return "Dots"; }
+    if key.contains("circle") || key.contains("round") || key.contains("arc") { return "Circles"; }
+    if key.contains("line") || key.contains("pipe") || key.contains("bar") || key.contains("pulse") { return "Lines"; }
+    if key.contains("bounce") || key.contains("ball") || key.contains("pong") { return "Bouncing"; }
+    if key.contains("star") || key.contains("asterisk") { return "Stars"; }
+    if key.contains("arrow") || key.contains("triangle") { return "Arrows"; }
+    if key.contains("box") || key.contains("square") { return "Boxes"; }
+    if key.contains("toggle") { return "Toggles"; }
+    if key.contains("monkey") || key.contains("earth") || key.contains("moon") || key.contains("weather") || key.contains("smiley") || key.contains("emoji") { return "Emoji"; }
+    "Other"
 }
 
+fn vpush(out: &mut Vec<Spinner>, name: &str, sj: SpinnerJson, group_override: Option<String>) {
+    let label = sj.label.clone().unwrap_or_else(|| humanize(name));
+    let group = group_override.unwrap_or_else(|| sj.group.clone().unwrap_or_else(|| derive_group(name).to_string()));
+    out.push(Spinner { name: name.to_string(), label, group, interval_ms: sj.interval, frames: sj.frames });
+}
+
+#[allow(dead_code)]
 pub fn global_max_frame_len() -> usize {
     let mut maxlen = 0usize;
     for s in ALL_SPINNERS.iter() { for f in &s.frames { maxlen = maxlen.max(f.chars().count()); } }
@@ -205,11 +234,12 @@ pub fn global_max_frame_len() -> usize {
 
 pub fn set_custom_spinners(custom: Vec<Spinner>) { *write_lock(&CUSTOM_SPINNERS) = custom; }
 
+#[allow(dead_code)]
 pub fn add_custom_spinner(name: String, label: String, interval_ms: u64, frames: Vec<String>) {
     let mut v = write_lock(&CUSTOM_SPINNERS);
     if let Some(pos) = v.iter().position(|s| s.name == name) {
-        v[pos] = Spinner { name, label, interval_ms, frames };
+        v[pos] = Spinner { name, label, group: "Custom".to_string(), interval_ms, frames };
     } else {
-        v.push(Spinner { name, label, interval_ms, frames });
+        v.push(Spinner { name, label, group: "Custom".to_string(), interval_ms, frames });
     }
 }

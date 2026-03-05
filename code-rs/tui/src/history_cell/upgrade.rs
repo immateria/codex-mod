@@ -18,6 +18,7 @@ impl UpgradeNoticeCell {
         Self::with_state(state)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn from_state(state: UpgradeNoticeState) -> Self {
         Self::with_state(state)
     }

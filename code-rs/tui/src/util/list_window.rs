@@ -2,6 +2,7 @@
 //! Given a total `count`, selected index, and `max_visible` rows (odd preferred),
 //! returns `(start, visible, middle)` where `start` is the first index to render.
 
+#[allow(dead_code)]
 pub fn anchored_window(selected: usize, count: usize, max_visible: usize) -> (usize, usize, usize) {
     if count == 0 || max_visible == 0 { return (0, 0, 0); }
     let visible = max_visible.min(count).max(1);

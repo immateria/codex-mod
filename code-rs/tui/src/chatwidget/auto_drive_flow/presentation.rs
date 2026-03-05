@@ -26,6 +26,7 @@ impl ChatWidget<'_> {
                     }
                 }
                 let model = AutoCoordinatorViewModel::Active(AutoActiveViewModel {
+                    goal: summary.goal.clone(),
                     status_lines,
                     cli_prompt: None,
                     cli_context: None,
@@ -256,6 +257,7 @@ impl ChatWidget<'_> {
             !self.auto_state.awaiting_coordinator_submit() || self.auto_state.is_paused_manual();
 
         let model = AutoCoordinatorViewModel::Active(AutoActiveViewModel {
+            goal: self.auto_state.goal.clone(),
             status_lines,
             cli_prompt,
             awaiting_submission: self.auto_state.awaiting_coordinator_submit(),

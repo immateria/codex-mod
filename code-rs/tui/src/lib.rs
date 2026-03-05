@@ -107,6 +107,7 @@ mod layout_consts;
 mod terminal_info;
 // mod text_block; // Orphaned after trait-based HistoryCell migration
 mod text_formatting;
+mod text_processing;
 mod theme;
 mod thread_spawner;
 mod util {
@@ -124,6 +125,9 @@ mod user_approval_widget;
 mod height_manager;
 mod clipboard_paste;
 mod greeting;
+// Upstream introduced a standalone status indicator widget. Our fork renders
+// status within the composer title; keep the module private unless tests need it.
+mod status_indicator_widget;
 #[cfg(target_os = "macos")]
 mod agent_install_helpers;
 

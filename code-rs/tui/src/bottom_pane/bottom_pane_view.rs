@@ -11,6 +11,7 @@ use super::CancellationEvent;
 
 /// Type to use for a method that may require a redraw of the UI.
 pub(crate) enum ConditionalUpdate {
+    #[allow(dead_code)]
     NeedsRedraw,
     NoRedraw,
 }
@@ -83,6 +84,7 @@ pub(crate) trait BottomPaneView<'a> {
     }
 
     /// Allow read-only downcasting for views that expose additional APIs.
+    #[allow(dead_code)]
     fn as_any(&self) -> Option<&dyn Any> {
         None
     }
