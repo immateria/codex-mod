@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use super::{perf::PerfStats, AgentUpdateRequest, ChatWidget, ExecCallId, RunningCommand};
 use crate::app_event::{AppEvent, AutoContinueMode};
 use crate::app_event_sender::AppEventSender;
@@ -11,8 +9,7 @@ use crossterm::event::KeyEvent;
 use code_auto_drive_core::AutoRunPhase;
 use code_core::config::{Config, ConfigOverrides, ConfigToml};
 use code_core::history::state::HistoryRecord;
-use code_core::history::state::ExecStatus;
-use code_core::protocol::{BackgroundEventEvent, Event, EventMsg, OrderMeta};
+use code_core::protocol::{Event, EventMsg};
 use once_cell::sync::Lazy;
 use chrono::Utc;
 use ratatui::text::Line;
@@ -32,6 +29,7 @@ static TEST_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
     }
 });
 
+#[cfg(test)]
 pub fn enter_test_runtime_guard() -> tokio::runtime::EnterGuard<'static> {
     TEST_RUNTIME.enter()
 }
@@ -238,35 +236,6 @@ impl ChatWidgetHarness {
             .collect()
     }
 
-    pub fn ended_exec_call_ids(&self) -> Vec<String> {
-        self.chat
-            .ended_call_ids
-            .iter()
-            .map(|cid| cid.0.clone())
-            .collect()
-    }
-
-    pub fn pending_exec_end_count(&self) -> usize {
-        self.chat.exec.pending_exec_ends.len()
-    }
-
-    pub fn pending_exec_end_keys(&self) -> Vec<String> {
-        self.chat
-            .exec
-            .pending_exec_ends
-            .keys()
-            .map(|cid| cid.0.clone())
-            .collect()
-    }
-
-    pub fn exec_status_for_call(&self, call_id: &str) -> Option<ExecStatus> {
-        let id = self.chat.history_state.history_id_for_exec_call(call_id)?;
-        match self.chat.history_state.record(id).cloned() {
-            Some(HistoryRecord::Exec(exec)) => Some(exec.status),
-            _ => None,
-        }
-    }
-
     pub fn drive_commit_tick(&mut self) {
         self.chat.on_commit_tick();
         self.flush_into_widget();
@@ -334,6 +303,7 @@ impl ChatWidgetHarness {
         self.flush_into_widget();
     }
 
+    #[cfg(test)]
     pub(crate) fn with_chat<R>(&mut self, f: impl FnOnce(&mut ChatWidget<'static>) -> R) -> R {
         let runtime = &*TEST_RUNTIME;
         let _guard = runtime.enter();
@@ -358,44 +328,15 @@ impl ChatWidgetHarness {
         self.flush_into_widget();
     }
 
-    pub fn open_validation_settings_overlay(&mut self) {
-        self.chat.ensure_settings_overlay_section(SettingsSection::Validation);
-        self.chat.show_settings_overlay(Some(SettingsSection::Validation));
-        self.flush_into_widget();
-    }
-
     pub fn open_review_settings_overlay(&mut self) {
         self.chat.ensure_settings_overlay_section(SettingsSection::Review);
         self.chat.show_settings_overlay(Some(SettingsSection::Review));
         self.flush_into_widget();
     }
 
-    pub fn review_auto_review_enabled(&mut self) -> bool {
-        self.flush_into_widget();
-        self.chat.config.tui.auto_review_enabled
-    }
-
-    pub fn review_auto_review_followups(&mut self) -> u32 {
-        self.flush_into_widget();
-        self.chat
-            .config
-            .auto_drive
-            .auto_review_followup_attempts
-            .get()
-    }
-
     pub fn review_auto_resolve_enabled(&mut self) -> bool {
         self.flush_into_widget();
         self.chat.config.tui.review_auto_resolve
-    }
-
-    pub fn review_auto_resolve_attempts(&mut self) -> u32 {
-        self.flush_into_widget();
-        self.chat
-            .config
-            .auto_drive
-            .auto_resolve_review_attempts
-            .get()
     }
 
     pub fn open_settings_overlay_overview(&mut self) {
@@ -474,28 +415,6 @@ impl ChatWidgetHarness {
     pub fn push_user_prompt(&mut self, message: impl Into<String>) {
         let state = history_cell::new_user_prompt(message.into());
         self.chat.history_push_plain_state(state);
-    }
-
-    pub fn push_user_prompt_with_id(&mut self, id: u64, message: impl Into<String>) {
-        let mut state = history_cell::new_user_prompt(message.into());
-        state.id = code_core::history::state::HistoryId(id);
-        self.chat.history_push_plain_state(state);
-    }
-
-    pub fn push_background_event(&mut self, message: impl Into<String>) {
-        let seq = self.next_helper_seq();
-        self.handle_event(Event {
-            id: format!("bg-helper-{seq}"),
-            event_seq: 0,
-            msg: EventMsg::BackgroundEvent(BackgroundEventEvent {
-                message: message.into(),
-            }),
-            order: Some(OrderMeta {
-                request_ordinal: 0,
-                output_index: Some(u32::MAX),
-                sequence_number: Some(seq),
-            }),
-        });
     }
 
     pub fn push_assistant_markdown(&mut self, markdown: impl Into<String>) {
@@ -837,11 +756,6 @@ impl ChatWidgetHarness {
             .count()
     }
 
-    fn next_helper_seq(&mut self) -> u64 {
-        let next = self.helper_seq;
-        self.helper_seq = self.helper_seq.saturating_add(1);
-        next
-    }
 }
 
 impl Default for ChatWidgetHarness {

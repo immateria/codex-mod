@@ -25,13 +25,6 @@ use crate::codex::Session;
 struct BridgeMeta {
     url: String,
     secret: String,
-    #[allow(dead_code)]
-    port: Option<u16>,
-    #[allow(dead_code)]
-    workspace_path: Option<String>,
-    #[allow(dead_code)]
-    started_at: Option<String>,
-    #[allow(dead_code)]
     heartbeat_at: Option<String>,
 }
 
@@ -320,44 +313,6 @@ pub(crate) fn merge_effective_subscription(state: &SubscriptionState) -> Subscri
     effective
 }
 
-#[allow(dead_code)]
-pub(crate) fn set_bridge_levels(levels: Vec<String>) {
-    let mut state = SUBSCRIPTIONS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let mut sub = state
-        .session
-        .clone()
-        .unwrap_or_else(|| merge_effective_subscription(&state));
-    sub.levels = if levels.is_empty() { default_levels() } else { normalise_vec(levels) };
-    state.session = Some(sub);
-    maybe_resubscribe(&mut state);
-}
-
-#[allow(dead_code)]
-pub(crate) fn set_bridge_subscription(levels: Vec<String>, capabilities: Vec<String>) {
-    let mut state = SUBSCRIPTIONS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let mut sub = state
-        .session
-        .clone()
-        .unwrap_or_else(|| merge_effective_subscription(&state));
-    sub.levels = if levels.is_empty() { default_levels() } else { normalise_vec(levels) };
-    sub.capabilities = normalise_vec(capabilities);
-    state.session = Some(sub);
-    maybe_resubscribe(&mut state);
-}
-
-#[allow(dead_code)]
-pub(crate) fn set_bridge_filter(filter: &str) {
-    let mut state = SUBSCRIPTIONS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let mut sub = state
-        .session
-        .clone()
-        .unwrap_or_else(|| merge_effective_subscription(&state));
-    sub.llm_filter = filter.trim().to_lowercase();
-    state.session = Some(sub);
-    maybe_resubscribe(&mut state);
-}
-
-#[allow(dead_code)]
 pub(crate) fn send_bridge_control(action: &str, args: serde_json::Value) {
     let msg = serde_json::json!({
         "type": "control",
@@ -494,11 +449,6 @@ pub(crate) fn force_resubscribe() {
 pub(crate) fn get_effective_subscription() -> Subscription {
     let state = SUBSCRIPTIONS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     merge_effective_subscription(&state)
-}
-
-#[allow(dead_code)]
-pub(crate) fn get_workspace_subscription() -> Option<Subscription> {
-    SUBSCRIPTIONS.lock().unwrap_or_else(std::sync::PoisonError::into_inner).workspace.clone()
 }
 
 pub(crate) fn persist_workspace_subscription(cwd: &Path, sub: Option<Subscription>) -> anyhow::Result<()> {

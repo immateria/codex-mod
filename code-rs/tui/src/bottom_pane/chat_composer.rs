@@ -619,7 +619,6 @@ impl ChatComposer {
     }
 
     /// Returns true if the composer currently contains no user input.
-    #[allow(dead_code)]
     pub(crate) fn is_empty(&self) -> bool {
         self.textarea.is_empty()
     }
@@ -817,13 +816,9 @@ impl ChatComposer {
         self.post_paste_space_guard = None;
     }
 
+    /// Retire any expired paste-burst timing window.
     pub(crate) fn flush_paste_burst_if_due(&mut self) -> bool {
-        let now = Instant::now();
-        if let Some(pasted) = self.paste_burst.flush_if_due(now) {
-            let _ = self.handle_paste(pasted);
-            return true;
-        }
-        false
+        self.paste_burst.flush_if_due(Instant::now())
     }
 
     pub(crate) fn is_in_paste_burst(&self) -> bool {
@@ -1382,19 +1377,6 @@ impl ChatComposer {
                 .unwrap_or(0);
         }
         p
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    fn handle_non_ascii_char(&mut self, input: KeyEvent) -> (InputResult, bool) {
-        if let Some(pasted) = self.paste_burst.flush_before_modified_input() {
-            self.handle_paste(pasted);
-        }
-        self.textarea.input(input);
-        let text_after = self.textarea.text();
-        self.pending_pastes
-            .retain(|(placeholder, _)| text_after.contains(placeholder));
-        (InputResult::None, true)
     }
 
     /// Handle key events when file search popup is visible.
@@ -2083,7 +2065,6 @@ impl ChatComposer {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn set_custom_prompts(&mut self, prompts: Vec<CustomPrompt>) {
         self.custom_prompts = prompts.clone();
         if let ActivePopup::Command(popup) = &mut self.active_popup {
@@ -3165,7 +3146,7 @@ mod tests {
     fn auto_review_status_stays_left_with_auto_drive_footer() {
         let (tx, _rx) = std::sync::mpsc::channel::<AppEvent>();
         let app_tx = AppEventSender::new(tx);
-        let mut composer = ChatComposer::new(true, app_tx, true, false);
+        let mut composer = ChatComposer::new(true, app_tx, true);
 
         composer.auto_drive_active = true;
         composer.standard_terminal_hint = Some("Esc stop\tCtrl+S settings".to_string());

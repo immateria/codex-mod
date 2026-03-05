@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use agent_client_protocol as acp;
 use anyhow::Context as _;
 use anyhow::Result;
@@ -15,7 +13,6 @@ use uuid::Uuid;
 use crate::config_types::{ClientTools, McpToolId};
 use crate::mcp_connection_manager::McpConnectionManager;
 use crate::protocol::FileChange;
-use crate::protocol::ReviewDecision;
 use crate::util::strip_bash_lc_and_escape;
 
 pub(crate) struct AcpFileSystem<'a> {
@@ -130,75 +127,6 @@ impl<'a> FileSystem for AcpFileSystem<'a> {
             StdFileSystem.write_text_file(path, contents).await
         }
     }
-}
-
-pub(crate) async fn request_permission(
-    permission_tool: &McpToolId,
-    tool_call: acp::ToolCallUpdate,
-    session_id: Uuid,
-    mcp_connection_manager: &McpConnectionManager,
-) -> Result<ReviewDecision> {
-    let approve_for_session_id = acp::PermissionOptionId("approve_for_session".into());
-    let approve_id = acp::PermissionOptionId("approve".into());
-    let deny_id = acp::PermissionOptionId("deny".into());
-
-    let arguments = acp::RequestPermissionRequest {
-        session_id: acp::SessionId(session_id.to_string().into()),
-        tool_call,
-        options: vec![
-            acp::PermissionOption {
-                id: approve_for_session_id.clone(),
-                name: "Approve for Session".into(),
-                kind: acp::PermissionOptionKind::AllowAlways,
-                meta: None,
-            },
-            acp::PermissionOption {
-                id: approve_id.clone(),
-                name: "Approve".into(),
-                kind: acp::PermissionOptionKind::AllowOnce,
-                meta: None,
-            },
-            acp::PermissionOption {
-                id: deny_id.clone(),
-                name: "Deny".into(),
-                kind: acp::PermissionOptionKind::RejectOnce,
-                meta: None,
-            },
-        ],
-        meta: None,
-    };
-
-    let CallToolResult {
-        structured_content, ..
-    } = mcp_connection_manager
-        .call_tool(
-            &permission_tool.mcp_server,
-            &permission_tool.tool_name,
-            Some(serde_json::to_value(arguments).unwrap_or_default()),
-            Some(Duration::from_secs(15)),
-        )
-        .await?;
-
-    let result = structured_content.context("No output from permission tool")?;
-    let result = serde_json::from_value::<acp::RequestPermissionResponse>(result)?;
-
-    use acp::RequestPermissionOutcome::*;
-    let decision = match result.outcome {
-        Selected { option_id } => {
-            if option_id == approve_id {
-                ReviewDecision::Approved
-            } else if option_id == approve_for_session_id {
-                ReviewDecision::ApprovedForSession
-            } else if option_id == deny_id {
-                ReviewDecision::Denied
-            } else {
-                anyhow::bail!("Unexpected permission option: {option_id}");
-            }
-        }
-        Cancelled => ReviewDecision::Abort,
-    };
-
-    Ok(decision)
 }
 
 pub fn new_execute_tool_call(

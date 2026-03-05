@@ -203,7 +203,7 @@ impl SessionCatalog {
     }
 
     /// Get an entry by session ID.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn get(&self, session_id: &Uuid) -> Option<&SessionIndexEntry> {
         self.entries.get(session_id)
     }
@@ -216,7 +216,6 @@ impl SessionCatalog {
     }
 
     /// Get sessions for a specific working directory, sorted by ordering.
-    #[allow(dead_code)]
     pub fn by_cwd(&self, cwd: &Path) -> Vec<&SessionIndexEntry> {
         let session_ids = match self.by_cwd.get(cwd) {
             Some(ids) => ids,
@@ -233,7 +232,6 @@ impl SessionCatalog {
     }
 
     /// Get sessions for a specific git project root, sorted by ordering.
-    #[allow(dead_code)]
     pub fn by_git_root(&self, git_root: &Path) -> Vec<&SessionIndexEntry> {
         let session_ids = match self.by_git_root.get(git_root) {
             Some(ids) => ids,
@@ -286,7 +284,7 @@ impl SessionCatalog {
     }
 
     /// Remove an entry by session ID.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn remove(&mut self, session_id: &Uuid) -> io::Result<()> {
         if let Some(entry) = self.entries.remove(session_id) {
             self.remove_from_indexes(session_id, &entry);
@@ -298,7 +296,6 @@ impl SessionCatalog {
     /// Reconcile the catalog against actual rollout files on disk.
     /// This scans the sessions directory and updates/adds entries for any files
     /// that are newer or missing from the catalog.
-    #[allow(dead_code)]
     pub async fn reconcile(&mut self, code_home: &Path) -> io::Result<ReconcileResult> {
         let sessions_root = code_home.join(SESSIONS_SUBDIR);
         let archived_root = code_home.join(ARCHIVED_SESSIONS_SUBDIR);
@@ -356,7 +353,7 @@ impl SessionCatalog {
     }
 
     /// Get the full absolute path to a session's rollout file.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn resolve_rollout_path(&self, code_home: &Path, session_id: &Uuid) -> Option<PathBuf> {
         self.entries
             .get(session_id)
@@ -364,7 +361,7 @@ impl SessionCatalog {
     }
 
     /// Get the full absolute path to a session's snapshot file.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn resolve_snapshot_path(&self, code_home: &Path, session_id: &Uuid) -> Option<PathBuf> {
         self.entries.get(session_id).and_then(|entry| {
             entry
@@ -377,7 +374,10 @@ impl SessionCatalog {
 
 /// Result of reconciling the catalog against filesystem.
 #[derive(Debug, Default)]
-#[allow(dead_code)]
+// The runtime only cares whether reconcile succeeded; tests assert the per-kind
+// counters, so keep the fields available without forcing artificial reads in
+// production code.
+#[cfg_attr(not(test), allow(dead_code))]
 pub struct ReconcileResult {
     pub added: usize,
     pub updated: usize,
@@ -385,7 +385,6 @@ pub struct ReconcileResult {
 }
 
 /// Scan all rollout files under the sessions directory and build index entries.
-#[allow(dead_code)]
 async fn scan_rollout_files(
     sessions_root: &Path,
     archived: bool,

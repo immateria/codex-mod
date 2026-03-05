@@ -110,10 +110,8 @@ struct ErrorResponse {
 #[derive(Debug, Deserialize)]
 struct Error {
     r#type: Option<String>,
-    #[allow(dead_code)]
     code: Option<String>,
     /// Optional parameter that triggered the error (e.g. "reasoning.summary").
-    #[allow(dead_code)]
     param: Option<String>,
     message: Option<String>,
 
@@ -375,12 +373,6 @@ impl ModelClient {
         if !self.reasoning_summary_disabled.swap(true, Ordering::Relaxed) {
             tracing::warn!("disabling reasoning summaries after API rejection");
         }
-    }
-
-    /// Get the text verbosity configuration
-    #[allow(dead_code)]
-    pub fn get_text_verbosity(&self) -> TextVerbosityConfig {
-        self.verbosity
     }
 
     pub fn get_otel_event_manager(&self) -> Option<OtelEventManager> {
@@ -1747,7 +1739,6 @@ impl ModelClient {
     }
 
     /// Returns the currently configured model slug.
-    #[allow(dead_code)]
     pub fn get_model(&self) -> String {
         self.config.model.clone()
     }
@@ -1760,18 +1751,10 @@ impl ModelClient {
         self.config.model_personality
     }
 
-    /// Returns the currently configured model family.
-    #[allow(dead_code)]
-    pub fn get_model_family(&self) -> ModelFamily {
-        self.config.model_family.clone()
-    }
-
-    #[allow(dead_code)]
     pub fn get_model_context_window(&self) -> Option<u64> {
         self.config.model_context_window
     }
 
-    #[allow(dead_code)]
     pub fn get_auth_manager(&self) -> Option<Arc<AuthManager>> {
         self.auth_manager.clone()
     }

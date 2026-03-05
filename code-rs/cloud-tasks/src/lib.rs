@@ -414,9 +414,9 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
 
     let exit_code = loop {
         tokio::select! {
-            // Coalesced redraw requests: spinner animation and paste-burst micro‑flush.
+            // Coalesced redraw requests: spinner animation and paste-burst timeout cleanup.
             Some(()) = redraw_rx.recv() => {
-                // Micro‑flush pending first key held by paste‑burst.
+                // Retire any expired paste-burst timing window.
                 if let Some(page) = app.new_task.as_mut() {
                     if page.composer.flush_paste_burst_if_due() { needs_redraw = true; }
                     if page.composer.is_in_paste_burst() {
@@ -1008,7 +1008,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                             }
                                     }
                                     needs_redraw = true;
-                                    // If paste‑burst is active, schedule a micro‑flush frame.
+                                    // If paste-burst is active, schedule a timeout cleanup tick.
                                     if page.composer.is_in_paste_burst() {
                                         let _ = frame_tx.send(Instant::now() + code_tui::ComposerInput::recommended_flush_delay());
                                     }

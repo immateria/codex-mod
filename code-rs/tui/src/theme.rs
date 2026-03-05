@@ -109,7 +109,6 @@ pub fn current_theme() -> Theme {
     read_lock(&CURRENT_THEME).clone()
 }
 
-#[allow(dead_code)]
 pub(crate) fn current_theme_name() -> ThemeName {
     *read_lock(&CURRENT_THEME_NAME)
 }
@@ -120,13 +119,11 @@ pub fn custom_theme_label() -> Option<String> {
 }
 
 /// Set/update the custom theme's label at runtime
-#[allow(dead_code)]
 pub fn set_custom_theme_label(label: String) {
     *write_lock(&CUSTOM_THEME_LABEL) = Some(label);
 }
 
 /// Set/update the custom theme's colors at runtime
-#[allow(dead_code)]
 pub fn set_custom_theme_colors(colors: code_core::config_types::ThemeColors) {
     *write_lock(&CUSTOM_THEME_COLORS) = Some(colors);
 }
@@ -136,7 +133,6 @@ pub fn custom_theme_colors() -> Option<code_core::config_types::ThemeColors> {
     read_lock(&CUSTOM_THEME_COLORS).clone()
 }
 
-#[allow(dead_code)]
 pub fn set_custom_theme_is_dark(is_dark: Option<bool>) {
     *write_lock(&CUSTOM_THEME_IS_DARK) = is_dark;
 }
@@ -155,25 +151,6 @@ pub fn switch_theme(theme_name: ThemeName) {
     let mut current = write_lock(&CURRENT_THEME);
     *current = theme.clone();
     *write_lock(&CURRENT_THEME_NAME) = mapped_name;
-}
-
-/// Resolve a theme as it would appear in this terminal, without mutating global state.
-pub(crate) fn resolved_theme(theme_name: ThemeName) -> Theme {
-    let mapped_name = map_theme_for_palette(theme_name, custom_theme_is_dark());
-    let mut theme = get_predefined_theme(mapped_name);
-
-    if matches!(theme_name, ThemeName::Custom)
-        && matches!(palette_mode(), PaletteMode::Ansi256)
-        && let Some(colors) = custom_theme_colors()
-    {
-        apply_custom_colors(&mut theme, &colors);
-    }
-
-    if needs_ansi256_fallback() {
-        quantize_theme_to_ansi256(&mut theme);
-    }
-
-    theme
 }
 
 /// Parse a color string (hex or named color)

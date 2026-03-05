@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use code_core::config::Config;
 use ratatui::text::Line;
 use ratatui::style::Modifier;
@@ -10,7 +8,6 @@ use super::StreamState;
 
 /// Sink for history insertions and animation control.
 pub(crate) trait HistorySink {
-    fn insert_history(&self, lines: Vec<Line<'static>>);
     fn insert_history_with_kind(&self, id: Option<String>, kind: StreamKind, lines: Vec<Line<'static>>);
     fn insert_final_answer(&self, id: Option<String>, lines: Vec<Line<'static>>, full_markdown_source: String);
     fn start_commit_animation(&self);
@@ -21,11 +18,6 @@ pub(crate) trait HistorySink {
 pub(crate) struct AppEventHistorySink(pub(crate) crate::app_event_sender::AppEventSender);
 
 impl HistorySink for AppEventHistorySink {
-    fn insert_history(&self, lines: Vec<Line<'static>>) {
-        tracing::debug!("sink.insert_history lines={}", lines.len());
-        self.0
-            .send(crate::app_event::AppEvent::InsertHistory(lines))
-    }
     fn insert_history_with_kind(&self, id: Option<String>, kind: StreamKind, lines: Vec<Line<'static>>) {
         tracing::debug!("sink.insert_history_with_kind kind={:?} id={:?} lines={}", kind, id, lines.len());
         self.0
@@ -154,17 +146,6 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
         }
     }
 
-    #[inline]
-    fn ensure_single_trailing_blank(_lines: &mut Lines) {
-        // Removed - we don't need to add extra blank lines
-        // The markdown renderer and section breaks already handle spacing
-    }
-    
-    /// Get the current stream kind being processed
-    pub(crate) fn current_stream(&self) -> Option<StreamKind> {
-        self.current_stream
-    }
-    
     /// Get the current stream ID
     pub(crate) fn current_stream_id(&self) -> Option<&String> {
         self.current_stream_id.as_ref()
@@ -268,11 +249,6 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                 }
             }
         }
-    }
-
-    /// Backwards-compatible entry point without an id.
-    pub(crate) fn begin(&mut self, kind: StreamKind, sink: &impl HistorySink) {
-        self.begin_with_id(kind, None, sink);
     }
 
     /// Push a delta; if it contains a newline, commit completed lines and start animation.

@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::citation_regex::CITATION_REGEX;
 use crate::markdown_renderer::MarkdownRenderer;
 use code_core::config::Config;

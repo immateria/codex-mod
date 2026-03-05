@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::borrow::Cow;
 
 use code_core::config_types::ThemeName;
@@ -7,9 +5,6 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 use unicode_segmentation::UnicodeSegmentation;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Alignment;
-use ratatui::layout::Constraint;
-use ratatui::layout::Direction;
-use ratatui::layout::Layout;
 use ratatui::layout::Margin;
 use ratatui::layout::Rect;
 use ratatui::style::Modifier;
@@ -26,7 +21,7 @@ use ratatui::widgets::Widget;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::chatwidget::BackgroundOrderTicket;
-use crate::theme::{custom_theme_is_dark, map_theme_for_palette, palette_mode, resolved_theme, PaletteMode};
+use crate::theme::{custom_theme_is_dark, map_theme_for_palette, palette_mode, PaletteMode};
 use crate::thread_spawner;
 
 use super::BottomPane;

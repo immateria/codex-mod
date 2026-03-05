@@ -112,15 +112,15 @@ impl ComposerInput {
         self.inner.is_in_paste_burst()
     }
 
-    /// Flush a pending paste-burst if the inter-key timeout has elapsed.
-    /// Returns true if text changed and a redraw is warranted.
+    /// Retire a pending paste-burst timing window if the inter-key timeout has elapsed.
+    /// Returns true if the transient burst state changed and a redraw is warranted.
     pub fn flush_paste_burst_if_due(&mut self) -> bool {
         let flushed = self.inner.flush_paste_burst_if_due();
         self.drain_app_events();
         flushed
     }
 
-    /// Recommended delay to schedule the next micro-flush frame while a
+    /// Recommended delay to schedule the next timeout-cleanup tick while a
     /// paste-burst is active.
     pub fn recommended_flush_delay() -> Duration {
         crate::bottom_pane::ChatComposer::recommended_paste_flush_delay()

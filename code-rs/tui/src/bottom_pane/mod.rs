@@ -31,7 +31,6 @@ mod account_switch_settings_view;
 mod bottom_pane_view;
 mod chat_composer;
 mod chat_composer_history;
-mod diff_popup;
 mod custom_prompt_view;
 pub(crate) mod prompt_args;
 mod command_popup;
@@ -279,7 +278,6 @@ impl BottomPane<'_> {
         }
     }
 
-    #[allow(dead_code)]
     pub fn show_notifications_settings(&mut self, view: NotificationsSettingsView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
@@ -447,7 +445,6 @@ impl BottomPane<'_> {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn has_active_view(&self) -> bool {
         self.active_view.is_some()
     }
@@ -894,7 +891,6 @@ impl BottomPane<'_> {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn composer_is_empty(&self) -> bool {
         self.composer.is_empty()
     }
@@ -987,7 +983,6 @@ impl BottomPane<'_> {
         self.request_redraw_with_height_change()
     }
 
-    #[allow(dead_code)]
     /// Show the theme selection UI
     pub fn show_theme_selection(
         &mut self,
@@ -1004,16 +999,6 @@ impl BottomPane<'_> {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         // Status shown in composer title now
-        self.status_view_active = false;
-        self.request_redraw_with_height_change()
-    }
-
-    /// Show the diffs popup with tabs for each file.
-    #[allow(dead_code)]
-    pub fn show_diff_popup(&mut self, tabs: Vec<(String, Vec<ratatui::text::Line<'static>>)>) {
-        let view = diff_popup::DiffPopupView::new(tabs);
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
         self.request_redraw_with_height_change()
     }
@@ -1118,7 +1103,6 @@ impl BottomPane<'_> {
     }
 
     /// Show MCP servers status/toggle UI
-    #[allow(dead_code)]
     pub fn show_mcp_settings(&mut self, rows: crate::bottom_pane::mcp_settings_view::McpServerRows) {
         use mcp_settings_view::McpSettingsView;
         let view = McpSettingsView::new(rows, self.app_event_tx.clone());
@@ -1245,14 +1229,6 @@ impl BottomPane<'_> {
         self.request_redraw();
     }
 
-    /// Control footer hint visibility: whether to show Ctrl+R (reasoning) and Ctrl+D (diffs)
-    #[allow(dead_code)]
-    pub(crate) fn set_footer_hints(&mut self, show_reasoning: bool, show_diffs: bool) {
-        self.composer.set_show_reasoning_hint(show_reasoning);
-        self.composer.set_show_diffs_hint(show_diffs);
-        self.request_redraw();
-    }
-
     /// Convenience setters for individual hints
     pub(crate) fn set_reasoning_hint(&mut self, show: bool) {
         self.composer.set_show_reasoning_hint(show);
@@ -1277,16 +1253,6 @@ impl BottomPane<'_> {
 
     pub(crate) fn set_history_metadata(&mut self, log_id: u64, entry_count: usize) {
         self.composer.set_history_metadata(log_id, entry_count);
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn flush_paste_burst_if_due(&mut self) -> bool {
-        self.composer.flush_paste_burst_if_due()
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn is_in_paste_burst(&self) -> bool {
-        self.composer.is_in_paste_burst()
     }
 
     pub(crate) fn set_input_focus(&mut self, has_focus: bool) {
@@ -1368,9 +1334,6 @@ impl BottomPane<'_> {
         }
         self.request_redraw();
     }
-
-    #[allow(dead_code)]
-    fn render_auto_coordinator_footer(&self, _area: Rect, _buf: &mut Buffer) {}
 
     // Removed restart_live_status_with_text – no longer used by the current streaming UI.
 }

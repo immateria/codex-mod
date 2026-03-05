@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use std::collections::{HashMap, VecDeque};
 use std::io::ErrorKind;
 use std::io::Read;
@@ -29,13 +28,13 @@ use code_protocol::models::FunctionCallOutputPayload;
 const EXEC_COMMAND_OUTPUT_MAX_BYTES: u64 = 1024 * 1024;
 
 #[derive(Debug, Default)]
-pub struct SessionManager {
+pub(crate) struct SessionManager {
     next_session_id: AtomicU32,
     sessions: Mutex<HashMap<SessionId, ExecCommandSession>>,
 }
 
 #[derive(Debug)]
-pub struct ExecCommandOutput {
+pub(crate) struct ExecCommandOutput {
     wall_time: Duration,
     exit_status: ExitStatus,
     original_token_count: Option<u64>,
@@ -217,12 +216,14 @@ Output:
 }
 
 #[derive(Debug)]
-pub enum ExitStatus {
+pub(crate) enum ExitStatus {
     Exited(i32),
     Ongoing(SessionId),
 }
 
-pub fn result_into_payload(result: Result<ExecCommandOutput, String>) -> FunctionCallOutputPayload {
+pub(crate) fn result_into_payload(
+    result: Result<ExecCommandOutput, String>,
+) -> FunctionCallOutputPayload {
     match result {
         Ok(output) => FunctionCallOutputPayload {
             body: code_protocol::models::FunctionCallOutputBody::Text(output.to_text_output()),
@@ -236,8 +237,10 @@ pub fn result_into_payload(result: Result<ExecCommandOutput, String>) -> Functio
 }
 
 impl SessionManager {
-    /// Processes the request and is required to send a response via `outgoing`.
-    pub async fn handle_exec_command_request(
+    /// Start a PTY-backed exec_command session and collect output for up to
+    /// `yield_time_ms`, returning either a completed result or an ongoing
+    /// session ID that can be resumed via `write_stdin`.
+    pub(crate) async fn handle_exec_command_request(
         &self,
         params: ExecCommandParams,
         env_overrides: HashMap<String, String>,
@@ -360,7 +363,7 @@ impl SessionManager {
     }
 
     /// Write characters to a session's stdin and collect combined output for up to `yield_time_ms`.
-    pub async fn handle_write_stdin_request(
+    pub(crate) async fn handle_write_stdin_request(
         &self,
         params: WriteStdinParams,
     ) -> Result<ExecCommandOutput, String> {
@@ -443,7 +446,7 @@ impl SessionManager {
 
     /// Kill all running exec sessions by dropping their session objects.
     /// This is invoked on user interrupts to ensure no child processes remain.
-    pub async fn kill_all(&self) {
+    pub(crate) async fn kill_all(&self) {
         let mut sessions = self.sessions.lock().await;
         sessions.clear(); // dropping ExecCommandSession triggers ChildKiller::kill in Drop
     }

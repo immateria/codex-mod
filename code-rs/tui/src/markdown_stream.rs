@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::collections::VecDeque;
 
 use code_core::config::Config;
@@ -43,10 +41,6 @@ impl MarkdownStreamCollector {
             pending_section_break: false,
             leading_bullet_state: None,
         }
-    }
-
-    pub fn set_bold_first_sentence(&mut self, bold: bool) {
-        self.bold_first_sentence = bold;
     }
 
     /// Returns the number of logical lines that have already been committed
