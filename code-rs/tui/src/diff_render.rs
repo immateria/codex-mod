@@ -12,158 +12,6 @@ use code_core::protocol::FileChange;
 use crate::history_cell::PatchEventType;
 use crate::sanitize::{sanitize_for_tui, Mode as SanitizeMode, Options as SanitizeOptions};
 
-// Sanitize diff content so tabs and control characters don’t break terminal layout.
-// Mirrors the behavior we use for user input and command output:
-// - Expand tabs to spaces using a fixed tab stop (4)
-// - Remove ASCII control characters (including ESC/CSI sequences) that could
-//   confuse terminal rendering; keep plain text only
-#[allow(dead_code)]
-fn expand_tabs_to_spaces(input: &str, tabstop: usize) -> String {
-    let ts = tabstop.max(1);
-    let mut out = String::with_capacity(input.len());
-    let mut col = 0usize;
-    for ch in input.chars() {
-        match ch {
-            '\t' => {
-                let spaces = ts - (col % ts);
-                out.extend(std::iter::repeat_n(' ', spaces));
-                col += spaces;
-            }
-            _ => {
-                // Treat all other chars as width 1 for our fixed-width wrapping pre-pass.
-                // The ratatui layer will handle wide glyphs.
-                out.push(ch);
-                col += 1;
-            }
-        }
-    }
-    out
-}
-
-#[allow(dead_code)]
-fn strip_control_sequences(input: &str) -> String {
-    fn is_c1(ch: char) -> bool {
-        let u = ch as u32;
-        (0x80..=0x9F).contains(&u)
-    }
-
-    fn is_zero_width_or_bidi(ch: char) -> bool {
-        matches!(
-            ch,
-            // Zero-width, joiners, BOM
-            '\u{200B}' /* ZWSP */
-                | '\u{200C}' /* ZWNJ */
-                | '\u{200D}' /* ZWJ */
-                | '\u{2060}' /* WJ */
-                | '\u{FEFF}' /* BOM */
-                | '\u{00AD}' /* SOFT HYPHEN */
-                | '\u{180E}' /* MONGOLIAN VOWEL SEPARATOR (historic) */
-                // BiDi controls and isolates
-                | '\u{200E}' /* LRM */
-                | '\u{200F}' /* RLM */
-                | '\u{061C}' /* ALM */
-                | '\u{202A}' /* LRE */
-                | '\u{202B}' /* RLE */
-                | '\u{202D}' /* LRO */
-                | '\u{202E}' /* RLO */
-                | '\u{202C}' /* PDF */
-                | '\u{2066}' /* LRI */
-                | '\u{2067}' /* RLI */
-                | '\u{2068}' /* FSI */
-                | '\u{2069}' /* PDI */
-        )
-    }
-
-    fn consume_until_st_or_bel<I: Iterator<Item = char>>(it: &mut std::iter::Peekable<I>) {
-        while let Some(&c) = it.peek() {
-            match c {
-                // BEL terminator for OSC
-                '\u{0007}' => {
-                    it.next(); // eat BEL
-                    break;
-                }
-                // ST = ESC \
-                '\u{001B}' => {
-                    // lookahead for '\\'
-                    let _ = it.next(); // ESC
-                    if matches!(it.peek(), Some('\\')) {
-                        let _ = it.next(); // '\\'
-                        break;
-                    }
-                    // Otherwise, keep eating (this also drops nested sequences defensively)
-                }
-                _ => {
-                    let _ = it.next();
-                }
-            }
-        }
-    }
-
-    let mut out = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
-    while let Some(ch) = chars.next() {
-        match ch {
-            // ESC-prefixed sequences
-            '\u{001B}' => {
-                match chars.peek().copied() {
-                    // CSI: ESC [ params/intermediates final
-                    Some('[') => {
-                        let _ = chars.next(); // '['
-                        // params 0x30..0x3F, intermediates 0x20..0x2F, final 0x40..0x7E
-                        while let Some(&c) = chars.peek() {
-                            let u = c as u32;
-                            if (0x40..=0x7E).contains(&u) {
-                                let _ = chars.next();
-                                break;
-                            } else {
-                                let _ = chars.next();
-                            }
-                        }
-                    }
-                    // OSC: ESC ] ... (BEL | ST)
-                    Some(']') => {
-                        let _ = chars.next(); // ']'
-                        consume_until_st_or_bel(&mut chars);
-                    }
-                    // String types (DCS/SOS/PM/APC): ESC P | X | ^ | _ ... ST
-                    Some('P') | Some('X') | Some('^') | Some('_') => {
-                        let _ = chars.next();
-                        consume_until_st_or_bel(&mut chars);
-                    }
-                    // Other ESC: consume optional intermediates then a final (0x40..0x7E)
-                    Some(_) | None => {
-                        // intermediates 0x20..0x2F
-                        while let Some(&c) = chars.peek() {
-                            let u = c as u32;
-                            if (0x20..=0x2F).contains(&u) {
-                                let _ = chars.next();
-                            } else {
-                                break;
-                            }
-                        }
-                        if let Some(&c) = chars.peek() {
-                            let u = c as u32;
-                            if (0x40..=0x7E).contains(&u) {
-                                let _ = chars.next();
-                            }
-                        }
-                    }
-                }
-                // In all ESC cases: skip emission
-            }
-            // Drop other C0 control characters (0x00..0x1F, 0x7F)
-            c if (c as u32) < 0x20 || c == '\u{007F}' => {}
-            // Drop raw C1 controls if present (0x80..0x9F)
-            c if is_c1(c) => {}
-            // Drop zero-width and bidi controls that can affect layout
-            c if is_zero_width_or_bidi(c) => {}
-            // Keep printable character
-            _ => out.push(ch),
-        }
-    }
-    out
-}
-
 #[inline]
 fn sanitize_diff_text(s: &str) -> String {
     sanitize_for_tui(
@@ -173,27 +21,16 @@ fn sanitize_diff_text(s: &str) -> String {
     )
 }
 
-#[allow(dead_code)]
 // Keep one space between the line number and the sign column for typical
-// 4‑digit line numbers (e.g., "1235 + "). This value is the total target
+// 4-digit line numbers (e.g., "1235 + "). This value is the total target
 // width for "<ln><gap>", so with 4 digits we get 1 space gap.
 const SPACES_AFTER_LINE_NUMBER: usize = 6;
 
 // Internal representation for diff line rendering
-#[allow(dead_code)]
 enum DiffLineType {
     Insert,
     Delete,
     Context,
-}
-
-#[allow(dead_code)]
-pub(super) fn create_diff_summary(
-    title: &str,
-    changes: &HashMap<PathBuf, FileChange>,
-    event_type: PatchEventType,
-) -> Vec<RtLine<'static>> {
-    create_diff_summary_with_width(title, changes, event_type, None)
 }
 
 /// Same as `create_diff_summary` but allows specifying a target content width in columns.
@@ -531,12 +368,6 @@ fn line_has_metadata_marker(line: &str) -> bool {
         || line.contains("similarity index")
 }
 
-#[allow(dead_code)]
-pub(super) fn render_patch_details(changes: &HashMap<PathBuf, FileChange>) -> Vec<RtLine<'static>> {
-    render_patch_details_with_width(changes, None)
-}
-
-#[allow(dead_code)]
 fn render_patch_details_with_width(
     changes: &HashMap<PathBuf, FileChange>,
     width_cols: Option<usize>,
@@ -660,14 +491,12 @@ fn render_patch_details_with_width(
 
 /// Produce only the detailed diff lines without any file-level headers/summaries.
 /// Used by the Diff Viewer overlay where surrounding chrome already conveys context.
-#[allow(dead_code)]
 pub(super) fn create_diff_details_only(
     changes: &HashMap<PathBuf, FileChange>,
 ) -> Vec<RtLine<'static>> {
-    render_patch_details(changes)
+    render_patch_details_with_width(changes, None)
 }
 
-#[allow(dead_code)]
 fn push_wrapped_diff_line_with_width(
     line_number: usize,
     kind: DiffLineType,
@@ -783,18 +612,15 @@ fn push_wrapped_diff_line_with_width(
     lines
 }
 
-#[allow(dead_code)]
 fn style_dim() -> Style {
     Style::default().add_modifier(Modifier::DIM)
 }
 
-#[allow(dead_code)]
 fn style_add() -> Style {
     // Use theme success color for additions so it adapts to light/dark themes
     Style::default().fg(crate::colors::success())
 }
 
-#[allow(dead_code)]
 fn style_del() -> Style {
     // Use theme error color for deletions so it adapts to light/dark themes
     Style::default().fg(crate::colors::error())
@@ -811,4 +637,5 @@ fn error_tint() -> Color {
     crate::colors::tint_background_toward(crate::colors::error())
 }
 
-// Removed per-line tinted backgrounds per design feedback
+// Keep diff-line tinting subtle so added/removed rows remain readable without
+// overwhelming the surrounding patch chrome.

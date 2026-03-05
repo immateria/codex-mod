@@ -15,19 +15,16 @@ pub enum ConfigShellToolType {
 pub struct ToolsConfig {
     pub shell_type: ConfigShellToolType,
     pub plan_tool: bool,
-    #[allow(dead_code)]
     pub apply_patch_tool_type: Option<ApplyPatchToolType>,
     pub web_search_request: bool,
     pub web_search_external: bool,
     pub search_tool: bool,
     pub js_repl: bool,
-    #[allow(dead_code)]
     pub include_view_image_tool: bool,
     pub web_search_allowed_domains: Option<Vec<String>>,
     pub agent_model_allowed_values: Vec<String>,
 }
 
-#[allow(dead_code)]
 pub struct ToolsConfigParams<'a> {
     pub model_family: &'a ModelFamily,
     pub approval_policy: AskForApproval,
@@ -92,20 +89,6 @@ impl ToolsConfig {
             web_search_allowed_domains: None,
             agent_model_allowed_values: Vec::new(),
         }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn new_from_params(p: &ToolsConfigParams) -> Self {
-        Self::new(ToolsConfigParams {
-            model_family: p.model_family,
-            approval_policy: p.approval_policy,
-            sandbox_policy: p.sandbox_policy.clone(),
-            include_plan_tool: p.include_plan_tool,
-            include_apply_patch_tool: p.include_apply_patch_tool,
-            include_web_search_request: p.include_web_search_request,
-            use_streamable_shell_tool: p.use_streamable_shell_tool,
-            include_view_image_tool: p.include_view_image_tool,
-        })
     }
 
     pub fn set_agent_models(&mut self, models: Vec<String>) {

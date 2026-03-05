@@ -21,7 +21,6 @@ impl ChatWidget<'_> {
             app_event_tx,
             initial_prompt,
             initial_images,
-            enhanced_keys_supported,
             terminal_info,
             show_order_overlay,
             latest_upgrade_version,
@@ -59,7 +58,6 @@ impl ChatWidget<'_> {
         let mut bottom_pane = BottomPane::new(BottomPaneParams {
             app_event_tx: app_event_tx.clone(),
             has_input_focus: true,
-            enhanced_keys_supported,
             using_chatgpt_auth: config.using_chatgpt_auth,
             auto_drive_variant,
         });
@@ -383,7 +381,6 @@ impl ChatWidget<'_> {
             conversation,
             session_configured,
             app_event_tx,
-            enhanced_keys_supported,
             terminal_info,
             show_order_overlay,
             latest_upgrade_version,
@@ -409,7 +406,6 @@ impl ChatWidget<'_> {
         let bottom_pane = BottomPane::new(BottomPaneParams {
             app_event_tx: app_event_tx.clone(),
             has_input_focus: true,
-            enhanced_keys_supported,
             using_chatgpt_auth: config.using_chatgpt_auth,
             auto_drive_variant,
         });

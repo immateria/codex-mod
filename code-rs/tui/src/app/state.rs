@@ -315,7 +315,6 @@ pub(crate) struct ChatWidgetArgs {
     pub(crate) config: Config,
     pub(crate) initial_prompt: Option<String>,
     pub(crate) initial_images: Vec<PathBuf>,
-    pub(crate) enhanced_keys_supported: bool,
     pub(crate) terminal_info: TerminalInfo,
     pub(crate) show_order_overlay: bool,
     pub(crate) enable_perf: bool,

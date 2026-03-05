@@ -174,7 +174,6 @@ pub(crate) struct BottomPane<'a> {
 pub(crate) struct BottomPaneParams {
     pub(crate) app_event_tx: AppEventSender,
     pub(crate) has_input_focus: bool,
-    pub(crate) enhanced_keys_supported: bool,
     pub(crate) using_chatgpt_auth: bool,
     pub(crate) auto_drive_variant: AutoDriveVariant,
 }
@@ -183,11 +182,9 @@ impl BottomPane<'_> {
     // Reduce bottom padding so footer sits one line lower
     const BOTTOM_PAD_LINES: u16 = 1;
     pub fn new(params: BottomPaneParams) -> Self {
-        let enhanced_keys_supported = params.enhanced_keys_supported;
         let composer = ChatComposer::new(
             params.has_input_focus,
             params.app_event_tx.clone(),
-            enhanced_keys_supported,
             params.using_chatgpt_auth,
         );
 

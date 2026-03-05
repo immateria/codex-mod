@@ -23,7 +23,7 @@ use textwrap::Options as TwOptions;
 use textwrap::WordSplitter;
 
 /// Insert `lines` above the viewport.
-#[allow(dead_code)]
+#[allow(dead_code)] // Used by standard-terminal entry points and targeted UI helpers.
 pub(crate) fn insert_history_lines(terminal: &mut tui::Tui, lines: Vec<Line>) {
     let mut out = std::io::stdout();
     insert_history_lines_to_writer(terminal, &mut out, lines);
@@ -126,7 +126,6 @@ pub fn insert_history_lines_to_writer<B, W>(
 /// Variant of `insert_history_lines` that reserves `reserved_bottom_rows` at the
 /// bottom of the screen for a live UI (e.g., the input composer) and inserts
 /// history lines into the scrollback above that region.
-#[allow(dead_code)]
 pub(crate) fn insert_history_lines_above(terminal: &mut tui::Tui, reserved_bottom_rows: u16, lines: Vec<Line>) {
     let mut out = std::io::stdout();
     insert_history_lines_to_writer_above(terminal, &mut out, reserved_bottom_rows, lines);
@@ -391,44 +390,6 @@ where
         SetBackgroundColor(CColor::Reset),
         SetAttribute(crossterm::style::Attribute::Reset),
     )
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
-pub struct SetUnderlineColor(pub CColor);
-
-impl Command for SetUnderlineColor {
-    fn write_ansi(&self, f: &mut impl fmt::Write) -> fmt::Result {
-        // Use the CSI 58 sequence for underline color
-        // CSI 58:5:n m for 256 colors or CSI 58:2::r:g:b m for RGB
-        match self.0 {
-            CColor::Black => write!(f, "\x1b[58:5:0m"),
-            CColor::DarkGrey => write!(f, "\x1b[58:5:8m"),
-            CColor::Red => write!(f, "\x1b[58:5:1m"),
-            CColor::DarkRed => write!(f, "\x1b[58:5:9m"),
-            CColor::Green => write!(f, "\x1b[58:5:2m"),
-            CColor::DarkGreen => write!(f, "\x1b[58:5:10m"),
-            CColor::Yellow => write!(f, "\x1b[58:5:3m"),
-            CColor::DarkYellow => write!(f, "\x1b[58:5:11m"),
-            CColor::Blue => write!(f, "\x1b[58:5:4m"),
-            CColor::DarkBlue => write!(f, "\x1b[58:5:12m"),
-            CColor::Magenta => write!(f, "\x1b[58:5:5m"),
-            CColor::DarkMagenta => write!(f, "\x1b[58:5:13m"),
-            CColor::Cyan => write!(f, "\x1b[58:5:6m"),
-            CColor::DarkCyan => write!(f, "\x1b[58:5:14m"),
-            CColor::White => write!(f, "\x1b[58:5:7m"),
-            CColor::Grey => write!(f, "\x1b[58:5:15m"),
-            CColor::Rgb { r, g, b } => write!(f, "\x1b[58:2::{r}:{g}:{b}m"),
-            CColor::AnsiValue(n) => write!(f, "\x1b[58:5:{n}m"),
-            CColor::Reset => write!(f, "\x1b[59m"), // Reset underline color
-        }
-    }
-
-    #[cfg(windows)]
-    fn execute_winapi(&self) -> io::Result<()> {
-        // Windows doesn't support underline colors in the same way
-        Ok(())
-    }
 }
 
 /// Word-aware wrapping for a list of `Line`s preserving styles.

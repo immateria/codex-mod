@@ -144,7 +144,6 @@ pub use rollout::catalog::SessionIndexEntry;
 pub use session_catalog::entry_to_rollout_path;
 pub use session_catalog::SessionCatalog;
 pub use session_catalog::SessionQuery;
-mod function_tool;
 mod user_notification;
 pub mod util;
 

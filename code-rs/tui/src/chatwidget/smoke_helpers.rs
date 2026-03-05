@@ -107,7 +107,6 @@ impl ChatWidgetHarness {
             app_event_tx,
             initial_prompt: None,
             initial_images: Vec::new(),
-            enhanced_keys_supported: false,
             terminal_info,
             show_order_overlay: false,
             latest_upgrade_version: None,

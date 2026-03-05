@@ -138,8 +138,6 @@ pub(crate) struct ChatComposer {
     app_event_tx: AppEventSender,
     history: ChatComposerHistory,
     ctrl_c_quit_hint: bool,
-    #[allow(dead_code)]
-    use_shift_enter_hint: bool,
     dismissed_file_popup_token: Option<String>,
     current_file_query: Option<String>,
     // Tracks a one-off Tab-triggered file search. When set, we will only
@@ -207,11 +205,8 @@ impl ChatComposer {
     pub fn new(
         has_input_focus: bool,
         app_event_tx: AppEventSender,
-        enhanced_keys_supported: bool,
         using_chatgpt_auth: bool,
     ) -> Self {
-        let use_shift_enter_hint = enhanced_keys_supported;
-
         Self {
             textarea: TextArea::new(),
             textarea_state: RefCell::new(TextAreaState::default()),
@@ -219,7 +214,6 @@ impl ChatComposer {
             app_event_tx,
             history: ChatComposerHistory::new(),
             ctrl_c_quit_hint: false,
-            use_shift_enter_hint,
             dismissed_file_popup_token: None,
             current_file_query: None,
             pending_tab_file_query: None,
@@ -823,7 +817,6 @@ impl ChatComposer {
         self.post_paste_space_guard = None;
     }
 
-    #[allow(dead_code)]
     pub(crate) fn flush_paste_burst_if_due(&mut self) -> bool {
         let now = Instant::now();
         if let Some(pasted) = self.paste_burst.flush_if_due(now) {

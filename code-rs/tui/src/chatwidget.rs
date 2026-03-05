@@ -2463,176 +2463,6 @@ impl ChatWidget<'_> {
         self.show_settings_overlay(Some(SettingsSection::Skills));
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn add_agents_output(&mut self) {
-        use ratatui::text::Line;
-
-        // Gather active agents from current UI state
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from("/agents").fg(crate::colors::keyword()));
-        lines.push(Line::from(""));
-        // Show current subagent command configuration summary
-        lines.push(Line::from("Subagents configuration".bold()));
-        if self.config.subagent_commands.is_empty() {
-            lines.push(Line::from(
-                "  • No subagent commands in config (using defaults)",
-            ));
-        } else {
-            for cmd in &self.config.subagent_commands {
-                let mode = if cmd.read_only { "read-only" } else { "write" };
-                let agents = if cmd.agents.is_empty() {
-                    "<inherit>".to_string()
-                } else {
-                    cmd.agents.join(", ")
-                };
-                lines.push(Line::from(format!(
-                    "  • {} — {} — [{}]",
-                    cmd.name, mode, agents
-                )));
-            }
-        }
-        lines.push(Line::from(""));
-        lines.push(Line::from("Manage in the overlay:".bold()));
-        lines.push(Line::from(
-            "  /agents  — configure agents (↑↓ navigate • Enter edit • Esc back)"
-                .fg(crate::colors::text_dim()),
-        ));
-        lines.push(Line::from(""));
-
-        // Platform + environment summary to aid debugging
-        lines.push(Line::from("Environment".bold()));
-        let os = std::env::consts::OS;
-        let arch = std::env::consts::ARCH;
-        lines.push(Line::from(format!("  • Platform: {os}-{arch}")));
-        lines.push(Line::from(format!(
-            "  • CWD: {}",
-            self.config.cwd.display()
-        )));
-        let in_git = code_core::git_info::get_git_repo_root(&self.config.cwd).is_some();
-        lines.push(Line::from(format!(
-            "  • Git repo: {}",
-            if in_git { "yes" } else { "no" }
-        )));
-        // PATH summary
-        if let Some(path_os) = std::env::var_os("PATH") {
-            let entries: Vec<String> = std::env::split_paths(&path_os)
-                .map(|p| p.display().to_string())
-                .collect();
-            let shown = entries
-                .iter()
-                .take(6)
-                .cloned()
-                .collect::<Vec<_>>()
-                .join("; ");
-            let suffix = if entries.len() > 6 {
-                format!(" (+{} more)", entries.len() - 6)
-            } else {
-                String::new()
-            };
-            lines.push(Line::from(format!(
-                "  • PATH ({} entries): {}{}",
-                entries.len(),
-                shown,
-                suffix
-            )));
-        }
-        #[cfg(target_os = "windows")]
-        if let Ok(pathext) = std::env::var("PATHEXT") {
-            lines.push(Line::from(format!("  • PATHEXT: {}", pathext)));
-        }
-        lines.push(Line::from(""));
-
-        // Section: Active agents
-        lines.push(Line::from("Active Agents".bold()));
-        if self.active_agents.is_empty() {
-            if self.agents_ready_to_start {
-                lines.push(Line::from("  • preparing agents…"));
-            } else {
-                lines.push(Line::from("  • No active agents"));
-            }
-        } else {
-            for a in &self.active_agents {
-                let status = match a.status {
-                    AgentStatus::Pending => "pending",
-                    AgentStatus::Running => "running",
-                    AgentStatus::Completed => "completed",
-                    AgentStatus::Failed => "failed",
-                    AgentStatus::Cancelled => "cancelled",
-                };
-                lines.push(Line::from(format!("  • {} — {}", a.name, status)));
-            }
-        }
-
-        lines.push(Line::from(""));
-
-        // Section: Availability
-        lines.push(Line::from("Availability".bold()));
-
-        // Determine which agents to check: configured (enabled) or defaults
-        let mut to_check: Vec<(String, String, bool)> = Vec::new();
-        if !self.config.agents.is_empty() {
-            for a in &self.config.agents {
-                if !a.enabled {
-                    continue;
-                }
-                let name = a.name.clone();
-                let cmd = if let Some(spec) = agent_model_spec(&a.name) {
-                    spec.cli.to_string()
-                } else {
-                    a.command.clone()
-                };
-                let builtin = matches!(cmd.as_str(), "code" | "codex" | "cloud");
-                to_check.push((name, cmd, builtin));
-            }
-        } else {
-            for spec in enabled_agent_model_specs() {
-                let name = spec.slug.to_string();
-                let cmd = spec.cli.to_string();
-                let builtin = matches!(spec.cli, "code" | "codex" | "cloud");
-                to_check.push((name, cmd, builtin));
-            }
-        }
-
-        // Helper: PATH presence + resolved path
-        let resolve_cmd = |cmd: &str| -> Option<String> {
-            which::which(cmd).ok().map(|p| p.display().to_string())
-        };
-
-        for (name, cmd, builtin) in to_check {
-            if builtin {
-                let exe = std::env::current_exe()
-                    .ok()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_else(|| "(unknown)".to_string());
-                lines.push(Line::from(format!(
-                    "  • {name} — available (built-in, exe: {exe})"
-                )));
-            } else if let Some(path) = resolve_cmd(&cmd) {
-                lines.push(Line::from(format!(
-                    "  • {name} — available ({cmd} at {path})"
-                )));
-            } else {
-                lines.push(Line::from(format!(
-                    "  • {name} — not found (command: {cmd})"
-                )));
-                // Short cross-platform hint
-                lines.push(Line::from(
-                    "      Debug: ensure the CLI is installed and on PATH",
-                ));
-                lines.push(Line::from(
-                    "      Windows: run `where <cmd>`; macOS/Linux: `which <cmd>`",
-                ));
-            }
-        }
-
-        let state = history_cell::plain_message_state_from_lines(
-            lines,
-            crate::history_cell::HistoryCellType::Notice,
-        );
-        self.history_push_plain_state(state);
-        self.request_redraw();
-    }
-
     pub(crate) fn handle_agents_command(&mut self, args: String) {
         if !args.trim().is_empty() {
             self.history_push_plain_state(history_cell::new_error_event(
@@ -4809,7 +4639,6 @@ fi\n\
     // Ctrl+Y syntax cycling disabled intentionally.
 
     /// Show a brief debug notice in the footer.
-    #[allow(dead_code)]
     pub(crate) fn debug_notice(&mut self, text: String) {
         self.bottom_pane.flash_footer_notice(text);
         self.request_redraw();
@@ -5195,15 +5024,6 @@ fi\n\
         }
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn on_esc(&mut self) -> bool {
-        if self.bottom_pane.is_task_running() {
-            self.interrupt_running_task();
-            return true;
-        }
-        false
-    }
-
     /// Handle Ctrl-C key press.
     /// Returns CancellationEvent::Handled if the event was consumed by the UI, or
     /// CancellationEvent::Ignored if the caller should handle it (e.g. exit).
@@ -5232,7 +5052,6 @@ fi\n\
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn composer_is_empty(&self) -> bool {
         self.bottom_pane.composer_is_empty()
     }

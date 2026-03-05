@@ -155,7 +155,6 @@ pub(crate) enum AppEvent {
     /// The picker boots with built-in presets; when a remote-merged list arrives
     /// asynchronously, the in-memory list is swapped and any open model
     /// selection view is updated in-place.
-    #[allow(dead_code)]
     ModelPresetsUpdated {
         presets: Vec<ModelPreset>,
         default_model: Option<String>,
@@ -443,7 +442,6 @@ pub(crate) enum AppEvent {
     RequestValidationToolInstall { name: String, command: String },
 
     /// Enable/disable a specific MCP server
-    #[allow(dead_code)]
     UpdateMcpServer { name: String, enable: bool },
 
     /// Enable/disable a specific tool exposed by an MCP server.
@@ -464,7 +462,6 @@ pub(crate) enum AppEvent {
     },
 
     /// Prefill the composer input with the given text
-    #[allow(dead_code)]
     PrefillComposer(String),
 
     /// Confirm and run git init, then resume a pending action.
@@ -568,7 +565,6 @@ pub(crate) enum AppEvent {
     },
 
     /// Update the theme (with history event)
-    #[allow(dead_code)]
     UpdateTheme(ThemeName),
     /// Add or update a subagent command in memory (UI already persisted to config.toml)
     UpdateSubagentCommand(code_core::config_types::SubagentCommandConfig),
@@ -589,7 +585,6 @@ pub(crate) enum AppEvent {
     ShowSubagentEditorNew,
 
     /// Preview theme (no history event)
-    #[allow(dead_code)]
     PreviewTheme(ThemeName),
     /// Enable full-frame split theme preview (left=current, right=preview).
     SetThemeSplitPreview {
@@ -599,10 +594,8 @@ pub(crate) enum AppEvent {
     /// Disable full-frame split theme preview.
     ClearThemeSplitPreview,
     /// Update the loading spinner style (with history event)
-    #[allow(dead_code)]
     UpdateSpinner(String),
     /// Preview loading spinner (no history event)
-    #[allow(dead_code)]
     PreviewSpinner(String),
     /// Rotate access/safety preset (Read Only → Write with Approval → Full Access)
     CycleAccessMode,
@@ -630,7 +623,6 @@ pub(crate) enum AppEvent {
     },
 
     /// Result of computing a `/diff` command.
-    #[allow(dead_code)]
     DiffResult(String),
 
     InsertHistory(Vec<Line<'static>>),
@@ -652,9 +644,7 @@ pub(crate) enum AppEvent {
     /// Background rate limit refresh persisted an account snapshot.
     RateLimitSnapshotStored { account_id: String },
 
-    #[allow(dead_code)]
     StartCommitAnimation,
-    #[allow(dead_code)]
     StopCommitAnimation,
     CommitTick,
 
@@ -680,7 +670,6 @@ pub(crate) enum AppEvent {
     LoginUsingChatGptChanged { using_chatgpt_auth: bool },
 
     /// Show Chrome launch options dialog
-    #[allow(dead_code)]
     ShowChromeOptions(Option<u16>),
 
     /// Chrome launch option selected by user

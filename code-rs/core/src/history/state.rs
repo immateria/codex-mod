@@ -1403,7 +1403,6 @@ pub struct HistoryState {
     exec_stream_retained_by_id: HashMap<HistoryId, usize>,
 }
 
-#[allow(dead_code)]
 impl Default for HistoryState {
     fn default() -> Self {
         Self::new()
@@ -2240,7 +2239,6 @@ impl HistorySnapshot {
     }
 }
 
-#[allow(dead_code)]
 trait WithId {
     fn with_id(self, id: HistoryId) -> HistoryRecord;
 }
@@ -2364,7 +2362,6 @@ impl HistoryRecord {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub enum HistoryEvent {
     Insert { index: usize, record: HistoryRecord },
@@ -2372,7 +2369,6 @@ pub enum HistoryEvent {
     Remove { index: usize },
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub enum HistoryMutation {
     Inserted { index: usize, id: HistoryId, record: HistoryRecord },

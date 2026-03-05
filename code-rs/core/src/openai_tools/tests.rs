@@ -374,7 +374,7 @@
     #[test]
     fn test_get_openai_tools_mcp_tools_with_additional_properties_schema() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let mut config = ToolsConfig::new_from_params(&ToolsConfigParams {
+        let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
             sandbox_policy: SandboxPolicy::ReadOnly,
@@ -524,7 +524,7 @@
     #[test]
     fn test_mcp_tool_property_missing_type_defaults_to_string() {
         let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
-        let mut config = ToolsConfig::new_from_params(&ToolsConfigParams {
+        let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
             sandbox_policy: SandboxPolicy::ReadOnly,
