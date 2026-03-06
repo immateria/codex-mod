@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::auto_drive_strings;
@@ -436,7 +434,10 @@ impl AutoCoordinatorView {
                     if visible_chars.len() == total_chars {
                         color = mix_rgb(color, fallback_color, 0.65);
                     } else if idx == visible_chars.len().saturating_sub(1) {
-                        color = mix_rgb(color, Color::Rgb(255, 255, 255), 0.35);
+                        #[allow(clippy::disallowed_methods)]
+                        {
+                            color = mix_rgb(color, Color::Rgb(255, 255, 255), 0.35);
+                        }
                     }
                     base_spans.push(Span::styled(
                         ch.to_string(),
@@ -1594,6 +1595,7 @@ fn is_dark_theme_active() -> bool {
     luminance < 0.5
 }
 
+#[allow(clippy::disallowed_methods)]
 fn text_gradient_colors(gradient: BorderGradient) -> (Color, Color) {
     if is_dark_theme_active() {
         (gradient.left, gradient.right)

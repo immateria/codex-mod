@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 use once_cell::sync::OnceCell;
 use ratatui::text::{Line, Span};
 use std::sync::Arc;
@@ -551,6 +549,7 @@ fn try_syntax_for_lang<'a>(ps: &'a SyntaxSet, lang: &str) -> Option<&'a SyntaxRe
 
 // Removed unused helper to keep build warning-free.
 
+#[allow(clippy::disallowed_methods)]
 fn span_from_syn((SynStyle { foreground, font_style, .. }, text): (SynStyle, &str)) -> Span<'static> {
     use ratatui::style::{Color, Modifier, Style};
     // Map syntect Style to ratatui Style
@@ -681,6 +680,7 @@ fn contrast_ratio(l1: f32, l2: f32) -> f32 {
     (a + 0.05) / (b + 0.05)
 }
 
+#[allow(clippy::disallowed_methods)]
 fn adjust_color(c: Color) -> Color {
     // Blend syntect foreground toward our theme text color to reduce mismatch,
     // then ensure a minimum contrast vs our background.

@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 use std::cell::Cell;
 use std::f32::consts::TAU;
 use std::time::{Duration, Instant};
@@ -104,6 +102,7 @@ fn wrap_unit(value: f32) -> f32 {
     v
 }
 
+#[allow(clippy::disallowed_methods)]
 fn spectral_color(t: f32) -> Color {
     let angle = wrap_unit(t) * TAU;
     let r = (angle.sin() * 0.5 + 0.5).powf(0.55);

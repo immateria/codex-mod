@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 use super::card_style::{
     auto_drive_card_style,
     hint_text_style,
@@ -1010,6 +1008,7 @@ impl AutoDriveCardCell {
             .sum()
     }
 
+    #[allow(clippy::disallowed_methods)]
     fn celebration_ascii_segments(&self, line: String) -> Vec<CardSegment> {
         let chars: Vec<char> = line.chars().collect();
         let total = chars.len();
@@ -1065,6 +1064,7 @@ impl AutoDriveCardCell {
         segments
     }
 
+    #[allow(clippy::disallowed_methods)]
     fn celebration_background_style() -> Style {
         if palette_mode() == PaletteMode::Ansi16 {
             let fg = if is_dark_theme_active() {

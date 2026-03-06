@@ -1,3 +1,7 @@
+// This module is the palette and quantization source for the whole TUI.
+// Keeping the allowance here is deliberate: forcing every Color::Rgb /
+// Color::Indexed constructor through helpers would make the theme table and
+// palette matching code harder to read without reducing actual policy drift.
 #![allow(clippy::disallowed_methods)]
 
 use code_core::config_types::ThemeColors;

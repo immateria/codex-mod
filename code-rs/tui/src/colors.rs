@@ -1,7 +1,15 @@
-#![allow(clippy::disallowed_methods)]
-
 use ratatui::style::Color;
 use crate::theme::{current_theme, palette_mode, quantize_color_for_palette, PaletteMode};
+
+#[allow(clippy::disallowed_methods)]
+const fn indexed(i: u8) -> Color {
+    Color::Indexed(i)
+}
+
+#[allow(clippy::disallowed_methods)]
+const fn rgb(r: u8, g: u8, b: u8) -> Color {
+    Color::Rgb(r, g, b)
+}
 
 // Legacy color constants - now redirect to theme
 pub(crate) fn light_blue() -> Color {
@@ -42,7 +50,7 @@ pub(crate) fn border() -> Color {
 /// while preserving the original hue relationship.
 pub(crate) fn border_dim() -> Color {
     match palette_mode() {
-        PaletteMode::Ansi16 => Color::Indexed(8),
+        PaletteMode::Ansi16 => indexed(8),
         PaletteMode::Ansi256 => {
             let b = current_theme().border;
             let bg = current_theme().background;
@@ -53,7 +61,7 @@ pub(crate) fn border_dim() -> Color {
             let r = mix(br, rr);
             let g = mix(bg_g, rg);
             let bl = mix(bb, rb);
-            quantize_color_for_palette(Color::Rgb(r, g, bl))
+            quantize_color_for_palette(rgb(r, g, bl))
         }
     }
 }
@@ -87,9 +95,9 @@ pub(crate) fn text_mid() -> Color {
     match palette_mode() {
         PaletteMode::Ansi16 => {
             if is_dark_background(current_theme().background) {
-                Color::Indexed(7)
+                indexed(7)
             } else {
-                Color::Indexed(8)
+                indexed(8)
             }
         }
         PaletteMode::Ansi256 => {
@@ -213,7 +221,7 @@ pub(crate) fn mix_toward(from: Color, to: Color, t: f32) -> Color {
     let a = color_to_rgb(from);
     let b = color_to_rgb(to);
     let (r, g, b) = blend_rgb(a, b, t.clamp(0.0, 1.0));
-    quantize_color_for_palette(Color::Rgb(r, g, b))
+    quantize_color_for_palette(rgb(r, g, b))
 }
 
 fn is_dark_rgb(rgb: (u8, u8, u8)) -> bool {
@@ -229,7 +237,7 @@ pub(crate) fn tint_background_toward(accent: Color) -> Color {
     let fg = color_to_rgb(accent);
     let alpha = if is_dark_rgb(bg) { 0.20 } else { 0.10 };
     let (r, g, b) = blend_rgb(bg, fg, alpha);
-    Color::Rgb(r, g, b)
+    rgb(r, g, b)
 }
 
 fn blend_with_black(rgb: (u8, u8, u8), alpha: f32) -> (u8, u8, u8) {
@@ -252,11 +260,11 @@ fn relative_luminance(rgb: (u8, u8, u8)) -> f32 {
 
 pub(crate) fn overlay_scrim() -> Color {
     let bg = current_theme().background;
-    let rgb = color_to_rgb(bg);
+    let bg_rgb = color_to_rgb(bg);
     // For light themes, use a slightly stronger darkening; for dark themes, a gentler one.
-    let alpha = if is_light(rgb) { 0.18 } else { 0.10 };
-    let (r, g, b) = blend_with_black(rgb, alpha);
-    quantize_color_for_palette(Color::Rgb(r, g, b))
+    let alpha = if is_light(bg_rgb) { 0.18 } else { 0.10 };
+    let (r, g, b) = blend_with_black(bg_rgb, alpha);
+    quantize_color_for_palette(rgb(r, g, b))
 }
 
 /// Background for assistant messages: theme background moved 5% toward theme info.
@@ -264,9 +272,9 @@ pub(crate) fn assistant_bg() -> Color {
     match palette_mode() {
         PaletteMode::Ansi16 => {
             if is_dark_background(current_theme().background) {
-                Color::Indexed(4)
+                indexed(4)
             } else {
-                Color::Indexed(7)
+                indexed(7)
             }
         }
         PaletteMode::Ansi256 => {
@@ -307,9 +315,9 @@ pub(crate) fn assistant_hr() -> Color {
     match palette_mode() {
         PaletteMode::Ansi16 => {
             if is_dark_background(current_theme().background) {
-                Color::Indexed(8)
+                indexed(8)
             } else {
-                Color::Indexed(7)
+                indexed(7)
             }
         }
         PaletteMode::Ansi256 => {
@@ -323,7 +331,7 @@ pub(crate) fn assistant_hr() -> Color {
                 candidate
             } else {
                 let (r, g, b) = blend_with_black(color_to_rgb(cell), 0.12);
-                Color::Rgb(r, g, b)
+                rgb(r, g, b)
             };
             quantize_color_for_palette(result)
         }

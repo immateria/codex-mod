@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 use std::env;
 
 use ratatui::style::{Color, Modifier, Style};
@@ -354,6 +352,7 @@ fn pulse_style() -> AutoDriveStyle {
     }
 }
 
+#[allow(clippy::disallowed_methods)]
 fn auto_drive_border_gradient() -> BorderGradient {
     if is_dark_theme_active() {
         BorderGradient {

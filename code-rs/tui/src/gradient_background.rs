@@ -1,11 +1,14 @@
-#![allow(clippy::disallowed_methods)]
-
 use crate::card_theme::{GradientSpec, RevealVariant};
 use crate::colors;
 use crate::glitch_animation::{gradient_multi, mix_rgb};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Color;
+
+#[allow(clippy::disallowed_methods)]
+const fn rgb(r: u8, g: u8, b: u8) -> Color {
+    Color::Rgb(r, g, b)
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct RevealRender {
@@ -61,10 +64,10 @@ impl GradientBackground {
         const LIGHT_REVEAL_FADE_END: f32 = 0.32;
 
         if reveal.intro_light && clamped_progress < LIGHT_REVEAL_HOLD {
-            let warm_fg = mix_rgb(fg, Color::Rgb(255, 255, 255), 0.55);
+            let warm_fg = mix_rgb(fg, rgb(255, 255, 255), 0.55);
             Self::render_static(buf, area, &GradientSpec {
-                left: Color::Rgb(255, 255, 255),
-                right: Color::Rgb(255, 255, 255),
+                left: rgb(255, 255, 255),
+                right: rgb(255, 255, 255),
                 bias: 0.0,
             }, warm_fg);
             return;
@@ -98,7 +101,7 @@ impl GradientBackground {
 
                 let softened_color = if reveal.intro_light && clamped_progress < LIGHT_REVEAL_FADE_END {
                     mix_rgb(
-                        Color::Rgb(255, 255, 255),
+                        rgb(255, 255, 255),
                         final_color,
                         smoothstep(LIGHT_REVEAL_HOLD, LIGHT_REVEAL_FADE_END, clamped_progress),
                     )
@@ -122,7 +125,7 @@ impl GradientBackground {
                         / (LIGHT_REVEAL_FADE_END - LIGHT_REVEAL_HOLD))
                         .clamp(0.0, 1.0);
                     let whiten_mix = fade_factor.powf(1.1);
-                    accent = mix_rgb(Color::Rgb(255, 255, 255), accent, whiten_mix);
+                    accent = mix_rgb(rgb(255, 255, 255), accent, whiten_mix);
                     blend *= fade_factor.max(0.02);
                 }
 
@@ -235,48 +238,48 @@ fn accent_color(
         }
         RevealVariant::DiagonalPulse => {
             let pulse = (((x + y) * std::f32::consts::PI * 2.0) + progress * 6.0).sin().abs();
-            let glow = mix_rgb(base, Color::Rgb(255, 255, 255), 0.4 * pulse);
+            let glow = mix_rgb(base, rgb(255, 255, 255), 0.4 * pulse);
             mix_rgb(glow, final_color, 0.45)
         }
         RevealVariant::ChromaticScan => {
             let scan = ((progress * 12.0 + x * 10.0).cos() + 1.0) * 0.25;
-            let cool = mix_rgb(base, Color::Rgb(180, 220, 255), 0.5);
+            let cool = mix_rgb(base, rgb(180, 220, 255), 0.5);
             mix_rgb(cool, final_color, 0.4 + scan.clamp(0.0, 0.3))
         }
         RevealVariant::SparkleFade => {
             let sparkle = hash_noise(col, row);
-            let white = Color::Rgb(255, 255, 255);
+            let white = rgb(255, 255, 255);
             let glint = mix_rgb(base, white, (0.6 - progress * 0.4).max(0.0) * sparkle);
             mix_rgb(glint, final_color, 0.5)
         }
         RevealVariant::RainbowBloom => {
             let bloom = ((progress * 9.0 + x * 6.0).cos() + 1.0) * 0.35;
-            let neon = mix_rgb(base, Color::Rgb(255, 180, 255), bloom * 0.3);
+            let neon = mix_rgb(base, rgb(255, 180, 255), bloom * 0.3);
             mix_rgb(neon, final_color, 0.45)
         }
         RevealVariant::AuroraBridge => {
             let arch = ((y * 9.0 + progress * 8.0).sin() + 1.0) * 0.28;
-            let glow = mix_rgb(base, Color::Rgb(140, 200, 255), arch * 0.4);
+            let glow = mix_rgb(base, rgb(140, 200, 255), arch * 0.4);
             mix_rgb(glow, final_color, 0.4)
         }
         RevealVariant::PrismRise => {
             let shimmer = ((x * 7.0 + y * 5.0 + progress * 6.0).sin() + 1.0) * 0.3;
-            let prism = mix_rgb(base, Color::Rgb(255, 210, 120), shimmer * 0.4);
+            let prism = mix_rgb(base, rgb(255, 210, 120), shimmer * 0.4);
             mix_rgb(prism, final_color, 0.42)
         }
         RevealVariant::NeonRoad => {
             let strip = ((x * 12.0 + progress * 14.0).sin() + 1.0) * 0.25;
-            let warm = mix_rgb(base, Color::Rgb(255, 120, 80), strip * 0.35);
+            let warm = mix_rgb(base, rgb(255, 120, 80), strip * 0.35);
             mix_rgb(warm, final_color, 0.38)
         }
         RevealVariant::HorizonRush => {
             let wash = ((y * 6.0 + progress * 7.0).cos() + 1.0) * 0.22;
-            let dawn = mix_rgb(base, Color::Rgb(255, 200, 150), wash * 0.4);
+            let dawn = mix_rgb(base, rgb(255, 200, 150), wash * 0.4);
             mix_rgb(dawn, final_color, 0.36)
         }
         RevealVariant::LightBloom => {
             let halo = ((progress * 6.0 + (x - 0.5).abs() * 18.0).sin() + 1.0) * 0.25;
-            let glow = mix_rgb(base, Color::Rgb(255, 240, 255), halo * 0.5);
+            let glow = mix_rgb(base, rgb(255, 240, 255), halo * 0.5);
             mix_rgb(glow, final_color, 0.28)
         }
     }

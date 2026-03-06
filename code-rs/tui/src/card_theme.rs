@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 use ratatui::prelude::Color;
 use std::time::Duration;
 
@@ -69,6 +67,7 @@ impl CardThemeDefinition {
     }
 }
 
+#[allow(clippy::disallowed_methods)]
 fn rgb(r: u8, g: u8, b: u8) -> Color {
     Color::Rgb(r, g, b)
 }

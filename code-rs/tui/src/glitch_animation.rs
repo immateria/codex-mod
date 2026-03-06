@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 use ratatui::buffer::Buffer;
 use ratatui::prelude::*;
 // Paragraph/Widget previously used; manual cell writes now keep static layer intact.
@@ -24,6 +22,11 @@ pub(crate) const DEFAULT_BRAND_TITLE: &str = "Code";
 type CharGrid = Vec<Vec<char>>;
 type BoolGrid = Vec<Vec<bool>>;
 type LineMasks = (CharGrid, BoolGrid, BoolGrid, usize, usize);
+
+#[allow(clippy::disallowed_methods)]
+const fn rgb(r: u8, g: u8, b: u8) -> Color {
+    Color::Rgb(r, g, b)
+}
 
 struct OverlayRenderInputs<'a> {
     chars: &'a [Vec<char>],
@@ -708,7 +711,7 @@ fn render_static_lines(
     _frame: u32,
     reveal_x_shadow: isize,
 ) {
-    let static_target = Color::Rgb(230, 232, 235); // matches CODE/EVERY final color (#e6e8eb)
+    let static_target = rgb(230, 232, 235); // matches CODE/EVERY final color (#e6e8eb)
     let static_color_base = blend_to_background(static_target, alpha);
     for (row_idx, line) in lines.iter().enumerate() {
         let y = area.y + row_idx as u16;
@@ -772,7 +775,7 @@ fn render_overlay_lines(
                 let shine =
                     (1.0 - (dx as f32 / (shine_band as f32 + 0.001)).clamp(0.0, 1.0)).powf(1.6);
                 let bright = bump_rgb(base, shine * 0.30);
-                color = mix_rgb(bright, Color::Rgb(230, 232, 235), fade);
+                color = mix_rgb(bright, rgb(230, 232, 235), fade);
                 if let Some(alpha) = alpha {
                     color = blend_to_background(color, alpha);
                 }
@@ -782,7 +785,7 @@ fn render_overlay_lines(
                 let period = 8usize;
                 let on = ((x + y + (frame as usize)) % period) < (period / 2);
                 let c = if on { bump_rgb(base, 0.22) } else { base };
-                color = mix_rgb(c, Color::Rgb(235, 237, 240), fade * 0.8);
+                color = mix_rgb(c, rgb(235, 237, 240), fade * 0.8);
                 if let Some(alpha) = alpha {
                     color = blend_to_background(color, alpha);
                 }
@@ -822,7 +825,7 @@ pub(crate) fn blend_to_background(color: Color, alpha: f32) -> Color {
             let r = (r1 as f32 * alpha + r2 as f32 * (1.0 - alpha)) as u8;
             let g = (g1 as f32 * alpha + g2 as f32 * (1.0 - alpha)) as u8;
             let b = (b1 as f32 * alpha + b2 as f32 * (1.0 - alpha)) as u8;
-            Color::Rgb(r, g, b)
+            rgb(r, g, b)
         }
         _ => {
             if alpha > 0.5 { color } else { bg }
@@ -867,7 +870,7 @@ fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
 pub(crate) fn mix_rgb(a: Color, b: Color, t: f32) -> Color {
     match (a, b) {
         (Color::Rgb(ar, ag, ab), Color::Rgb(br, bg, bb)) => {
-            Color::Rgb(lerp_u8(ar, br, t), lerp_u8(ag, bg, t), lerp_u8(ab, bb, t))
+            rgb(lerp_u8(ar, br, t), lerp_u8(ag, bg, t), lerp_u8(ab, bb, t))
         }
         _ => b,
     }
@@ -880,13 +883,13 @@ pub(crate) fn gradient_multi(t: f32) -> Color {
     let (r2, g2, b2) = (255u8, 78u8, 205u8); // #FF4ECD
     let (r3, g3, b3) = (255u8, 181u8, 0u8); // #FFB500
     if t < 0.5 {
-        Color::Rgb(
+        rgb(
             lerp_u8(r1, r2, t * 2.0),
             lerp_u8(g1, g2, t * 2.0),
             lerp_u8(b1, b2, t * 2.0),
         )
     } else {
-        Color::Rgb(
+        rgb(
             lerp_u8(r2, r3, (t - 0.5) * 2.0),
             lerp_u8(g2, g3, (t - 0.5) * 2.0),
             lerp_u8(b2, b3, (t - 0.5) * 2.0),
@@ -898,7 +901,7 @@ fn bump_rgb(c: Color, amt: f32) -> Color {
     match c {
         Color::Rgb(r, g, b) => {
             let add = |x: u8| ((x as f32 + 255.0 * amt).min(255.0)) as u8;
-            Color::Rgb(add(r), add(g), add(b))
+            rgb(add(r), add(g), add(b))
         }
         _ => c,
     }

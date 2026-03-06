@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Margin, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
@@ -3123,6 +3121,7 @@ fn apply_auto_drive_border_gradient(
     }
 }
 
+#[allow(clippy::disallowed_methods)]
 fn lerp_gradient_color(gradient: BorderGradient, ratio: f32) -> Color {
     let clamped = ratio.clamp(0.0, 1.0);
     let (lr, lg, lb) = crate::colors::color_to_rgb(gradient.left);
