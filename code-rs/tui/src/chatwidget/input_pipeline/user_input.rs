@@ -351,7 +351,7 @@ impl ChatWidget<'_> {
                                 .send(AppEvent::DispatchCommand(SlashCommand::Auto, command_text));
                             return;
                         }
-                        ProcessedCommand::NotCommand(_) => {}
+                        ProcessedCommand::NotCommand => {}
                         _ => {
                             self.submit_user_message(command_line.into());
                             let trimmed_rest = rest_text.trim();
@@ -533,7 +533,7 @@ impl ChatWidget<'_> {
                 self.history_push_plain_state(history_cell::new_error_event(error_msg));
                 return;
             }
-            crate::slash_command::ProcessedCommand::NotCommand(_) => {
+            crate::slash_command::ProcessedCommand::NotCommand => {
                 // Not a slash command, process normally
             }
         }

@@ -29,7 +29,6 @@ pub(crate) fn primary() -> Color {
     current_theme().primary
 }
 
-#[allow(dead_code)]
 pub(crate) fn secondary() -> Color {
     current_theme().secondary
 }
@@ -63,7 +62,6 @@ fn is_dark_background(color: Color) -> bool {
     matches!(color, Color::Indexed(0) | Color::Black)
 }
 
-#[allow(dead_code)]
 pub(crate) fn border_focused() -> Color {
     current_theme().border_focused
 }
@@ -115,7 +113,6 @@ pub(crate) fn background() -> Color {
     current_theme().background
 }
 
-#[allow(dead_code)]
 pub(crate) fn selection() -> Color {
     current_theme().selection
 }
@@ -212,7 +209,6 @@ fn blend_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
 }
 
 /// Blend `from` toward `to` by fraction `t` (0.0..=1.0) in RGB space.
-#[allow(dead_code)]
 pub(crate) fn mix_toward(from: Color, to: Color, t: f32) -> Color {
     let a = color_to_rgb(from);
     let b = color_to_rgb(to);

@@ -7,7 +7,6 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 
 use code_core::config::Config;
-use code_core::protocol::Op;
 use serde::Serialize;
 use serde_json::json;
 
@@ -196,14 +195,6 @@ pub(crate) fn log_inbound_app_event(event: &AppEvent) {
             LOGGER.write_json_line(value);
         }
     }
-}
-
-#[allow(dead_code)]
-pub(crate) fn log_outbound_op(op: &Op) {
-    if !LOGGER.is_enabled() {
-        return;
-    }
-    write_record("from_tui", "op", op);
 }
 
 pub(crate) fn log_session_end() {

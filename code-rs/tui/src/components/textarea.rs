@@ -185,11 +185,6 @@ impl TextArea {
         self.wrapped_lines(width).len() as u16
     }
 
-    #[allow(dead_code)]
-    pub fn cursor_pos(&self, area: Rect) -> Option<(u16, u16)> {
-        self.cursor_pos_with_state(area, TextAreaState::default())
-    }
-
     /// Compute the on-screen cursor position taking scrolling into account.
     pub fn cursor_pos_with_state(&self, area: Rect, state: TextAreaState) -> Option<(u16, u16)> {
         let lines = self.wrapped_lines(area.width);

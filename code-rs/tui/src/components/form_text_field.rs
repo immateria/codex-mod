@@ -150,7 +150,6 @@ impl FormTextField {
 
     /// Handle mouse click at screen coordinates, repositioning the cursor.
     /// Returns true if the cursor was moved.
-    #[allow(dead_code)]
     pub fn handle_mouse_click(&mut self, screen_x: u16, screen_y: u16, area: Rect) -> bool {
         self.textarea.handle_mouse_click(screen_x, screen_y, area, *self.state.borrow())
     }

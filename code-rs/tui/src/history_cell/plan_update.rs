@@ -20,7 +20,6 @@ impl PlanUpdateCell {
         progress.total > 0 && progress.completed >= progress.total
     }
 
-    #[allow(dead_code)]
     pub(crate) fn from_state(state: PlanUpdateState) -> Self {
         Self { state }
     }

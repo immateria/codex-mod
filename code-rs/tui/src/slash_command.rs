@@ -239,7 +239,7 @@ pub fn process_slash_command_message(message: &str) -> ProcessedCommand {
     let trimmed = message.trim();
 
     if trimmed.is_empty() {
-        return ProcessedCommand::NotCommand(message.to_string());
+        return ProcessedCommand::NotCommand;
     }
 
     let has_slash = trimmed.starts_with('/');
@@ -251,7 +251,7 @@ pub fn process_slash_command_message(message: &str) -> ProcessedCommand {
 
     if matches!(canonical_command.as_str(), "quit" | "exit") {
         if !has_slash && !args_raw.is_empty() {
-            return ProcessedCommand::NotCommand(message.to_string());
+            return ProcessedCommand::NotCommand;
         }
 
         let command_text = if args_raw.is_empty() {
@@ -264,7 +264,7 @@ pub fn process_slash_command_message(message: &str) -> ProcessedCommand {
     }
 
     if !has_slash {
-        return ProcessedCommand::NotCommand(message.to_string());
+        return ProcessedCommand::NotCommand;
     }
 
     // Try to parse the command
@@ -305,7 +305,7 @@ pub fn process_slash_command_message(message: &str) -> ProcessedCommand {
         ProcessedCommand::RegularCommand(command, command_text)
     } else {
         // Unknown command
-        ProcessedCommand::NotCommand(message.to_string())
+        ProcessedCommand::NotCommand
     }
 }
 
@@ -317,8 +317,7 @@ pub enum ProcessedCommand {
     /// contains the canonical command text (with leading slash and trimmed args).
     RegularCommand(SlashCommand, String),
     /// Not a slash command, just a regular message
-    #[allow(dead_code)]
-    NotCommand(String),
+    NotCommand,
     /// Error processing the command
     Error(String),
 }
