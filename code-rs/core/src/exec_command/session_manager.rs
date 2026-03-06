@@ -657,11 +657,11 @@ mod tests {
     /// in the presence of a process that never terminates (but produces
     /// output continuously).
     #[cfg(unix)]
-    #[allow(clippy::print_stderr)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn session_manager_streams_and_truncates_from_now() {
         use crate::exec_command::exec_command_params::ExecCommandParams;
         use crate::exec_command::exec_command_params::WriteStdinParams;
+        use std::io::Write;
         use tokio::time::sleep;
 
         let session_manager = SessionManager::default();
@@ -705,13 +705,13 @@ PY"#
             Err(e) => {
                 // PTY may be restricted in some sandboxes; skip in that case.
                 if e.contains("openpty") || e.contains("Operation not permitted") {
-                    eprintln!("skipping test due to restricted PTY: {e}");
+                    let _ = writeln!(std::io::stderr(), "skipping test due to restricted PTY: {e}");
                     return;
                 }
                 panic!("exec request failed unexpectedly: {e}");
             }
         };
-        eprintln!("initial output: {initial_output:?}");
+        let _ = writeln!(std::io::stderr(), "initial output: {initial_output:?}");
 
         // Should be ongoing (we launched a never-ending loop).
         let session_id = match initial_output.exit_status {

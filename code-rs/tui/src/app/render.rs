@@ -20,7 +20,6 @@ impl App<'_> {
     /// subsequent requests. Crucially, even if a timer is already armed (e.g., an
     /// animation scheduled a future frame), we still trigger an immediate redraw
     /// to keep keypress echo latency low.
-    #[allow(clippy::unwrap_used)]
     pub(super) fn schedule_redraw(&self) {
         // Only queue a new frame when one is not already in flight; otherwise record
         // that we owe a follow-up immediately after the active frame completes.

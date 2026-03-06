@@ -487,7 +487,7 @@ impl Session {
     }
 
     pub(crate) fn is_command_approved(&self, command: &[String]) -> bool {
-        let state = self.state.lock().unwrap();
+        let state = crate::codex::lock_or_panic!(self.state);
         state.approved_commands.iter().any(|pattern| pattern.matches(command))
     }
 
@@ -520,7 +520,7 @@ impl Session {
     }
 
     pub(crate) fn mcp_tool_selection_snapshot(&self) -> Option<Vec<String>> {
-        let state = self.state.lock().unwrap();
+        let state = crate::codex::lock_or_panic!(self.state);
         state.active_mcp_tool_selection.clone()
     }
 
@@ -531,7 +531,7 @@ impl Session {
                 .unwrap_or_default();
         }
 
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         let current = state.active_mcp_tool_selection.get_or_insert_with(Vec::new);
         current.extend(tools);
         current.sort_by_key(|tool| tool.to_ascii_lowercase());
@@ -598,7 +598,7 @@ impl Session {
     }
 
     fn next_background_sequence(&self, sub_id: &str) -> u64 {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if state.background_seq_by_sub_id.len() > MAX_BACKGROUND_SEQ_SUB_IDS {
             trim_sub_id_sequence_map(
                 &mut state.background_seq_by_sub_id,
@@ -699,7 +699,7 @@ impl Session {
     }
 
     pub(crate) fn background_exec_cmd_display(&self, call_id: &str) -> Option<String> {
-        let state = self.state.lock().unwrap();
+        let state = crate::codex::lock_or_panic!(self.state);
         state
             .background_execs
             .get(call_id)
@@ -707,7 +707,7 @@ impl Session {
     }
 
     pub(crate) fn maybe_nudge_time_budget(&self) -> Option<String> {
-        let mut guard = self.time_budget.lock().unwrap();
+        let mut guard = crate::codex::lock_or_panic!(self.time_budget);
         guard
             .as_mut()
             .and_then(|budget| budget.maybe_nudge(std::time::Instant::now()))
@@ -806,12 +806,12 @@ impl Session {
     }
 
     pub(super) fn set_active_review(&self, review_request: ReviewRequest) {
-        let mut guard = self.active_review.lock().unwrap();
+        let mut guard = crate::codex::lock_or_panic!(self.active_review);
         *guard = Some(review_request);
     }
 
     pub(super) fn take_active_review(&self) -> Option<ReviewRequest> {
-        self.active_review.lock().unwrap().take()
+        crate::codex::lock_or_panic!(self.active_review).take()
     }
 
     pub(crate) fn mcp_connection_manager(&self) -> &McpConnectionManager {
@@ -874,21 +874,21 @@ impl Session {
     // Scratchpad helpers
     // ────────────────────────────
     pub(super) fn begin_attempt_scratchpad(&self) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.turn_scratchpad = Some(TurnScratchpad::default());
     }
 
     /// Bump the per-session HTTP request attempt ordinal so `OrderMeta`
     /// reflects the correct provider request index for this attempt.
     pub(super) fn begin_http_attempt(&self) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.request_ordinal = state.request_ordinal.saturating_add(1);
     }
 
     pub(super) fn turn_latency_request_scheduled(&self, attempt_req: u64, prompt: &Prompt) {
         let now = Instant::now();
         let gap_and_metrics = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             let gap = state
                 .last_turn_completed_at
                 .map(|prev| now.saturating_duration_since(prev));
@@ -935,7 +935,7 @@ impl Session {
     ) {
         let now = Instant::now();
         let (duration, prompt_counts, metrics) = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             let duration = state
                 .last_turn_started_at
                 .map(|start| now.saturating_duration_since(start));
@@ -985,7 +985,7 @@ impl Session {
     pub(super) fn turn_latency_request_failed(&self, attempt_req: u64, note: Option<String>) {
         let now = Instant::now();
         let (duration, prompt_counts, metrics) = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             let duration = state
                 .last_turn_started_at
                 .map(|start| now.saturating_duration_since(start));
@@ -1033,7 +1033,7 @@ impl Session {
         response: &Option<ResponseInputItem>,
         sub_id: &str,
     ) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if let Some(sp) = &mut state.turn_scratchpad {
             sp.items.push(item.clone());
             if let Some(r) = response {
@@ -1045,7 +1045,7 @@ impl Session {
     }
 
     pub(super) fn scratchpad_add_text_delta(&self, delta: &str) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if let Some(sp) = &mut state.turn_scratchpad {
             sp.partial_assistant_text.push_str(delta);
             // Keep memory bounded (ensure UTF-8 char boundary when trimming)
@@ -1060,7 +1060,7 @@ impl Session {
     }
 
     pub(super) fn scratchpad_add_reasoning_delta(&self, delta: &str) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if let Some(sp) = &mut state.turn_scratchpad {
             sp.partial_reasoning_summary.push_str(delta);
             if sp.partial_reasoning_summary.len() > 4000 {
@@ -1074,19 +1074,19 @@ impl Session {
     }
 
     pub(super) fn scratchpad_clear_partial_message(&self) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if let Some(sp) = &mut state.turn_scratchpad {
             sp.partial_assistant_text.clear();
         }
     }
 
     pub(super) fn take_scratchpad(&self) -> Option<TurnScratchpad> {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.turn_scratchpad.take()
     }
 
     pub(super) fn clear_scratchpad(&self) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.turn_scratchpad = None;
     }
 }
@@ -1111,7 +1111,7 @@ fn trim_sub_id_sequence_map(
 }
 impl Session {
     pub(super) fn set_task(&self, agent: AgentTask) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if let Some(current_task) = state.current_task.take() {
             current_task.abort(TurnAbortReason::Replaced);
         }
@@ -1120,7 +1120,7 @@ impl Session {
 
     pub async fn start_pending_only_turn_if_idle(self: &Arc<Self>) -> bool {
         let should_start = {
-            let state = self.state.lock().unwrap();
+            let state = crate::codex::lock_or_panic!(self.state);
             state.current_task.is_none()
         };
 
@@ -1140,12 +1140,12 @@ impl Session {
     }
 
     pub fn replace_history(&self, items: Vec<ResponseItem>) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.history.replace(items);
     }
 
     pub fn remove_task(&self, sub_id: &str) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if let Some(agent) = &state.current_task
             && agent.sub_id == sub_id {
                 state.current_task.take();
@@ -1153,22 +1153,22 @@ impl Session {
     }
 
     pub fn has_running_task(&self) -> bool {
-        self.state.lock().unwrap().current_task.is_some()
+        crate::codex::lock_or_panic!(self.state).current_task.is_some()
     }
 
     pub fn queue_user_input(&self, queued: QueuedUserInput) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.pending_user_input.push(queued);
     }
 
     pub(super) fn notify_wait_interrupted(&self, reason: WaitInterruptReason) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.wait_interrupt_epoch = state.wait_interrupt_epoch.saturating_add(1);
         state.wait_interrupt_reason = Some(reason);
     }
 
     pub(crate) fn wait_interrupt_snapshot(&self) -> (u64, Option<WaitInterruptReason>) {
-        let state = self.state.lock().unwrap();
+        let state = crate::codex::lock_or_panic!(self.state);
         (state.wait_interrupt_epoch, state.wait_interrupt_reason)
     }
 
@@ -1280,7 +1280,7 @@ impl Session {
     }
 
     pub fn pop_next_queued_user_input(&self) -> Option<QueuedUserInput> {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if state.pending_user_input.is_empty() {
             None
         } else {
@@ -1292,14 +1292,14 @@ impl Session {
     /// next turn. Returns `true` if no agent is currently running and a new turn should be
     /// scheduled immediately.
     pub fn enqueue_out_of_turn_item(&self, item: ResponseInputItem) -> bool {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         let should_start_turn = state.current_task.is_none();
         state.pending_input.push(item);
         should_start_turn
     }
 
     pub(crate) fn next_internal_sub_id(&self) -> String {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         let id = state.next_internal_sub_id;
         state.next_internal_sub_id = state.next_internal_sub_id.saturating_add(1);
         format!("auto-compact-{id}")
@@ -1327,7 +1327,7 @@ impl Session {
             shell_environment_policy: self.shell_environment_policy.clone(),
             collaboration_mode: self.collaboration_mode,
             is_review_mode: false,
-            text_format_override: self.next_turn_text_format.lock().unwrap().take(),
+            text_format_override: crate::codex::lock_or_panic!(self.next_turn_text_format).take(),
             final_output_json_schema,
         })
     }
@@ -1369,7 +1369,7 @@ impl Session {
         );
         let _ = self.tx_event.send(event).await;
         {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             // Track pending approval by approval id (or call_id fallback) rather than sub_id
             // so parallel approvals in the same turn do not clobber each other.
             state.pending_approvals.insert(effective_approval_id, tx_approve);
@@ -1397,7 +1397,7 @@ impl Session {
         );
         let _ = self.tx_event.send(event).await;
         {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             // Track pending approval by call_id to avoid collisions.
             state.pending_approvals.insert(call_id, tx_approve);
         }
@@ -1405,7 +1405,7 @@ impl Session {
     }
 
     pub fn notify_approval(&self, call_id: &str, decision: ReviewDecision) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if let Some(tx_approve) = state.pending_approvals.remove(call_id) {
             let _ = tx_approve.send(decision);
         } else {
@@ -1420,7 +1420,7 @@ impl Session {
         turn_id: String,
     ) -> std::result::Result<oneshot::Receiver<crate::protocol::RequestUserInputResponse>, String> {
         let (tx, rx) = oneshot::channel();
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if state.pending_request_user_input.contains_key(&turn_id) {
             return Err(format!("request_user_input already pending for turn_id={turn_id}"));
         }
@@ -1434,7 +1434,7 @@ impl Session {
         response: crate::protocol::RequestUserInputResponse,
     ) {
         let pending = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             state.pending_request_user_input.remove(turn_id)
         };
         if let Some(tx) = pending {
@@ -1449,7 +1449,7 @@ impl Session {
         call_id: String,
     ) -> std::result::Result<oneshot::Receiver<DynamicToolResponse>, String> {
         let (tx, rx) = oneshot::channel();
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if state.pending_dynamic_tools.contains_key(&call_id) {
             return Err(format!("dynamic tool already pending for call_id={call_id}"));
         }
@@ -1459,7 +1459,7 @@ impl Session {
 
     pub fn notify_dynamic_tool_response(&self, call_id: &str, response: DynamicToolResponse) {
         let pending = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             state.pending_dynamic_tools.remove(call_id)
         };
         if let Some(tx) = pending {
@@ -1470,7 +1470,7 @@ impl Session {
     }
 
     pub fn add_approved_command(&self, pattern: ApprovedCommandPattern) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.approved_commands.insert(pattern);
     }
 
@@ -1480,14 +1480,14 @@ impl Session {
         debug!("Recording items for conversation: {items:?}");
         self.record_state_snapshot(items).await;
 
-        self.state.lock().unwrap().history.record_items(items);
+        crate::codex::lock_or_panic!(self.state).history.record_items(items);
 
     }
 
     /// Clean up old screenshots and system status messages from conversation history
     /// This is called when a new user message arrives to keep history manageable
     pub(super) async fn cleanup_old_status_items(&self) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         let current_items = state.history.take_contents();
 
         let (items_to_keep, stats) = if self.env_ctx_v2 {
@@ -1553,13 +1553,13 @@ impl Session {
     }
 
     pub(super) fn clone_rollout_recorder(&self) -> Option<RolloutRecorder> {
-        let guard = self.rollout.lock().unwrap();
+        let guard = crate::codex::lock_or_panic!(self.rollout);
         guard.as_ref().cloned()
     }
 
     pub(crate) async fn persist_rollout_items(&self, items: &[RolloutItem]) {
         let recorder = {
-            let guard = self.rollout.lock().unwrap();
+            let guard = crate::codex::lock_or_panic!(self.rollout);
             guard.as_ref().cloned()
         };
         if let Some(rec) = recorder
@@ -1572,7 +1572,7 @@ impl Session {
     /// history with additional items for this turn.
     /// Browser screenshots are filtered out from history to keep them ephemeral.
     pub fn turn_input_with_history(&self, extra: Vec<ResponseItem>) -> Vec<ResponseItem> {
-        let history = self.state.lock().unwrap().history.contents();
+        let history = crate::codex::lock_or_panic!(self.state).history.contents();
 
         // Debug: Count function call outputs in history
         let fc_output_count = history
@@ -1818,7 +1818,7 @@ impl Session {
         }
 
         let (stream_id, result) = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             let stream = state.context_stream_ids.env_stream_id(self.id);
             let result = match state.environment_context_tracker.emit_response_items(
                 env_context,
@@ -1933,7 +1933,7 @@ impl Session {
         }
 
         let (timeline, stream_id, max_deltas) = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             if state.context_timeline.is_empty() {
                 return None;
             }
@@ -2083,7 +2083,7 @@ impl Session {
         let restored_snapshot = replay_ctx.last_snapshot.clone();
         let next_seq_value = replay_ctx.next_sequence;
         {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             state.context_timeline = replay_ctx.timeline.clone();
             state.environment_context_seq = next_seq_value.saturating_sub(1);
             state.context_stream_ids = EnvironmentContextStreamRegistry::default();
@@ -2104,7 +2104,7 @@ impl Session {
 
     /// Returns the input if there was no agent running to inject into
     pub fn inject_input(&self, input: Vec<InputItem>) -> Result<(), Vec<InputItem>> {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if let Some(task) = state.current_task.as_ref() {
             let mut response = response_input_from_core_items(input);
             self.enforce_user_message_limits(&task.sub_id, &mut response);
@@ -2116,7 +2116,7 @@ impl Session {
     }
 
     pub fn enqueue_manual_compact(&self, sub_id: String) -> bool {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         let was_empty = state.pending_manual_compacts.is_empty();
         while state.pending_manual_compacts.len() >= MAX_PENDING_MANUAL_COMPACTS {
             state.pending_manual_compacts.pop_front();
@@ -2130,7 +2130,7 @@ impl Session {
     }
 
     pub fn dequeue_manual_compact(&self) -> Option<String> {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.pending_manual_compacts.pop_front()
     }
 
@@ -2144,7 +2144,7 @@ impl Session {
     /// or preserved for a later turn—for example, review mode keeps them queued
     /// so the primary agent can resume once the review finishes.
     pub fn get_pending_input_filtered(&self, drain_user_inputs: bool) -> Vec<ResponseInputItem> {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if state.pending_input.is_empty()
             && (drain_user_inputs || state.pending_user_input.is_empty())
         {
@@ -2180,7 +2180,7 @@ impl Session {
     }
 
     pub fn add_pending_input(&self, mut input: ResponseInputItem) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if let Some(task) = state.current_task.as_ref() {
             self.enforce_user_message_limits(&task.sub_id, &mut input);
         }
@@ -2237,7 +2237,7 @@ impl Session {
 
         self.mark_all_running_execs_as_cancelled();
 
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.pending_approvals.clear();
         state.pending_request_user_input.clear();
         state.pending_dynamic_tools.clear();

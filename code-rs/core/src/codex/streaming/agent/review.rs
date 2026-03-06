@@ -44,7 +44,7 @@ pub(super) async fn spawn_review_thread(
         Err(err) => {
             warn!("failed to create review debug logger: {err}");
             Arc::new(Mutex::new(
-                crate::debug_logger::DebugLogger::new(false).unwrap(),
+                crate::codex::disabled_debug_logger_or_panic(),
             ))
         }
     };

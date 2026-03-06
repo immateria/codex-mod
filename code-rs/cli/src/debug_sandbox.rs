@@ -102,10 +102,9 @@ async fn run_command_under_sandbox(
             .await?
         }
         SandboxType::Landlock => {
-            #[expect(clippy::expect_used)]
-            let code_linux_sandbox_exe = config
-                .code_linux_sandbox_exe
-                .expect("codex-linux-sandbox executable not found");
+            let Some(code_linux_sandbox_exe) = config.code_linux_sandbox_exe else {
+                return Err(anyhow::anyhow!("codex-linux-sandbox executable not found"));
+            };
             spawn_command_under_linux_sandbox(
                 code_linux_sandbox_exe,
                 command,

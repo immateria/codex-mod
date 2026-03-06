@@ -153,7 +153,7 @@ pub(super) async fn try_run_turn(
             } => {
                 let (new_info, rate_limits, should_emit);
                 {
-                    let mut state = sess.state.lock().unwrap();
+                    let mut state = crate::codex::lock_or_panic!(sess.state);
                     let info = TokenUsageInfo::new_or_append(
                         &state.token_usage_info,
                         &token_usage,
@@ -282,7 +282,7 @@ pub(super) async fn try_run_turn(
                 }
             }
             ResponseEvent::RateLimits(snapshot) => {
-                let mut state = sess.state.lock().unwrap();
+                let mut state = crate::codex::lock_or_panic!(sess.state);
                 state.latest_rate_limits = Some(snapshot.clone());
                 if let Some(ctx) = account_usage_context(sess) {
                     let usage_home = ctx.code_home.clone();

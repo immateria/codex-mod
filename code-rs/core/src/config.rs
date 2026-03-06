@@ -2291,7 +2291,6 @@ fn migrate_entry(path: &Path, target_dir: &Path) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
     use crate::config_types::HistoryPersistence;
     use crate::config_types::McpServerTransportConfig;
     use crate::config_types::Notifications;
@@ -2302,6 +2301,39 @@ mod tests {
     use std::ffi::OsString;
     use tempfile::NamedTempFile;
     use tempfile::TempDir;
+
+    trait ResultOrPanic<T> {
+        fn or_panic(self, context: &str) -> T;
+    }
+
+    impl<T, E> ResultOrPanic<T> for std::result::Result<T, E>
+    where
+        E: std::fmt::Display,
+    {
+        fn or_panic(self, context: &str) -> T {
+            match self {
+                Ok(value) => value,
+                Err(err) => panic!("{context}: {err}"),
+            }
+        }
+    }
+
+    trait OptionOrPanic<T> {
+        fn or_panic(self, context: &str) -> T;
+    }
+
+    impl<T> OptionOrPanic<T> for Option<T> {
+        fn or_panic(self, context: &str) -> T {
+            match self {
+                Some(value) => value,
+                None => panic!("{context}"),
+            }
+        }
+    }
+
+    fn temp_dir_or_panic() -> TempDir {
+        TempDir::new().or_panic("temp dir")
+    }
 
     struct EnvVarGuard {
         key: &'static str,
@@ -2337,7 +2369,7 @@ mod tests {
 persistence = "save-all"
 "#;
         let history_with_persistence_cfg = toml::from_str::<ConfigToml>(history_with_persistence)
-            .expect("TOML deserialization should succeed");
+            .or_panic("TOML deserialization should succeed");
         assert_eq!(
             Some(History {
                 persistence: HistoryPersistence::SaveAll,
@@ -2352,7 +2384,7 @@ persistence = "none"
 "#;
 
         let history_no_persistence_cfg = toml::from_str::<ConfigToml>(history_no_persistence)
-            .expect("TOML deserialization should succeed");
+            .or_panic("TOML deserialization should succeed");
         assert_eq!(
             Some(History {
                 persistence: HistoryPersistence::None,
@@ -2366,17 +2398,17 @@ persistence = "none"
     fn auto_upgrade_enabled_accepts_string_boolean() {
         let cfg_true = r#"auto_upgrade_enabled = "true""#;
         let parsed_true = toml::from_str::<ConfigToml>(cfg_true)
-            .expect("string boolean should deserialize");
+            .or_panic("string boolean should deserialize");
         assert_eq!(parsed_true.auto_upgrade_enabled, Some(true));
 
         let cfg_false = r#"auto_upgrade_enabled = "false""#;
         let parsed_false = toml::from_str::<ConfigToml>(cfg_false)
-            .expect("string boolean should deserialize");
+            .or_panic("string boolean should deserialize");
         assert_eq!(parsed_false.auto_upgrade_enabled, Some(false));
 
         let cfg_bool = r#"auto_upgrade_enabled = true"#;
         let parsed_bool = toml::from_str::<ConfigToml>(cfg_bool)
-            .expect("boolean should deserialize");
+            .or_panic("boolean should deserialize");
         assert_eq!(parsed_bool.auto_upgrade_enabled, Some(true));
     }
 
@@ -2395,7 +2427,7 @@ persistence = "none"
         );
 
         let cfg = toml::from_str::<ConfigToml>("tool_output_max_bytes = 65536")
-            .expect("TOML should deserialize");
+            .or_panic("TOML should deserialize");
         let overridden = Config::load_from_base_config_with_overrides(
             cfg,
             ConfigOverrides::default(),
@@ -2467,8 +2499,8 @@ persistence = "none"
 "#;
 
         let parsed = toml::from_str::<ConfigToml>(cfg)
-            .expect("TUI config without notifications should succeed");
-        let tui = parsed.tui.expect("config should include tui section");
+            .or_panic("TUI config without notifications should succeed");
+        let tui = parsed.tui.or_panic("config should include tui section");
 
         assert_eq!(tui.notifications, Notifications::Enabled(false));
     }
@@ -2482,7 +2514,7 @@ sandbox_mode = "danger-full-access"
 network_access = false  # This should be ignored.
 "#;
         let sandbox_full_access_cfg = toml::from_str::<ConfigToml>(sandbox_full_access)
-            .expect("TOML deserialization should succeed");
+            .or_panic("TOML deserialization should succeed");
         let sandbox_mode_override = None;
         assert_eq!(
             SandboxPolicy::DangerFullAccess,
@@ -2497,7 +2529,7 @@ network_access = true  # This should be ignored.
 "#;
 
         let sandbox_read_only_cfg = toml::from_str::<ConfigToml>(sandbox_read_only)
-            .expect("TOML deserialization should succeed");
+            .or_panic("TOML deserialization should succeed");
         let sandbox_mode_override = None;
         assert_eq!(
             SandboxPolicy::ReadOnly,
@@ -2516,7 +2548,7 @@ exclude_slash_tmp = true
 "#;
 
         let sandbox_workspace_write_cfg = toml::from_str::<ConfigToml>(sandbox_workspace_write)
-            .expect("TOML deserialization should succeed");
+            .or_panic("TOML deserialization should succeed");
         let sandbox_mode_override = None;
         assert_eq!(
             SandboxPolicy::WorkspaceWrite {
@@ -2565,7 +2597,7 @@ exclude_slash_tmp = true
 
         let loaded = load_global_mcp_servers(code_home.path())?;
         assert_eq!(loaded.len(), 1);
-        let docs = loaded.get("docs").expect("docs entry");
+        let docs = loaded.get("docs").or_panic("docs entry");
         match &docs.transport {
             McpServerTransportConfig::Stdio { command, args, env } => {
                 assert_eq!(command, "echo");
@@ -2695,7 +2727,7 @@ model = "gpt-4.1"
         let profile = parsed
             .profiles
             .get("dev")
-            .expect("profile should be created");
+            .or_panic("profile should be created");
 
         assert_eq!(profile.model.as_deref(), Some("gpt-5.1-codex"));
         assert_eq!(
@@ -2739,7 +2771,7 @@ model = "gpt-5.1-codex"
         let dev_profile = parsed
             .profiles
             .get("dev")
-            .expect("dev profile should survive updates");
+            .or_panic("dev profile should survive updates");
         assert_eq!(dev_profile.model.as_deref(), Some("o4-high"));
         assert_eq!(
             dev_profile.model_reasoning_effort,
@@ -2820,17 +2852,17 @@ model_reasoning_summary = "detailed"
 model_verbosity = "high"
 "#;
 
-        let cfg: ConfigToml = toml::from_str(toml).expect("TOML deserialization should succeed");
+        let cfg: ConfigToml = toml::from_str(toml).or_panic("TOML deserialization should succeed");
 
         // Use a temporary directory for the cwd so it does not contain an
         // AGENTS.md file.
-        let cwd_temp_dir = TempDir::new().unwrap();
+        let cwd_temp_dir = temp_dir_or_panic();
         let cwd = cwd_temp_dir.path().to_path_buf();
         // Make it look like a Git repo so it does not search for AGENTS.md in
         // a parent folder, either.
         std::fs::write(cwd.join(".git"), "gitdir: nowhere")?;
 
-        let code_home_temp_dir = TempDir::new().unwrap();
+        let code_home_temp_dir = temp_dir_or_panic();
 
         let openai_chat_completions_provider = ModelProviderInfo {
             name: "OpenAI using Chat Completions".to_string(),
@@ -2859,7 +2891,7 @@ model_verbosity = "high"
 
         let openai_provider = model_provider_map
             .get("openai")
-            .expect("openai provider should exist")
+            .or_panic("openai provider should exist")
             .clone();
 
         Ok(PrecedenceTestFixture {
@@ -2905,7 +2937,7 @@ model_verbosity = "high"
             o3_profile_config.review_model_reasoning_effort
         );
         assert_eq!(
-            find_family_for_model("o3").expect("known model slug"),
+            find_family_for_model("o3").or_panic("known model slug"),
             o3_profile_config.model_family
         );
         assert_eq!(Some(200_000), o3_profile_config.model_context_window);
@@ -2959,7 +2991,7 @@ model_verbosity = "high"
             gpt3_profile_config.review_model_reasoning_effort
         );
         assert_eq!(
-            find_family_for_model("gpt-3.5-turbo").expect("known model slug"),
+            find_family_for_model("gpt-3.5-turbo").or_panic("known model slug"),
             gpt3_profile_config.model_family
         );
         assert_eq!(Some(16_385), gpt3_profile_config.model_context_window);
@@ -3028,7 +3060,7 @@ model_verbosity = "high"
             zdr_profile_config.review_model_reasoning_effort
         );
         assert_eq!(
-            find_family_for_model("o3").expect("known model slug"),
+            find_family_for_model("o3").or_panic("known model slug"),
             zdr_profile_config.model_family
         );
         assert_eq!(Some(200_000), zdr_profile_config.model_context_window);
@@ -3073,7 +3105,7 @@ model_verbosity = "high"
             gpt5_profile_config.review_model_reasoning_effort
         );
         assert_eq!(
-            find_family_for_model("gpt-5.2").expect("known model slug"),
+            find_family_for_model("gpt-5.2").or_panic("known model slug"),
             gpt5_profile_config.model_family
         );
         assert!(gpt5_profile_config.model_context_window.is_some());
@@ -3404,7 +3436,7 @@ model_verbosity = "high"
         let auto_drive = parsed
             .get("auto_drive")
             .and_then(toml::Value::as_table)
-            .expect("auto_drive table should exist");
+            .or_panic("auto_drive table should exist");
         assert!(
             !auto_drive.contains_key("model_routing_entries"),
             "model_routing_entries should be removed when entries are empty"
@@ -3464,7 +3496,7 @@ model_verbosity = "high"
 
         upgrade_legacy_model_slugs(&mut cfg);
 
-        let legacy = cfg.profiles.get("legacy").expect("profile exists");
+        let legacy = cfg.profiles.get("legacy").or_panic("profile exists");
         assert_eq!(legacy.model.as_deref(), Some("test-gpt-5.1-codex"));
         assert_eq!(legacy.review_model.as_deref(), Some("gpt-5.1-codex"));
     }
@@ -3685,8 +3717,8 @@ script_style = "zsh"
 
     #[test]
     fn test_set_project_trusted_writes_explicit_tables() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
-        let project_dir = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
+        let project_dir = temp_dir_or_panic();
 
         // Call the function under test
         set_project_trusted(code_home.path(), project_dir.path())?;
@@ -3720,8 +3752,8 @@ script_style = "zsh"
 
     #[test]
     fn test_set_project_trusted_converts_inline_to_explicit() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
-        let project_dir = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
+        let project_dir = temp_dir_or_panic();
 
         // Seed config.toml with an inline project entry under [projects]
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
@@ -3769,7 +3801,7 @@ script_style = "zsh"
 
     #[test]
     fn shell_style_profile_skill_mode_updates_existing_alias_key() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -3795,7 +3827,7 @@ skills = ["existing-skill"]
 
     #[test]
     fn shell_style_profile_skill_mode_errors_on_ambiguous_alias_keys() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -3825,7 +3857,7 @@ skills = ["beta"]
 
     #[test]
     fn shell_style_profile_skill_mode_errors_on_invalid_skills_type() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -3852,7 +3884,7 @@ skills = "not-an-array"
 
     #[test]
     fn shell_style_profile_paths_updates_existing_alias_key() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -3879,7 +3911,7 @@ references = ["docs/old.md"]
 
     #[test]
     fn shell_style_profile_paths_error_on_ambiguous_alias_keys() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -3909,7 +3941,7 @@ references = ["docs/b.md"]
 
     #[test]
     fn shell_style_profile_paths_error_on_invalid_references_type() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -3936,7 +3968,7 @@ references = "not-an-array"
 
     #[test]
     fn shell_style_profile_mcp_servers_updates_existing_alias_key() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -3965,7 +3997,7 @@ include = ["legacy"]
 
     #[test]
     fn shell_style_profile_mcp_servers_error_on_ambiguous_alias_keys() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -3997,7 +4029,7 @@ include = ["b"]
 
     #[test]
     fn shell_style_profile_mcp_servers_error_on_invalid_include_type() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -4025,7 +4057,7 @@ include = "not-an-array"
 
     #[test]
     fn shell_style_profile_skills_updates_existing_alias_key() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -4052,7 +4084,7 @@ skills = ["legacy"]
 
     #[test]
     fn shell_style_profile_skills_error_on_ambiguous_alias_keys() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -4082,7 +4114,7 @@ skills = ["b"]
 
     #[test]
     fn shell_style_profile_skills_error_on_invalid_skills_type() -> anyhow::Result<()> {
-        let code_home = TempDir::new().unwrap();
+        let code_home = temp_dir_or_panic();
         let config_path = code_home.path().join(CONFIG_TOML_FILE);
         std::fs::write(
             &config_path,
@@ -4115,6 +4147,19 @@ mod agent_merge_tests {
     use super::merge_with_default_agents;
     use crate::config_types::AgentConfig;
 
+    trait OptionOrPanic<T> {
+        fn or_panic(self, context: &str) -> T;
+    }
+
+    impl<T> OptionOrPanic<T> for Option<T> {
+        fn or_panic(self, context: &str) -> T {
+            match self {
+                Some(value) => value,
+                None => panic!("{context}"),
+            }
+        }
+    }
+
     fn agent(name: &str, command: &str, enabled: bool) -> AgentConfig {
         AgentConfig {
             name: name.to_string(),
@@ -4138,7 +4183,7 @@ mod agent_merge_tests {
         let mini = merged
             .iter()
             .find(|a| a.name.eq_ignore_ascii_case("code-gpt-5.1-codex-mini"))
-            .expect("mini present");
+            .or_panic("mini present");
 
         assert!(!mini.enabled, "disabled state should persist for alias");
         assert_eq!(
@@ -4159,7 +4204,7 @@ mod agent_merge_tests {
         let mini = merged
             .iter()
             .find(|a| a.name.eq_ignore_ascii_case("code-gpt-5.1-codex-mini"))
-            .expect("mini present");
+            .or_panic("mini present");
 
         assert!(!mini.enabled, "disabled state should persist for canonical slug");
         assert_eq!(
@@ -4183,7 +4228,7 @@ mod agent_merge_tests {
         let mini = merged
             .iter()
             .find(|a| a.name.eq_ignore_ascii_case("code-gpt-5.1-codex-mini"))
-            .expect("mini present");
+            .or_panic("mini present");
 
         assert!(!mini.enabled, "later canonical disable should win");
         assert_eq!(
@@ -4207,7 +4252,7 @@ mod agent_merge_tests {
         let mini = merged
             .iter()
             .find(|a| a.name.eq_ignore_ascii_case("code-gpt-5.1-codex-mini"))
-            .expect("mini present");
+            .or_panic("mini present");
 
         assert!(!mini.enabled, "later alias disable should win");
         assert_eq!(
@@ -4231,7 +4276,7 @@ mod agent_merge_tests {
         let gemini = merged
             .iter()
             .find(|a| a.name.eq_ignore_ascii_case("gemini-3-pro"))
-            .expect("gemini present");
+            .or_panic("gemini present");
 
         assert!(!gemini.enabled, "later canonical disable should win");
         assert_eq!(
@@ -4255,7 +4300,7 @@ mod agent_merge_tests {
         let gemini = merged
             .iter()
             .find(|a| a.name.eq_ignore_ascii_case("gemini-3-pro"))
-            .expect("gemini present");
+            .or_panic("gemini present");
 
         assert!(!gemini.enabled, "later alias disable should win");
         assert_eq!(
@@ -4274,6 +4319,22 @@ mod notifications_tests {
     use crate::config_types::Notifications;
     use serde::Deserialize;
 
+    trait ResultOrPanic<T> {
+        fn or_panic(self, context: &str) -> T;
+    }
+
+    impl<T, E> ResultOrPanic<T> for std::result::Result<T, E>
+    where
+        E: std::fmt::Display,
+    {
+        fn or_panic(self, context: &str) -> T {
+            match self {
+                Ok(value) => value,
+                Err(err) => panic!("{context}: {err}"),
+            }
+        }
+    }
+
     #[derive(Deserialize, Debug, PartialEq)]
     struct TuiTomlTest {
         notifications: Notifications,
@@ -4290,7 +4351,7 @@ mod notifications_tests {
             [tui]
             notifications = true
         "#;
-        let parsed: RootTomlTest = toml::from_str(toml).expect("deserialize notifications=true");
+        let parsed: RootTomlTest = toml::from_str(toml).or_panic("deserialize notifications=true");
         assert!(matches!(
             parsed.tui.notifications,
             Notifications::Enabled(true)
@@ -4304,7 +4365,7 @@ mod notifications_tests {
             notifications = ["foo"]
         "#;
         let parsed: RootTomlTest =
-            toml::from_str(toml).expect("deserialize notifications=[\"foo\"]");
+            toml::from_str(toml).or_panic("deserialize notifications=[\"foo\"]");
         assert!(matches!(
             parsed.tui.notifications,
             Notifications::Custom(ref v) if v == &vec!["foo".to_string()]

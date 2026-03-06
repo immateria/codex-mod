@@ -896,8 +896,6 @@ impl TextArea {
         }
     }
 
-
-    #[allow(clippy::unwrap_used)]
     fn wrapped_lines(&self, width: u16) -> Ref<'_, Vec<Range<usize>>> {
         // Ensure cache is ready (potentially mutably borrow, then drop)
         {
@@ -937,7 +935,10 @@ impl TextArea {
         }
 
         let cache = self.wrap_cache.borrow();
-        Ref::map(cache, |c| &c.as_ref().unwrap().lines)
+        Ref::map(cache, |c| match c.as_ref() {
+            Some(cache) => &cache.lines,
+            None => panic!("wrap cache must be initialized before borrowing lines"),
+        })
     }
 
     /// Calculate the scroll offset that should be used to satisfy the

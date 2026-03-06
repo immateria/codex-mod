@@ -446,11 +446,13 @@ pub async fn find_conversation_path_by_id_str(
     }
     // Retrieve enough matches to prefer rollout `.jsonl` files when multiple results are returned
     // for the same UUID (e.g., accompanying `.snapshot.json` snapshots).
-    #[allow(clippy::unwrap_used)]
-    let limit = NonZero::new(8).unwrap();
+    let Some(limit) = NonZero::new(8) else {
+        panic!("search result limit must be non-zero");
+    };
     // This is safe because we know the values are valid.
-    #[allow(clippy::unwrap_used)]
-    let threads = NonZero::new(2).unwrap();
+    let Some(threads) = NonZero::new(2) else {
+        panic!("search thread count must be non-zero");
+    };
     let cancel = Arc::new(AtomicBool::new(false));
     let exclude: Vec<String> = Vec::new();
     let compute_indices = false;

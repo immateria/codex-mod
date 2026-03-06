@@ -19,6 +19,35 @@
         config.set_agent_models(test_agent_models());
     }
 
+    fn model_family_or_panic(slug: &str) -> crate::model_family::ModelFamily {
+        match find_family_for_model(slug) {
+            Some(model_family) => model_family,
+            None => panic!("{slug} should be a valid model family"),
+        }
+    }
+
+    fn web_search_tool_or_panic(tools: &[OpenAiTool]) -> &super::types::WebSearchTool {
+        match tools.iter().find_map(|tool| match tool {
+            OpenAiTool::WebSearch(web_search_tool) => Some(web_search_tool),
+            _ => None,
+        }) {
+            Some(web_search_tool) => web_search_tool,
+            None => panic!("web_search tool should be present"),
+        }
+    }
+
+    fn function_tool_or_panic<'a>(
+        tools: &'a [OpenAiTool],
+        expected_name: &str,
+    ) -> &'a OpenAiTool {
+        match tools.iter().find(|tool| {
+            matches!(tool, OpenAiTool::Function(ResponsesApiTool { name, .. }) if name == expected_name)
+        }) {
+            Some(tool) => tool,
+            None => panic!("{expected_name} tool present"),
+        }
+    }
+
     fn assert_eq_tool_names(tools: &[OpenAiTool], expected_names: &[&str]) {
         let tool_names = tools
             .iter()
@@ -45,8 +74,7 @@
 
     #[test]
     fn test_get_openai_tools() {
-        let model_family = find_family_for_model("codex-mini-latest")
-            .expect("codex-mini-latest should be a valid model family");
+        let model_family = model_family_or_panic("codex-mini-latest");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -79,8 +107,7 @@
 
     #[test]
     fn test_get_openai_tools_streamable_shell() {
-        let model_family = find_family_for_model("codex-mini-latest")
-            .expect("codex-mini-latest should be a valid model family");
+        let model_family = model_family_or_panic("codex-mini-latest");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -127,7 +154,7 @@
 
     #[test]
     fn test_web_search_defaults_to_external_access_enabled() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -141,20 +168,14 @@
         apply_default_agent_models(&mut config);
 
         let tools = get_openai_tools(&config, Some(HashMap::new()), false, false, &[]);
-        let web_search_tool = tools
-            .iter()
-            .find_map(|tool| match tool {
-                OpenAiTool::WebSearch(web_search_tool) => Some(web_search_tool),
-                _ => None,
-            })
-            .expect("web_search tool should be present");
+        let web_search_tool = web_search_tool_or_panic(&tools);
 
         assert_eq!(web_search_tool.external_web_access, Some(true));
     }
 
     #[test]
     fn test_web_search_external_access_can_be_disabled() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -170,13 +191,7 @@
         apply_default_agent_models(&mut config);
 
         let tools = get_openai_tools(&config, Some(HashMap::new()), false, false, &[]);
-        let web_search_tool = tools
-            .iter()
-            .find_map(|tool| match tool {
-                OpenAiTool::WebSearch(web_search_tool) => Some(web_search_tool),
-                _ => None,
-            })
-            .expect("web_search tool should be present");
+        let web_search_tool = web_search_tool_or_panic(&tools);
 
         assert_eq!(web_search_tool.external_web_access, Some(false));
         assert_eq!(
@@ -191,8 +206,7 @@
 
     #[test]
     fn test_get_openai_tools_with_active_agents() {
-        let model_family = find_family_for_model("codex-mini-latest")
-            .expect("codex-mini-latest should be a valid model family");
+        let model_family = model_family_or_panic("codex-mini-latest");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -225,7 +239,7 @@
 
     #[test]
     fn test_get_openai_tools_default_shell() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -258,7 +272,7 @@
 
     #[test]
     fn test_get_openai_tools_mcp_tools() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -373,7 +387,7 @@
 
     #[test]
     fn test_get_openai_tools_mcp_tools_with_additional_properties_schema() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -508,7 +522,7 @@
 
     #[test]
     fn test_get_openai_tools_mcp_tools_sorted_by_name() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let _config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -523,7 +537,7 @@
 
     #[test]
     fn test_mcp_tool_property_missing_type_defaults_to_string() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -602,7 +616,7 @@
 
     #[test]
     fn test_mcp_tool_integer_normalized_to_number() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -654,10 +668,7 @@
                 "dash/paginate",
             ],
         );
-        let paginate_tool = tools
-            .iter()
-            .find(|tool| matches!(tool, OpenAiTool::Function(ResponsesApiTool { name, .. }) if name == "dash/paginate"))
-            .expect("dash/paginate tool present");
+        let paginate_tool = function_tool_or_panic(&tools, "dash/paginate");
 
         assert_eq!(
             paginate_tool,
@@ -679,7 +690,7 @@
 
     #[test]
     fn test_mcp_tool_array_without_items_gets_default_string_items() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
@@ -754,7 +765,7 @@
 
     #[test]
     fn test_mcp_tool_anyof_defaults_to_string() {
-        let model_family = find_family_for_model("o3").expect("o3 should be a valid model family");
+        let model_family = model_family_or_panic("o3");
         let mut config = ToolsConfig::new(ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,

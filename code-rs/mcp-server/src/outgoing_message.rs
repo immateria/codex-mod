@@ -49,8 +49,13 @@ impl OutgoingMessageSenderExt for OutgoingMessageSender {
         meta: Option<OutgoingNotificationMeta>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
-            #[expect(clippy::expect_used)]
-            let event_json = serde_json::to_value(event).expect("Event must serialize");
+            let event_json = match serde_json::to_value(event) {
+                Ok(event_json) => event_json,
+                Err(err) => {
+                    warn!("Failed to serialize event as notification payload: {err}");
+                    return;
+                }
+            };
 
             let params = if let Ok(params) = serde_json::to_value(OutgoingNotificationParams {
                 meta,

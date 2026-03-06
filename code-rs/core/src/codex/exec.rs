@@ -437,7 +437,7 @@ impl Session {
         cancel_flag: Arc<AtomicBool>,
         end_emitted: Arc<AtomicBool>,
     ) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.running_execs.insert(
             call_id.to_string(),
             RunningExecMeta {
@@ -450,12 +450,12 @@ impl Session {
     }
 
     fn unregister_running_exec(&self, call_id: &str) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         state.running_execs.remove(call_id);
     }
 
     fn mark_running_exec_as_cancelled(&self, sub_id: &str) {
-        let state = self.state.lock().unwrap();
+        let state = crate::codex::lock_or_panic!(self.state);
         for meta in state.running_execs.values() {
             if meta.sub_id == sub_id {
                 meta.cancel_flag.store(true, Ordering::Release);
@@ -465,7 +465,7 @@ impl Session {
 
     pub(super) fn mark_all_running_execs_as_cancelled(&self) {
         let sub_ids: Vec<String> = {
-            let state = self.state.lock().unwrap();
+            let state = crate::codex::lock_or_panic!(self.state);
             state
                 .running_execs
                 .values()
@@ -480,7 +480,7 @@ impl Session {
     async fn finalize_cancelled_execs(&self, sub_id: &str) {
         let mut to_emit = Vec::new();
         {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             let mut remove_keys = Vec::new();
             for (call_id, meta) in state.running_execs.iter() {
                 if meta.sub_id == sub_id && !meta.end_emitted.load(Ordering::Acquire) {
@@ -641,7 +641,7 @@ impl Session {
             }
 
         if let Some(analysis) = dry_run_analysis.as_ref() {
-            let mut state = self.state.lock().unwrap();
+            let mut state = crate::codex::lock_or_panic!(self.state);
             state.dry_run_guard.note_execution(analysis);
         }
 

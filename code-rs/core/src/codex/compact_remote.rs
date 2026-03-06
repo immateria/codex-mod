@@ -165,7 +165,7 @@ async fn run_remote_compact_task_inner(
 
     sess.replace_history(new_history.clone());
     {
-        let mut state = sess.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(sess.state);
         state.token_usage_info = None;
     }
 

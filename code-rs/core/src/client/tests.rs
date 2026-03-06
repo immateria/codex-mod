@@ -11,11 +11,57 @@ use chrono::{Duration as ChronoDuration, TimeZone, Utc};
 // Helpers
 // ────────────────────────────
 
+trait ResultOrPanic<T> {
+    fn or_panic(self, context: &str) -> T;
+}
+
+impl<T, E> ResultOrPanic<T> for std::result::Result<T, E>
+where
+    E: std::fmt::Display,
+{
+    fn or_panic(self, context: &str) -> T {
+        match self {
+            Ok(value) => value,
+            Err(err) => panic!("{context}: {err}"),
+        }
+    }
+}
+
+trait OptionOrPanic<T> {
+    fn or_panic(self, context: &str) -> T;
+}
+
+impl<T> OptionOrPanic<T> for Option<T> {
+    fn or_panic(self, context: &str) -> T {
+        match self {
+            Some(value) => value,
+            None => panic!("{context}"),
+        }
+    }
+}
+
+fn disabled_debug_logger() -> Arc<Mutex<DebugLogger>> {
+    Arc::new(Mutex::new(DebugLogger::new(false).or_panic("disabled debug logger")))
+}
+
+fn utc_ymd_hms_or_panic(
+    year: i32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+    second: u32,
+) -> chrono::DateTime<Utc> {
+    Utc.with_ymd_and_hms(year, month, day, hour, minute, second)
+        .single()
+        .or_panic("valid UTC datetime")
+}
+
 #[test]
 fn unauthorized_outcome_returns_permanent_error_for_permanent_refresh_failure() {
     let err = RefreshTokenError::permanent("token revoked");
     let outcome = map_unauthorized_outcome(true, Some(&err))
-        .expect("should produce CodexErr");
+        .or_panic("should produce CodexErr");
     match outcome {
         CodexErr::AuthRefreshPermanent(msg) => {
             assert!(
@@ -30,7 +76,7 @@ fn unauthorized_outcome_returns_permanent_error_for_permanent_refresh_failure() 
 #[test]
 fn unauthorized_outcome_requires_login_without_auth() {
     let outcome = map_unauthorized_outcome(false, None)
-        .expect("should require login");
+        .or_panic("should require login");
     match outcome {
         CodexErr::AuthRefreshPermanent(msg) => {
             assert_eq!(msg, AUTH_REQUIRED_MESSAGE);
@@ -67,12 +113,12 @@ async fn responses_request_uses_beta_header_for_public_openai() {
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .expect("client");
+        .or_panic("client");
 
     let mut builder = provider
         .create_request_builder(&client, &None)
         .await
-        .expect("builder");
+        .or_panic("builder");
     let has_beta = builder
         .try_clone()
         .and_then(|b| b.build().ok())
@@ -82,14 +128,14 @@ async fn responses_request_uses_beta_header_for_public_openai() {
     }
     let request = builder
         .try_clone()
-        .expect("clone request builder")
+        .or_panic("clone request builder")
         .build()
-        .expect("build request");
+        .or_panic("build request");
 
     let header_value = request
         .headers()
         .get("OpenAI-Beta")
-        .expect("OpenAI-Beta header present");
+        .or_panic("OpenAI-Beta header present");
     assert_eq!(header_value, RESPONSES_BETA_HEADER_V1);
 }
 
@@ -115,12 +161,12 @@ async fn responses_request_uses_experimental_for_backend() {
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .expect("client");
+        .or_panic("client");
 
     let mut builder = provider
         .create_request_builder(&client, &None)
         .await
-        .expect("builder");
+        .or_panic("builder");
     let has_beta = builder
         .try_clone()
         .and_then(|b| b.build().ok())
@@ -130,14 +176,14 @@ async fn responses_request_uses_experimental_for_backend() {
     }
     let request = builder
         .try_clone()
-        .expect("clone request builder")
+        .or_panic("clone request builder")
         .build()
-        .expect("build request");
+        .or_panic("build request");
 
     let header_value = request
         .headers()
         .get("OpenAI-Beta")
-        .expect("OpenAI-Beta header present");
+        .or_panic("OpenAI-Beta header present");
     assert_eq!(header_value, RESPONSES_BETA_HEADER_EXPERIMENTAL);
 }
 
@@ -165,21 +211,21 @@ async fn responses_request_respects_preexisting_beta_header() {
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .expect("client");
+        .or_panic("client");
 
     let request = provider
         .create_request_builder(&client, &None)
         .await
-        .expect("builder")
+        .or_panic("builder")
         .try_clone()
-        .expect("clone request builder")
+        .or_panic("clone request builder")
         .build()
-        .expect("build request");
+        .or_panic("build request");
 
     let header_value = request
         .headers()
         .get("OpenAI-Beta")
-        .expect("OpenAI-Beta header present");
+        .or_panic("OpenAI-Beta header present");
     assert_eq!(header_value, "custom");
 }
 
@@ -197,7 +243,7 @@ async fn collect_events(
     let reader = builder.build();
     let stream = ReaderStream::new(reader).map_err(CodexErr::Io);
     let (tx, mut rx) = mpsc::channel::<Result<ResponseEvent>>(16);
-    let debug_logger = Arc::new(Mutex::new(DebugLogger::new(false).unwrap()));
+    let debug_logger = disabled_debug_logger();
     let checkpoint = Arc::new(RwLock::new(sse::StreamCheckpoint::default()));
     tokio::spawn(sse::process_sse(
         stream,
@@ -227,7 +273,7 @@ async fn run_sse(
         let kind = e
             .get("type")
             .and_then(|v| v.as_str())
-            .expect("fixture event missing type");
+            .or_panic("fixture event missing type");
         if e.as_object().map(|o| o.len() == 1).unwrap_or(false) {
             body.push_str(&format!("event: {kind}\n\n"));
         } else {
@@ -237,7 +283,7 @@ async fn run_sse(
 
     let (tx, mut rx) = mpsc::channel::<Result<ResponseEvent>>(8);
     let stream = ReaderStream::new(std::io::Cursor::new(body)).map_err(CodexErr::Io);
-    let debug_logger = Arc::new(Mutex::new(DebugLogger::new(false).unwrap()));
+    let debug_logger = disabled_debug_logger();
     let checkpoint = Arc::new(RwLock::new(sse::StreamCheckpoint::default()));
     tokio::spawn(sse::process_sse(
         stream,
@@ -251,7 +297,7 @@ async fn run_sse(
 
     let mut out = Vec::new();
     while let Some(ev) = rx.recv().await {
-        out.push(ev.expect("channel closed"));
+        out.push(ev.or_panic("channel closed"));
     }
     out
 }
@@ -464,10 +510,10 @@ async fn response_completed_does_not_wait_for_stream_close() {
     tx_bytes
         .send(Ok(Bytes::from(sse)))
         .await
-        .expect("seed response.completed chunk");
+        .or_panic("seed response.completed chunk");
     let stream = ReceiverStream::new(rx_bytes);
     let (tx, mut rx) = mpsc::channel::<Result<ResponseEvent>>(8);
-    let debug_logger = Arc::new(Mutex::new(DebugLogger::new(false).unwrap()));
+    let debug_logger = disabled_debug_logger();
     let checkpoint = Arc::new(RwLock::new(sse::StreamCheckpoint::default()));
 
     tokio::spawn(sse::process_sse(
@@ -485,8 +531,8 @@ async fn response_completed_does_not_wait_for_stream_close() {
 
     let first = tokio::time::timeout(Duration::from_secs(1), rx.recv())
         .await
-        .expect("parser should emit completion without waiting for EOF")
-        .expect("completion event");
+        .or_panic("parser should emit completion without waiting for EOF")
+        .or_panic("completion event");
     match first {
         Ok(ResponseEvent::Completed { response_id, .. }) => {
             assert_eq!(response_id, "resp_ws_1");
@@ -496,7 +542,7 @@ async fn response_completed_does_not_wait_for_stream_close() {
 
     let second = tokio::time::timeout(Duration::from_secs(1), rx.recv())
         .await
-        .expect("channel should close after completion");
+        .or_panic("channel should close after completion");
     assert!(second.is_none());
 }
 
@@ -640,7 +686,7 @@ async fn table_driven_event_kinds() {
 }
 
 fn fixed_now() -> DateTime<Utc> {
-    Utc.with_ymd_and_hms(2025, 11, 7, 12, 0, 0).unwrap()
+    utc_ymd_hms_or_panic(2025, 11, 7, 12, 0, 0)
 }
 
 #[test]
@@ -655,7 +701,7 @@ fn test_try_parse_retry_after_ms() {
         resets_in_seconds: None,
     };
 
-    let retry_after = try_parse_retry_after(&err, now).expect("retry");
+    let retry_after = try_parse_retry_after(&err, now).or_panic("retry");
     assert_eq!(retry_after.delay, Duration::from_millis(28));
     assert!(retry_after.resume_at >= now);
 }
@@ -671,7 +717,7 @@ fn test_try_parse_retry_after_seconds() {
         plan_type: None,
         resets_in_seconds: None,
     };
-    let retry_after = try_parse_retry_after(&err, now).expect("retry");
+    let retry_after = try_parse_retry_after(&err, now).or_panic("retry");
     assert_eq!(retry_after.delay, Duration::from_secs_f64(1.898));
 }
 
@@ -686,7 +732,7 @@ fn test_try_parse_retry_after_azure() {
         plan_type: None,
         resets_in_seconds: None,
     };
-    let retry_after = try_parse_retry_after(&err, now).expect("retry");
+    let retry_after = try_parse_retry_after(&err, now).or_panic("retry");
     assert_eq!(retry_after.delay, Duration::from_secs(35));
 }
 
@@ -708,27 +754,27 @@ fn test_try_parse_retry_after_none_when_missing() {
 #[test]
 fn parse_retry_after_header_parses_seconds() {
     let now = fixed_now();
-    let retry = sse::parse_retry_after_header("42", now).expect("header");
+    let retry = sse::parse_retry_after_header("42", now).or_panic("header");
     assert_eq!(retry.delay, Duration::from_secs(42));
     assert_eq!(retry.resume_at, now + ChronoDuration::seconds(42));
 }
 
 #[test]
 fn parse_retry_after_header_parses_rfc7231_date() {
-    let now = Utc.with_ymd_and_hms(1994, 11, 15, 8, 0, 0).unwrap();
+    let now = utc_ymd_hms_or_panic(1994, 11, 15, 8, 0, 0);
     let retry = sse::parse_retry_after_header("Tue, 15 Nov 1994 08:12:31 GMT", now)
-        .expect("header");
+        .or_panic("header");
     assert_eq!(
         retry.resume_at,
-        Utc.with_ymd_and_hms(1994, 11, 15, 8, 12, 31).unwrap()
+        utc_ymd_hms_or_panic(1994, 11, 15, 8, 12, 31)
     );
 }
 
 #[test]
 fn parse_retry_after_header_clamps_past_date() {
-    let now = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
+    let now = utc_ymd_hms_or_panic(2025, 1, 1, 0, 0, 0);
     let retry = sse::parse_retry_after_header("Tue, 15 Nov 1994 08:12:31 GMT", now)
-        .expect("header");
+        .or_panic("header");
     assert_eq!(retry.delay, Duration::ZERO);
     assert_eq!(retry.resume_at, now);
 }
@@ -736,7 +782,7 @@ fn parse_retry_after_header_clamps_past_date() {
 #[test]
 fn parse_retry_after_header_strips_wrappers() {
     let now = fixed_now();
-    let retry = sse::parse_retry_after_header(" \"17\" ", now).expect("header");
+    let retry = sse::parse_retry_after_header(" \"17\" ", now).or_panic("header");
     assert_eq!(retry.delay, Duration::from_secs(17));
 }
 
@@ -758,18 +804,18 @@ fn retry_after_prefers_header_over_body_hint() {
         };
         chosen = try_parse_retry_after(&err, now);
     }
-    let retry = chosen.expect("retry");
+    let retry = chosen.or_panic("retry");
     assert_eq!(retry.delay, Duration::from_secs(5));
 }
 
 #[test]
 fn parse_retry_after_header_handles_timezones() {
-    let now = Utc.with_ymd_and_hms(2025, 3, 9, 5, 0, 0).unwrap();
+    let now = utc_ymd_hms_or_panic(2025, 3, 9, 5, 0, 0);
     let retry = sse::parse_retry_after_header("Sun, 09 Mar 2025 01:30:00 -0500", now)
-        .expect("header");
+        .or_panic("header");
     assert_eq!(
         retry.resume_at,
-        Utc.with_ymd_and_hms(2025, 3, 9, 6, 30, 0).unwrap()
+        utc_ymd_hms_or_panic(2025, 3, 9, 6, 30, 0)
     );
 }
 
@@ -1017,9 +1063,9 @@ async fn response_incomplete_surfaces_stream_error_reason() {
 fn websocket_error_without_status_surfaces_stream_message() {
     let payload = r#"{"type":"error","error":{"type":"invalid_request_error","message":"The requested model 'gpt-5.3-codex-spark' does not exist."}}"#;
     let wrapped = transport::parse_wrapped_websocket_error_event(payload)
-        .expect("wrapped websocket error should parse");
+        .or_panic("wrapped websocket error should parse");
     let mapped =
-        transport::map_wrapped_websocket_error_event(wrapped).expect("error should map without status");
+        transport::map_wrapped_websocket_error_event(wrapped).or_panic("error should map without status");
     match mapped {
         CodexErr::Stream(message, None, None) => {
             assert_eq!(

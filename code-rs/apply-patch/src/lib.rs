@@ -268,11 +268,10 @@ impl ApplyPatchAction {
             panic!("path must be absolute");
         }
 
-        #[expect(clippy::expect_used)]
-        let filename = path
-            .file_name()
-            .expect("path should not be empty")
-            .to_string_lossy();
+        let filename = match path.file_name() {
+            Some(filename) => filename.to_string_lossy(),
+            None => panic!("path should not be empty"),
+        };
         let patch = format!(
             r#"*** Begin Patch
 *** Update File: {filename}
@@ -281,13 +280,12 @@ impl ApplyPatchAction {
 *** End Patch"#,
         );
         let changes = HashMap::from([(path.to_path_buf(), ApplyPatchFileChange::Add { content })]);
-        #[expect(clippy::expect_used)]
         Self {
             changes,
-            cwd: path
-                .parent()
-                .expect("path should have parent")
-                .to_path_buf(),
+            cwd: match path.parent() {
+                Some(parent) => parent.to_path_buf(),
+                None => panic!("path should have parent"),
+            },
             patch,
         }
     }
@@ -429,7 +427,6 @@ fn extract_apply_patch_from_bash(
     // to test both positive and negative cases.
     static APPLY_PATCH_QUERY: LazyLock<Query> = LazyLock::new(|| {
         let language = BASH.into();
-        #[expect(clippy::expect_used)]
         Query::new(
             &language,
             r#"
@@ -471,7 +468,7 @@ fn extract_apply_patch_from_bash(
                 .)
             "#,
         )
-        .expect("valid bash query")
+        .unwrap_or_else(|err| panic!("valid bash query: {err}"))
     });
 
     let lang = BASH.into();

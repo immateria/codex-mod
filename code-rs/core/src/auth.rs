@@ -95,6 +95,13 @@ impl PartialEq for CodexAuth {
 }
 
 impl CodexAuth {
+    fn auth_dot_json_lock(&self) -> std::sync::MutexGuard<'_, Option<AuthDotJson>> {
+        self
+            .auth_dot_json
+            .lock()
+            .unwrap_or_else(|_| panic!("poisoned auth_dot_json mutex"))
+    }
+
     pub async fn refresh_token(&self) -> Result<String, RefreshTokenError> {
         if self.mode == AuthMode::ChatgptAuthTokens {
             return Err(RefreshTokenError::permanent(
@@ -287,8 +294,7 @@ impl CodexAuth {
                             "Token data is not available after refresh.",
                         ))?;
 
-                    #[expect(clippy::unwrap_used)]
-                    let mut auth_lock = self.auth_dot_json.lock().unwrap();
+                    let mut auth_lock = self.auth_dot_json_lock();
                     *auth_lock = Some(updated_auth_dot_json);
                 }
 
@@ -326,8 +332,7 @@ impl CodexAuth {
     }
 
     fn get_current_auth_json(&self) -> Option<AuthDotJson> {
-        #[expect(clippy::unwrap_used)]
-        self.auth_dot_json.lock().unwrap().clone()
+        self.auth_dot_json_lock().clone()
     }
 
     fn get_current_token_data(&self) -> Option<TokenData> {

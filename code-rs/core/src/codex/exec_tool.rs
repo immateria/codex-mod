@@ -60,11 +60,11 @@ pub(crate) async fn handle_wait(
                 use std::sync::atomic::Ordering;
                 let (initial_wait_epoch, _) = sess.wait_interrupt_snapshot();
                 let (notify_opt, done_opt, tail, suppress_flag) = {
-                    let st = sess.state.lock().unwrap();
+                    let st = crate::codex::lock_or_panic!(sess.state);
                     match st.background_execs.get(&call_id) {
                         Some(bg) => (
                             Some(bg.notify.clone()),
-                            bg.result_cell.lock().unwrap().clone(),
+                            crate::codex::lock_or_panic!(bg.result_cell).clone(),
                             bg.tail_buf.clone(),
                             Some(bg.suppress_event.clone()),
                         ),
@@ -101,7 +101,7 @@ pub(crate) async fn handle_wait(
 
                 if let Some(done) = done_opt {
                     {
-                        let mut st = sess.state.lock().unwrap();
+                        let mut st = crate::codex::lock_or_panic!(sess.state);
                         st.background_execs.remove(&call_id);
                     }
                     let content = format_exec_output_with_limit(
@@ -129,17 +129,17 @@ pub(crate) async fn handle_wait(
                         },
                     };
                 };
-                let any_notify = ANY_BG_NOTIFY.get().cloned().unwrap();
+                let any_notify = crate::codex::any_bg_notify_or_panic();
 
                 let deadline = tokio::time::Instant::now()
                     + std::time::Duration::from_millis(timeout_ms);
 
                 loop {
                     let (known_done, known_missing, task_finished) = {
-                        let st = sess.state.lock().unwrap();
+                        let st = crate::codex::lock_or_panic!(sess.state);
                         match st.background_execs.get(&call_id) {
                             Some(bg) => (
-                                bg.result_cell.lock().unwrap().is_some(),
+                                crate::codex::lock_or_panic!(bg.result_cell).is_some(),
                                 false,
                                 bg.task_handle
                                     .as_ref()
@@ -160,7 +160,7 @@ pub(crate) async fn handle_wait(
                     }
 
                     if task_finished && !known_done {
-                        let mut st = sess.state.lock().unwrap();
+                        let mut st = crate::codex::lock_or_panic!(sess.state);
                         st.background_execs.remove(&call_id);
                         return ResponseInputItem::FunctionCallOutput {
                             call_id: ctx_inner.call_id.clone(),
@@ -178,7 +178,7 @@ pub(crate) async fn handle_wait(
                     }
 
                     let time_budget_message = {
-                        let mut guard = sess.time_budget.lock().unwrap();
+                        let mut guard = crate::codex::lock_or_panic!(sess.time_budget);
                         guard
                             .as_mut()
                             .and_then(|budget| budget.maybe_nudge(Instant::now()))
@@ -222,7 +222,7 @@ pub(crate) async fn handle_wait(
                     if now >= deadline {
                         let tail_text = tail
                             .as_ref()
-                            .map(|arc| String::from_utf8_lossy(&arc.lock().unwrap()).to_string())
+                            .map(|arc| String::from_utf8_lossy(&crate::codex::lock_or_panic!(arc)).to_string())
                             .unwrap_or_default();
                         let msg = if tail_text.is_empty() {
                             format!("Background job {call_id} still running...")
@@ -252,17 +252,17 @@ pub(crate) async fn handle_wait(
                 }
 
                 let done = {
-                    let mut st = sess.state.lock().unwrap();
+                    let mut st = crate::codex::lock_or_panic!(sess.state);
                     if let Some(bg) = st.background_execs.remove(&call_id) {
-                        bg.result_cell.lock().unwrap().clone()
+                        crate::codex::lock_or_panic!(bg.result_cell).clone()
                     } else {
                         let found = st
                             .background_execs
                             .iter()
-                            .find_map(|(k, v)| if v.result_cell.lock().unwrap().is_some() { Some(k.clone()) } else { None });
+                            .find_map(|(k, v)| if crate::codex::lock_or_panic!(v.result_cell).is_some() { Some(k.clone()) } else { None });
                         found
                             .and_then(|k| st.background_execs.remove(&k))
-                            .and_then(|bg| bg.result_cell.lock().unwrap().clone())
+                            .and_then(|bg| crate::codex::lock_or_panic!(bg.result_cell).clone())
                     }
                 };
                 if let Some(done) = done {
@@ -347,10 +347,10 @@ pub(crate) async fn handle_kill(
                 handle_opt,
                 already_done,
             ) = {
-                let mut st = sess.state.lock().unwrap();
+                let mut st = crate::codex::lock_or_panic!(sess.state);
                 match st.background_execs.get_mut(&parsed.call_id) {
                     Some(bg) => {
-                        let done = bg.result_cell.lock().unwrap().is_some();
+                        let done = crate::codex::lock_or_panic!(bg.result_cell).is_some();
                         let handle = bg.task_handle.take();
                         (
                             bg.notify.clone(),
@@ -402,7 +402,7 @@ pub(crate) async fn handle_kill(
             };
 
             {
-                let mut slot = result_cell.lock().unwrap();
+                let mut slot = crate::codex::lock_or_panic!(result_cell);
                 *slot = Some(output.clone());
             }
 
@@ -1037,7 +1037,7 @@ pub(crate) async fn handle_container_exec_with_params(
             && let Some(analysis) = dry_run_analysis.as_ref()
                 && analysis.disposition == DryRunDisposition::Mutating {
                     let needs_dry_run = {
-                        let state = sess.state.lock().unwrap();
+                        let state = crate::codex::lock_or_panic!(sess.state);
                         !state.dry_run_guard.has_recent_dry_run(analysis.key)
                     };
                     if needs_dry_run {
@@ -1164,7 +1164,7 @@ pub(crate) async fn handle_container_exec_with_params(
         if let Some(analysis) = analyze_command(&params.command)
             && analysis.disposition == DryRunDisposition::Mutating {
                 let needs_dry_run = {
-                    let state = sess.state.lock().unwrap();
+                    let state = crate::codex::lock_or_panic!(sess.state);
                     !state.dry_run_guard.has_recent_dry_run(analysis.key)
                 };
                 if needs_dry_run {
@@ -1310,7 +1310,7 @@ pub(crate) async fn handle_container_exec_with_params(
     }
 
     let safety = {
-        let state = sess.state.lock().unwrap();
+        let state = crate::codex::lock_or_panic!(sess.state);
         let mut command_safety_context =
             crate::command_safety::context::CommandSafetyContext::current();
         if let Some(shell_program) = sess.user_shell.name() {
@@ -1466,7 +1466,7 @@ pub(crate) async fn handle_container_exec_with_params(
         sequence_number: None,
     };
     {
-        let mut st = sess.state.lock().unwrap();
+        let mut st = crate::codex::lock_or_panic!(sess.state);
         st.background_execs.insert(
             call_id.clone(),
             BackgroundExecState {
@@ -1610,7 +1610,7 @@ pub(crate) async fn handle_container_exec_with_params(
 
         // Store result for waiters
         {
-            let mut slot = result_cell_for_task.lock().unwrap();
+            let mut slot = crate::codex::lock_or_panic!(result_cell_for_task);
             *slot = Some(out.clone());
         }
 
@@ -1668,7 +1668,7 @@ pub(crate) async fn handle_container_exec_with_params(
     });
 
     {
-        let mut st = sess.state.lock().unwrap();
+        let mut st = crate::codex::lock_or_panic!(sess.state);
         if let Some(bg) = st.background_execs.get_mut(&call_id) {
             bg.task_handle = Some(task_handle);
         }
@@ -1679,22 +1679,22 @@ pub(crate) async fn handle_container_exec_with_params(
     if waited.is_ok() {
         // Completed within 10s - return the real output and drop the background entry.
         let done_opt = {
-            let mut st = sess.state.lock().unwrap();
+            let mut st = crate::codex::lock_or_panic!(sess.state);
             st.background_execs
                 .remove(&call_id)
-                .and_then(|bg| bg.result_cell.lock().unwrap().clone())
+                .and_then(|bg| crate::codex::lock_or_panic!(bg.result_cell).clone())
                 .or_else(|| {
                     st.background_execs
                         .iter()
                         .find_map(|(k, v)| {
-                            if v.result_cell.lock().unwrap().is_some() {
+                            if crate::codex::lock_or_panic!(v.result_cell).is_some() {
                                 Some(k.clone())
                             } else {
                                 None
                             }
                         })
                         .and_then(|k| st.background_execs.remove(&k))
-                        .and_then(|bg| bg.result_cell.lock().unwrap().clone())
+                        .and_then(|bg| crate::codex::lock_or_panic!(bg.result_cell).clone())
                 })
         };
         if let Some(done) = done_opt {
@@ -1739,7 +1739,7 @@ pub(crate) async fn handle_container_exec_with_params(
 
     // Still running: mark as backgrounded and return background notice + tail and instructions
     backgrounded.store(true, std::sync::atomic::Ordering::Relaxed);
-    let tail = String::from_utf8_lossy(&tail_buf.lock().unwrap()).to_string();
+    let tail = String::from_utf8_lossy(&crate::codex::lock_or_panic!(tail_buf)).to_string();
     let header = format!(
         "Command running in background (call_id={call_id}).\nTo wait: wait(call_id=\"{call_id}\")\nYou can continue other work or wait. You'll be notified when the command completes."
     );

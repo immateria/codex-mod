@@ -38,6 +38,7 @@ use code_ollama::DEFAULT_OSS_MODEL;
 use code_protocol::config_types::SandboxMode;
 use std::fs::OpenOptions;
 use std::io;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use code_core::review_coord::{
     bump_snapshot_epoch, clear_stale_lock_if_dead, read_lock_info, try_acquire_lock,
@@ -53,6 +54,16 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
+
+fn write_stderr_line(args: std::fmt::Arguments<'_>) {
+    let mut stderr = std::io::stderr();
+    let _ = writeln!(stderr, "{args}");
+}
+
+fn exit_with_stderr(args: std::fmt::Arguments<'_>) -> ! {
+    write_stderr_line(args);
+    std::process::exit(1);
+}
 
 mod app;
 mod app_event;
@@ -539,11 +550,7 @@ pub async fn run_main(
     // Parse `-c` overrides from the CLI.
     let cli_kv_overrides = match cli.config_overrides.parse_overrides() {
         Ok(v) => v,
-        #[allow(clippy::print_stderr)]
-        Err(e) => {
-            eprintln!("Error parsing -c overrides: {e}");
-            std::process::exit(1);
-        }
+        Err(e) => exit_with_stderr(format_args!("Error parsing -c overrides: {e}")),
     };
     let theme_override_in_cli = cli_kv_overrides
         .iter()
@@ -551,11 +558,7 @@ pub async fn run_main(
 
     let code_home = match find_code_home() {
         Ok(code_home) => code_home,
-        #[allow(clippy::print_stderr)]
-        Err(err) => {
-            eprintln!("Error finding codex home: {err}");
-            std::process::exit(1);
-        }
+        Err(err) => exit_with_stderr(format_args!("Error finding codex home: {err}")),
     };
 
     code_core::config::migrate_legacy_log_dirs(&code_home);
@@ -601,14 +604,9 @@ pub async fn run_main(
 
     let mut config = {
         // Load configuration and support CLI overrides.
-
-        #[allow(clippy::print_stderr)]
         match Config::load_with_cli_overrides(cli_kv_overrides.clone(), overrides.clone()) {
             Ok(config) => config,
-            Err(err) => {
-                eprintln!("Error loading configuration: {err}");
-                std::process::exit(1);
-            }
+            Err(err) => exit_with_stderr(format_args!("Error loading configuration: {err}")),
         }
     };
 
@@ -745,16 +743,12 @@ pub async fn run_main(
     let startup_footer_notice = None;
 
     // we load config.toml here to determine project state.
-    #[allow(clippy::print_stderr)]
     let (config_toml, theme_set_in_config_file) = {
         let theme_set_in_config_file = theme_configured_in_config_file(&code_home);
 
         match load_config_as_toml_with_cli_overrides(&code_home, cli_kv_overrides.clone()) {
             Ok(config_toml) => (config_toml, theme_set_in_config_file),
-            Err(err) => {
-                eprintln!("Error loading config.toml: {err}");
-                std::process::exit(1);
-            }
+            Err(err) => exit_with_stderr(format_args!("Error loading config.toml: {err}")),
         }
     };
 
@@ -998,24 +992,18 @@ fn run_ratatui_app(
     })
 }
 
-#[expect(
-    clippy::print_stderr,
-    reason = "TUI should no longer be displayed, so we can write to stderr."
-)]
 fn restore() {
     if let Err(err) = tui::restore() {
-        eprintln!(
+        write_stderr_line(format_args!(
             "failed to restore terminal. Run `reset` or restart your terminal to recover: {err}"
-        );
+        ));
     }
 }
 
-#[allow(clippy::print_stderr)]
 fn print_timing_summary(summary: &str) {
-    eprintln!("\n== Timing Summary ==\n{summary}");
+    write_stderr_line(format_args!("\n== Timing Summary ==\n{summary}"));
 }
 
-#[allow(clippy::print_stdout, clippy::print_stderr)]
 fn cleanup_session_worktrees_and_print() {
     let pid = std::process::id();
     let home = match std::env::var_os("HOME") { Some(h) => std::path::PathBuf::from(h), None => return };

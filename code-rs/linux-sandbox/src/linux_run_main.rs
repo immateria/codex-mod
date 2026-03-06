@@ -32,13 +32,16 @@ pub fn run_main() -> ! {
         panic!("No command specified to execute.");
     }
 
-    #[expect(clippy::expect_used)]
-    let c_command =
-        CString::new(command[0].as_str()).expect("Failed to convert command to CString");
-    #[expect(clippy::expect_used)]
+    let c_command = match CString::new(command[0].as_str()) {
+        Ok(c_command) => c_command,
+        Err(err) => panic!("Failed to convert command to CString: {err}"),
+    };
     let c_args: Vec<CString> = command
         .iter()
-        .map(|arg| CString::new(arg.as_str()).expect("Failed to convert arg to CString"))
+        .map(|arg| match CString::new(arg.as_str()) {
+            Ok(arg) => arg,
+            Err(err) => panic!("Failed to convert arg to CString: {err}"),
+        })
         .collect();
 
     let mut c_args_ptrs: Vec<*const libc::c_char> = c_args.iter().map(|arg| arg.as_ptr()).collect();

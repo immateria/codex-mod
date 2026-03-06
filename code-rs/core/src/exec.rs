@@ -785,6 +785,9 @@ impl Drop for KillOnDrop {
 #[cfg(windows)]
 fn synthetic_exit_status(code: i32) -> ExitStatus {
     use std::os::windows::process::ExitStatusExt;
-    #[expect(clippy::unwrap_used)]
-    std::process::ExitStatus::from_raw(code.try_into().unwrap())
+    let raw_code = match code.try_into() {
+        Ok(raw_code) => raw_code,
+        Err(_) => panic!("synthetic exit code must be non-negative: {code}"),
+    };
+    std::process::ExitStatus::from_raw(raw_code)
 }

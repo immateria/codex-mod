@@ -1678,7 +1678,6 @@ pub struct BrowserSnapshotEvent {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     /// Serialize Event to verify that its JSON representation has the expected
@@ -1697,7 +1696,10 @@ mod tests {
             }),
             order: None,
         };
-        let serialized = serde_json::to_string(&event).unwrap();
+        let serialized = match serde_json::to_string(&event) {
+            Ok(serialized) => serialized,
+            Err(err) => panic!("event serialization failed: {err}"),
+        };
         assert_eq!(
             serialized,
             r#"{"id":"1234","event_seq":0,"msg":{"type":"session_configured","session_id":"67e55044-10b1-426f-9247-bb680e5fe0c8","model":"codex-mini-latest","history_log_id":0,"history_entry_count":0}}"#
@@ -1751,8 +1753,13 @@ mod tests {
             collaboration_mode: CollaborationModeKind::Default,
         });
 
-        let value = serde_json::to_value(&op).unwrap();
-        let object = value.as_object().unwrap();
+        let value = match serde_json::to_value(&op) {
+            Ok(value) => value,
+            Err(err) => panic!("op serialization failed: {err}"),
+        };
+        let Some(object) = value.as_object() else {
+            panic!("serialized op should be a JSON object");
+        };
 
         assert_eq!(object.get("type"), Some(&serde_json::json!("configure_session")));
         assert_eq!(object.get("model"), Some(&serde_json::json!("gpt-5")));

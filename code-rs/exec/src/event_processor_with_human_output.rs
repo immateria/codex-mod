@@ -43,6 +43,25 @@ use code_common::create_config_summary_entries;
 /// This should be configurable. When used in CI, users may not want to impose
 /// a limit so they can see the full transcript.
 const MAX_OUTPUT_LINES_FOR_EXEC_TOOL_CALL: usize = 20;
+
+fn flush_stderr_or_panic() {
+    if let Err(err) = std::io::stderr().flush() {
+        panic!("could not flush stderr: {err}");
+    }
+}
+
+fn write_stdout_message_or_panic(message: &str) {
+    let mut stdout = std::io::stdout();
+    let result = if message.ends_with('\n') {
+        write!(stdout, "{message}")
+    } else {
+        writeln!(stdout, "{message}")
+    };
+    if let Err(err) = result {
+        panic!("failed to write final output: {err}");
+    }
+}
+
 pub(crate) struct EventProcessorWithHumanOutput {
     call_id_to_command: HashMap<String, ExecCommandBegin>,
     call_id_to_patch: HashMap<String, PatchApplyBegin>,
@@ -268,8 +287,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     self.answer_started = true;
                 }
                 eprint!("{delta}");
-                #[expect(clippy::expect_used)]
-                std::io::stderr().flush().expect("could not flush stderr");
+                flush_stderr_or_panic();
             }
             EventMsg::AgentReasoningDelta(AgentReasoningDeltaEvent { delta }) => {
                 if !self.show_agent_reasoning {
@@ -285,16 +303,14 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 }
                 self.reasoning_streams_started.insert(id.clone());
                 eprint!("{delta}");
-                #[expect(clippy::expect_used)]
-                std::io::stderr().flush().expect("could not flush stderr");
+                flush_stderr_or_panic();
             }
             EventMsg::AgentReasoningSectionBreak(_) => {
                 if !self.show_agent_reasoning {
                     return CodexStatus::Running;
                 }
                 eprintln!();
-                #[expect(clippy::expect_used)]
-                std::io::stderr().flush().expect("could not flush stderr");
+                flush_stderr_or_panic();
             }
             EventMsg::AgentReasoningRawContent(AgentReasoningRawContentEvent { text }) => {
                 if !self.show_raw_agent_reasoning {
@@ -302,8 +318,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 }
                 if !self.raw_reasoning_started {
                     eprint!("{text}");
-                    #[expect(clippy::expect_used)]
-                    std::io::stderr().flush().expect("could not flush stderr");
+                    flush_stderr_or_panic();
                 } else {
                     eprintln!();
                     self.raw_reasoning_started = false;
@@ -319,8 +334,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     self.raw_reasoning_started = true;
                 }
                 eprint!("{delta}");
-                #[expect(clippy::expect_used)]
-                std::io::stderr().flush().expect("could not flush stderr");
+                flush_stderr_or_panic();
             }
             EventMsg::AgentMessage(AgentMessageEvent { message }) => {
                 self.final_message = Some(message.clone());
@@ -793,13 +807,8 @@ impl EventProcessor for EventProcessorWithHumanOutput {
     }
 
     fn print_final_output(&mut self) {
-        #[allow(clippy::print_stdout)]
         if let Some(message) = &self.final_message {
-            if message.ends_with('\n') {
-                print!("{message}");
-            } else {
-                println!("{message}");
-            }
+            write_stdout_message_or_panic(message);
         }
     }
 }

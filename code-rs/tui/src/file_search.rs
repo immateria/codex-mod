@@ -32,8 +32,14 @@ use tracing::warn;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 
-const MAX_FILE_SEARCH_RESULTS: NonZeroUsize = NonZeroUsize::new(8).unwrap();
-const NUM_FILE_SEARCH_THREADS: NonZeroUsize = NonZeroUsize::new(2).unwrap();
+const MAX_FILE_SEARCH_RESULTS: NonZeroUsize = match NonZeroUsize::new(8) {
+    Some(value) => value,
+    None => panic!("MAX_FILE_SEARCH_RESULTS must be non-zero"),
+};
+const NUM_FILE_SEARCH_THREADS: NonZeroUsize = match NonZeroUsize::new(2) {
+    Some(value) => value,
+    None => panic!("NUM_FILE_SEARCH_THREADS must be non-zero"),
+};
 
 /// How long to wait after a keystroke before firing the first search when none
 /// is currently running. Keeps early queries more meaningful.
@@ -66,6 +72,12 @@ struct ActiveSearch {
     cancellation_token: Arc<AtomicBool>,
 }
 
+fn lock_search_state(state: &Arc<Mutex<SearchState>>) -> std::sync::MutexGuard<'_, SearchState> {
+    state
+        .lock()
+        .unwrap_or_else(|_| panic!("poisoned file search state mutex"))
+}
+
 impl FileSearchManager {
     pub fn new(search_dir: PathBuf, tx: AppEventSender) -> Self {
         Self {
@@ -82,8 +94,7 @@ impl FileSearchManager {
     /// Call whenever the user edits the `@` token.
     pub fn on_user_query(&self, query: String) {
         {
-            #[expect(clippy::unwrap_used)]
-            let mut st = self.state.lock().unwrap();
+            let mut st = lock_search_state(&self.state);
             if query == st.latest_query {
                 // No change, nothing to do.
                 return;
@@ -96,12 +107,13 @@ impl FileSearchManager {
             // If there is an in-flight search that is definitely obsolete,
             // cancel it now.
             if let Some(active_search) = &st.active_search
-                && !query.starts_with(&active_search.query) {
+                && !query.starts_with(&active_search.query)
+            {
                 active_search
                     .cancellation_token
                     .store(true, Ordering::Relaxed);
                 st.active_search = None;
-                }
+            }
 
             // Schedule a search to run after debounce.
             if !st.is_search_scheduled {
@@ -120,40 +132,38 @@ impl FileSearchManager {
         if let Err(err) = thread::Builder::new()
             .name("file-search-debounce".to_string())
             .spawn(move || {
-            // Always do a minimum debounce, but then poll until the
-            // `active_search` is cleared.
-            thread::sleep(FILE_SEARCH_DEBOUNCE);
-            loop {
-                #[expect(clippy::unwrap_used)]
-                if state.lock().unwrap().active_search.is_none() {
-                    break;
+                // Always do a minimum debounce, but then poll until the
+                // `active_search` is cleared.
+                thread::sleep(FILE_SEARCH_DEBOUNCE);
+                loop {
+                    if lock_search_state(&state).active_search.is_none() {
+                        break;
+                    }
+                    thread::sleep(ACTIVE_SEARCH_COMPLETE_POLL_INTERVAL);
                 }
-                thread::sleep(ACTIVE_SEARCH_COMPLETE_POLL_INTERVAL);
-            }
 
-            // The debounce timer has expired, so start a search using the
-            // latest query.
-            let cancellation_token = Arc::new(AtomicBool::new(false));
-            let token = cancellation_token.clone();
-            let query = {
-                #[expect(clippy::unwrap_used)]
-                let mut st = state.lock().unwrap();
-                let query = st.latest_query.clone();
-                st.is_search_scheduled = false;
-                st.active_search = Some(ActiveSearch {
-                    query: query.clone(),
-                    cancellation_token: token,
-                });
-                query
-            };
+                // The debounce timer has expired, so start a search using the
+                // latest query.
+                let cancellation_token = Arc::new(AtomicBool::new(false));
+                let token = cancellation_token.clone();
+                let query = {
+                    let mut st = lock_search_state(&state);
+                    let query = st.latest_query.clone();
+                    st.is_search_scheduled = false;
+                    st.active_search = Some(ActiveSearch {
+                        query: query.clone(),
+                        cancellation_token: token,
+                    });
+                    query
+                };
 
-            FileSearchManager::spawn_file_search(
-                query,
-                search_dir,
-                tx_clone,
-                cancellation_token,
-                state,
-            );
+                FileSearchManager::spawn_file_search(
+                    query,
+                    search_dir,
+                    tx_clone,
+                    cancellation_token,
+                    state,
+                );
             })
         {
             warn!("failed to spawn file search debounce thread: {err}");
@@ -171,61 +181,64 @@ impl FileSearchManager {
         if let Err(err) = std::thread::Builder::new()
             .name("file-search-runner".to_string())
             .spawn(move || {
-            // Normalize the query: strip leading "./" so it matches repo-relative paths.
-            let search_query = query.strip_prefix("./").unwrap_or(&query).to_string();
-            // Create a streaming channel for partial updates.
-            let (part_tx, part_rx) = std::sync::mpsc::channel::<Vec<file_search::FileMatch>>();
+                // Normalize the query: strip leading "./" so it matches repo-relative paths.
+                let search_query = query.strip_prefix("./").unwrap_or(&query).to_string();
+                // Create a streaming channel for partial updates.
+                let (part_tx, part_rx) = std::sync::mpsc::channel::<Vec<file_search::FileMatch>>();
 
-            // Receiver thread: forward partial updates to the App as they come in.
-            let rx_tx = tx.clone();
-            let rx_query = query.clone();
-            let rx_cancel = cancellation_token.clone();
-            if let Err(err) = std::thread::Builder::new()
-                .name("file-search-forwarder".to_string())
-                .spawn(move || {
-                while let Ok(matches) = part_rx.recv() {
-                    if rx_cancel.load(Ordering::Relaxed) {
-                        break;
+                // Receiver thread: forward partial updates to the App as they come in.
+                let rx_tx = tx.clone();
+                let rx_query = query.clone();
+                let rx_cancel = cancellation_token.clone();
+                if let Err(err) = std::thread::Builder::new()
+                    .name("file-search-forwarder".to_string())
+                    .spawn(move || {
+                        while let Ok(matches) = part_rx.recv() {
+                            if rx_cancel.load(Ordering::Relaxed) {
+                                break;
+                            }
+                            rx_tx.send(AppEvent::FileSearchResult {
+                                query: rx_query.clone(),
+                                matches,
+                            });
+                        }
+                    })
+                {
+                    warn!("failed to spawn file search forwarder: {err}");
+                }
+
+                // Decide preference: when user starts with "./" or types a bare
+                // filename (no slash), rank files in the current directory first.
+                let prefer_cwd = query.starts_with("./") || !query.contains('/');
+
+                // Run streaming search with modest update cadence for snappy UX.
+                let streaming_config = file_search::StreamingSearchConfig {
+                    exclude: Vec::new(),
+                    threads: NUM_FILE_SEARCH_THREADS,
+                    cancel_flag: cancellation_token.clone(),
+                    compute_indices,
+                    part_tx,
+                    update_interval: Duration::from_millis(50),
+                    prefer_cwd,
+                };
+                let _final = file_search::run_streaming(
+                    &search_query,
+                    MAX_FILE_SEARCH_RESULTS,
+                    &search_dir,
+                    streaming_config,
+                );
+
+                // Reset the active search state. Do a pointer comparison to verify
+                // that we are clearing the ActiveSearch that corresponds to the
+                // cancellation token we were given.
+                {
+                    let mut st = lock_search_state(&search_state);
+                    if let Some(active_search) = &st.active_search
+                        && Arc::ptr_eq(&active_search.cancellation_token, &cancellation_token)
+                    {
+                        st.active_search = None;
                     }
-                    rx_tx.send(AppEvent::FileSearchResult { query: rx_query.clone(), matches });
                 }
-                })
-            {
-                warn!("failed to spawn file search forwarder: {err}");
-            }
-
-            // Decide preference: when user starts with "./" or types a bare
-            // filename (no slash), rank files in the current directory first.
-            let prefer_cwd = query.starts_with("./") || !query.contains('/');
-
-            // Run streaming search with modest update cadence for snappy UX.
-            let streaming_config = file_search::StreamingSearchConfig {
-                exclude: Vec::new(),
-                threads: NUM_FILE_SEARCH_THREADS,
-                cancel_flag: cancellation_token.clone(),
-                compute_indices,
-                part_tx,
-                update_interval: Duration::from_millis(50),
-                prefer_cwd,
-            };
-            let _final = file_search::run_streaming(
-                &search_query,
-                MAX_FILE_SEARCH_RESULTS,
-                &search_dir,
-                streaming_config,
-            );
-
-            // Reset the active search state. Do a pointer comparison to verify
-            // that we are clearing the ActiveSearch that corresponds to the
-            // cancellation token we were given.
-            {
-                #[expect(clippy::unwrap_used)]
-                let mut st = search_state.lock().unwrap();
-                if let Some(active_search) = &st.active_search
-                    && Arc::ptr_eq(&active_search.cancellation_token, &cancellation_token) {
-                    st.active_search = None;
-                }
-            }
             })
         {
             warn!("failed to spawn file search runner: {err}");

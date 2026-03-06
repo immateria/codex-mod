@@ -1,6 +1,3 @@
-// Poisoned mutex should fail the program
-#![allow(clippy::unwrap_used)]
-
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -110,6 +107,24 @@ pub(crate) const INITIAL_SUBMIT_ID: &str = "";
 const HOOK_OUTPUT_LIMIT: usize = 2048;
 const PENDING_ONLY_SENTINEL: &str = "__code_pending_only__";
 const MIN_SHELL_TIMEOUT_MS: u64 = 30 * 60 * 1000;
+
+macro_rules! lock_or_panic {
+    ($mutex:expr) => {{
+        let mutex_name = stringify!($mutex);
+        ($mutex)
+            .lock()
+            .unwrap_or_else(|_| panic!("poisoned mutex: {mutex_name}"))
+    }};
+}
+
+pub(crate) use lock_or_panic;
+
+pub(crate) fn disabled_debug_logger_or_panic() -> crate::debug_logger::DebugLogger {
+    match crate::debug_logger::DebugLogger::new(false) {
+        Ok(logger) => logger,
+        Err(err) => panic!("disabled debug logger initialization failed: {err}"),
+    }
+}
 
 #[derive(Clone, Default)]
 struct ConfirmGuardRuntime {
@@ -472,7 +487,7 @@ fn next_budget_nudge_interval(remaining: Duration) -> Duration {
 }
 
 fn maybe_time_budget_status_item(sess: &Session) -> Option<ResponseItem> {
-    let mut guard = sess.time_budget.lock().unwrap();
+    let mut guard = lock_or_panic!(sess.time_budget);
     let budget = guard.as_mut()?;
     let text = budget.maybe_nudge(Instant::now())?;
     Some(ResponseItem::Message {
@@ -554,7 +569,8 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
                         // This ensures the user sees that a fresh capture occurred each turn.
                         add_pending_screenshot(sess, screenshot_path.clone(), url.clone());
                         // Check if screenshot has changed using image hashing
-                        let mut last_screenshot_info = sess.last_screenshot_info.lock().unwrap();
+                        let mut last_screenshot_info =
+                            lock_or_panic!(sess.last_screenshot_info);
 
                         // Compute hash for current screenshot
                         let current_hash =
@@ -631,7 +647,7 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
         }
 
     // Check if system status has changed
-    let mut last_status = sess.last_system_status.lock().unwrap();
+    let mut last_status = lock_or_panic!(sess.last_system_status);
     let status_changed = last_status.as_ref() != Some(&current_status);
 
     if status_changed {
@@ -692,7 +708,7 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
     if let Some(browser_manager) = code_browser::global::get_browser_manager().await
         && browser_manager.is_enabled().await {
             let browser_stream_id = {
-                let mut state = sess.state.lock().unwrap();
+                let mut state = lock_or_panic!(sess.state);
                 state
                     .context_stream_ids
                     .browser_stream_id(sess.id)
@@ -743,7 +759,8 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                 Ok((path, _)) => {
                     add_pending_screenshot(sess, path.clone(), url.clone());
                     let current_hash = crate::image_comparison::compute_image_hash(&path).ok();
-                    let mut last_info = sess.last_screenshot_info.lock().unwrap();
+                    let mut last_info =
+                        lock_or_panic!(sess.last_screenshot_info);
                     let include_screenshot = should_include_browser_screenshot(
                         &mut last_info,
                         &path,
@@ -961,6 +978,13 @@ pub struct Codex {
 static TX_SUB_GLOBAL: OnceLock<Sender<Submission>> = OnceLock::new();
 static ANY_BG_NOTIFY: OnceLock<std::sync::Arc<Notify>> = OnceLock::new();
 
+pub(crate) fn any_bg_notify_or_panic() -> Arc<Notify> {
+    ANY_BG_NOTIFY
+        .get()
+        .cloned()
+        .unwrap_or_else(|| panic!("ANY_BG_NOTIFY not initialized"))
+}
+
 /// Wrapper returned by [`Codex::spawn`] containing the spawned [`Codex`],
 /// the submission id for the initial `ConfigureSession` request and the
 /// unique session id.
@@ -1138,10 +1162,10 @@ mod tests {
 
         let baseline_item = baseline
             .to_response_item()
-            .expect("serialize baseline snapshot");
+            .unwrap_or_else(|err| panic!("serialize baseline snapshot failed: {err}"));
         let delta_item = delta
             .to_response_item()
-            .expect("serialize delta snapshot");
+            .unwrap_or_else(|err| panic!("serialize delta snapshot failed: {err}"));
 
         let mut ctx = TimelineReplayContext::default();
         process_rollout_env_item(&mut ctx, &baseline_item);
@@ -1177,7 +1201,7 @@ mod tests {
         let baseline = make_snapshot("/repo");
         let baseline_item = baseline
             .to_response_item()
-            .expect("serialize baseline snapshot");
+            .unwrap_or_else(|err| panic!("serialize baseline snapshot failed: {err}"));
 
         let mut ctx = TimelineReplayContext::default();
         process_rollout_env_item(&mut ctx, &baseline_item);
@@ -1186,7 +1210,7 @@ mod tests {
         delta.base_fingerprint = "mismatch".to_string();
         let delta_item = delta
             .to_response_item()
-            .expect("serialize delta snapshot");
+            .unwrap_or_else(|err| panic!("serialize delta snapshot failed: {err}"));
 
         process_rollout_env_item(&mut ctx, &delta_item);
 

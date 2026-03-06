@@ -31,9 +31,9 @@ pub(crate) async fn run_fuzzy_file_search(
         return Vec::new();
     }
 
-    #[expect(clippy::expect_used)]
-    let limit_per_root =
-        NonZero::new(LIMIT_PER_ROOT).expect("LIMIT_PER_ROOT should be a valid non-zero usize");
+    let Some(limit_per_root) = NonZero::new(LIMIT_PER_ROOT) else {
+        panic!("LIMIT_PER_ROOT should be a valid non-zero usize");
+    };
 
     let cores = std::thread::available_parallelism()
         .map(std::num::NonZero::get)

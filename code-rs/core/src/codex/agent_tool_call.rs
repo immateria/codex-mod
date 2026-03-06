@@ -728,9 +728,9 @@ pub(crate) async fn handle_run_agent(
                             config.clone(),
                         )
                         .await;
-                    agent_ids.push(agent_id);
                     let label = display_label_for(&model);
-                    agent_labels.push((agent_ids.last().cloned().unwrap(), label));
+                    agent_labels.push((agent_id.clone(), label));
+                    agent_ids.push(agent_id);
                 } else {
                     // Use default configuration for unknown agents
                     let (cmd_to_check, is_builtin) = resolve_agent_command_for_check(&model, None);
@@ -756,9 +756,9 @@ pub(crate) async fn handle_run_agent(
                             reasoning_effort: sess.model_reasoning_effort.into(),
                         })
                         .await;
-                    agent_ids.push(agent_id);
                     let label = display_label_for(&model);
-                    agent_labels.push((agent_ids.last().cloned().unwrap(), label));
+                    agent_labels.push((agent_id.clone(), label));
+                    agent_ids.push(agent_id);
                 }
             }
 
@@ -829,9 +829,9 @@ pub(crate) async fn handle_run_agent(
                         reasoning_effort: sess.model_reasoning_effort.into(),
                     })
                     .await;
-                agent_ids.push(agent_id);
                 let label = display_label_for("code");
-                agent_labels.push((agent_ids.last().cloned().unwrap(), label));
+                agent_labels.push((agent_id.clone(), label));
+                agent_ids.push(agent_id);
             }
 
             // Send agent status update event
@@ -855,10 +855,12 @@ pub(crate) async fn handle_run_agent(
                     "Agent batch {short_batch} started: {agent_phrase}.\nUse `agent {{\"action\":\"wait\",\"wait\":{{\"batch_id\":\"{batch_id}\",\"return_all\":true}}}}` to wait for all agents, then `agent {{\"action\":\"result\",\"result\":{{\"agent_id\":\"{first_agent}\"}}}}` for a detailed report.",
                 )
             } else {
-                let (single_id, single_model) = agent_labels
+                let Some((single_id, single_model)) = agent_labels
                     .first()
                     .map(|(id, model)| (id.as_str(), model.as_str()))
-                    .unwrap();
+                else {
+                    panic!("agent_labels missing for started batch {batch_id}");
+                };
                 let short_batch = short_id(&batch_id);
                 format!(
                     "Agent batch {short_batch} started with {single_model}. Use `agent {{\"action\":\"wait\",\"wait\":{{\"batch_id\":\"{batch_id}\",\"return_all\":true}}}}` to follow progress, or `agent {{\"action\":\"result\",\"result\":{{\"agent_id\":\"{single_id}\"}}}}` when it finishes.",
@@ -1557,7 +1559,7 @@ async fn handle_wait_for_agent(
                         }
                     } else {
                         // Sequential behavior: return the next unseen completed agent if available
-                        let mut state = sess.state.lock().unwrap();
+                        let mut state = crate::codex::lock_or_panic!(sess.state);
                         if !state.seen_completed_agents_by_batch.contains_key(&batch_id) {
                             state.seen_completed_batch_order.push_back(batch_id.clone());
                             while state.seen_completed_batch_order.len()
@@ -1692,7 +1694,7 @@ async fn handle_wait_for_agent(
                 drop(manager);
 
                 let time_budget_message = {
-                    let mut guard = sess.time_budget.lock().unwrap();
+                    let mut guard = crate::codex::lock_or_panic!(sess.time_budget);
                     guard
                         .as_mut()
                         .and_then(|budget| budget.maybe_nudge(Instant::now()))

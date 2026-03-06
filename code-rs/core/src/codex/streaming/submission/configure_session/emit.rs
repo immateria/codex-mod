@@ -98,7 +98,7 @@ impl Runner<'_> {
         tokio::spawn(async move {
             while let Some(payload) = agent_rx.recv().await {
                 let wake_messages = {
-                    let mut state = sess_for_agents.state.lock().unwrap();
+                    let mut state = crate::codex::lock_or_panic!(sess_for_agents.state);
                     agent_completion_wake_messages(&payload, &mut state.agent_completion_wake_batches)
                 };
                 if !wake_messages.is_empty() {

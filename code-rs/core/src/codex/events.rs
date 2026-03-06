@@ -17,7 +17,7 @@ impl Session {
             return;
         };
         let recorder = {
-            let guard = self.rollout.lock().unwrap();
+            let guard = crate::codex::lock_or_panic!(self.rollout);
             guard.as_ref().cloned()
         };
         if let Some(rec) = recorder {
@@ -41,7 +41,7 @@ impl Session {
 
     /// Create a stamped Event with a per-turn sequence number.
     fn stamp_event(&self, sub_id: &str, msg: EventMsg) -> Event {
-        let mut state = self.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(self.state);
         if state.event_seq_by_sub_id.len() > MAX_EVENT_SEQ_SUB_IDS {
             while state.event_seq_by_sub_id.len() > MAX_EVENT_SEQ_SUB_IDS {
                 let Some(old_key) = state.event_seq_by_sub_id.keys().next().cloned() else {
@@ -134,7 +134,7 @@ impl Session {
     }
 
     pub(super) fn current_request_ordinal(&self) -> u64 {
-        let state = self.state.lock().unwrap();
+        let state = crate::codex::lock_or_panic!(self.state);
         state.request_ordinal
     }
 }

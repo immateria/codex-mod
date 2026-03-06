@@ -45,15 +45,15 @@ fn create_linux_sandbox_command_args(
     sandbox_policy: &SandboxPolicy,
     sandbox_policy_cwd: &Path,
 ) -> Vec<String> {
-    #[expect(clippy::expect_used)]
-    let sandbox_policy_cwd = sandbox_policy_cwd
-        .to_str()
-        .expect("cwd must be valid UTF-8")
-        .to_string();
+    let sandbox_policy_cwd = match sandbox_policy_cwd.to_str() {
+        Some(path) => path.to_string(),
+        None => panic!("cwd must be valid UTF-8"),
+    };
 
-    #[expect(clippy::expect_used)]
-    let sandbox_policy_json =
-        serde_json::to_string(sandbox_policy).expect("Failed to serialize SandboxPolicy to JSON");
+    let sandbox_policy_json = match serde_json::to_string(sandbox_policy) {
+        Ok(json) => json,
+        Err(err) => panic!("failed to serialize SandboxPolicy to JSON: {err}"),
+    };
 
     let mut linux_cmd: Vec<String> = vec![
         sandbox_policy_cwd,

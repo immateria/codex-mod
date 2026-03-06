@@ -349,7 +349,7 @@ pub(super) async fn perform_compaction(
 
     // Snapshot history and compute a compacted version
     let history_snapshot = {
-        let state = sess.state.lock().unwrap();
+        let state = crate::codex::lock_or_panic!(sess.state);
         state.history.contents()
     };
     let summary_text = get_last_assistant_message_from_turn(&history_snapshot).unwrap_or_default();
@@ -477,7 +477,7 @@ async fn run_compact_task_inner_inline(
 
                 // Update session history with emergency fallback
                 {
-                    let mut state = sess.state.lock().unwrap();
+                    let mut state = crate::codex::lock_or_panic!(sess.state);
                     state.history = crate::conversation_history::ConversationHistory::new();
                     state.history.record_items(emergency_history.iter());
                     state.token_usage_info = None;
@@ -514,7 +514,7 @@ async fn run_compact_task_inner_inline(
     }
 
     let history_snapshot = {
-        let state = sess.state.lock().unwrap();
+        let state = crate::codex::lock_or_panic!(sess.state);
         state.history.contents()
     };
     let summary_text = get_last_assistant_message_from_turn(&history_snapshot).unwrap_or_default();
@@ -523,7 +523,7 @@ async fn run_compact_task_inner_inline(
     let new_history = build_compacted_history(initial_context, &snippets, &summary_text);
 
     {
-        let mut state = sess.state.lock().unwrap();
+        let mut state = crate::codex::lock_or_panic!(sess.state);
         state.history = crate::conversation_history::ConversationHistory::new();
         state.history.record_items(new_history.iter());
         state.token_usage_info = None;
@@ -820,7 +820,7 @@ async fn drain_to_completed(
             };
             match event {
                 Ok(ResponseEvent::OutputItemDone { item, .. }) => {
-                    let mut state = sess.state.lock().unwrap();
+                    let mut state = crate::codex::lock_or_panic!(sess.state);
                     state.history.record_items(std::slice::from_ref(&item));
                 }
                 Ok(ResponseEvent::Completed { .. }) => {
@@ -1036,7 +1036,10 @@ mod tests {
         let snippets = collect_compaction_snippets(&items);
         assert!(snippets.len() <= MAX_COMPACTION_SNIPPETS);
         assert!(snippets.iter().any(|snippet| snippet.role == "user"));
-        assert!(snippets.last().unwrap().text.contains("Message #14"));
+        let Some(last_snippet) = snippets.last() else {
+            panic!("expected at least one compaction snippet");
+        };
+        assert!(last_snippet.text.contains("Message #14"));
     }
 
     #[test]
@@ -1115,7 +1118,9 @@ mod tests {
 
         if let ResponseItem::Message { role, content, .. } = &history[history.len() - 1] {
             assert_eq!(role, "user");
-            let text = content_items_to_text(content).unwrap();
+            let Some(text) = content_items_to_text(content) else {
+                panic!("expected warning message text");
+            };
             assert_eq!(text, warning);
         } else {
             panic!("Expected warning message");
@@ -1134,7 +1139,9 @@ mod tests {
 
         if let ResponseItem::Message { role, content, .. } = &history[0] {
             assert_eq!(role, "user");
-            let text = content_items_to_text(content).unwrap();
+            let Some(text) = content_items_to_text(content) else {
+                panic!("expected warning message text");
+            };
             assert_eq!(text, warning);
         } else {
             panic!("Expected warning message");

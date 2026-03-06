@@ -53,11 +53,12 @@ impl OllamaClient {
 
     /// Build a client from a provider definition and verify the server is reachable.
     async fn try_from_provider(provider: &ModelProviderInfo) -> io::Result<Self> {
-        #![expect(clippy::expect_used)]
-        let base_url = provider
-            .base_url
-            .as_ref()
-            .expect("oss provider must have a base_url");
+        let Some(base_url) = provider.base_url.as_ref() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "oss provider must have a base_url",
+            ));
+        };
         let uses_openai_compat = is_openai_compatible_base_url(base_url)
             || matches!(provider.wire_api, WireApi::Chat)
                 && is_openai_compatible_base_url(base_url);

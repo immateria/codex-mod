@@ -8,8 +8,9 @@ use tree_sitter_bash::LANGUAGE as BASH;
 pub fn try_parse_bash(bash_lc_arg: &str) -> Option<Tree> {
     let lang = BASH.into();
     let mut parser = Parser::new();
-    #[expect(clippy::expect_used)]
-    parser.set_language(&lang).expect("load bash grammar");
+    if parser.set_language(&lang).is_err() {
+        return None;
+    }
     let old_tree: Option<&Tree> = None;
     parser.parse(bash_lc_arg, old_tree)
 }

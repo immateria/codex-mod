@@ -44,7 +44,7 @@ impl Runner<'_> {
                 warn!("Failed to create debug logger: {}", e);
                 // Create a disabled logger as fallback
                 std::sync::Arc::new(std::sync::Mutex::new(
-                    crate::debug_logger::DebugLogger::new(false).unwrap(),
+                    crate::codex::disabled_debug_logger_or_panic(),
                 ))
             }
         };
@@ -129,7 +129,7 @@ impl Runner<'_> {
         let state = if let Some(sess_arc) = old_session.as_ref() {
             sess_arc.notify_wait_interrupted(WaitInterruptReason::SessionAborted);
             sess_arc.abort();
-            sess_arc.state.lock().unwrap().partial_clone()
+            crate::codex::lock_or_panic!(sess_arc.state).partial_clone()
         } else {
             State {
                 history: ConversationHistory::new(),
@@ -411,11 +411,11 @@ impl Runner<'_> {
         if let Some(sess_arc) = self.sess.as_ref() {
             // Reset environment context tracker if shell changed
             if shell_override_present {
-                let mut st = sess_arc.state.lock().unwrap();
+                let mut st = crate::codex::lock_or_panic!(sess_arc.state);
                 st.environment_context_tracker = crate::environment_context::EnvironmentContextTracker::new();
             }
             if !config.always_allow_commands.is_empty() {
-                let mut st = sess_arc.state.lock().unwrap();
+                let mut st = crate::codex::lock_or_panic!(sess_arc.state);
                 for pattern in &config.always_allow_commands {
                     st.approved_commands.insert(pattern.clone());
                 }
@@ -430,7 +430,7 @@ impl Runner<'_> {
             let turn_context = sess_arc.make_turn_context();
             let reconstructed = sess_arc.reconstruct_history_from_rollout(&turn_context, items);
             {
-                let mut st = sess_arc.state.lock().unwrap();
+                let mut st = crate::codex::lock_or_panic!(sess_arc.state);
                 st.history = ConversationHistory::new();
                 st.history.record_items(reconstructed.iter());
             }

@@ -330,7 +330,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
                     .get_auto_compact_token_limit()
                     .unwrap_or(i64::MAX);
                 let most_recent_usage_tokens: Option<i64> = {
-                    let state = sess.state.lock().unwrap();
+                    let state = crate::codex::lock_or_panic!(sess.state);
                     state.token_usage_info.as_ref().and_then(|info| {
                         info.last_token_usage.total_tokens.try_into().ok()
                     })

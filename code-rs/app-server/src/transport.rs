@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::io::Result as IoResult;
+use std::io::Write;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -46,29 +47,32 @@ fn colorize(text: &str, style: Style) -> String {
         .to_string()
 }
 
-#[allow(clippy::print_stderr)]
+fn write_stderr_line(args: std::fmt::Arguments<'_>) {
+    let mut stderr = std::io::stderr();
+    let _ = writeln!(stderr, "{args}");
+}
+
 fn print_websocket_startup_banner(addr: SocketAddr) {
     let title = colorize("code app-server (WebSockets)", Style::new().bold().cyan());
     let listening_label = colorize("listening on:", Style::new().dimmed());
     let listen_url = colorize(&format!("ws://{addr}"), Style::new().green());
     let note_label = colorize("note:", Style::new().dimmed());
-    eprintln!("{title}");
-    eprintln!("  {listening_label} {listen_url}");
+    write_stderr_line(format_args!("{title}"));
+    write_stderr_line(format_args!("  {listening_label} {listen_url}"));
     if addr.ip().is_loopback() {
-        eprintln!(
+        write_stderr_line(format_args!(
             "  {note_label} binds localhost only (use SSH port-forwarding for remote access)"
-        );
+        ));
     } else {
-        eprintln!(
+        write_stderr_line(format_args!(
             "  {note_label} this is a raw WS server; consider running behind TLS/auth for real remote use"
-        );
+        ));
     }
 }
 
-#[allow(clippy::print_stderr)]
 fn print_websocket_connection(peer_addr: SocketAddr) {
     let connected_label = colorize("websocket client connected from", Style::new().dimmed());
-    eprintln!("{connected_label} {peer_addr}");
+    write_stderr_line(format_args!("{connected_label} {peer_addr}"));
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

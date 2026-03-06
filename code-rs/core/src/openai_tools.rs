@@ -12,7 +12,6 @@ mod tools_json;
 mod types;
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
 mod tests;
 
 const SEARCH_TOOL_DESCRIPTION_TEMPLATE: &str =

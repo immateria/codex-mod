@@ -736,7 +736,7 @@ pub(in crate::codex) async fn submission_loop(
                         continue;
                     }
                 };
-                *sess_arc.next_turn_text_format.lock().unwrap() = Some(format);
+                *crate::codex::lock_or_panic!(sess_arc.next_turn_text_format) = Some(format);
             }
             Op::Shutdown => {
                 info!("Shutting down Codex instance");
@@ -753,7 +753,7 @@ pub(in crate::codex) async fn submission_loop(
                 // Gracefully flush and shutdown rollout recorder on session end so tests
                 // that inspect the rollout file do not race with the background writer.
                 if let Some(ref sess_arc) = sess {
-                    let recorder_opt = sess_arc.rollout.lock().unwrap().take();
+                    let recorder_opt = crate::codex::lock_or_panic!(sess_arc.rollout).take();
                     if let Some(rec) = recorder_opt
                         && let Err(e) = rec.shutdown().await {
                             warn!("failed to shutdown rollout recorder: {e}");

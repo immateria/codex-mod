@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::PathBuf;
 
 use code_core::config::Config;
@@ -23,25 +24,31 @@ impl EventProcessorWithJsonOutput {
     }
 }
 
+fn write_stdout_line(args: std::fmt::Arguments<'_>) {
+    let mut stdout = std::io::stdout();
+    if let Err(err) = writeln!(stdout, "{args}") {
+        panic!("failed to write JSON output: {err}");
+    }
+}
+
 impl EventProcessor for EventProcessorWithJsonOutput {
-    #[allow(clippy::print_stdout)]
     fn print_config_summary(&mut self, config: &Config, prompt: &str) {
         let entries = create_config_summary_entries(config)
             .into_iter()
             .map(|(key, value)| (key.to_string(), value))
             .collect::<HashMap<String, String>>();
-        #[expect(clippy::expect_used)]
-        let config_json =
-            serde_json::to_string(&entries).expect("Failed to serialize config summary to JSON");
-        println!("{config_json}");
+        let config_json = match serde_json::to_string(&entries) {
+            Ok(config_json) => config_json,
+            Err(err) => panic!("Failed to serialize config summary to JSON: {err}"),
+        };
+        write_stdout_line(format_args!("{config_json}"));
 
         let prompt_json = json!({
             "prompt": prompt,
         });
-        println!("{prompt_json}");
+        write_stdout_line(format_args!("{prompt_json}"));
     }
 
-    #[allow(clippy::print_stdout)]
     fn process_event(&mut self, event: Event) -> CodexStatus {
         match event.msg {
             EventMsg::Error(_) => { self.had_error = true; CodexStatus::Running }
@@ -58,7 +65,7 @@ impl EventProcessor for EventProcessorWithJsonOutput {
             EventMsg::ShutdownComplete => CodexStatus::Shutdown,
             _ => {
                 if let Ok(line) = serde_json::to_string(&event) {
-                    println!("{line}");
+                    write_stdout_line(format_args!("{line}"));
                 }
                 CodexStatus::Running
             }
