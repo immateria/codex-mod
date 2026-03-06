@@ -21,12 +21,11 @@ use std::sync::Arc;
 use tracing::warn;
 use std::sync::Mutex;
 
-#[allow(clippy::large_enum_variant)]
 enum Step {
-    Welcome(WelcomeWidget),
-    Auth(AuthModeWidget),
-    TrustDirectory(TrustDirectoryWidget),
-    ContinueToChat(ContinueToChatWidget),
+    Welcome(Box<WelcomeWidget>),
+    Auth(Box<AuthModeWidget>),
+    TrustDirectory(Box<TrustDirectoryWidget>),
+    ContinueToChat(Box<ContinueToChatWidget>),
 }
 
 pub(crate) trait KeyboardHandler {
@@ -71,11 +70,11 @@ impl OnboardingScreen {
         } = args;
         let shared_chat_args = Arc::new(Mutex::new(chat_widget_args));
 
-        let mut steps: Vec<Step> = vec![Step::Welcome(WelcomeWidget {
+        let mut steps: Vec<Step> = vec![Step::Welcome(Box::new(WelcomeWidget {
             is_logged_in: !matches!(login_status, LoginStatus::NotAuthenticated),
-        })];
+        }))];
         if show_login_screen {
-            steps.push(Step::Auth(AuthModeWidget {
+            steps.push(Step::Auth(Box::new(AuthModeWidget {
                 event_tx: event_tx.clone(),
                 highlighted_mode: AuthMode::ChatGPT,
                 error: None,
@@ -84,7 +83,7 @@ impl OnboardingScreen {
                 login_status,
                 preferred_auth_method: code_login::AuthMode::ApiKey,
                 chat_widget_args: shared_chat_args.clone(),
-            }))
+            })))
         }
         let is_git_repo = get_git_repo_root(&cwd).is_some();
         let highlighted = if is_git_repo {
@@ -96,7 +95,7 @@ impl OnboardingScreen {
         // Share ChatWidgetArgs between steps so changes in the TrustDirectory step
         // are reflected when continuing to chat.
         if show_trust_screen {
-            steps.push(Step::TrustDirectory(TrustDirectoryWidget {
+            steps.push(Step::TrustDirectory(Box::new(TrustDirectoryWidget {
                 cwd,
                 code_home,
                 is_git_repo,
@@ -104,12 +103,12 @@ impl OnboardingScreen {
                 highlighted,
                 error: None,
                 chat_widget_args: shared_chat_args.clone(),
-            }))
+            })))
         }
-        steps.push(Step::ContinueToChat(ContinueToChatWidget {
+        steps.push(Step::ContinueToChat(Box::new(ContinueToChatWidget {
             event_tx: event_tx.clone(),
             chat_widget_args: shared_chat_args,
-        }));
+        })));
         // TODO: add git warning.
         Self { event_tx, steps }
     }
@@ -280,16 +279,16 @@ impl WidgetRef for Step {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
         match self {
             Step::Welcome(widget) => {
-                widget.render_ref(area, buf);
+                widget.as_ref().render_ref(area, buf);
             }
             Step::Auth(widget) => {
-                widget.render_ref(area, buf);
+                widget.as_ref().render_ref(area, buf);
             }
             Step::TrustDirectory(widget) => {
-                widget.render_ref(area, buf);
+                widget.as_ref().render_ref(area, buf);
             }
             Step::ContinueToChat(widget) => {
-                widget.render_ref(area, buf);
+                widget.as_ref().render_ref(area, buf);
             }
         }
     }

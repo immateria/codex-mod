@@ -37,11 +37,7 @@ const DEFAULT_CAPABILITIES: &[&str] = &[
 pub struct BridgeMeta {
     pub url: String,
     pub secret: String,
-    #[allow(dead_code)]
-    pub port: Option<u16>,
     pub workspace_path: Option<String>,
-    #[allow(dead_code)]
-    pub started_at: Option<String>,
     pub heartbeat_at: Option<String>,
     pub pid: Option<u32>,
 }

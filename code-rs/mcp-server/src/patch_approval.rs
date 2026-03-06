@@ -40,18 +40,32 @@ pub struct PatchApprovalResponse {
     pub decision: ReviewDecision,
 }
 
-#[allow(clippy::too_many_arguments)]
+pub(crate) struct PatchApprovalRequestContext {
+    pub call_id: String,
+    pub reason: Option<String>,
+    pub grant_root: Option<PathBuf>,
+    pub changes: HashMap<PathBuf, FileChange>,
+    pub outgoing: Arc<OutgoingMessageSender>,
+    pub codex: Arc<CodexConversation>,
+    pub request_id: RequestId,
+    pub tool_call_id: String,
+    pub event_id: String,
+}
+
 pub(crate) async fn handle_patch_approval_request(
-    call_id: String,
-    reason: Option<String>,
-    grant_root: Option<PathBuf>,
-    changes: HashMap<PathBuf, FileChange>,
-    outgoing: Arc<OutgoingMessageSender>,
-    codex: Arc<CodexConversation>,
-    request_id: RequestId,
-    tool_call_id: String,
-    event_id: String,
+    request: PatchApprovalRequestContext,
 ) {
+    let PatchApprovalRequestContext {
+        call_id,
+        reason,
+        grant_root,
+        changes,
+        outgoing,
+        codex,
+        request_id,
+        tool_call_id,
+        event_id,
+    } = request;
     let mut message_lines = Vec::new();
     if let Some(r) = &reason {
         message_lines.push(r.clone());

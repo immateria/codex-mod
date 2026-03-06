@@ -59,7 +59,7 @@ pub(crate) fn spawn_new_conversation_runtime(
             msg: EventMsg::SessionConfigured(new_conversation.session_configured),
             order: None,
         };
-        app_event_tx_clone.send(AppEvent::CodexEvent(event));
+        app_event_tx_clone.send(AppEvent::codex_event(event));
 
         let conversation = new_conversation.conversation;
         let conversation_clone = conversation.clone();
@@ -79,7 +79,7 @@ pub(crate) fn spawn_new_conversation_runtime(
         });
 
         while let Ok(event) = conversation.next_event().await {
-            app_event_tx_clone.send(AppEvent::CodexEvent(event));
+            app_event_tx_clone.send(AppEvent::codex_event(event));
         }
     });
 
@@ -101,7 +101,7 @@ pub(crate) fn spawn_existing_conversation_runtime(
             msg: EventMsg::SessionConfigured(session_configured),
             order: None,
         };
-        app_event_tx_clone.send(AppEvent::CodexEvent(event));
+        app_event_tx_clone.send(AppEvent::codex_event(event));
 
         let conversation_clone = conversation.clone();
         tokio::spawn(async move {
@@ -114,7 +114,7 @@ pub(crate) fn spawn_existing_conversation_runtime(
         });
 
         while let Ok(event) = conversation.next_event().await {
-            app_event_tx_clone.send(AppEvent::CodexEvent(event));
+            app_event_tx_clone.send(AppEvent::codex_event(event));
         }
     });
 }

@@ -231,7 +231,7 @@ fn run_refresh(
                 order: None,
             };
 
-            app_event_tx.send(AppEvent::CodexEvent(event));
+            app_event_tx.send(AppEvent::codex_event(event));
         } else if let Some(account_id) = record_account_id {
             app_event_tx.send(AppEvent::RateLimitSnapshotStored { account_id });
         }

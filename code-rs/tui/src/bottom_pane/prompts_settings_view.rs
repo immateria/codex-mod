@@ -607,7 +607,7 @@ impl PromptsSettingsView {
         self.status = Some(("Saved.".to_string(), Style::default().fg(colors::success())));
 
         // Trigger reload so composer autocomplete picks it up.
-        self.app_event_tx.send(AppEvent::CodexOp(Op::ListCustomPrompts));
+        self.app_event_tx.send(AppEvent::codex_op(Op::ListCustomPrompts));
     }
 
     fn delete_current(&mut self) {
@@ -632,7 +632,7 @@ impl PromptsSettingsView {
         self.mode = Mode::List;
         self.focus = Focus::List;
         self.status = Some(("Deleted.".to_string(), Style::default().fg(colors::success())));
-        self.app_event_tx.send(AppEvent::CodexOp(Op::ListCustomPrompts));
+        self.app_event_tx.send(AppEvent::codex_op(Op::ListCustomPrompts));
     }
 }
 

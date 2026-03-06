@@ -55,10 +55,9 @@ fn now_epoch_secs() -> u64 {
 }
 
 /// Top-level application state: which full-screen view is currently active.
-#[allow(clippy::large_enum_variant)]
 pub(super) enum AppState<'a> {
     Onboarding {
-        screen: OnboardingScreen,
+        screen: Box<OnboardingScreen>,
     },
     /// The main chat UI is visible.
     Chat {

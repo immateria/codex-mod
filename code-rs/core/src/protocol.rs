@@ -97,119 +97,70 @@ impl CollaborationModeKind {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct ConfigureSessionOp {
+    /// Provider identifier ("openai", "openrouter", ...).
+    pub provider: ModelProviderInfo,
+    /// If not specified, server will use its default model.
+    pub model: String,
+    /// True when the model choice is explicitly set by the user.
+    #[serde(default)]
+    pub model_explicit: bool,
+    pub model_reasoning_effort: ReasoningEffortConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub preferred_model_reasoning_effort: Option<ReasoningEffortConfig>,
+    pub model_reasoning_summary: ReasoningSummaryConfig,
+    pub model_text_verbosity: TextVerbosityConfig,
+    pub user_instructions: Option<String>,
+    pub base_instructions: Option<String>,
+    pub approval_policy: AskForApproval,
+    pub sandbox_policy: SandboxPolicy,
+    #[serde(default)]
+    pub disable_response_storage: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub notify: Option<Vec<String>>,
+    pub cwd: std::path::PathBuf,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resume_path: Option<std::path::PathBuf>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub demo_developer_message: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dynamic_tools: Vec<DynamicToolSpec>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub shell: Option<ShellConfig>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub network: Option<crate::config::NetworkProxySettingsToml>,
+    #[serde(default)]
+    pub tools_js_repl: bool,
+    #[serde(default)]
+    pub js_repl_runtime: crate::config::JsReplRuntimeKindToml,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub js_repl_runtime_path: Option<std::path::PathBuf>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub js_repl_runtime_args: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub js_repl_node_module_dirs: Vec<std::path::PathBuf>,
+    #[serde(default)]
+    pub collaboration_mode: CollaborationModeKind,
+}
+
 /// Submission operation
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[allow(clippy::large_enum_variant)]
 #[non_exhaustive]
 pub enum Op {
     /// Configure the model session.
     ConfigureSession {
-        /// Provider identifier ("openai", "openrouter", ...).
-        provider: ModelProviderInfo,
-
-        /// If not specified, server will use its default model.
-        model: String,
-
-        /// True when the model choice is explicitly set by the user.
-        ///
-        /// When false, the core may adopt a server-provided default model
-        /// (e.g. "codex-auto-balanced") when available.
-        #[serde(default)]
-        model_explicit: bool,
-
-        model_reasoning_effort: ReasoningEffortConfig,
-        /// Optional user-preferred reasoning effort for the chat model.
-        /// When present, the core will persist it separately from the effective clamped effort.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(default)]
-        preferred_model_reasoning_effort: Option<ReasoningEffortConfig>,
-        model_reasoning_summary: ReasoningSummaryConfig,
-        model_text_verbosity: TextVerbosityConfig,
-
-        /// Model instructions that are appended to the base instructions.
-        user_instructions: Option<String>,
-
-        /// Base instructions override.
-        base_instructions: Option<String>,
-
-        /// When to escalate for approval for execution
-        approval_policy: AskForApproval,
-        /// How to sandbox commands executed in the system
-        sandbox_policy: SandboxPolicy,
-        /// Disable server-side response storage (send full context each request)
-        #[serde(default)]
-        disable_response_storage: bool,
-
-        /// Optional external notifier command tokens. Present only when the
-        /// client wants the agent to spawn a program after each completed
-        /// turn.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(default)]
-        notify: Option<Vec<String>>,
-
-        /// Working directory that should be treated as the *root* of the
-        /// session. All relative paths supplied by the model as well as the
-        /// execution sandbox are resolved against this directory **instead**
-        /// of the process-wide current working directory. CLI front-ends are
-        /// expected to expand this to an absolute path before sending the
-        /// `ConfigureSession` operation so that the business-logic layer can
-        /// operate deterministically.
-        cwd: std::path::PathBuf,
-
-        /// Path to a rollout file to resume from.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        resume_path: Option<std::path::PathBuf>,
-
-        /// Optional developer-role message to prepend to every turn for demos.
-        /// This is a CLI-only knob; it is not persisted in config files.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(default)]
-        demo_developer_message: Option<String>,
-
-        /// Dynamic tools to include for this session.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        dynamic_tools: Vec<DynamicToolSpec>,
-
-        /// Optional shell override for command execution.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(default)]
-        shell: Option<ShellConfig>,
-
-        /// Optional shell-style-specific resource profiles keyed by style.
-        #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-        shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
-
-        /// Optional managed network proxy settings for this session.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(default)]
-        network: Option<crate::config::NetworkProxySettingsToml>,
-
-        /// Enable the optional `js_repl` tool for this session.
-        #[serde(default)]
-        tools_js_repl: bool,
-
-        /// Runtime kind used by `js_repl`.
-        #[serde(default)]
-        js_repl_runtime: crate::config::JsReplRuntimeKindToml,
-
-        /// Optional explicit runtime executable path for `js_repl`.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[serde(default)]
-        js_repl_runtime_path: Option<std::path::PathBuf>,
-
-        /// Additional arguments passed to the `js_repl` runtime.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        js_repl_runtime_args: Vec<String>,
-
-        /// Extra directories searched for packages when using the Node runtime.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        js_repl_node_module_dirs: Vec<std::path::PathBuf>,
-
-        /// Session collaboration mode controls additional developer
-        /// instructions and behavior contracts for the model.
-        #[serde(default)]
-        collaboration_mode: CollaborationModeKind,
+        #[serde(flatten)]
+        params: Box<ConfigureSessionOp>,
     },
 
     /// Abort current task.
@@ -376,6 +327,14 @@ pub enum Op {
     Review { review_request: ReviewRequest },
     /// Request to shut down codex instance.
     Shutdown,
+}
+
+impl Op {
+    pub fn configure_session(params: ConfigureSessionOp) -> Self {
+        Self::ConfigureSession {
+            params: Box::new(params),
+        }
+    }
 }
 
 /// Determines the conditions under which the user is consulted to approve
@@ -1743,5 +1702,64 @@ mod tests {
             serialized,
             r#"{"id":"1234","event_seq":0,"msg":{"type":"session_configured","session_id":"67e55044-10b1-426f-9247-bb680e5fe0c8","model":"codex-mini-latest","history_log_id":0,"history_entry_count":0}}"#
         );
+    }
+
+    #[test]
+    fn serialize_configure_session_op_keeps_flattened_shape() {
+        let cwd = PathBuf::from("project");
+        let op = Op::configure_session(ConfigureSessionOp {
+            provider: ModelProviderInfo {
+                name: "OpenAI".to_string(),
+                base_url: Some("https://api.openai.com/v1".to_string()),
+                env_key: Some("OPENAI_API_KEY".to_string()),
+                env_key_instructions: None,
+                experimental_bearer_token: None,
+                wire_api: crate::model_provider_info::WireApi::Responses,
+                query_params: None,
+                http_headers: None,
+                env_http_headers: None,
+                request_max_retries: None,
+                stream_max_retries: None,
+                stream_idle_timeout_ms: None,
+                requires_openai_auth: false,
+                openrouter: None,
+            },
+            model: "gpt-5".to_string(),
+            model_explicit: true,
+            model_reasoning_effort: ReasoningEffortConfig::Medium,
+            preferred_model_reasoning_effort: Some(ReasoningEffortConfig::High),
+            model_reasoning_summary: ReasoningSummaryConfig::Concise,
+            model_text_verbosity: TextVerbosityConfig::High,
+            user_instructions: Some("Stay focused.".to_string()),
+            base_instructions: None,
+            approval_policy: AskForApproval::OnRequest,
+            sandbox_policy: SandboxPolicy::ReadOnly,
+            disable_response_storage: true,
+            notify: None,
+            cwd: cwd.clone(),
+            resume_path: None,
+            demo_developer_message: None,
+            dynamic_tools: Vec::new(),
+            shell: None,
+            shell_style_profiles: HashMap::new(),
+            network: None,
+            tools_js_repl: true,
+            js_repl_runtime: crate::config::JsReplRuntimeKindToml::Node,
+            js_repl_runtime_path: None,
+            js_repl_runtime_args: Vec::new(),
+            js_repl_node_module_dirs: Vec::new(),
+            collaboration_mode: CollaborationModeKind::Default,
+        });
+
+        let value = serde_json::to_value(&op).unwrap();
+        let object = value.as_object().unwrap();
+
+        assert_eq!(object.get("type"), Some(&serde_json::json!("configure_session")));
+        assert_eq!(object.get("model"), Some(&serde_json::json!("gpt-5")));
+        assert_eq!(
+            object.get("cwd"),
+            Some(&serde_json::json!(cwd.to_string_lossy().to_string()))
+        );
+        assert!(!object.contains_key("params"));
     }
 }

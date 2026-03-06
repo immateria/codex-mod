@@ -418,7 +418,7 @@ impl UserApprovalWidget<'_> {
             ApprovalRequest::TerminalCommand { .. } => unreachable!("terminal approvals handled earlier"),
         };
 
-        self.app_event_tx.send(AppEvent::CodexOp(op));
+        self.app_event_tx.send(AppEvent::codex_op(op));
         self.done = true;
     }
 

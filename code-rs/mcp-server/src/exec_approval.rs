@@ -46,18 +46,32 @@ pub struct ExecApprovalResponse {
     pub decision: ReviewDecision,
 }
 
-#[allow(clippy::too_many_arguments)]
+pub(crate) struct ExecApprovalRequestContext {
+    pub command: Vec<String>,
+    pub cwd: PathBuf,
+    pub outgoing: Arc<crate::outgoing_message::OutgoingMessageSender>,
+    pub codex: Arc<CodexConversation>,
+    pub request_id: RequestId,
+    pub tool_call_id: String,
+    pub event_id: String,
+    pub call_id: String,
+    pub approval_id: Option<String>,
+}
+
 pub(crate) async fn handle_exec_approval_request(
-    command: Vec<String>,
-    cwd: PathBuf,
-    outgoing: Arc<crate::outgoing_message::OutgoingMessageSender>,
-    codex: Arc<CodexConversation>,
-    request_id: RequestId,
-    tool_call_id: String,
-    event_id: String,
-    call_id: String,
-    approval_id: Option<String>,
+    request: ExecApprovalRequestContext,
 ) {
+    let ExecApprovalRequestContext {
+        command,
+        cwd,
+        outgoing,
+        codex,
+        request_id,
+        tool_call_id,
+        event_id,
+        call_id,
+        approval_id,
+    } = request;
     let escaped_command =
         shlex::try_join(command.iter().map(String::as_str)).unwrap_or_else(|_| command.join(" "));
     let message = format!(

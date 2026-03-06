@@ -14,11 +14,9 @@ pub(crate) mod policy;
 pub mod recorder;
 
 pub use code_protocol::protocol::SessionMeta;
-#[allow(unused_imports)]
-pub use list::find_conversation_path_by_id_str;
+
 pub use recorder::RolloutRecorder;
-#[allow(unused_imports)]
-pub use recorder::RolloutRecorderParams;
+
 
 #[cfg(test)]
 pub mod tests;

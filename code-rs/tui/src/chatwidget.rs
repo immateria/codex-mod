@@ -2718,25 +2718,25 @@ impl ChatWidget<'_> {
         let auto_resolve_enabled = self.config.tui.review_auto_resolve;
         let auto_review_enabled = self.config.tui.auto_review_enabled;
         let attempts = self.configured_auto_resolve_re_reviews();
-        ReviewSettingsView::new(
-            self.config.review_use_chat_model,
-            self.config.review_model.clone(),
-            self.config.review_model_reasoning_effort,
-            self.config.review_resolve_use_chat_model,
-            self.config.review_resolve_model.clone(),
-            self.config.review_resolve_model_reasoning_effort,
-            auto_resolve_enabled,
-            attempts,
+        ReviewSettingsView::new(crate::bottom_pane::review_settings_view::ReviewSettingsInit {
+            review_use_chat_model: self.config.review_use_chat_model,
+            review_model: self.config.review_model.clone(),
+            review_reasoning: self.config.review_model_reasoning_effort,
+            review_resolve_use_chat_model: self.config.review_resolve_use_chat_model,
+            review_resolve_model: self.config.review_resolve_model.clone(),
+            review_resolve_reasoning: self.config.review_resolve_model_reasoning_effort,
+            review_auto_resolve_enabled: auto_resolve_enabled,
+            review_followups: attempts,
             auto_review_enabled,
-            self.config.auto_review_use_chat_model,
-            self.config.auto_review_model.clone(),
-            self.config.auto_review_model_reasoning_effort,
-            self.config.auto_review_resolve_use_chat_model,
-            self.config.auto_review_resolve_model.clone(),
-            self.config.auto_review_resolve_model_reasoning_effort,
-            self.config.auto_drive.auto_review_followup_attempts.get(),
-            self.app_event_tx.clone(),
-        )
+            auto_review_use_chat_model: self.config.auto_review_use_chat_model,
+            auto_review_model: self.config.auto_review_model.clone(),
+            auto_review_reasoning: self.config.auto_review_model_reasoning_effort,
+            auto_review_resolve_use_chat_model: self.config.auto_review_resolve_use_chat_model,
+            auto_review_resolve_model: self.config.auto_review_resolve_model.clone(),
+            auto_review_resolve_reasoning: self.config.auto_review_resolve_model_reasoning_effort,
+            auto_review_followups: self.config.auto_drive.auto_review_followup_attempts.get(),
+            app_event_tx: self.app_event_tx.clone(),
+        })
     }
 
     fn build_review_settings_content(&mut self) -> ReviewSettingsContent {
@@ -4755,6 +4755,37 @@ fi\n\
         self.collaboration_mode
     }
 
+    pub(crate) fn current_configure_session_op(&self) -> Op {
+        Op::configure_session(code_core::protocol::ConfigureSessionOp {
+            provider: self.config.model_provider.clone(),
+            model: self.config.model.clone(),
+            model_explicit: self.config.model_explicit,
+            model_reasoning_effort: self.config.model_reasoning_effort,
+            preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
+            model_reasoning_summary: self.config.model_reasoning_summary,
+            model_text_verbosity: self.config.model_text_verbosity,
+            user_instructions: self.config.user_instructions.clone(),
+            base_instructions: self.config.base_instructions.clone(),
+            approval_policy: self.config.approval_policy,
+            sandbox_policy: self.config.sandbox_policy.clone(),
+            disable_response_storage: self.config.disable_response_storage,
+            notify: self.config.notify.clone(),
+            cwd: self.config.cwd.clone(),
+            resume_path: None,
+            demo_developer_message: self.config.demo_developer_message.clone(),
+            dynamic_tools: Vec::new(),
+            shell: self.config.shell.clone(),
+            shell_style_profiles: self.config.shell_style_profiles.clone(),
+            network: self.config.network.clone(),
+            tools_js_repl: self.config.tools_js_repl,
+            js_repl_runtime: self.config.js_repl_runtime,
+            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
+            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
+            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
+            collaboration_mode: self.current_collaboration_mode(),
+        })
+    }
+
     /// Rotate the access preset: Read Only (Plan Mode) → Write with Approval → Full Access
     pub(crate) fn cycle_access_mode(&mut self) {
         use code_core::config::set_project_access_mode;
@@ -4812,34 +4843,7 @@ fi\n\
         self.config.sandbox_policy = sandbox;
 
         // Send ConfigureSession op to backend
-        let op = Op::ConfigureSession {
-            provider: self.config.model_provider.clone(),
-            model: self.config.model.clone(),
-            model_explicit: self.config.model_explicit,
-            model_reasoning_effort: self.config.model_reasoning_effort,
-            preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
-            model_reasoning_summary: self.config.model_reasoning_summary,
-            model_text_verbosity: self.config.model_text_verbosity,
-            user_instructions: self.config.user_instructions.clone(),
-            base_instructions: self.config.base_instructions.clone(),
-            approval_policy: self.config.approval_policy,
-            sandbox_policy: self.config.sandbox_policy.clone(),
-            disable_response_storage: self.config.disable_response_storage,
-            notify: self.config.notify.clone(),
-            cwd: self.config.cwd.clone(),
-            resume_path: None,
-            demo_developer_message: self.config.demo_developer_message.clone(),
-            dynamic_tools: Vec::new(),
-            shell: self.config.shell.clone(),
-            shell_style_profiles: self.config.shell_style_profiles.clone(),
-            network: self.config.network.clone(),
-            tools_js_repl: self.config.tools_js_repl,
-            js_repl_runtime: self.config.js_repl_runtime,
-            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
-            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
-            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
-            collaboration_mode: self.current_collaboration_mode(),
-        };
+        let op = self.current_configure_session_op();
         self.submit_op(op);
 
         // Persist selection into CODEX_HOME/config.toml for this project directory so it sticks.
@@ -6788,7 +6792,7 @@ fi\n\
                                                     BrowserScreenshotUpdateEvent, EventMsg,
                                                 };
                                                 app_event_tx_inner.send(
-                                                    AppEvent::CodexEvent(Event {
+                                                    AppEvent::codex_event(Event {
                                                         id: uuid::Uuid::new_v4().to_string(),
                                                         event_seq: 0,
                                                         msg: EventMsg::BrowserScreenshotUpdate(
@@ -6849,7 +6853,7 @@ fi\n\
 
                                                 // Send update event
                                                 use code_core::protocol::{BrowserScreenshotUpdateEvent, EventMsg};
-                                                app_event_tx_inner.send(AppEvent::CodexEvent(Event { id: uuid::Uuid::new_v4().to_string(), event_seq: 0, msg: EventMsg::BrowserScreenshotUpdate(BrowserScreenshotUpdateEvent {
+                                                app_event_tx_inner.send(AppEvent::codex_event(Event { id: uuid::Uuid::new_v4().to_string(), event_seq: 0, msg: EventMsg::BrowserScreenshotUpdate(BrowserScreenshotUpdateEvent {
                                                         screenshot_path: first_path.clone(),
                                                         url: url_inner,
                                                     }), order: None }));
@@ -6900,7 +6904,7 @@ fi\n\
                                         // Send update event
                                         use code_core::protocol::BrowserScreenshotUpdateEvent;
                                         use code_core::protocol::EventMsg;
-                                        app_event_tx.send(AppEvent::CodexEvent(Event {
+                                        app_event_tx.send(AppEvent::codex_event(Event {
                                             id: uuid::Uuid::new_v4().to_string(),
                                             event_seq: 0,
                                             msg: EventMsg::BrowserScreenshotUpdate(

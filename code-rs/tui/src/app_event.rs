@@ -138,10 +138,9 @@ pub(crate) struct AutoDriveSettingsUpdate {
     pub continue_mode: AutoContinueMode,
 }
 
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub(crate) enum AppEvent {
-    CodexEvent(Event),
+    CodexEvent(Box<Event>),
 
     /// Request a redraw which will be debounced by the [`App`].
     RequestRedraw,
@@ -211,7 +210,7 @@ pub(crate) enum AppEvent {
 
     /// Forward an `Op` to the Agent. Using an `AppEvent` for this avoids
     /// bubbling channels through layers of widgets.
-    CodexOp(code_core::protocol::Op),
+    CodexOp(Box<code_core::protocol::Op>),
 
     /// Submit a response for a pending `request_user_input` tool call.
     RequestUserInputAnswer {
@@ -802,7 +801,14 @@ pub(crate) enum AppEvent {
         result: Result<(), String>,
         attempt_id: Uuid,
     },
-    
 }
 
-// No helper constructor; use `AppEvent::CodexEvent(ev)` directly to avoid shadowing.
+impl AppEvent {
+    pub(crate) fn codex_event(event: Event) -> Self {
+        Self::CodexEvent(Box::new(event))
+    }
+
+    pub(crate) fn codex_op(op: code_core::protocol::Op) -> Self {
+        Self::CodexOp(Box::new(op))
+    }
+}

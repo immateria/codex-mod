@@ -651,7 +651,6 @@ async fn emit_pending_delta(
     } else {
         Event { id: stream.sub_id.clone(), event_seq: 0, msg, order: stream.order.clone() }
     };
-    #[allow(clippy::let_unit_value)]
     let _ = stream.tx_event.send(event).await;
     *emitted_deltas = emitted_deltas.saturating_add(1);
 }

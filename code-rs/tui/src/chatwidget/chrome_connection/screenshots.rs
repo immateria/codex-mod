@@ -24,7 +24,7 @@ pub(super) fn send_browser_screenshot_update(
 ) {
     use code_core::protocol::{BrowserScreenshotUpdateEvent, Event, EventMsg};
 
-    app_event_tx.send(AppEvent::CodexEvent(Event {
+    app_event_tx.send(AppEvent::codex_event(Event {
         id: uuid::Uuid::new_v4().to_string(),
         event_seq: 0,
         msg: EventMsg::BrowserScreenshotUpdate(BrowserScreenshotUpdateEvent {

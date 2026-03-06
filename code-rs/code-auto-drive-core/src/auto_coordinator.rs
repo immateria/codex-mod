@@ -582,7 +582,6 @@ pub struct TurnConfig {
     #[serde(default)]
     pub read_only: bool,
     #[serde(default)]
-    #[allow(dead_code)]
     pub complexity: Option<TurnComplexity>,
     #[serde(default)]
     pub text_format_override: Option<code_core::TextFormat>,
@@ -600,7 +599,6 @@ pub enum TurnMode {
 }
 
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct AgentPreferences {
     #[serde(default)]
@@ -622,7 +620,6 @@ pub enum ReviewTiming {
 }
 
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct ReviewStrategy {
     #[serde(default)]
@@ -643,7 +640,6 @@ impl Default for ReviewStrategy {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct TurnDescriptor {
     #[serde(default)]
@@ -3814,7 +3810,6 @@ fn find_in_chain<T: std::error::Error + 'static>(error: &anyhow::Error) -> Optio
 
 struct RecoverableDecisionError {
     summary: String,
-    #[cfg_attr(not(test), allow(dead_code))]
     guidance: Option<String>,
 }
 

@@ -160,7 +160,7 @@ impl App<'_> {
                         frame.render_widget_ref(&**widget, area);
                     }
                 }
-                AppState::Onboarding { screen } => frame.render_widget_ref(&*screen, frame.area()),
+                AppState::Onboarding { screen } => frame.render_widget_ref(&**screen, frame.area()),
             }
         });
 

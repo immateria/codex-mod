@@ -1,21 +1,37 @@
 use super::*;
 
+pub(super) struct PaintVisibleCellsArgs<'a> {
+    pub history_area: Rect,
+    pub content_area: Rect,
+    pub request_count: usize,
+    pub start_idx: usize,
+    pub start_y: u16,
+    pub scroll_pos: u16,
+    pub visible_slice: &'a [VisibleCell<'a>],
+    pub visible_requests_slice: &'a [RenderRequest<'a>],
+    pub rendered_cells_from_subset: bool,
+    pub ps: &'a [u16],
+    pub buf: &'a mut Buffer,
+}
+
 impl ChatWidget<'_> {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn paint_visible_cells_window<'a>(
         &'a self,
-        history_area: Rect,
-        content_area: Rect,
-        request_count: usize,
-        start_idx: usize,
-        start_y: u16,
-        scroll_pos: u16,
-        visible_slice: &[VisibleCell],
-        visible_requests_slice: &[RenderRequest<'a>],
-        rendered_cells_from_subset: bool,
-        ps: &[u16],
-        buf: &mut Buffer,
+        args: PaintVisibleCellsArgs<'a>,
     ) -> u16 {
+        let PaintVisibleCellsArgs {
+            history_area,
+            content_area,
+            request_count,
+            start_idx,
+            start_y,
+            scroll_pos,
+            visible_slice,
+            visible_requests_slice,
+            rendered_cells_from_subset,
+            ps,
+            buf,
+        } = args;
         let mut screen_y = start_y;
         let spacing = 1u16;
         let history_len = self.history_cells.len();

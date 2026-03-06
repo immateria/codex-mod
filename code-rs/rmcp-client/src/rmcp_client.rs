@@ -84,6 +84,16 @@ pub struct RmcpClient {
     state: Mutex<ClientState>,
 }
 
+pub struct StreamableHttpClientConfig<'a> {
+    pub code_home: PathBuf,
+    pub server_name: &'a str,
+    pub url: &'a str,
+    pub bearer_token: Option<String>,
+    pub http_headers: Option<HashMap<String, String>>,
+    pub env_http_headers: Option<HashMap<String, String>>,
+    pub store_mode: OAuthCredentialsStoreMode,
+}
+
 impl RmcpClient {
     pub async fn new_stdio_client(
         program: OsString,
@@ -155,16 +165,16 @@ impl RmcpClient {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub async fn new_streamable_http_client(
-        code_home: PathBuf,
-        server_name: &str,
-        url: &str,
-        bearer_token: Option<String>,
-        http_headers: Option<HashMap<String, String>>,
-        env_http_headers: Option<HashMap<String, String>>,
-        store_mode: OAuthCredentialsStoreMode,
-    ) -> Result<Self> {
+    pub async fn new_streamable_http_client(config: StreamableHttpClientConfig<'_>) -> Result<Self> {
+        let StreamableHttpClientConfig {
+            code_home,
+            server_name,
+            url,
+            bearer_token,
+            http_headers,
+            env_http_headers,
+            store_mode,
+        } = config;
         let default_headers = build_default_headers(http_headers, env_http_headers)?;
 
         let initial_oauth_tokens =

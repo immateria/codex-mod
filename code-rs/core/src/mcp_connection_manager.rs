@@ -20,6 +20,7 @@ use anyhow::anyhow;
 use code_protocol::protocol::McpAuthStatus;
 use code_rmcp_client::OAuthCredentialsStoreMode;
 use code_rmcp_client::RmcpClient;
+use code_rmcp_client::StreamableHttpClientConfig;
 use futures::future::join_all;
 use mcp_types::ClientCapabilities;
 use mcp_types::Implementation;
@@ -228,15 +229,15 @@ impl McpClientAdapter {
             startup_timeout,
         } = args;
         let client = Arc::new(
-            RmcpClient::new_streamable_http_client(
+            RmcpClient::new_streamable_http_client(StreamableHttpClientConfig {
                 code_home,
                 server_name,
-                &url,
+                url: &url,
                 bearer_token,
                 http_headers,
                 env_http_headers,
-                oauth_store_mode,
-            )
+                store_mode: oauth_store_mode,
+            })
             .await?,
         );
         client.initialize(params, Some(startup_timeout)).await?;

@@ -211,7 +211,6 @@ pub struct AutoRestartState {
 
 #[derive(Default, Clone)]
 pub struct AutoTurnReviewState {
-    #[cfg_attr(not(any(test, feature = "test-helpers")), allow(dead_code))]
     pub base_commit: Option<GhostCommit>,
 }
 

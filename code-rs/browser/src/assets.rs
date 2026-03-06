@@ -25,8 +25,6 @@ pub struct ImageRef {
 
 pub struct AssetManager {
     base_dir: PathBuf,
-    #[allow(dead_code)]
-    session_id: String,
     assets: Arc<RwLock<HashMap<String, ImageRef>>>,
 }
 
@@ -39,7 +37,6 @@ impl AssetManager {
 
         Ok(Self {
             base_dir,
-            session_id,
             assets: Arc::new(RwLock::new(HashMap::new())),
         })
     }

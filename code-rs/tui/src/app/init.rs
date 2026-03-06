@@ -280,7 +280,7 @@ impl App<'_> {
                 latest_upgrade_version: latest_upgrade_version.clone(),
             };
             AppState::Onboarding {
-                screen: OnboardingScreen::new(OnboardingScreenArgs {
+                screen: Box::new(OnboardingScreen::new(OnboardingScreenArgs {
                     event_tx: app_event_tx.clone(),
                     code_home: config.code_home.clone(),
                     cwd: config.cwd.clone(),
@@ -288,7 +288,7 @@ impl App<'_> {
                     show_login_screen,
                     chat_widget_args,
                     login_status,
-                }),
+                })),
             }
         } else {
             let mut chat_widget = ChatWidget::new(crate::chatwidget::ChatWidgetInit {

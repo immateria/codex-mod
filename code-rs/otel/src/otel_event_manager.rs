@@ -85,6 +85,19 @@ pub struct OtelEventManager {
     metadata: OtelEventMetadata,
 }
 
+pub struct ConversationStartsEvent<'a> {
+    pub provider_name: &'a str,
+    pub reasoning_effort: Option<ReasoningEffort>,
+    pub reasoning_summary: ReasoningSummary,
+    pub context_window: Option<u64>,
+    pub max_output_tokens: Option<u64>,
+    pub auto_compact_token_limit: Option<i64>,
+    pub approval_policy: AskForApproval,
+    pub sandbox_policy: SandboxPolicy,
+    pub mcp_servers: Vec<&'a str>,
+    pub active_profile: Option<String>,
+}
+
 impl OtelEventManager {
     pub fn new(
         conversation_id: ConversationId,
@@ -116,20 +129,19 @@ impl OtelEventManager {
         manager
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn conversation_starts(
-        &self,
-        provider_name: &str,
-        reasoning_effort: Option<ReasoningEffort>,
-        reasoning_summary: ReasoningSummary,
-        context_window: Option<u64>,
-        max_output_tokens: Option<u64>,
-        auto_compact_token_limit: Option<i64>,
-        approval_policy: AskForApproval,
-        sandbox_policy: SandboxPolicy,
-        mcp_servers: Vec<&str>,
-        active_profile: Option<String>,
-    ) {
+    pub fn conversation_starts(&self, event: ConversationStartsEvent<'_>) {
+        let ConversationStartsEvent {
+            provider_name,
+            reasoning_effort,
+            reasoning_summary,
+            context_window,
+            max_output_tokens,
+            auto_compact_token_limit,
+            approval_policy,
+            sandbox_policy,
+            mcp_servers,
+            active_profile,
+        } = event;
         tracing::event!(
             tracing::Level::INFO,
             event.name = "codex.conversation_starts",

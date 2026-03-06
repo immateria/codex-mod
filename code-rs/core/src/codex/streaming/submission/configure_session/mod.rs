@@ -45,7 +45,10 @@ pub(super) async fn handle_configure_session(
         agent_manager_initialized,
     } = state;
 
-    let Op::ConfigureSession {
+    let Op::ConfigureSession { params } = op else {
+        unreachable!("handle_configure_session called with non-ConfigureSession op");
+    };
+    let crate::protocol::ConfigureSessionOp {
         provider,
         model,
         model_explicit,
@@ -72,9 +75,7 @@ pub(super) async fn handle_configure_session(
         js_repl_runtime_args,
         js_repl_node_module_dirs,
         collaboration_mode,
-    } = op else {
-        unreachable!("handle_configure_session called with non-ConfigureSession op");
-    };
+    } = *params;
 
     let req = ConfigureSessionRequest {
         submission_id: sub_id,

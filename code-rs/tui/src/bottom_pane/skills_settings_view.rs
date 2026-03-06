@@ -1994,7 +1994,7 @@ impl SkillsSettingsView {
             None => ("Saved.".to_string(), Style::default().fg(colors::success())),
         });
 
-        self.app_event_tx.send(AppEvent::CodexOp(Op::ListSkills));
+        self.app_event_tx.send(AppEvent::codex_op(Op::ListSkills));
         if self.shell_style_profiles != shell_style_profiles_before {
             self.app_event_tx.send(AppEvent::UpdateShellStyleProfiles {
                 shell_style_profiles: self.shell_style_profiles.clone(),
@@ -2079,7 +2079,7 @@ impl SkillsSettingsView {
             None => ("Deleted.".to_string(), Style::default().fg(colors::success())),
         });
 
-        self.app_event_tx.send(AppEvent::CodexOp(Op::ListSkills));
+        self.app_event_tx.send(AppEvent::codex_op(Op::ListSkills));
         if self.shell_style_profiles != shell_style_profiles_before {
             self.app_event_tx.send(AppEvent::UpdateShellStyleProfiles {
                 shell_style_profiles: self.shell_style_profiles.clone(),

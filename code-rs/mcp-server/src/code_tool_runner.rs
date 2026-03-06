@@ -27,10 +27,12 @@ use serde_json::json;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::exec_approval::ExecApprovalRequestContext;
 use crate::exec_approval::handle_exec_approval_request;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::OutgoingMessageSenderExt;
 use crate::outgoing_message::OutgoingNotificationMeta;
+use crate::patch_approval::PatchApprovalRequestContext;
 use crate::patch_approval::handle_patch_approval_request;
 use crate::session_store::{SessionEntry, SessionMap};
 
@@ -194,17 +196,17 @@ async fn run_code_tool_session_inner(
                         reason: _,
                         ..
                     }) => {
-                        handle_exec_approval_request(
+                        handle_exec_approval_request(ExecApprovalRequestContext {
                             command,
                             cwd,
-                            outgoing.clone(),
-                            codex.clone(),
-                            request_id.clone(),
-                            request_id_str.clone(),
-                            event.id.clone(),
+                            outgoing: outgoing.clone(),
+                            codex: codex.clone(),
+                            request_id: request_id.clone(),
+                            tool_call_id: request_id_str.clone(),
+                            event_id: event.id.clone(),
                             call_id,
                             approval_id,
-                        )
+                        })
                         .await;
                         continue;
                     }
@@ -222,17 +224,17 @@ async fn run_code_tool_session_inner(
                         grant_root,
                         changes,
                     }) => {
-                        handle_patch_approval_request(
+                        handle_patch_approval_request(PatchApprovalRequestContext {
                             call_id,
                             reason,
                             grant_root,
                             changes,
-                            outgoing.clone(),
-                            codex.clone(),
-                            request_id.clone(),
-                            request_id_str.clone(),
-                            event.id.clone(),
-                        )
+                            outgoing: outgoing.clone(),
+                            codex: codex.clone(),
+                            request_id: request_id.clone(),
+                            tool_call_id: request_id_str.clone(),
+                            event_id: event.id.clone(),
+                        })
                         .await;
                         continue;
                     }

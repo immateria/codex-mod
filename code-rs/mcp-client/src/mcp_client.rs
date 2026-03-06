@@ -86,8 +86,7 @@ pub struct McpClient {
     /// Retain this child process until the client is dropped. The Tokio runtime
     /// will make a "best effort" to reap the process after it exits, but it is
     /// not a guarantee. See the `kill_on_drop` documentation for details.
-    #[allow(dead_code)]
-    child: tokio::process::Child,
+    _child: tokio::process::Child,
 
     /// Channel for sending JSON-RPC messages *to* the background writer task.
     outgoing_tx: mpsc::Sender<JSONRPCMessage>,
@@ -200,7 +199,7 @@ impl McpClient {
         let _ = (writer_handle, reader_handle);
 
         Ok(Self {
-            child,
+            _child: child,
             outgoing_tx,
             pending,
             id_counter: AtomicI64::new(1),
@@ -421,7 +420,7 @@ impl Drop for McpClient {
         // `kill_on_drop(true)` above, this extra check has the benefit of
         // forcing the process to be reaped immediately if it has already exited
         // instead of waiting for the Tokio runtime to reap it later.
-        let _ = self.child.try_wait();
+        let _ = self._child.try_wait();
     }
 }
 

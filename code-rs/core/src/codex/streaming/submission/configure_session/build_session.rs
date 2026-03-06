@@ -92,18 +92,18 @@ impl Runner<'_> {
                 config.otel.log_user_prompt,
                 crate::terminal::user_agent(),
             );
-            manager.conversation_starts(
-                config.model_provider.name.as_str(),
-                Some(to_proto_reasoning_effort(model_reasoning_effort)),
-                to_proto_reasoning_summary(model_reasoning_summary),
-                config.model_context_window,
-                config.model_max_output_tokens,
-                config.model_auto_compact_token_limit,
-                to_proto_approval_policy(approval_policy),
-                to_proto_sandbox_policy(sandbox_policy.clone()),
-                config.mcp_servers.keys().map(String::as_str).collect(),
-                config.active_profile.clone(),
-            );
+            manager.conversation_starts(code_otel::otel_event_manager::ConversationStartsEvent {
+                provider_name: config.model_provider.name.as_str(),
+                reasoning_effort: Some(to_proto_reasoning_effort(model_reasoning_effort)),
+                reasoning_summary: to_proto_reasoning_summary(model_reasoning_summary),
+                context_window: config.model_context_window,
+                max_output_tokens: config.model_max_output_tokens,
+                auto_compact_token_limit: config.model_auto_compact_token_limit,
+                approval_policy: to_proto_approval_policy(approval_policy),
+                sandbox_policy: to_proto_sandbox_policy(sandbox_policy.clone()),
+                mcp_servers: config.mcp_servers.keys().map(String::as_str).collect(),
+                active_profile: config.active_profile.clone(),
+            });
             manager
         };
 

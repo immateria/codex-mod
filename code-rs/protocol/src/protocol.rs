@@ -602,9 +602,10 @@ impl SandboxPolicy {
 
                 // Include /tmp on Unix unless explicitly excluded.
                 if cfg!(unix) && !exclude_slash_tmp {
-                    #[allow(clippy::expect_used)]
-                    let slash_tmp =
-                        AbsolutePathBuf::from_absolute_path("/tmp").expect("/tmp is absolute");
+                    let slash_tmp = match AbsolutePathBuf::from_absolute_path("/tmp") {
+                        Ok(path) => path,
+                        Err(err) => panic!("/tmp is absolute: {err}"),
+                    };
                     if slash_tmp.as_path().is_dir() {
                         roots.push(slash_tmp);
                     }
@@ -639,10 +640,10 @@ impl SandboxPolicy {
                     .into_iter()
                     .map(|writable_root| {
                         let mut subpaths: Vec<AbsolutePathBuf> = Vec::new();
-                        #[allow(clippy::expect_used)]
-                        let top_level_git = writable_root
-                            .join(".git")
-                            .expect(".git is a valid relative path");
+                        let top_level_git = match writable_root.join(".git") {
+                            Ok(path) => path,
+                            Err(err) => panic!(".git is a valid relative path: {err}"),
+                        };
                         // This applies to typical repos (directory .git), worktrees/submodules
                         // (file .git with gitdir pointer), and bare repos when the gitdir is the
                         // writable root itself.
@@ -664,9 +665,10 @@ impl SandboxPolicy {
                         // Make .agents/skills and .codex/config.toml and
                         // related files read-only to the agent, by default.
                         for subdir in &[".agents", ".codex"] {
-                            #[allow(clippy::expect_used)]
-                            let top_level_codex =
-                                writable_root.join(subdir).expect("valid relative path");
+                            let top_level_codex = match writable_root.join(subdir) {
+                                Ok(path) => path,
+                                Err(err) => panic!("valid relative path: {err}"),
+                            };
                             if top_level_codex.as_path().is_dir() {
                                 subpaths.push(top_level_codex);
                             }
@@ -2792,6 +2794,7 @@ mod tests {
 
         Ok(())
     }
+
 
     #[test]
     fn user_input_deserializes_without_final_output_json_schema_field() -> Result<()> {

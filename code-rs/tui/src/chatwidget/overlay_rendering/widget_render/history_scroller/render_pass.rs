@@ -79,19 +79,19 @@ impl ChatWidget<'_> {
 
         let ps_ref = self.history_render.prefix_sums.borrow();
         let ps: &Vec<u16> = &ps_ref;
-        let screen_y = self.paint_visible_cells_window(
+        let screen_y = self.paint_visible_cells_window(cell_paint::PaintVisibleCellsArgs {
             history_area,
             content_area,
             request_count,
-            selection.start_idx,
+            start_idx: selection.start_idx,
             start_y,
             scroll_pos,
             visible_slice,
             visible_requests_slice,
-            selection.visible_cells.is_owned(),
+            rendered_cells_from_subset: selection.visible_cells.is_owned(),
             ps,
             buf,
-        );
+        });
         drop(ps_ref);
 
         self.render_history_post_paint(

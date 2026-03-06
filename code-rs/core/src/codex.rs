@@ -1002,36 +1002,37 @@ impl Codex {
         )
         .await;
 
-        let configure_session = Op::ConfigureSession {
-            provider: config.model_provider.clone(),
-            model: config.model.clone(),
-            model_explicit: config.model_explicit,
-            model_reasoning_effort: config.model_reasoning_effort,
-            preferred_model_reasoning_effort: config.preferred_model_reasoning_effort,
-            model_reasoning_summary: config.model_reasoning_summary,
-            model_text_verbosity: config.model_text_verbosity,
-            user_instructions,
-            base_instructions: config.base_instructions.clone(),
-            approval_policy: config.approval_policy,
-            sandbox_policy: config.sandbox_policy.clone(),
-            disable_response_storage: config.disable_response_storage,
-            notify: config.notify.clone(),
-            cwd: config.cwd.clone(),
-            resume_path: resume_path.clone(),
-            demo_developer_message: config.demo_developer_message.clone(),
-            dynamic_tools: config.dynamic_tools.clone(),
-            shell: config.shell.clone(),
-            shell_style_profiles: config.shell_style_profiles.clone(),
-            network: config.network.clone(),
-            tools_js_repl: config.tools_js_repl,
-            js_repl_runtime: config.js_repl_runtime,
-            js_repl_runtime_path: config.js_repl_runtime_path.clone(),
-            js_repl_runtime_args: config.js_repl_runtime_args.clone(),
-            js_repl_node_module_dirs: config.js_repl_node_module_dirs.clone(),
-            collaboration_mode: crate::protocol::CollaborationModeKind::from_sandbox_policy(
-                &config.sandbox_policy,
-            ),
-        };
+        let configure_session =
+            Op::configure_session(crate::protocol::ConfigureSessionOp {
+                provider: config.model_provider.clone(),
+                model: config.model.clone(),
+                model_explicit: config.model_explicit,
+                model_reasoning_effort: config.model_reasoning_effort,
+                preferred_model_reasoning_effort: config.preferred_model_reasoning_effort,
+                model_reasoning_summary: config.model_reasoning_summary,
+                model_text_verbosity: config.model_text_verbosity,
+                user_instructions,
+                base_instructions: config.base_instructions.clone(),
+                approval_policy: config.approval_policy,
+                sandbox_policy: config.sandbox_policy.clone(),
+                disable_response_storage: config.disable_response_storage,
+                notify: config.notify.clone(),
+                cwd: config.cwd.clone(),
+                resume_path: resume_path.clone(),
+                demo_developer_message: config.demo_developer_message.clone(),
+                dynamic_tools: config.dynamic_tools.clone(),
+                shell: config.shell.clone(),
+                shell_style_profiles: config.shell_style_profiles.clone(),
+                network: config.network.clone(),
+                tools_js_repl: config.tools_js_repl,
+                js_repl_runtime: config.js_repl_runtime,
+                js_repl_runtime_path: config.js_repl_runtime_path.clone(),
+                js_repl_runtime_args: config.js_repl_runtime_args.clone(),
+                js_repl_node_module_dirs: config.js_repl_node_module_dirs.clone(),
+                collaboration_mode: crate::protocol::CollaborationModeKind::from_sandbox_policy(
+                    &config.sandbox_policy,
+                ),
+            });
 
         let config = Arc::new(config);
 

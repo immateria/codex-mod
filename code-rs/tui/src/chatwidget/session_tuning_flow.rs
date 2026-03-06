@@ -195,34 +195,7 @@ impl ChatWidget<'_> {
             self.restore_planning_session_model();
         }
 
-        let op = Op::ConfigureSession {
-            provider: self.config.model_provider.clone(),
-            model: self.config.model.clone(),
-            model_explicit: self.config.model_explicit,
-            model_reasoning_effort: self.config.model_reasoning_effort,
-            preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
-            model_reasoning_summary: self.config.model_reasoning_summary,
-            model_text_verbosity: self.config.model_text_verbosity,
-            user_instructions: self.config.user_instructions.clone(),
-            base_instructions: self.config.base_instructions.clone(),
-            approval_policy: self.config.approval_policy,
-            sandbox_policy: self.config.sandbox_policy.clone(),
-            disable_response_storage: self.config.disable_response_storage,
-            notify: self.config.notify.clone(),
-            cwd: self.config.cwd.clone(),
-            resume_path: None,
-            demo_developer_message: self.config.demo_developer_message.clone(),
-            dynamic_tools: Vec::new(),
-            shell: self.config.shell.clone(),
-            shell_style_profiles: self.config.shell_style_profiles.clone(),
-            network: self.config.network.clone(),
-            tools_js_repl: self.config.tools_js_repl,
-            js_repl_runtime: self.config.js_repl_runtime,
-            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
-            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
-            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
-            collaboration_mode: self.current_collaboration_mode(),
-        };
+        let op = self.current_configure_session_op();
         self.submit_op(op);
         self.refresh_settings_overview_rows();
 
@@ -574,34 +547,7 @@ impl ChatWidget<'_> {
         }
 
         if updated {
-            let op = Op::ConfigureSession {
-                provider: self.config.model_provider.clone(),
-                model: self.config.model.clone(),
-                model_explicit: self.config.model_explicit,
-                model_reasoning_effort: self.config.model_reasoning_effort,
-                preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
-                model_reasoning_summary: self.config.model_reasoning_summary,
-                model_text_verbosity: self.config.model_text_verbosity,
-                user_instructions: self.config.user_instructions.clone(),
-                base_instructions: self.config.base_instructions.clone(),
-                approval_policy: self.config.approval_policy,
-                sandbox_policy: self.config.sandbox_policy.clone(),
-                disable_response_storage: self.config.disable_response_storage,
-                notify: self.config.notify.clone(),
-                cwd: self.config.cwd.clone(),
-                resume_path: None,
-                demo_developer_message: self.config.demo_developer_message.clone(),
-                dynamic_tools: Vec::new(),
-                shell: self.config.shell.clone(),
-                shell_style_profiles: self.config.shell_style_profiles.clone(),
-                network: self.config.network.clone(),
-                tools_js_repl: self.config.tools_js_repl,
-                js_repl_runtime: self.config.js_repl_runtime,
-                js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
-                js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
-                js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
-                collaboration_mode: self.current_collaboration_mode(),
-            };
+            let op = self.current_configure_session_op();
             self.submit_op(op);
 
             self.sync_follow_chat_models();
@@ -1208,34 +1154,7 @@ impl ChatWidget<'_> {
         self.config.model = self.config.planning_model.clone();
         self.config.model_reasoning_effort = self.config.planning_model_reasoning_effort;
 
-        let op = Op::ConfigureSession {
-            provider: self.config.model_provider.clone(),
-            model: self.config.model.clone(),
-            model_explicit: self.config.model_explicit,
-            model_reasoning_effort: self.config.model_reasoning_effort,
-            preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
-            model_reasoning_summary: self.config.model_reasoning_summary,
-            model_text_verbosity: self.config.model_text_verbosity,
-            user_instructions: self.config.user_instructions.clone(),
-            base_instructions: self.config.base_instructions.clone(),
-            approval_policy: self.config.approval_policy,
-            sandbox_policy: self.config.sandbox_policy.clone(),
-            disable_response_storage: self.config.disable_response_storage,
-            notify: self.config.notify.clone(),
-            cwd: self.config.cwd.clone(),
-            resume_path: None,
-            demo_developer_message: self.config.demo_developer_message.clone(),
-            dynamic_tools: Vec::new(),
-            shell: self.config.shell.clone(),
-            shell_style_profiles: self.config.shell_style_profiles.clone(),
-            network: self.config.network.clone(),
-            tools_js_repl: self.config.tools_js_repl,
-            js_repl_runtime: self.config.js_repl_runtime,
-            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
-            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
-            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
-            collaboration_mode: self.current_collaboration_mode(),
-        };
+        let op = self.current_configure_session_op();
         self.submit_op(op);
     }
 
@@ -1244,34 +1163,7 @@ impl ChatWidget<'_> {
             self.config.model = model;
             self.config.model_reasoning_effort = effort;
 
-            let op = Op::ConfigureSession {
-                provider: self.config.model_provider.clone(),
-                model: self.config.model.clone(),
-                model_explicit: self.config.model_explicit,
-                model_reasoning_effort: self.config.model_reasoning_effort,
-                preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
-                model_reasoning_summary: self.config.model_reasoning_summary,
-                model_text_verbosity: self.config.model_text_verbosity,
-                user_instructions: self.config.user_instructions.clone(),
-                base_instructions: self.config.base_instructions.clone(),
-                approval_policy: self.config.approval_policy,
-                sandbox_policy: self.config.sandbox_policy.clone(),
-                disable_response_storage: self.config.disable_response_storage,
-                notify: self.config.notify.clone(),
-                cwd: self.config.cwd.clone(),
-                resume_path: None,
-                demo_developer_message: self.config.demo_developer_message.clone(),
-                dynamic_tools: Vec::new(),
-                shell: self.config.shell.clone(),
-                shell_style_profiles: self.config.shell_style_profiles.clone(),
-                network: self.config.network.clone(),
-                tools_js_repl: self.config.tools_js_repl,
-                js_repl_runtime: self.config.js_repl_runtime,
-                js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
-                js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
-                js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
-                collaboration_mode: self.current_collaboration_mode(),
-            };
+            let op = self.current_configure_session_op();
             self.submit_op(op);
         }
     }
@@ -1456,34 +1348,7 @@ impl ChatWidget<'_> {
             self.push_background_tail(message);
 
             // Send the update to the backend
-            let op = Op::ConfigureSession {
-                provider: self.config.model_provider.clone(),
-                model: self.config.model.clone(),
-                model_explicit: self.config.model_explicit,
-                model_reasoning_effort: self.config.model_reasoning_effort,
-                preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
-                model_reasoning_summary: self.config.model_reasoning_summary,
-                model_text_verbosity: self.config.model_text_verbosity,
-                user_instructions: self.config.user_instructions.clone(),
-                base_instructions: self.config.base_instructions.clone(),
-                approval_policy: self.config.approval_policy,
-                sandbox_policy: self.config.sandbox_policy.clone(),
-                disable_response_storage: self.config.disable_response_storage,
-                notify: self.config.notify.clone(),
-                cwd: self.config.cwd.clone(),
-                resume_path: None,
-                demo_developer_message: self.config.demo_developer_message.clone(),
-                dynamic_tools: Vec::new(),
-                shell: self.config.shell.clone(),
-                shell_style_profiles: self.config.shell_style_profiles.clone(),
-                network: self.config.network.clone(),
-                tools_js_repl: self.config.tools_js_repl,
-                js_repl_runtime: self.config.js_repl_runtime,
-                js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
-                js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
-                js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
-                collaboration_mode: self.current_collaboration_mode(),
-            };
+            let op = self.current_configure_session_op();
             let _ = self.code_op_tx.send(op);
         } else {
             // No parameter specified, show interactive UI
@@ -1521,34 +1386,7 @@ impl ChatWidget<'_> {
         self.config.model_reasoning_effort = clamped_effort;
 
         // Send ConfigureSession op to update the backend
-        let op = Op::ConfigureSession {
-            provider: self.config.model_provider.clone(),
-            model: self.config.model.clone(),
-            model_explicit: self.config.model_explicit,
-            model_reasoning_effort: clamped_effort,
-            preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
-            model_reasoning_summary: self.config.model_reasoning_summary,
-            model_text_verbosity: self.config.model_text_verbosity,
-            user_instructions: self.config.user_instructions.clone(),
-            base_instructions: self.config.base_instructions.clone(),
-            approval_policy: self.config.approval_policy,
-            sandbox_policy: self.config.sandbox_policy.clone(),
-            disable_response_storage: self.config.disable_response_storage,
-            notify: self.config.notify.clone(),
-            cwd: self.config.cwd.clone(),
-            resume_path: None,
-            demo_developer_message: self.config.demo_developer_message.clone(),
-            dynamic_tools: Vec::new(),
-            shell: self.config.shell.clone(),
-            shell_style_profiles: self.config.shell_style_profiles.clone(),
-            network: self.config.network.clone(),
-            tools_js_repl: self.config.tools_js_repl,
-            js_repl_runtime: self.config.js_repl_runtime,
-            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
-            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
-            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
-            collaboration_mode: self.current_collaboration_mode(),
-        };
+        let op = self.current_configure_session_op();
 
         self.submit_op(op);
 
@@ -1572,34 +1410,7 @@ impl ChatWidget<'_> {
         self.config.model_text_verbosity = new_verbosity;
 
         // Send ConfigureSession op to update the backend
-        let op = Op::ConfigureSession {
-            provider: self.config.model_provider.clone(),
-            model: self.config.model.clone(),
-            model_explicit: self.config.model_explicit,
-            model_reasoning_effort: self.config.model_reasoning_effort,
-            preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
-            model_reasoning_summary: self.config.model_reasoning_summary,
-            model_text_verbosity: new_verbosity,
-            user_instructions: self.config.user_instructions.clone(),
-            base_instructions: self.config.base_instructions.clone(),
-            approval_policy: self.config.approval_policy,
-            sandbox_policy: self.config.sandbox_policy.clone(),
-            disable_response_storage: self.config.disable_response_storage,
-            notify: self.config.notify.clone(),
-            cwd: self.config.cwd.clone(),
-            resume_path: None,
-            demo_developer_message: self.config.demo_developer_message.clone(),
-            dynamic_tools: Vec::new(),
-            shell: self.config.shell.clone(),
-            shell_style_profiles: self.config.shell_style_profiles.clone(),
-            network: self.config.network.clone(),
-            tools_js_repl: self.config.tools_js_repl,
-            js_repl_runtime: self.config.js_repl_runtime,
-            js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
-            js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
-            js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
-            collaboration_mode: self.current_collaboration_mode(),
-        };
+        let op = self.current_configure_session_op();
 
         self.submit_op(op);
 

@@ -1,10 +1,7 @@
-#![expect(clippy::expect_used)]
-
 use regex_lite::Regex;
 
-// This is defined in its own file so we can limit the scope of
-// `allow(clippy::expect_used)` because we cannot scope it to the `lazy_static!`
-// macro.
+// This is defined in its own file so the compiled regex is initialized once
+// and shared across render code.
 lazy_static::lazy_static! {
     /// Regular expression that matches Codex-style source file citations such as:
     ///
@@ -18,5 +15,5 @@ lazy_static::lazy_static! {
     /// 3. optional end line (digits or `?`)
     pub(crate) static ref CITATION_REGEX: Regex = Regex::new(
         r"【F:([^†]+)†L(\d+)(?:-L(\d+|\?))?】"
-    ).expect("failed to compile citation regex");
+    ).unwrap_or_else(|err| panic!("failed to compile citation regex: {err}"));
 }

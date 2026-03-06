@@ -1643,7 +1643,7 @@ fn apply_model_selection(config: &mut Config, model: &str, effort: ReasoningEffo
 }
 
 fn configure_session_op_from_config(config: &Config) -> Op {
-    Op::ConfigureSession {
+    Op::configure_session(code_core::protocol::ConfigureSessionOp {
         provider: config.model_provider.clone(),
         model: config.model.clone(),
         model_explicit: config.model_explicit,
@@ -1670,7 +1670,7 @@ fn configure_session_op_from_config(config: &Config) -> Op {
         js_repl_runtime_args: config.js_repl_runtime_args.clone(),
         js_repl_node_module_dirs: config.js_repl_node_module_dirs.clone(),
         collaboration_mode: CollaborationModeKind::from_sandbox_policy(&config.sandbox_policy),
-    }
+    })
 }
 
 fn default_session_modes() -> acp::SessionModeState {

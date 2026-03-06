@@ -624,7 +624,7 @@ impl App<'_> {
                     }
                 }
                 AppEvent::CodexEvent(event) => {
-                    self.dispatch_code_event(event);
+                    self.dispatch_code_event(*event);
                 }
                 AppEvent::ExitRequest => {
                     // Stop background threads and break the UI loop.
@@ -1222,7 +1222,7 @@ impl App<'_> {
                 }
                 // fallthrough handled by break
                 AppEvent::CodexOp(op) => match &mut self.app_state {
-                    AppState::Chat { widget } => widget.submit_op(op),
+                    AppState::Chat { widget } => widget.submit_op(*op),
                     AppState::Onboarding { .. } => {}
                 },
                 AppEvent::RequestUserInputAnswer { turn_id, response } => {
@@ -1329,7 +1329,7 @@ impl App<'_> {
                     if !command.is_prompt_expanding() {
                         self
                             .app_event_tx
-                            .send(AppEvent::CodexOp(Op::AddToHistory { text: command_text.clone() }));
+                            .send(AppEvent::codex_op(Op::AddToHistory { text: command_text.clone() }));
                     }
                     // Extract command arguments by removing the slash command from the beginning
                     // e.g., "/browser status" -> "status", "/chrome 9222" -> "9222"
@@ -1473,7 +1473,7 @@ impl App<'_> {
                         SlashCommand::Compact => {
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.clear_token_usage();
-                                self.app_event_tx.send(AppEvent::CodexOp(Op::Compact));
+                                self.app_event_tx.send(AppEvent::codex_op(Op::Compact));
                             }
                         }
                         SlashCommand::Quit => { break 'main; }
@@ -1673,7 +1673,7 @@ impl App<'_> {
                             use code_core::protocol::ApplyPatchApprovalRequestEvent;
                             use code_core::protocol::FileChange;
 
-                            self.app_event_tx.send(AppEvent::CodexEvent(Event {
+                            self.app_event_tx.send(AppEvent::codex_event(Event {
                                 id: "1".to_string(),
                                 event_seq: 0,
                                 // msg: EventMsg::ExecApprovalRequest(ExecApprovalRequestEvent {
@@ -2832,7 +2832,7 @@ impl App<'_> {
                             ),
                             order: None,
                         };
-                        self.app_event_tx.send(AppEvent::CodexEvent(ev));
+                        self.app_event_tx.send(AppEvent::codex_event(ev));
                     }
 
                     // Prefill composer with the edited text

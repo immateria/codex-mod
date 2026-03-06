@@ -11,10 +11,14 @@ fn make_local_formatter() -> Option<DecimalFormatter> {
 }
 
 fn make_en_us_formatter() -> DecimalFormatter {
-    #![allow(clippy::expect_used)]
-    let loc: Locale = "en-US".parse().expect("en-US wasn't a valid locale");
-    DecimalFormatter::try_new(loc.into(), DecimalFormatterOptions::default())
-        .expect("en-US wasn't a valid locale")
+    let loc: Locale = match "en-US".parse() {
+        Ok(locale) => locale,
+        Err(err) => panic!("en-US wasn't a valid locale: {err}"),
+    };
+    match DecimalFormatter::try_new(loc.into(), DecimalFormatterOptions::default()) {
+        Ok(formatter) => formatter,
+        Err(err) => panic!("en-US wasn't a valid locale: {err}"),
+    }
 }
 
 fn formatter() -> &'static DecimalFormatter {

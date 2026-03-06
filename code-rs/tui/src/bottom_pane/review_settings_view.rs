@@ -76,6 +76,26 @@ pub(crate) struct ReviewSettingsView {
     pending_notice: Option<String>,
 }
 
+pub(crate) struct ReviewSettingsInit {
+    pub review_use_chat_model: bool,
+    pub review_model: String,
+    pub review_reasoning: ReasoningEffort,
+    pub review_resolve_use_chat_model: bool,
+    pub review_resolve_model: String,
+    pub review_resolve_reasoning: ReasoningEffort,
+    pub review_auto_resolve_enabled: bool,
+    pub review_followups: u32,
+    pub auto_review_enabled: bool,
+    pub auto_review_use_chat_model: bool,
+    pub auto_review_model: String,
+    pub auto_review_reasoning: ReasoningEffort,
+    pub auto_review_resolve_use_chat_model: bool,
+    pub auto_review_resolve_model: String,
+    pub auto_review_resolve_reasoning: ReasoningEffort,
+    pub auto_review_followups: u32,
+    pub app_event_tx: AppEventSender,
+}
+
 impl ReviewSettingsView {
     pub fn set_review_model(&mut self, model: String, effort: ReasoningEffort) {
         self.review_model = model;
@@ -133,26 +153,26 @@ impl ReviewSettingsView {
         self.auto_review_followups = attempts;
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        review_use_chat_model: bool,
-        review_model: String,
-        review_reasoning: ReasoningEffort,
-        review_resolve_use_chat_model: bool,
-        review_resolve_model: String,
-        review_resolve_reasoning: ReasoningEffort,
-        review_auto_resolve_enabled: bool,
-        review_followups: u32,
-        auto_review_enabled: bool,
-        auto_review_use_chat_model: bool,
-        auto_review_model: String,
-        auto_review_reasoning: ReasoningEffort,
-        auto_review_resolve_use_chat_model: bool,
-        auto_review_resolve_model: String,
-        auto_review_resolve_reasoning: ReasoningEffort,
-        auto_review_followups: u32,
-        app_event_tx: AppEventSender,
-    ) -> Self {
+    pub fn new(init: ReviewSettingsInit) -> Self {
+        let ReviewSettingsInit {
+            review_use_chat_model,
+            review_model,
+            review_reasoning,
+            review_resolve_use_chat_model,
+            review_resolve_model,
+            review_resolve_reasoning,
+            review_auto_resolve_enabled,
+            review_followups,
+            auto_review_enabled,
+            auto_review_use_chat_model,
+            auto_review_model,
+            auto_review_reasoning,
+            auto_review_resolve_use_chat_model,
+            auto_review_resolve_model,
+            auto_review_resolve_reasoning,
+            auto_review_followups,
+            app_event_tx,
+        } = init;
         let mut state = ScrollState::new();
         state.selected_idx = Some(0);
 
