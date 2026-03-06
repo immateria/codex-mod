@@ -304,7 +304,7 @@ impl SettingsOverlayView {
         self.chrome_content = Some(content);
     }
 
-    #[cfg_attr(not(any(test, feature = "test-helpers")), allow(dead_code))]
+    #[cfg(any(test, feature = "test-helpers"))]
     pub(crate) fn agents_content(&self) -> Option<&AgentsSettingsContent> {
         self.agents_content.as_ref()
     }

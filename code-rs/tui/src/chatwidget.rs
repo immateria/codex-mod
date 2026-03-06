@@ -434,19 +434,6 @@ impl ChatWidget<'_> {
     const MAX_UNDO_PREVIEW_CHARS: usize = 160;
     const MAX_UNDO_FILE_LINES: usize = 24;
 
-    fn fmt_short_duration(&self, d: Duration) -> String {
-        let s = d.as_secs();
-        let h = s / 3600;
-        let m = (s % 3600) / 60;
-        let sec = s % 60;
-        if h > 0 {
-            format!("{h}h{m}m")
-        } else if m > 0 {
-            format!("{m}m{sec}s")
-        } else {
-            format!("{sec}s")
-        }
-    }
     fn is_branch_worktree_path(path: &std::path::Path) -> bool {
         for ancestor in path.ancestors() {
             if ancestor
@@ -8082,7 +8069,6 @@ async fn run_background_review(
     }
 }
 
-#[allow(dead_code)]
 fn insert_background_lock(agent_id: &str, guard: code_core::review_coord::ReviewGuard) {
     if let Ok(mut map) = BACKGROUND_REVIEW_LOCKS.lock() {
         map.insert(agent_id.to_string(), guard);

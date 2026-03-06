@@ -22,7 +22,6 @@ use serde_json::Value as JsonValue;
 /// Convert a `ResponseItem` into zero or more `EventMsg` values that the UI can render.
 ///
 /// When `show_raw_agent_reasoning` is false, raw reasoning content events are omitted.
-#[allow(dead_code)]
 pub(crate) fn map_response_item_to_event_messages(
     item: &ResponseItem,
     show_raw_agent_reasoning: bool,

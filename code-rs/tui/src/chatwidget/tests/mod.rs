@@ -1105,25 +1105,6 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
     }
     
-    #[allow(dead_code)]
-    fn review_output_with_finding() -> ReviewOutputEvent {
-    ReviewOutputEvent {
-        findings: vec![ReviewFinding {
-            title: "issue".to_string(),
-            body: "details".to_string(),
-            confidence_score: 0.5,
-            priority: 0,
-            code_location: ReviewCodeLocation {
-                absolute_file_path: PathBuf::from("src/lib.rs"),
-                line_range: ReviewLineRange { start: 1, end: 1 },
-            },
-        }],
-        overall_correctness: "incorrect".to_string(),
-        overall_explanation: "needs fixes".to_string(),
-        overall_confidence_score: 0.5,
-    }
-    }
-    
     #[test]
     fn review_dialog_uncommitted_option_runs_workspace_scope() {
     let mut harness = ChatWidgetHarness::new();
@@ -1444,58 +1425,6 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     
     let route = chat.describe_esc_context();
     assert_eq!(route.intent, EscIntent::CancelAgents);
-    }
-    
-    #[allow(dead_code)]
-    fn esc_cancels_agents_then_command_without_auto_hint() {
-    let mut harness = ChatWidgetHarness::new();
-    let chat = harness.chat();
-    
-    chat.active_agents.push(AgentInfo {
-        id: "agent-1".to_string(),
-        name: "Agent 1".to_string(),
-        status: AgentStatus::Running,
-        source_kind: None,
-        batch_id: Some("batch-1".to_string()),
-        model: None,
-        result: None,
-        error: None,
-        last_progress: None,
-    });
-    
-    chat.exec.running_commands.insert(
-        ExecCallId("exec-1".to_string()),
-        RunningCommand {
-            command: vec!["echo".to_string(), "hi".to_string()],
-            parsed: Vec::new(),
-            history_index: None,
-            history_id: None,
-            explore_entry: None,
-            stdout_offset: 0,
-            stderr_offset: 0,
-            wait_total: None,
-            wait_active: false,
-            wait_notes: Vec::new(),
-        },
-    );
-    chat.bottom_pane.set_task_running(true);
-    
-    let esc_event = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
-    let route = chat.describe_esc_context();
-    assert_eq!(route.intent, EscIntent::CancelAgents);
-    assert!(chat.execute_esc_intent(route.intent, esc_event));
-    assert!(chat.has_cancelable_agents());
-    assert!(
-        chat.bottom_pane.standard_terminal_hint().is_none(),
-        "Auto Drive exit hint should not display when Auto Drive is inactive",
-    );
-    
-    let esc_event = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
-    let route = chat.describe_esc_context();
-    assert_eq!(route.intent, EscIntent::CancelTask);
-    assert!(chat.execute_esc_intent(route.intent, esc_event));
-    assert!(chat.exec.running_commands.is_empty());
-    assert!(!chat.bottom_pane.is_task_running());
     }
     
     #[test]

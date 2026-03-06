@@ -109,7 +109,7 @@ impl AgentsSettingsContent {
         self.pane = AgentsPane::Agent(Box::new(editor));
     }
 
-    #[cfg_attr(not(any(test, feature = "test-helpers")), allow(dead_code))]
+    #[cfg(any(test, feature = "test-helpers"))]
     pub(crate) fn is_agent_editor_active(&self) -> bool {
         matches!(self.pane, AgentsPane::Agent(_))
     }

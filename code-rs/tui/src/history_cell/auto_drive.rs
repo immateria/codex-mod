@@ -137,14 +137,12 @@ impl AutoDriveCardCell {
         self.goal = goal.and_then(Self::normalize_text);
     }
 
-    #[cfg(any(test, feature = "test-helpers"))]
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn goal_text(&self) -> Option<&str> {
         self.goal.as_deref()
     }
 
-    #[cfg(any(test, feature = "test-helpers"))]
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn action_texts(&self) -> Vec<String> {
         self.actions.iter().map(|action| action.text.clone()).collect()
     }

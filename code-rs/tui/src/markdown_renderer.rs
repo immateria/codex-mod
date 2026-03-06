@@ -12,8 +12,6 @@ pub struct MarkdownRenderer {
     in_code_block: bool,
     code_block_lang: Option<String>,
     code_block_buf: String,
-    #[allow(dead_code)]
-    list_depth: usize,
     bold_first_sentence: bool,
     first_sentence_done: bool,
     // When set, inline code spans (created from single-backticks) are tinted
@@ -31,7 +29,6 @@ impl MarkdownRenderer {
             in_code_block: false,
             code_block_lang: None,
             code_block_buf: String::new(),
-            list_depth: 0,
             bold_first_sentence: false,
             first_sentence_done: false,
             inline_code_tint_target: None,
@@ -1411,15 +1408,6 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
     }
 
     out
-}
-
-// Deprecated: OSC 8 emission removed for scroll stability. Keep a small helper
-// to style a label consistently if future callers rely on it.
-#[allow(dead_code)]
-fn hyperlink_span(label: &str, _target: &str, base: &Span<'static>) -> Span<'static> {
-    let mut st = base.style;
-    st.add_modifier.insert(Modifier::UNDERLINED);
-    Span::styled(label.to_string(), st)
 }
 
 // Return (start, end, label, target) for the first markdown link found in `s`.

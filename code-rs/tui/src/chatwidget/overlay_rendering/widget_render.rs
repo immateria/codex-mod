@@ -4,7 +4,6 @@ mod history_scroller;
 mod overlay_stack;
 mod pending_command;
 mod terminal_overlay;
-mod widget_helpers;
 
 impl ChatWidget<'_> {
     pub(super) fn render_widget_ref(&self, area: Rect, buf: &mut Buffer) {

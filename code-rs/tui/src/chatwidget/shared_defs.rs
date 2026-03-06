@@ -390,15 +390,13 @@ pub(crate) struct GhostState {
     queued_user_messages: VecDeque<UserMessage>,
 }
 
-#[cfg(any(test, feature = "test-helpers"))]
-#[allow(dead_code)]
+#[cfg(test)]
 struct AutoReviewCommitScope {
     commit: String,
     file_count: usize,
 }
 
-#[cfg(any(test, feature = "test-helpers"))]
-#[allow(dead_code)]
+#[cfg(test)]
 enum AutoReviewOutcome {
     Skip,
     Workspace,
@@ -673,8 +671,6 @@ enum ClickableAction {
     ShowReasoningSelector,
     ShowNetworkSettings,
     JumpToCallId(String),
-    #[allow(dead_code)]
-    ExecuteCommand(String),
     /// Toggle fold/collapse for a history cell at the given index.
     ToggleFoldAtIndex(usize),
 }
@@ -838,10 +834,6 @@ pub(crate) struct ChatWidget<'a> {
     /// Runtime timing per-agent (by id) to improve visibility in the HUD
     agent_runtime: HashMap<String, AgentRuntime>,
     pending_agent_updates: HashMap<String, PendingAgentUpdate>,
-    // Sparkline data for showing agent activity (using RefCell for interior mutability)
-    // Each tuple is (value, is_completed) where is_completed indicates if any agent was complete at that time
-    sparkline_data: std::cell::RefCell<Vec<(u64, bool)>>,
-    last_sparkline_update: std::cell::RefCell<std::time::Instant>,
     // Stream controller for managing streaming content
     stream: crate::streaming::controller::StreamController,
     // Stream lifecycle state (kind, closures, sequencing, cancel)

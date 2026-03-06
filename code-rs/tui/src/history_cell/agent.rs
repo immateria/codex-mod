@@ -65,8 +65,6 @@ pub(crate) struct AgentStatusPreview {
     pub status_kind: AgentStatusKind,
     pub step_progress: Option<StepProgress>,
     pub elapsed: Option<Duration>,
-    #[allow(dead_code)]
-    pub token_count: Option<u64>,
     pub last_update: Option<String>,
     pub elapsed_updated_at: Option<Instant>,
 }
@@ -768,8 +766,6 @@ impl AgentRunCell {
                 if let Some(progress) = preview.step_progress.as_ref() {
                     meta_parts.push(format!("{}/{}", progress.completed, progress.total));
                 }
-                // Token counts add noise in the compact card view; leave them out here.
-
                 let meta = if meta_parts.is_empty() {
                     String::new()
                 } else {

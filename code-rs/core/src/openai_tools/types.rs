@@ -30,7 +30,6 @@ pub struct FreeformToolFormat {
 
 /// When serialized as JSON, this produces a valid "Tool" in the OpenAI
 /// Responses API.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum OpenAiTool {
@@ -59,4 +58,3 @@ pub struct WebSearchFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_domains: Option<Vec<String>>,
 }
-

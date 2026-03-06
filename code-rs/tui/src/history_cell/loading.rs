@@ -49,7 +49,4 @@ impl HistoryCell for LoadingCell {
         false
     }
 
-    fn is_loading_cell(&self) -> bool {
-        true
-    }
 }

@@ -1,11 +1,6 @@
 use super::prelude::*;
 
 impl ChatWidget<'_> {
-    #[allow(dead_code)]
-    pub(crate) fn set_mouse_status_message(&mut self, message: &str) {
-        self.bottom_pane.update_status_text(message.to_string());
-    }
-
     pub(crate) fn handle_mouse_event(&mut self, mouse_event: crossterm::event::MouseEvent) {
         use crossterm::event::KeyModifiers;
         use crossterm::event::MouseEventKind;
@@ -182,13 +177,6 @@ impl ChatWidget<'_> {
             }
             ClickableAction::JumpToCallId(call_id) => {
                 self.jump_to_call_id(&call_id);
-            }
-            ClickableAction::ExecuteCommand(cmd) => {
-                // Parse and dispatch the slash command
-                let trimmed = cmd.trim_start_matches('/').trim();
-                if let Ok(slash_cmd) = trimmed.parse::<SlashCommand>() {
-                    self.app_event_tx.send(AppEvent::DispatchCommand(slash_cmd, cmd));
-                }
             }
             ClickableAction::ToggleFoldAtIndex(idx) => {
                 self.toggle_fold_at_index(idx);

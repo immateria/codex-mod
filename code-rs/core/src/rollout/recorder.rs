@@ -67,7 +67,6 @@ pub struct SavedSession {
 #[derive(Clone)]
 pub struct RolloutRecorder {
     tx: Sender<RolloutCmd>,
-    #[allow(dead_code)]
     pub(crate) rollout_path: PathBuf,
 }
 

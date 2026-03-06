@@ -54,7 +54,6 @@ impl ChatWidget<'_> {
         })
     }
 
-    #[allow(dead_code)]
     pub(crate) fn show_theme_selection(&mut self) {
         let tail_ticket = self.make_background_tail_ticket();
         let before_ticket = self.make_background_before_next_output_ticket();

@@ -3,7 +3,7 @@
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::auto_drive_strings;
-use crate::auto_drive_style::{AutoDriveStyle, AutoDriveVariant, FrameStyle, BorderGradient};
+use crate::auto_drive_style::{AutoDriveStyle, FrameStyle, BorderGradient};
 use crate::colors;
 use crate::glitch_animation::{gradient_multi, mix_rgb};
 use crate::spinner;
@@ -38,8 +38,6 @@ pub(crate) struct AutoCoordinatorButton {
 
 #[derive(Clone, Debug)]
 pub(crate) struct AutoActiveViewModel {
-    #[allow(dead_code)]
-    pub goal: Option<String>,
     pub status_lines: Vec<String>,
     pub cli_prompt: Option<String>,
     pub cli_context: Option<String>,
@@ -128,8 +126,7 @@ impl AutoCoordinatorView {
         self.style = style;
     }
 
-    #[cfg(any(test, feature = "test-helpers"))]
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn model(&self) -> &AutoCoordinatorViewModel {
         &self.model
     }
@@ -139,25 +136,6 @@ impl AutoCoordinatorView {
             &self.model,
             AutoCoordinatorViewModel::Active(model) if model.show_composer
         )
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn desired_height_with_composer(&self, width: u16, composer: &ChatComposer) -> u16 {
-        let AutoCoordinatorViewModel::Active(model) = &self.model;
-        let ctx = Self::build_context(model);
-        // The framed Auto Drive view introduces an extra border (2 cols) plus a
-        // dedicated left padding column before the embedded composer. When the
-        // composer renders, it subtracts an additional 4 columns (border + inner
-        // padding) from the area we hand it. To keep the measured height in sync
-        // with the final render width, subtract those 3 exterior columns before
-        // delegating to `ChatComposer::desired_height`.
-        let composer_width = width.saturating_sub(3);
-        let composer_height = if model.show_composer {
-            composer.desired_height(composer_width)
-        } else {
-            0
-        };
-        self.estimated_height_active(width, &ctx, model, composer_height)
     }
 
     fn intro_state<'a>(header_text: &'a str, model: &AutoActiveViewModel) -> IntroState<'a> {
@@ -318,33 +296,6 @@ impl AutoCoordinatorView {
 
         false
     }
-
-
-    fn frame_style_for_model(&self, model: &AutoActiveViewModel) -> FrameStyle {
-        let mut style = self.style.frame.clone();
-        if self.style.variant == AutoDriveVariant::Beacon
-            && let Some(accent) = style.accent.as_mut() {
-                accent.style = if model.awaiting_submission {
-                    Style::default()
-                        .fg(colors::warning())
-                        .add_modifier(Modifier::BOLD)
-                } else if model.waiting_for_review {
-                    Style::default()
-                        .fg(colors::info())
-                        .add_modifier(Modifier::BOLD)
-                } else if model.cli_running || model.waiting_for_response {
-                    Style::default()
-                        .fg(colors::primary())
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default()
-                        .fg(colors::success())
-                        .add_modifier(Modifier::BOLD)
-                };
-            }
-        style
-    }
-
     fn effective_elapsed(model: &AutoActiveViewModel) -> Option<Duration> {
         if let Some(duration) = model.elapsed {
             Some(duration)
@@ -1136,7 +1087,7 @@ impl AutoCoordinatorView {
             return;
         }
 
-        let frame_style = self.frame_style_for_model(model);
+        let frame_style = self.style.frame.clone();
         if model.started_at.is_some()
             && (model.waiting_for_response
                 || model.awaiting_submission

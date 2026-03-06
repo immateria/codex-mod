@@ -38,7 +38,6 @@ enum GuidedTerminalMode {
     },
     Prompt { user_prompt: String },
     DirectCommand { command: String },
-    #[cfg_attr(test, allow(dead_code))]
     Upgrade {
         initial_command: String,
         latest_version: Option<String>,

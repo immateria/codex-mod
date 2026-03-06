@@ -1,5 +1,5 @@
 use super::super::super::*;
-use super::super::metrics::{compute_agent_elapsed, resolve_agent_token_count};
+use super::super::metrics::compute_agent_elapsed;
 use super::super::summary::{StatusSummary, classify_status, phase_to_status_kind};
 use crate::history_cell::AgentStatusPreview;
 use code_core::protocol::AgentInfo;
@@ -109,13 +109,6 @@ pub(super) fn build_previews(
 
         let elapsed = compute_agent_elapsed(tracker, agent.id.as_str(), agent.elapsed_ms, phase);
         let elapsed_updated_at = elapsed.map(|_| Instant::now());
-        let token_count = resolve_agent_token_count(
-            tracker,
-            agent.id.as_str(),
-            agent.token_count,
-            &details,
-        );
-
         let preview = AgentStatusPreview {
             id: agent.id.clone(),
             name: agent.name.clone(),
@@ -125,7 +118,6 @@ pub(super) fn build_previews(
             status_kind: phase_to_status_kind(phase),
             step_progress,
             elapsed,
-            token_count,
             last_update,
             elapsed_updated_at,
         };

@@ -191,8 +191,6 @@ impl ChatWidget<'_> {
             active_plan_title: None,
             agent_runtime: HashMap::new(),
             pending_agent_updates: HashMap::new(),
-            sparkline_data: std::cell::RefCell::new(Vec::new()),
-            last_sparkline_update: std::cell::RefCell::new(std::time::Instant::now()),
             stream: crate::streaming::controller::StreamController::new(config.clone()),
             stream_state: StreamState {
                 current_kind: None,
@@ -547,8 +545,6 @@ impl ChatWidget<'_> {
             active_plan_title: None,
             agent_runtime: HashMap::new(),
             pending_agent_updates: HashMap::new(),
-            sparkline_data: std::cell::RefCell::new(Vec::new()),
-            last_sparkline_update: std::cell::RefCell::new(std::time::Instant::now()),
             stream: crate::streaming::controller::StreamController::new(config.clone()),
             stream_state: StreamState {
                 current_kind: None,
@@ -1314,26 +1310,6 @@ impl ChatWidget<'_> {
         } else {
             model_name.to_string()
         }
-    }
-
-    /// Calculate the maximum scroll offset based on current content size
-    #[allow(dead_code)]
-    pub(super) fn calculate_max_scroll_offset(&self, content_area_height: u16) -> u16 {
-        let mut total_height = 0u16;
-
-        // Calculate total content height (same logic as render method)
-        for cell in &self.history_cells {
-            let h = cell.desired_height(80); // Use reasonable width for height calculation
-            total_height = total_height.saturating_add(h);
-        }
-
-        if let Some(ref cell) = self.active_exec_cell {
-            let h = cell.desired_height(80);
-            total_height = total_height.saturating_add(h);
-        }
-
-        // Max scroll is content height minus available height
-        total_height.saturating_sub(content_area_height)
     }
 
     pub(super) fn try_append_prefix_fast(

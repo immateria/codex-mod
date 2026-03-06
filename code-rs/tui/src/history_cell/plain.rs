@@ -631,11 +631,6 @@ pub(crate) fn new_queued_user_prompt(message: String) -> PlainMessageState {
     plain_message_state_from_lines(lines, HistoryCellType::User)
 }
 
-#[allow(dead_code)]
-pub(crate) fn new_text_line(line: Line<'static>) -> PlainMessageState {
-    plain_message_state_from_lines(vec![line], HistoryCellType::Notice)
-}
-
 pub(crate) fn new_error_event(message: String) -> PlainMessageState {
     let mut lines: Vec<Line<'static>> = Vec::new();
     lines.push(Line::styled(

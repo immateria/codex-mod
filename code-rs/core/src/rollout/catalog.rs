@@ -313,7 +313,6 @@ impl SessionCatalog {
             discovered_entries
         };
         let discovered_ids: HashSet<Uuid> = discovered_entries.keys().copied().collect();
-        let mut changed = false;
 
         // Remove entries that no longer exist on disk.
         let existing_ids: Vec<Uuid> = self.entries.keys().copied().collect();
@@ -322,7 +321,6 @@ impl SessionCatalog {
                 && let Some(entry) = self.entries.remove(&session_id) {
                     self.remove_from_indexes(&session_id, &entry);
                     result.removed += 1;
-                    changed = true;
                 }
         }
 
@@ -336,16 +334,14 @@ impl SessionCatalog {
                     self.remove_from_indexes(&session_id, &existing);
                     self.index_entry(entry);
                     result.updated += 1;
-                    changed = true;
                 }
             } else {
                 self.index_entry(entry);
                 result.added += 1;
-                changed = true;
             }
         }
 
-        if changed {
+        if result.has_changes() {
             self.save()?;
         }
 
@@ -374,14 +370,16 @@ impl SessionCatalog {
 
 /// Result of reconciling the catalog against filesystem.
 #[derive(Debug, Default)]
-// The runtime only cares whether reconcile succeeded; tests assert the per-kind
-// counters, so keep the fields available without forcing artificial reads in
-// production code.
-#[cfg_attr(not(test), allow(dead_code))]
 pub struct ReconcileResult {
     pub added: usize,
     pub updated: usize,
     pub removed: usize,
+}
+
+impl ReconcileResult {
+    fn has_changes(&self) -> bool {
+        self.added != 0 || self.updated != 0 || self.removed != 0
+    }
 }
 
 /// Scan all rollout files under the sessions directory and build index entries.

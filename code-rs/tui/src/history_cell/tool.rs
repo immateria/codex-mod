@@ -37,7 +37,6 @@ impl ToolCallCell {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn from_state(state: ToolCallState) -> Self {
         let collapse_by_default = matches!(state.status, HistoryToolStatus::Success);
         Self {
@@ -266,7 +265,6 @@ impl RunningToolCallCell {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn from_state(state: RunningToolState) -> Self {
         Self {
             state,

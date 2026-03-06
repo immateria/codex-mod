@@ -135,7 +135,7 @@ pub(crate) async fn get_conversations(
 
 /// Load the full contents of a single conversation session file at `path`.
 /// Returns the entire file contents as a String.
-#[allow(dead_code)]
+#[cfg(test)]
 pub(crate) async fn get_conversation(path: &Path) -> io::Result<String> {
     tokio::fs::read_to_string(path).await
 }

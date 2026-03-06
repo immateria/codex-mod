@@ -39,9 +39,6 @@ pub struct Agent {
     pub source_kind: Option<AgentSourceKind>,
     #[serde(skip)]
     pub log_tag: Option<String>,
-    #[serde(skip)]
-    #[allow(dead_code)]
-    pub config: Option<AgentConfig>,
     pub reasoning_effort: code_protocol::config_types::ReasoningEffort,
     #[serde(skip)]
     pub last_activity: DateTime<Utc>,
@@ -285,7 +282,6 @@ impl AgentManager {
         self.create_agent_internal(request).await
     }
 
-    #[allow(dead_code)]
     pub async fn create_agent_with_options(
         &mut self,
         request: AgentCreateRequest,
@@ -343,7 +339,6 @@ impl AgentManager {
             worktree_base,
             source_kind,
             log_tag,
-            config: config.clone(),
             reasoning_effort,
             last_activity: Utc::now(),
         };

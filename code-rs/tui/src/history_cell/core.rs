@@ -255,12 +255,6 @@ pub(crate) trait HistoryCell {
         false // Default: most cells don't animate
     }
 
-    /// Returns true if this is a loading cell that should be removed when streaming starts
-    #[allow(dead_code)]
-    fn is_loading_cell(&self) -> bool {
-        false // Default: most cells are not loading cells
-    }
-
     /// Trigger fade-out animation (for AnimatedWelcomeCell)
     fn trigger_fade(&self) {
         // Default: do nothing (only AnimatedWelcomeCell implements this)
@@ -329,10 +323,6 @@ impl HistoryCell for Box<dyn HistoryCell> {
 
     fn is_animating(&self) -> bool {
         self.as_ref().is_animating()
-    }
-
-    fn is_loading_cell(&self) -> bool {
-        self.as_ref().is_loading_cell()
     }
 
     fn trigger_fade(&self) {
