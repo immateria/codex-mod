@@ -1,5 +1,3 @@
-#![allow(clippy::needless_lifetimes)]
-
 use crate::error::Error;
 use crate::error::Result;
 use crate::sed_command::parse_sed_command;

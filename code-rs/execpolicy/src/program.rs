@@ -29,18 +29,32 @@ pub struct ProgramSpec {
     should_not_match: Vec<Vec<String>>,
 }
 
+pub struct ProgramSpecConfig {
+    pub program: String,
+    pub system_path: Vec<String>,
+    pub option_bundling: bool,
+    pub combined_format: bool,
+    pub allowed_options: HashMap<String, Opt>,
+    pub arg_patterns: Vec<ArgMatcher>,
+    pub forbidden: Option<String>,
+    pub should_match: Vec<Vec<String>>,
+    pub should_not_match: Vec<Vec<String>>,
+}
+
 impl ProgramSpec {
-    pub fn new(
-        program: String,
-        system_path: Vec<String>,
-        option_bundling: bool,
-        combined_format: bool,
-        allowed_options: HashMap<String, Opt>,
-        arg_patterns: Vec<ArgMatcher>,
-        forbidden: Option<String>,
-        should_match: Vec<Vec<String>>,
-        should_not_match: Vec<Vec<String>>,
-    ) -> Self {
+    pub fn new(config: ProgramSpecConfig) -> Self {
+        let ProgramSpecConfig {
+            program,
+            system_path,
+            option_bundling,
+            combined_format,
+            allowed_options,
+            arg_patterns,
+            forbidden,
+            should_match,
+            should_not_match,
+        } = config;
+
         let required_options = allowed_options
             .iter()
             .filter_map(|(name, opt)| {

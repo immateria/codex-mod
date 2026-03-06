@@ -1,10 +1,10 @@
-#![allow(clippy::needless_lifetimes)]
-
 use crate::Opt;
 use crate::Policy;
 use crate::ProgramSpec;
+use crate::ProgramSpecConfig;
 use crate::arg_matcher::ArgMatcher;
 use crate::opt::OptMeta;
+use anyhow::anyhow;
 use log::info;
 use multimap::MultiMap;
 use regex_lite::Regex;
@@ -118,8 +118,18 @@ impl PolicyBuilder {
     }
 }
 
+fn get_policy_builder<'v>(eval: &'v Evaluator) -> anyhow::Result<&'v PolicyBuilder> {
+    let Some(extra) = eval.extra.as_ref() else {
+        return Err(anyhow!("policy parser is missing its evaluation context"));
+    };
+    extra
+        .downcast_ref::<PolicyBuilder>()
+        .ok_or_else(|| anyhow!("policy parser received an unexpected evaluation context"))
+}
+
 #[starlark_module]
 fn policy_builtins(builder: &mut GlobalsBuilder) {
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     fn define_program<'v>(
         program: String,
         system_path: Option<UnpackList<String>>,
@@ -149,33 +159,27 @@ fn policy_builtins(builder: &mut GlobalsBuilder) {
             }
         }
 
-        let program_spec = ProgramSpec::new(
+        let program_spec = ProgramSpec::new(ProgramSpecConfig {
             program,
             system_path,
             option_bundling,
             combined_format,
             allowed_options,
-            args,
+            arg_patterns: args,
             forbidden,
-            should_match
+            should_match: should_match
                 .map_or_else(Vec::new, |v| v.items.to_vec())
                 .into_iter()
                 .map(|v| v.items.to_vec())
                 .collect(),
-            should_not_match
+            should_not_match: should_not_match
                 .map_or_else(Vec::new, |v| v.items.to_vec())
                 .into_iter()
                 .map(|v| v.items.to_vec())
                 .collect(),
-        );
+        });
 
-        #[expect(clippy::unwrap_used)]
-        let policy_builder = eval
-            .extra
-            .as_ref()
-            .unwrap()
-            .downcast_ref::<PolicyBuilder>()
-            .unwrap();
+        let policy_builder = get_policy_builder(eval)?;
         policy_builder.add_program_spec(program_spec);
         Ok(NoneType)
     }
@@ -184,13 +188,7 @@ fn policy_builtins(builder: &mut GlobalsBuilder) {
         strings: UnpackList<String>,
         eval: &mut Evaluator,
     ) -> anyhow::Result<NoneType> {
-        #[expect(clippy::unwrap_used)]
-        let policy_builder = eval
-            .extra
-            .as_ref()
-            .unwrap()
-            .downcast_ref::<PolicyBuilder>()
-            .unwrap();
+        let policy_builder = get_policy_builder(eval)?;
         policy_builder.add_forbidden_substrings(&strings.items.to_vec());
         Ok(NoneType)
     }
@@ -200,13 +198,7 @@ fn policy_builtins(builder: &mut GlobalsBuilder) {
         reason: String,
         eval: &mut Evaluator,
     ) -> anyhow::Result<NoneType> {
-        #[expect(clippy::unwrap_used)]
-        let policy_builder = eval
-            .extra
-            .as_ref()
-            .unwrap()
-            .downcast_ref::<PolicyBuilder>()
-            .unwrap();
+        let policy_builder = get_policy_builder(eval)?;
         let compiled_regex = regex_lite::Regex::new(&regex)?;
         policy_builder.add_forbidden_program_regex(compiled_regex, reason);
         Ok(NoneType)

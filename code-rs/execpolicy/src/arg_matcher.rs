@@ -1,5 +1,3 @@
-#![allow(clippy::needless_lifetimes)]
-
 use crate::arg_type::ArgType;
 use crate::starlark::values::ValueLike;
 use allocative::Allocative;

@@ -1,5 +1,3 @@
-#![allow(clippy::type_complexity)]
-#![allow(clippy::too_many_arguments)]
 #[macro_use]
 extern crate starlark;
 
@@ -31,6 +29,7 @@ pub use program::MatchedExec;
 pub use program::NegativeExamplePassedCheck;
 pub use program::PositiveExampleFailedCheck;
 pub use program::ProgramSpec;
+pub use program::ProgramSpecConfig;
 pub use sed_command::parse_sed_command;
 pub use valid_exec::MatchedArg;
 pub use valid_exec::MatchedFlag;

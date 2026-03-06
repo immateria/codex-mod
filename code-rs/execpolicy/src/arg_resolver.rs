@@ -15,7 +15,7 @@ pub struct PositionalArg {
 pub fn resolve_observed_args_with_patterns(
     program: &str,
     args: Vec<PositionalArg>,
-    arg_patterns: &Vec<ArgMatcher>,
+    arg_patterns: &[ArgMatcher],
 ) -> Result<Vec<MatchedArg>> {
     // Naive matching implementation. Among `arg_patterns`, there is allowed to
     // be at most one vararg pattern. Assuming `arg_patterns` is non-empty, we
@@ -66,7 +66,7 @@ pub fn resolve_observed_args_with_patterns(
         return Err(Error::NotEnoughArgs {
             program: program.to_string(),
             args,
-            arg_patterns: arg_patterns.clone(),
+            arg_patterns: arg_patterns.to_vec(),
         });
     }
 
@@ -153,7 +153,7 @@ struct ParitionedArgs {
     vararg_pattern: Option<ArgMatcher>,
 }
 
-fn partition_args(program: &str, arg_patterns: &Vec<ArgMatcher>) -> Result<ParitionedArgs> {
+fn partition_args(program: &str, arg_patterns: &[ArgMatcher]) -> Result<ParitionedArgs> {
     let mut in_prefix = true;
     let mut partitioned_args = ParitionedArgs::default();
 
