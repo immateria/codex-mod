@@ -4,6 +4,8 @@ use std::path::Path;
 
 #[cfg(test)]
 use std::fmt::Write;
+#[cfg(test)]
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::{DateTime, Utc};
 use code_memories_state::{MemoryThread, MemoriesState, SessionMemoryMode as StateMemoryMode, Stage1Claim, Stage1OutputInput, Stage1OutputRecord};
@@ -19,10 +21,14 @@ use crate::rollout::catalog::SessionMemoryMode;
 use crate::rollout::RolloutRecorder;
 
 use super::ensure_layout;
+use super::current_generation_path;
+use super::generation_snapshot_dir;
 use super::memory_root;
-use super::memory_summary_path;
-use super::raw_memories_path;
-use super::rollout_summaries_dir;
+use super::snapshot_memory_summary_path;
+use super::snapshot_raw_memories_path;
+use super::snapshot_rollout_summaries_dir;
+#[cfg(test)]
+use super::published_artifact_paths;
 
 #[derive(Debug, Clone)]
 struct MemoryArtifacts {
@@ -30,6 +36,9 @@ struct MemoryArtifacts {
     raw_memories: String,
     rollout_summaries: HashMap<String, String>,
 }
+
+#[cfg(test)]
+static FAIL_BEFORE_POINTER_SWAP: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn to_state_memory_mode(mode: SessionMemoryMode) -> StateMemoryMode {
     match mode {
@@ -232,11 +241,40 @@ fn render_artifacts_from_state(selected: &[Stage1OutputRecord]) -> MemoryArtifac
 }
 
 async fn write_memory_artifacts(code_home: &Path, artifacts: MemoryArtifacts) -> io::Result<()> {
-    super::control::clear_memory_root_contents(&memory_root(code_home)).await?;
+    let memory_root = memory_root(code_home);
+    let generation = format!(
+        "{}-{}",
+        Utc::now().format("%Y%m%dT%H%M%SZ"),
+        Uuid::new_v4()
+    );
+    let snapshot_dir = generation_snapshot_dir(code_home, &generation);
+    let pointer_tmp_path = memory_root.join(format!("current.{generation}.tmp"));
+    let current_path = current_generation_path(code_home);
+
     ensure_layout(code_home).await?;
-    tokio::fs::write(memory_summary_path(code_home), artifacts.memory_summary).await?;
-    tokio::fs::write(raw_memories_path(code_home), artifacts.raw_memories).await?;
-    sync_rollout_summaries(code_home, artifacts.rollout_summaries).await
+    tokio::fs::create_dir_all(snapshot_rollout_summaries_dir(&snapshot_dir)).await?;
+    tokio::fs::write(snapshot_memory_summary_path(&snapshot_dir), artifacts.memory_summary).await?;
+    tokio::fs::write(snapshot_raw_memories_path(&snapshot_dir), artifacts.raw_memories).await?;
+    sync_rollout_summaries(&snapshot_dir, artifacts.rollout_summaries).await?;
+    #[cfg(test)]
+    maybe_fail_before_pointer_swap()?;
+    tokio::fs::write(&pointer_tmp_path, format!("{generation}\n")).await?;
+    tokio::fs::rename(&pointer_tmp_path, &current_path).await?;
+    if let Err(err) = super::control::remove_legacy_artifacts(&memory_root).await {
+        warn!("failed to remove legacy memories artifacts after publish: {err}");
+    }
+    if let Err(err) = super::control::prune_noncurrent_snapshots(&memory_root, &generation).await {
+        warn!("failed to prune stale memories snapshots after publish: {err}");
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+fn maybe_fail_before_pointer_swap() -> io::Result<()> {
+    if FAIL_BEFORE_POINTER_SWAP.swap(false, Ordering::SeqCst) {
+        return Err(io::Error::other("injected memories publish failure"));
+    }
+    Ok(())
 }
 
 fn render_memory_summary(selected: &[Stage1OutputRecord]) -> String {
@@ -289,10 +327,10 @@ fn render_rollout_summaries(selected: &[Stage1OutputRecord]) -> HashMap<String, 
 }
 
 async fn sync_rollout_summaries(
-    code_home: &Path,
+    snapshot_dir: &Path,
     summaries: HashMap<String, String>,
 ) -> io::Result<()> {
-    let dir = rollout_summaries_dir(code_home);
+    let dir = snapshot_rollout_summaries_dir(snapshot_dir);
     for (stem, body) in summaries {
         tokio::fs::write(dir.join(format!("{stem}.md")), body).await?;
     }
@@ -784,17 +822,20 @@ mod tests {
             .await
             .expect("refresh memories");
 
-        let summary = tokio::fs::read_to_string(memories_root.join("memory_summary.md"))
+        let published = published_artifact_paths(code_home).expect("published artifact paths");
+        assert!(tokio::fs::try_exists(memories_root.join("current")).await.expect("stat current pointer"));
+        assert!(published.generation.is_some());
+        let summary = tokio::fs::read_to_string(&published.summary_path)
             .await
             .expect("read summary");
         assert!(summary.contains("remember this"));
 
-        let raw = tokio::fs::read_to_string(memories_root.join("raw_memories.md"))
+        let raw = tokio::fs::read_to_string(&published.raw_memories_path)
             .await
             .expect("read raw memories");
         assert!(raw.contains("remember this"));
 
-        let mut rollout_dir = tokio::fs::read_dir(memories_root.join("rollout_summaries"))
+        let mut rollout_dir = tokio::fs::read_dir(&published.rollout_summaries_dir)
             .await
             .expect("read rollout summaries");
         let mut file_names = Vec::new();
@@ -805,6 +846,11 @@ mod tests {
         assert_eq!(file_names.len(), 1);
         assert!(file_names[0].ends_with(".md"));
         assert_ne!(file_names[0], "stale.md");
+        assert!(
+            !tokio::fs::try_exists(memories_root.join("rollout_summaries"))
+                .await
+                .expect("stat legacy rollout summaries")
+        );
     }
 
     #[tokio::test]
@@ -871,10 +917,102 @@ mod tests {
             .expect("status after manual refresh");
         assert_eq!(status.stage1_output_count, 1);
 
-        let summary = tokio::fs::read_to_string(code_home.join("memories").join("memory_summary.md"))
+        let published = published_artifact_paths(code_home).expect("published artifact paths");
+        let summary = tokio::fs::read_to_string(&published.summary_path)
             .await
             .expect("read memory summary");
         assert!(summary.contains("remember this"));
+    }
+
+    #[tokio::test]
+    async fn publish_switches_active_snapshot_without_clearing_previous_one_first() {
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        let memories_root = code_home.join("memories");
+        let first = MemoryArtifacts {
+            memory_summary: "first summary".to_string(),
+            raw_memories: "first raw".to_string(),
+            rollout_summaries: HashMap::from([("first".to_string(), "first rollout".to_string())]),
+        };
+        write_memory_artifacts(code_home, first)
+            .await
+            .expect("write first snapshot");
+        let first_paths = published_artifact_paths(code_home).expect("first published paths");
+        let first_generation = first_paths.generation.clone().expect("first generation");
+        assert_eq!(
+            tokio::fs::read_to_string(&first_paths.summary_path)
+                .await
+                .expect("read first summary"),
+            "first summary"
+        );
+
+        let second = MemoryArtifacts {
+            memory_summary: "second summary".to_string(),
+            raw_memories: "second raw".to_string(),
+            rollout_summaries: HashMap::from([("second".to_string(), "second rollout".to_string())]),
+        };
+        write_memory_artifacts(code_home, second)
+            .await
+            .expect("write second snapshot");
+
+        let second_paths = published_artifact_paths(code_home).expect("second published paths");
+        assert_eq!(
+            tokio::fs::read_to_string(&second_paths.summary_path)
+                .await
+                .expect("read second summary"),
+            "second summary"
+        );
+        assert_ne!(
+            second_paths.generation.as_deref(),
+            Some(first_generation.as_str())
+        );
+        assert!(
+            !tokio::fs::try_exists(
+                memories_root.join("snapshots").join(first_generation)
+            )
+            .await
+            .expect("stat pruned snapshot")
+        );
+    }
+
+    #[tokio::test]
+    async fn failed_publish_before_pointer_swap_keeps_previous_snapshot_active() {
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        write_memory_artifacts(
+            code_home,
+            MemoryArtifacts {
+                memory_summary: "stable summary".to_string(),
+                raw_memories: "stable raw".to_string(),
+                rollout_summaries: HashMap::new(),
+            },
+        )
+        .await
+        .expect("write stable snapshot");
+        let stable_paths = published_artifact_paths(code_home).expect("stable published paths");
+        let stable_generation = stable_paths.generation.clone().expect("stable generation");
+        FAIL_BEFORE_POINTER_SWAP.store(true, Ordering::SeqCst);
+
+        let err = write_memory_artifacts(
+            code_home,
+            MemoryArtifacts {
+                memory_summary: "new summary".to_string(),
+                raw_memories: "new raw".to_string(),
+                rollout_summaries: HashMap::new(),
+            },
+        )
+        .await
+        .expect_err("publish should fail before pointer swap");
+        assert_eq!(err.kind(), io::ErrorKind::Other);
+
+        let published = published_artifact_paths(code_home).expect("published paths after failure");
+        assert_eq!(published.generation.as_deref(), Some(stable_generation.as_str()));
+        assert_eq!(
+            tokio::fs::read_to_string(&published.summary_path)
+                .await
+                .expect("read stable summary"),
+            "stable summary"
+        );
     }
 
     #[tokio::test]

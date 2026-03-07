@@ -20,9 +20,11 @@ mod prompts;
 mod storage;
 
 const MEMORIES_DIR: &str = "memories";
+const CURRENT_GENERATION_FILENAME: &str = "current";
 const MEMORY_SUMMARY_FILENAME: &str = "memory_summary.md";
 const RAW_MEMORIES_FILENAME: &str = "raw_memories.md";
 const ROLLOUT_SUMMARIES_SUBDIR: &str = "rollout_summaries";
+const SNAPSHOTS_SUBDIR: &str = "snapshots";
 const REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -93,24 +95,95 @@ pub struct MemoriesStatus {
     pub sources: MemoriesResolvedSources,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PublishedMemoriesPaths {
+    pub base_dir: PathBuf,
+    pub summary_path: PathBuf,
+    pub raw_memories_path: PathBuf,
+    pub rollout_summaries_dir: PathBuf,
+    pub generation: Option<String>,
+}
+
 pub(crate) fn memory_root(code_home: &Path) -> PathBuf {
     code_home.join(MEMORIES_DIR)
+}
+
+pub(crate) fn current_generation_path(code_home: &Path) -> PathBuf {
+    memory_root(code_home).join(CURRENT_GENERATION_FILENAME)
 }
 
 pub(crate) fn memories_state_path(code_home: &Path) -> PathBuf {
     code_home.join("memories_state.sqlite")
 }
 
-pub(crate) fn memory_summary_path(code_home: &Path) -> PathBuf {
+pub(crate) fn snapshots_root(code_home: &Path) -> PathBuf {
+    memory_root(code_home).join(SNAPSHOTS_SUBDIR)
+}
+
+pub(crate) fn generation_snapshot_dir(code_home: &Path, generation: &str) -> PathBuf {
+    snapshots_root(code_home).join(generation)
+}
+
+pub(crate) fn snapshot_memory_summary_path(snapshot_dir: &Path) -> PathBuf {
+    snapshot_dir.join(MEMORY_SUMMARY_FILENAME)
+}
+
+pub(crate) fn snapshot_raw_memories_path(snapshot_dir: &Path) -> PathBuf {
+    snapshot_dir.join(RAW_MEMORIES_FILENAME)
+}
+
+pub(crate) fn snapshot_rollout_summaries_dir(snapshot_dir: &Path) -> PathBuf {
+    snapshot_dir.join(ROLLOUT_SUMMARIES_SUBDIR)
+}
+
+fn legacy_memory_summary_path(code_home: &Path) -> PathBuf {
     memory_root(code_home).join(MEMORY_SUMMARY_FILENAME)
 }
 
-pub(crate) fn raw_memories_path(code_home: &Path) -> PathBuf {
+fn legacy_raw_memories_path(code_home: &Path) -> PathBuf {
     memory_root(code_home).join(RAW_MEMORIES_FILENAME)
 }
 
-pub(crate) fn rollout_summaries_dir(code_home: &Path) -> PathBuf {
+fn legacy_rollout_summaries_dir(code_home: &Path) -> PathBuf {
     memory_root(code_home).join(ROLLOUT_SUMMARIES_SUBDIR)
+}
+
+fn resolve_current_generation(code_home: &Path) -> io::Result<Option<String>> {
+    let current_path = current_generation_path(code_home);
+    match std::fs::read_to_string(&current_path) {
+        Ok(contents) => {
+            let generation = contents.trim().to_string();
+            if generation.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(generation))
+            }
+        }
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(err),
+    }
+}
+
+pub(crate) fn published_artifact_paths(code_home: &Path) -> io::Result<PublishedMemoriesPaths> {
+    if let Some(generation) = resolve_current_generation(code_home)? {
+        let base_dir = generation_snapshot_dir(code_home, &generation);
+        return Ok(PublishedMemoriesPaths {
+            summary_path: snapshot_memory_summary_path(&base_dir),
+            raw_memories_path: snapshot_raw_memories_path(&base_dir),
+            rollout_summaries_dir: snapshot_rollout_summaries_dir(&base_dir),
+            base_dir,
+            generation: Some(generation),
+        });
+    }
+
+    let base_dir = memory_root(code_home);
+    Ok(PublishedMemoriesPaths {
+        summary_path: legacy_memory_summary_path(code_home),
+        raw_memories_path: legacy_raw_memories_path(code_home),
+        rollout_summaries_dir: legacy_rollout_summaries_dir(code_home),
+        base_dir,
+        generation: None,
+    })
 }
 
 fn lock_map<'a, T>(mutex: &'a Mutex<T>, name: &str) -> Option<std::sync::MutexGuard<'a, T>> {
@@ -235,7 +308,7 @@ pub(crate) fn maybe_spawn_memory_refresh(code_home: PathBuf, settings: MemoriesC
 }
 
 pub(crate) async fn ensure_layout(code_home: &Path) -> io::Result<()> {
-    tokio::fs::create_dir_all(rollout_summaries_dir(code_home)).await
+    tokio::fs::create_dir_all(snapshots_root(code_home)).await
 }
 
 pub async fn clear_generated_memory_artifacts(code_home: &Path) -> io::Result<()> {
@@ -307,11 +380,10 @@ pub async fn set_memories_session_mode(
 
 pub fn get_memories_artifacts_status(code_home: &Path) -> io::Result<MemoriesArtifactsStatus> {
     let root = memory_root(code_home);
-    let summary_path = memory_summary_path(code_home);
-    let summary = artifact_status(&summary_path)?;
-    let raw_memories_path = raw_memories_path(code_home);
-    let raw_memories = artifact_status(&raw_memories_path)?;
-    let rollout_dir = rollout_summaries_dir(code_home);
+    let published = published_artifact_paths(code_home)?;
+    let summary = artifact_status(&published.summary_path)?;
+    let raw_memories = artifact_status(&published.raw_memories_path)?;
+    let rollout_dir = published.rollout_summaries_dir;
     let rollout_summaries = artifact_status(&rollout_dir)?;
     let rollout_summary_count = if rollout_dir.is_dir() {
         std::fs::read_dir(&rollout_dir)?
@@ -502,12 +574,20 @@ mod tests {
     use uuid::Uuid;
 
     use super::clear_generated_memory_artifacts;
+    use super::current_generation_path;
     use super::finish_refresh_attempt;
+    use super::generation_snapshot_dir;
+    use super::get_memories_artifacts_status;
     use super::get_cached_memories_status;
     use super::load_memories_status;
+    use super::memory_root;
     use super::open_memories_state;
+    use super::published_artifact_paths;
     use super::refresh_memory_artifacts_now;
     use super::set_memories_session_mode;
+    use super::snapshot_memory_summary_path;
+    use super::snapshot_raw_memories_path;
+    use super::snapshot_rollout_summaries_dir;
     use super::note_selected_memories_used;
     use super::try_start_refresh;
     use super::MemoriesSettingSource;
@@ -616,6 +696,16 @@ mod tests {
     #[tokio::test]
     async fn clear_marks_db_artifacts_dirty_without_deleting_db() {
         let temp = tempdir().expect("tempdir");
+        let snapshot_dir = generation_snapshot_dir(temp.path(), "20260307T120000Z-test");
+        tokio::fs::create_dir_all(snapshot_rollout_summaries_dir(&snapshot_dir))
+            .await
+            .expect("create snapshot rollout summaries");
+        tokio::fs::write(current_generation_path(temp.path()), "20260307T120000Z-test\n")
+            .await
+            .expect("write current generation");
+        tokio::fs::write(snapshot_memory_summary_path(&snapshot_dir), "summary")
+            .await
+            .expect("write snapshot summary");
         let state = MemoriesState::open(temp.path()).await.expect("open state");
         let lease = state
             .claim_artifact_build_job(true)
@@ -643,6 +733,16 @@ mod tests {
         assert!(status.db_exists);
         assert!(status.artifact_dirty);
         assert!(super::memories_state_path(temp.path()).exists());
+        assert!(
+            !tokio::fs::try_exists(current_generation_path(temp.path()))
+                .await
+                .expect("stat current generation")
+        );
+        assert!(
+            !tokio::fs::try_exists(snapshot_dir)
+                .await
+                .expect("stat cleared snapshot dir")
+        );
         let cached = get_cached_memories_status(temp.path(), None, None, None)
             .expect("cached status query")
             .expect("cached status");
@@ -800,5 +900,79 @@ mod tests {
         assert!(!status.db.db_exists);
         assert_eq!(status.db.thread_count, 0);
         assert_eq!(status.db.stage1_output_count, 0);
+    }
+
+    #[tokio::test]
+    async fn artifacts_status_uses_legacy_root_files_without_current_pointer() {
+        let temp = tempdir().expect("tempdir");
+        let root = memory_root(temp.path());
+        tokio::fs::create_dir_all(root.join("rollout_summaries"))
+            .await
+            .expect("create legacy rollout summaries");
+        tokio::fs::write(root.join("memory_summary.md"), "legacy summary")
+            .await
+            .expect("write legacy summary");
+        tokio::fs::write(root.join("raw_memories.md"), "legacy raw")
+            .await
+            .expect("write legacy raw");
+        tokio::fs::write(root.join("rollout_summaries").join("legacy.md"), "legacy rollout")
+            .await
+            .expect("write legacy rollout");
+
+        let status = get_memories_artifacts_status(temp.path()).expect("artifact status");
+
+        assert!(status.summary.exists);
+        assert!(status.raw_memories.exists);
+        assert!(status.rollout_summaries.exists);
+        assert_eq!(status.rollout_summary_count, 1);
+    }
+
+    #[tokio::test]
+    async fn artifacts_status_prefers_active_snapshot_over_legacy_root_files() {
+        let temp = tempdir().expect("tempdir");
+        let root = memory_root(temp.path());
+        let snapshot_dir = generation_snapshot_dir(temp.path(), "20260307T120000Z-test");
+        tokio::fs::create_dir_all(root.join("rollout_summaries"))
+            .await
+            .expect("create legacy rollout summaries");
+        tokio::fs::write(root.join("memory_summary.md"), "legacy summary")
+            .await
+            .expect("write legacy summary");
+        tokio::fs::write(root.join("raw_memories.md"), "legacy raw")
+            .await
+            .expect("write legacy raw");
+        tokio::fs::write(root.join("rollout_summaries").join("legacy.md"), "legacy rollout")
+            .await
+            .expect("write legacy rollout");
+
+        tokio::fs::create_dir_all(snapshot_rollout_summaries_dir(&snapshot_dir))
+            .await
+            .expect("create snapshot rollout summaries");
+        tokio::fs::write(current_generation_path(temp.path()), "20260307T120000Z-test\n")
+            .await
+            .expect("write current generation");
+        tokio::fs::write(snapshot_memory_summary_path(&snapshot_dir), "snapshot summary")
+            .await
+            .expect("write snapshot summary");
+        tokio::fs::write(snapshot_raw_memories_path(&snapshot_dir), "snapshot raw")
+            .await
+            .expect("write snapshot raw");
+        tokio::fs::write(
+            snapshot_rollout_summaries_dir(&snapshot_dir).join("snapshot.md"),
+            "snapshot rollout",
+        )
+        .await
+        .expect("write snapshot rollout");
+
+        let published = published_artifact_paths(temp.path()).expect("published paths");
+        assert_eq!(published.generation.as_deref(), Some("20260307T120000Z-test"));
+        assert_eq!(published.base_dir, snapshot_dir);
+
+        let status = get_memories_artifacts_status(temp.path()).expect("artifact status");
+
+        assert!(status.summary.exists);
+        assert!(status.raw_memories.exists);
+        assert!(status.rollout_summaries.exists);
+        assert_eq!(status.rollout_summary_count, 1);
     }
 }
