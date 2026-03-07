@@ -18,6 +18,7 @@ impl SettingsSection {
             "update" | "updates" => Some(SettingsSection::Updates),
             "account" | "accounts" | "auth" => Some(SettingsSection::Accounts),
             "agent" | "agents" => Some(SettingsSection::Agents),
+            "memory" | "memories" => Some(SettingsSection::Memories),
             "auto" | "autodrive" | "drive" => Some(SettingsSection::AutoDrive),
             "review" | "reviews" => Some(SettingsSection::Review),
             "validation" | "validate" => Some(SettingsSection::Validation),

@@ -363,6 +363,7 @@ pub(crate) struct Session {
     pub(super) collaboration_mode: crate::protocol::CollaborationModeKind,
     pub(super) disable_response_storage: bool,
     pub(super) tools_config: ToolsConfig,
+    pub(super) memories_config: crate::config_types::MemoriesConfig,
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
     pub(super) exec_command_manager: Arc<crate::exec_command::SessionManager>,
     pub(super) js_repl_default_runtime: crate::config::JsReplRuntimeKindToml,

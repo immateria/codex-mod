@@ -525,7 +525,7 @@ pub(crate) async fn handle_apply_patch_action(
         if outputs_custom {
             return ResponseInputItem::CustomToolCallOutput {
                 call_id: ctx.call_id.clone(),
-                output: guidance,
+                output: FunctionCallOutputPayload::from_text(guidance),
             };
         }
 
@@ -586,13 +586,15 @@ pub(crate) async fn handle_apply_patch_action(
                 ResponseInputItem::FunctionCallOutput { output, .. } => {
                     output.body.to_text().unwrap_or_default()
                 }
-                ResponseInputItem::CustomToolCallOutput { output, .. } => output,
+                ResponseInputItem::CustomToolCallOutput { output, .. } => {
+                    output.body.to_text().unwrap_or_default()
+                }
                 other => format!("{other:?}"),
             };
 
             ResponseInputItem::CustomToolCallOutput {
                 call_id: ctx.call_id.clone(),
-                output,
+                output: FunctionCallOutputPayload::from_text(output),
             }
         }
         ApplyPatchResult::Applied(run) => {
@@ -689,7 +691,7 @@ pub(crate) async fn handle_apply_patch_action(
             if outputs_custom {
                 return ResponseInputItem::CustomToolCallOutput {
                     call_id: ctx.call_id.clone(),
-                    output: content,
+                    output: FunctionCallOutputPayload::from_text(content),
                 };
             }
 

@@ -15,6 +15,8 @@ use crate::config_types::History;
 use crate::config_types::GithubConfig;
 use crate::config_types::ValidationConfig;
 use crate::config_types::McpServerConfig;
+use crate::config_types::MemoriesConfig;
+use crate::config_types::MemoriesToml;
 use crate::config_types::Notifications;
 use crate::config_types::OtelConfig;
 use crate::config_types::OtelConfigToml;
@@ -46,6 +48,7 @@ use crate::protocol::AskForApproval;
 use crate::protocol::SandboxPolicy;
 use crate::config_types::ReasoningEffort;
 use crate::config_types::ReasoningSummary;
+use crate::config_types::ServiceTier;
 use crate::project_features::{load_project_commands, ProjectCommand, ProjectHooks};
 use code_app_server_protocol::AuthMode;
 use code_protocol::config_types::SandboxMode;
@@ -478,6 +481,12 @@ pub struct Config {
     /// The value to use for `text.verbosity` when making a request using the Responses API.
     pub model_text_verbosity: TextVerbosity,
 
+    /// Optional service tier preference for model requests.
+    ///
+    /// `Some(Fast)` sends `service_tier=priority` to the Responses API.
+    /// `None` sends no override (legacy standard behavior).
+    pub service_tier: Option<ServiceTier>,
+
     /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
     pub chatgpt_base_url: String,
 
@@ -518,6 +527,10 @@ pub struct Config {
     pub skills_enabled: bool,
     /// Experimental: prevent idle sleep while a turn is running (platform dependent).
     pub prevent_idle_sleep: bool,
+    /// Upstream-aligned memory feature gate.
+    pub memories_enabled: bool,
+    /// Upstream-aligned memories runtime settings.
+    pub memories: MemoriesConfig,
     /// Experimental: enable JSON-based environment context snapshots and deltas (phase gated).
     pub env_ctx_v2: bool,
     /// Retention policy for env_ctx_v2 timeline management (gated by env_ctx_v2).
@@ -846,6 +859,7 @@ pub struct ConfigToml {
     pub model_reasoning_summary: Option<ReasoningSummary>,
     pub model_text_verbosity: Option<TextVerbosity>,
     pub model_personality: Option<Personality>,
+    pub service_tier: Option<ServiceTier>,
 
     /// Override to force-enable reasoning summaries for the configured model.
     pub model_supports_reasoning_summaries: Option<bool>,
@@ -903,6 +917,9 @@ pub struct ConfigToml {
 
     /// Experimental feature toggles.
     pub features: Option<FeaturesToml>,
+
+    /// Memory subsystem configuration.
+    pub memories: Option<MemoriesToml>,
 
     /// When true, disables burst-paste detection for typed input entirely.
     /// All characters are inserted as they are received, and no buffering
@@ -1308,6 +1325,9 @@ pub struct FeaturesToml {
     /// Prevent the machine from idling to sleep while a turn is running.
     #[serde(default)]
     pub prevent_idle_sleep: Option<bool>,
+    /// Enable upstream-style memories behavior.
+    #[serde(default)]
+    pub memories: Option<bool>,
 }
 
 impl ConfigToml {
@@ -1660,6 +1680,12 @@ impl Config {
             .as_ref()
             .and_then(|features| features.skills)
             .unwrap_or(true);
+        let memories_enabled = cfg
+            .features
+            .as_ref()
+            .and_then(|features| features.memories)
+            .unwrap_or(false);
+        let memories = cfg.memories.clone().unwrap_or_default().into();
 
         let prevent_idle_sleep = cfg
             .features
@@ -1704,6 +1730,12 @@ impl Config {
         let model_personality = config_profile
             .model_personality
             .or(cfg.model_personality);
+
+        let service_tier = match config_profile.service_tier.or(cfg.service_tier) {
+            Some(ServiceTier::Fast) => Some(ServiceTier::Fast),
+            Some(ServiceTier::Standard) => None,
+            None => Some(ServiceTier::Fast),
+        };
 
         let model_family =
             find_family_for_model(&model).unwrap_or_else(|| derive_default_model_family(&model));
@@ -2087,6 +2119,7 @@ impl Config {
                 .model_text_verbosity
                 .or(cfg.model_text_verbosity)
                 .unwrap_or_default(),
+            service_tier,
 
             chatgpt_base_url: config_profile
                 .chatgpt_base_url
@@ -2110,6 +2143,8 @@ impl Config {
             include_view_image_tool: include_view_image_tool_flag,
             skills_enabled,
             prevent_idle_sleep,
+            memories_enabled,
+            memories,
             env_ctx_v2: env_ctx_v2_flag,
             retention: crate::config_types::RetentionConfig::default(),
             responses_originator_header,
@@ -3502,6 +3537,34 @@ model_verbosity = "high"
     }
 
     #[test]
+    fn upgrade_legacy_model_slugs_does_not_rewrite_gpt_5_4() {
+        let mut cfg = ConfigToml {
+            model: Some("gpt-5.4".to_string()),
+            review_model: Some("test-gpt-5.4".to_string()),
+            ..Default::default()
+        };
+
+        upgrade_legacy_model_slugs(&mut cfg);
+
+        assert_eq!(cfg.model.as_deref(), Some("gpt-5.4"));
+        assert_eq!(cfg.review_model.as_deref(), Some("test-gpt-5.4"));
+    }
+
+    #[test]
+    fn upgrade_legacy_model_slugs_repairs_gpt_5_2_4_typo() {
+        let mut cfg = ConfigToml {
+            model: Some("gpt-5.2.4".to_string()),
+            review_model: Some("test-gpt-5.2.4".to_string()),
+            ..Default::default()
+        };
+
+        upgrade_legacy_model_slugs(&mut cfg);
+
+        assert_eq!(cfg.model.as_deref(), Some("gpt-5.4"));
+        assert_eq!(cfg.review_model.as_deref(), Some("test-gpt-5.4"));
+    }
+
+    #[test]
     fn test_compact_prompt_override_prefers_cli_string() -> std::io::Result<()> {
         let fixture = create_test_fixture()?;
         let mut cfg = fixture.cfg.clone();
@@ -4145,7 +4208,12 @@ skills = "not-an-array"
 #[cfg(test)]
 mod agent_merge_tests {
     use super::merge_with_default_agents;
+    use super::Config;
+    use super::ConfigOverrides;
+    use super::ConfigToml;
     use crate::config_types::AgentConfig;
+    use crate::config_types::ServiceTier;
+    use tempfile::TempDir;
 
     trait OptionOrPanic<T> {
         fn or_panic(self, context: &str) -> T;
@@ -4311,6 +4379,39 @@ mod agent_merge_tests {
             1,
             "should dedupe gemini alias/canonical"
         );
+    }
+
+    #[test]
+    fn service_tier_defaults_to_fast_when_unspecified() -> anyhow::Result<()> {
+        let code_home = TempDir::new()?;
+        let config = Config::load_from_base_config_with_overrides(
+            ConfigToml::default(),
+            ConfigOverrides {
+                cwd: Some(code_home.path().to_path_buf()),
+                ..Default::default()
+            },
+            code_home.path().to_path_buf(),
+        )?;
+
+        assert_eq!(config.service_tier, Some(ServiceTier::Fast));
+        Ok(())
+    }
+
+    #[test]
+    fn service_tier_standard_disables_override() -> anyhow::Result<()> {
+        let code_home = TempDir::new()?;
+        let cfg = toml::from_str::<ConfigToml>(r#"service_tier = "standard""#)?;
+        let config = Config::load_from_base_config_with_overrides(
+            cfg,
+            ConfigOverrides {
+                cwd: Some(code_home.path().to_path_buf()),
+                ..Default::default()
+            },
+            code_home.path().to_path_buf(),
+        )?;
+
+        assert_eq!(config.service_tier, None);
+        Ok(())
     }
 }
 

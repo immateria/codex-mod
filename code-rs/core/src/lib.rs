@@ -69,6 +69,7 @@ pub mod mcp_connection_manager;
 pub mod mcp_snapshot;
 mod mcp;
 mod mcp_tool_call;
+mod memories;
 mod model_provider_info;
 pub mod remote_models;
 // Remote model discovery caches its own on-disk state within the module.

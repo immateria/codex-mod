@@ -1140,6 +1140,8 @@ fn model_preset_to_v2_model(preset: &model_presets::ModelPreset) -> Model {
         id: preset.id.clone(),
         model: preset.model.clone(),
         upgrade: preset.upgrade.as_ref().map(|upgrade| upgrade.id.clone()),
+        upgrade_info: None,
+        availability_nux: None,
         display_name: preset.display_name.clone(),
         description: preset.description.clone(),
         hidden: !preset.show_in_picker,

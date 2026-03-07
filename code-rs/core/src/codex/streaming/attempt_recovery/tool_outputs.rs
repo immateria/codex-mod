@@ -117,7 +117,7 @@ pub(in crate::codex::streaming) fn missing_tool_outputs_to_insert(
                         idx,
                         ResponseItem::CustomToolCallOutput {
                             call_id: call_id.clone(),
-                            output: "aborted".to_string(),
+                            output: FunctionCallOutputPayload::from_text("aborted".to_string()),
                         },
                     ));
                 }
@@ -194,7 +194,7 @@ mod tool_call_id_tests {
             }],
             responses: vec![ResponseInputItem::CustomToolCallOutput {
                 call_id: "c1".to_string(),
-                output: "ok".to_string(),
+                output: FunctionCallOutputPayload::from_text("ok".to_string()),
             }],
             partial_assistant_text: String::new(),
             partial_reasoning_summary: String::new(),
@@ -281,7 +281,7 @@ mod tool_call_id_tests {
         assert!(matches!(
             input.get(1),
             Some(ResponseItem::CustomToolCallOutput { call_id, output })
-                if call_id == "c1" && output == "aborted"
+                if call_id == "c1" && output.body.to_text().as_deref() == Some("aborted")
         ));
     }
 

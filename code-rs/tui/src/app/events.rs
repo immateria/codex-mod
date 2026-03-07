@@ -881,6 +881,12 @@ impl App<'_> {
                         self.config.auto_upgrade_enabled = enabled;
                     }
                 }
+                AppEvent::SetMemoriesEnabled(enabled) => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.set_memories_enabled(enabled);
+                    }
+                    self.config.memories_enabled = enabled;
+                }
                 AppEvent::SetNetworkProxySettings(settings) => {
                     match code_core::config::set_network_proxy_settings(
                         &self.config.code_home,
@@ -1596,6 +1602,11 @@ impl App<'_> {
                                 }
                             }
                         }
+                        SlashCommand::Fast => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.show_settings_overlay(Some(SettingsSection::Model));
+                            }
+                        }
                         SlashCommand::Mode => {
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.handle_mode_command(command_args);
@@ -1804,6 +1815,12 @@ impl App<'_> {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.apply_model_selection(model, effort);
                     }
+                }
+                AppEvent::UpdateServiceTierSelection { service_tier } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apply_service_tier_selection(service_tier);
+                    }
+                    self.config.service_tier = service_tier;
                 }
                 AppEvent::UpdateShellSelection {
                     path,

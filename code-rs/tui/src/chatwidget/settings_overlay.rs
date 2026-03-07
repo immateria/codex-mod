@@ -19,6 +19,7 @@ pub(crate) use self::contents::{
     ExecLimitsSettingsContent,
     InterfaceSettingsContent,
     JsReplSettingsContent,
+    MemoriesSettingsContent,
     McpSettingsContent,
     ModelSettingsContent,
     NetworkSettingsContent,
@@ -60,6 +61,7 @@ pub(crate) struct SettingsOverlayView {
     updates_content: Option<UpdatesSettingsContent>,
     notifications_content: Option<NotificationsSettingsContent>,
     accounts_content: Option<AccountsSettingsContent>,
+    memories_content: Option<MemoriesSettingsContent>,
     prompts_content: Option<PromptsSettingsContent>,
     skills_content: Option<SkillsSettingsContent>,
     mcp_content: Option<McpSettingsContent>,
@@ -106,6 +108,7 @@ impl SettingsOverlayView {
             updates_content: None,
             notifications_content: None,
             accounts_content: None,
+            memories_content: None,
             prompts_content: None,
             skills_content: None,
             mcp_content: None,
@@ -254,6 +257,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn accounts_content_mut(&mut self) -> Option<&mut AccountsSettingsContent> {
         self.accounts_content.as_mut()
+    }
+
+    pub(crate) fn set_memories_content(&mut self, content: MemoriesSettingsContent) {
+        self.memories_content = Some(content);
     }
 
     pub(crate) fn set_prompts_content(&mut self, content: PromptsSettingsContent) {
@@ -433,6 +440,10 @@ impl SettingsOverlayView {
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Accounts => self
                 .accounts_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::Memories => self
+                .memories_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Prompts => self

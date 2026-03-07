@@ -4526,6 +4526,51 @@ fi\n\
         self.request_redraw();
     }
 
+    pub(crate) fn set_memories_enabled(&mut self, enabled: bool) {
+        if self.config.memories_enabled == enabled {
+            return;
+        }
+        self.config.memories_enabled = enabled;
+
+        let code_home = self.config.code_home.clone();
+        let profile = self.config.active_profile.clone();
+        tokio::spawn(async move {
+            if let Err(err) = code_core::config_edit::persist_overrides(
+                &code_home,
+                profile.as_deref(),
+                &[(&["features", "memories"], if enabled { "true" } else { "false" })],
+            )
+            .await
+            {
+                tracing::warn!("failed to persist memories setting: {err}");
+            }
+        });
+
+        let notice = if enabled {
+            "Memories enabled (applies on next session)"
+        } else {
+            "Memories disabled (applies on next session)"
+        };
+        self.bottom_pane.flash_footer_notice(notice.to_string());
+
+        let should_refresh_memories = matches!(
+            self.settings
+                .overlay
+                .as_ref()
+                .map(settings_overlay::SettingsOverlayView::active_section),
+            Some(SettingsSection::Memories)
+        );
+        if should_refresh_memories {
+            let content = self.build_memories_settings_content();
+            if let Some(overlay) = self.settings.overlay.as_mut() {
+                overlay.set_memories_content(content);
+            }
+        }
+
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
     pub(crate) fn set_api_key_fallback_on_all_accounts_limited(&mut self, enabled: bool) {
         if self.config.api_key_fallback_on_all_accounts_limited == enabled {
             return;
@@ -4764,6 +4809,7 @@ fi\n\
             preferred_model_reasoning_effort: self.config.preferred_model_reasoning_effort,
             model_reasoning_summary: self.config.model_reasoning_summary,
             model_text_verbosity: self.config.model_text_verbosity,
+            service_tier: self.config.service_tier,
             user_instructions: self.config.user_instructions.clone(),
             base_instructions: self.config.base_instructions.clone(),
             approval_policy: self.config.approval_policy,

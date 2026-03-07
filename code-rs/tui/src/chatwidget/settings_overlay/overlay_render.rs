@@ -464,6 +464,7 @@ impl SettingsOverlayView {
             SettingsSection::Updates => "Upgrade",
             SettingsSection::Accounts => "Account Switching",
             SettingsSection::Agents => "Agents",
+            SettingsSection::Memories => "Memories",
             SettingsSection::Skills => "Skills",
             SettingsSection::AutoDrive => "Auto Drive Settings",
             SettingsSection::Review => "Review Settings",
@@ -839,6 +840,13 @@ impl SettingsOverlayView {
                     return;
                 }
                 self.render_placeholder(area, buf, SettingsSection::Accounts.placeholder());
+            }
+            SettingsSection::Memories => {
+                if let Some(content) = self.memories_content.as_ref() {
+                    content.render(area, buf);
+                    return;
+                }
+                self.render_placeholder(area, buf, SettingsSection::Memories.placeholder());
             }
             SettingsSection::Prompts => {
                 if let Some(content) = self.prompts_content.as_ref() {

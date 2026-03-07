@@ -119,7 +119,7 @@ pub(crate) fn unsupported_tool_call_output(
     if outputs_custom {
         return ResponseInputItem::CustomToolCallOutput {
             call_id: call_id.to_string(),
-            output: message,
+            output: FunctionCallOutputPayload::from_text(message),
         };
     }
 

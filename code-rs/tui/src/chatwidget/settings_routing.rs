@@ -3,6 +3,7 @@ use crate::bottom_pane::{
     ExecLimitsSettingsView,
     InterfaceSettingsView,
     JsReplSettingsView,
+    MemoriesSettingsView,
     NetworkSettingsView,
     ShellProfilesSettingsView,
     ShellSelectionView,
@@ -13,6 +14,7 @@ use crate::chatwidget::settings_overlay::{
     ExecLimitsSettingsContent,
     InterfaceSettingsContent,
     JsReplSettingsContent,
+    MemoriesSettingsContent,
     NetworkSettingsContent,
     ShellSettingsContent,
     ShellProfilesSettingsContent,
@@ -91,6 +93,7 @@ impl ChatWidget<'_> {
             overlay.set_updates_content(update_content);
         }
         overlay.set_accounts_content(self.build_accounts_settings_content());
+        overlay.set_memories_content(self.build_memories_settings_content());
         overlay.set_notifications_content(self.build_notifications_settings_content());
         overlay.set_prompts_content(self.build_prompts_settings_content());
         overlay.set_skills_content(self.build_skills_settings_content());
@@ -254,6 +257,7 @@ impl ChatWidget<'_> {
             presets,
             current_model,
             current_effort,
+            self.config.service_tier,
             false,
             ModelSelectionTarget::Session,
             self.app_event_tx.clone(),
@@ -330,6 +334,14 @@ impl ChatWidget<'_> {
 
     pub(super) fn build_notifications_settings_content(&mut self) -> NotificationsSettingsContent {
         NotificationsSettingsContent::new(self.build_notifications_settings_view())
+    }
+
+    pub(super) fn build_memories_settings_view(&self) -> MemoriesSettingsView {
+        MemoriesSettingsView::new(self.app_event_tx.clone(), self.config.memories_enabled)
+    }
+
+    pub(super) fn build_memories_settings_content(&self) -> MemoriesSettingsContent {
+        MemoriesSettingsContent::new(self.build_memories_settings_view())
     }
 
     pub(super) fn build_network_settings_view(&mut self) -> NetworkSettingsView {
@@ -732,6 +744,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Updates       => self.settings_summary_updates(),
                     SettingsSection::Accounts      => self.settings_summary_accounts(),
                     SettingsSection::Agents        => self.settings_summary_agents(),
+                    SettingsSection::Memories      => self.settings_summary_memories(),
                     SettingsSection::Prompts       => self.settings_summary_prompts(),
                     SettingsSection::Skills        => self.settings_summary_skills(),
                     SettingsSection::AutoDrive     => self.settings_summary_auto_drive(),
@@ -867,6 +880,9 @@ impl ChatWidget<'_> {
         };
         let effort = Self::format_reasoning_effort(self.config.model_reasoning_effort);
         let mut parts: Vec<String> = vec![format!("Model: {} ({})", model_display, effort)];
+        if matches!(self.config.service_tier, Some(code_core::config_types::ServiceTier::Fast)) {
+            parts.push("Fast mode".to_string());
+        }
         if let Some(profile) = self
             .config
             .active_profile
@@ -1088,6 +1104,13 @@ impl ChatWidget<'_> {
         Some(format!("Skills loaded: {count}"))
     }
 
+    pub(super) fn settings_summary_memories(&self) -> Option<String> {
+        Some(format!(
+            "Memories: {}",
+            Self::on_off_label(self.config.memories_enabled)
+        ))
+    }
+
     pub(super) fn refresh_mcp_settings_overlay(&mut self) {
         let prior_state = self
             .settings
@@ -1267,6 +1290,7 @@ impl ChatWidget<'_> {
                 presets,
                 current_model,
                 current_effort,
+                this.config.service_tier,
                 false,
                 ModelSelectionTarget::Session,
             );
@@ -1282,6 +1306,13 @@ impl ChatWidget<'_> {
             return false;
         };
         self.open_bottom_pane_settings(move |this| this.bottom_pane.show_update_settings(view))
+    }
+
+    fn open_memories_settings_section(&mut self) -> bool {
+        let view = self.build_memories_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_memories_settings(view);
+        })
     }
 
     fn open_prompts_settings_section(&mut self) -> bool {
@@ -1406,6 +1437,7 @@ impl ChatWidget<'_> {
             SettingsSection::ExecLimits                         => self.open_exec_limits_settings_section(),
             SettingsSection::Updates                            => self.open_updates_settings_section(),
             SettingsSection::Accounts                           => false,
+            SettingsSection::Memories                           => self.open_memories_settings_section(),
             SettingsSection::Prompts                            => self.open_prompts_settings_section(),
             SettingsSection::Skills                             => self.open_skills_settings_section(),
             SettingsSection::AutoDrive                          => self.open_auto_drive_settings_section(),
@@ -1474,6 +1506,7 @@ impl ChatWidget<'_> {
             | SettingsSection::Notifications
             | SettingsSection::Prompts
             | SettingsSection::Accounts
+            | SettingsSection::Memories
             | SettingsSection::Skills => false,
         };
 

@@ -28,6 +28,7 @@ mod approval_ui;
 mod auto_coordinator_view;
 mod auto_drive_settings_view;
 mod account_switch_settings_view;
+mod memories_settings_view;
 mod bottom_pane_view;
 mod chat_composer;
 mod chat_composer_history;
@@ -89,6 +90,7 @@ pub(crate) use auto_coordinator_view::{
 };
 pub(crate) use auto_drive_settings_view::{AutoDriveSettingsInit, AutoDriveSettingsView};
 pub(crate) use account_switch_settings_view::AccountSwitchSettingsView;
+pub(crate) use memories_settings_view::MemoriesSettingsView;
 pub(crate) use login_accounts_view::{
     LoginAccountsState,
     LoginAccountsView,
@@ -113,6 +115,7 @@ use approval_modal_view::ApprovalModalView;
 use approval_ui::ApprovalUi;
 use code_common::model_presets::ModelPreset;
 use code_core::config_types::ReasoningEffort;
+use code_core::config_types::ServiceTier;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
 pub(crate) use model_selection_view::{ModelSelectionTarget, ModelSelectionView};
@@ -410,6 +413,13 @@ impl BottomPane<'_> {
     }
 
     pub fn show_skills_settings(&mut self, view: skills_settings_view::SkillsSettingsView) {
+        self.active_view = Some(Box::new(view));
+        self.active_view_kind = ActiveViewKind::Other;
+        self.status_view_active = false;
+        self.request_redraw_with_height_change();
+    }
+
+    pub fn show_memories_settings(&mut self, view: MemoriesSettingsView) {
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::Other;
         self.status_view_active = false;
@@ -952,6 +962,7 @@ impl BottomPane<'_> {
         presets: Vec<ModelPreset>,
         current_model: String,
         current_effort: ReasoningEffort,
+        current_service_tier: Option<ServiceTier>,
         use_chat_model: bool,
         target: ModelSelectionTarget,
     ) {
@@ -959,6 +970,7 @@ impl BottomPane<'_> {
             presets,
             current_model,
             current_effort,
+            current_service_tier,
             use_chat_model,
             target,
             self.app_event_tx.clone(),

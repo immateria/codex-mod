@@ -14,6 +14,7 @@ impl Runner<'_> {
             preferred_model_reasoning_effort,
             model_reasoning_summary,
             model_text_verbosity,
+            service_tier,
             provided_user_instructions,
             provided_base_instructions,
             approval_policy,
@@ -70,6 +71,7 @@ impl Runner<'_> {
         }
         updated_config.model_reasoning_summary = model_reasoning_summary;
         updated_config.model_text_verbosity = model_text_verbosity;
+        updated_config.service_tier = service_tier;
         updated_config.user_instructions = provided_user_instructions;
         let base_instructions = provided_base_instructions.or_else(|| {
             crate::model_family::base_instructions_override_for_personality(

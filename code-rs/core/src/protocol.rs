@@ -27,6 +27,7 @@ use crate::config_types::McpToolSchedulingOverrideToml;
 use crate::config_types::ShellConfig;
 use crate::config_types::ShellScriptStyle;
 use crate::config_types::ShellStyleProfileConfig;
+use crate::config_types::ServiceTier as ServiceTierConfig;
 use crate::config_types::TextVerbosity as TextVerbosityConfig;
 use code_message_history::HistoryEntry;
 use crate::model_provider_info::ModelProviderInfo;
@@ -112,6 +113,9 @@ pub struct ConfigureSessionOp {
     pub preferred_model_reasoning_effort: Option<ReasoningEffortConfig>,
     pub model_reasoning_summary: ReasoningSummaryConfig,
     pub model_text_verbosity: TextVerbosityConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub service_tier: Option<ServiceTierConfig>,
     pub user_instructions: Option<String>,
     pub base_instructions: Option<String>,
     pub approval_policy: AskForApproval,
@@ -1732,6 +1736,7 @@ mod tests {
             preferred_model_reasoning_effort: Some(ReasoningEffortConfig::High),
             model_reasoning_summary: ReasoningSummaryConfig::Concise,
             model_text_verbosity: TextVerbosityConfig::High,
+            service_tier: Some(ServiceTierConfig::Fast),
             user_instructions: Some("Stay focused.".to_string()),
             base_instructions: None,
             approval_policy: AskForApproval::OnRequest,
@@ -1763,6 +1768,7 @@ mod tests {
 
         assert_eq!(object.get("type"), Some(&serde_json::json!("configure_session")));
         assert_eq!(object.get("model"), Some(&serde_json::json!("gpt-5")));
+        assert_eq!(object.get("service_tier"), Some(&serde_json::json!("fast")));
         assert_eq!(
             object.get("cwd"),
             Some(&serde_json::json!(cwd.to_string_lossy().to_string()))

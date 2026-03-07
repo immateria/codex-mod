@@ -123,6 +123,7 @@ pub fn write_global_mcp_servers(
                 McpServerTransportConfig::StreamableHttp {
                     url,
                     bearer_token,
+                    oauth_resource,
                     bearer_token_env_var,
                     http_headers,
                     env_http_headers,
@@ -130,6 +131,9 @@ pub fn write_global_mcp_servers(
                     entry["url"] = toml_edit::value(url.clone());
                     if let Some(token) = bearer_token {
                         entry["bearer_token"] = toml_edit::value(token.clone());
+                    }
+                    if let Some(resource) = oauth_resource {
+                        entry["oauth_resource"] = toml_edit::value(resource.clone());
                     }
                     if let Some(env_var) = bearer_token_env_var {
                         entry["bearer_token_env_var"] = toml_edit::value(env_var.clone());
@@ -2794,6 +2798,10 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                         .get("bearer_token")
                         .and_then(|v| v.as_str())
                         .map(std::string::ToString::to_string);
+                    let oauth_resource = t
+                        .get("oauth_resource")
+                        .and_then(|v| v.as_str())
+                        .map(std::string::ToString::to_string);
 
                     let bearer_token_env_var = t
                         .get("bearer_token_env_var")
@@ -2827,6 +2835,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                     McpServerTransportConfig::StreamableHttp {
                         url: url.to_string(),
                         bearer_token,
+                        oauth_resource,
                         bearer_token_env_var,
                         http_headers,
                         env_http_headers,
@@ -3031,6 +3040,7 @@ pub fn add_mcp_server(
         McpServerTransportConfig::StreamableHttp {
             url,
             bearer_token,
+            oauth_resource,
             bearer_token_env_var,
             http_headers,
             env_http_headers,
@@ -3038,6 +3048,9 @@ pub fn add_mcp_server(
             server_tbl.insert("url", toml_edit::value(url));
             if let Some(token) = bearer_token {
                 server_tbl.insert("bearer_token", toml_edit::value(token));
+            }
+            if let Some(resource) = oauth_resource {
+                server_tbl.insert("oauth_resource", toml_edit::value(resource));
             }
             if let Some(env_var) = bearer_token_env_var {
                 server_tbl.insert("bearer_token_env_var", toml_edit::value(env_var));

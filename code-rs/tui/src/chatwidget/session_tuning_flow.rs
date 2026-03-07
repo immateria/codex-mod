@@ -245,6 +245,7 @@ impl ChatWidget<'_> {
             presets,
             self.config.model.clone(),
             self.config.model_reasoning_effort,
+            self.config.service_tier,
             false,
             ModelSelectionTarget::Session,
         );
@@ -267,6 +268,7 @@ impl ChatWidget<'_> {
             presets,
             self.config.review_model.clone(),
             self.config.review_model_reasoning_effort,
+            self.config.service_tier,
             self.config.review_use_chat_model,
             ModelSelectionTarget::Review,
         );
@@ -298,6 +300,7 @@ impl ChatWidget<'_> {
             presets,
             current,
             effort,
+            self.config.service_tier,
             self.config.review_resolve_use_chat_model,
             ModelSelectionTarget::ReviewResolve,
         );
@@ -329,6 +332,7 @@ impl ChatWidget<'_> {
             presets,
             current,
             effort,
+            self.config.service_tier,
             self.config.auto_review_use_chat_model,
             ModelSelectionTarget::AutoReview,
         );
@@ -360,6 +364,7 @@ impl ChatWidget<'_> {
             presets,
             current,
             effort,
+            self.config.service_tier,
             self.config.auto_review_resolve_use_chat_model,
             ModelSelectionTarget::AutoReviewResolve,
         );
@@ -389,6 +394,7 @@ impl ChatWidget<'_> {
                 presets,
                 current,
                 effort,
+                self.config.service_tier,
                 self.config.planning_use_chat_model,
                 ModelSelectionTarget::Planning,
             );
@@ -411,6 +417,7 @@ impl ChatWidget<'_> {
             presets,
             self.config.auto_drive.model.clone(),
             self.config.auto_drive.model_reasoning_effort,
+            self.config.service_tier,
             self.config.auto_drive_use_chat_model,
             ModelSelectionTarget::AutoDrive,
         );
@@ -418,6 +425,30 @@ impl ChatWidget<'_> {
 
     pub(crate) fn apply_model_selection(&mut self, model: String, effort: Option<ReasoningEffort>) {
         self.apply_model_selection_inner(model, effort, true, true);
+    }
+
+    pub(crate) fn apply_service_tier_selection(
+        &mut self,
+        service_tier: Option<code_core::config_types::ServiceTier>,
+    ) {
+        if self.config.service_tier == service_tier {
+            return;
+        }
+
+        self.config.service_tier = service_tier;
+        self.submit_op(self.current_configure_session_op());
+        let status = if matches!(
+            self.config.service_tier,
+            Some(code_core::config_types::ServiceTier::Fast)
+        ) {
+            "enabled"
+        } else {
+            "disabled"
+        };
+        self.bottom_pane
+            .flash_footer_notice(format!("Fast mode {status}."));
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
     }
 
     pub(crate) fn apply_shell_selection(
@@ -1306,6 +1337,7 @@ impl ChatWidget<'_> {
             presets,
             self.config.model.clone(),
             self.config.model_reasoning_effort,
+            self.config.service_tier,
             false,
             ModelSelectionTarget::Session,
         );

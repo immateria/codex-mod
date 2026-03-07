@@ -478,6 +478,7 @@ impl McpConnectionManager {
                     McpServerTransportConfig::StreamableHttp {
                         url,
                         bearer_token,
+                        oauth_resource: _,
                         bearer_token_env_var,
                         http_headers,
                         env_http_headers,
@@ -1068,6 +1069,7 @@ impl McpConnectionManager {
                     McpServerTransportConfig::StreamableHttp {
                         url,
                         bearer_token,
+                        oauth_resource: _,
                         bearer_token_env_var,
                         http_headers,
                         env_http_headers,
@@ -1206,6 +1208,7 @@ impl McpConnectionManager {
             McpServerTransportConfig::StreamableHttp {
                 url,
                 bearer_token,
+                oauth_resource: _,
                 bearer_token_env_var,
                 http_headers,
                 env_http_headers,

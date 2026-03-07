@@ -74,6 +74,12 @@ pub(super) async fn run_turn(
                     (!trimmed.is_empty()).then(|| trimmed.to_string())
                 }),
         );
+        if sess.memories_config.use_memories
+            && let Some(memory_prompt) =
+                crate::memories::build_memory_tool_developer_instructions(sess.client.code_home()).await
+        {
+            prepend_developer_messages.push(memory_prompt);
+        }
         if should_inject_html_sanitizer_guardrails(&attempt_input) {
             prepend_developer_messages.push(HTML_SANITIZER_GUARDRAILS_MESSAGE.to_string());
         }
@@ -457,4 +463,3 @@ pub(super) struct ProcessedResponseItem {
     pub(super) item: ResponseItem,
     pub(super) response: Option<ResponseInputItem>,
 }
-

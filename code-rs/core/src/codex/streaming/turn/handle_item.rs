@@ -130,6 +130,7 @@ pub(super) async fn handle_response_item(
             }
             None
         }
+        ResponseItem::ImageGenerationCall { .. } => None,
         ResponseItem::GhostSnapshot { .. } => None,
         ResponseItem::Other => None,
     };
@@ -155,4 +156,3 @@ fn web_search_query(query: &Option<String>, queries: &Option<Vec<String>>) -> Op
         Some(first)
     }
 }
-

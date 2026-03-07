@@ -191,6 +191,7 @@ fn build_mcp_transport_for_add(
             bearer_token_env_var,
             http_headers: None,
             env_http_headers: None,
+            oauth_resource: None,
         });
     }
 
@@ -266,6 +267,7 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
         bearer_token_env_var,
         http_headers,
         env_http_headers,
+        oauth_resource: _,
     } = &transport
         && bearer_token.is_none()
         && bearer_token_env_var.is_none()
@@ -343,6 +345,7 @@ async fn run_login(config_overrides: &CliConfigOverrides, login_args: LoginArgs)
                 bearer_token_env_var,
                 http_headers,
                 env_http_headers,
+                oauth_resource: _,
             } => (
                 url.clone(),
                 bearer_token.as_deref(),
@@ -539,6 +542,7 @@ fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) -> Resul
                         bearer_token_env_var,
                         http_headers,
                         env_http_headers,
+                        oauth_resource,
                     } => {
                         serde_json::json!({
                             "type": "streamable_http",
@@ -547,6 +551,7 @@ fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) -> Resul
                             "bearer_token_env_var": bearer_token_env_var,
                             "http_headers": http_headers,
                             "env_http_headers": env_http_headers,
+                            "oauth_resource": oauth_resource,
                         })
                     }
                 };
@@ -599,6 +604,7 @@ fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) -> Resul
                 url,
                 bearer_token,
                 bearer_token_env_var,
+                oauth_resource: _,
                 ..
             } => {
                 let has_bearer = if bearer_token.is_some() || bearer_token_env_var.is_some() {
@@ -707,6 +713,7 @@ fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Result<(
                 bearer_token_env_var,
                 http_headers,
                 env_http_headers,
+                oauth_resource,
             } => serde_json::json!({
                 "type": "streamable_http",
                 "url": url,
@@ -714,6 +721,7 @@ fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Result<(
                 "bearer_token_env_var": bearer_token_env_var,
                 "http_headers": http_headers,
                 "env_http_headers": env_http_headers,
+                "oauth_resource": oauth_resource,
             }),
         };
         let output = serde_json::to_string_pretty(&serde_json::json!({
@@ -758,6 +766,7 @@ fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Result<(
             bearer_token_env_var,
             http_headers,
             env_http_headers,
+            oauth_resource,
         } => {
             println!("  transport: streamable_http");
             println!("  url: {url}");
@@ -778,6 +787,8 @@ fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Result<(
                 .map(|headers| format!("{} header(s)", headers.len()))
                 .unwrap_or_else(|| "-".to_string());
             println!("  env_http_headers: {env_headers_display}");
+            let resource_display = oauth_resource.as_deref().unwrap_or("-");
+            println!("  oauth_resource: {resource_display}");
         }
     }
     if let Some(timeout) = server.startup_timeout_sec {
@@ -844,11 +855,13 @@ mod tests {
                 url,
                 bearer_token,
                 bearer_token_env_var,
+                oauth_resource,
                 ..
             } => {
                 assert_eq!(url, "https://mcp.example.com/mcp");
                 assert!(bearer_token.is_none());
                 assert!(bearer_token_env_var.is_none());
+                assert!(oauth_resource.is_none());
             }
             _ => panic!("expected streamable http transport"),
         }
@@ -930,6 +943,7 @@ mod tests {
                     bearer_token_env_var: None,
                     http_headers: None,
                     env_http_headers: None,
+                    oauth_resource: None,
                 },
                 startup_timeout_sec: Some(Duration::from_secs(15)),
                 tool_timeout_sec: Some(Duration::from_secs(5)),

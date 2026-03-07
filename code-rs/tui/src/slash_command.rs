@@ -71,6 +71,7 @@ pub enum SlashCommand {
     Shell,
     Mode,
     Model,
+    Fast,
     Reasoning,
     Verbosity,
     Prompts,
@@ -135,6 +136,7 @@ impl SlashCommand {
             SlashCommand::Prompts => "manage custom prompts",
             SlashCommand::Skills => "manage skills",
             SlashCommand::Model => "choose your default model",
+            SlashCommand::Fast => "open model settings with the Fast mode toggle",
             SlashCommand::Mode => "set collaboration mode (default/plan)",
             SlashCommand::Agents => "configure agents",
             SlashCommand::Auto => "work autonomously on long tasks with Auto Drive",
@@ -356,6 +358,16 @@ mod tests {
                 assert_eq!(command_text, "/statusline");
             }
             other => panic!("expected /statusline command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn fast_command_is_recognized() {
+        match process_slash_command_message("/fast") {
+            ProcessedCommand::RegularCommand(SlashCommand::Fast, command_text) => {
+                assert_eq!(command_text, "/fast");
+            }
+            other => panic!("expected /fast command, got {other:?}"),
         }
     }
 }

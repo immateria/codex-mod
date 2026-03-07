@@ -47,6 +47,7 @@ use crate::client_common::replace_image_payloads_for_model;
 use crate::config::Config;
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use crate::config_types::ServiceTier;
 use crate::config_types::TextVerbosity as TextVerbosityConfig;
 use crate::debug_logger::DebugLogger;
 use crate::default_client::create_client;
@@ -77,6 +78,14 @@ const RESPONSES_BETA_HEADER_EXPERIMENTAL: &str = "responses=experimental";
 const RESPONSES_WEBSOCKETS_BETA_HEADER_V1: &str = "responses_websockets=2026-02-04";
 const RESPONSES_WEBSOCKETS_BETA_HEADER_V2: &str = "responses_websockets=2026-02-06";
 const RESPONSES_WEBSOCKET_INGRESS_BUFFER: usize = 256;
+
+fn configured_service_tier(config: &Config) -> Option<String> {
+    match config.service_tier {
+        Some(ServiceTier::Fast) => Some("priority".to_string()),
+        Some(ServiceTier::Standard) => Some("standard".to_string()),
+        None => None,
+    }
+}
 
 mod sse;
 mod transport;
@@ -720,6 +729,7 @@ impl ModelClient {
                 store: self.provider.is_azure_responses_endpoint(),
                 stream: true,
                 include,
+                service_tier: configured_service_tier(&self.config),
                 prompt_cache_key: Some(session_id_str.clone()),
             };
 
@@ -1151,6 +1161,7 @@ impl ModelClient {
                 store: azure_workaround,
                 stream: true,
                 include,
+                service_tier: configured_service_tier(&self.config),
                 // Use a stable per-process cache key (session id). With store=false this is inert.
                 prompt_cache_key: Some(session_id_str.clone()),
             };

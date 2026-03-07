@@ -1,6 +1,8 @@
 use crate::config_types::Personality;
 use crate::config_types::ReasoningEffort;
+use crate::config_types::ReasoningSummary;
 use crate::tool_apply_patch::ApplyPatchToolType;
+use code_protocol::openai_models::WebSearchToolType;
 use code_protocol::protocol::TruncationPolicy;
 
 /// The `instructions` field in the payload sent to a model should always start
@@ -64,6 +66,9 @@ pub struct ModelFamily {
     /// The reasoning effort to use for this model family when none is explicitly chosen.
     pub default_reasoning_effort: Option<ReasoningEffort>,
 
+    /// The reasoning summary setting to use when requests don't override it.
+    pub default_reasoning_summary: ReasoningSummary,
+
     /// Whether this model supports parallel tool calls when using the
     /// Responses API.
     pub supports_parallel_tool_calls: bool,
@@ -80,6 +85,15 @@ pub struct ModelFamily {
     /// Present if the model performs better when `apply_patch` is provided as
     /// a tool call instead of just a bash command
     pub apply_patch_tool_type: Option<ApplyPatchToolType>,
+
+    /// Whether web_search should request text-only or multimodal results.
+    pub web_search_tool_type: WebSearchToolType,
+
+    /// Whether responses can use `detail: "original"` for tool-returned images.
+    pub supports_image_detail_original: bool,
+
+    /// Whether this model supports image generation via the native Responses tool.
+    pub supports_image_generation: bool,
 
     // Instructions to use for querying the model
     pub base_instructions: String,
@@ -113,9 +127,10 @@ macro_rules! model_family {
     (
         $slug:expr, $family:expr $(, $key:ident : $value:expr )* $(,)?
     ) => {{
+        let slug_value = $slug;
         // defaults
         let mut mf = ModelFamily {
-            slug: $slug.to_string(),
+            slug: slug_value.to_string(),
             family: $family.to_string(),
             needs_special_apply_patch_instructions: false,
             context_window: Some(CONTEXT_WINDOW_272K),
@@ -124,10 +139,14 @@ macro_rules! model_family {
             auto_compact_token_limit: None,
             supports_reasoning_summaries: false,
             default_reasoning_effort: None,
+            default_reasoning_summary: ReasoningSummary::Auto,
             supports_parallel_tool_calls: false,
             prefer_websockets: false,
             uses_local_shell_tool: false,
             apply_patch_tool_type: None,
+            web_search_tool_type: WebSearchToolType::Text,
+            supports_image_detail_original: false,
+            supports_image_generation: false,
             base_instructions: BASE_INSTRUCTIONS.to_string(),
         };
         // apply overrides
@@ -352,10 +371,14 @@ pub fn derive_default_model_family(model: &str) -> ModelFamily {
         auto_compact_token_limit: None,
         supports_reasoning_summaries: false,
         default_reasoning_effort: None,
+        default_reasoning_summary: ReasoningSummary::Auto,
         supports_parallel_tool_calls: false,
         prefer_websockets: false,
         uses_local_shell_tool: false,
         apply_patch_tool_type: None,
+        web_search_tool_type: WebSearchToolType::Text,
+        supports_image_detail_original: false,
+        supports_image_generation: false,
         base_instructions: BASE_INSTRUCTIONS.to_string(),
     }
 }

@@ -25,6 +25,7 @@ use crate::client_common::Prompt;
 use crate::client_common::ResponseEvent;
 use crate::client_common::ResponseStream;
 use crate::client_common::replace_image_payloads_for_model;
+use crate::client_common::rewrite_image_generation_calls_for_input;
 use crate::debug_logger::DebugLogger;
 use crate::error::CodexErr;
 use crate::error::Result;
@@ -78,6 +79,7 @@ pub(crate) async fn stream_chat_completions(
     messages.push(json!({"role": "system", "content": full_instructions}));
 
     let mut input = prompt.get_formatted_input();
+    rewrite_image_generation_calls_for_input(&mut input);
     replace_image_payloads_for_model(&mut input, model_slug);
 
     // Pre-scan: map Reasoning blocks to the adjacent assistant anchor after the last user.
@@ -102,6 +104,7 @@ pub(crate) async fn stream_chat_completions(
             ResponseItem::CustomToolCall { .. } => {}
             ResponseItem::CustomToolCallOutput { .. } => {}
             ResponseItem::WebSearchCall { .. } => {}
+            ResponseItem::ImageGenerationCall { .. } => {}
             ResponseItem::GhostSnapshot { .. } => {}
         }
     }
@@ -294,6 +297,7 @@ pub(crate) async fn stream_chat_completions(
             }
             ResponseItem::Reasoning { .. }
             | ResponseItem::WebSearchCall { .. }
+            | ResponseItem::ImageGenerationCall { .. }
             | ResponseItem::GhostSnapshot { .. }
             | ResponseItem::Other => {
                 // Omit these items from the conversation history.

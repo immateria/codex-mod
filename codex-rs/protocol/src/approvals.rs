@@ -2,14 +2,30 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::mcp::RequestId;
+use crate::models::MacOsSeatbeltProfileExtensions;
 use crate::models::PermissionProfile;
 use crate::parse_command::ParsedCommand;
 use crate::protocol::FileChange;
 use crate::protocol::ReviewDecision;
+use crate::protocol::SandboxPolicy;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::Value as JsonValue;
 use ts_rs::TS;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Permissions {
+    pub sandbox_policy: SandboxPolicy,
+    pub macos_seatbelt_profile_extensions: Option<MacOsSeatbeltProfileExtensions>,
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EscalationPermissions {
+    PermissionProfile(PermissionProfile),
+    Permissions(Permissions),
+}
 
 /// Proposed execpolicy change to allow commands starting with this prefix.
 ///
@@ -175,15 +191,35 @@ impl ExecApprovalRequestEvent {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[serde(tag = "mode", rename_all = "snake_case")]
+#[ts(tag = "mode")]
+pub enum ElicitationRequest {
+    Form {
+        message: String,
+        requested_schema: JsonValue,
+    },
+    Url {
+        message: String,
+        url: String,
+        elicitation_id: String,
+    },
+}
+
+impl ElicitationRequest {
+    pub fn message(&self) -> &str {
+        match self {
+            Self::Form { message, .. } | Self::Url { message, .. } => message,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
 pub struct ElicitationRequestEvent {
     pub server_name: String,
     #[ts(type = "string | number")]
     pub id: RequestId,
-    pub message: String,
-    // TODO: MCP servers can request we fill out a schema for the elicitation. We don't support
-    // this yet.
-    // pub requested_schema: ElicitRequestParamsRequestedSchema,
+    pub request: ElicitationRequest,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]

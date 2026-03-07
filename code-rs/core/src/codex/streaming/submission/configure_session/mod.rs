@@ -3,6 +3,7 @@ use super::*;
 use crate::config_types::McpServerConfig;
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use crate::config_types::ServiceTier;
 use crate::config_types::ShellConfig;
 use crate::config_types::ShellScriptStyle;
 use crate::config_types::ShellStyleProfileConfig;
@@ -56,6 +57,7 @@ pub(super) async fn handle_configure_session(
         preferred_model_reasoning_effort,
         model_reasoning_summary,
         model_text_verbosity,
+        service_tier,
         user_instructions: provided_user_instructions,
         base_instructions: provided_base_instructions,
         approval_policy,
@@ -86,6 +88,7 @@ pub(super) async fn handle_configure_session(
         preferred_model_reasoning_effort,
         model_reasoning_summary,
         model_text_verbosity,
+        service_tier,
         provided_user_instructions,
         provided_base_instructions,
         approval_policy,
@@ -131,6 +134,7 @@ struct ConfigureSessionRequest {
     preferred_model_reasoning_effort: Option<ReasoningEffortConfig>,
     model_reasoning_summary: ReasoningSummaryConfig,
     model_text_verbosity: TextVerbosityConfig,
+    service_tier: Option<ServiceTier>,
     provided_user_instructions: Option<String>,
     provided_base_instructions: Option<String>,
     approval_policy: AskForApproval,

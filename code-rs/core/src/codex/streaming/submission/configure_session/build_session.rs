@@ -315,6 +315,7 @@ impl Runner<'_> {
             client,
             remote_models_manager,
             tools_config,
+            memories_config: config.memories.clone(),
             dynamic_tools,
             exec_command_manager: Arc::new(crate::exec_command::SessionManager::default()),
             js_repl_default_runtime,
@@ -409,6 +410,9 @@ impl Runner<'_> {
             *guard = Arc::downgrade(sess_arc);
         }
         if let Some(sess_arc) = self.sess.as_ref() {
+            if config.memories.generate_memories {
+                crate::memories::maybe_spawn_memory_summary_refresh(config.code_home.clone());
+            }
             // Reset environment context tracker if shell changed
             if shell_override_present {
                 let mut st = crate::codex::lock_or_panic!(sess_arc.state);

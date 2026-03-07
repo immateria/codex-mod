@@ -272,7 +272,7 @@ impl ToolHandler for JsReplToolHandler {
                 if outputs_custom {
                     ResponseInputItem::CustomToolCallOutput {
                         call_id: ctx.call_id,
-                        output: result.output,
+                        output: FunctionCallOutputPayload::from_text(result.output),
                     }
                 } else {
                     ResponseInputItem::FunctionCallOutput {
@@ -299,7 +299,7 @@ impl ToolHandler for JsReplToolHandler {
                 if outputs_custom {
                     ResponseInputItem::CustomToolCallOutput {
                         call_id: ctx.call_id,
-                        output: combined,
+                        output: FunctionCallOutputPayload::from_text(combined),
                     }
                 } else {
                     ResponseInputItem::FunctionCallOutput {

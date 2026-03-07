@@ -22,6 +22,7 @@ use crate::truncate::truncate_middle;
 use crate::util::backoff;
 use askama::Template;
 use code_protocol::models::ContentItem;
+use code_protocol::models::FunctionCallOutputBody;
 use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use code_protocol::models::ResponseItem;
@@ -42,6 +43,9 @@ const COMPACT_TOOL_OUTPUT_MAX_BYTES: usize = 4 * 1024;
 const COMPACT_IMAGE_URL_MAX_BYTES: usize = 512;
 const MAX_COMPACTION_SNIPPETS: usize = 12;
 const COMPACT_STREAM_TIMEOUT: Duration = Duration::from_secs(120);
+const MAX_COMPACT_CONTEXT_OVERFLOW_TRIMS: usize = 32;
+const MAX_COMPACT_USAGE_LIMIT_RETRIES: usize = 2;
+const COMPACTION_EMERGENCY_MESSAGE: &str = "Compaction failed: the conversation history is too large to compact within the model's context limits. The history has been reset to prevent further errors. Start a new session or manually reduce context by clearing history.";
 
 /// Determine whether to use remote compaction (ChatGPT-based) or local compaction.
 ///
@@ -213,6 +217,37 @@ pub(super) async fn run_compact_task(
     sess.send_event(event).await;
 }
 
+pub(super) async fn apply_emergency_compaction_fallback(
+    sess: &Arc<Session>,
+    turn_context: &TurnContext,
+    sub_id: &str,
+    reason: &str,
+) -> Vec<ResponseItem> {
+    let message = if reason.trim().is_empty() {
+        COMPACTION_EMERGENCY_MESSAGE.to_string()
+    } else {
+        format!("{reason} {COMPACTION_EMERGENCY_MESSAGE}")
+    };
+
+    let event = sess.make_event(
+        sub_id,
+        EventMsg::Error(ErrorEvent {
+            message: message.clone(),
+        }),
+    );
+    sess.send_event(event).await;
+
+    let initial_context = sess.build_initial_context(turn_context);
+    let emergency_history = build_emergency_compacted_history(initial_context, &message);
+    sess.replace_history(emergency_history.clone());
+    {
+        let mut state = crate::codex::lock_or_panic!(sess.state);
+        state.token_usage_info = None;
+    }
+
+    emergency_history
+}
+
 /// Perform compaction as a background task that updates session history in-place.
 pub(super) async fn perform_compaction(
     sess: Arc<Session>,
@@ -230,6 +265,7 @@ pub(super) async fn perform_compaction(
     let max_retries = turn_context.client.get_provider().stream_max_retries();
     let mut retries = 0;
     let mut truncated_count = 0usize;
+    let mut usage_limit_retries = 0usize;
 
     // Do not persist a TurnContext rollout item here; inline compaction is a
     // background maintenance task and should not affect rollout reconstruction.
@@ -263,6 +299,22 @@ pub(super) async fn perform_compaction(
             }
             Err(CodexErr::Interrupted) => return Err(CodexErr::Interrupted),
             Err(CodexErr::UsageLimitReached(limit_err)) => {
+                if usage_limit_retries >= MAX_COMPACT_USAGE_LIMIT_RETRIES {
+                    tracing::error!(
+                        "Compaction aborted after {} usage-limit retries",
+                        MAX_COMPACT_USAGE_LIMIT_RETRIES
+                    );
+                    let reason = "Compaction hit persistent usage limits and cannot continue.";
+                    let _ = apply_emergency_compaction_fallback(
+                        &sess,
+                        turn_context.as_ref(),
+                        &sub_id,
+                        reason,
+                    )
+                    .await;
+                    return Err(CodexErr::UsageLimitReached(limit_err));
+                }
+                usage_limit_retries = usage_limit_retries.saturating_add(1);
                 let now = Utc::now();
                 let retry_after = limit_err
                     .retry_after(now)
@@ -272,10 +324,11 @@ pub(super) async fn perform_compaction(
                 sess.notify_stream_error(&sub_id, message).await;
                 tokio::time::sleep(retry_after.delay).await;
                 retries = 0;
+                truncated_count = 0;
                 continue;
             }
             Err(e) if is_context_overflow_error(&e) => {
-                if turn_input.len() > 1 {
+                if turn_input.len() > 1 && truncated_count < MAX_COMPACT_CONTEXT_OVERFLOW_TRIMS {
                     tracing::warn!(
                         "Context window exceeded while compacting; dropping oldest item ({} remaining)",
                         turn_input.len().saturating_sub(1)
@@ -283,36 +336,25 @@ pub(super) async fn perform_compaction(
                     turn_input.remove(0);
                     truncated_count = truncated_count.saturating_add(1);
                     retries = 0;
+                    usage_limit_retries = 0;
                     continue;
                 }
 
-                // Compaction cannot fit even with minimal input. Apply emergency
-                // fallback to prevent infinite retry loops: reset history to just
-                // initial context with a warning message.
-                tracing::error!(
-                    "Compaction failed: context overflow even with minimal input. \
-                     Applying emergency fallback history to prevent retry loop."
-                );
-
-                let emergency_message = "WARN: Compaction failed: The conversation history is too large \
-                    to compact within the model's context limits. The history has been reset to prevent \
-                    further errors. Please start a new session or manually reduce context by clearing history.";
-
-                let event = sess.make_event(
+                let reason = if truncated_count >= MAX_COMPACT_CONTEXT_OVERFLOW_TRIMS {
+                    format!(
+                        "Compaction trimmed {truncated_count} items but still exceeded the context window."
+                    )
+                } else {
+                    "Compaction failed: context overflow even with minimal input.".to_string()
+                };
+                tracing::error!("{reason}");
+                let _ = apply_emergency_compaction_fallback(
+                    &sess,
+                    turn_context.as_ref(),
                     &sub_id,
-                    EventMsg::Error(ErrorEvent {
-                        message: emergency_message.to_string(),
-                    }),
-                );
-                sess.send_event(event).await;
-
-                // Apply emergency fallback: reset history to minimal state
-                let initial_context = sess.build_initial_context(turn_context.as_ref());
-                let emergency_history = build_emergency_compacted_history(initial_context, emergency_message);
-                sess.replace_history(emergency_history);
-
-                // Still return error to signal compaction didn't complete normally,
-                // but history has been reset to prevent retry loops
+                    &reason,
+                )
+                .await;
                 return Err(e);
             }
             Err(e) => {
@@ -400,6 +442,7 @@ async fn run_compact_task_inner_inline(
     let max_retries = turn_context.client.get_provider().stream_max_retries();
     let mut retries = 0;
     let mut truncated_count = 0usize;
+    let mut usage_limit_retries = 0usize;
     loop {
         let prompt = Prompt {
             input: turn_input.clone(),
@@ -427,6 +470,21 @@ async fn run_compact_task_inner_inline(
             }
             Err(CodexErr::Interrupted) => return Vec::new(),
             Err(CodexErr::UsageLimitReached(limit_err)) => {
+                if usage_limit_retries >= MAX_COMPACT_USAGE_LIMIT_RETRIES {
+                    tracing::error!(
+                        "Inline compaction aborted after {} usage-limit retries",
+                        MAX_COMPACT_USAGE_LIMIT_RETRIES
+                    );
+                    let reason = "Compaction hit persistent usage limits and cannot continue.";
+                    return apply_emergency_compaction_fallback(
+                        &sess,
+                        turn_context.as_ref(),
+                        &sub_id,
+                        reason,
+                    )
+                    .await;
+                }
+                usage_limit_retries = usage_limit_retries.saturating_add(1);
                 let now = Utc::now();
                 let retry_after = limit_err
                     .retry_after(now)
@@ -436,10 +494,11 @@ async fn run_compact_task_inner_inline(
                 sess.notify_stream_error(&sub_id, message).await;
                 tokio::time::sleep(retry_after.delay).await;
                 retries = 0;
+                truncated_count = 0;
                 continue;
             }
             Err(e) if is_context_overflow_error(&e) => {
-                if turn_input.len() > 1 {
+                if turn_input.len() > 1 && truncated_count < MAX_COMPACT_CONTEXT_OVERFLOW_TRIMS {
                     tracing::warn!(
                         "Context window exceeded while compacting; dropping oldest item ({} remaining)",
                         turn_input.len().saturating_sub(1)
@@ -447,43 +506,26 @@ async fn run_compact_task_inner_inline(
                     turn_input.remove(0);
                     truncated_count = truncated_count.saturating_add(1);
                     retries = 0;
+                    usage_limit_retries = 0;
                     continue;
                 }
 
-                // Compaction cannot fit even with minimal input. Return an emergency
-                // fallback history with just the initial context and a clear warning.
-                // This prevents infinite loops where compaction repeatedly fails and
-                // the system keeps retrying with the same oversized input.
-                tracing::error!(
-                    "Compaction failed: context overflow even with minimal input. \
-                     Returning emergency fallback history to prevent retry loop."
-                );
+                let reason = if truncated_count >= MAX_COMPACT_CONTEXT_OVERFLOW_TRIMS {
+                    format!(
+                        "Compaction trimmed {truncated_count} items but still exceeded the context window."
+                    )
+                } else {
+                    "Compaction failed: context overflow even with minimal input.".to_string()
+                };
+                tracing::error!("{reason}");
 
-                let emergency_message = "WARN: Compaction failed: The conversation history is too large \
-                    to compact within the model's context limits. The history has been reset to prevent \
-                    further errors. Please start a new session or manually reduce context by clearing history.";
-
-                let event = sess.make_event(
+                return apply_emergency_compaction_fallback(
+                    &sess,
+                    turn_context.as_ref(),
                     &sub_id,
-                    EventMsg::Error(ErrorEvent {
-                        message: emergency_message.to_string(),
-                    }),
-                );
-                sess.send_event(event).await;
-
-                // Return minimal emergency history: just initial context + warning message
-                let initial_context = sess.build_initial_context(turn_context.as_ref());
-                let emergency_history = build_emergency_compacted_history(initial_context, emergency_message);
-
-                // Update session history with emergency fallback
-                {
-                    let mut state = crate::codex::lock_or_panic!(sess.state);
-                    state.history = crate::conversation_history::ConversationHistory::new();
-                    state.history.record_items(emergency_history.iter());
-                    state.token_usage_info = None;
-                }
-
-                return emergency_history;
+                    &reason,
+                )
+                .await;
             }
             Err(e) => {
                 if retries < max_retries {
@@ -689,7 +731,13 @@ pub fn sanitize_items_for_compact(items: Vec<ResponseItem>) -> Vec<ResponseItem>
                 })
             }
             ResponseItem::CustomToolCallOutput { call_id, output } => {
-                let output = truncate_for_compact(output, COMPACT_TOOL_OUTPUT_MAX_BYTES);
+                let output = FunctionCallOutputPayload {
+                    body: FunctionCallOutputBody::Text(truncate_for_compact(
+                        output.body.to_text().unwrap_or_default(),
+                        COMPACT_TOOL_OUTPUT_MAX_BYTES,
+                    )),
+                    success: output.success,
+                };
                 Some(ResponseItem::CustomToolCallOutput { call_id, output })
             }
             ResponseItem::Reasoning { id, summary, .. } => Some(ResponseItem::Reasoning {

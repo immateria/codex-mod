@@ -160,6 +160,7 @@ mod tests {
                 bearer_token_env_var: None,
                 http_headers: None,
                 env_http_headers: None,
+                oauth_resource: None,
             },
             startup_timeout_sec: None,
             tool_timeout_sec: None,

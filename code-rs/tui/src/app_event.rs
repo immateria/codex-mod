@@ -1,6 +1,7 @@
 use code_core::config_types::AutoDriveModelRoutingEntry;
 use code_core::config_types::AuthCredentialsStoreMode;
 use code_core::config_types::ReasoningEffort;
+use code_core::config_types::ServiceTier;
 use code_core::config_types::ShellConfig;
 use code_core::config_types::ShellScriptStyle;
 use code_core::config_types::ShellStyleProfileConfig;
@@ -307,6 +308,9 @@ pub(crate) enum AppEvent {
     UpdateModelSelection {
         model: String,
         effort: Option<ReasoningEffort>,
+    },
+    UpdateServiceTierSelection {
+        service_tier: Option<ServiceTier>,
     },
 
     /// Update the dedicated review model + reasoning effort
@@ -759,6 +763,7 @@ pub(crate) enum AppEvent {
         latest_version: Option<String>,
     },
     SetAutoUpgradeEnabled(bool),
+    SetMemoriesEnabled(bool),
     SetNetworkProxySettings(NetworkProxySettingsToml),
     SetExecLimitsSettings(code_core::config::ExecLimitsToml),
     SetJsReplSettings(code_core::config::JsReplSettingsToml),

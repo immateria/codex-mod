@@ -13,6 +13,7 @@ impl SettingsSection {
             SettingsSection::Updates => "Updates",
             SettingsSection::Accounts => "Accounts",
             SettingsSection::Agents => "Agents",
+            SettingsSection::Memories => "Memories",
             SettingsSection::AutoDrive => "Auto Drive",
             SettingsSection::Review => "Review",
             SettingsSection::Validation => "Validation",
@@ -45,6 +46,7 @@ impl SettingsSection {
                 "Configure account switching behavior under rate and usage limits."
             }
             SettingsSection::Agents => "Configure linked agents and default task permissions.",
+            SettingsSection::Memories => "Enable upstream-style memory prompt behavior.",
             SettingsSection::AutoDrive => "Manage Auto Drive defaults for review and cadence.",
             SettingsSection::Review => "Adjust Auto Review and Auto Resolve automation for /review.",
             SettingsSection::Validation => "Toggle validation groups and tool availability.",
@@ -75,6 +77,7 @@ impl SettingsSection {
             SettingsSection::Updates => "Upgrade Codex and manage automatic updates.",
             SettingsSection::Accounts => "Account switching settings coming soon.",
             SettingsSection::Agents => "Agents configuration coming soon.",
+            SettingsSection::Memories => "Memories settings coming soon.",
             SettingsSection::AutoDrive => "Auto Drive controls coming soon.",
             SettingsSection::Review => "Adjust Auto Review and Auto Resolve automation for /review.",
             SettingsSection::Validation => "Toggle validation groups and tools.",
