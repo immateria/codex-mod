@@ -943,6 +943,30 @@ impl App<'_> {
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::RunMemoriesStatusLoad { target } => {
+                    let code_home = self.config.code_home.clone();
+                    let global = self.config.global_memories.clone();
+                    let profile = self.config.active_profile_memories.clone();
+                    let project = self.config.project_memories.clone();
+                    let tx = self.app_event_tx.clone();
+                    tokio::spawn(async move {
+                        let result = code_core::load_memories_status(
+                            &code_home,
+                            global.as_ref(),
+                            profile.as_ref(),
+                            project.as_ref(),
+                        )
+                        .await
+                        .map_err(|err| err.to_string());
+                        tx.send(AppEvent::MemoriesStatusLoaded { target, result });
+                    });
+                }
+                AppEvent::MemoriesStatusLoaded { target, result } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.on_memories_status_loaded(target, result);
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::RunMemoriesArtifactsAction { action } => {
                     let code_home = self.config.code_home.clone();
                     let settings = self.config.memories.clone();
@@ -981,6 +1005,9 @@ impl App<'_> {
                             Err(message) => widget.flash_footer_notice(message),
                         }
                     }
+                    self.app_event_tx.send(AppEvent::RunMemoriesStatusLoad {
+                        target: crate::app_event::MemoriesStatusLoadTarget::RefreshCacheOnly,
+                    });
                     self.schedule_redraw();
                 }
                 AppEvent::SetNetworkProxySettings(settings) => {

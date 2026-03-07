@@ -2474,24 +2474,12 @@ impl ChatWidget<'_> {
             "" | "settings" => {
                 self.show_settings_overlay(Some(SettingsSection::Memories));
             }
-            "status" => match code_core::get_memories_status(
-                &self.config.code_home,
-                self.config.global_memories.as_ref(),
-                self.config.active_profile_memories.as_ref(),
-                self.config.project_memories.as_ref(),
-            ) {
-                Ok(status) => {
-                    self.history_push_plain_paragraphs(
-                        crate::history::state::PlainMessageKind::Notice,
-                        Self::format_memories_status_report(&status),
-                    );
-                }
-                Err(err) => {
-                    self.history_push_plain_state(history_cell::new_error_event(format!(
-                        "Failed to read memories status: {err}",
-                    )));
-                }
-            },
+            "status" => {
+                self.flash_footer_notice("Loading memories status…".to_string());
+                self.app_event_tx.send(AppEvent::RunMemoriesStatusLoad {
+                    target: crate::app_event::MemoriesStatusLoadTarget::SlashCommand,
+                });
+            }
             "refresh" => {
                 self.flash_footer_notice("Refreshing memories artifacts…".to_string());
                 self.app_event_tx.send(AppEvent::RunMemoriesArtifactsAction {
@@ -2512,7 +2500,35 @@ impl ChatWidget<'_> {
         }
     }
 
-    fn format_memories_status_report(status: &code_core::MemoriesStatus) -> Vec<String> {
+    pub(crate) fn on_memories_status_loaded(
+        &mut self,
+        target: crate::app_event::MemoriesStatusLoadTarget,
+        result: Result<code_core::MemoriesStatus, String>,
+    ) {
+        match target {
+            crate::app_event::MemoriesStatusLoadTarget::SlashCommand => match result {
+                Ok(status) => {
+                    self.history_push_plain_paragraphs(
+                        crate::history::state::PlainMessageKind::Notice,
+                        Self::format_memories_status_report(&status),
+                    );
+                }
+                Err(err) => {
+                    self.history_push_plain_state(history_cell::new_error_event(format!(
+                        "Failed to read memories status: {err}",
+                    )));
+                }
+            },
+            crate::app_event::MemoriesStatusLoadTarget::SettingsView => {
+                if let Err(err) = result {
+                    self.flash_footer_notice(format!("Failed to load memories status: {err}"));
+                }
+            }
+            crate::app_event::MemoriesStatusLoadTarget::RefreshCacheOnly => {}
+        }
+    }
+
+    pub(crate) fn format_memories_status_report(status: &code_core::MemoriesStatus) -> Vec<String> {
         fn on_off(value: bool) -> &'static str {
             if value { "on" } else { "off" }
         }

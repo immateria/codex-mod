@@ -337,6 +337,9 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn build_memories_settings_view(&self) -> MemoriesSettingsView {
+        self.app_event_tx.send(crate::app_event::AppEvent::RunMemoriesStatusLoad {
+            target: crate::app_event::MemoriesStatusLoadTarget::SettingsView,
+        });
         MemoriesSettingsView::new(
             self.config.code_home.clone(),
             self.config.cwd.clone(),

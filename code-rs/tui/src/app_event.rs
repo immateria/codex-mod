@@ -52,6 +52,13 @@ pub(crate) enum MemoriesArtifactsAction {
     Refresh,
     Clear,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MemoriesStatusLoadTarget {
+    SlashCommand,
+    SettingsView,
+    RefreshCacheOnly,
+}
 use crate::history::state::HistorySnapshot;
 use std::time::Duration;
 use uuid::Uuid;
@@ -780,6 +787,13 @@ pub(crate) enum AppEvent {
     SetMemoriesSettings {
         scope: MemoriesSettingsScope,
         settings: MemoriesToml,
+    },
+    RunMemoriesStatusLoad {
+        target: MemoriesStatusLoadTarget,
+    },
+    MemoriesStatusLoaded {
+        target: MemoriesStatusLoadTarget,
+        result: Result<code_core::MemoriesStatus, String>,
     },
     RunMemoriesArtifactsAction {
         action: MemoriesArtifactsAction,

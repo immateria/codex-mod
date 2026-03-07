@@ -3762,6 +3762,123 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn memories_status_command_dispatches_async_status_load() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        chat.handle_memories_command("status".to_string());
+    });
+
+    let mut saw_status_load = false;
+    for event in harness.drain_events() {
+        if let AppEvent::RunMemoriesStatusLoad { target } = event {
+            assert_eq!(
+                target,
+                crate::app_event::MemoriesStatusLoadTarget::SlashCommand
+            );
+            saw_status_load = true;
+        }
+    }
+
+    assert!(saw_status_load, "expected RunMemoriesStatusLoad event");
+    }
+
+    fn sample_memories_status() -> code_core::MemoriesStatus {
+    code_core::MemoriesStatus {
+        artifacts: code_core::MemoriesArtifactsStatus {
+            memory_root: PathBuf::from("/tmp/code-home/memories"),
+            summary: code_core::MemoryArtifactStatus {
+                exists: true,
+                modified_at: Some("2026-03-07T12:00:00Z".to_string()),
+            },
+            raw_memories: code_core::MemoryArtifactStatus {
+                exists: true,
+                modified_at: Some("2026-03-07T12:00:00Z".to_string()),
+            },
+            rollout_summaries: code_core::MemoryArtifactStatus {
+                exists: true,
+                modified_at: Some("2026-03-07T12:00:00Z".to_string()),
+            },
+            rollout_summary_count: 2,
+        },
+        db: code_core::MemoriesDbStatus {
+            db_exists: true,
+            thread_count: 3,
+            stage1_output_count: 2,
+            pending_stage1_count: 1,
+            running_stage1_count: 0,
+            artifact_job_running: false,
+            artifact_dirty: true,
+            last_artifact_build_at: Some("2026-03-07T12:00:00Z".to_string()),
+        },
+        effective: code_core::config_types::MemoriesConfig::default(),
+        sources: code_core::MemoriesResolvedSources {
+            no_memories_if_mcp_or_web_search: code_core::MemoriesSettingSource::Default,
+            generate_memories: code_core::MemoriesSettingSource::Global,
+            use_memories: code_core::MemoriesSettingSource::Profile,
+            max_raw_memories_for_consolidation: code_core::MemoriesSettingSource::Default,
+            max_rollout_age_days: code_core::MemoriesSettingSource::Default,
+            max_rollouts_per_startup: code_core::MemoriesSettingSource::Default,
+            min_rollout_idle_hours: code_core::MemoriesSettingSource::Default,
+        },
+    }
+    }
+
+    #[test]
+    fn memories_status_loaded_success_renders_history_notice() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        chat.on_memories_status_loaded(
+            crate::app_event::MemoriesStatusLoadTarget::SlashCommand,
+            Ok(sample_memories_status()),
+        );
+    });
+
+    let saw_report = harness.with_chat(|chat| {
+        chat.history_cells.iter().any(|cell| {
+            let rendered = cell
+                .display_lines_trimmed()
+                .iter()
+                .map(|line| line.to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            rendered.contains("Memories root:")
+                && rendered.contains("SQLite: present")
+                && rendered.contains("artifact_dirty=on")
+        })
+    });
+
+    assert!(saw_report, "expected slash-command memories status report in history");
+    }
+
+    #[test]
+    fn memories_status_loaded_failure_renders_error_event() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        chat.on_memories_status_loaded(
+            crate::app_event::MemoriesStatusLoadTarget::SlashCommand,
+            Err("boom".to_string()),
+        );
+    });
+
+    let saw_error = harness.with_chat(|chat| {
+        chat.history_cells.iter().any(|cell| {
+            cell.display_lines_trimmed().iter().any(|line| {
+                line.to_string()
+                    .contains("Failed to read memories status: boom")
+            })
+        })
+    });
+
+    assert!(saw_error, "expected slash-command memories status error in history");
+    }
+
+    #[test]
     fn settings_overlay_focus_allows_sidebar_navigation_without_getting_stuck() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();

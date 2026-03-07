@@ -182,8 +182,8 @@ impl MemoriesSettingsView {
         )
     }
 
-    fn current_status(&self) -> Result<code_core::MemoriesStatus, String> {
-        code_core::get_memories_status(
+    fn current_status(&self) -> Result<Option<code_core::MemoriesStatus>, String> {
+        code_core::get_cached_memories_status(
             &self.code_home,
             Some(&self.global_settings),
             self.profile_settings.as_ref(),
@@ -403,7 +403,7 @@ impl MemoriesSettingsView {
     fn render_header_lines(&self) -> Vec<Line<'static>> {
         let dim = Style::default().fg(colors::text_dim());
         match self.current_status() {
-            Ok(status) => {
+            Ok(Some(status)) => {
                 let mut lines = vec![
                     Line::from(Span::styled(
                         format!(
@@ -455,6 +455,20 @@ impl MemoriesSettingsView {
                         dim,
                     )),
                 ];
+                if self.active_profile.is_none() {
+                    lines.push(Line::from(Span::styled(
+                        "Active profile scope is unavailable in this session.",
+                        dim,
+                    )));
+                }
+                lines.push(Line::from(""));
+                lines
+            }
+            Ok(None) => {
+                let mut lines = vec![Line::from(Span::styled(
+                    "Memories status loading…",
+                    dim,
+                ))];
                 if self.active_profile.is_none() {
                     lines.push(Line::from(Span::styled(
                         "Active profile scope is unavailable in this session.",
@@ -1198,6 +1212,7 @@ mod tests {
     use std::sync::mpsc::channel;
 
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use tempfile::tempdir;
 
     use super::MemoriesSettingsView;
     use crate::app_event::{AppEvent, MemoriesSettingsScope};
@@ -1264,5 +1279,64 @@ mod tests {
             }
             other => panic!("expected SetMemoriesSettings event, got: {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn header_shows_loading_when_db_exists_but_status_snapshot_is_missing() {
+        let (tx, _rx) = channel();
+        let sender = AppEventSender::new(tx);
+        let temp = tempdir().expect("tempdir");
+        tokio::fs::write(temp.path().join("memories_state.sqlite"), "")
+            .await
+            .expect("create db marker");
+        let view = MemoriesSettingsView::new(
+            temp.path().to_path_buf(),
+            PathBuf::from("/tmp/project"),
+            Some("work".to_string()),
+            None,
+            None,
+            None,
+            sender,
+        );
+
+        let rendered = view
+            .render_header_lines()
+            .into_iter()
+            .map(|line| line.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(rendered.contains("Memories status loading"));
+    }
+
+    #[tokio::test]
+    async fn header_shows_cached_snapshot_after_status_load() {
+        let (tx, _rx) = channel();
+        let sender = AppEventSender::new(tx);
+        let temp = tempdir().expect("tempdir");
+        tokio::fs::write(temp.path().join("memories_state.sqlite"), "")
+            .await
+            .expect("create db marker");
+        code_core::load_memories_status(temp.path(), None, None, None)
+            .await
+            .expect("seed memories status cache");
+
+        let view = MemoriesSettingsView::new(
+            temp.path().to_path_buf(),
+            PathBuf::from("/tmp/project"),
+            Some("work".to_string()),
+            None,
+            None,
+            None,
+            sender,
+        );
+
+        let rendered = view
+            .render_header_lines()
+            .into_iter()
+            .map(|line| line.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(!rendered.contains("Memories status loading"));
+        assert!(rendered.contains("SQLite: present"));
     }
 }
