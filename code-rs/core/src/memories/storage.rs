@@ -42,11 +42,11 @@ pub(crate) fn to_state_memory_mode(mode: SessionMemoryMode) -> StateMemoryMode {
 pub(crate) async fn refresh_memory_artifacts_from_catalog(
     code_home: &Path,
     settings: &MemoriesConfig,
-    force_artifact_build: bool,
+    force_refresh: bool,
 ) -> io::Result<()> {
     // This is still an in-process sequential orchestrator over DB-backed
-    // leases, not a background worker. The lease/state model exists so the
-    // storage layer can grow into a fuller pipeline without changing callers.
+    // leases, not a background worker. A forced refresh also bypasses any
+    // stage1 retry backoff so explicit user actions retry immediately.
     let state = super::open_memories_state(code_home).await?;
     let threads = load_memory_threads(code_home).await?;
     state
@@ -60,6 +60,7 @@ pub(crate) async fn refresh_memory_artifacts_from_catalog(
             settings.max_rollout_age_days,
             settings.min_rollout_idle_hours,
             crate::rollout::INTERACTIVE_SESSION_SOURCES,
+            force_refresh,
         )
         .await
         .map_err(io::Error::other)?;
@@ -82,7 +83,7 @@ pub(crate) async fn refresh_memory_artifacts_from_catalog(
         }
     }
 
-    maybe_build_artifacts_from_state(code_home, settings, &state, force_artifact_build).await
+    maybe_build_artifacts_from_state(code_home, settings, &state, force_refresh).await
 }
 
 async fn load_memory_threads(code_home: &Path) -> io::Result<Vec<MemoryThread>> {
@@ -710,6 +711,7 @@ mod tests {
                 settings.max_rollout_age_days,
                 settings.min_rollout_idle_hours,
                 crate::rollout::INTERACTIVE_SESSION_SOURCES,
+                false,
             )
             .await
             .map_err(io::Error::other)?;
@@ -803,6 +805,76 @@ mod tests {
         assert_eq!(file_names.len(), 1);
         assert!(file_names[0].ends_with(".md"));
         assert_ne!(file_names[0], "stale.md");
+    }
+
+    #[tokio::test]
+    async fn manual_refresh_bypasses_stage1_retry_backoff() {
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        let session_id = Uuid::parse_str("0194f5a6-89ab-7cde-8123-456789abcdef").expect("uuid");
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let meta_at = now - chrono::TimeDelta::hours(6);
+        let user_at = now - chrono::TimeDelta::hours(5);
+        let last_event_at = user_at.to_rfc3339();
+        let rollout_rel_path = rollout_rel_path(session_id, meta_at);
+
+        let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
+        let mut entry = make_entry(session_id, SessionSource::Cli, &last_event_at, false, false, None);
+        entry.rollout_path = rollout_rel_path.clone();
+        catalog.entries.insert(session_id, entry);
+        catalog.save().expect("save catalog");
+
+        let settings = MemoriesConfig {
+            max_raw_memories_for_consolidation: 8,
+            max_rollout_age_days: 60,
+            max_rollouts_per_startup: 8,
+            min_rollout_idle_hours: 0,
+            ..MemoriesConfig::default()
+        };
+
+        super::refresh_memory_artifacts_from_catalog(code_home, &settings, false)
+            .await
+            .expect("initial refresh completes despite stage1 failure");
+
+        let state = MemoriesState::open(code_home).await.expect("open state");
+        let status = state
+            .status(crate::rollout::INTERACTIVE_SESSION_SOURCES)
+            .await
+            .expect("status after failed stage1");
+        assert_eq!(status.stage1_output_count, 0);
+        assert_eq!(status.pending_stage1_count, 0);
+
+        let written_rollout_path = write_rollout_with_user_messages(
+            code_home,
+            session_id,
+            meta_at,
+            &[(user_at, "remember this")],
+        )
+            .await
+            .expect("write rollout");
+        assert_eq!(written_rollout_path, rollout_rel_path);
+        let mut catalog = SessionCatalog::load(code_home).expect("reload catalog");
+        let entry = catalog
+            .entries
+            .get_mut(&session_id)
+            .expect("catalog entry after failure");
+        entry.last_user_snippet = Some("remember this".to_string());
+        catalog.save().expect("save catalog snippet");
+
+        super::refresh_memory_artifacts_from_catalog(code_home, &settings, true)
+            .await
+            .expect("manual refresh bypasses backoff");
+
+        let status = state
+            .status(crate::rollout::INTERACTIVE_SESSION_SOURCES)
+            .await
+            .expect("status after manual refresh");
+        assert_eq!(status.stage1_output_count, 1);
+
+        let summary = tokio::fs::read_to_string(code_home.join("memories").join("memory_summary.md"))
+            .await
+            .expect("read memory summary");
+        assert!(summary.contains("remember this"));
     }
 
     #[tokio::test]
