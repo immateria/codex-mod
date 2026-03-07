@@ -1,0 +1,26 @@
+[package]
+edition = "2024"
+name = "code-memories-state"
+version = { workspace = true }
+
+[lib]
+name = "code_memories_state"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+code-protocol = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+sqlx = { workspace = true }
+tokio = { workspace = true, features = ["fs", "rt-multi-thread", "macros", "time"] }
+tracing = { workspace = true }
+uuid = { workspace = true, features = ["serde", "v4"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }

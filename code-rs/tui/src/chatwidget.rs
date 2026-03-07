@@ -2468,6 +2468,139 @@ impl ChatWidget<'_> {
         self.show_settings_overlay(Some(SettingsSection::Limits));
     }
 
+    pub(crate) fn handle_memories_command(&mut self, args: String) {
+        let trimmed = args.trim();
+        match trimmed {
+            "" | "settings" => {
+                self.show_settings_overlay(Some(SettingsSection::Memories));
+            }
+            "status" => match code_core::get_memories_status(
+                &self.config.code_home,
+                self.config.global_memories.as_ref(),
+                self.config.active_profile_memories.as_ref(),
+                self.config.project_memories.as_ref(),
+            ) {
+                Ok(status) => {
+                    self.history_push_plain_paragraphs(
+                        crate::history::state::PlainMessageKind::Notice,
+                        Self::format_memories_status_report(&status),
+                    );
+                }
+                Err(err) => {
+                    self.history_push_plain_state(history_cell::new_error_event(format!(
+                        "Failed to read memories status: {err}",
+                    )));
+                }
+            },
+            "refresh" => {
+                self.flash_footer_notice("Refreshing memories artifacts…".to_string());
+                self.app_event_tx.send(AppEvent::RunMemoriesArtifactsAction {
+                    action: crate::app_event::MemoriesArtifactsAction::Refresh,
+                });
+            }
+            "clear" => {
+                self.flash_footer_notice("Clearing generated memories artifacts…".to_string());
+                self.app_event_tx.send(AppEvent::RunMemoriesArtifactsAction {
+                    action: crate::app_event::MemoriesArtifactsAction::Clear,
+                });
+            }
+            _ => {
+                self.history_push_plain_state(history_cell::new_error_event(
+                    "Usage: /memories [status|refresh|clear|settings]".to_string(),
+                ));
+            }
+        }
+    }
+
+    fn format_memories_status_report(status: &code_core::MemoriesStatus) -> Vec<String> {
+        fn on_off(value: bool) -> &'static str {
+            if value { "on" } else { "off" }
+        }
+
+        fn source_label(source: code_core::MemoriesSettingSource) -> &'static str {
+            match source {
+                code_core::MemoriesSettingSource::Default => "default",
+                code_core::MemoriesSettingSource::Global => "global",
+                code_core::MemoriesSettingSource::Profile => "profile",
+                code_core::MemoriesSettingSource::Project => "project",
+            }
+        }
+
+        fn artifact_label(
+            name: &str,
+            artifact: &code_core::MemoryArtifactStatus,
+        ) -> String {
+            let modified = artifact
+                .modified_at
+                .as_deref()
+                .unwrap_or("never");
+            format!(
+                "{name}: {} ({modified})",
+                if artifact.exists { "present" } else { "missing" }
+            )
+        }
+
+        vec![
+            format!(
+                "Memories root: {}",
+                status.artifacts.memory_root.display()
+            ),
+            format!(
+                "Effective: generate={} ({}) · use={} ({}) · skip_mcp_web={} ({})",
+                on_off(status.effective.generate_memories),
+                source_label(status.sources.generate_memories),
+                on_off(status.effective.use_memories),
+                source_label(status.sources.use_memories),
+                on_off(status.effective.no_memories_if_mcp_or_web_search),
+                source_label(status.sources.no_memories_if_mcp_or_web_search),
+            ),
+            format!(
+                "Limits: retained={} ({}) · age={}d ({}) · scan={} ({}) · idle={}h ({})",
+                status.effective.max_raw_memories_for_consolidation,
+                source_label(status.sources.max_raw_memories_for_consolidation),
+                status.effective.max_rollout_age_days,
+                source_label(status.sources.max_rollout_age_days),
+                status.effective.max_rollouts_per_startup,
+                source_label(status.sources.max_rollouts_per_startup),
+                status.effective.min_rollout_idle_hours,
+                source_label(status.sources.min_rollout_idle_hours),
+            ),
+            artifact_label("memory_summary.md", &status.artifacts.summary),
+            artifact_label("raw_memories.md", &status.artifacts.raw_memories),
+            format!(
+                "rollout_summaries/: {} ({}) · count={}",
+                if status.artifacts.rollout_summaries.exists {
+                    "present"
+                } else {
+                    "missing"
+                },
+                status
+                    .artifacts
+                    .rollout_summaries
+                    .modified_at
+                    .as_deref()
+                    .unwrap_or("never"),
+                status.artifacts.rollout_summary_count,
+            ),
+            format!(
+                "SQLite: {} · threads={} · stage1={} · pending={} · running={} · artifact_dirty={} · artifact_job={}{}",
+                if status.db.db_exists { "present" } else { "missing" },
+                status.db.thread_count,
+                status.db.stage1_output_count,
+                status.db.pending_stage1_count,
+                status.db.running_stage1_count,
+                on_off(status.db.artifact_dirty),
+                on_off(status.db.artifact_job_running),
+                status
+                    .db
+                    .last_artifact_build_at
+                    .as_deref()
+                    .map(|value| format!(" · last_build={value}"))
+                    .unwrap_or_default(),
+            ),
+        ]
+    }
+
     pub(crate) fn handle_login_command(&mut self) {
         self.show_login_accounts_view();
     }
@@ -4526,51 +4659,6 @@ fi\n\
         self.request_redraw();
     }
 
-    pub(crate) fn set_memories_enabled(&mut self, enabled: bool) {
-        if self.config.memories_enabled == enabled {
-            return;
-        }
-        self.config.memories_enabled = enabled;
-
-        let code_home = self.config.code_home.clone();
-        let profile = self.config.active_profile.clone();
-        tokio::spawn(async move {
-            if let Err(err) = code_core::config_edit::persist_overrides(
-                &code_home,
-                profile.as_deref(),
-                &[(&["features", "memories"], if enabled { "true" } else { "false" })],
-            )
-            .await
-            {
-                tracing::warn!("failed to persist memories setting: {err}");
-            }
-        });
-
-        let notice = if enabled {
-            "Memories enabled (applies on next session)"
-        } else {
-            "Memories disabled (applies on next session)"
-        };
-        self.bottom_pane.flash_footer_notice(notice.to_string());
-
-        let should_refresh_memories = matches!(
-            self.settings
-                .overlay
-                .as_ref()
-                .map(settings_overlay::SettingsOverlayView::active_section),
-            Some(SettingsSection::Memories)
-        );
-        if should_refresh_memories {
-            let content = self.build_memories_settings_content();
-            if let Some(overlay) = self.settings.overlay.as_mut() {
-                overlay.set_memories_content(content);
-            }
-        }
-
-        self.refresh_settings_overview_rows();
-        self.request_redraw();
-    }
-
     pub(crate) fn set_api_key_fallback_on_all_accounts_limited(&mut self, enabled: bool) {
         if self.config.api_key_fallback_on_all_accounts_limited == enabled {
             return;
@@ -4828,6 +4916,7 @@ fi\n\
             js_repl_runtime_path: self.config.js_repl_runtime_path.clone(),
             js_repl_runtime_args: self.config.js_repl_runtime_args.clone(),
             js_repl_node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
+            memories: self.config.memories.clone(),
             collaboration_mode: self.current_collaboration_mode(),
         })
     }

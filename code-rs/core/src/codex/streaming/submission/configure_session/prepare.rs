@@ -33,6 +33,7 @@ impl Runner<'_> {
             js_repl_runtime_path,
             js_repl_runtime_args,
             js_repl_node_module_dirs,
+            memories,
             collaboration_mode,
         } = req;
 
@@ -92,6 +93,7 @@ impl Runner<'_> {
         updated_config.js_repl_runtime_path = js_repl_runtime_path;
         updated_config.js_repl_runtime_args = js_repl_runtime_args;
         updated_config.js_repl_node_module_dirs = js_repl_node_module_dirs;
+        updated_config.memories = memories;
         updated_config.shell_style_profiles = shell_style_profiles;
 
         updated_config.network_proxy = match updated_config.network.as_ref().filter(|net| net.enabled)

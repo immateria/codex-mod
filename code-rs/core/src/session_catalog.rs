@@ -11,7 +11,7 @@ use tokio::task;
 use tokio::sync::Mutex as AsyncMutex;
 use uuid::Uuid;
 
-use crate::rollout::catalog::{self as rollout_catalog, SessionIndexEntry};
+use crate::rollout::catalog::{self as rollout_catalog, SessionIndexEntry, SessionMemoryMode};
 use crate::rollout::{ARCHIVED_SESSIONS_SUBDIR, SESSIONS_SUBDIR};
 
 /// Query parameters for catalog lookups.
@@ -131,6 +131,22 @@ impl SessionCatalog {
         let updated = catalog
             .set_nickname(session_id, nickname)
             .context("failed to update session nickname")?;
+        if updated {
+            let mut guard = self.cache.lock().await;
+            *guard = Some(catalog);
+        }
+        Ok(updated)
+    }
+
+    pub async fn set_memory_mode(
+        &self,
+        session_id: Uuid,
+        memory_mode: SessionMemoryMode,
+    ) -> Result<bool> {
+        let mut catalog = self.load_inner().await?;
+        let updated = catalog
+            .set_memory_mode(session_id, memory_mode)
+            .context("failed to update session memory mode")?;
         if updated {
             let mut guard = self.cache.lock().await;
             *guard = Some(catalog);

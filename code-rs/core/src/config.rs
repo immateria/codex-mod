@@ -17,6 +17,7 @@ use crate::config_types::ValidationConfig;
 use crate::config_types::McpServerConfig;
 use crate::config_types::MemoriesConfig;
 use crate::config_types::MemoriesToml;
+use crate::config_types::resolve_memories_config;
 use crate::config_types::Notifications;
 use crate::config_types::OtelConfig;
 use crate::config_types::OtelConfigToml;
@@ -103,12 +104,16 @@ pub use sources::{
     set_mcp_server_scheduling,
     set_mcp_server_tool_enabled,
     set_mcp_tool_scheduling_override,
+    set_global_memories_settings,
+    set_memories_settings,
     set_network_proxy_settings,
     set_exec_limits_settings,
     set_js_repl_settings,
     set_planning_model,
     set_project_access_mode,
+    set_project_memories_settings,
     set_project_trusted,
+    set_profile_memories_settings,
     set_review_model,
     set_review_resolve_model,
     set_tui_alternate_screen,
@@ -527,10 +532,14 @@ pub struct Config {
     pub skills_enabled: bool,
     /// Experimental: prevent idle sleep while a turn is running (platform dependent).
     pub prevent_idle_sleep: bool,
-    /// Upstream-aligned memory feature gate.
-    pub memories_enabled: bool,
-    /// Upstream-aligned memories runtime settings.
+    /// Filesystem-backed memories runtime settings.
     pub memories: MemoriesConfig,
+    /// Raw global `[memories]` table, preserved for scope-aware editing in the TUI.
+    pub global_memories: Option<MemoriesToml>,
+    /// Raw memories override from the active profile, if any.
+    pub active_profile_memories: Option<MemoriesToml>,
+    /// Raw memories override from the current project, if any.
+    pub project_memories: Option<MemoriesToml>,
     /// Experimental: enable JSON-based environment context snapshots and deltas (phase gated).
     pub env_ctx_v2: bool,
     /// Retention policy for env_ctx_v2 timeline management (gated by env_ctx_v2).
@@ -977,6 +986,8 @@ pub struct ProjectConfig {
     pub approval_policy: Option<AskForApproval>,
     pub sandbox_mode: Option<SandboxMode>,
     #[serde(default)]
+    pub memories: Option<MemoriesToml>,
+    #[serde(default)]
     pub always_allow_commands: Option<Vec<AllowedCommand>>,
     #[serde(default)]
     pub hooks: Vec<ProjectHookConfig>,
@@ -1325,7 +1336,8 @@ pub struct FeaturesToml {
     /// Prevent the machine from idling to sleep while a turn is running.
     #[serde(default)]
     pub prevent_idle_sleep: Option<bool>,
-    /// Enable upstream-style memories behavior.
+    /// Legacy memories feature gate retained for compatibility with older
+    /// configs. Runtime memories behavior is controlled by `[memories]`.
     #[serde(default)]
     pub memories: Option<bool>,
 }
@@ -1680,12 +1692,23 @@ impl Config {
             .as_ref()
             .and_then(|features| features.skills)
             .unwrap_or(true);
-        let memories_enabled = cfg
+        let global_memories = cfg.memories.clone();
+        let active_profile_memories = config_profile.memories.clone();
+        let project_memories = project_override.and_then(|project| project.memories.clone());
+        let mut memories = resolve_memories_config(
+            global_memories.as_ref(),
+            active_profile_memories.as_ref(),
+            project_memories.as_ref(),
+        );
+        if cfg
             .features
             .as_ref()
             .and_then(|features| features.memories)
-            .unwrap_or(false);
-        let memories = cfg.memories.clone().unwrap_or_default().into();
+            == Some(false)
+        {
+            memories.generate_memories = false;
+            memories.use_memories = false;
+        }
 
         let prevent_idle_sleep = cfg
             .features
@@ -2143,8 +2166,10 @@ impl Config {
             include_view_image_tool: include_view_image_tool_flag,
             skills_enabled,
             prevent_idle_sleep,
-            memories_enabled,
             memories,
+            global_memories,
+            active_profile_memories,
+            project_memories,
             env_ctx_v2: env_ctx_v2_flag,
             retention: crate::config_types::RetentionConfig::default(),
             responses_originator_header,

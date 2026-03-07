@@ -86,6 +86,7 @@ pub enum RolloutRecorderParams {
 enum RolloutCmd {
     AddItems(Vec<RolloutItem>),
     SetSnapshot(serde_json::Value),
+    SetMemoryMode(crate::rollout::catalog::SessionMemoryMode),
     Shutdown { ack: oneshot::Sender<()> },
 }
 
@@ -95,6 +96,7 @@ struct CatalogUpdateState {
     session_id: ThreadId,
     rollout_path: PathBuf,
     last_timestamp: String,
+    memory_mode: crate::rollout::catalog::SessionMemoryMode,
 }
 
 impl RolloutRecorderParams {
@@ -203,6 +205,11 @@ impl RolloutRecorder {
             session_id: meta.id,
             rollout_path: rollout_path.clone(),
             last_timestamp: meta.timestamp.clone(),
+            memory_mode: if config.memories.generate_memories {
+                crate::rollout::catalog::SessionMemoryMode::Enabled
+            } else {
+                crate::rollout::catalog::SessionMemoryMode::Disabled
+            },
         });
 
         // A reasonably-sized bounded channel. If the buffer fills up the send
@@ -292,6 +299,16 @@ impl RolloutRecorder {
             .send(RolloutCmd::SetSnapshot(snapshot))
             .await
             .map_err(|e| IoError::other(format!("failed to queue history snapshot: {e}")))
+    }
+
+    pub(crate) async fn set_memory_mode(
+        &self,
+        memory_mode: crate::rollout::catalog::SessionMemoryMode,
+    ) -> std::io::Result<()> {
+        self.tx
+            .send(RolloutCmd::SetMemoryMode(memory_mode))
+            .await
+            .map_err(|e| IoError::other(format!("failed to queue memory mode update: {e}")))
     }
 
     /// No-op compatibility shim for older APIs expecting a state snapshot.
@@ -529,6 +546,7 @@ async fn rollout_writer(
                 &state.rollout_path,
                 state.session_id.into(),
                 &state.last_timestamp,
+                Some(state.memory_mode),
             )
             .await
             {
@@ -556,6 +574,7 @@ async fn rollout_writer(
                         &state.rollout_path,
                         state.session_id.into(),
                         &state.last_timestamp,
+                        Some(state.memory_mode),
                     )
                     .await
                     {
@@ -565,6 +584,20 @@ async fn rollout_writer(
             RolloutCmd::SetSnapshot(snapshot) => {
                 if let Err(err) = write_snapshot(&snapshot_path, &snapshot).await {
                     warn!("failed to persist history snapshot: {err}");
+                }
+            }
+            RolloutCmd::SetMemoryMode(memory_mode) => {
+                if let Some(ref mut state) = catalog_state {
+                    state.memory_mode = memory_mode;
+                    if let Err(err) = super::catalog::update_catalog_memory_mode(
+                        &state.code_home,
+                        state.session_id.into(),
+                        memory_mode,
+                    )
+                    .await
+                    {
+                        warn!("failed to update session catalog memory mode: {err}");
+                    }
                 }
             }
             RolloutCmd::Shutdown { ack } => {

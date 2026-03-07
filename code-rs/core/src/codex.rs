@@ -1054,6 +1054,7 @@ impl Codex {
                 js_repl_runtime_path: config.js_repl_runtime_path.clone(),
                 js_repl_runtime_args: config.js_repl_runtime_args.clone(),
                 js_repl_node_module_dirs: config.js_repl_node_module_dirs.clone(),
+                memories: config.memories.clone(),
                 collaboration_mode: crate::protocol::CollaborationModeKind::from_sandbox_policy(
                     &config.sandbox_policy,
                 ),

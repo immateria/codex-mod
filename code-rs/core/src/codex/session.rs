@@ -364,6 +364,7 @@ pub(crate) struct Session {
     pub(super) disable_response_storage: bool,
     pub(super) tools_config: ToolsConfig,
     pub(super) memories_config: crate::config_types::MemoriesConfig,
+    pub(super) memory_mode: Mutex<crate::rollout::catalog::SessionMemoryMode>,
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
     pub(super) exec_command_manager: Arc<crate::exec_command::SessionManager>,
     pub(super) js_repl_default_runtime: crate::config::JsReplRuntimeKindToml,
@@ -792,6 +793,59 @@ impl Session {
 
     pub(crate) fn session_uuid(&self) -> Uuid {
         self.id
+    }
+
+    pub(crate) fn maybe_mark_memories_polluted(&self, source: &'static str) {
+        if !self.memories_config.no_memories_if_mcp_or_web_search {
+            return;
+        }
+
+        {
+            let mut memory_mode = crate::codex::lock_or_panic!(self.memory_mode);
+            if *memory_mode != crate::rollout::catalog::SessionMemoryMode::Enabled {
+                return;
+            }
+            *memory_mode = crate::rollout::catalog::SessionMemoryMode::Polluted;
+        }
+
+        let session_id = self.id;
+        let code_home = self.client.code_home().to_path_buf();
+        let rollout = crate::codex::lock_or_panic!(self.rollout).clone();
+        tokio::spawn(async move {
+            if let Some(rollout) = rollout.as_ref() {
+                if let Err(err) = rollout
+                    .set_memory_mode(crate::rollout::catalog::SessionMemoryMode::Polluted)
+                    .await
+                {
+                    tracing::warn!("failed to persist polluted memory mode from {source}: {err}");
+                }
+                return;
+            }
+
+            let catalog = crate::session_catalog::SessionCatalog::new(code_home);
+            if let Err(err) = catalog
+                .set_memory_mode(
+                    session_id,
+                    crate::rollout::catalog::SessionMemoryMode::Polluted,
+                )
+                .await
+            {
+                tracing::warn!("failed to persist polluted memory mode from {source}: {err}");
+            }
+        });
+
+        let code_home = self.client.code_home().to_path_buf();
+        tokio::spawn(async move {
+            if let Err(err) = crate::memories::set_memories_session_mode(
+                &code_home,
+                session_id,
+                crate::rollout::catalog::SessionMemoryMode::Polluted,
+            )
+            .await
+            {
+                tracing::warn!("failed to mirror polluted memory mode into sqlite from {source}: {err}");
+            }
+        });
     }
 
     pub(crate) fn get_github_config(&self) -> Arc<RwLock<crate::config_types::GithubConfig>> {

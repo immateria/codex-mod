@@ -337,7 +337,15 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn build_memories_settings_view(&self) -> MemoriesSettingsView {
-        MemoriesSettingsView::new(self.app_event_tx.clone(), self.config.memories_enabled)
+        MemoriesSettingsView::new(
+            self.config.code_home.clone(),
+            self.config.cwd.clone(),
+            self.config.active_profile.clone(),
+            self.config.global_memories.clone(),
+            self.config.active_profile_memories.clone(),
+            self.config.project_memories.clone(),
+            self.app_event_tx.clone(),
+        )
     }
 
     pub(super) fn build_memories_settings_content(&self) -> MemoriesSettingsContent {
@@ -1106,8 +1114,10 @@ impl ChatWidget<'_> {
 
     pub(super) fn settings_summary_memories(&self) -> Option<String> {
         Some(format!(
-            "Memories: {}",
-            Self::on_off_label(self.config.memories_enabled)
+            "Generate: {} · Use: {} · Skip polluted: {}",
+            Self::on_off_label(self.config.memories.generate_memories),
+            Self::on_off_label(self.config.memories.use_memories),
+            Self::on_off_label(self.config.memories.no_memories_if_mcp_or_web_search),
         ))
     }
 

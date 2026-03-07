@@ -1485,6 +1485,7 @@ mod tests {
                 trust_level: Some("trusted".to_string()),
                 approval_policy: None,
                 sandbox_mode: None,
+                memories: None,
                 always_allow_commands: None,
                 hooks: vec![],
                 commands: vec![],

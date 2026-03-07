@@ -286,6 +286,16 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    pub(crate) fn apply_memories_settings(
+        &mut self,
+        settings: code_core::config_types::MemoriesConfig,
+    ) {
+        self.config.memories = settings;
+        self.submit_configure_session_for_current_settings();
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
     pub(crate) fn on_shell_persisted(&mut self, shell: Option<ShellConfig>) {
         if self.config.shell != shell {
             return;

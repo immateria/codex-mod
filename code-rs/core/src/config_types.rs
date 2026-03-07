@@ -22,82 +22,188 @@ pub const DEFAULT_OTEL_ENVIRONMENT: &str = "dev";
 pub const DEFAULT_MEMORIES_MAX_ROLLOUTS_PER_STARTUP: usize = 16;
 pub const DEFAULT_MEMORIES_MAX_ROLLOUT_AGE_DAYS: i64 = 30;
 pub const DEFAULT_MEMORIES_MIN_ROLLOUT_IDLE_HOURS: i64 = 6;
-pub const DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_GLOBAL: usize = 256;
-pub const DEFAULT_MEMORIES_MAX_UNUSED_DAYS: i64 = 30;
+pub const DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_CONSOLIDATION: usize = 256;
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct MemoriesToml {
+    pub no_memories_if_mcp_or_web_search: Option<bool>,
     pub generate_memories: Option<bool>,
     pub use_memories: Option<bool>,
+    pub max_raw_memories_for_consolidation: Option<usize>,
+    /// Deprecated alias kept for compatibility with earlier fork builds.
     pub max_raw_memories_for_global: Option<usize>,
-    pub max_unused_days: Option<i64>,
     pub max_rollout_age_days: Option<i64>,
     pub max_rollouts_per_startup: Option<usize>,
     pub min_rollout_idle_hours: Option<i64>,
-    /// Optional override for the model used by stage 1 extraction.
-    pub phase_1_model: Option<String>,
-    /// Optional override for the model used by stage 2 consolidation.
-    pub phase_2_model: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct MemoriesConfig {
+    pub no_memories_if_mcp_or_web_search: bool,
     pub generate_memories: bool,
     pub use_memories: bool,
-    pub max_raw_memories_for_global: usize,
-    pub max_unused_days: i64,
+    pub max_raw_memories_for_consolidation: usize,
     pub max_rollout_age_days: i64,
     pub max_rollouts_per_startup: usize,
     pub min_rollout_idle_hours: i64,
-    pub phase_1_model: Option<String>,
-    pub phase_2_model: Option<String>,
 }
 
 impl Default for MemoriesConfig {
     fn default() -> Self {
         Self {
+            no_memories_if_mcp_or_web_search: false,
             generate_memories: true,
             use_memories: true,
-            max_raw_memories_for_global: DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_GLOBAL,
-            max_unused_days: DEFAULT_MEMORIES_MAX_UNUSED_DAYS,
+            max_raw_memories_for_consolidation: DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_CONSOLIDATION,
             max_rollout_age_days: DEFAULT_MEMORIES_MAX_ROLLOUT_AGE_DAYS,
             max_rollouts_per_startup: DEFAULT_MEMORIES_MAX_ROLLOUTS_PER_STARTUP,
             min_rollout_idle_hours: DEFAULT_MEMORIES_MIN_ROLLOUT_IDLE_HOURS,
-            phase_1_model: None,
-            phase_2_model: None,
         }
     }
 }
 
 impl From<MemoriesToml> for MemoriesConfig {
     fn from(toml: MemoriesToml) -> Self {
-        let defaults = Self::default();
-        Self {
-            generate_memories: toml.generate_memories.unwrap_or(defaults.generate_memories),
-            use_memories: toml.use_memories.unwrap_or(defaults.use_memories),
-            max_raw_memories_for_global: toml
-                .max_raw_memories_for_global
-                .unwrap_or(defaults.max_raw_memories_for_global)
-                .min(4096),
-            max_unused_days: toml
-                .max_unused_days
-                .unwrap_or(defaults.max_unused_days)
-                .clamp(0, 365),
-            max_rollout_age_days: toml
-                .max_rollout_age_days
-                .unwrap_or(defaults.max_rollout_age_days)
-                .clamp(0, 365),
-            max_rollouts_per_startup: toml
-                .max_rollouts_per_startup
-                .unwrap_or(defaults.max_rollouts_per_startup)
-                .clamp(1, 1024),
-            min_rollout_idle_hours: toml
-                .min_rollout_idle_hours
-                .unwrap_or(defaults.min_rollout_idle_hours)
-                .clamp(0, 168),
-            phase_1_model: toml.phase_1_model,
-            phase_2_model: toml.phase_2_model,
+        let mut cfg = Self::default();
+        cfg.apply_toml(&toml);
+        cfg
+    }
+}
+
+impl MemoriesConfig {
+    pub fn apply_toml(&mut self, toml: &MemoriesToml) {
+        if let Some(value) = toml.no_memories_if_mcp_or_web_search {
+            self.no_memories_if_mcp_or_web_search = value;
         }
+        if let Some(value) = toml.generate_memories {
+            self.generate_memories = value;
+        }
+        if let Some(value) = toml.use_memories {
+            self.use_memories = value;
+        }
+        if let Some(value) = toml
+            .max_raw_memories_for_consolidation
+            .or(toml.max_raw_memories_for_global)
+        {
+            self.max_raw_memories_for_consolidation = value.clamp(1, 4096);
+        }
+        if let Some(value) = toml.max_rollout_age_days {
+            self.max_rollout_age_days = value.clamp(0, 365);
+        }
+        if let Some(value) = toml.max_rollouts_per_startup {
+            self.max_rollouts_per_startup = value.clamp(1, 1024);
+        }
+        if let Some(value) = toml.min_rollout_idle_hours {
+            self.min_rollout_idle_hours = value.clamp(0, 168);
+        }
+    }
+
+    pub fn to_toml(&self) -> MemoriesToml {
+        MemoriesToml {
+            no_memories_if_mcp_or_web_search: Some(self.no_memories_if_mcp_or_web_search),
+            generate_memories: Some(self.generate_memories),
+            use_memories: Some(self.use_memories),
+            max_raw_memories_for_consolidation: Some(self.max_raw_memories_for_consolidation),
+            max_raw_memories_for_global: None,
+            max_rollout_age_days: Some(self.max_rollout_age_days),
+            max_rollouts_per_startup: Some(self.max_rollouts_per_startup),
+            min_rollout_idle_hours: Some(self.min_rollout_idle_hours),
+        }
+    }
+
+    pub const fn is_default(&self) -> bool {
+        !self.no_memories_if_mcp_or_web_search
+            && self.generate_memories
+            && self.use_memories
+            && self.max_raw_memories_for_consolidation
+                == DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_CONSOLIDATION
+            && self.max_rollout_age_days == DEFAULT_MEMORIES_MAX_ROLLOUT_AGE_DAYS
+            && self.max_rollouts_per_startup == DEFAULT_MEMORIES_MAX_ROLLOUTS_PER_STARTUP
+            && self.min_rollout_idle_hours == DEFAULT_MEMORIES_MIN_ROLLOUT_IDLE_HOURS
+    }
+}
+
+impl MemoriesToml {
+    pub const fn is_empty(&self) -> bool {
+        self.no_memories_if_mcp_or_web_search.is_none()
+            && self.generate_memories.is_none()
+            && self.use_memories.is_none()
+            && self.max_raw_memories_for_consolidation.is_none()
+            && self.max_raw_memories_for_global.is_none()
+            && self.max_rollout_age_days.is_none()
+            && self.max_rollouts_per_startup.is_none()
+            && self.min_rollout_idle_hours.is_none()
+    }
+}
+
+pub fn resolve_memories_config(
+    global: Option<&MemoriesToml>,
+    profile: Option<&MemoriesToml>,
+    project: Option<&MemoriesToml>,
+) -> MemoriesConfig {
+    let mut resolved = MemoriesConfig::default();
+    if let Some(global) = global {
+        resolved.apply_toml(global);
+    }
+    if let Some(profile) = profile {
+        resolved.apply_toml(profile);
+    }
+    if let Some(project) = project {
+        resolved.apply_toml(project);
+    }
+    resolved
+}
+
+#[cfg(test)]
+mod memories_tests {
+    use super::MemoriesConfig;
+    use super::MemoriesToml;
+    use super::resolve_memories_config;
+
+    #[test]
+    fn deprecated_alias_maps_to_consolidation_limit() {
+        let config = MemoriesConfig::from(MemoriesToml {
+            max_raw_memories_for_global: Some(42),
+            ..MemoriesToml::default()
+        });
+        assert_eq!(config.max_raw_memories_for_consolidation, 42);
+    }
+
+    #[test]
+    fn canonical_name_wins_over_alias() {
+        let config = MemoriesConfig::from(MemoriesToml {
+            max_raw_memories_for_consolidation: Some(17),
+            max_raw_memories_for_global: Some(42),
+            ..MemoriesToml::default()
+        });
+        assert_eq!(config.max_raw_memories_for_consolidation, 17);
+    }
+
+    #[test]
+    fn resolve_memories_config_applies_scope_precedence() {
+        let global = MemoriesToml {
+            generate_memories: Some(true),
+            use_memories: Some(false),
+            max_raw_memories_for_consolidation: Some(32),
+            ..MemoriesToml::default()
+        };
+        let profile = MemoriesToml {
+            use_memories: Some(true),
+            no_memories_if_mcp_or_web_search: Some(true),
+            ..MemoriesToml::default()
+        };
+        let project = MemoriesToml {
+            max_raw_memories_for_consolidation: Some(9),
+            ..MemoriesToml::default()
+        };
+
+        let resolved =
+            resolve_memories_config(Some(&global), Some(&profile), Some(&project));
+
+        assert!(resolved.generate_memories);
+        assert!(resolved.use_memories);
+        assert!(resolved.no_memories_if_mcp_or_web_search);
+        assert_eq!(resolved.max_raw_memories_for_consolidation, 9);
     }
 }
 

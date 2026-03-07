@@ -76,6 +76,7 @@ pub(super) async fn handle_configure_session(
         js_repl_runtime_path,
         js_repl_runtime_args,
         js_repl_node_module_dirs,
+        memories,
         collaboration_mode,
     } = *params;
 
@@ -107,6 +108,7 @@ pub(super) async fn handle_configure_session(
         js_repl_runtime_path,
         js_repl_runtime_args,
         js_repl_node_module_dirs,
+        memories,
         collaboration_mode,
     };
 
@@ -153,6 +155,7 @@ struct ConfigureSessionRequest {
     js_repl_runtime_path: Option<PathBuf>,
     js_repl_runtime_args: Vec<String>,
     js_repl_node_module_dirs: Vec<PathBuf>,
+    memories: crate::config_types::MemoriesConfig,
     collaboration_mode: CollaborationModeKind,
 }
 

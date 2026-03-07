@@ -4,6 +4,8 @@ use crate::config_types::{
     AutoDriveSettings,
     CachedTerminalBackground,
     LimitsLayoutMode,
+    MemoriesConfig,
+    MemoriesToml,
     McpDispatchMode,
     McpServerConfig,
     McpServerSchedulingToml,
@@ -3814,6 +3816,179 @@ pub fn set_network_proxy_settings(
     let tmp_file = NamedTempFile::new_in(code_home)?;
     std::fs::write(tmp_file.path(), doc.to_string())?;
     tmp_file.persist(config_path)?;
+    Ok(())
+}
+
+/// Persist memories settings into `CODEX_HOME/config.toml` at `[memories]`.
+pub fn set_memories_settings(code_home: &Path, settings: &MemoriesConfig) -> anyhow::Result<()> {
+    set_global_memories_settings(code_home, Some(&settings.to_toml()))
+}
+
+fn load_config_doc(code_home: &Path) -> anyhow::Result<(DocumentMut, PathBuf)> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let doc = match std::fs::read_to_string(&read_path) {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
+        Err(e) => return Err(e.into()),
+    };
+    Ok((doc, config_path))
+}
+
+fn persist_config_doc(code_home: &Path, config_path: &Path, doc: &DocumentMut) -> anyhow::Result<()> {
+    std::fs::create_dir_all(code_home)?;
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    std::fs::write(tmp_file.path(), doc.to_string())?;
+    tmp_file.persist(config_path)?;
+    Ok(())
+}
+
+fn apply_memories_table(table: &mut TomlTable, settings: &MemoriesToml) {
+    write_optional_bool(table, "no_memories_if_mcp_or_web_search", settings.no_memories_if_mcp_or_web_search);
+    write_optional_bool(table, "generate_memories", settings.generate_memories);
+    write_optional_bool(table, "use_memories", settings.use_memories);
+    write_optional_usize(
+        table,
+        "max_raw_memories_for_consolidation",
+        settings.max_raw_memories_for_consolidation,
+    );
+    write_optional_i64(table, "max_rollout_age_days", settings.max_rollout_age_days);
+    write_optional_usize(
+        table,
+        "max_rollouts_per_startup",
+        settings.max_rollouts_per_startup,
+    );
+    write_optional_i64(table, "min_rollout_idle_hours", settings.min_rollout_idle_hours);
+
+    table.remove("max_raw_memories_for_global");
+    table.remove("max_unused_days");
+    table.remove("phase_1_model");
+    table.remove("phase_2_model");
+    table.remove("extract_model");
+    table.remove("consolidation_model");
+}
+
+fn write_optional_bool(table: &mut TomlTable, key: &str, value: Option<bool>) {
+    match value {
+        Some(value) => table[key] = toml_edit::value(value),
+        None => {
+            table.remove(key);
+        }
+    }
+}
+
+fn write_optional_usize(table: &mut TomlTable, key: &str, value: Option<usize>) {
+    match value {
+        Some(value) => table[key] = toml_edit::value(value as i64),
+        None => {
+            table.remove(key);
+        }
+    }
+}
+
+fn write_optional_i64(table: &mut TomlTable, key: &str, value: Option<i64>) {
+    match value {
+        Some(value) => table[key] = toml_edit::value(value),
+        None => {
+            table.remove(key);
+        }
+    }
+}
+
+pub fn set_global_memories_settings(
+    code_home: &Path,
+    settings: Option<&MemoriesToml>,
+) -> anyhow::Result<()> {
+    let (mut doc, config_path) = load_config_doc(code_home)?;
+
+    match settings.filter(|settings| !settings.is_empty()) {
+        Some(settings) => {
+            let memories_table = doc["memories"]
+                .or_insert(TomlItem::Table(TomlTable::new()))
+                .as_table_mut()
+                .ok_or_else(|| anyhow::anyhow!("`memories` must be a TOML table"))?;
+            apply_memories_table(memories_table, settings);
+            if memories_table.is_empty() {
+                doc.as_table_mut().remove("memories");
+            }
+        }
+        None => {
+            doc.as_table_mut().remove("memories");
+        }
+    }
+
+    persist_config_doc(code_home, &config_path, &doc)?;
+    Ok(())
+}
+
+pub fn set_profile_memories_settings(
+    code_home: &Path,
+    profile_name: &str,
+    settings: Option<&MemoriesToml>,
+) -> anyhow::Result<()> {
+    let (mut doc, config_path) = load_config_doc(code_home)?;
+    let profiles_table = doc["profiles"]
+        .or_insert(TomlItem::Table(TomlTable::new()))
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("`profiles` must be a TOML table"))?;
+    let profile_table = profiles_table[profile_name]
+        .or_insert(TomlItem::Table(TomlTable::new()))
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("`profiles.{profile_name}` must be a TOML table"))?;
+
+    match settings.filter(|settings| !settings.is_empty()) {
+        Some(settings) => {
+            let memories_table = profile_table["memories"]
+                .or_insert(TomlItem::Table(TomlTable::new()))
+                .as_table_mut()
+                .ok_or_else(|| anyhow::anyhow!("`profiles.{profile_name}.memories` must be a TOML table"))?;
+            apply_memories_table(memories_table, settings);
+            if memories_table.is_empty() {
+                profile_table.remove("memories");
+            }
+        }
+        None => {
+            profile_table.remove("memories");
+        }
+    }
+
+    persist_config_doc(code_home, &config_path, &doc)?;
+    Ok(())
+}
+
+pub fn set_project_memories_settings(
+    code_home: &Path,
+    project_path: &Path,
+    settings: Option<&MemoriesToml>,
+) -> anyhow::Result<()> {
+    let (mut doc, config_path) = load_config_doc(code_home)?;
+    let project_key = project_path.to_string_lossy().to_string();
+    let projects_table = doc["projects"]
+        .or_insert(TomlItem::Table(TomlTable::new()))
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("`projects` must be a TOML table"))?;
+    let project_table = projects_table[project_key.as_str()]
+        .or_insert(TomlItem::Table(TomlTable::new()))
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("`projects.{project_key}` must be a TOML table"))?;
+
+    match settings.filter(|settings| !settings.is_empty()) {
+        Some(settings) => {
+            let memories_table = project_table["memories"]
+                .or_insert(TomlItem::Table(TomlTable::new()))
+                .as_table_mut()
+                .ok_or_else(|| anyhow::anyhow!("`projects.{project_key}.memories` must be a TOML table"))?;
+            apply_memories_table(memories_table, settings);
+            if memories_table.is_empty() {
+                project_table.remove("memories");
+            }
+        }
+        None => {
+            project_table.remove("memories");
+        }
+    }
+
+    persist_config_doc(code_home, &config_path, &doc)?;
     Ok(())
 }
 

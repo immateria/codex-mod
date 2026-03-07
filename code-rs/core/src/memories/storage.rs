@@ -1,0 +1,870 @@
+use std::collections::HashMap;
+use std::fmt::Write as _;
+use std::io;
+use std::path::Path;
+
+use chrono::{DateTime, Utc};
+use code_memories_state::{MemoryThread, MemoriesState, SessionMemoryMode as StateMemoryMode, Stage1Claim, Stage1OutputInput, Stage1OutputRecord};
+use code_protocol::models::{ContentItem, ResponseItem};
+use code_protocol::protocol::RolloutItem;
+use tracing::warn;
+use uuid::Uuid;
+
+use crate::config_types::MemoriesConfig;
+use crate::rollout::catalog::SessionCatalog;
+use crate::rollout::catalog::SessionIndexEntry;
+use crate::rollout::catalog::SessionMemoryMode;
+use crate::rollout::RolloutRecorder;
+
+use super::ensure_layout;
+use super::memory_root;
+use super::memory_summary_path;
+use super::raw_memories_path;
+use super::rollout_summaries_dir;
+
+#[derive(Debug, Clone)]
+struct MemoryArtifacts {
+    memory_summary: String,
+    raw_memories: String,
+    rollout_summaries: HashMap<String, String>,
+}
+
+pub(crate) fn to_state_memory_mode(mode: SessionMemoryMode) -> StateMemoryMode {
+    match mode {
+        SessionMemoryMode::Enabled => StateMemoryMode::Enabled,
+        SessionMemoryMode::Disabled => StateMemoryMode::Disabled,
+        SessionMemoryMode::Polluted => StateMemoryMode::Polluted,
+    }
+}
+
+pub(crate) async fn refresh_memory_artifacts_from_catalog(
+    code_home: &Path,
+    settings: &MemoriesConfig,
+    force_artifact_build: bool,
+) -> io::Result<()> {
+    let state = super::open_memories_state(code_home).await?;
+    let threads = load_memory_threads(code_home).await?;
+    state
+        .reconcile_threads(&threads)
+        .await
+        .map_err(io::Error::other)?;
+
+    let claims = state
+        .claim_stage1_candidates(
+            settings.max_rollouts_per_startup,
+            settings.max_rollout_age_days,
+            settings.min_rollout_idle_hours,
+            crate::rollout::INTERACTIVE_SESSION_SOURCES,
+        )
+        .await
+        .map_err(io::Error::other)?;
+
+    for claim in claims {
+        match build_stage1_output(code_home, &claim).await {
+            Ok(Some(output)) => {
+                if let Err(err) = state.upsert_stage1_output(&output).await {
+                    warn!(
+                        "failed to persist stage1 output for {}: {err}",
+                        claim.thread_id
+                    );
+                }
+            }
+            Ok(None) => {}
+            Err(err) => {
+                warn!("failed to extract stage1 output for {}: {err}", claim.thread_id);
+            }
+        }
+    }
+
+    maybe_build_artifacts_from_state(code_home, settings, &state, force_artifact_build).await
+}
+
+async fn load_memory_threads(code_home: &Path) -> io::Result<Vec<MemoryThread>> {
+    let code_home = code_home.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        let catalog = SessionCatalog::load(&code_home)?;
+        Ok::<_, io::Error>(
+            catalog
+                .all_ordered()
+                .into_iter()
+                .filter_map(memory_thread_from_entry)
+                .collect(),
+        )
+    })
+    .await
+    .map_err(|err| io::Error::other(format!("memory thread load join failed: {err}")))?
+}
+
+fn memory_thread_from_entry(entry: &SessionIndexEntry) -> Option<MemoryThread> {
+    let (updated_at, updated_at_label) = parse_timestamp_with_label(entry)?;
+    Some(MemoryThread {
+        thread_id: entry.session_id,
+        rollout_path: entry.rollout_path.clone(),
+        source: entry.session_source.clone(),
+        cwd: entry.cwd_real.clone(),
+        cwd_display: entry.cwd_display.clone(),
+        updated_at: updated_at.timestamp(),
+        updated_at_label,
+        archived: entry.archived,
+        deleted: entry.deleted,
+        memory_mode: to_state_memory_mode(entry.memory_mode),
+        catalog_seen_at: Utc::now().timestamp(),
+        git_branch: entry.git_branch.clone(),
+        last_user_snippet: entry.last_user_snippet.clone(),
+    })
+}
+
+async fn build_stage1_output(
+    code_home: &Path,
+    claim: &Stage1Claim,
+) -> io::Result<Option<Stage1OutputInput>> {
+    let rollout_path = code_home.join(&claim.rollout_path);
+    let last_user_snippet = match RolloutRecorder::get_rollout_history(&rollout_path).await {
+        Ok(history) => extract_last_user_snippet(&history.get_rollout_items())
+            .or_else(|| claim.last_user_snippet.clone()),
+        Err(err) if claim.last_user_snippet.is_some() => {
+            warn!(
+                "falling back to catalog snippet for {} after rollout read failed: {err}",
+                claim.thread_id
+            );
+            claim.last_user_snippet.clone()
+        }
+        Err(err) => return Err(err),
+    }
+    .unwrap_or_else(|| "(no user snippet)".to_string());
+    let rollout_slug = rollout_summary_file_stem(
+        claim.thread_id,
+        claim.updated_at,
+        &claim.cwd_display,
+        claim.git_branch.as_deref(),
+    );
+
+    Ok(Some(Stage1OutputInput {
+        thread_id: claim.thread_id,
+        source_updated_at: claim.updated_at,
+        generated_at: Utc::now().timestamp(),
+        raw_memory: render_raw_memory_body(claim, &last_user_snippet)?,
+        rollout_summary: render_rollout_summary_body(claim, &last_user_snippet)?,
+        rollout_slug,
+    }))
+}
+
+fn render_raw_memory_body(claim: &Stage1Claim, snippet: &str) -> io::Result<String> {
+    let mut body = String::new();
+    writeln!(body, "updated_at: {}", iso_timestamp(claim.updated_at)).map_err(io::Error::other)?;
+    writeln!(body, "cwd: {}", claim.cwd_display).map_err(io::Error::other)?;
+    writeln!(body, "rollout_path: {}", claim.rollout_path.display()).map_err(io::Error::other)?;
+    writeln!(
+        body,
+        "rollout_summary_file: {}.md",
+        rollout_summary_file_stem(
+            claim.thread_id,
+            claim.updated_at,
+            &claim.cwd_display,
+            claim.git_branch.as_deref(),
+        )
+    )
+    .map_err(io::Error::other)?;
+    if let Some(git_branch) = claim.git_branch.as_deref() {
+        writeln!(body, "git_branch: {git_branch}").map_err(io::Error::other)?;
+    }
+    writeln!(body).map_err(io::Error::other)?;
+    body.push_str(snippet);
+    body.push('\n');
+    Ok(body)
+}
+
+fn render_rollout_summary_body(claim: &Stage1Claim, snippet: &str) -> io::Result<String> {
+    let mut body = String::new();
+    writeln!(body, "session_id: {}", claim.thread_id).map_err(io::Error::other)?;
+    writeln!(body, "updated_at: {}", iso_timestamp(claim.updated_at)).map_err(io::Error::other)?;
+    writeln!(body, "rollout_path: {}", claim.rollout_path.display()).map_err(io::Error::other)?;
+    writeln!(body, "cwd: {}", claim.cwd_display).map_err(io::Error::other)?;
+    if let Some(git_branch) = claim.git_branch.as_deref() {
+        writeln!(body, "git_branch: {git_branch}").map_err(io::Error::other)?;
+    }
+    writeln!(body).map_err(io::Error::other)?;
+    body.push_str(snippet);
+    body.push('\n');
+    Ok(body)
+}
+
+async fn maybe_build_artifacts_from_state(
+    code_home: &Path,
+    settings: &MemoriesConfig,
+    state: &MemoriesState,
+    force_artifact_build: bool,
+) -> io::Result<()> {
+    let Some(lease) = state
+        .claim_artifact_build_job(Uuid::new_v4(), force_artifact_build)
+        .await
+        .map_err(io::Error::other)?
+    else {
+        return Ok(());
+    };
+
+    let selected = state
+        .select_phase2_inputs(
+            settings.max_raw_memories_for_consolidation,
+            settings.max_rollout_age_days,
+        )
+        .await
+        .map_err(io::Error::other)?;
+
+    let artifacts = render_artifacts_from_state(&selected)?;
+    if let Err(err) = write_memory_artifacts(code_home, artifacts).await {
+        let _ = state
+            .fail_artifact_build_job(&lease.ownership_token, &err.to_string())
+            .await;
+        return Err(err);
+    }
+
+    state
+        .succeed_artifact_build_job(&lease.ownership_token, &selected)
+        .await
+        .map_err(io::Error::other)
+}
+
+fn render_artifacts_from_state(selected: &[Stage1OutputRecord]) -> io::Result<MemoryArtifacts> {
+    Ok(MemoryArtifacts {
+        memory_summary: render_memory_summary(selected)?,
+        raw_memories: render_raw_memories(selected)?,
+        rollout_summaries: render_rollout_summaries(selected),
+    })
+}
+
+async fn write_memory_artifacts(code_home: &Path, artifacts: MemoryArtifacts) -> io::Result<()> {
+    super::control::clear_memory_root_contents(&memory_root(code_home)).await?;
+    ensure_layout(code_home).await?;
+    tokio::fs::write(memory_summary_path(code_home), artifacts.memory_summary).await?;
+    tokio::fs::write(raw_memories_path(code_home), artifacts.raw_memories).await?;
+    sync_rollout_summaries(code_home, artifacts.rollout_summaries).await
+}
+
+fn render_memory_summary(selected: &[Stage1OutputRecord]) -> io::Result<String> {
+    let mut body = String::from("# Memory Summary\n\n");
+    if selected.is_empty() {
+        body.push_str("No prior interactive sessions found.\n");
+        return Ok(body);
+    }
+
+    body.push_str("Recent interactive sessions retained for memory prompts:\n\n");
+    for record in selected {
+        writeln!(body, "## {} | {}", record.updated_at_label, record.thread_id)
+            .map_err(io::Error::other)?;
+        writeln!(body, "cwd: {}", record.cwd_display).map_err(io::Error::other)?;
+        if let Some(git_branch) = record.git_branch.as_deref() {
+            writeln!(body, "git_branch: {git_branch}").map_err(io::Error::other)?;
+        }
+        writeln!(
+            body,
+            "rollout_summary_file: rollout_summaries/{}.md",
+            record.rollout_slug
+        )
+        .map_err(io::Error::other)?;
+        writeln!(
+            body,
+            "last_user_request: {}",
+            last_nonempty_line(&record.rollout_summary).unwrap_or("(no user snippet)")
+        )
+        .map_err(io::Error::other)?;
+        writeln!(body).map_err(io::Error::other)?;
+    }
+    Ok(body)
+}
+
+fn render_raw_memories(selected: &[Stage1OutputRecord]) -> io::Result<String> {
+    let mut body = String::from("# Raw Memories\n\n");
+    if selected.is_empty() {
+        body.push_str("No raw memories yet.\n");
+        return Ok(body);
+    }
+
+    body.push_str("Catalog-derived retained memories (latest first):\n\n");
+    for record in selected {
+        writeln!(body, "## Session `{}`", record.thread_id).map_err(io::Error::other)?;
+        body.push_str(&record.raw_memory);
+        body.push('\n');
+    }
+    Ok(body)
+}
+
+fn render_rollout_summaries(selected: &[Stage1OutputRecord]) -> HashMap<String, String> {
+    selected
+        .iter()
+        .map(|record| (record.rollout_slug.clone(), record.rollout_summary.clone()))
+        .collect()
+}
+
+async fn sync_rollout_summaries(
+    code_home: &Path,
+    summaries: HashMap<String, String>,
+) -> io::Result<()> {
+    let dir = rollout_summaries_dir(code_home);
+    for (stem, body) in summaries {
+        tokio::fs::write(dir.join(format!("{stem}.md")), body).await?;
+    }
+    Ok(())
+}
+
+fn extract_last_user_snippet(items: &[RolloutItem]) -> Option<String> {
+    let mut last_user_snippet = None;
+    for item in items {
+        if let RolloutItem::ResponseItem(ResponseItem::Message { role, content, .. }) = item
+            && role.eq_ignore_ascii_case("user")
+            && let Some(snippet) = snippet_from_content(content)
+        {
+            if is_system_status_snippet(&snippet) {
+                continue;
+            }
+            last_user_snippet = Some(snippet);
+        }
+    }
+    last_user_snippet
+}
+
+fn snippet_from_content(content: &[ContentItem]) -> Option<String> {
+    content.iter().find_map(|item| match item {
+        ContentItem::InputText { text } | ContentItem::OutputText { text } => {
+            Some(text.chars().take(100).collect())
+        }
+        _ => None,
+    })
+}
+
+fn is_system_status_snippet(text: &str) -> bool {
+    text.starts_with("== System Status ==")
+}
+
+fn parse_timestamp(raw: &str) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(raw)
+        .ok()
+        .map(|value| value.with_timezone(&Utc))
+}
+
+fn iso_timestamp(timestamp: i64) -> String {
+    DateTime::<Utc>::from_timestamp_secs(timestamp)
+        .map(|value| value.to_rfc3339())
+        .unwrap_or_else(|| timestamp.to_string())
+}
+
+fn parse_timestamp_with_label(entry: &SessionIndexEntry) -> Option<(DateTime<Utc>, String)> {
+    if let Some(parsed) = parse_timestamp(&entry.last_event_at) {
+        let label = if entry.last_event_at.trim().is_empty() {
+            parsed.to_rfc3339()
+        } else {
+            entry.last_event_at.clone()
+        };
+        return Some((parsed, label));
+    }
+    if let Some(parsed) = parse_timestamp(&entry.created_at) {
+        let label = if entry.created_at.trim().is_empty() {
+            parsed.to_rfc3339()
+        } else {
+            entry.created_at.clone()
+        };
+        return Some((parsed, label));
+    }
+    None
+}
+
+fn last_nonempty_line(text: &str) -> Option<&str> {
+    text.lines().rev().find_map(|line| {
+        let trimmed = line.trim();
+        (!trimmed.is_empty()).then_some(trimmed)
+    })
+}
+
+fn rollout_summary_file_stem(
+    session_id: Uuid,
+    updated_at: i64,
+    cwd_display: &str,
+    git_branch: Option<&str>,
+) -> String {
+    const SLUG_MAX_LEN: usize = 48;
+    const SHORT_HASH_ALPHABET: &[u8; 62] =
+        b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const SHORT_HASH_SPACE: u32 = 14_776_336;
+
+    let timestamp_fragment = DateTime::<Utc>::from_timestamp_secs(updated_at)
+        .unwrap_or_else(Utc::now)
+        .format("%Y-%m-%dT%H-%M-%S")
+        .to_string();
+    let mut short_hash_value = (session_id.as_u128() & 0xFFFF_FFFF) as u32 % SHORT_HASH_SPACE;
+    let mut short_hash_chars = ['0'; 4];
+    for idx in (0..short_hash_chars.len()).rev() {
+        let alphabet_idx = (short_hash_value % SHORT_HASH_ALPHABET.len() as u32) as usize;
+        short_hash_chars[idx] = SHORT_HASH_ALPHABET[alphabet_idx] as char;
+        short_hash_value /= SHORT_HASH_ALPHABET.len() as u32;
+    }
+    let short_hash: String = short_hash_chars.iter().collect();
+    let prefix = format!("{timestamp_fragment}-{short_hash}");
+    let slug = rollout_summary_slug(cwd_display, git_branch, SLUG_MAX_LEN);
+    if slug.is_empty() {
+        prefix
+    } else {
+        format!("{prefix}-{slug}")
+    }
+}
+
+fn rollout_summary_slug(cwd_display: &str, git_branch: Option<&str>, max_len: usize) -> String {
+    let raw = git_branch
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            Path::new(cwd_display)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .filter(|value| !value.trim().is_empty())
+        })
+        .unwrap_or("");
+
+    let mut slug = String::with_capacity(max_len);
+    for ch in raw.chars() {
+        if slug.len() >= max_len {
+            break;
+        }
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch.to_ascii_lowercase());
+        } else {
+            slug.push('_');
+        }
+    }
+    while slug.ends_with('_') {
+        slug.pop();
+    }
+    slug
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use chrono::TimeZone;
+    use code_protocol::protocol::SessionSource;
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[derive(Debug, Clone)]
+    struct LegacySelectedMemory {
+        session_id: Uuid,
+        rollout_path: PathBuf,
+        last_event_at: DateTime<Utc>,
+        last_event_at_label: String,
+        cwd_display: String,
+        git_branch: Option<String>,
+        last_user_snippet: Option<String>,
+        summary_file_stem: String,
+    }
+
+    fn make_entry(
+        session_id: Uuid,
+        source: SessionSource,
+        last_event_at: &str,
+        archived: bool,
+        deleted: bool,
+        snippet: Option<&str>,
+    ) -> SessionIndexEntry {
+        SessionIndexEntry {
+            session_id,
+            rollout_path: PathBuf::from(format!("sessions/{session_id}.jsonl")),
+            snapshot_path: None,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            last_event_at: last_event_at.to_string(),
+            cwd_real: PathBuf::from("/tmp/project"),
+            cwd_display: "~/project".to_string(),
+            git_project_root: None,
+            git_branch: Some("main".to_string()),
+            model_provider: None,
+            session_source: source,
+            message_count: 1,
+            user_message_count: 1,
+            last_user_snippet: snippet.map(ToString::to_string),
+            nickname: None,
+            sync_origin_device: None,
+            sync_version: 0,
+            archived,
+            deleted,
+            memory_mode: SessionMemoryMode::Enabled,
+        }
+    }
+
+    fn legacy_select_memories_from_catalog(
+        catalog: &SessionCatalog,
+        settings: &MemoriesConfig,
+        now: DateTime<Utc>,
+    ) -> Vec<LegacySelectedMemory> {
+        let limit = settings
+            .max_raw_memories_for_consolidation
+            .min(settings.max_rollouts_per_startup);
+        if limit == 0 {
+            return Vec::new();
+        }
+
+        let max_age = chrono::TimeDelta::days(settings.max_rollout_age_days);
+        let min_idle = chrono::TimeDelta::hours(settings.min_rollout_idle_hours);
+
+        let mut selected = Vec::with_capacity(limit);
+        for entry in catalog.all_ordered() {
+            if selected.len() >= limit {
+                break;
+            }
+            if entry.deleted
+                || entry.archived
+                || entry.memory_mode != SessionMemoryMode::Enabled
+                || !matches!(entry.session_source, SessionSource::Cli | SessionSource::VSCode)
+            {
+                continue;
+            }
+            let Some((last_event_at, last_event_at_label)) = parse_timestamp_with_label(entry) else {
+                continue;
+            };
+            if settings.max_rollout_age_days > 0 && now.signed_duration_since(last_event_at) > max_age {
+                continue;
+            }
+            if settings.min_rollout_idle_hours > 0 && now.signed_duration_since(last_event_at) < min_idle {
+                continue;
+            }
+            selected.push(LegacySelectedMemory {
+                session_id: entry.session_id,
+                rollout_path: entry.rollout_path.clone(),
+                last_event_at,
+                last_event_at_label,
+                cwd_display: entry.cwd_display.clone(),
+                git_branch: entry.git_branch.clone(),
+                last_user_snippet: entry.last_user_snippet.clone(),
+                summary_file_stem: rollout_summary_file_stem(
+                    entry.session_id,
+                    last_event_at.timestamp(),
+                    &entry.cwd_display,
+                    entry.git_branch.as_deref(),
+                ),
+            });
+        }
+        selected
+    }
+
+    fn legacy_render_artifacts(selected: &[LegacySelectedMemory]) -> io::Result<MemoryArtifacts> {
+        let mut memory_summary = String::from("# Memory Summary\n\n");
+        if selected.is_empty() {
+            memory_summary.push_str("No prior interactive sessions found.\n");
+        } else {
+            memory_summary.push_str("Recent interactive sessions retained for memory prompts:\n\n");
+            for memory in selected {
+                writeln!(memory_summary, "## {} | {}", memory.last_event_at_label, memory.session_id)
+                    .map_err(io::Error::other)?;
+                writeln!(memory_summary, "cwd: {}", memory.cwd_display).map_err(io::Error::other)?;
+                if let Some(git_branch) = memory.git_branch.as_deref() {
+                    writeln!(memory_summary, "git_branch: {git_branch}").map_err(io::Error::other)?;
+                }
+                writeln!(
+                    memory_summary,
+                    "rollout_summary_file: rollout_summaries/{}.md",
+                    memory.summary_file_stem
+                )
+                .map_err(io::Error::other)?;
+                writeln!(
+                    memory_summary,
+                    "last_user_request: {}",
+                    memory
+                        .last_user_snippet
+                        .as_deref()
+                        .filter(|value| !value.trim().is_empty())
+                        .unwrap_or("(no user snippet)")
+                )
+                .map_err(io::Error::other)?;
+                writeln!(memory_summary).map_err(io::Error::other)?;
+            }
+        }
+
+        let mut raw_memories = String::from("# Raw Memories\n\n");
+        if selected.is_empty() {
+            raw_memories.push_str("No raw memories yet.\n");
+        } else {
+            raw_memories.push_str("Catalog-derived retained memories (latest first):\n\n");
+            for memory in selected {
+                writeln!(raw_memories, "## Session `{}`", memory.session_id).map_err(io::Error::other)?;
+                writeln!(raw_memories, "updated_at: {}", memory.last_event_at.to_rfc3339())
+                    .map_err(io::Error::other)?;
+                writeln!(raw_memories, "cwd: {}", memory.cwd_display).map_err(io::Error::other)?;
+                writeln!(raw_memories, "rollout_path: {}", memory.rollout_path.display())
+                    .map_err(io::Error::other)?;
+                writeln!(raw_memories, "rollout_summary_file: {}.md", memory.summary_file_stem)
+                    .map_err(io::Error::other)?;
+                if let Some(git_branch) = memory.git_branch.as_deref() {
+                    writeln!(raw_memories, "git_branch: {git_branch}").map_err(io::Error::other)?;
+                }
+                writeln!(raw_memories).map_err(io::Error::other)?;
+                raw_memories.push_str(
+                    memory
+                        .last_user_snippet
+                        .as_deref()
+                        .filter(|value| !value.trim().is_empty())
+                        .unwrap_or("(no user snippet)"),
+                );
+                raw_memories.push_str("\n\n");
+            }
+        }
+
+        let mut rollout_summaries = HashMap::with_capacity(selected.len());
+        for memory in selected {
+            let mut body = String::new();
+            writeln!(body, "session_id: {}", memory.session_id).map_err(io::Error::other)?;
+            writeln!(body, "updated_at: {}", memory.last_event_at.to_rfc3339())
+                .map_err(io::Error::other)?;
+            writeln!(body, "rollout_path: {}", memory.rollout_path.display()).map_err(io::Error::other)?;
+            writeln!(body, "cwd: {}", memory.cwd_display).map_err(io::Error::other)?;
+            if let Some(git_branch) = memory.git_branch.as_deref() {
+                writeln!(body, "git_branch: {git_branch}").map_err(io::Error::other)?;
+            }
+            writeln!(body).map_err(io::Error::other)?;
+            body.push_str(
+                memory
+                    .last_user_snippet
+                    .as_deref()
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or("(no user snippet)"),
+            );
+            body.push('\n');
+            rollout_summaries.insert(memory.summary_file_stem.clone(), body);
+        }
+
+        Ok(MemoryArtifacts {
+            memory_summary,
+            raw_memories,
+            rollout_summaries,
+        })
+    }
+
+    async fn build_state_artifacts(
+        code_home: &Path,
+        settings: &MemoriesConfig,
+    ) -> io::Result<MemoryArtifacts> {
+        let state = MemoriesState::open(code_home.to_path_buf())
+            .await
+            .map_err(io::Error::other)?;
+        let threads = load_memory_threads(code_home).await?;
+        state
+            .reconcile_threads(&threads)
+            .await
+            .map_err(io::Error::other)?;
+        let claims = state
+            .claim_stage1_candidates(
+                settings.max_rollouts_per_startup,
+                settings.max_rollout_age_days,
+                settings.min_rollout_idle_hours,
+                crate::rollout::INTERACTIVE_SESSION_SOURCES,
+            )
+            .await
+            .map_err(io::Error::other)?;
+        for claim in claims {
+            if let Some(output) = build_stage1_output(code_home, &claim).await? {
+                state.upsert_stage1_output(&output).await.map_err(io::Error::other)?;
+            }
+        }
+        let selected = state
+            .select_phase2_inputs(
+                settings.max_raw_memories_for_consolidation,
+                settings.max_rollout_age_days,
+            )
+            .await
+            .map_err(io::Error::other)?;
+        render_artifacts_from_state(&selected)
+    }
+
+    #[tokio::test]
+    async fn refresh_prunes_stale_rollout_summary_files_and_writes_all_artifacts() {
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        let memories_root = code_home.join("memories");
+        tokio::fs::create_dir_all(memories_root.join("rollout_summaries"))
+            .await
+            .expect("create rollout summaries dir");
+        tokio::fs::write(
+            memories_root.join("rollout_summaries").join("stale.md"),
+            "stale",
+        )
+        .await
+        .expect("write stale file");
+
+        let session_id = Uuid::parse_str("0194f5a6-89ab-7cde-8123-456789abcdef").expect("uuid");
+        let rollout_dir = code_home.join("sessions/2026/01/10");
+        tokio::fs::create_dir_all(&rollout_dir).await.expect("create rollout dir");
+        let rollout_path = rollout_dir.join(format!("rollout-2026-01-10T06-00-00-{session_id}.jsonl"));
+        let rollout_line = serde_json::json!({
+            "timestamp": "2026-01-10T06:00:00Z",
+            "item": {
+                "SessionMeta": {
+                    "meta": {
+                        "id": session_id,
+                        "forked_from_id": null,
+                        "timestamp": "2026-01-10T06:00:00Z",
+                        "cwd": "/tmp/project",
+                        "originator": "codex_cli_rs",
+                        "cli_version": "0.0.0",
+                        "source": "cli",
+                        "model_provider": null,
+                        "base_instructions": null,
+                        "dynamic_tools": null
+                    },
+                    "git": {
+                        "commit_hash": null,
+                        "branch": "main",
+                        "repository_url": null
+                    }
+                }
+            }
+        });
+        let user_line = serde_json::json!({
+            "timestamp": "2026-01-10T06:05:00Z",
+            "item": {
+                "ResponseItem": {
+                    "Message": {
+                        "id": null,
+                        "role": "user",
+                        "content": [{ "InputText": { "text": "remember this" } }],
+                        "end_turn": null,
+                        "phase": null
+                    }
+                }
+            }
+        });
+        tokio::fs::write(&rollout_path, format!("{rollout_line}\n{user_line}\n"))
+            .await
+            .expect("write rollout");
+
+        let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
+        catalog.entries.insert(
+            session_id,
+            make_entry(
+                session_id,
+                SessionSource::Cli,
+                "2026-01-10T06:05:00Z",
+                false,
+                false,
+                Some("remember this"),
+            ),
+        );
+        catalog.save().expect("save catalog");
+
+        let settings = MemoriesConfig {
+            max_raw_memories_for_consolidation: 8,
+            max_rollout_age_days: 60,
+            max_rollouts_per_startup: 8,
+            min_rollout_idle_hours: 0,
+            ..MemoriesConfig::default()
+        };
+        super::refresh_memory_artifacts_from_catalog(code_home, &settings, true)
+            .await
+            .expect("refresh memories");
+
+        let summary = tokio::fs::read_to_string(memories_root.join("memory_summary.md"))
+            .await
+            .expect("read summary");
+        assert!(summary.contains("remember this"));
+
+        let raw = tokio::fs::read_to_string(memories_root.join("raw_memories.md"))
+            .await
+            .expect("read raw memories");
+        assert!(raw.contains("remember this"));
+
+        let mut rollout_dir = tokio::fs::read_dir(memories_root.join("rollout_summaries"))
+            .await
+            .expect("read rollout summaries");
+        let mut file_names = Vec::new();
+        while let Some(entry) = rollout_dir.next_entry().await.expect("next entry") {
+            file_names.push(entry.file_name().to_string_lossy().to_string());
+        }
+
+        assert_eq!(file_names.len(), 1);
+        assert!(file_names[0].ends_with(".md"));
+        assert_ne!(file_names[0], "stale.md");
+    }
+
+    #[tokio::test]
+    async fn db_backed_artifacts_match_legacy_renderer() {
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        let session_id = Uuid::parse_str("0194f5a6-89ab-7cde-8123-456789abcdef").expect("uuid");
+        let rollout_dir = code_home.join("sessions/2026/01/10");
+        tokio::fs::create_dir_all(&rollout_dir).await.expect("create rollout dir");
+        let rollout_path = rollout_dir.join(format!("rollout-2026-01-10T06-00-00-{session_id}.jsonl"));
+        let rollout_line = serde_json::json!({
+            "timestamp": "2026-01-10T06:00:00Z",
+            "item": {
+                "SessionMeta": {
+                    "meta": {
+                        "id": session_id,
+                        "forked_from_id": null,
+                        "timestamp": "2026-01-10T06:00:00Z",
+                        "cwd": "/tmp/project",
+                        "originator": "codex_cli_rs",
+                        "cli_version": "0.0.0",
+                        "source": "cli",
+                        "model_provider": null,
+                        "base_instructions": null,
+                        "dynamic_tools": null
+                    },
+                    "git": {
+                        "commit_hash": null,
+                        "branch": "main",
+                        "repository_url": null
+                    }
+                }
+            }
+        });
+        let user_line = serde_json::json!({
+            "timestamp": "2026-01-10T06:05:00Z",
+            "item": {
+                "ResponseItem": {
+                    "Message": {
+                        "id": null,
+                        "role": "user",
+                        "content": [{ "InputText": { "text": "remember this" } }],
+                        "end_turn": null,
+                        "phase": null
+                    }
+                }
+            }
+        });
+        tokio::fs::write(&rollout_path, format!("{rollout_line}\n{user_line}\n"))
+            .await
+            .expect("write rollout");
+
+        let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
+        catalog.entries.insert(
+            session_id,
+            make_entry(
+                session_id,
+                SessionSource::Cli,
+                "2026-01-10T06:05:00Z",
+                false,
+                false,
+                Some("remember this"),
+            ),
+        );
+        catalog.save().expect("save catalog");
+
+        let settings = MemoriesConfig {
+            max_raw_memories_for_consolidation: 8,
+            max_rollout_age_days: 60,
+            max_rollouts_per_startup: 8,
+            min_rollout_idle_hours: 0,
+            ..MemoriesConfig::default()
+        };
+        let legacy_catalog = SessionCatalog::load(code_home).expect("reload catalog");
+        let legacy_selected = legacy_select_memories_from_catalog(
+            &legacy_catalog,
+            &settings,
+            Utc.with_ymd_and_hms(2026, 1, 10, 12, 0, 0).single().expect("time"),
+        );
+        let legacy = legacy_render_artifacts(&legacy_selected).expect("legacy artifacts");
+        let db_backed = build_state_artifacts(code_home, &settings)
+            .await
+            .expect("db-backed artifacts");
+
+        assert_eq!(legacy.memory_summary, db_backed.memory_summary);
+        assert_eq!(legacy.raw_memories, db_backed.raw_memories);
+        assert_eq!(legacy.rollout_summaries, db_backed.rollout_summaries);
+    }
+}

@@ -19,6 +19,7 @@ members = [
     "exec",
     "execpolicy",
     "message-history",
+    "memories-state",
     "file-search",
     "git-tooling",
     "keyring-store",
@@ -74,6 +75,7 @@ code-common = { path = "common" }
 code-core = { path = "core" }
 code-context-timeline = { path = "context-timeline", package = "codex-context-timeline" }
 code-message-history = { path = "message-history", package = "codex-message-history" }
+code-memories-state = { path = "memories-state" }
 code-mcp-call-limiter = { path = "mcp-call-limiter", package = "codex-mcp-call-limiter" }
 code-shell-command = { path = "shell-command", package = "codex-shell-command" }
 code-skills = { path = "skills" }
@@ -209,6 +211,7 @@ starlark = "0.13.0"
 strum = "0.27.2"
 strum_macros = "0.27.2"
 supports-color = "3.0.2"
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio-rustls", "sqlite"] }
 syn = { version = "2", features = ["full", "extra-traits"] }
 sys-locale = "0.3.2"
 tempfile = "3.23.0"

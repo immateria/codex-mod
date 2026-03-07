@@ -310,12 +310,21 @@ impl Runner<'_> {
             crate::config::JsReplRuntimeKindToml::Node => Vec::new(),
         };
 
+        if let Err(err) = crate::memories::open_memories_state(config.code_home.as_path()).await {
+            warn!("failed to initialize memories sqlite state: {err}");
+        }
+
         let mut new_session = Arc::new(Session {
             id: self.session_id,
             client,
             remote_models_manager,
             tools_config,
             memories_config: config.memories.clone(),
+            memory_mode: Mutex::new(if config.memories.generate_memories {
+                crate::rollout::catalog::SessionMemoryMode::Enabled
+            } else {
+                crate::rollout::catalog::SessionMemoryMode::Disabled
+            }),
             dynamic_tools,
             exec_command_manager: Arc::new(crate::exec_command::SessionManager::default()),
             js_repl_default_runtime,
@@ -411,7 +420,10 @@ impl Runner<'_> {
         }
         if let Some(sess_arc) = self.sess.as_ref() {
             if config.memories.generate_memories {
-                crate::memories::maybe_spawn_memory_summary_refresh(config.code_home.clone());
+                crate::memories::maybe_spawn_memory_refresh(
+                    config.code_home.clone(),
+                    config.memories.clone(),
+                );
             }
             // Reset environment context tracker if shell changed
             if shell_override_present {

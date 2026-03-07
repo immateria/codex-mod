@@ -67,6 +67,7 @@ impl ToolHandler for McpToolHandler {
             };
         }
 
+        sess.maybe_mark_memories_polluted("mcp_tool_call");
         handle_mcp_tool_call(sess, &inv.ctx, server, tool, raw_arguments).await
     }
 }

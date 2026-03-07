@@ -78,6 +78,9 @@ pub(super) async fn run_turn(
             && let Some(memory_prompt) =
                 crate::memories::build_memory_tool_developer_instructions(sess.client.code_home()).await
         {
+            if let Err(err) = crate::memories::note_selected_memories_used(sess.client.code_home()).await {
+                tracing::warn!("failed to record memories usage: {err}");
+            }
             prepend_developer_messages.push(memory_prompt);
         }
         if should_inject_html_sanitizer_guardrails(&attempt_input) {

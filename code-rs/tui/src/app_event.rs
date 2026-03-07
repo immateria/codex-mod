@@ -3,6 +3,7 @@ use code_core::config_types::AuthCredentialsStoreMode;
 use code_core::config_types::ReasoningEffort;
 use code_core::config_types::ServiceTier;
 use code_core::config_types::ShellConfig;
+use code_core::config_types::MemoriesToml;
 use code_core::config_types::ShellScriptStyle;
 use code_core::config_types::ShellStyleProfileConfig;
 use code_core::config_types::SettingsMenuConfig;
@@ -37,6 +38,19 @@ pub(crate) enum ModelSelectionKind {
     ReviewResolve,
     AutoReview,
     AutoReviewResolve,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum MemoriesSettingsScope {
+    Global,
+    Profile { name: String },
+    Project { path: PathBuf },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MemoriesArtifactsAction {
+    Refresh,
+    Clear,
 }
 use crate::history::state::HistorySnapshot;
 use std::time::Duration;
@@ -763,7 +777,17 @@ pub(crate) enum AppEvent {
         latest_version: Option<String>,
     },
     SetAutoUpgradeEnabled(bool),
-    SetMemoriesEnabled(bool),
+    SetMemoriesSettings {
+        scope: MemoriesSettingsScope,
+        settings: MemoriesToml,
+    },
+    RunMemoriesArtifactsAction {
+        action: MemoriesArtifactsAction,
+    },
+    MemoriesArtifactsActionFinished {
+        _action: MemoriesArtifactsAction,
+        result: Result<String, String>,
+    },
     SetNetworkProxySettings(NetworkProxySettingsToml),
     SetExecLimitsSettings(code_core::config::ExecLimitsToml),
     SetJsReplSettings(code_core::config::JsReplSettingsToml),

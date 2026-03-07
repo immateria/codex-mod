@@ -3,6 +3,7 @@ use schemars::JsonSchema;
 use std::path::PathBuf;
 
 use crate::config_types::ReasoningEffort;
+use crate::config_types::MemoriesToml;
 use crate::config_types::ReasoningSummary;
 use crate::config_types::ServiceTier;
 use crate::config_types::TextVerbosity;
@@ -41,6 +42,7 @@ pub struct ConfigProfile {
     pub model_text_verbosity: Option<TextVerbosity>,
     pub model_personality: Option<Personality>,
     pub service_tier: Option<ServiceTier>,
+    pub memories: Option<MemoriesToml>,
     pub chatgpt_base_url: Option<String>,
     pub experimental_instructions_file: Option<PathBuf>,
     pub compact_prompt_override: Option<String>,

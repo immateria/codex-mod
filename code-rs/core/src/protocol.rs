@@ -24,6 +24,7 @@ use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use crate::config_types::McpServerSchedulingToml;
 use crate::config_types::McpToolSchedulingOverrideToml;
+use crate::config_types::MemoriesConfig;
 use crate::config_types::ShellConfig;
 use crate::config_types::ShellScriptStyle;
 use crate::config_types::ShellStyleProfileConfig;
@@ -152,6 +153,8 @@ pub struct ConfigureSessionOp {
     pub js_repl_runtime_args: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub js_repl_node_module_dirs: Vec<std::path::PathBuf>,
+    #[serde(default, skip_serializing_if = "MemoriesConfig::is_default")]
+    pub memories: MemoriesConfig,
     #[serde(default)]
     pub collaboration_mode: CollaborationModeKind,
 }
@@ -1755,6 +1758,7 @@ mod tests {
             js_repl_runtime_path: None,
             js_repl_runtime_args: Vec::new(),
             js_repl_node_module_dirs: Vec::new(),
+            memories: crate::config_types::MemoriesConfig::default(),
             collaboration_mode: CollaborationModeKind::Default,
         });
 

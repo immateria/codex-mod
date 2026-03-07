@@ -46,7 +46,9 @@ impl SettingsSection {
                 "Configure account switching behavior under rate and usage limits."
             }
             SettingsSection::Agents => "Configure linked agents and default task permissions.",
-            SettingsSection::Memories => "Enable upstream-style memory prompt behavior.",
+            SettingsSection::Memories => {
+                "Manage scoped memory policies, generated artifacts, and prompt injection."
+            }
             SettingsSection::AutoDrive => "Manage Auto Drive defaults for review and cadence.",
             SettingsSection::Review => "Adjust Auto Review and Auto Resolve automation for /review.",
             SettingsSection::Validation => "Toggle validation groups and tool availability.",
@@ -77,7 +79,9 @@ impl SettingsSection {
             SettingsSection::Updates => "Upgrade Codex and manage automatic updates.",
             SettingsSection::Accounts => "Account switching settings coming soon.",
             SettingsSection::Agents => "Agents configuration coming soon.",
-            SettingsSection::Memories => "Memories settings coming soon.",
+            SettingsSection::Memories => {
+                "Configure scoped Memories generation, pollution rules, and artifact controls."
+            }
             SettingsSection::AutoDrive => "Auto Drive controls coming soon.",
             SettingsSection::Review => "Adjust Auto Review and Auto Resolve automation for /review.",
             SettingsSection::Validation => "Toggle validation groups and tools.",

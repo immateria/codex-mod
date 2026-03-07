@@ -18,6 +18,15 @@ use super::SESSIONS_SUBDIR;
 const INDEX_SUBDIR: &str = "sessions/index";
 const CATALOG_FILENAME: &str = "catalog.jsonl";
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionMemoryMode {
+    #[default]
+    Enabled,
+    Disabled,
+    Polluted,
+}
+
 /// Canonical entry in the session catalog index.
 /// Each session has exactly one entry in the catalog, written as a single JSON line.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -89,6 +98,10 @@ pub struct SessionIndexEntry {
     /// Whether session is marked as deleted
     #[serde(default)]
     pub deleted: bool,
+
+    /// Eligibility of this session for future memory extraction.
+    #[serde(default)]
+    pub memory_mode: SessionMemoryMode,
 }
 
 impl SessionIndexEntry {
@@ -269,6 +282,22 @@ impl SessionCatalog {
         Ok(true)
     }
 
+    pub fn set_memory_mode(
+        &mut self,
+        session_id: Uuid,
+        memory_mode: SessionMemoryMode,
+    ) -> io::Result<bool> {
+        let Some(entry) = self.entries.get_mut(&session_id) else {
+            return Ok(false);
+        };
+        if entry.memory_mode == memory_mode {
+            return Ok(false);
+        }
+        entry.memory_mode = memory_mode;
+        self.save()?;
+        Ok(true)
+    }
+
     /// Remove an entry's session_id from secondary indexes.
     fn remove_from_indexes(&mut self, session_id: &Uuid, entry: &SessionIndexEntry) {
         // Remove from cwd index
@@ -331,6 +360,7 @@ impl SessionCatalog {
                     if entry.nickname.is_none() {
                         entry.nickname = existing.nickname.clone();
                     }
+                    entry.memory_mode = existing.memory_mode;
                     self.remove_from_indexes(&session_id, &existing);
                     self.index_entry(entry);
                     result.updated += 1;
@@ -564,6 +594,7 @@ async fn parse_rollout_file(
         sync_version: 0,
         archived,
         deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
     })
 }
 
@@ -609,6 +640,7 @@ pub async fn update_catalog_entry(
     rollout_path: &Path,
     session_id: Uuid,
     last_timestamp: &str,
+    memory_mode: Option<SessionMemoryMode>,
 ) -> io::Result<()> {
     let mut catalog = SessionCatalog::load(code_home)?;
 
@@ -623,6 +655,10 @@ pub async fn update_catalog_entry(
     // If entry exists, update last_event_at
         if let Some(mut entry) = catalog.entries.remove(&session_id) {
             entry.last_event_at = last_timestamp.to_string();
+            if let Some(memory_mode) = memory_mode
+                && entry.memory_mode == SessionMemoryMode::Enabled {
+                    entry.memory_mode = memory_mode;
+                }
 
             // Re-parse file to update message count and snippet
             if let Some(updated) = parse_rollout_file(rollout_path, parse_root, archived).await {
@@ -637,11 +673,24 @@ pub async fn update_catalog_entry(
             catalog.upsert(entry)?;
         } else {
             // Entry doesn't exist, parse and add it
-            if let Some(entry) = parse_rollout_file(rollout_path, parse_root, archived).await {
+            if let Some(mut entry) = parse_rollout_file(rollout_path, parse_root, archived).await {
+                entry.memory_mode = memory_mode.unwrap_or_default();
                 catalog.upsert(entry)?;
             }
     }
 
+    Ok(())
+}
+
+pub async fn update_catalog_memory_mode(
+    code_home: &Path,
+    session_id: Uuid,
+    memory_mode: SessionMemoryMode,
+) -> io::Result<()> {
+    let mut catalog = SessionCatalog::load(code_home)?;
+    if catalog.set_memory_mode(session_id, memory_mode)? {
+        return Ok(());
+    }
     Ok(())
 }
 
@@ -688,6 +737,7 @@ mod tests {
             sync_version: 0,
             archived: false,
             deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
         };
 
         let entry2 = SessionIndexEntry {
@@ -724,6 +774,7 @@ mod tests {
             sync_version: 0,
             archived: false,
             deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
         };
 
         // Create and save catalog
@@ -763,6 +814,7 @@ mod tests {
             sync_version: 0,
             archived: false,
             deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
         };
 
         let mut catalog = SessionCatalog::load(code_home)?;
@@ -804,6 +856,7 @@ mod tests {
             sync_version: 0,
             archived: false,
             deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
         };
 
         let entry2 = SessionIndexEntry {
@@ -855,6 +908,7 @@ mod tests {
             sync_version: 0,
             archived: false,
             deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
         };
 
         let mut catalog = SessionCatalog::load(code_home)?;
@@ -905,6 +959,7 @@ mod tests {
             sync_version: 0,
             archived: false,
             deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
         };
 
         let mut catalog = SessionCatalog::load(code_home)?;
@@ -949,6 +1004,7 @@ mod tests {
             sync_version: 0,
             archived: false,
             deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
         };
 
         let entry2 = SessionIndexEntry {
@@ -1010,6 +1066,7 @@ mod tests {
             sync_version: 0,
             archived: false,
             deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
         };
 
         let mut catalog = SessionCatalog::load(code_home)?;
@@ -1088,6 +1145,7 @@ mod tests {
             sync_version: 0,
             archived: false,
             deleted: false,
+        memory_mode: SessionMemoryMode::Enabled,
         };
 
         let mut catalog = SessionCatalog::load(code_home)?;
