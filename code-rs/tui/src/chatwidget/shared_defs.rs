@@ -670,6 +670,8 @@ enum ClickableAction {
     ShowShellSelector,
     ShowReasoningSelector,
     ShowNetworkSettings,
+    AcceptStartupModelMigration,
+    DismissStartupModelMigration,
     JumpToCallId(String),
     /// Toggle fold/collapse for a history cell at the given index.
     ToggleFoldAtIndex(usize),
@@ -736,6 +738,7 @@ pub(crate) struct ChatWidget<'a> {
     planning_restore: Option<(String, ReasoningEffort)>,
     history_debug_events: Option<RefCell<Vec<String>>>,
     latest_upgrade_version: Option<String>,
+    startup_model_migration_notice: Option<crate::model_migration::StartupModelMigrationNotice>,
     reconnect_notice_active: bool,
     initial_user_message: Option<UserMessage>,
     total_token_usage: TokenUsage,
@@ -2052,6 +2055,7 @@ pub(crate) struct ChatWidgetInit {
     pub(crate) terminal_info: crate::tui::TerminalInfo,
     pub(crate) show_order_overlay: bool,
     pub(crate) latest_upgrade_version: Option<String>,
+    pub(crate) startup_model_migration_notice: Option<crate::model_migration::StartupModelMigrationNotice>,
 }
 
 pub(crate) struct ForkedChatWidgetInit {
@@ -2062,6 +2066,7 @@ pub(crate) struct ForkedChatWidgetInit {
     pub(crate) terminal_info: crate::tui::TerminalInfo,
     pub(crate) show_order_overlay: bool,
     pub(crate) latest_upgrade_version: Option<String>,
+    pub(crate) startup_model_migration_notice: Option<crate::model_migration::StartupModelMigrationNotice>,
     pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) show_welcome: bool,
 }

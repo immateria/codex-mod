@@ -496,6 +496,7 @@ impl ModelSelectionView {
                     });
                 }
                 EntryKind::FollowChat => {
+                    self.use_chat_model = true;
                     match self.target {
                         ModelSelectionTarget::Session => {}
                         ModelSelectionTarget::Review => {
@@ -531,6 +532,9 @@ impl ModelSelectionView {
                 }
                 EntryKind::Preset(idx) => {
                     if let Some(flat_preset) = self.flat_presets.get(*idx) {
+                        self.current_model = flat_preset.model.clone();
+                        self.current_effort = flat_preset.effort;
+                        self.use_chat_model = false;
                         match self.target {
                             ModelSelectionTarget::Session => {
                                 self.app_event_tx.send(AppEvent::UpdateModelSelection {
@@ -1195,15 +1199,19 @@ mod tests {
     use std::sync::mpsc;
 
     fn preset(model: &str) -> ModelPreset {
+        preset_with_effort(model, ReasoningEffort::Medium)
+    }
+
+    fn preset_with_effort(model: &str, effort: ReasoningEffort) -> ModelPreset {
         ModelPreset {
             id: model.to_string(),
             model: model.to_string(),
             display_name: model.to_string(),
             description: format!("preset for {model}"),
-            default_reasoning_effort: ReasoningEffort::Medium.into(),
+            default_reasoning_effort: effort.into(),
             supported_reasoning_efforts: vec![ReasoningEffortPreset {
-                effort: ReasoningEffort::Medium.into(),
-                description: "medium".to_string(),
+                effort: effort.into(),
+                description: effort.to_string().to_ascii_lowercase(),
             }],
             supported_text_verbosity: &[],
             is_default: false,
@@ -1249,5 +1257,43 @@ mod tests {
         let view = make_view(ModelSelectionTarget::Session, vec![preset("gpt-5.3-codex")]);
         assert_eq!(view.get_entry_line(0), 5);
         assert_eq!(view.get_entry_line(1), 9);
+    }
+
+    #[test]
+    fn selecting_preset_updates_local_current_model_state() {
+        let (tx, _rx) = mpsc::channel::<AppEvent>();
+        let mut view = ModelSelectionView::new(
+            vec![preset_with_effort("gpt-5.3-codex", ReasoningEffort::High)],
+            "gpt-5.4".to_string(),
+            ReasoningEffort::Medium,
+            None,
+            false,
+            ModelSelectionTarget::Session,
+            AppEventSender::new(tx),
+        );
+
+        view.select_item(1);
+
+        assert_eq!(view.current_model, "gpt-5.3-codex");
+        assert_eq!(view.current_effort, ReasoningEffort::High);
+        assert!(!view.use_chat_model);
+    }
+
+    #[test]
+    fn selecting_follow_chat_updates_local_follow_chat_state() {
+        let (tx, _rx) = mpsc::channel::<AppEvent>();
+        let mut view = ModelSelectionView::new(
+            vec![preset("gpt-5.3-codex")],
+            "gpt-5.4".to_string(),
+            ReasoningEffort::Medium,
+            None,
+            false,
+            ModelSelectionTarget::Review,
+            AppEventSender::new(tx),
+        );
+
+        view.select_item(0);
+
+        assert!(view.use_chat_model);
     }
 }

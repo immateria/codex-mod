@@ -4,16 +4,6 @@
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![deny(clippy::disallowed_methods)]
 use app::App;
-use code_common::model_presets::{
-    all_model_presets,
-    ModelPreset,
-    HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG,
-    HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG,
-    HIDE_GPT_5_2_MIGRATION_PROMPT_CONFIG,
-};
-use code_core::config_edit::{self, CONFIG_KEY_EFFORT, CONFIG_KEY_MODEL};
-use code_core::config_types::Notice;
-use code_core::config_types::ReasoningEffort;
 use code_core::BUILT_IN_OSS_MODEL_PROVIDER_ID;
 use code_core::config::set_cached_terminal_background;
 use code_core::config::Config;
@@ -33,11 +23,10 @@ use code_core::config_types::ThemeName;
 use regex_lite::Regex;
 use code_login::AuthMode;
 use code_login::CodexAuth;
-use model_migration::{migration_copy_for_key, run_model_migration_prompt, ModelMigrationOutcome};
+use model_migration::determine_startup_model_migration_notice;
 use code_ollama::DEFAULT_OSS_MODEL;
 use code_protocol::config_types::SandboxMode;
 use std::fs::OpenOptions;
-use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use code_core::review_coord::{
@@ -440,13 +429,6 @@ pub struct ExitSummary {
     pub session_id: Option<Uuid>,
 }
 
-fn empty_exit_summary() -> ExitSummary {
-    ExitSummary {
-        token_usage: code_core::protocol::TokenUsage::default(),
-        session_id: None,
-    }
-}
-
 fn derive_resume_command_name(arg0: Option<std::ffi::OsString>) -> String {
     if let Some(raw) = arg0 {
         if let Some(name) = std::path::Path::new(&raw)
@@ -652,95 +634,17 @@ pub async fn run_main(
         || cli_kv_overrides
             .iter()
             .any(|(path, _)| path == "model" || path.ends_with(".model"));
-    if !cli_model_override && !cli.oss {
+    let startup_footer_notice = None;
+    let startup_model_migration_notice = if !cli_model_override && !cli.oss {
         let auth_mode = if config.using_chatgpt_auth {
             AuthMode::ChatGPT
         } else {
             AuthMode::ApiKey
         };
-        if let Some(plan) = determine_migration_plan(&config, auth_mode) {
-            let should_auto_accept = auth_mode.is_chatgpt()
-                && (plan.hide_key != code_common::model_presets::HIDE_GPT_5_2_CODEX_MIGRATION_PROMPT_CONFIG
-                    || (plan.current.id.eq_ignore_ascii_case("gpt-5.1-codex")
-                        && plan
-                            .target
-                            .id
-                            .eq_ignore_ascii_case("gpt-5.2-codex")));
-
-            if should_auto_accept {
-                if let Err(err) = persist_migration_acceptance(
-                    &code_home,
-                    cli.config_profile.as_deref(),
-                    plan,
-                )
-                .await
-                {
-                    tracing::warn!("failed to persist migration acceptance: {err}");
-                } else {
-                    match Config::load_with_cli_overrides(
-                        cli_kv_overrides.clone(),
-                        overrides.clone(),
-                    ) {
-                        Ok(updated) => {
-                            config = updated;
-                            config.demo_developer_message = cli.demo_developer_message.clone();
-                        }
-                        Err(err) => {
-                            tracing::error!("Error reloading configuration: {err}");
-                            std::process::exit(1);
-                        }
-                    }
-                }
-            } else {
-                let copy = migration_copy_for_key(plan.hide_key);
-                match run_model_migration_prompt(&copy)? {
-                    ModelMigrationOutcome::Accepted => {
-                        if let Err(err) = persist_migration_acceptance(
-                            &code_home,
-                            cli.config_profile.as_deref(),
-                            plan,
-                        )
-                        .await
-                        {
-                            tracing::warn!("failed to persist migration acceptance: {err}");
-                        } else {
-                            match Config::load_with_cli_overrides(
-                                cli_kv_overrides.clone(),
-                                overrides.clone(),
-                            ) {
-                                Ok(updated) => {
-                                    config = updated;
-                                    config.demo_developer_message = cli.demo_developer_message.clone();
-                                }
-                                Err(err) => {
-                                    tracing::error!("Error reloading configuration: {err}");
-                                    std::process::exit(1);
-                                }
-                            }
-                        }
-                    }
-                    ModelMigrationOutcome::Rejected => {
-                        let hide_key = plan.hide_key;
-                        if let Err(err) = persist_notice_hide(
-                            &code_home,
-                            cli.config_profile.as_deref(),
-                            hide_key,
-                        )
-                        .await
-                        {
-                            tracing::warn!("failed to persist migration opt-out: {err}");
-                        }
-                        set_notice_flag(&mut config.notices, hide_key);
-                    }
-                    ModelMigrationOutcome::Exit => {
-                        return Ok(empty_exit_summary());
-                    }
-                }
-            }
-        }
-    }
-
-    let startup_footer_notice = None;
+        determine_startup_model_migration_notice(&config, auth_mode)
+    } else {
+        None
+    };
 
     // we load config.toml here to determine project state.
     let (config_toml, theme_set_in_config_file) = {
@@ -843,6 +747,7 @@ pub async fn run_main(
         should_show_trust_screen,
         startup_footer_notice,
         latest_upgrade_version,
+        startup_model_migration_notice,
         theme_configured_explicitly,
     );
 
@@ -903,6 +808,7 @@ fn run_ratatui_app(
     should_show_trust_screen: bool,
     startup_footer_notice: Option<String>,
     latest_upgrade_version: Option<String>,
+    startup_model_migration_notice: Option<crate::model_migration::StartupModelMigrationNotice>,
     theme_configured_explicitly: bool,
 ) -> color_eyre::Result<ExitSummary> {
     color_eyre::install()?;
@@ -954,6 +860,7 @@ fn run_ratatui_app(
         fork_source_path,
         startup_footer_notice,
         latest_upgrade_version,
+        startup_model_migration_notice,
     });
 
     let app_result = app.run(&mut terminal);
@@ -1178,157 +1085,6 @@ fn maybe_apply_terminal_theme_detection(config: &mut Config, theme_configured_ex
                 "Terminal theme autodetect unavailable; using configured default theme"
             );
         }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct MigrationPlan {
-    current: &'static ModelPreset,
-    target: &'static ModelPreset,
-    hide_key: &'static str,
-    new_effort: Option<ReasoningEffort>,
-}
-
-fn determine_migration_plan(config: &Config, auth_mode: AuthMode) -> Option<MigrationPlan> {
-    let current_slug = config.model.to_ascii_lowercase();
-    let presets = all_model_presets();
-    let current = find_migration_preset(presets, &current_slug)?;
-    let upgrade = current.upgrade.as_ref()?;
-    if notice_hidden(&config.notices, upgrade.migration_config_key.as_str()) {
-        return None;
-    }
-    let target = presets
-        .iter()
-        .find(|preset| preset.id.eq_ignore_ascii_case(&upgrade.id))?;
-    if !auth_allows_target(auth_mode, target) {
-        return None;
-    }
-    let new_effort = None;
-    Some(MigrationPlan {
-        current,
-        target,
-        hide_key: upgrade.migration_config_key.as_str(),
-        new_effort,
-    })
-}
-
-fn find_migration_preset<'a>(presets: &'a [ModelPreset], slug_lower: &str) -> Option<&'a ModelPreset> {
-    let slug_no_prefix = slug_lower
-        .rsplit_once(':')
-        .map(|(_, rest)| rest)
-        .unwrap_or(slug_lower);
-    let slug_no_prefix = slug_no_prefix
-        .rsplit_once('/')
-        .map(|(_, rest)| rest)
-        .unwrap_or(slug_no_prefix);
-    let slug_no_test = slug_no_prefix.strip_prefix("test-").unwrap_or(slug_no_prefix);
-
-    if let Some(preset) = presets.iter().find(|preset| {
-        preset.id.eq_ignore_ascii_case(slug_no_test)
-            || preset.model.eq_ignore_ascii_case(slug_no_test)
-            || preset.display_name.eq_ignore_ascii_case(slug_no_test)
-    }) {
-        return Some(preset);
-    }
-
-    let mut best: Option<&ModelPreset> = None;
-    let mut best_len = 0usize;
-    for preset in presets.iter() {
-        for candidate in [&preset.id, &preset.model, &preset.display_name] {
-            let candidate_lower = candidate.to_ascii_lowercase();
-            if slug_no_test.starts_with(candidate_lower.as_str()) {
-                let candidate_len = candidate.len();
-                if candidate_len > best_len {
-                    best = Some(preset);
-                    best_len = candidate_len;
-                }
-                break;
-            }
-        }
-    }
-
-    best
-}
-
-const NOTICE_TABLE: &str = "notice";
-
-async fn persist_migration_acceptance(
-    code_home: &Path,
-    profile: Option<&str>,
-    plan: MigrationPlan,
-) -> io::Result<()> {
-    let mut pending: Vec<(Vec<&str>, String)> = Vec::new();
-    pending.push((vec![CONFIG_KEY_MODEL], plan.target.model.to_string()));
-
-    if let Some(effort) = plan.new_effort {
-        pending.push((
-            vec![CONFIG_KEY_EFFORT],
-            reasoning_effort_to_str(effort).to_string(),
-        ));
-    }
-
-    pending.push((vec![NOTICE_TABLE, plan.hide_key], "true".to_string()));
-
-    let overrides: Vec<(&[&str], &str)> = pending
-        .iter()
-        .map(|(path, value)| (path.as_slice(), value.as_str()))
-        .collect();
-
-    config_edit::persist_overrides(code_home, profile, &overrides)
-        .await
-        .map_err(|err| io::Error::other(err.to_string()))
-}
-
-async fn persist_notice_hide(
-    code_home: &Path,
-    profile: Option<&str>,
-    hide_key: &'static str,
-) -> io::Result<()> {
-    let notice_path = [NOTICE_TABLE, hide_key];
-    let overrides = [(&notice_path[..], "true")];
-    config_edit::persist_overrides(code_home, profile, &overrides)
-        .await
-        .map_err(|err| io::Error::other(err.to_string()))
-}
-
-fn set_notice_flag(notices: &mut Notice, key: &str) {
-    if key == HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG {
-        notices.hide_gpt5_1_migration_prompt = Some(true);
-    } else if key == HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG {
-        notices.hide_gpt_5_1_codex_max_migration_prompt = Some(true);
-    } else if key == HIDE_GPT_5_2_MIGRATION_PROMPT_CONFIG {
-        notices.hide_gpt5_2_migration_prompt = Some(true);
-    } else if key == code_common::model_presets::HIDE_GPT_5_2_CODEX_MIGRATION_PROMPT_CONFIG {
-        notices.hide_gpt5_2_codex_migration_prompt = Some(true);
-    }
-}
-
-fn notice_hidden(notices: &Notice, key: &str) -> bool {
-    if key == HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG {
-        notices.hide_gpt5_1_migration_prompt.unwrap_or(false)
-    } else if key == HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG {
-        notices.hide_gpt_5_1_codex_max_migration_prompt.unwrap_or(false)
-    } else if key == HIDE_GPT_5_2_MIGRATION_PROMPT_CONFIG {
-        notices.hide_gpt5_2_migration_prompt.unwrap_or(false)
-    } else if key == code_common::model_presets::HIDE_GPT_5_2_CODEX_MIGRATION_PROMPT_CONFIG {
-        notices.hide_gpt5_2_codex_migration_prompt.unwrap_or(false)
-    } else {
-        false
-    }
-}
-
-fn auth_allows_target(auth_mode: AuthMode, target: &ModelPreset) -> bool {
-    !(matches!(auth_mode, AuthMode::ApiKey) && target.id.eq_ignore_ascii_case("gpt-5.2-codex"))
-}
-
-fn reasoning_effort_to_str(effort: ReasoningEffort) -> &'static str {
-    match effort {
-        ReasoningEffort::Minimal => "minimal",
-        ReasoningEffort::Low => "low",
-        ReasoningEffort::Medium => "medium",
-        ReasoningEffort::High => "high",
-        ReasoningEffort::XHigh => "xhigh",
-        ReasoningEffort::None => "none",
     }
 }
 

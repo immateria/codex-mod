@@ -1,208 +1,237 @@
-use std::io::{self, Write};
+use std::io;
+use std::path::Path;
 
-use crate::colors;
-use crossterm::cursor::MoveTo;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use crossterm::queue;
-use crossterm::style::{Attribute as CtAttribute, Color as CtColor, Print, ResetColor, SetAttribute, SetForegroundColor};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
-use crossterm::ExecutableCommand;
+use code_common::model_presets::{
+    all_model_presets,
+    model_preset_available_for_auth,
+    ModelPreset,
+    HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG,
+    HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG,
+    HIDE_GPT_5_2_MIGRATION_PROMPT_CONFIG,
+};
+use code_core::config::Config;
+use code_core::config_edit::{self, CONFIG_KEY_EFFORT, CONFIG_KEY_MODEL};
+use code_core::config_types::Notice;
+use code_core::config_types::ReasoningEffort;
+use code_login::AuthMode;
 
-pub(crate) enum ModelMigrationOutcome {
-    Accepted,
-    Rejected,
-    Exit,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct StartupModelMigrationNotice {
+    pub current_model_label: String,
+    pub target_model_label: String,
+    pub target_model: String,
+    pub hide_key: String,
+    pub new_effort: Option<ReasoningEffort>,
 }
 
-pub(crate) struct ModelMigrationCopy {
-    pub heading: &'static str,
-    pub content: &'static [&'static str],
-    pub can_opt_out: bool,
-}
-
-pub(crate) fn migration_copy_for_key(key: &str) -> ModelMigrationCopy {
-    match key {
-        code_common::model_presets::HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG => ModelMigrationCopy {
-            heading: "Introducing our gpt-5.1 models",
-            content: &[
-                "We've upgraded Codex to gpt-5.1, gpt-5.1-codex, and gpt-5.1-codex-mini.",
-                "Legacy gpt-5 models continue to work via -m or config.toml overrides.",
-                "Learn more: www.openai.com/index/gpt-5-1",
-                "Press Enter to continue.",
-            ],
-            can_opt_out: false,
-        },
-        code_common::model_presets::HIDE_GPT_5_2_MIGRATION_PROMPT_CONFIG => ModelMigrationCopy {
-            heading: "Upgrade available: GPT-5.2",
-            content: &[
-                "OpenAI's latest frontier model is here! Improved knowledge, reasoning, and coding.",
-                "Switch now to get better results; you can keep your current model if you prefer.",
-                "Learn more: www.openai.com/index/gpt-5-2",
-            ],
-            can_opt_out: true,
-        },
-        code_common::model_presets::HIDE_GPT_5_2_CODEX_MIGRATION_PROMPT_CONFIG => ModelMigrationCopy {
-            heading: "Upgrade available: GPT-5.2 Codex",
-            content: &[
-                "OpenAI's latest frontier agentic coding model is here: gpt-5.2-codex.",
-                "Switch now for better coding results; you can keep your current model if you prefer.",
-                "Learn more: https://openai.com/index/introducing-gpt-5-2-codex/",
-            ],
-            can_opt_out: true,
-        },
-        _ => ModelMigrationCopy {
-            heading: "Codex just got an upgrade: meet gpt-5.1-codex-max",
-            content: &[
-                "Our flagship agentic coding model is smarter, faster, and tuned for long sessions.",
-                "Everyone signed in with ChatGPT gets it automatically.",
-                "Learn more: www.openai.com/index/gpt-5-1-codex-max",
-                "Choose how you'd like Codex to proceed.",
-            ],
-            can_opt_out: true,
-        },
+impl StartupModelMigrationNotice {
+    pub(crate) fn banner_message(&self) -> String {
+        format!(
+            "Recommended model: {} (current: {})",
+            self.target_model_label, self.current_model_label
+        )
     }
 }
 
-pub(crate) fn run_model_migration_prompt(copy: &ModelMigrationCopy) -> io::Result<ModelMigrationOutcome> {
-    struct RawModeGuard;
-    impl RawModeGuard {
-        fn new() -> io::Result<Self> {
-            enable_raw_mode()?;
-            Ok(Self)
+#[derive(Clone, Copy)]
+struct MigrationPlan {
+    current: &'static ModelPreset,
+    target: &'static ModelPreset,
+    hide_key: &'static str,
+    new_effort: Option<ReasoningEffort>,
+}
+
+pub(crate) fn determine_startup_model_migration_notice(
+    config: &Config,
+    auth_mode: AuthMode,
+) -> Option<StartupModelMigrationNotice> {
+    let plan = determine_migration_plan(config, auth_mode)?;
+    Some(StartupModelMigrationNotice {
+        current_model_label: plan.current.display_name.clone(),
+        target_model_label: plan.target.display_name.clone(),
+        target_model: plan.target.model.clone(),
+        hide_key: plan.hide_key.to_string(),
+        new_effort: plan.new_effort,
+    })
+}
+
+pub(crate) async fn persist_startup_model_migration_acceptance(
+    code_home: &Path,
+    profile: Option<&str>,
+    notice: &StartupModelMigrationNotice,
+) -> io::Result<()> {
+    let mut pending: Vec<(Vec<&str>, String)> = Vec::new();
+    pending.push((vec![CONFIG_KEY_MODEL], notice.target_model.clone()));
+
+    if let Some(effort) = notice.new_effort {
+        pending.push((
+            vec![CONFIG_KEY_EFFORT],
+            reasoning_effort_to_str(effort).to_string(),
+        ));
+    }
+
+    pending.push((vec!["notice", notice.hide_key.as_str()], "true".to_string()));
+
+    let overrides: Vec<(&[&str], &str)> = pending
+        .iter()
+        .map(|(path, value)| (path.as_slice(), value.as_str()))
+        .collect();
+
+    config_edit::persist_overrides(code_home, profile, &overrides)
+        .await
+        .map_err(|err| io::Error::other(err.to_string()))
+}
+
+pub(crate) async fn persist_startup_model_migration_dismissal(
+    code_home: &Path,
+    profile: Option<&str>,
+    hide_key: &str,
+) -> io::Result<()> {
+    let notice_path = ["notice", hide_key];
+    let overrides = [(&notice_path[..], "true")];
+    config_edit::persist_overrides(code_home, profile, &overrides)
+        .await
+        .map_err(|err| io::Error::other(err.to_string()))
+}
+
+pub(crate) fn set_notice_flag(notices: &mut Notice, key: &str) {
+    if key == HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG {
+        notices.hide_gpt5_1_migration_prompt = Some(true);
+    } else if key == HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG {
+        notices.hide_gpt_5_1_codex_max_migration_prompt = Some(true);
+    } else if key == HIDE_GPT_5_2_MIGRATION_PROMPT_CONFIG {
+        notices.hide_gpt5_2_migration_prompt = Some(true);
+    } else if key == code_common::model_presets::HIDE_GPT_5_2_CODEX_MIGRATION_PROMPT_CONFIG {
+        notices.hide_gpt5_2_codex_migration_prompt = Some(true);
+    }
+}
+
+fn determine_migration_plan(config: &Config, auth_mode: AuthMode) -> Option<MigrationPlan> {
+    let current_slug = config.model.to_ascii_lowercase();
+    let presets = all_model_presets();
+    let current = find_migration_preset(presets, &current_slug)?;
+    let upgrade = current.upgrade.as_ref()?;
+    if notice_hidden(&config.notices, upgrade.migration_config_key.as_str()) {
+        return None;
+    }
+    let target = presets
+        .iter()
+        .find(|preset| preset.id.eq_ignore_ascii_case(&upgrade.id))?;
+    if !auth_allows_target(auth_mode, target) {
+        return None;
+    }
+    let new_effort = None;
+    Some(MigrationPlan {
+        current,
+        target,
+        hide_key: upgrade.migration_config_key.as_str(),
+        new_effort,
+    })
+}
+
+fn find_migration_preset<'a>(
+    presets: &'a [ModelPreset],
+    slug_lower: &str,
+) -> Option<&'a ModelPreset> {
+    let slug_no_prefix = slug_lower
+        .rsplit_once(':')
+        .map(|(_, rest)| rest)
+        .unwrap_or(slug_lower);
+    let slug_no_prefix = slug_no_prefix
+        .rsplit_once('/')
+        .map(|(_, rest)| rest)
+        .unwrap_or(slug_no_prefix);
+    let slug_no_test = slug_no_prefix.strip_prefix("test-").unwrap_or(slug_no_prefix);
+
+    if let Some(preset) = presets.iter().find(|preset| {
+        preset.id.eq_ignore_ascii_case(slug_no_test)
+            || preset.model.eq_ignore_ascii_case(slug_no_test)
+            || preset.display_name.eq_ignore_ascii_case(slug_no_test)
+    }) {
+        return Some(preset);
+    }
+
+    let mut best: Option<&ModelPreset> = None;
+    let mut best_len = 0usize;
+    for preset in presets {
+        for candidate in [&preset.id, &preset.model, &preset.display_name] {
+            let candidate_lower = candidate.to_ascii_lowercase();
+            if slug_no_test.starts_with(candidate_lower.as_str()) {
+                let candidate_len = candidate.len();
+                if candidate_len > best_len {
+                    best = Some(preset);
+                    best_len = candidate_len;
+                }
+                break;
+            }
         }
     }
-    impl Drop for RawModeGuard {
-        fn drop(&mut self) {
-            let _ = disable_raw_mode();
-        }
-    }
 
-    let _guard = RawModeGuard::new()?;
-
-    let mut stdout = io::stdout();
-    let mut highlighted = 0usize;
-    render_prompt(&mut stdout, copy, highlighted)?;
-
-    loop {
-        let event = event::read()?;
-        if let Event::Key(KeyEvent { code, modifiers, kind, .. }) = event {
-            if matches!(kind, KeyEventKind::Release) {
-                continue;
-            }
-
-            if modifiers.contains(KeyModifiers::CONTROL)
-                && matches!(code, KeyCode::Char('c') | KeyCode::Char('d'))
-            {
-                return Ok(ModelMigrationOutcome::Exit);
-            }
-
-            if !copy.can_opt_out {
-                match code {
-                    KeyCode::Enter | KeyCode::Esc => {
-                        return Ok(ModelMigrationOutcome::Accepted);
-                    }
-                    _ => {}
-                }
-                continue;
-            }
-
-            match code {
-                KeyCode::Up | KeyCode::Char('k') => {
-                    highlighted = 0;
-                    render_prompt(&mut stdout, copy, highlighted)?;
-                }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    highlighted = 1;
-                    render_prompt(&mut stdout, copy, highlighted)?;
-                }
-                KeyCode::Char('1') => return Ok(ModelMigrationOutcome::Accepted),
-                KeyCode::Char('2') => return Ok(ModelMigrationOutcome::Rejected),
-                KeyCode::Enter => {
-                    return if highlighted == 0 {
-                        Ok(ModelMigrationOutcome::Accepted)
-                    } else {
-                        Ok(ModelMigrationOutcome::Rejected)
-                    };
-                }
-                KeyCode::Esc => return Ok(ModelMigrationOutcome::Rejected),
-                KeyCode::Char('q') => return Ok(ModelMigrationOutcome::Exit),
-                _ => {}
-            }
-        }
-    }
+    best
 }
 
-fn render_prompt(stdout: &mut io::Stdout, copy: &ModelMigrationCopy, highlighted: usize) -> io::Result<()> {
-    stdout.execute(Clear(ClearType::All))?;
-    stdout.execute(MoveTo(0, 0))?;
-
-    if copy.heading == "Upgrade available: GPT-5.2 Codex" {
-        let success_fg = CtColor::from(colors::success());
-        write_line_fg_bold(stdout, copy.heading, success_fg)?;
+fn notice_hidden(notices: &Notice, key: &str) -> bool {
+    if key == HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG {
+        notices.hide_gpt5_1_migration_prompt.unwrap_or(false)
+    } else if key == HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG {
+        notices.hide_gpt_5_1_codex_max_migration_prompt.unwrap_or(false)
+    } else if key == HIDE_GPT_5_2_MIGRATION_PROMPT_CONFIG {
+        notices.hide_gpt5_2_migration_prompt.unwrap_or(false)
+    } else if key == code_common::model_presets::HIDE_GPT_5_2_CODEX_MIGRATION_PROMPT_CONFIG {
+        notices.hide_gpt5_2_codex_migration_prompt.unwrap_or(false)
     } else {
-        write_line(stdout, copy.heading)?;
+        false
     }
-    write_blank(stdout)?;
-    for line in copy.content {
-        write_line(stdout, line)?;
+}
+
+fn auth_allows_target(auth_mode: AuthMode, target: &ModelPreset) -> bool {
+    // Startup migration runs before remote model discovery, so we do not know
+    // whether a ChatGPT account can access pro-only models. Use the shared
+    // availability policy with a conservative non-pro assumption here.
+    model_preset_available_for_auth(target, Some(auth_mode), false)
+}
+
+fn reasoning_effort_to_str(effort: ReasoningEffort) -> &'static str {
+    match effort {
+        ReasoningEffort::None => "none",
+        ReasoningEffort::Minimal => "minimal",
+        ReasoningEffort::Low => "low",
+        ReasoningEffort::Medium => "medium",
+        ReasoningEffort::High => "high",
+        ReasoningEffort::XHigh => "xhigh",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use code_core::config::ConfigOverrides;
+    use code_core::config::ConfigToml;
+
+    fn config_for_model(model: &str) -> Config {
+        let cfg = ConfigToml {
+            model: Some(model.to_string()),
+            ..Default::default()
+        };
+        Config::load_from_base_config_with_overrides(
+            cfg,
+            ConfigOverrides::default(),
+            std::env::temp_dir(),
+        )
+        .unwrap_or_else(|err| panic!("failed to build config: {err}"))
     }
 
-    if copy.can_opt_out {
-        write_blank(stdout)?;
-        let primary_fg = CtColor::from(colors::primary());
-        for (idx, label) in ["Try new model (recommended)", "Use existing model"].iter().enumerate() {
-            if idx == highlighted {
-                queue!(stdout, SetForegroundColor(primary_fg), Print("> "), Print(*label), ResetColor, Print("\r\n"))?;
-            } else {
-                queue!(stdout, Print("  "), Print(*label), Print("\r\n"))?;
-            }
-        }
-        write_blank(stdout)?;
-        write_key_tip_line(stdout)?;
+    #[test]
+    fn api_key_auth_hides_unavailable_migration_target() {
+        let config = config_for_model("gpt-5.2-codex");
+        assert!(determine_startup_model_migration_notice(&config, AuthMode::ApiKey).is_none());
     }
 
-    stdout.flush()
-}
-
-fn write_line(stdout: &mut io::Stdout, line: &str) -> io::Result<()> {
-    stdout.write_all(line.as_bytes())?;
-    stdout.write_all(b"\r\n")
-}
-
-fn write_line_fg_bold(stdout: &mut io::Stdout, line: &str, fg: CtColor) -> io::Result<()> {
-    queue!(
-        stdout,
-        SetForegroundColor(fg),
-        SetAttribute(CtAttribute::Bold),
-        Print(line),
-        SetAttribute(CtAttribute::NormalIntensity),
-        ResetColor,
-        Print("\r\n")
-    )?;
-    Ok(())
-}
-
-fn write_key_tip_line(stdout: &mut io::Stdout) -> io::Result<()> {
-    let tip_fg = CtColor::from(colors::function());
-    queue!(
-        stdout,
-        Print("Use "),
-        SetForegroundColor(tip_fg),
-        Print("↑/↓"),
-        ResetColor,
-        Print(" to move, "),
-        SetForegroundColor(tip_fg),
-        Print("Enter"),
-        ResetColor,
-        Print(" to confirm, "),
-        SetForegroundColor(tip_fg),
-        Print("Esc"),
-        ResetColor,
-        Print(" to keep current model.\r\n")
-    )?;
-    Ok(())
-}
-
-fn write_blank(stdout: &mut io::Stdout) -> io::Result<()> {
-    stdout.write_all(b"\r\n")
+    #[test]
+    fn chatgpt_auth_still_shows_migration_target() {
+        let config = config_for_model("gpt-5.2-codex");
+        let notice = determine_startup_model_migration_notice(&config, AuthMode::Chatgpt)
+            .unwrap_or_else(|| panic!("expected migration notice"));
+        assert_eq!(notice.target_model, "gpt-5.3-codex");
+    }
 }

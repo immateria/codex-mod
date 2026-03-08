@@ -17,6 +17,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::chatwidget::{ChatWidget, GhostState};
 use crate::file_search::FileSearchManager;
 use crate::history::state::HistorySnapshot;
+use crate::model_migration::StartupModelMigrationNotice;
 use crate::onboarding::onboarding_screen::OnboardingScreen;
 use crate::thread_spawner;
 use crate::tui::TerminalInfo;
@@ -226,6 +227,7 @@ pub(crate) struct App<'a> {
 
     /// Latest available release version (if detected) so new widgets can surface it.
     pub(super) latest_upgrade_version: Option<String>,
+    pub(super) startup_model_migration_notice: Option<StartupModelMigrationNotice>,
 
     pub(super) file_search: FileSearchManager,
 
@@ -321,6 +323,7 @@ pub(crate) struct ChatWidgetArgs {
     pub(crate) fork_picker: bool,
     pub(crate) fork_source_path: Option<PathBuf>,
     pub(crate) latest_upgrade_version: Option<String>,
+    pub(crate) startup_model_migration_notice: Option<StartupModelMigrationNotice>,
 }
 
 #[derive(Clone, Debug)]
@@ -338,6 +341,7 @@ pub(crate) struct AppInitArgs {
     pub(crate) fork_source_path: Option<PathBuf>,
     pub(crate) startup_footer_notice: Option<String>,
     pub(crate) latest_upgrade_version: Option<String>,
+    pub(crate) startup_model_migration_notice: Option<StartupModelMigrationNotice>,
 }
 
 impl App<'_> {

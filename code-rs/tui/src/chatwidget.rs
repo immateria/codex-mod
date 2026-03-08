@@ -2157,6 +2157,14 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    pub(crate) fn set_startup_model_migration_notice(
+        &mut self,
+        notice: Option<crate::model_migration::StartupModelMigrationNotice>,
+    ) {
+        self.startup_model_migration_notice = notice;
+        self.request_redraw();
+    }
+
     pub(crate) fn on_rate_limit_refresh_failed(&mut self, message: String) {
         self.rate_limit_fetch_inflight = false;
 

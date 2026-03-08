@@ -175,6 +175,18 @@ impl ChatWidget<'_> {
             ClickableAction::ShowNetworkSettings => {
                 self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);
             }
+            ClickableAction::AcceptStartupModelMigration => {
+                if let Some(notice) = self.startup_model_migration_notice.clone() {
+                    self.app_event_tx
+                        .send(AppEvent::AcceptStartupModelMigration(notice));
+                }
+            }
+            ClickableAction::DismissStartupModelMigration => {
+                if let Some(notice) = self.startup_model_migration_notice.clone() {
+                    self.app_event_tx
+                        .send(AppEvent::DismissStartupModelMigration(notice));
+                }
+            }
             ClickableAction::JumpToCallId(call_id) => {
                 self.jump_to_call_id(&call_id);
             }

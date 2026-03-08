@@ -4066,6 +4066,61 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn clicking_wide_settings_overview_opens_selected_section() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    use code_core::config_types::{SettingsMenuConfig, SettingsMenuOpenMode};
+    use crate::test_backend::VT100Backend;
+    use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use ratatui::Terminal;
+
+    {
+        let chat = harness.chat();
+        chat.apply_tui_settings_menu(SettingsMenuConfig {
+            open_mode: SettingsMenuOpenMode::Overlay,
+            overlay_min_width: 80,
+        });
+        chat.show_settings_overlay(None);
+    }
+    harness.flush_into_widget();
+
+    {
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(120, 30)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    harness.with_chat(|chat| {
+        chat.handle_mouse_event(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 6,
+            row: 9,
+            modifiers: KeyModifiers::NONE,
+        });
+    });
+
+    let output = {
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(120, 30)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+        terminal.backend().to_string()
+    };
+
+    assert!(
+        output.contains("Settings ▸ Theme") || output.contains("Theme Settings"),
+        "expected click on overview row to open Theme settings, got:\n{output}",
+    );
+    assert!(
+        !output.contains("Settings ▸ Overview"),
+        "expected overlay to leave overview mode after click, got:\n{output}",
+    );
+    }
+
+    #[test]
     fn network_approval_renders_network_modal_without_exec_persist_options() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
@@ -4194,6 +4249,52 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
         output.contains("Coverage: exec, exec_command, web_fetch"),
         "expected Network settings view after click, got:\n{output}",
     );
+    }
+
+    #[test]
+    fn startup_model_notice_click_dispatches_accept_event() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        chat.startup_model_migration_notice = Some(crate::model_migration::StartupModelMigrationNotice {
+            current_model_label: "gpt-5.2-codex".to_string(),
+            target_model_label: "gpt-5.3-codex".to_string(),
+            target_model: "gpt-5.3-codex".to_string(),
+            hide_key: code_common::model_presets::HIDE_GPT_5_2_CODEX_MIGRATION_PROMPT_CONFIG.to_string(),
+            new_effort: None,
+        });
+    });
+
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(100, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    let (x, y) = harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        let region = regions
+            .iter()
+            .find(|region| region.action == ClickableAction::AcceptStartupModelMigration)
+            .expect("expected startup migration accept region");
+        let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+        (x, region.rect.y)
+    });
+
+    harness.with_chat(|chat| chat.handle_click((x, y)));
+
+    let events = harness.drain_events();
+    assert!(events.into_iter().any(|event| matches!(
+        event,
+        AppEvent::AcceptStartupModelMigration(notice)
+            if notice.target_model == "gpt-5.3-codex"
+    )));
     }
 
     #[test]

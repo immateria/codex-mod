@@ -54,12 +54,19 @@ impl SettingsOverlayView {
 
         match result {
             SelectableListMouseResult::Ignored => false,
-            SelectableListMouseResult::SelectionChanged | SelectableListMouseResult::Activated => {
+            SelectableListMouseResult::SelectionChanged => {
                 let Some(section) = self.sidebar_section_at(selected_idx) else {
                     return false;
                 };
                 self.set_section(section)
-                    || matches!(result, SelectableListMouseResult::Activated)
+            }
+            SelectableListMouseResult::Activated => {
+                let Some(section) = self.sidebar_section_at(selected_idx) else {
+                    return false;
+                };
+                let changed = self.active_section() != section || self.is_menu_active();
+                self.set_mode_section(section);
+                changed
             }
         }
     }

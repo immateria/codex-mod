@@ -24,6 +24,7 @@ impl ChatWidget<'_> {
             terminal_info,
             show_order_overlay,
             latest_upgrade_version,
+            startup_model_migration_notice,
         } = args;
         let mapped_theme = crate::theme::map_theme_for_palette(
             config.tui.theme.name,
@@ -100,6 +101,7 @@ impl ChatWidget<'_> {
                 None
             },
             latest_upgrade_version,
+            startup_model_migration_notice,
             reconnect_notice_active: false,
             initial_user_message: create_initial_user_message(
                 initial_prompt.unwrap_or_default(),
@@ -382,6 +384,7 @@ impl ChatWidget<'_> {
             terminal_info,
             show_order_overlay,
             latest_upgrade_version,
+            startup_model_migration_notice,
             auth_manager,
             show_welcome,
         } = args;
@@ -440,6 +443,7 @@ impl ChatWidget<'_> {
                 None
             },
             latest_upgrade_version,
+            startup_model_migration_notice,
             reconnect_notice_active: false,
             initial_user_message: None,
             total_token_usage: TokenUsage::default(),

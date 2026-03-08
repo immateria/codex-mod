@@ -108,6 +108,7 @@ impl ChatWidgetHarness {
             terminal_info,
             show_order_overlay: false,
             latest_upgrade_version: None,
+            startup_model_migration_notice: None,
         });
 
         let mut harness = Self {
@@ -301,6 +302,27 @@ impl ChatWidgetHarness {
     pub fn close_auto_drive_settings(&mut self) {
         self.chat().close_auto_drive_settings();
         self.flush_into_widget();
+    }
+
+    #[cfg(any(test, feature = "test-helpers"))]
+    pub fn set_startup_model_migration_notice(
+        &mut self,
+        current_model_label: &str,
+        target_model_label: &str,
+        target_model: &str,
+        hide_key: &str,
+    ) {
+        let runtime = &*TEST_RUNTIME;
+        let _guard = runtime.enter();
+        self.chat.set_startup_model_migration_notice(Some(
+            crate::model_migration::StartupModelMigrationNotice {
+                current_model_label: current_model_label.to_string(),
+                target_model_label: target_model_label.to_string(),
+                target_model: target_model.to_string(),
+                hide_key: hide_key.to_string(),
+                new_effort: None,
+            },
+        ));
     }
 
     #[cfg(test)]

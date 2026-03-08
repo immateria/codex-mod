@@ -384,7 +384,17 @@ impl ChatWidget<'_> {
         let mut custom_top_line_regions: Option<Vec<(std::ops::Range<usize>, ClickableAction)>> =
             None;
         let mut custom_top_line_width = 0usize;
-        if header_cfg.show_top_line {
+        if let Some(notice) = self.startup_model_migration_notice.as_ref() {
+            let notice_line = self.render_startup_model_migration_notice_line(
+                notice,
+                header_template_ctx.hovered_action.clone(),
+                hover_style,
+            );
+            custom_top_line_width = notice_line.width;
+            custom_top_line_regions = Some(notice_line.clickable_ranges);
+            status_lines.push(notice_line.line);
+            status_lines.push(dynamic_header.line.clone());
+        } else if header_cfg.show_top_line {
             if let Some(custom_top) = top_text_with_regions {
                 custom_top_line_width = custom_top.width;
                 custom_top_line_regions = Some(custom_top.clickable_ranges);
@@ -511,6 +521,86 @@ impl ChatWidget<'_> {
                 Style::default().fg(crate::colors::text_dim()),
             ));
         }
+
+        super::terminal_surface_header::HeaderTemplateRender {
+            line: Line::from(spans),
+            clickable_ranges: ranges,
+            width,
+        }
+    }
+
+    fn render_startup_model_migration_notice_line(
+        &self,
+        notice: &crate::model_migration::StartupModelMigrationNotice,
+        hovered_action: Option<ClickableAction>,
+        hover_style: code_core::config_types::HeaderHoverStyle,
+    ) -> super::terminal_surface_header::HeaderTemplateRender {
+        use ratatui::style::Style;
+        use ratatui::text::{Line, Span};
+
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        let mut ranges: Vec<(std::ops::Range<usize>, ClickableAction)> = Vec::new();
+        let mut width = 0usize;
+
+        let push_span = |spans: &mut Vec<Span<'static>>,
+                         width: &mut usize,
+                         text: String,
+                         style: Style| {
+            *width += text.chars().count();
+            spans.push(Span::styled(text, style));
+        };
+
+        let push_clickable =
+            |spans: &mut Vec<Span<'static>>,
+             ranges: &mut Vec<(std::ops::Range<usize>, ClickableAction)>,
+             width: &mut usize,
+             text: &str,
+             action: ClickableAction,
+             hovered_action: Option<ClickableAction>,
+             hover_style: code_core::config_types::HeaderHoverStyle| {
+                let start = *width;
+                let is_hovered = hovered_action.as_ref() == Some(&action);
+                let style = super::terminal_surface_header::apply_hover_style(
+                    Style::default().fg(crate::colors::info()),
+                    hover_style,
+                    is_hovered,
+                );
+                let text_owned = text.to_string();
+                *width += text_owned.chars().count();
+                spans.push(Span::styled(text_owned, style));
+                ranges.push((start..*width, action));
+            };
+
+        push_span(
+            &mut spans,
+            &mut width,
+            format!("{}  ", notice.banner_message()),
+            Style::default().fg(crate::colors::text_dim()),
+        );
+        push_clickable(
+            &mut spans,
+            &mut ranges,
+            &mut width,
+            "[Switch now]",
+            ClickableAction::AcceptStartupModelMigration,
+            hovered_action.clone(),
+            hover_style,
+        );
+        push_span(
+            &mut spans,
+            &mut width,
+            "  ".to_string(),
+            Style::default().fg(crate::colors::text_dim()),
+        );
+        push_clickable(
+            &mut spans,
+            &mut ranges,
+            &mut width,
+            "[Keep current]",
+            ClickableAction::DismissStartupModelMigration,
+            hovered_action,
+            hover_style,
+        );
 
         super::terminal_surface_header::HeaderTemplateRender {
             line: Line::from(spans),
