@@ -27,6 +27,7 @@ use code_core::config_types::StatusLineLane;
 pub(crate) enum StatusLineItem {
     ModelName,
     ModelWithReasoning,
+    ServiceTier,
     Shell,
     ShellStyle,
     CurrentDir,
@@ -54,6 +55,7 @@ impl StatusLineItem {
         match self {
             StatusLineItem::ModelName => "Model name",
             StatusLineItem::ModelWithReasoning => "Model + reasoning",
+            StatusLineItem::ServiceTier => "Speed mode",
             StatusLineItem::Shell => "Shell",
             StatusLineItem::ShellStyle => "Shell style",
             StatusLineItem::CurrentDir => "Current directory",
@@ -81,6 +83,7 @@ impl StatusLineItem {
         match self {
             StatusLineItem::ModelName => "Current model name.",
             StatusLineItem::ModelWithReasoning => "Current model with reasoning level.",
+            StatusLineItem::ServiceTier => "Current response speed mode (fast or slow).",
             StatusLineItem::Shell => "Selected shell executable for tool execution.",
             StatusLineItem::ShellStyle => "Active shell script style for routing and profiles.",
             StatusLineItem::CurrentDir => "Current working directory.",
@@ -108,6 +111,7 @@ impl StatusLineItem {
         match self {
             StatusLineItem::ModelName => "GPT-5.3-Codex",
             StatusLineItem::ModelWithReasoning => "GPT-5.3-Codex High",
+            StatusLineItem::ServiceTier => "fast",
             StatusLineItem::Shell => "sh /bin/zsh",
             StatusLineItem::ShellStyle => "style zsh",
             StatusLineItem::CurrentDir => "~/code-termux",

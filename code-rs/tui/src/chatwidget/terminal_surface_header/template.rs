@@ -10,6 +10,8 @@ pub(super) fn render_plain_header_template(
     template
         .replace("{title}", context.title)
         .replace("{model}", context.model)
+        .replace("{speed}", context.service_tier)
+        .replace("{service_tier}", context.service_tier)
         .replace("{shell}", context.shell)
         .replace("{reasoning}", context.reasoning)
         .replace("{directory}", context.directory)
@@ -70,6 +72,11 @@ pub(super) fn render_styled_header_template(
                 Style::default().fg(crate::colors::info()),
                 Some(ClickableAction::ShowModelSelector),
             )),
+            "speed" | "service_tier" => Some((
+                context.service_tier,
+                Style::default().fg(crate::colors::info()),
+                Some(ClickableAction::ToggleServiceTier),
+            )),
             "shell" => Some((
                 context.shell,
                 Style::default().fg(crate::colors::info()),
@@ -83,7 +90,7 @@ pub(super) fn render_styled_header_template(
             "directory" => Some((
                 context.directory,
                 Style::default().fg(crate::colors::info()),
-                None,
+                Some(ClickableAction::ShowDirectoryPicker),
             )),
             "branch" => Some((
                 context.branch,

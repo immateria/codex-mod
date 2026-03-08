@@ -4252,6 +4252,251 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
     }
 
     #[test]
+    fn statusline_service_tier_segment_click_dispatches_toggle() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        use code_core::config_types::StatusLineLane;
+        use crate::bottom_pane::StatusLineItem;
+
+        chat.config.service_tier = None;
+        chat.setup_status_line(
+            vec![StatusLineItem::ServiceTier],
+            Vec::new(),
+            StatusLineLane::Top,
+        );
+    });
+
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(80, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    let (x, y) = harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        let region = regions
+            .iter()
+            .find(|region| region.action == ClickableAction::ToggleServiceTier)
+            .expect("expected status line region for service tier");
+        let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+        (x, region.rect.y)
+    });
+
+    harness.with_chat(|chat| chat.handle_click((x, y)));
+
+    let events = harness.drain_events();
+    assert!(events.into_iter().any(|event| matches!(
+        event,
+        AppEvent::UpdateServiceTierSelection {
+            service_tier: Some(code_core::config_types::ServiceTier::Fast),
+        }
+    )));
+    }
+
+    #[test]
+    fn default_header_service_tier_segment_click_dispatches_toggle() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        chat.config.service_tier = None;
+    });
+
+    unsafe {
+        std::env::remove_var("CODEX_TUI_FORCE_MINIMAL_HEADER");
+    }
+
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(140, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    unsafe {
+        std::env::set_var("CODEX_TUI_FORCE_MINIMAL_HEADER", "1");
+    }
+
+    let (x, y) = harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        let region = regions
+            .iter()
+            .find(|region| region.action == ClickableAction::ToggleServiceTier)
+            .expect("expected default header region for service tier");
+        let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+        (x, region.rect.y)
+    });
+
+    harness.with_chat(|chat| chat.handle_click((x, y)));
+
+    let events = harness.drain_events();
+    assert!(events.into_iter().any(|event| matches!(
+        event,
+        AppEvent::UpdateServiceTierSelection {
+            service_tier: Some(code_core::config_types::ServiceTier::Fast),
+        }
+    )));
+    }
+
+    #[test]
+    fn header_directory_segment_click_dispatches_switch_cwd() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    let picked = std::env::temp_dir().join("picked-status-dir");
+    std::fs::create_dir_all(&picked).expect("create picked directory");
+    crate::native_picker::set_test_pick_result(Some(picked.clone()));
+
+    harness.with_chat(|chat| {
+        chat.config.tui.header.top_line_text = Some("Directory: {directory}".to_string());
+    });
+
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(100, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    let (x, y) = harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        let region = regions
+            .iter()
+            .find(|region| region.action == ClickableAction::ShowDirectoryPicker)
+            .expect("expected header region for directory picker");
+        let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+        (x, region.rect.y)
+    });
+
+    harness.with_chat(|chat| chat.handle_click((x, y)));
+
+    let events = harness.drain_events();
+    assert!(events.into_iter().any(|event| matches!(
+        event,
+        AppEvent::SwitchCwd(path, None) if path == picked
+    )));
+    }
+
+    #[test]
+    fn statusline_directory_segment_click_dispatches_switch_cwd() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    let picked = std::env::temp_dir().join("picked-top-status-dir");
+    std::fs::create_dir_all(&picked).expect("create picked directory");
+    crate::native_picker::set_test_pick_result(Some(picked.clone()));
+
+    harness.with_chat(|chat| {
+        use code_core::config_types::StatusLineLane;
+        use crate::bottom_pane::StatusLineItem;
+
+        chat.setup_status_line(
+            vec![StatusLineItem::CurrentDir],
+            Vec::new(),
+            StatusLineLane::Top,
+        );
+    });
+
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(100, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    let (x, y) = harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        let region = regions
+            .iter()
+            .find(|region| region.action == ClickableAction::ShowDirectoryPicker)
+            .expect("expected status line region for directory picker");
+        let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+        (x, region.rect.y)
+    });
+
+    harness.with_chat(|chat| chat.handle_click((x, y)));
+
+    let events = harness.drain_events();
+    assert!(events.into_iter().any(|event| matches!(
+        event,
+        AppEvent::SwitchCwd(path, None) if path == picked
+    )));
+    }
+
+    #[test]
+    fn startup_notice_preserves_second_line_directory_click_regions() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    let picked = std::env::temp_dir().join("picked-notice-dir");
+    std::fs::create_dir_all(&picked).expect("create picked directory");
+    crate::native_picker::set_test_pick_result(Some(picked.clone()));
+
+    harness.with_chat(|chat| {
+        chat.startup_model_migration_notice = Some(crate::model_migration::StartupModelMigrationNotice {
+            current_model_label: "gpt-5.2-codex".to_string(),
+            target_model_label: "gpt-5.3-codex".to_string(),
+            target_model: "gpt-5.3-codex".to_string(),
+            hide_key: code_common::model_presets::HIDE_GPT_5_2_CODEX_MIGRATION_PROMPT_CONFIG.to_string(),
+            new_effort: None,
+        });
+    });
+
+    unsafe {
+        std::env::remove_var("CODEX_TUI_FORCE_MINIMAL_HEADER");
+    }
+
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(120, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    unsafe {
+        std::env::set_var("CODEX_TUI_FORCE_MINIMAL_HEADER", "1");
+    }
+
+    let (x, y) = harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        let region = regions
+            .iter()
+            .find(|region| region.action == ClickableAction::ShowDirectoryPicker)
+            .expect("expected second-line header region for directory picker");
+        let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+        (x, region.rect.y)
+    });
+
+    harness.with_chat(|chat| chat.handle_click((x, y)));
+
+    let events = harness.drain_events();
+    assert!(events.into_iter().any(|event| matches!(
+        event,
+        AppEvent::SwitchCwd(path, None) if path == picked
+    )));
+    }
+
+    #[test]
     fn startup_model_notice_click_dispatches_accept_event() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();

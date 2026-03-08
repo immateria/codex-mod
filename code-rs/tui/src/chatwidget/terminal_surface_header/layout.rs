@@ -7,6 +7,7 @@ use ratatui::text::Span;
 pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -> HeaderTemplateRender {
     let mut include_reasoning = !input.minimal_header;
     let mut include_model = !input.minimal_header;
+    let mut include_service_tier = !input.minimal_header;
     let mut include_shell = !input.minimal_header;
     let mut include_mcp = !input.minimal_header && input.mcp_indicator.is_some();
     let mut include_branch = !input.minimal_header && input.branch.is_some();
@@ -15,6 +16,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
 
     let build = |include_reasoning: bool,
                  include_model: bool,
+                 include_service_tier: bool,
                  include_shell: bool,
                  include_mcp: bool,
                  include_branch: bool,
@@ -95,6 +97,19 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             );
         }
 
+        if include_service_tier {
+            push_separator(&mut spans, &mut width);
+            push_clickable_labeled_segment(
+                &mut spans,
+                &mut ranges,
+                &mut width,
+                "Speed: ",
+                input.service_tier,
+                Style::default().fg(crate::colors::info()),
+                ClickableAction::ToggleServiceTier,
+            );
+        }
+
         if include_shell {
             push_separator(&mut spans, &mut width);
             push_clickable_labeled_segment(
@@ -142,17 +157,14 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
 
         if include_dir {
             push_separator(&mut spans, &mut width);
-            push_text(
+            push_clickable_labeled_segment(
                 &mut spans,
+                &mut ranges,
                 &mut width,
                 "Directory: ",
-                Style::default().fg(crate::colors::text_dim()),
-            );
-            push_text(
-                &mut spans,
-                &mut width,
                 dir_display,
                 Style::default().fg(crate::colors::info()),
+                ClickableAction::ShowDirectoryPicker,
             );
         }
 
@@ -184,6 +196,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
     let mut render = build(
         include_reasoning,
         include_model,
+        include_service_tier,
         include_shell,
         include_mcp,
         include_branch,
@@ -196,6 +209,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
         render = build(
             include_reasoning,
             include_model,
+            include_service_tier,
             include_shell,
             include_mcp,
             include_branch,
@@ -207,10 +221,12 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
     while render.width > input.inner_width {
         if include_reasoning {
             include_reasoning = false;
-        } else if include_model {
-            include_model = false;
         } else if include_shell {
             include_shell = false;
+        } else if include_branch {
+            include_branch = false;
+        } else if include_dir {
+            include_dir = false;
         } else if include_mcp
             && matches!(
                 input.mcp_indicator.map(|(kind, _)| kind),
@@ -218,10 +234,10 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             )
         {
             include_mcp = false;
-        } else if include_branch {
-            include_branch = false;
-        } else if include_dir {
-            include_dir = false;
+        } else if include_service_tier {
+            include_service_tier = false;
+        } else if include_model {
+            include_model = false;
         } else if include_mcp {
             include_mcp = false;
         } else {
@@ -230,6 +246,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
         render = build(
             include_reasoning,
             include_model,
+            include_service_tier,
             include_shell,
             include_mcp,
             include_branch,

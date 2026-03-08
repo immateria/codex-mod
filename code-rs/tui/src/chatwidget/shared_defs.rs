@@ -667,8 +667,10 @@ struct RenderRequestSeed {
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ClickableAction {
     ShowModelSelector,
+    ToggleServiceTier,
     ShowShellSelector,
     ShowReasoningSelector,
+    ShowDirectoryPicker,
     ShowNetworkSettings,
     AcceptStartupModelMigration,
     DismissStartupModelMigration,

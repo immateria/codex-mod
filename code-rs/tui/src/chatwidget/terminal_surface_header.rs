@@ -14,6 +14,7 @@ pub(super) enum McpHeaderIndicatorKind {
 pub(super) struct HeaderTemplateContext<'a> {
     pub title: &'a str,
     pub model: &'a str,
+    pub service_tier: &'a str,
     pub shell: &'a str,
     pub reasoning: &'a str,
     pub directory: &'a str,
@@ -33,6 +34,7 @@ pub(super) struct HeaderTemplateRender {
 pub(super) struct DynamicHeaderLayoutInput<'a> {
     pub title: &'a str,
     pub model: &'a str,
+    pub service_tier: &'a str,
     pub shell: &'a str,
     pub reasoning: &'a str,
     pub directory_full: &'a str,

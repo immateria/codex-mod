@@ -273,6 +273,14 @@ impl ChatWidget<'_> {
             };
 
         let model_display = self.format_model_name(&self.config.model);
+        let service_tier_display = if matches!(
+            self.config.service_tier,
+            Some(code_core::config_types::ServiceTier::Fast)
+        ) {
+            "fast"
+        } else {
+            "slow"
+        };
         let reasoning_display = Self::format_reasoning_effort(self.config.model_reasoning_effort);
         let mcp_display = mcp_indicator
             .as_ref()
@@ -298,6 +306,7 @@ impl ChatWidget<'_> {
             &DynamicHeaderLayoutInput {
                 title: header_title,
                 model: model_display.as_str(),
+                service_tier: service_tier_display,
                 shell: shell_display.as_str(),
                 reasoning: reasoning_display,
                 directory_full: cwd_str.as_str(),
@@ -345,6 +354,7 @@ impl ChatWidget<'_> {
         let header_template_ctx = HeaderTemplateContext {
             title: header_title,
             model: model_display.as_str(),
+            service_tier: service_tier_display,
             shell: shell_display.as_str(),
             reasoning: reasoning_display,
             directory: cwd_str.as_str(),
@@ -381,31 +391,42 @@ impl ChatWidget<'_> {
         let show_bottom_line = header_cfg.show_bottom_line && bottom_text.is_some();
 
         let mut status_lines: Vec<Line<'static>> = Vec::new();
-        let mut custom_top_line_regions: Option<Vec<(std::ops::Range<usize>, ClickableAction)>> =
-            None;
-        let mut custom_top_line_width = 0usize;
+        let mut tracked_clickable_lines: Vec<(
+            usize,
+            Vec<(std::ops::Range<usize>, ClickableAction)>,
+            usize,
+        )> = Vec::new();
         if let Some(notice) = self.startup_model_migration_notice.as_ref() {
             let notice_line = self.render_startup_model_migration_notice_line(
                 notice,
                 header_template_ctx.hovered_action.clone(),
                 hover_style,
             );
-            custom_top_line_width = notice_line.width;
-            custom_top_line_regions = Some(notice_line.clickable_ranges);
+            tracked_clickable_lines.push((0, notice_line.clickable_ranges, notice_line.width));
             status_lines.push(notice_line.line);
+            tracked_clickable_lines.push((
+                1,
+                dynamic_header.clickable_ranges.clone(),
+                dynamic_header.width,
+            ));
             status_lines.push(dynamic_header.line.clone());
         } else if header_cfg.show_top_line {
             if let Some(custom_top) = top_text_with_regions {
-                custom_top_line_width = custom_top.width;
-                custom_top_line_regions = Some(custom_top.clickable_ranges);
+                tracked_clickable_lines.push((0, custom_top.clickable_ranges, custom_top.width));
                 status_lines.push(custom_top.line);
             } else if let Some(selected_top) = selected_status_line {
-                custom_top_line_width = selected_top.width;
-                custom_top_line_regions = Some(selected_top.clickable_ranges);
+                tracked_clickable_lines.push((
+                    0,
+                    selected_top.clickable_ranges,
+                    selected_top.width,
+                ));
                 status_lines.push(selected_top.line);
             } else {
-                custom_top_line_width = dynamic_header.width;
-                custom_top_line_regions = Some(dynamic_header.clickable_ranges.clone());
+                tracked_clickable_lines.push((
+                    0,
+                    dynamic_header.clickable_ranges.clone(),
+                    dynamic_header.width,
+                ));
                 status_lines.push(dynamic_header.line.clone());
             }
         }
@@ -424,34 +445,36 @@ impl ChatWidget<'_> {
             .style(status_style);
         ratatui::widgets::Widget::render(status_widget, padded_inner, buf);
 
-        // Track clickable regions for Model, Shell, and Reasoning
-        if let Some(custom_ranges) = custom_top_line_regions {
-            let top_line_area = Rect {
+        self.clickable_regions.borrow_mut().clear();
+        for (line_offset, ranges, total_width) in tracked_clickable_lines {
+            let line_area = Rect {
                 x: padded_inner.x,
-                y: padded_inner.y,
+                y: padded_inner.y.saturating_add(line_offset as u16),
                 width: padded_inner.width,
                 height: 1,
             };
-            self.track_status_bar_clickable_regions_from_char_ranges(
-                &custom_ranges,
-                top_line_area,
-                custom_top_line_width,
+            self.append_status_bar_clickable_regions_from_char_ranges(
+                &ranges,
+                line_area,
+                total_width,
             );
-        } else {
-            self.clickable_regions.borrow_mut().clear();
         }
     }
 
-    /// Calculate and store clickable regions using character-index ranges within
-    /// a rendered top status line (used for custom header templates).
-    fn track_status_bar_clickable_regions_from_char_ranges(
+    /// Append clickable regions using character-index ranges within a rendered
+    /// status/header line.
+    fn append_status_bar_clickable_regions_from_char_ranges(
         &self,
         ranges: &[(std::ops::Range<usize>, ClickableAction)],
         area: Rect,
         total_width: usize,
     ) {
         let mut regions = self.clickable_regions.borrow_mut();
-        *regions = centered_clickable_regions_from_char_ranges(ranges, area, total_width);
+        regions.extend(centered_clickable_regions_from_char_ranges(
+            ranges,
+            area,
+            total_width,
+        ));
     }
 
     fn render_selected_status_line(
@@ -489,9 +512,16 @@ impl ChatWidget<'_> {
                 crate::bottom_pane::StatusLineItem::ModelWithReasoning => {
                     Some(ClickableAction::ShowReasoningSelector)
                 }
+                crate::bottom_pane::StatusLineItem::ServiceTier => {
+                    Some(ClickableAction::ToggleServiceTier)
+                }
                 crate::bottom_pane::StatusLineItem::Shell
                 | crate::bottom_pane::StatusLineItem::ShellStyle => {
                     Some(ClickableAction::ShowShellSelector)
+                }
+                crate::bottom_pane::StatusLineItem::CurrentDir
+                | crate::bottom_pane::StatusLineItem::ProjectRoot => {
+                    Some(ClickableAction::ShowDirectoryPicker)
                 }
                 crate::bottom_pane::StatusLineItem::NetworkMediation => {
                     Some(ClickableAction::ShowNetworkSettings)

@@ -155,6 +155,18 @@ impl ChatWidget<'_> {
                 // Open model selector with empty args (opens selector UI)
                 self.handle_model_command(String::new());
             }
+            ClickableAction::ToggleServiceTier => {
+                let service_tier = if matches!(
+                    self.config.service_tier,
+                    Some(code_core::config_types::ServiceTier::Fast)
+                ) {
+                    None
+                } else {
+                    Some(code_core::config_types::ServiceTier::Fast)
+                };
+                self.app_event_tx
+                    .send(AppEvent::UpdateServiceTierSelection { service_tier });
+            }
             ClickableAction::ShowShellSelector => {
                 self.show_shell_selector();
             }
@@ -171,6 +183,32 @@ impl ChatWidget<'_> {
                     ReasoningEffort::XHigh => ReasoningEffort::None,
                 };
                 self.set_reasoning_effort(next);
+            }
+            ClickableAction::ShowDirectoryPicker => {
+                match crate::native_picker::pick_path(
+                    crate::native_picker::NativePickerKind::Folder,
+                    "Select working directory",
+                ) {
+                    Ok(Some(path)) => {
+                        if path == self.config.cwd {
+                            self.bottom_pane
+                                .flash_footer_notice(format!("Already using {}", path.display()));
+                        } else if !path.is_dir() {
+                            self.bottom_pane.flash_footer_notice(format!(
+                                "Selected path is not a directory: {}",
+                                path.display()
+                            ));
+                        } else {
+                            self.app_event_tx.send(AppEvent::SwitchCwd(path, None));
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        self.bottom_pane.flash_footer_notice(format!(
+                            "Directory picker failed: {err}"
+                        ));
+                    }
+                }
             }
             ClickableAction::ShowNetworkSettings => {
                 self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);

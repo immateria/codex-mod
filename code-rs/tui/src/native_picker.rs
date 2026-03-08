@@ -1,10 +1,39 @@
 use anyhow::Result;
 use std::path::PathBuf;
+#[cfg(test)]
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NativePickerKind {
     File,
     Folder,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone)]
+enum TestPickResult {
+    Picked(PathBuf),
+    Cancelled,
+}
+
+#[cfg(test)]
+static TEST_PICK_RESULT: OnceLock<Mutex<Option<TestPickResult>>> = OnceLock::new();
+
+#[cfg(test)]
+fn take_test_pick_result() -> Option<TestPickResult> {
+    let mutex = TEST_PICK_RESULT.get_or_init(|| Mutex::new(None));
+    mutex.lock().ok()?.take()
+}
+
+#[cfg(test)]
+pub(crate) fn set_test_pick_result(path: Option<PathBuf>) {
+    let mutex = TEST_PICK_RESULT.get_or_init(|| Mutex::new(None));
+    if let Ok(mut guard) = mutex.lock() {
+        *guard = Some(match path {
+            Some(path) => TestPickResult::Picked(path),
+            None => TestPickResult::Cancelled,
+        });
+    }
 }
 
 fn normalize_title(title: &str) -> String {
@@ -102,8 +131,12 @@ fn run_picker_command(command: &str, args: &[String]) -> Result<Option<PathBuf>>
     target_os = "openbsd",
 ))]
 fn pick_linux_bsd(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>> {
+    #[cfg(test)]
     if crate::chatwidget::is_test_mode() {
-        return Ok(None);
+        return match take_test_pick_result() {
+            Some(TestPickResult::Picked(path)) => Ok(Some(path)),
+            Some(TestPickResult::Cancelled) | None => Ok(None),
+        };
     }
 
     if !has_gui_env() {
@@ -195,8 +228,12 @@ fn pick_linux_bsd(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>
     target_os = "openbsd",
 ))]
 fn pick_rfd(kind: NativePickerKind, title: &str) -> Result<Option<PathBuf>> {
+    #[cfg(test)]
     if crate::chatwidget::is_test_mode() {
-        return Ok(None);
+        return match take_test_pick_result() {
+            Some(TestPickResult::Picked(path)) => Ok(Some(path)),
+            Some(TestPickResult::Cancelled) | None => Ok(None),
+        };
     }
 
     let title = normalize_title(title);
