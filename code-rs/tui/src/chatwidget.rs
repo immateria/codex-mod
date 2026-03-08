@@ -2602,7 +2602,7 @@ impl ChatWidget<'_> {
                 "SQLite: {} · threads={} · stage1={} · pending={} · running={} · artifact_dirty={} · artifact_job={}{}",
                 if status.db.db_exists { "present" } else { "missing" },
                 status.db.thread_count,
-                status.db.stage1_output_count,
+                status.db.stage1_epoch_count,
                 status.db.pending_stage1_count,
                 status.db.running_stage1_count,
                 on_off(status.db.artifact_dirty),

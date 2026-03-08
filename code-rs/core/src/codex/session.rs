@@ -1877,6 +1877,11 @@ impl Session {
             let stream = state.context_stream_ids.env_stream_id(self.id);
             let result = match state.environment_context_tracker.emit_response_items(
                 env_context,
+                env_context
+                    .cwd
+                    .as_deref()
+                    .and_then(crate::git_info::get_git_repo_root)
+                    .map(|path| path.display().to_string()),
                 git_branch,
                 reasoning_effort,
                 Some(stream.as_str()),

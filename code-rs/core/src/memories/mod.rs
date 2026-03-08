@@ -16,6 +16,7 @@ use tokio::sync::Mutex as AsyncMutex;
 use uuid::Uuid;
 
 mod control;
+mod manifest;
 mod prompts;
 mod storage;
 
@@ -23,6 +24,7 @@ const MEMORIES_DIR: &str = "memories";
 const CURRENT_GENERATION_FILENAME: &str = "current";
 const MEMORY_SUMMARY_FILENAME: &str = "memory_summary.md";
 const RAW_MEMORIES_FILENAME: &str = "raw_memories.md";
+const MANIFEST_FILENAME: &str = "manifest.json";
 const ROLLOUT_SUMMARIES_SUBDIR: &str = "rollout_summaries";
 const SNAPSHOTS_SUBDIR: &str = "snapshots";
 const REFRESH_INTERVAL: Duration = Duration::from_secs(300);
@@ -33,6 +35,26 @@ struct RefreshState {
     last_completed_at: Option<Instant>,
 }
 
+struct RefreshAttemptGuard {
+    code_home: Option<PathBuf>,
+}
+
+impl RefreshAttemptGuard {
+    fn new(code_home: PathBuf) -> Self {
+        Self {
+            code_home: Some(code_home),
+        }
+    }
+}
+
+impl Drop for RefreshAttemptGuard {
+    fn drop(&mut self) {
+        if let Some(code_home) = self.code_home.take() {
+            finish_refresh_attempt(&code_home);
+        }
+    }
+}
+
 static REFRESH_STATES: OnceLock<Mutex<HashMap<PathBuf, RefreshState>>> = OnceLock::new();
 static MEMORIES_STATES: OnceLock<AsyncMutex<HashMap<PathBuf, Arc<MemoriesState>>>> =
     OnceLock::new();
@@ -40,6 +62,7 @@ static STATUS_CACHE: OnceLock<Mutex<HashMap<PathBuf, MemoriesDbStatus>>> = OnceL
 
 pub(crate) use prompts::build_memory_tool_developer_instructions;
 pub(crate) use storage::refresh_memory_artifacts_from_catalog;
+pub(crate) use manifest::current_context_from_runtime;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemoryArtifactStatus {
@@ -60,7 +83,7 @@ pub struct MemoriesArtifactsStatus {
 pub struct MemoriesDbStatus {
     pub db_exists: bool,
     pub thread_count: usize,
-    pub stage1_output_count: usize,
+    pub stage1_epoch_count: usize,
     pub pending_stage1_count: usize,
     pub running_stage1_count: usize,
     pub artifact_job_running: bool,
@@ -100,6 +123,7 @@ pub(crate) struct PublishedMemoriesPaths {
     pub base_dir: PathBuf,
     pub summary_path: PathBuf,
     pub raw_memories_path: PathBuf,
+    pub manifest_path: PathBuf,
     pub rollout_summaries_dir: PathBuf,
     pub generation: Option<String>,
 }
@@ -132,6 +156,10 @@ pub(crate) fn snapshot_raw_memories_path(snapshot_dir: &Path) -> PathBuf {
     snapshot_dir.join(RAW_MEMORIES_FILENAME)
 }
 
+pub(crate) fn snapshot_manifest_path(snapshot_dir: &Path) -> PathBuf {
+    snapshot_dir.join(MANIFEST_FILENAME)
+}
+
 pub(crate) fn snapshot_rollout_summaries_dir(snapshot_dir: &Path) -> PathBuf {
     snapshot_dir.join(ROLLOUT_SUMMARIES_SUBDIR)
 }
@@ -142,6 +170,10 @@ fn legacy_memory_summary_path(code_home: &Path) -> PathBuf {
 
 fn legacy_raw_memories_path(code_home: &Path) -> PathBuf {
     memory_root(code_home).join(RAW_MEMORIES_FILENAME)
+}
+
+fn legacy_manifest_path(code_home: &Path) -> PathBuf {
+    memory_root(code_home).join(MANIFEST_FILENAME)
 }
 
 fn legacy_rollout_summaries_dir(code_home: &Path) -> PathBuf {
@@ -164,12 +196,29 @@ fn resolve_current_generation(code_home: &Path) -> io::Result<Option<String>> {
     }
 }
 
+async fn resolve_current_generation_async(code_home: &Path) -> io::Result<Option<String>> {
+    let current_path = current_generation_path(code_home);
+    match tokio::fs::read_to_string(&current_path).await {
+        Ok(contents) => {
+            let generation = contents.trim().to_string();
+            if generation.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(generation))
+            }
+        }
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(err),
+    }
+}
+
 pub(crate) fn published_artifact_paths(code_home: &Path) -> io::Result<PublishedMemoriesPaths> {
     if let Some(generation) = resolve_current_generation(code_home)? {
         let base_dir = generation_snapshot_dir(code_home, &generation);
         return Ok(PublishedMemoriesPaths {
             summary_path: snapshot_memory_summary_path(&base_dir),
             raw_memories_path: snapshot_raw_memories_path(&base_dir),
+            manifest_path: snapshot_manifest_path(&base_dir),
             rollout_summaries_dir: snapshot_rollout_summaries_dir(&base_dir),
             base_dir,
             generation: Some(generation),
@@ -180,6 +229,33 @@ pub(crate) fn published_artifact_paths(code_home: &Path) -> io::Result<Published
     Ok(PublishedMemoriesPaths {
         summary_path: legacy_memory_summary_path(code_home),
         raw_memories_path: legacy_raw_memories_path(code_home),
+        manifest_path: legacy_manifest_path(code_home),
+        rollout_summaries_dir: legacy_rollout_summaries_dir(code_home),
+        base_dir,
+        generation: None,
+    })
+}
+
+pub(crate) async fn published_artifact_paths_async(
+    code_home: &Path,
+) -> io::Result<PublishedMemoriesPaths> {
+    if let Some(generation) = resolve_current_generation_async(code_home).await? {
+        let base_dir = generation_snapshot_dir(code_home, &generation);
+        return Ok(PublishedMemoriesPaths {
+            summary_path: snapshot_memory_summary_path(&base_dir),
+            raw_memories_path: snapshot_raw_memories_path(&base_dir),
+            manifest_path: snapshot_manifest_path(&base_dir),
+            rollout_summaries_dir: snapshot_rollout_summaries_dir(&base_dir),
+            base_dir,
+            generation: Some(generation),
+        });
+    }
+
+    let base_dir = memory_root(code_home);
+    Ok(PublishedMemoriesPaths {
+        summary_path: legacy_memory_summary_path(code_home),
+        raw_memories_path: legacy_raw_memories_path(code_home),
+        manifest_path: legacy_manifest_path(code_home),
         rollout_summaries_dir: legacy_rollout_summaries_dir(code_home),
         base_dir,
         generation: None,
@@ -231,7 +307,7 @@ fn empty_db_status() -> MemoriesDbStatus {
     MemoriesDbStatus {
         db_exists: false,
         thread_count: 0,
-        stage1_output_count: 0,
+        stage1_epoch_count: 0,
         pending_stage1_count: 0,
         running_stage1_count: 0,
         artifact_job_running: false,
@@ -298,12 +374,12 @@ pub(crate) fn maybe_spawn_memory_refresh(code_home: PathBuf, settings: MemoriesC
     }
 
     tokio::spawn(async move {
+        let _refresh_guard = RefreshAttemptGuard::new(code_home.clone());
         if let Err(err) = refresh_memory_artifacts_from_catalog(&code_home, &settings, false).await
         {
             tracing::warn!("memory refresh skipped: {err}");
         }
         refresh_cached_db_status(&code_home).await;
-        finish_refresh_attempt(&code_home);
     });
 }
 
@@ -339,27 +415,26 @@ pub async fn refresh_memory_artifacts_now(
         return Err(refresh_already_running_error());
     }
 
+    let _refresh_guard = RefreshAttemptGuard::new(code_home.to_path_buf());
     let result = storage::refresh_memory_artifacts_from_catalog(code_home, settings, true).await;
     refresh_cached_db_status(code_home).await;
-    finish_refresh_attempt(code_home);
     result
 }
 
-pub async fn note_selected_memories_used(code_home: &Path) -> io::Result<()> {
+pub async fn note_selected_memories_used(
+    code_home: &Path,
+    epoch_ids: &[code_memories_state::MemoryEpochId],
+) -> io::Result<()> {
     let Some(state) = maybe_existing_memories_state(code_home).await? else {
         return Ok(());
     };
-    let ids: Vec<Uuid> = state
-        .current_selected_outputs(crate::rollout::INTERACTIVE_SESSION_SOURCES)
-        .await
-        .map_err(io::Error::other)?
-        .into_iter()
-        .map(|row| row.thread_id)
-        .collect();
-    if ids.is_empty() {
+    if epoch_ids.is_empty() {
         return Ok(());
     }
-    state.record_usage(&ids).await.map_err(io::Error::other)?;
+    state
+        .record_epoch_usage(epoch_ids)
+        .await
+        .map_err(io::Error::other)?;
     refresh_cached_db_status(code_home).await;
     Ok(())
 }
@@ -392,6 +467,57 @@ pub fn get_memories_artifacts_status(code_home: &Path) -> io::Result<MemoriesArt
             .count()
     } else {
         0
+    };
+
+    Ok(MemoriesArtifactsStatus {
+        memory_root: root,
+        summary,
+        raw_memories,
+        rollout_summaries,
+        rollout_summary_count,
+    })
+}
+
+async fn artifact_status_async(path: &Path) -> io::Result<MemoryArtifactStatus> {
+    match tokio::fs::metadata(path).await {
+        Ok(metadata) => Ok(MemoryArtifactStatus {
+            exists: true,
+            modified_at: metadata
+                .modified()
+                .ok()
+                .map(|modified| DateTime::<Utc>::from(modified).to_rfc3339()),
+        }),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(MemoryArtifactStatus {
+            exists: false,
+            modified_at: None,
+        }),
+        Err(err) => Err(err),
+    }
+}
+
+async fn get_memories_artifacts_status_async(code_home: &Path) -> io::Result<MemoriesArtifactsStatus> {
+    let root = memory_root(code_home);
+    let published = published_artifact_paths_async(code_home).await?;
+    let summary = artifact_status_async(&published.summary_path).await?;
+    let raw_memories = artifact_status_async(&published.raw_memories_path).await?;
+    let rollout_dir = published.rollout_summaries_dir;
+    let rollout_summaries = artifact_status_async(&rollout_dir).await?;
+    let rollout_summary_count = match tokio::fs::read_dir(&rollout_dir).await {
+        Ok(mut entries) => {
+            let mut count = 0;
+            while let Some(entry) = entries.next_entry().await? {
+                if entry
+                    .file_type()
+                    .await
+                    .is_ok_and(|file_type| file_type.is_file())
+                {
+                    count += 1;
+                }
+            }
+            count
+        }
+        Err(err) if err.kind() == io::ErrorKind::NotFound => 0,
+        Err(err) => return Err(err),
     };
 
     Ok(MemoriesArtifactsStatus {
@@ -475,6 +601,25 @@ fn compose_memories_status(
     })
 }
 
+async fn compose_memories_status_async(
+    code_home: &Path,
+    db: MemoriesDbStatus,
+    global: Option<&MemoriesToml>,
+    profile: Option<&MemoriesToml>,
+    project: Option<&MemoriesToml>,
+) -> io::Result<MemoriesStatus> {
+    let artifacts = get_memories_artifacts_status_async(code_home).await?;
+    let effective = crate::config_types::resolve_memories_config(global, profile, project);
+    let sources = resolve_sources(global, profile, project);
+
+    Ok(MemoriesStatus {
+        artifacts,
+        db,
+        effective,
+        sources,
+    })
+}
+
 async fn load_memories_db_status(code_home: &Path) -> io::Result<MemoriesDbStatus> {
     if !tokio::fs::try_exists(memories_state_path(code_home)).await? {
         clear_cached_db_status(code_home);
@@ -489,7 +634,7 @@ async fn load_memories_db_status(code_home: &Path) -> io::Result<MemoriesDbStatu
     let status = MemoriesDbStatus {
         db_exists: db.db_exists,
         thread_count: db.thread_count,
-        stage1_output_count: db.stage1_output_count,
+        stage1_epoch_count: db.stage1_epoch_count,
         pending_stage1_count: db.pending_stage1_count,
         running_stage1_count: db.running_stage1_count,
         artifact_job_running: db.artifact_job_running,
@@ -507,7 +652,7 @@ pub async fn load_memories_status(
     project: Option<&MemoriesToml>,
 ) -> io::Result<MemoriesStatus> {
     let db = load_memories_db_status(code_home).await?;
-    compose_memories_status(code_home, db, global, profile, project)
+    compose_memories_status_async(code_home, db, global, profile, project).await
 }
 
 pub fn get_cached_memories_status(
@@ -568,7 +713,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use code_memories_state::{MemoriesState, MemoryThread, SessionMemoryMode as StateMemoryMode, Stage1OutputInput};
+    use code_memories_state::{MemoryEpochId, MemoriesState, MemoryThread, SessionMemoryMode as StateMemoryMode, Stage1EpochInput};
     use code_protocol::protocol::SessionSource;
     use tempfile::tempdir;
     use uuid::Uuid;
@@ -616,6 +761,7 @@ mod tests {
             deleted: false,
             memory_mode: StateMemoryMode::Enabled,
             catalog_seen_at: updated_at,
+            git_project_root: Some(PathBuf::from("/tmp/workspace")),
             git_branch: Some("main".to_string()),
             last_user_snippet: Some("Investigate regression".to_string()),
         }
@@ -625,35 +771,47 @@ mod tests {
         state: &MemoriesState,
         thread_id: Uuid,
         updated_at: i64,
-    ) {
+    ) -> MemoryEpochId {
         state
             .reconcile_threads(&[sample_thread(thread_id, updated_at)])
             .await
             .expect("reconcile thread");
-        state
-            .upsert_stage1_output(&Stage1OutputInput {
+        let epoch = Stage1EpochInput {
+            id: MemoryEpochId {
                 thread_id,
-                source_updated_at: updated_at,
-                generated_at: now_epoch(),
-                raw_memory: "raw memory".to_string(),
-                rollout_summary: "rollout summary".to_string(),
-                rollout_slug: "memory-slug".to_string(),
-            })
+                epoch_index: 0,
+            },
+            provenance: code_memories_state::Stage1EpochProvenance::Derived,
+            source_updated_at: updated_at,
+            generated_at: now_epoch(),
+            epoch_start_at: Some(updated_at),
+            epoch_end_at: Some(updated_at),
+            epoch_start_line: 0,
+            epoch_end_line: 0,
+            platform_family: code_memories_state::MemoryPlatformFamily::Unix,
+            shell_style: code_memories_state::MemoryShellStyle::Zsh,
+            shell_program: Some("zsh".to_string()),
+            workspace_root: Some("/tmp/workspace".to_string()),
+            cwd_display: "~/workspace".to_string(),
+            git_branch: Some("main".to_string()),
+            raw_memory: "raw memory".to_string(),
+            rollout_summary: "rollout summary".to_string(),
+            rollout_slug: "memory-slug".to_string(),
+        };
+        state
+            .replace_stage1_epochs(thread_id, &[epoch.clone()])
             .await
-            .expect("upsert stage1 output");
-        let selected = state
-            .select_phase2_inputs(8, 365, crate::rollout::INTERACTIVE_SESSION_SOURCES)
-            .await
-            .expect("select phase2 inputs");
+            .expect("replace stage1 epochs");
         let lease = state
             .claim_artifact_build_job(true)
             .await
             .expect("claim artifact lease")
             .expect("artifact lease");
         state
-            .succeed_artifact_build_job(&lease.ownership_token, &selected)
+            .succeed_artifact_build_job(&lease.ownership_token)
             .await
             .expect("succeed artifact build");
+        epoch.id
     }
 
     #[test]
@@ -713,7 +871,7 @@ mod tests {
             .expect("claim artifact lease")
             .expect("lease");
         state
-            .succeed_artifact_build_job(&lease.ownership_token, &[])
+            .succeed_artifact_build_job(&lease.ownership_token)
             .await
             .expect("succeed artifact build");
         let status = state
@@ -838,7 +996,7 @@ mod tests {
         let temp = tempdir().expect("tempdir");
         let state = MemoriesState::open(temp.path()).await.expect("open state");
         let thread_id = Uuid::new_v4();
-        seed_selected_output(&state, thread_id, now_epoch() - 172_800).await;
+        let epoch_id = seed_selected_output(&state, thread_id, now_epoch() - 172_800).await;
 
         assert!(
             get_cached_memories_status(temp.path(), None, None, None)
@@ -846,7 +1004,7 @@ mod tests {
                 .is_none()
         );
 
-        note_selected_memories_used(temp.path())
+        note_selected_memories_used(temp.path(), &[epoch_id])
             .await
             .expect("record usage");
 
@@ -854,12 +1012,12 @@ mod tests {
             .expect("cached status query")
             .expect("cached status");
         assert!(cached.db.db_exists);
-        assert_eq!(cached.db.stage1_output_count, 1);
+        assert_eq!(cached.db.stage1_epoch_count, 1);
 
         let selected = state
-            .current_selected_outputs(crate::rollout::INTERACTIVE_SESSION_SOURCES)
+            .select_phase2_epochs(8, 365, crate::rollout::INTERACTIVE_SESSION_SOURCES)
             .await
-            .expect("selected outputs");
+            .expect("selected epochs");
         assert_eq!(selected.len(), 1);
         assert!(selected[0].last_usage.is_some());
     }
@@ -899,7 +1057,7 @@ mod tests {
             .expect("status");
         assert!(!status.db.db_exists);
         assert_eq!(status.db.thread_count, 0);
-        assert_eq!(status.db.stage1_output_count, 0);
+        assert_eq!(status.db.stage1_epoch_count, 0);
     }
 
     #[tokio::test]

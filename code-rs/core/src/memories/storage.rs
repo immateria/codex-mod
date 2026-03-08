@@ -3,27 +3,37 @@ use std::io;
 use std::path::Path;
 
 #[cfg(test)]
-use std::fmt::Write;
-#[cfg(test)]
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::{DateTime, Utc};
-use code_memories_state::{MemoryThread, MemoriesState, SessionMemoryMode as StateMemoryMode, Stage1Claim, Stage1OutputInput, Stage1OutputRecord};
+use code_memories_state::{
+    MemoryPlatformFamily, MemoryShellStyle, MemoryThread, MemoriesState,
+    SessionMemoryMode as StateMemoryMode, Stage1Claim, Stage1EpochInput, Stage1EpochProvenance,
+    Stage1EpochRecord,
+};
 use code_protocol::models::{ContentItem, ResponseItem};
 use code_protocol::protocol::RolloutItem;
-use tracing::warn;
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::config_types::MemoriesConfig;
-use crate::rollout::catalog::SessionCatalog;
-use crate::rollout::catalog::SessionIndexEntry;
-use crate::rollout::catalog::SessionMemoryMode;
+use crate::environment_context::{
+    apply_environment_context_update, parse_environment_context_update_from_rollout_item,
+    EnvironmentContextSnapshot, ParsedEnvironmentContextUpdate,
+};
+use crate::rollout::catalog::{SessionCatalog, SessionIndexEntry, SessionMemoryMode};
+use crate::rollout::recorder::RecordedRolloutLine;
 use crate::rollout::RolloutRecorder;
 
-use super::ensure_layout;
 use super::current_generation_path;
+use super::ensure_layout;
 use super::generation_snapshot_dir;
+use super::manifest::{
+    memory_platform_family_from_os_family, memory_shell_style_from_script_style,
+    SnapshotEpochManifestEntry, SnapshotManifest,
+};
 use super::memory_root;
+use super::snapshot_manifest_path;
 use super::snapshot_memory_summary_path;
 use super::snapshot_raw_memories_path;
 use super::snapshot_rollout_summaries_dir;
@@ -35,6 +45,55 @@ struct MemoryArtifacts {
     memory_summary: String,
     raw_memories: String,
     rollout_summaries: HashMap<String, String>,
+    manifest: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EpochContextKey {
+    platform_family: MemoryPlatformFamily,
+    shell_style: MemoryShellStyle,
+    shell_program: Option<String>,
+    workspace_root: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct EpochAccumulator {
+    context: EpochContextKey,
+    epoch_start_at: Option<i64>,
+    epoch_end_at: Option<i64>,
+    epoch_start_line: i64,
+    epoch_end_line: i64,
+    cwd_display: String,
+    git_branch: Option<String>,
+    last_user_snippet: Option<String>,
+}
+
+impl EpochAccumulator {
+    fn new(context: EpochContextKey, cwd_display: String, git_branch: Option<String>) -> Self {
+        Self {
+            context,
+            epoch_start_at: None,
+            epoch_end_at: None,
+            epoch_start_line: 0,
+            epoch_end_line: 0,
+            cwd_display,
+            git_branch,
+            last_user_snippet: None,
+        }
+    }
+
+    fn touch(&mut self, ordinal: i64, timestamp: Option<i64>) {
+        if self.epoch_start_at.is_none() {
+            self.epoch_start_at = timestamp;
+            self.epoch_start_line = ordinal;
+        }
+        self.epoch_end_at = timestamp.or(self.epoch_end_at);
+        self.epoch_end_line = ordinal;
+    }
+
+    fn has_meaningful_content(&self) -> bool {
+        self.last_user_snippet.is_some()
+    }
 }
 
 #[cfg(test)]
@@ -75,19 +134,19 @@ pub(crate) async fn refresh_memory_artifacts_from_catalog(
         .map_err(io::Error::other)?;
 
     for claim in claims {
-        match build_stage1_output(code_home, &claim).await {
-            Ok(output) => {
-                if let Err(err) = state.upsert_stage1_output(&output).await {
+        match build_stage1_epochs(code_home, &claim).await {
+            Ok(epochs) => {
+                if let Err(err) = state.replace_stage1_epochs(claim.thread_id, &epochs).await {
                     let _ = state.fail_stage1_job(claim.thread_id, &err.to_string()).await;
                     warn!(
-                        "failed to persist stage1 output for {}: {err}",
+                        "failed to persist stage1 epochs for {}: {err}",
                         claim.thread_id
                     );
                 }
             }
             Err(err) => {
                 let _ = state.fail_stage1_job(claim.thread_id, &err.to_string()).await;
-                warn!("failed to extract stage1 output for {}: {err}", claim.thread_id);
+                warn!("failed to extract stage1 epochs for {}: {err}", claim.thread_id);
             }
         }
     }
@@ -125,70 +184,394 @@ fn memory_thread_from_entry(entry: &SessionIndexEntry) -> Option<MemoryThread> {
         deleted: entry.deleted,
         memory_mode: to_state_memory_mode(entry.memory_mode),
         catalog_seen_at: Utc::now().timestamp(),
+        git_project_root: entry.git_project_root.clone(),
         git_branch: entry.git_branch.clone(),
         last_user_snippet: entry.last_user_snippet.clone(),
     })
 }
 
-async fn build_stage1_output(
+async fn build_stage1_epochs(
     code_home: &Path,
     claim: &Stage1Claim,
-) -> io::Result<Stage1OutputInput> {
+) -> io::Result<Vec<Stage1EpochInput>> {
     let rollout_path = code_home.join(&claim.rollout_path);
-    let last_user_snippet = match RolloutRecorder::get_rollout_history(&rollout_path).await {
-        Ok(history) => extract_last_user_snippet(&history.get_rollout_items())
-            .or_else(|| claim.last_user_snippet.clone()),
+    let lines = RolloutRecorder::get_recorded_rollout_lines(&rollout_path).await;
+    match lines {
+        Ok(lines) => Ok(derive_stage1_epochs_from_lines(claim, &lines)),
         Err(err) if claim.last_user_snippet.is_some() => {
             warn!(
                 "falling back to catalog snippet for {} after rollout read failed: {err}",
                 claim.thread_id
             );
-            claim.last_user_snippet.clone()
+            Ok(vec![fallback_epoch_input(
+                claim,
+                Stage1EpochProvenance::CatalogFallback,
+            )])
         }
-        Err(err) => return Err(err),
+        Err(err) => Err(err),
     }
-    .unwrap_or_else(|| "(no user snippet)".to_string());
-    let rollout_slug = rollout_summary_file_stem(
-        claim.thread_id,
-        claim.updated_at,
-        &claim.cwd_display,
-        claim.git_branch.as_deref(),
-    );
-
-    Ok(Stage1OutputInput {
-        thread_id: claim.thread_id,
-        source_updated_at: claim.updated_at,
-        generated_at: Utc::now().timestamp(),
-        raw_memory: render_raw_memory_body(claim, &rollout_slug, &last_user_snippet),
-        rollout_summary: render_rollout_summary_body(claim, &last_user_snippet),
-        rollout_slug,
-    })
 }
 
-fn render_raw_memory_body(claim: &Stage1Claim, rollout_slug: &str, snippet: &str) -> String {
-    let mut body = String::new();
-    body.push_str(&format!("updated_at: {}\n", iso_timestamp(claim.updated_at)));
-    body.push_str(&format!("cwd: {}\n", claim.cwd_display));
-    body.push_str(&format!("rollout_path: {}\n", claim.rollout_path.display()));
-    body.push_str(&format!("rollout_summary_file: {rollout_slug}.md\n"));
-    if let Some(git_branch) = claim.git_branch.as_deref() {
+fn derive_stage1_epochs_from_lines(
+    claim: &Stage1Claim,
+    lines: &[RecordedRolloutLine],
+) -> Vec<Stage1EpochInput> {
+    let fallback_context = fallback_context_key(claim);
+    let mut current_context = fallback_context.clone();
+    let mut current_epoch = EpochAccumulator::new(
+        current_context.clone(),
+        claim.cwd_display.clone(),
+        claim.git_branch.clone(),
+    );
+    let mut current_snapshot: Option<EnvironmentContextSnapshot> = None;
+    let mut epochs = Vec::new();
+
+    for line in lines {
+        if let Some(update) = parse_environment_context_update_from_rollout_item(&line.item) {
+            let Some(next_snapshot) =
+                apply_environment_context_update(current_snapshot.as_ref(), &update)
+            else {
+                if matches!(update, ParsedEnvironmentContextUpdate::Delta(_)) {
+                    debug!(
+                        thread_id = %claim.thread_id,
+                        line_ordinal = line.ordinal,
+                        "ignoring memories environment context delta without baseline"
+                    );
+                }
+                continue;
+            };
+            let next_context = context_key_from_snapshot(&next_snapshot, claim);
+            let next_cwd_display = next_snapshot
+                .cwd
+                .clone()
+                .unwrap_or_else(|| current_epoch.cwd_display.clone());
+            let next_git_branch = next_snapshot
+                .git_branch
+                .clone()
+                .or_else(|| current_epoch.git_branch.clone())
+                .or_else(|| claim.git_branch.clone());
+            if next_context != current_context && current_epoch.has_meaningful_content() {
+                epochs.push(finalize_epoch(
+                    claim,
+                    epochs.len() as i64,
+                    &current_epoch,
+                    Stage1EpochProvenance::Derived,
+                ));
+                current_epoch = EpochAccumulator::new(
+                    next_context.clone(),
+                    next_cwd_display,
+                    next_git_branch,
+                );
+            } else {
+                if next_context != current_context && !current_epoch.has_meaningful_content() {
+                    debug!(
+                        thread_id = %claim.thread_id,
+                        line_ordinal = line.ordinal,
+                        ?current_context,
+                        ?next_context,
+                        "merging memories context change into current epoch before first meaningful content"
+                    );
+                }
+                current_epoch.context = next_context.clone();
+                current_epoch.cwd_display = next_cwd_display;
+                current_epoch.git_branch = next_git_branch;
+            }
+            current_context = next_context;
+            current_snapshot = Some(next_snapshot);
+            continue;
+        }
+
+        let timestamp = parse_timestamp(&line.timestamp).map(|value| value.timestamp());
+        if should_count_toward_epoch(&line.item) {
+            current_epoch.touch(line.ordinal, timestamp);
+        }
+
+        if let Some(snippet) = snippet_from_rollout_item(&line.item)
+            && !is_system_status_snippet(&snippet)
+        {
+            current_epoch.last_user_snippet = Some(snippet);
+        }
+    }
+
+    if current_epoch.has_meaningful_content() {
+        epochs.push(finalize_epoch(
+            claim,
+            epochs.len() as i64,
+            &current_epoch,
+            Stage1EpochProvenance::Derived,
+        ));
+    }
+
+    if epochs.is_empty() {
+        epochs.push(fallback_epoch_input(
+            claim,
+            Stage1EpochProvenance::EmptyDerivationFallback,
+        ));
+    }
+
+    epochs
+}
+
+fn fallback_context_key(claim: &Stage1Claim) -> EpochContextKey {
+    EpochContextKey {
+        platform_family: MemoryPlatformFamily::Unknown,
+        shell_style: MemoryShellStyle::Unknown,
+        shell_program: None,
+        workspace_root: claim
+            .git_project_root
+            .as_ref()
+            .map(|path| path.display().to_string()),
+    }
+}
+
+fn context_key_from_snapshot(
+    snapshot: &EnvironmentContextSnapshot,
+    claim: &Stage1Claim,
+) -> EpochContextKey {
+    let platform_family = snapshot
+        .operating_system
+        .as_ref()
+        .and_then(|info| info.family.as_deref())
+        .map(memory_platform_family_from_os_family)
+        .unwrap_or(MemoryPlatformFamily::Unknown);
+    let shell_style = snapshot
+        .shell
+        .as_ref()
+        .and_then(|shell| shell.script_style())
+        .map(memory_shell_style_from_script_style)
+        .unwrap_or(MemoryShellStyle::Unknown);
+    let shell_program = snapshot.shell.as_ref().and_then(|shell| shell.name());
+    let workspace_root = snapshot
+        .git_project_root
+        .clone()
+        .or_else(|| claim.git_project_root.as_ref().map(|path| path.display().to_string()));
+
+    EpochContextKey {
+        platform_family,
+        shell_style,
+        shell_program,
+        workspace_root,
+    }
+}
+
+fn should_count_toward_epoch(item: &RolloutItem) -> bool {
+    match item {
+        RolloutItem::SessionMeta(_) => false,
+        _ => parse_environment_context_update_from_rollout_item(item).is_none(),
+    }
+}
+
+fn snippet_from_rollout_item(item: &RolloutItem) -> Option<String> {
+    match item {
+        RolloutItem::ResponseItem(ResponseItem::Message { role, content, .. })
+            if role.eq_ignore_ascii_case("user") => snippet_from_content(content),
+        _ => None,
+    }
+}
+
+fn finalize_epoch(
+    claim: &Stage1Claim,
+    epoch_index: i64,
+    epoch: &EpochAccumulator,
+    provenance: Stage1EpochProvenance,
+) -> Stage1EpochInput {
+    let snippet = epoch
+        .last_user_snippet
+        .clone()
+        .or_else(|| claim.last_user_snippet.clone())
+        .unwrap_or_else(|| "(no user snippet)".to_string());
+    let rollout_slug = format!(
+        "{}-e{epoch_index}",
+        rollout_summary_file_stem(
+            claim.thread_id,
+            claim.updated_at,
+            &epoch.cwd_display,
+            epoch.git_branch.as_deref(),
+        )
+    );
+
+    Stage1EpochInput {
+        id: code_memories_state::MemoryEpochId {
+            thread_id: claim.thread_id,
+            epoch_index,
+        },
+        provenance,
+        source_updated_at: claim.updated_at,
+        generated_at: Utc::now().timestamp(),
+        epoch_start_at: epoch.epoch_start_at.or(Some(claim.updated_at)),
+        epoch_end_at: epoch.epoch_end_at.or(Some(claim.updated_at)),
+        epoch_start_line: epoch.epoch_start_line,
+        epoch_end_line: epoch.epoch_end_line,
+        platform_family: epoch.context.platform_family,
+        shell_style: epoch.context.shell_style,
+        shell_program: epoch.context.shell_program.clone(),
+        workspace_root: epoch.context.workspace_root.clone(),
+        cwd_display: epoch.cwd_display.clone(),
+        git_branch: epoch.git_branch.clone(),
+        raw_memory: render_raw_memory_body(
+            claim,
+            epoch_index,
+            epoch,
+            provenance,
+            &rollout_slug,
+            &snippet,
+        ),
+        rollout_summary: render_rollout_summary_body(
+            claim,
+            epoch_index,
+            epoch,
+            provenance,
+            &snippet,
+        ),
+        rollout_slug,
+    }
+}
+
+fn fallback_epoch_input(
+    claim: &Stage1Claim,
+    provenance: Stage1EpochProvenance,
+) -> Stage1EpochInput {
+    let epoch = EpochAccumulator {
+        context: fallback_context_key(claim),
+        epoch_start_at: Some(claim.updated_at),
+        epoch_end_at: Some(claim.updated_at),
+        epoch_start_line: 0,
+        epoch_end_line: 0,
+        cwd_display: claim.cwd_display.clone(),
+        git_branch: claim.git_branch.clone(),
+        last_user_snippet: claim.last_user_snippet.clone(),
+    };
+    finalize_epoch(claim, 0, &epoch, provenance)
+}
+
+struct EpochRenderView<'a> {
+    updated_at_label: &'a str,
+    id: code_memories_state::MemoryEpochId,
+    epoch_start_at: Option<i64>,
+    epoch_end_at: Option<i64>,
+    platform_family: MemoryPlatformFamily,
+    shell_style: MemoryShellStyle,
+    shell_program: Option<&'a str>,
+    workspace_root: Option<&'a str>,
+    cwd_display: &'a str,
+    git_branch: Option<&'a str>,
+    provenance: Stage1EpochProvenance,
+    rollout_path: Option<&'a Path>,
+    rollout_summary_filename: Option<&'a str>,
+    last_user_request: &'a str,
+}
+
+fn push_epoch_metadata_lines(body: &mut String, view: &EpochRenderView<'_>) {
+    body.push_str(&format!("thread_id: {}\n", view.id.thread_id));
+    body.push_str(&format!("epoch_index: {}\n", view.id.epoch_index));
+    body.push_str(&format!("updated_at: {}\n", view.updated_at_label));
+    if let Some(epoch_start_at) = view.epoch_start_at {
+        body.push_str(&format!("epoch_start_at: {}\n", iso_timestamp(epoch_start_at)));
+    }
+    if let Some(epoch_end_at) = view.epoch_end_at {
+        body.push_str(&format!("epoch_end_at: {}\n", iso_timestamp(epoch_end_at)));
+    }
+    body.push_str(&format!(
+        "platform_family: {}\n",
+        platform_family_label(view.platform_family)
+    ));
+    body.push_str(&format!("shell_style: {}\n", shell_style_label(view.shell_style)));
+    if let Some(shell_program) = view.shell_program {
+        body.push_str(&format!("shell_program: {shell_program}\n"));
+    }
+    if let Some(workspace_root) = view.workspace_root {
+        body.push_str(&format!("workspace_root: {workspace_root}\n"));
+    }
+    body.push_str(&format!("cwd: {}\n", view.cwd_display));
+    if let Some(git_branch) = view.git_branch {
         body.push_str(&format!("git_branch: {git_branch}\n"));
     }
+    body.push_str(&format!("provenance: {}\n", provenance_label(view.provenance)));
+    if let Some(rollout_path) = view.rollout_path {
+        body.push_str(&format!("rollout_path: {}\n", rollout_path.display()));
+    }
+    if let Some(rollout_summary_filename) = view.rollout_summary_filename {
+        body.push_str(&format!(
+            "rollout_summary_file: rollout_summaries/{rollout_summary_filename}\n"
+        ));
+    }
+}
+
+fn render_epoch_summary_block(view: &EpochRenderView<'_>) -> String {
+    let mut entry = String::new();
+    entry.push_str(&format!(
+        "## {} | {}#{}\n",
+        view.updated_at_label, view.id.thread_id, view.id.epoch_index
+    ));
+    push_epoch_metadata_lines(&mut entry, view);
+    entry.push_str(&format!("last_user_request: {}", view.last_user_request));
+    entry
+}
+
+fn render_raw_memory_body(
+    claim: &Stage1Claim,
+    epoch_index: i64,
+    epoch: &EpochAccumulator,
+    provenance: Stage1EpochProvenance,
+    rollout_slug: &str,
+    snippet: &str,
+) -> String {
+    let mut body = String::new();
+    let rollout_summary_filename = format!("{rollout_slug}.md");
+    let view = EpochRenderView {
+        updated_at_label: &claim.updated_at_label,
+        id: code_memories_state::MemoryEpochId {
+            thread_id: claim.thread_id,
+            epoch_index,
+        },
+        epoch_start_at: epoch.epoch_start_at,
+        epoch_end_at: epoch.epoch_end_at,
+        platform_family: epoch.context.platform_family,
+        shell_style: epoch.context.shell_style,
+        shell_program: epoch.context.shell_program.as_deref(),
+        workspace_root: epoch.context.workspace_root.as_deref(),
+        cwd_display: &epoch.cwd_display,
+        git_branch: epoch.git_branch.as_deref(),
+        provenance,
+        rollout_path: Some(&claim.rollout_path),
+        rollout_summary_filename: Some(&rollout_summary_filename),
+        last_user_request: snippet,
+    };
+    push_epoch_metadata_lines(&mut body, &view);
     body.push('\n');
     body.push_str(snippet);
     body.push('\n');
     body
 }
 
-fn render_rollout_summary_body(claim: &Stage1Claim, snippet: &str) -> String {
+fn render_rollout_summary_body(
+    claim: &Stage1Claim,
+    epoch_index: i64,
+    epoch: &EpochAccumulator,
+    provenance: Stage1EpochProvenance,
+    snippet: &str,
+) -> String {
     let mut body = String::new();
-    body.push_str(&format!("session_id: {}\n", claim.thread_id));
-    body.push_str(&format!("updated_at: {}\n", iso_timestamp(claim.updated_at)));
-    body.push_str(&format!("rollout_path: {}\n", claim.rollout_path.display()));
-    body.push_str(&format!("cwd: {}\n", claim.cwd_display));
-    if let Some(git_branch) = claim.git_branch.as_deref() {
-        body.push_str(&format!("git_branch: {git_branch}\n"));
-    }
+    let view = EpochRenderView {
+        updated_at_label: &claim.updated_at_label,
+        id: code_memories_state::MemoryEpochId {
+            thread_id: claim.thread_id,
+            epoch_index,
+        },
+        epoch_start_at: epoch.epoch_start_at,
+        epoch_end_at: epoch.epoch_end_at,
+        platform_family: epoch.context.platform_family,
+        shell_style: epoch.context.shell_style,
+        shell_program: epoch.context.shell_program.as_deref(),
+        workspace_root: epoch.context.workspace_root.as_deref(),
+        cwd_display: &epoch.cwd_display,
+        git_branch: epoch.git_branch.as_deref(),
+        provenance,
+        rollout_path: Some(&claim.rollout_path),
+        rollout_summary_filename: None,
+        last_user_request: snippet,
+    };
+    push_epoch_metadata_lines(&mut body, &view);
     body.push('\n');
     body.push_str(snippet);
     body.push('\n');
@@ -210,7 +593,7 @@ async fn maybe_build_artifacts_from_state(
     };
 
     let selected = state
-        .select_phase2_inputs(
+        .select_phase2_epochs(
             settings.max_raw_memories_for_consolidation,
             settings.max_rollout_age_days,
             crate::rollout::INTERACTIVE_SESSION_SOURCES,
@@ -218,7 +601,7 @@ async fn maybe_build_artifacts_from_state(
         .await
         .map_err(io::Error::other)?;
 
-    let artifacts = render_artifacts_from_state(&selected);
+    let artifacts = render_artifacts_from_state(&selected)?;
     if let Err(err) = write_memory_artifacts(code_home, artifacts).await {
         let _ = state
             .fail_artifact_build_job(&lease.ownership_token, &err.to_string())
@@ -227,17 +610,19 @@ async fn maybe_build_artifacts_from_state(
     }
 
     state
-        .succeed_artifact_build_job(&lease.ownership_token, &selected)
+        .succeed_artifact_build_job(&lease.ownership_token)
         .await
         .map_err(io::Error::other)
 }
 
-fn render_artifacts_from_state(selected: &[Stage1OutputRecord]) -> MemoryArtifacts {
-    MemoryArtifacts {
+fn render_artifacts_from_state(selected: &[Stage1EpochRecord]) -> io::Result<MemoryArtifacts> {
+    let manifest = render_manifest(selected)?;
+    Ok(MemoryArtifacts {
         memory_summary: render_memory_summary(selected),
         raw_memories: render_raw_memories(selected),
         rollout_summaries: render_rollout_summaries(selected),
-    }
+        manifest: serde_json::to_string_pretty(&manifest).map_err(io::Error::other)?,
+    })
 }
 
 async fn write_memory_artifacts(code_home: &Path, artifacts: MemoryArtifacts) -> io::Result<()> {
@@ -255,6 +640,7 @@ async fn write_memory_artifacts(code_home: &Path, artifacts: MemoryArtifacts) ->
     tokio::fs::create_dir_all(snapshot_rollout_summaries_dir(&snapshot_dir)).await?;
     tokio::fs::write(snapshot_memory_summary_path(&snapshot_dir), artifacts.memory_summary).await?;
     tokio::fs::write(snapshot_raw_memories_path(&snapshot_dir), artifacts.raw_memories).await?;
+    tokio::fs::write(snapshot_manifest_path(&snapshot_dir), artifacts.manifest).await?;
     sync_rollout_summaries(&snapshot_dir, artifacts.rollout_summaries).await?;
     #[cfg(test)]
     maybe_fail_before_pointer_swap()?;
@@ -277,53 +663,98 @@ fn maybe_fail_before_pointer_swap() -> io::Result<()> {
     Ok(())
 }
 
-fn render_memory_summary(selected: &[Stage1OutputRecord]) -> String {
+fn render_memory_summary(selected: &[Stage1EpochRecord]) -> String {
     let mut body = String::from("# Memory Summary\n\n");
     if selected.is_empty() {
-        body.push_str("No prior interactive sessions found.\n");
+        body.push_str("No prior interactive memory epochs found.\n");
         return body;
     }
 
-    body.push_str("Recent interactive sessions retained for memory prompts:\n\n");
+    body.push_str("Recent interactive memory epochs retained for memory prompts:\n\n");
     for record in selected {
-        body.push_str(&format!("## {} | {}\n", record.updated_at_label, record.thread_id));
-        body.push_str(&format!("cwd: {}\n", record.cwd_display));
-        if let Some(git_branch) = record.git_branch.as_deref() {
-            body.push_str(&format!("git_branch: {git_branch}\n"));
-        }
-        body.push_str(&format!(
-            "rollout_summary_file: rollout_summaries/{}.md\n",
-            record.rollout_slug
-        ));
-        body.push_str(&format!(
-            "last_user_request: {}\n\n",
-            summary_snippet_from_rollout_summary(&record.rollout_summary)
-        ));
+        body.push_str(&render_prompt_entry(record));
+        body.push_str("\n\n");
     }
     body
 }
 
-fn render_raw_memories(selected: &[Stage1OutputRecord]) -> String {
+fn render_raw_memories(selected: &[Stage1EpochRecord]) -> String {
     let mut body = String::from("# Raw Memories\n\n");
     if selected.is_empty() {
         body.push_str("No raw memories yet.\n");
         return body;
     }
 
-    body.push_str("Catalog-derived retained memories (latest first):\n\n");
+    body.push_str("Catalog-derived retained memory epochs (ranked for reuse):\n\n");
     for record in selected {
-        body.push_str(&format!("## Session `{}`\n", record.thread_id));
+        body.push_str(&format!(
+            "## Epoch `{}#{}`\n",
+            record.id.thread_id, record.id.epoch_index
+        ));
         body.push_str(&record.raw_memory);
         body.push('\n');
     }
     body
 }
 
-fn render_rollout_summaries(selected: &[Stage1OutputRecord]) -> HashMap<String, String> {
+fn render_rollout_summaries(selected: &[Stage1EpochRecord]) -> HashMap<String, String> {
     selected
         .iter()
-        .map(|record| (record.rollout_slug.clone(), record.rollout_summary.clone()))
+        .map(|record| {
+            (
+                epoch_rollout_summary_filename(record.id),
+                record.rollout_summary.clone(),
+            )
+        })
         .collect()
+}
+
+fn render_manifest(selected: &[Stage1EpochRecord]) -> io::Result<SnapshotManifest> {
+    let epochs = selected
+        .iter()
+        .map(|record| {
+            Ok::<_, io::Error>(SnapshotEpochManifestEntry {
+                id: record.id,
+                provenance: record.provenance,
+                platform_family: record.platform_family,
+                shell_style: record.shell_style,
+                shell_program: record.shell_program.clone(),
+                workspace_root: record.workspace_root.clone(),
+                cwd_display: record.cwd_display.clone(),
+                git_branch: record.git_branch.clone(),
+                source_updated_at: record.source_updated_at,
+                usage_count: record.usage_count,
+                last_usage: record.last_usage,
+                rollout_summary_path: format!(
+                    "rollout_summaries/{}",
+                    epoch_rollout_summary_filename(record.id)
+                ),
+                prompt_entry: render_prompt_entry(record),
+            })
+        })
+        .collect::<io::Result<Vec<_>>>()?;
+    Ok(SnapshotManifest::new(epochs))
+}
+
+fn render_prompt_entry(record: &Stage1EpochRecord) -> String {
+    let rollout_summary_filename = epoch_rollout_summary_filename(record.id);
+    let view = EpochRenderView {
+        updated_at_label: &record.updated_at_label,
+        id: record.id,
+        epoch_start_at: record.epoch_start_at,
+        epoch_end_at: record.epoch_end_at,
+        platform_family: record.platform_family,
+        shell_style: record.shell_style,
+        shell_program: record.shell_program.as_deref(),
+        workspace_root: record.workspace_root.as_deref(),
+        cwd_display: &record.cwd_display,
+        git_branch: record.git_branch.as_deref(),
+        provenance: record.provenance,
+        rollout_path: None,
+        rollout_summary_filename: Some(&rollout_summary_filename),
+        last_user_request: summary_snippet_from_rollout_summary(&record.rollout_summary),
+    };
+    render_epoch_summary_block(&view)
 }
 
 async fn sync_rollout_summaries(
@@ -331,25 +762,14 @@ async fn sync_rollout_summaries(
     summaries: HashMap<String, String>,
 ) -> io::Result<()> {
     let dir = snapshot_rollout_summaries_dir(snapshot_dir);
-    for (stem, body) in summaries {
-        tokio::fs::write(dir.join(format!("{stem}.md")), body).await?;
+    for (filename, body) in summaries {
+        tokio::fs::write(dir.join(filename), body).await?;
     }
     Ok(())
 }
 
-fn extract_last_user_snippet(items: &[RolloutItem]) -> Option<String> {
-    for item in items.iter().rev() {
-        if let RolloutItem::ResponseItem(ResponseItem::Message { role, content, .. }) = item
-            && role.eq_ignore_ascii_case("user")
-            && let Some(snippet) = snippet_from_content(content)
-        {
-            if is_system_status_snippet(&snippet) {
-                continue;
-            }
-            return Some(snippet);
-        }
-    }
-    None
+fn epoch_rollout_summary_filename(id: code_memories_state::MemoryEpochId) -> String {
+    format!("{}-{}.md", id.thread_id, id.epoch_index)
 }
 
 fn snippet_from_content(content: &[ContentItem]) -> Option<String> {
@@ -395,10 +815,38 @@ fn last_nonempty_line(text: &str) -> Option<&str> {
 }
 
 fn summary_snippet_from_rollout_summary(rollout_summary: &str) -> &str {
-    // Stage1 rollout summaries currently end with the retained user snippet as
-    // their final non-empty line. Keep the markdown format stable and lock this
-    // extraction rule with tests instead of adding duplicate snippet storage.
+    // Stage1 rollout summaries end with the retained user snippet as their
+    // final non-empty line. Keep that rendering contract stable and test it.
     last_nonempty_line(rollout_summary).unwrap_or("(no user snippet)")
+}
+
+fn platform_family_label(platform_family: MemoryPlatformFamily) -> &'static str {
+    match platform_family {
+        MemoryPlatformFamily::Unix => "unix",
+        MemoryPlatformFamily::Windows => "windows",
+        MemoryPlatformFamily::Unknown => "unknown",
+    }
+}
+
+fn shell_style_label(shell_style: MemoryShellStyle) -> &'static str {
+    match shell_style {
+        MemoryShellStyle::PosixSh => "posix-sh",
+        MemoryShellStyle::BashZshCompatible => "bash-zsh-compatible",
+        MemoryShellStyle::Zsh => "zsh",
+        MemoryShellStyle::PowerShell => "powershell",
+        MemoryShellStyle::Cmd => "cmd",
+        MemoryShellStyle::Nushell => "nushell",
+        MemoryShellStyle::Elvish => "elvish",
+        MemoryShellStyle::Unknown => "unknown",
+    }
+}
+
+fn provenance_label(provenance: Stage1EpochProvenance) -> &'static str {
+    match provenance {
+        Stage1EpochProvenance::Derived => "derived",
+        Stage1EpochProvenance::CatalogFallback => "catalog_fallback",
+        Stage1EpochProvenance::EmptyDerivationFallback => "empty_derivation_fallback",
+    }
 }
 
 fn rollout_summary_file_stem(
@@ -445,14 +893,17 @@ fn rollout_summary_slug(cwd_display: &str, git_branch: Option<&str>, max_len: us
         .unwrap_or("");
 
     let mut slug = String::with_capacity(max_len);
+    let mut last_was_sep = true;
     for ch in raw.chars() {
         if slug.len() >= max_len {
             break;
         }
         if ch.is_ascii_alphanumeric() {
             slug.push(ch.to_ascii_lowercase());
-        } else {
+            last_was_sep = false;
+        } else if !last_was_sep {
             slug.push('_');
+            last_was_sep = true;
         }
     }
     while slug.ends_with('_') {
@@ -464,22 +915,20 @@ fn rollout_summary_slug(cwd_display: &str, git_branch: Option<&str>, max_len: us
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use std::sync::{Mutex, MutexGuard};
 
-    use code_protocol::protocol::SessionSource;
+    use code_memories_state::{
+        MemoriesState, Stage1EpochProvenance, Stage1EpochRecord,
+    };
+    use code_protocol::protocol::{RolloutLine, SessionSource};
     use tempfile::tempdir;
 
     use super::*;
 
-    #[derive(Debug, Clone)]
-    struct LegacySelectedMemory {
-        session_id: Uuid,
-        rollout_path: PathBuf,
-        last_event_at: DateTime<Utc>,
-        last_event_at_label: String,
-        cwd_display: String,
-        git_branch: Option<String>,
-        last_user_snippet: Option<String>,
-        summary_file_stem: String,
+    static PUBLISH_TEST_GUARD: Mutex<()> = Mutex::new(());
+
+    fn lock_publish_tests() -> MutexGuard<'static, ()> {
+        PUBLISH_TEST_GUARD.lock().expect("publish test guard")
     }
 
     fn make_entry(
@@ -498,7 +947,7 @@ mod tests {
             last_event_at: last_event_at.to_string(),
             cwd_real: PathBuf::from("/tmp/project"),
             cwd_display: "~/project".to_string(),
-            git_project_root: None,
+            git_project_root: Some(PathBuf::from("/tmp/project")),
             git_branch: Some("main".to_string()),
             model_provider: None,
             session_source: source,
@@ -524,11 +973,11 @@ mod tests {
         ))
     }
 
-    async fn write_rollout_with_user_messages(
+    async fn write_rollout_lines(
         code_home: &Path,
         session_id: Uuid,
         meta_at: DateTime<Utc>,
-        messages: &[(DateTime<Utc>, &str)],
+        items: Vec<(DateTime<Utc>, RolloutItem)>,
     ) -> io::Result<PathBuf> {
         let rollout_rel_path = rollout_rel_path(session_id, meta_at);
         let rollout_path = code_home.join(&rollout_rel_path);
@@ -536,279 +985,151 @@ mod tests {
             tokio::fs::create_dir_all(parent).await?;
         }
 
-        let rollout_line = serde_json::json!({
-            "timestamp": meta_at.to_rfc3339(),
-            "item": {
-                "SessionMeta": {
-                    "meta": {
-                        "id": session_id,
-                        "forked_from_id": null,
-                        "timestamp": meta_at.to_rfc3339(),
-                        "cwd": "/tmp/project",
-                        "originator": "codex_cli_rs",
-                        "cli_version": "0.0.0",
-                        "source": "cli",
-                        "model_provider": null,
-                        "base_instructions": null,
-                        "dynamic_tools": null
-                    },
-                    "git": {
-                        "commit_hash": null,
-                        "branch": "main",
-                        "repository_url": null
-                    }
-                }
-            }
+        let mut lines = Vec::new();
+        lines.push(RolloutLine {
+            timestamp: meta_at.to_rfc3339(),
+            item: RolloutItem::SessionMeta(code_protocol::protocol::SessionMetaLine {
+                meta: code_protocol::protocol::SessionMeta {
+                    id: code_protocol::ThreadId::from_string(&session_id.to_string())
+                        .expect("thread id"),
+                    forked_from_id: None,
+                    timestamp: meta_at.to_rfc3339(),
+                    cwd: PathBuf::from("/tmp/project"),
+                    originator: "codex_cli_rs".to_string(),
+                    cli_version: "0.0.0".to_string(),
+                    source: SessionSource::Cli,
+                    model_provider: None,
+                    base_instructions: None,
+                    dynamic_tools: None,
+                },
+                git: Some(code_protocol::protocol::GitInfo {
+                    commit_hash: None,
+                    branch: Some("main".to_string()),
+                    repository_url: None,
+                }),
+            }),
         });
-
-        let mut body = format!("{rollout_line}\n");
-        for (timestamp, text) in messages {
-            let user_line = serde_json::json!({
-                "timestamp": timestamp.to_rfc3339(),
-                "item": {
-                    "ResponseItem": {
-                        "Message": {
-                            "id": null,
-                            "role": "user",
-                            "content": [{ "InputText": { "text": text } }],
-                            "end_turn": null,
-                            "phase": null
-                        }
-                    }
-                }
+        for (timestamp, item) in items {
+            lines.push(RolloutLine {
+                timestamp: timestamp.to_rfc3339(),
+                item,
             });
-            body.push_str(&format!("{user_line}\n"));
         }
 
+        let mut body = String::new();
+        for line in lines {
+            body.push_str(&serde_json::to_string(&line).map_err(io::Error::other)?);
+            body.push('\n');
+        }
         tokio::fs::write(&rollout_path, body).await?;
         Ok(rollout_rel_path)
     }
 
-    fn legacy_select_memories_from_catalog(
-        catalog: &SessionCatalog,
-        settings: &MemoriesConfig,
-        now: DateTime<Utc>,
-    ) -> Vec<LegacySelectedMemory> {
-        let limit = settings
-            .max_raw_memories_for_consolidation
-            .min(settings.max_rollouts_per_startup);
-        if limit == 0 {
-            return Vec::new();
-        }
-
-        let max_age = chrono::TimeDelta::days(settings.max_rollout_age_days);
-        let min_idle = chrono::TimeDelta::hours(settings.min_rollout_idle_hours);
-
-        let mut selected = Vec::with_capacity(limit);
-        for entry in catalog.all_ordered() {
-            if selected.len() >= limit {
-                break;
-            }
-            if entry.deleted
-                || entry.archived
-                || entry.memory_mode != SessionMemoryMode::Enabled
-                || !matches!(entry.session_source, SessionSource::Cli | SessionSource::VSCode)
-            {
-                continue;
-            }
-            let Some((last_event_at, last_event_at_label)) = parse_timestamp_with_label(entry) else {
-                continue;
-            };
-            if settings.max_rollout_age_days > 0 && now.signed_duration_since(last_event_at) > max_age {
-                continue;
-            }
-            if settings.min_rollout_idle_hours > 0 && now.signed_duration_since(last_event_at) < min_idle {
-                continue;
-            }
-            selected.push(LegacySelectedMemory {
-                session_id: entry.session_id,
-                rollout_path: entry.rollout_path.clone(),
-                last_event_at,
-                last_event_at_label,
-                cwd_display: entry.cwd_display.clone(),
-                git_branch: entry.git_branch.clone(),
-                last_user_snippet: entry.last_user_snippet.clone(),
-                summary_file_stem: rollout_summary_file_stem(
-                    entry.session_id,
-                    last_event_at.timestamp(),
-                    &entry.cwd_display,
-                    entry.git_branch.as_deref(),
-                ),
-            });
-        }
-        selected
-    }
-
-    fn legacy_render_artifacts(selected: &[LegacySelectedMemory]) -> io::Result<MemoryArtifacts> {
-        let mut memory_summary = String::from("# Memory Summary\n\n");
-        if selected.is_empty() {
-            memory_summary.push_str("No prior interactive sessions found.\n");
-        } else {
-            memory_summary.push_str("Recent interactive sessions retained for memory prompts:\n\n");
-            for memory in selected {
-                writeln!(memory_summary, "## {} | {}", memory.last_event_at_label, memory.session_id)
-                    .map_err(io::Error::other)?;
-                writeln!(memory_summary, "cwd: {}", memory.cwd_display).map_err(io::Error::other)?;
-                if let Some(git_branch) = memory.git_branch.as_deref() {
-                    writeln!(memory_summary, "git_branch: {git_branch}").map_err(io::Error::other)?;
-                }
-                writeln!(
-                    memory_summary,
-                    "rollout_summary_file: rollout_summaries/{}.md",
-                    memory.summary_file_stem
-                )
-                .map_err(io::Error::other)?;
-                writeln!(
-                    memory_summary,
-                    "last_user_request: {}",
-                    memory
-                        .last_user_snippet
-                        .as_deref()
-                        .filter(|value| !value.trim().is_empty())
-                        .unwrap_or("(no user snippet)")
-                )
-                .map_err(io::Error::other)?;
-                writeln!(memory_summary).map_err(io::Error::other)?;
-            }
-        }
-
-        let mut raw_memories = String::from("# Raw Memories\n\n");
-        if selected.is_empty() {
-            raw_memories.push_str("No raw memories yet.\n");
-        } else {
-            raw_memories.push_str("Catalog-derived retained memories (latest first):\n\n");
-            for memory in selected {
-                writeln!(raw_memories, "## Session `{}`", memory.session_id).map_err(io::Error::other)?;
-                writeln!(raw_memories, "updated_at: {}", memory.last_event_at.to_rfc3339())
-                    .map_err(io::Error::other)?;
-                writeln!(raw_memories, "cwd: {}", memory.cwd_display).map_err(io::Error::other)?;
-                writeln!(raw_memories, "rollout_path: {}", memory.rollout_path.display())
-                    .map_err(io::Error::other)?;
-                writeln!(raw_memories, "rollout_summary_file: {}.md", memory.summary_file_stem)
-                    .map_err(io::Error::other)?;
-                if let Some(git_branch) = memory.git_branch.as_deref() {
-                    writeln!(raw_memories, "git_branch: {git_branch}").map_err(io::Error::other)?;
-                }
-                writeln!(raw_memories).map_err(io::Error::other)?;
-                raw_memories.push_str(
-                    memory
-                        .last_user_snippet
-                        .as_deref()
-                        .filter(|value| !value.trim().is_empty())
-                        .unwrap_or("(no user snippet)"),
-                );
-                raw_memories.push_str("\n\n");
-            }
-        }
-
-        let mut rollout_summaries = HashMap::with_capacity(selected.len());
-        for memory in selected {
-            let mut body = String::new();
-            writeln!(body, "session_id: {}", memory.session_id).map_err(io::Error::other)?;
-            writeln!(body, "updated_at: {}", memory.last_event_at.to_rfc3339())
-                .map_err(io::Error::other)?;
-            writeln!(body, "rollout_path: {}", memory.rollout_path.display()).map_err(io::Error::other)?;
-            writeln!(body, "cwd: {}", memory.cwd_display).map_err(io::Error::other)?;
-            if let Some(git_branch) = memory.git_branch.as_deref() {
-                writeln!(body, "git_branch: {git_branch}").map_err(io::Error::other)?;
-            }
-            writeln!(body).map_err(io::Error::other)?;
-            body.push_str(
-                memory
-                    .last_user_snippet
-                    .as_deref()
-                    .filter(|value| !value.trim().is_empty())
-                    .unwrap_or("(no user snippet)"),
-            );
-            body.push('\n');
-            rollout_summaries.insert(memory.summary_file_stem.clone(), body);
-        }
-
-        Ok(MemoryArtifacts {
-            memory_summary,
-            raw_memories,
-            rollout_summaries,
+    fn user_message(text: &str) -> RolloutItem {
+        RolloutItem::ResponseItem(ResponseItem::Message {
+            id: None,
+            role: "user".to_string(),
+            content: vec![ContentItem::InputText {
+                text: text.to_string(),
+            }],
+            end_turn: None,
+            phase: None,
         })
     }
 
-    async fn build_state_artifacts(
-        code_home: &Path,
-        settings: &MemoriesConfig,
-    ) -> io::Result<MemoryArtifacts> {
-        let state = MemoriesState::open(code_home.to_path_buf())
-            .await
-            .map_err(io::Error::other)?;
-        let threads = load_memory_threads(code_home).await?;
-        state
-            .reconcile_threads(&threads)
-            .await
-            .map_err(io::Error::other)?;
-        let claims = state
-            .claim_stage1_candidates(
-                settings.max_rollouts_per_startup,
-                settings.max_rollout_age_days,
-                settings.min_rollout_idle_hours,
-                crate::rollout::INTERACTIVE_SESSION_SOURCES,
-                false,
-            )
-            .await
-            .map_err(io::Error::other)?;
-        for claim in claims {
-            let output = build_stage1_output(code_home, &claim).await?;
-            state.upsert_stage1_output(&output).await.map_err(io::Error::other)?;
+    fn legacy_system_status_message(cwd: &str, branch: &str) -> RolloutItem {
+        RolloutItem::ResponseItem(ResponseItem::Message {
+            id: None,
+            role: "user".to_string(),
+            content: vec![ContentItem::InputText {
+                text: format!("== System Status ==\ncwd: {cwd}\nbranch: {branch}\n"),
+            }],
+            end_turn: None,
+            phase: None,
+        })
+    }
+
+    fn unix_environment_snapshot(
+        cwd: &str,
+        git_project_root: &str,
+        shell: crate::shell::Shell,
+    ) -> EnvironmentContextSnapshot {
+        EnvironmentContextSnapshot {
+            version: EnvironmentContextSnapshot::VERSION,
+            cwd: Some(cwd.to_string()),
+            git_project_root: Some(git_project_root.to_string()),
+            approval_policy: None,
+            sandbox_mode: None,
+            network_access: None,
+            writable_roots: Vec::new(),
+            operating_system: Some(crate::environment_context::OperatingSystemInfo {
+                family: Some("linux".to_string()),
+                version: None,
+                architecture: None,
+            }),
+            common_tools: Vec::new(),
+            shell: Some(shell),
+            git_branch: Some("main".to_string()),
+            reasoning_effort: None,
         }
-        let selected = state
-            .select_phase2_inputs(
-                settings.max_raw_memories_for_consolidation,
-                settings.max_rollout_age_days,
-                crate::rollout::INTERACTIVE_SESSION_SOURCES,
-            )
-            .await
-            .map_err(io::Error::other)?;
-        Ok(render_artifacts_from_state(&selected))
+    }
+
+    fn env_snapshot(cwd: &str, git_project_root: &str, shell: crate::shell::Shell) -> RolloutItem {
+        let snapshot = unix_environment_snapshot(cwd, git_project_root, shell);
+        RolloutItem::ResponseItem(snapshot.to_response_item().expect("snapshot item"))
+    }
+
+    fn env_delta(
+        previous: &EnvironmentContextSnapshot,
+        current: &EnvironmentContextSnapshot,
+    ) -> RolloutItem {
+        let delta = current.diff_from(previous);
+        RolloutItem::ResponseItem(delta.to_response_item().expect("delta item"))
+    }
+
+    fn make_claim(session_id: Uuid, updated_at: DateTime<Utc>, snippet: Option<&str>) -> Stage1Claim {
+        Stage1Claim {
+            thread_id: session_id,
+            rollout_path: PathBuf::from(format!("sessions/{session_id}.jsonl")),
+            cwd: PathBuf::from("/tmp/project"),
+            cwd_display: "~/project".to_string(),
+            updated_at: updated_at.timestamp(),
+            updated_at_label: updated_at.to_rfc3339(),
+            git_project_root: Some(PathBuf::from("/tmp/project")),
+            git_branch: Some("main".to_string()),
+            last_user_snippet: snippet.map(ToString::to_string),
+        }
     }
 
     #[tokio::test]
-    async fn refresh_prunes_stale_rollout_summary_files_and_writes_all_artifacts() {
+    async fn refresh_writes_epoch_manifest_and_artifacts() {
+        let _guard = lock_publish_tests();
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
-        let memories_root = code_home.join("memories");
-        tokio::fs::create_dir_all(memories_root.join("rollout_summaries"))
-            .await
-            .expect("create rollout summaries dir");
-        tokio::fs::write(
-            memories_root.join("rollout_summaries").join("stale.md"),
-            "stale",
-        )
-        .await
-        .expect("write stale file");
-
-        let session_id = Uuid::parse_str("0194f5a6-89ab-7cde-8123-456789abcdef").expect("uuid");
+        let session_id = Uuid::new_v4();
         let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
         let meta_at = now - chrono::TimeDelta::hours(6);
         let user_at = now - chrono::TimeDelta::hours(5);
-        let last_event_at = user_at.to_rfc3339();
-        write_rollout_with_user_messages(
+        let rollout_rel_path = write_rollout_lines(
             code_home,
             session_id,
             meta_at,
-            &[(user_at, "remember this")],
+            vec![(user_at, user_message("remember this"))],
         )
         .await
         .expect("write rollout");
 
         let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
-        catalog.entries.insert(
+        let mut entry = make_entry(
             session_id,
-            make_entry(
-                session_id,
-                SessionSource::Cli,
-                &last_event_at,
-                false,
-                false,
-                Some("remember this"),
-            ),
+            SessionSource::Cli,
+            &user_at.to_rfc3339(),
+            false,
+            false,
+            Some("remember this"),
         );
+        entry.rollout_path = rollout_rel_path;
+        catalog.entries.insert(session_id, entry);
         catalog.save().expect("save catalog");
 
         let settings = MemoriesConfig {
@@ -818,54 +1139,343 @@ mod tests {
             min_rollout_idle_hours: 0,
             ..MemoriesConfig::default()
         };
-        super::refresh_memory_artifacts_from_catalog(code_home, &settings, true)
+        refresh_memory_artifacts_from_catalog(code_home, &settings, true)
             .await
             .expect("refresh memories");
 
         let published = published_artifact_paths(code_home).expect("published artifact paths");
-        assert!(tokio::fs::try_exists(memories_root.join("current")).await.expect("stat current pointer"));
-        assert!(published.generation.is_some());
-        let summary = tokio::fs::read_to_string(&published.summary_path)
+        let manifest_text = tokio::fs::read_to_string(&published.manifest_path)
             .await
-            .expect("read summary");
-        assert!(summary.contains("remember this"));
+            .expect("read manifest");
+        let manifest: SnapshotManifest = serde_json::from_str(&manifest_text).expect("manifest json");
+        assert_eq!(manifest.epochs.len(), 1);
+        assert!(manifest.epochs[0].prompt_entry.contains("remember this"));
+        assert!(tokio::fs::try_exists(published.summary_path).await.expect("summary exists"));
+        assert!(tokio::fs::try_exists(published.raw_memories_path).await.expect("raw exists"));
+    }
 
-        let raw = tokio::fs::read_to_string(&published.raw_memories_path)
-            .await
-            .expect("read raw memories");
-        assert!(raw.contains("remember this"));
+    #[tokio::test]
+    async fn shell_change_creates_multiple_epochs() {
+        let _guard = lock_publish_tests();
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        let session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let meta_at = now - chrono::TimeDelta::hours(6);
+        let t1 = now - chrono::TimeDelta::hours(5);
+        let t2 = now - chrono::TimeDelta::hours(4);
+        let t3 = now - chrono::TimeDelta::hours(3);
+        let t4 = now - chrono::TimeDelta::hours(2);
+        let rollout_rel_path = write_rollout_lines(
+            code_home,
+            session_id,
+            meta_at,
+            vec![
+                (t1, env_snapshot("/tmp/project", "/tmp/project", crate::shell::Shell::Bash(crate::shell::BashShell {
+                    shell_path: "/bin/bash".to_string(),
+                    bashrc_path: "/tmp/.bashrc".to_string(),
+                }))),
+                (t2, user_message("remember bash thing")),
+                (t3, env_snapshot("/tmp/project", "/tmp/project", crate::shell::Shell::Zsh(crate::shell::ZshShell {
+                    shell_path: "/bin/zsh".to_string(),
+                    zshrc_path: "/tmp/.zshrc".to_string(),
+                }))),
+                (t4, user_message("remember zsh thing")),
+            ],
+        )
+        .await
+        .expect("write rollout");
 
-        let mut rollout_dir = tokio::fs::read_dir(&published.rollout_summaries_dir)
+        let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
+        let mut entry = make_entry(
+            session_id,
+            SessionSource::Cli,
+            &t4.to_rfc3339(),
+            false,
+            false,
+            Some("remember zsh thing"),
+        );
+        entry.rollout_path = rollout_rel_path;
+        catalog.entries.insert(session_id, entry);
+        catalog.save().expect("save catalog");
+
+        let settings = MemoriesConfig {
+            max_raw_memories_for_consolidation: 8,
+            max_rollout_age_days: 60,
+            max_rollouts_per_startup: 8,
+            min_rollout_idle_hours: 0,
+            ..MemoriesConfig::default()
+        };
+        refresh_memory_artifacts_from_catalog(code_home, &settings, true)
             .await
-            .expect("read rollout summaries");
-        let mut file_names = Vec::new();
-        while let Some(entry) = rollout_dir.next_entry().await.expect("next entry") {
-            file_names.push(entry.file_name().to_string_lossy().to_string());
+            .expect("refresh memories");
+
+        let state = MemoriesState::open(code_home).await.expect("open state");
+        let status = state
+            .status(crate::rollout::INTERACTIVE_SESSION_SOURCES)
+            .await
+            .expect("status after refresh");
+        assert_eq!(status.stage1_epoch_count, 2);
+    }
+
+    #[tokio::test]
+    async fn rollout_read_failure_uses_catalog_fallback_provenance() {
+        let temp = tempdir().expect("tempdir");
+        let session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let claim = make_claim(session_id, now, Some("remember fallback snippet"));
+
+        let epochs = build_stage1_epochs(temp.path(), &claim)
+            .await
+            .expect("fallback epochs");
+
+        assert_eq!(epochs.len(), 1);
+        assert_eq!(epochs[0].provenance, Stage1EpochProvenance::CatalogFallback);
+        assert!(epochs[0].raw_memory.contains("provenance: catalog_fallback"));
+    }
+
+    #[test]
+    fn delta_without_baseline_keeps_epoch_on_fallback_context() {
+        let session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let claim = make_claim(session_id, now, Some("remember delta thing"));
+        let baseline = unix_environment_snapshot(
+            "/tmp/project",
+            "/tmp/project",
+            crate::shell::Shell::Bash(crate::shell::BashShell {
+                shell_path: "/bin/bash".to_string(),
+                bashrc_path: "/tmp/.bashrc".to_string(),
+            }),
+        );
+        let changed = unix_environment_snapshot(
+            "/tmp/project",
+            "/tmp/project",
+            crate::shell::Shell::Zsh(crate::shell::ZshShell {
+                shell_path: "/bin/zsh".to_string(),
+                zshrc_path: "/tmp/.zshrc".to_string(),
+            }),
+        );
+        let lines = vec![
+            RecordedRolloutLine {
+                ordinal: 0,
+                timestamp: now.to_rfc3339(),
+                item: env_delta(&baseline, &changed),
+            },
+            RecordedRolloutLine {
+                ordinal: 1,
+                timestamp: (now + chrono::TimeDelta::minutes(1)).to_rfc3339(),
+                item: user_message("remember delta thing"),
+            },
+        ];
+
+        let epochs = derive_stage1_epochs_from_lines(&claim, &lines);
+        assert_eq!(epochs.len(), 1);
+        assert_eq!(epochs[0].platform_family, MemoryPlatformFamily::Unknown);
+        assert_eq!(epochs[0].shell_style, MemoryShellStyle::Unknown);
+        assert_eq!(epochs[0].workspace_root.as_deref(), Some("/tmp/project"));
+    }
+
+    #[test]
+    fn pre_content_context_changes_do_not_create_empty_epochs() {
+        let session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let claim = make_claim(session_id, now, Some("remember zsh thing"));
+        let lines = vec![
+            RecordedRolloutLine {
+                ordinal: 0,
+                timestamp: now.to_rfc3339(),
+                item: env_snapshot(
+                    "/tmp/project",
+                    "/tmp/project",
+                    crate::shell::Shell::Bash(crate::shell::BashShell {
+                        shell_path: "/bin/bash".to_string(),
+                        bashrc_path: "/tmp/.bashrc".to_string(),
+                    }),
+                ),
+            },
+            RecordedRolloutLine {
+                ordinal: 1,
+                timestamp: (now + chrono::TimeDelta::minutes(1)).to_rfc3339(),
+                item: env_snapshot(
+                    "/tmp/project",
+                    "/tmp/project",
+                    crate::shell::Shell::Zsh(crate::shell::ZshShell {
+                        shell_path: "/bin/zsh".to_string(),
+                        zshrc_path: "/tmp/.zshrc".to_string(),
+                    }),
+                ),
+            },
+            RecordedRolloutLine {
+                ordinal: 2,
+                timestamp: (now + chrono::TimeDelta::minutes(2)).to_rfc3339(),
+                item: user_message("remember zsh thing"),
+            },
+        ];
+
+        let epochs = derive_stage1_epochs_from_lines(&claim, &lines);
+        assert_eq!(epochs.len(), 1);
+        assert_eq!(epochs[0].shell_style, MemoryShellStyle::Zsh);
+        assert!(epochs[0].raw_memory.contains("remember zsh thing"));
+    }
+
+    #[test]
+    fn empty_derivation_uses_empty_derivation_fallback_provenance() {
+        let session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let claim = make_claim(session_id, now, Some("remember empty fallback"));
+        let lines = vec![RecordedRolloutLine {
+            ordinal: 0,
+            timestamp: now.to_rfc3339(),
+            item: env_snapshot(
+                "/tmp/project",
+                "/tmp/project",
+                crate::shell::Shell::Bash(crate::shell::BashShell {
+                    shell_path: "/bin/bash".to_string(),
+                    bashrc_path: "/tmp/.bashrc".to_string(),
+                }),
+            ),
+        }];
+
+        let epochs = derive_stage1_epochs_from_lines(&claim, &lines);
+
+        assert_eq!(epochs.len(), 1);
+        assert_eq!(
+            epochs[0].provenance,
+            Stage1EpochProvenance::EmptyDerivationFallback
+        );
+        assert!(epochs[0].raw_memory.contains("provenance: empty_derivation_fallback"));
+    }
+
+    #[test]
+    fn shared_environment_parser_drives_epoch_counting() {
+        let baseline = unix_environment_snapshot(
+            "/tmp/project",
+            "/tmp/project",
+            crate::shell::Shell::Bash(crate::shell::BashShell {
+                shell_path: "/bin/bash".to_string(),
+                bashrc_path: "/tmp/.bashrc".to_string(),
+            }),
+        );
+        let changed = unix_environment_snapshot(
+            "/tmp/project",
+            "/tmp/project",
+            crate::shell::Shell::Zsh(crate::shell::ZshShell {
+                shell_path: "/bin/zsh".to_string(),
+                zshrc_path: "/tmp/.zshrc".to_string(),
+            }),
+        );
+        let env_items = vec![
+            env_snapshot("/tmp/project", "/tmp/project", crate::shell::Shell::Bash(
+                crate::shell::BashShell {
+                    shell_path: "/bin/bash".to_string(),
+                    bashrc_path: "/tmp/.bashrc".to_string(),
+                },
+            )),
+            env_delta(&baseline, &changed),
+            legacy_system_status_message("/tmp/project", "main"),
+        ];
+
+        for item in &env_items {
+            assert!(
+                parse_environment_context_update_from_rollout_item(item).is_some(),
+                "expected environment item to parse: {item:?}"
+            );
+            assert!(
+                !should_count_toward_epoch(item),
+                "environment items must not count toward epoch spans: {item:?}"
+            );
         }
 
-        assert_eq!(file_names.len(), 1);
-        assert!(file_names[0].ends_with(".md"));
-        assert_ne!(file_names[0], "stale.md");
-        assert!(
-            !tokio::fs::try_exists(memories_root.join("rollout_summaries"))
-                .await
-                .expect("stat legacy rollout summaries")
+        let user_item = user_message("remember actual content");
+        assert!(parse_environment_context_update_from_rollout_item(&user_item).is_none());
+        assert!(should_count_toward_epoch(&user_item));
+    }
+
+    #[test]
+    fn rendered_outputs_include_provenance_metadata() {
+        let session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let claim = make_claim(session_id, now, Some("remember fallback"));
+        let epoch = EpochAccumulator {
+            context: EpochContextKey {
+                platform_family: MemoryPlatformFamily::Unix,
+                shell_style: MemoryShellStyle::Zsh,
+                shell_program: Some("zsh".to_string()),
+                workspace_root: Some("/tmp/project".to_string()),
+            },
+            epoch_start_at: Some(now.timestamp()),
+            epoch_end_at: Some(now.timestamp()),
+            epoch_start_line: 1,
+            epoch_end_line: 2,
+            cwd_display: "~/project".to_string(),
+            git_branch: Some("main".to_string()),
+            last_user_snippet: Some("remember fallback".to_string()),
+        };
+        let raw_memory = render_raw_memory_body(
+            &claim,
+            0,
+            &epoch,
+            Stage1EpochProvenance::CatalogFallback,
+            "demo-rollout",
+            "remember fallback",
         );
+        let rollout_summary = render_rollout_summary_body(
+            &claim,
+            0,
+            &epoch,
+            Stage1EpochProvenance::CatalogFallback,
+            "remember fallback",
+        );
+        let record = Stage1EpochRecord {
+            id: code_memories_state::MemoryEpochId {
+                thread_id: session_id,
+                epoch_index: 0,
+            },
+            provenance: Stage1EpochProvenance::CatalogFallback,
+            source_updated_at: now.timestamp(),
+            updated_at_label: now.to_rfc3339(),
+            generated_at: now.timestamp(),
+            epoch_start_at: Some(now.timestamp()),
+            epoch_end_at: Some(now.timestamp()),
+            epoch_start_line: 1,
+            epoch_end_line: 2,
+            platform_family: MemoryPlatformFamily::Unix,
+            shell_style: MemoryShellStyle::Zsh,
+            shell_program: Some("zsh".to_string()),
+            workspace_root: Some("/tmp/project".to_string()),
+            cwd: PathBuf::from("/tmp/project"),
+            cwd_display: "~/project".to_string(),
+            git_branch: Some("main".to_string()),
+            rollout_path: PathBuf::from(format!("sessions/{session_id}.jsonl")),
+            raw_memory: raw_memory.clone(),
+            rollout_summary: rollout_summary.clone(),
+            rollout_slug: "demo-rollout".to_string(),
+            usage_count: 0,
+            last_usage: None,
+        };
+
+        let summary = render_memory_summary(&[record.clone()]);
+        let prompt_entry = render_prompt_entry(&record);
+
+        assert!(raw_memory.contains("provenance: catalog_fallback"));
+        assert!(rollout_summary.contains("provenance: catalog_fallback"));
+        assert!(summary.contains("provenance: catalog_fallback"));
+        assert!(prompt_entry.contains("provenance: catalog_fallback"));
     }
 
     #[tokio::test]
     async fn manual_refresh_bypasses_stage1_retry_backoff() {
+        let _guard = lock_publish_tests();
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
-        let session_id = Uuid::parse_str("0194f5a6-89ab-7cde-8123-456789abcdef").expect("uuid");
+        let session_id = Uuid::new_v4();
         let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
         let meta_at = now - chrono::TimeDelta::hours(6);
         let user_at = now - chrono::TimeDelta::hours(5);
-        let last_event_at = user_at.to_rfc3339();
         let rollout_rel_path = rollout_rel_path(session_id, meta_at);
 
         let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
-        let mut entry = make_entry(session_id, SessionSource::Cli, &last_event_at, false, false, None);
+        let mut entry = make_entry(session_id, SessionSource::Cli, &user_at.to_rfc3339(), false, false, None);
         entry.rollout_path = rollout_rel_path.clone();
         catalog.entries.insert(session_id, entry);
         catalog.save().expect("save catalog");
@@ -878,7 +1488,7 @@ mod tests {
             ..MemoriesConfig::default()
         };
 
-        super::refresh_memory_artifacts_from_catalog(code_home, &settings, false)
+        refresh_memory_artifacts_from_catalog(code_home, &settings, false)
             .await
             .expect("initial refresh completes despite stage1 failure");
 
@@ -887,27 +1497,24 @@ mod tests {
             .status(crate::rollout::INTERACTIVE_SESSION_SOURCES)
             .await
             .expect("status after failed stage1");
-        assert_eq!(status.stage1_output_count, 0);
+        assert_eq!(status.stage1_epoch_count, 0);
         assert_eq!(status.pending_stage1_count, 0);
 
-        let written_rollout_path = write_rollout_with_user_messages(
+        let written_rollout_path = write_rollout_lines(
             code_home,
             session_id,
             meta_at,
-            &[(user_at, "remember this")],
+            vec![(user_at, user_message("remember this"))],
         )
-            .await
-            .expect("write rollout");
+        .await
+        .expect("write rollout");
         assert_eq!(written_rollout_path, rollout_rel_path);
         let mut catalog = SessionCatalog::load(code_home).expect("reload catalog");
-        let entry = catalog
-            .entries
-            .get_mut(&session_id)
-            .expect("catalog entry after failure");
+        let entry = catalog.entries.get_mut(&session_id).expect("entry");
         entry.last_user_snippet = Some("remember this".to_string());
         catalog.save().expect("save catalog snippet");
 
-        super::refresh_memory_artifacts_from_catalog(code_home, &settings, true)
+        refresh_memory_artifacts_from_catalog(code_home, &settings, true)
             .await
             .expect("manual refresh bypasses backoff");
 
@@ -915,41 +1522,32 @@ mod tests {
             .status(crate::rollout::INTERACTIVE_SESSION_SOURCES)
             .await
             .expect("status after manual refresh");
-        assert_eq!(status.stage1_output_count, 1);
-
-        let published = published_artifact_paths(code_home).expect("published artifact paths");
-        let summary = tokio::fs::read_to_string(&published.summary_path)
-            .await
-            .expect("read memory summary");
-        assert!(summary.contains("remember this"));
+        assert_eq!(status.stage1_epoch_count, 1);
     }
 
     #[tokio::test]
     async fn publish_switches_active_snapshot_without_clearing_previous_one_first() {
+        let _guard = lock_publish_tests();
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let memories_root = code_home.join("memories");
         let first = MemoryArtifacts {
             memory_summary: "first summary".to_string(),
             raw_memories: "first raw".to_string(),
-            rollout_summaries: HashMap::from([("first".to_string(), "first rollout".to_string())]),
+            rollout_summaries: HashMap::from([("first.md".to_string(), "first rollout".to_string())]),
+            manifest: serde_json::to_string(&SnapshotManifest::new(Vec::new())).expect("manifest"),
         };
         write_memory_artifacts(code_home, first)
             .await
             .expect("write first snapshot");
         let first_paths = published_artifact_paths(code_home).expect("first published paths");
         let first_generation = first_paths.generation.clone().expect("first generation");
-        assert_eq!(
-            tokio::fs::read_to_string(&first_paths.summary_path)
-                .await
-                .expect("read first summary"),
-            "first summary"
-        );
 
         let second = MemoryArtifacts {
             memory_summary: "second summary".to_string(),
             raw_memories: "second raw".to_string(),
-            rollout_summaries: HashMap::from([("second".to_string(), "second rollout".to_string())]),
+            rollout_summaries: HashMap::from([("second.md".to_string(), "second rollout".to_string())]),
+            manifest: serde_json::to_string(&SnapshotManifest::new(Vec::new())).expect("manifest"),
         };
         write_memory_artifacts(code_home, second)
             .await
@@ -962,138 +1560,49 @@ mod tests {
                 .expect("read second summary"),
             "second summary"
         );
-        assert_ne!(
-            second_paths.generation.as_deref(),
-            Some(first_generation.as_str())
-        );
+        assert_ne!(second_paths.generation.as_deref(), Some(first_generation.as_str()));
         assert!(
-            !tokio::fs::try_exists(
-                memories_root.join("snapshots").join(first_generation)
-            )
-            .await
-            .expect("stat pruned snapshot")
+            !tokio::fs::try_exists(memories_root.join("snapshots").join(first_generation))
+                .await
+                .expect("stat pruned snapshot")
         );
     }
 
     #[tokio::test]
     async fn failed_publish_before_pointer_swap_keeps_previous_snapshot_active() {
+        let _guard = lock_publish_tests();
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
-        write_memory_artifacts(
-            code_home,
-            MemoryArtifacts {
-                memory_summary: "stable summary".to_string(),
-                raw_memories: "stable raw".to_string(),
-                rollout_summaries: HashMap::new(),
-            },
-        )
-        .await
-        .expect("write stable snapshot");
-        let stable_paths = published_artifact_paths(code_home).expect("stable published paths");
-        let stable_generation = stable_paths.generation.clone().expect("stable generation");
+        let first = MemoryArtifacts {
+            memory_summary: "stable summary".to_string(),
+            raw_memories: "stable raw".to_string(),
+            rollout_summaries: HashMap::new(),
+            manifest: serde_json::to_string(&SnapshotManifest::new(Vec::new())).expect("manifest"),
+        };
+        write_memory_artifacts(code_home, first)
+            .await
+            .expect("write first snapshot");
+        let before = published_artifact_paths(code_home).expect("published before failure");
+
         FAIL_BEFORE_POINTER_SWAP.store(true, Ordering::SeqCst);
+        let failing = MemoryArtifacts {
+            memory_summary: "new summary".to_string(),
+            raw_memories: "new raw".to_string(),
+            rollout_summaries: HashMap::new(),
+            manifest: serde_json::to_string(&SnapshotManifest::new(Vec::new())).expect("manifest"),
+        };
+        let err = write_memory_artifacts(code_home, failing)
+            .await
+            .expect_err("publish should fail before pointer swap");
+        assert!(err.to_string().contains("injected memories publish failure"));
 
-        let err = write_memory_artifacts(
-            code_home,
-            MemoryArtifacts {
-                memory_summary: "new summary".to_string(),
-                raw_memories: "new raw".to_string(),
-                rollout_summaries: HashMap::new(),
-            },
-        )
-        .await
-        .expect_err("publish should fail before pointer swap");
-        assert_eq!(err.kind(), io::ErrorKind::Other);
-
-        let published = published_artifact_paths(code_home).expect("published paths after failure");
-        assert_eq!(published.generation.as_deref(), Some(stable_generation.as_str()));
+        let after = published_artifact_paths(code_home).expect("published after failure");
+        assert_eq!(before.generation, after.generation);
         assert_eq!(
-            tokio::fs::read_to_string(&published.summary_path)
+            tokio::fs::read_to_string(&after.summary_path)
                 .await
-                .expect("read stable summary"),
+                .expect("read active summary after failure"),
             "stable summary"
         );
-    }
-
-    #[tokio::test]
-    async fn db_backed_artifacts_match_legacy_renderer() {
-        let temp = tempdir().expect("tempdir");
-        let code_home = temp.path();
-        let session_id = Uuid::parse_str("0194f5a6-89ab-7cde-8123-456789abcdef").expect("uuid");
-        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
-        let meta_at = now - chrono::TimeDelta::hours(6);
-        let user_at = now - chrono::TimeDelta::hours(5);
-        let last_event_at = user_at.to_rfc3339();
-        write_rollout_with_user_messages(
-            code_home,
-            session_id,
-            meta_at,
-            &[(user_at, "remember this")],
-        )
-        .await
-        .expect("write rollout");
-
-        let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
-        catalog.entries.insert(
-            session_id,
-            make_entry(
-                session_id,
-                SessionSource::Cli,
-                &last_event_at,
-                false,
-                false,
-                Some("remember this"),
-            ),
-        );
-        catalog.save().expect("save catalog");
-
-        let settings = MemoriesConfig {
-            max_raw_memories_for_consolidation: 8,
-            max_rollout_age_days: 60,
-            max_rollouts_per_startup: 8,
-            min_rollout_idle_hours: 0,
-            ..MemoriesConfig::default()
-        };
-        let legacy_catalog = SessionCatalog::load(code_home).expect("reload catalog");
-        let legacy_selected = legacy_select_memories_from_catalog(
-            &legacy_catalog,
-            &settings,
-            now,
-        );
-        let legacy = legacy_render_artifacts(&legacy_selected).expect("legacy artifacts");
-        let db_backed = build_state_artifacts(code_home, &settings)
-            .await
-            .expect("db-backed artifacts");
-
-        assert_eq!(legacy.memory_summary, db_backed.memory_summary);
-        assert_eq!(legacy.raw_memories, db_backed.raw_memories);
-        assert_eq!(legacy.rollout_summaries, db_backed.rollout_summaries);
-    }
-
-    #[test]
-    fn extract_last_user_snippet_skips_system_status_messages() {
-        let items = vec![
-            RolloutItem::ResponseItem(ResponseItem::Message {
-                id: None,
-                role: "user".to_string(),
-                content: vec![ContentItem::InputText {
-                    text: "remember this".to_string(),
-                }],
-                end_turn: None,
-                phase: None,
-            }),
-            RolloutItem::ResponseItem(ResponseItem::Message {
-                id: None,
-                role: "user".to_string(),
-                content: vec![ContentItem::InputText {
-                    text: "== System Status ==\nconnected".to_string(),
-                }],
-                end_turn: None,
-                phase: None,
-            }),
-        ];
-
-        let snippet = extract_last_user_snippet(&items).expect("user snippet");
-        assert_eq!(snippet, "remember this");
     }
 }

@@ -44,6 +44,13 @@ use code_protocol::protocol::SessionMetaLine;
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct SessionStateSnapshot {}
 
+#[derive(Clone, Debug)]
+pub struct RecordedRolloutLine {
+    pub ordinal: i64,
+    pub timestamp: String,
+    pub item: RolloutItem,
+}
+
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct SavedSession {
     pub session: SessionMeta,
@@ -445,6 +452,42 @@ impl RolloutRecorder {
             history: items,
             rollout_path: path.to_path_buf(),
         }))
+    }
+
+    pub(crate) async fn get_recorded_rollout_lines(
+        path: &Path,
+    ) -> std::io::Result<Vec<RecordedRolloutLine>> {
+        let text = tokio::fs::read_to_string(path).await?;
+        if text.trim().is_empty() {
+            return Err(IoError::other("empty session file"));
+        }
+
+        let mut lines = Vec::new();
+        for (ordinal, line) in text.lines().enumerate() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let value: Value = match serde_json::from_str(line) {
+                Ok(value) => value,
+                Err(err) => {
+                    warn!("failed to parse line as JSON: {line:?}, error: {err}");
+                    continue;
+                }
+            };
+
+            match serde_json::from_value::<RolloutLine>(value.clone()) {
+                Ok(rollout_line) => lines.push(RecordedRolloutLine {
+                    ordinal: ordinal as i64,
+                    timestamp: rollout_line.timestamp,
+                    item: rollout_line.item,
+                }),
+                Err(err) => {
+                    warn!("failed to parse rollout line: {value:?}, error: {err}");
+                }
+            }
+        }
+
+        Ok(lines)
     }
 
     pub async fn shutdown(&self) -> std::io::Result<()> {

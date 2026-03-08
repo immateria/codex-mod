@@ -447,7 +447,7 @@ impl MemoriesSettingsView {
                             "SQLite: {} · threads {} · stage1 {} · pending {} · running {} · dirty {}",
                             if status.db.db_exists { "present" } else { "missing" },
                             status.db.thread_count,
-                            status.db.stage1_output_count,
+                            status.db.stage1_epoch_count,
                             status.db.pending_stage1_count,
                             status.db.running_stage1_count,
                             if status.db.artifact_dirty { "yes" } else { "no" },

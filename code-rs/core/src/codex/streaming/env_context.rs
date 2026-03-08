@@ -218,6 +218,7 @@ fn parse_legacy_status_snapshot(item: &ResponseItem) -> Option<EnvironmentContex
                 return Some(EnvironmentContextSnapshot {
                     version: EnvironmentContextSnapshot::VERSION,
                     cwd,
+                    git_project_root: None,
                     approval_policy: None,
                     sandbox_mode: None,
                     network_access: None,

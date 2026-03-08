@@ -83,7 +83,7 @@ mod tests {
         );
 
         // First emission should be Full (baseline)
-        let result1 = tracker.emit_response_items(&env_ctx, None, None, Some("stream"));
+        let result1 = tracker.emit_response_items(&env_ctx, None, None, None, Some("stream"));
         assert!(result1.is_ok());
         let (emission1, items1) = result1.unwrap().expect("First emission should be Some");
         assert_eq!(emission1.sequence(), 1);
@@ -106,7 +106,7 @@ mod tests {
         }
 
         // Second emission with same context should be None (no change)
-        let result2 = tracker.emit_response_items(&env_ctx, None, None, Some("stream"));
+        let result2 = tracker.emit_response_items(&env_ctx, None, None, None, Some("stream"));
         assert!(result2.is_ok());
         assert!(
             result2.unwrap().is_none(),
@@ -120,7 +120,8 @@ mod tests {
             None,
             Some(shell),
         );
-        let result3 = tracker.emit_response_items(&env_ctx_changed, None, None, Some("stream"));
+        let result3 =
+            tracker.emit_response_items(&env_ctx_changed, None, None, None, Some("stream"));
         assert!(result3.is_ok());
         let (emission3, items3) = result3.unwrap().expect("Changed context should emit Delta");
         assert_eq!(emission3.sequence(), 2);

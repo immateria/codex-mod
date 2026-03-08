@@ -3805,7 +3805,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
         db: code_core::MemoriesDbStatus {
             db_exists: true,
             thread_count: 3,
-            stage1_output_count: 2,
+            stage1_epoch_count: 2,
             pending_stage1_count: 1,
             running_stage1_count: 0,
             artifact_job_running: false,

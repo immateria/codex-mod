@@ -28,10 +28,10 @@ pub(super) async fn run_turn(
         render_collaboration_mode_instructions(tc.collaboration_mode);
     // Ensure we only auto-compact once per turn to avoid loops
     let mut did_auto_compact = false;
-    // Attempt input starts as the provided input, and may be augmented with
-    // items from a previous dropped stream attempt so we don't lose progress.
-    let _mcp_turn_allow_guard =
-        mcp_access::McpTurnAllowGuard::new(Arc::clone(sess), sub_id.clone());
+    // Keep the MCP allow guard alive for the entire turn so per-turn MCP
+    // grants are always cleared when this function exits.
+    #[allow(unused_variables)]
+    let mcp_turn_allow_guard = mcp_access::McpTurnAllowGuard::new(Arc::clone(sess), sub_id.clone());
     mcp_access::preflight_turn_skill_input(
         sess,
         turn_context,
@@ -42,6 +42,67 @@ pub(super) async fn run_turn(
     )
     .await;
 
+    let mut base_prepend_developer_messages: Vec<String> = tc
+        .demo_developer_message
+        .clone()
+        .into_iter()
+        .collect();
+    let trimmed_mode_instructions = collaboration_mode_instructions.trim();
+    if !trimmed_mode_instructions.is_empty() {
+        base_prepend_developer_messages.push(trimmed_mode_instructions.to_string());
+    }
+    if let Some(shell_style) = sess.user_shell.script_style() {
+        base_prepend_developer_messages.push(shell_style.developer_instruction().to_string());
+    }
+    base_prepend_developer_messages.extend(
+        sess
+            .shell_style_profile_messages
+            .iter()
+            .filter_map(|message| {
+                let trimmed = message.trim();
+                (!trimmed.is_empty()).then(|| trimmed.to_string())
+            }),
+    );
+    if sess.memories_config.use_memories {
+        let memory_context = {
+            let state = crate::codex::lock_or_panic!(sess.state);
+            crate::memories::current_context_from_runtime(
+                state.last_environment_snapshot.as_ref(),
+                sess.user_shell(),
+                &tc.cwd,
+            )
+        };
+        if let Some(memory_prompt) = crate::memories::build_memory_tool_developer_instructions(
+            sess.client.code_home(),
+            &memory_context,
+        )
+        .await
+        {
+            if memory_prompt.used_fallback_summary {
+                tracing::debug!(
+                    "memories prompt used canonical summary fallback; skipping epoch usage attribution"
+                );
+            } else if let Err(err) = crate::memories::note_selected_memories_used(
+                sess.client.code_home(),
+                &memory_prompt.selected_epoch_ids,
+            )
+            .await
+            {
+                tracing::warn!("failed to record memories usage: {err}");
+            }
+            base_prepend_developer_messages.push(memory_prompt.instructions);
+        }
+    }
+
+    let drain_scratchpad_into_attempt = |attempt_input: &mut Vec<ResponseItem>| {
+        if let Some(sp) = sess.take_scratchpad() {
+            inject_scratchpad_into_attempt_input(attempt_input, sp);
+        }
+    };
+
+    // `input` remains the canonical baseline for this turn. `attempt_input`
+    // is the mutable request payload for the current retry and may temporarily
+    // include scratchpad recovery from a dropped attempt.
     let mut attempt_input: Vec<ResponseItem> = input.clone();
     loop {
         // Each loop iteration corresponds to a single provider HTTP request.
@@ -53,36 +114,9 @@ pub(super) async fn run_turn(
         // Build status items (screenshots, system status) fresh for each attempt
         let status_items = build_turn_status_items(sess).await;
 
-        let mut prepend_developer_messages: Vec<String> = tc
-            .demo_developer_message
-            .clone()
-            .into_iter()
-            .collect();
-        let trimmed_mode_instructions = collaboration_mode_instructions.trim();
-        if !trimmed_mode_instructions.is_empty() {
-            prepend_developer_messages.push(trimmed_mode_instructions.to_string());
-        }
-        if let Some(shell_style) = sess.user_shell.script_style() {
-            prepend_developer_messages.push(shell_style.developer_instruction().to_string());
-        }
-        prepend_developer_messages.extend(
-            sess
-                .shell_style_profile_messages
-                .iter()
-                .filter_map(|message| {
-                    let trimmed = message.trim();
-                    (!trimmed.is_empty()).then(|| trimmed.to_string())
-                }),
-        );
-        if sess.memories_config.use_memories
-            && let Some(memory_prompt) =
-                crate::memories::build_memory_tool_developer_instructions(sess.client.code_home()).await
-        {
-            if let Err(err) = crate::memories::note_selected_memories_used(sess.client.code_home()).await {
-                tracing::warn!("failed to record memories usage: {err}");
-            }
-            prepend_developer_messages.push(memory_prompt);
-        }
+        let mut prepend_developer_messages = base_prepend_developer_messages.clone();
+        // HTML sanitizer guardrails depend only on the request payload, not on
+        // resolved tool definitions, so this stays before prompt.tools exists.
         if should_inject_html_sanitizer_guardrails(&attempt_input) {
             prepend_developer_messages.push(HTML_SANITIZER_GUARDRAILS_MESSAGE.to_string());
         }
@@ -122,6 +156,11 @@ pub(super) async fn run_turn(
             effective_family,
         );
         let mcp_access = sess.mcp_access_snapshot();
+        let allowed_mcp_tools = crate::mcp::policy::filter_tools_for_turn(
+            &sess.mcp_connection_manager,
+            &mcp_access,
+            sub_id.as_str(),
+        );
         let mcp_tools = if tools_config.search_tool {
             let selection = sess.mcp_tool_selection_snapshot().unwrap_or_default();
             if selection.is_empty() {
@@ -131,19 +170,8 @@ pub(super) async fn run_turn(
                     .iter()
                     .map(|tool| tool.to_ascii_lowercase())
                     .collect();
-                let session_deny: std::collections::HashSet<String> = mcp_access
-                    .session_deny_servers
-                    .iter()
-                    .map(|name| name.to_ascii_lowercase())
-                    .collect();
                 let mut selected = std::collections::HashMap::new();
-                for (qualified_name, server_name, tool) in sess
-                    .mcp_connection_manager
-                    .list_all_tools_with_server_names()
-                {
-                    if session_deny.contains(&server_name.to_ascii_lowercase()) {
-                        continue;
-                    }
+                for (qualified_name, tool) in allowed_mcp_tools {
                     if !selection_lower.contains(&qualified_name.to_ascii_lowercase()) {
                         continue;
                     }
@@ -152,11 +180,7 @@ pub(super) async fn run_turn(
                 (!selected.is_empty()).then_some(selected)
             }
         } else {
-            Some(crate::mcp::policy::filter_tools_for_turn(
-                &sess.mcp_connection_manager,
-                &mcp_access,
-                sub_id.as_str(),
-            ))
+            Some(allowed_mcp_tools)
         };
         prompt.tools = get_openai_tools(
             &tools_config,
@@ -294,6 +318,7 @@ pub(super) async fn run_turn(
                     }
 
                 if switched {
+                    drain_scratchpad_into_attempt(&mut attempt_input);
                     retries = 0;
                     continue;
                 }
@@ -309,6 +334,7 @@ pub(super) async fn run_turn(
                 }
                 retry_message.push('…');
                 sess.notify_stream_error(&sub_id, retry_message).await;
+                drain_scratchpad_into_attempt(&mut attempt_input);
                 tokio::time::sleep(retry_after.delay).await;
                 retries = 0;
                 continue;
@@ -392,11 +418,6 @@ pub(super) async fn run_turn(
                     _ => None,
                 };
                 let is_connectivity = is_connectivity_error(&e);
-                let drain_scratchpad_into_attempt = |attempt_input: &mut Vec<ResponseItem>| {
-                    if let Some(sp) = sess.take_scratchpad() {
-                        inject_scratchpad_into_attempt_input(attempt_input, sp);
-                    }
-                };
 
                 if is_connectivity && retries >= max_retries {
                     let probe = tc.client.get_provider().base_url_for_probe();

@@ -1144,6 +1144,7 @@ mod tests {
         EnvironmentContextSnapshot {
             version: EnvironmentContextSnapshot::VERSION,
             cwd: Some(cwd.to_string()),
+            git_project_root: None,
             approval_policy: None,
             sandbox_mode: None,
             network_access: None,
