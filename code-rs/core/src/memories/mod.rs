@@ -86,6 +86,7 @@ pub struct MemoriesDbStatus {
     pub stage1_epoch_count: usize,
     pub pending_stage1_count: usize,
     pub running_stage1_count: usize,
+    pub dead_lettered_stage1_count: usize,
     pub artifact_job_running: bool,
     pub artifact_dirty: bool,
     pub last_artifact_build_at: Option<String>,
@@ -310,6 +311,7 @@ fn empty_db_status() -> MemoriesDbStatus {
         stage1_epoch_count: 0,
         pending_stage1_count: 0,
         running_stage1_count: 0,
+        dead_lettered_stage1_count: 0,
         artifact_job_running: false,
         artifact_dirty: false,
         last_artifact_build_at: None,
@@ -437,6 +439,17 @@ pub async fn note_selected_memories_used(
         .map_err(io::Error::other)?;
     refresh_cached_db_status(code_home).await;
     Ok(())
+}
+
+pub(crate) async fn record_memory_prompt_usage(
+    code_home: &Path,
+    prompt: &prompts::MemoryPromptInstructions,
+) -> io::Result<bool> {
+    if prompt.used_fallback_summary {
+        return Ok(false);
+    }
+    note_selected_memories_used(code_home, &prompt.selected_epoch_ids).await?;
+    Ok(true)
 }
 
 pub async fn set_memories_session_mode(
@@ -637,6 +650,7 @@ async fn load_memories_db_status(code_home: &Path) -> io::Result<MemoriesDbStatu
         stage1_epoch_count: db.stage1_epoch_count,
         pending_stage1_count: db.pending_stage1_count,
         running_stage1_count: db.running_stage1_count,
+        dead_lettered_stage1_count: db.dead_lettered_stage1_count,
         artifact_job_running: db.artifact_job_running,
         artifact_dirty: db.artifact_dirty,
         last_artifact_build_at: db.last_artifact_build_at,
@@ -726,8 +740,10 @@ mod tests {
     use super::get_cached_memories_status;
     use super::load_memories_status;
     use super::memory_root;
+    use super::prompts::MemoryPromptInstructions;
     use super::open_memories_state;
     use super::published_artifact_paths;
+    use super::record_memory_prompt_usage;
     use super::refresh_memory_artifacts_now;
     use super::set_memories_session_mode;
     use super::snapshot_memory_summary_path;
@@ -890,6 +906,7 @@ mod tests {
             .expect("status after clear");
         assert!(status.db_exists);
         assert!(status.artifact_dirty);
+        assert_eq!(status.dead_lettered_stage1_count, 0);
         assert!(super::memories_state_path(temp.path()).exists());
         assert!(
             !tokio::fs::try_exists(current_generation_path(temp.path()))
@@ -905,6 +922,7 @@ mod tests {
             .expect("cached status query")
             .expect("cached status");
         assert!(cached.db.artifact_dirty);
+        assert_eq!(cached.db.dead_lettered_stage1_count, 0);
     }
 
     #[test]
@@ -1013,6 +1031,7 @@ mod tests {
             .expect("cached status");
         assert!(cached.db.db_exists);
         assert_eq!(cached.db.stage1_epoch_count, 1);
+        assert_eq!(cached.db.dead_lettered_stage1_count, 0);
 
         let selected = state
             .select_phase2_epochs(8, 365, crate::rollout::INTERACTIVE_SESSION_SOURCES)
@@ -1047,6 +1066,61 @@ mod tests {
         assert!(cached.db.db_exists);
         assert_eq!(cached.db.pending_stage1_count, 0);
         assert_eq!(cached.db.thread_count, 1);
+        assert_eq!(cached.db.dead_lettered_stage1_count, 0);
+    }
+
+    #[tokio::test]
+    async fn record_memory_prompt_usage_records_selected_epochs_once() {
+        let temp = tempdir().expect("tempdir");
+        let state = MemoriesState::open(temp.path()).await.expect("open state");
+        let thread_id = Uuid::new_v4();
+        let epoch_id = seed_selected_output(&state, thread_id, now_epoch() - 172_800).await;
+
+        let prompt = MemoryPromptInstructions {
+            instructions: "selected manifest memory".to_string(),
+            selected_epoch_ids: vec![epoch_id],
+            used_fallback_summary: false,
+        };
+
+        let recorded = record_memory_prompt_usage(temp.path(), &prompt)
+            .await
+            .expect("record prompt usage");
+        assert!(recorded);
+
+        let selected = state
+            .select_phase2_epochs(8, 365, crate::rollout::INTERACTIVE_SESSION_SOURCES)
+            .await
+            .expect("selected epochs");
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].usage_count, 1);
+        assert!(selected[0].last_usage.is_some());
+    }
+
+    #[tokio::test]
+    async fn record_memory_prompt_usage_skips_fallback_summary() {
+        let temp = tempdir().expect("tempdir");
+        let state = MemoriesState::open(temp.path()).await.expect("open state");
+        let thread_id = Uuid::new_v4();
+        let epoch_id = seed_selected_output(&state, thread_id, now_epoch() - 172_800).await;
+
+        let prompt = MemoryPromptInstructions {
+            instructions: "legacy fallback summary".to_string(),
+            selected_epoch_ids: vec![epoch_id],
+            used_fallback_summary: true,
+        };
+
+        let recorded = record_memory_prompt_usage(temp.path(), &prompt)
+            .await
+            .expect("skip fallback usage");
+        assert!(!recorded);
+
+        let selected = state
+            .select_phase2_epochs(8, 365, crate::rollout::INTERACTIVE_SESSION_SOURCES)
+            .await
+            .expect("selected epochs");
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].usage_count, 0);
+        assert!(selected[0].last_usage.is_none());
     }
 
     #[test]
@@ -1058,6 +1132,7 @@ mod tests {
         assert!(!status.db.db_exists);
         assert_eq!(status.db.thread_count, 0);
         assert_eq!(status.db.stage1_epoch_count, 0);
+        assert_eq!(status.db.dead_lettered_stage1_count, 0);
     }
 
     #[tokio::test]

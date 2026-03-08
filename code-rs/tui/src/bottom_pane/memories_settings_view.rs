@@ -444,12 +444,13 @@ impl MemoriesSettingsView {
                     )),
                     Line::from(Span::styled(
                         format!(
-                            "SQLite: {} · threads {} · stage1 {} · pending {} · running {} · dirty {}",
+                            "SQLite: {} · threads {} · stage1 {} · pending {} · running {} · dead_lettered {} · dirty {}",
                             if status.db.db_exists { "present" } else { "missing" },
                             status.db.thread_count,
                             status.db.stage1_epoch_count,
                             status.db.pending_stage1_count,
                             status.db.running_stage1_count,
+                            status.db.dead_lettered_stage1_count,
                             if status.db.artifact_dirty { "yes" } else { "no" },
                         ),
                         dim,

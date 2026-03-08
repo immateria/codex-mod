@@ -2599,12 +2599,13 @@ impl ChatWidget<'_> {
                 status.artifacts.rollout_summary_count,
             ),
             format!(
-                "SQLite: {} · threads={} · stage1={} · pending={} · running={} · artifact_dirty={} · artifact_job={}{}",
+                "SQLite: {} · threads={} · stage1={} · pending={} · running={} · dead_lettered={} · artifact_dirty={} · artifact_job={}{}",
                 if status.db.db_exists { "present" } else { "missing" },
                 status.db.thread_count,
                 status.db.stage1_epoch_count,
                 status.db.pending_stage1_count,
                 status.db.running_stage1_count,
+                status.db.dead_lettered_stage1_count,
                 on_off(status.db.artifact_dirty),
                 on_off(status.db.artifact_job_running),
                 status

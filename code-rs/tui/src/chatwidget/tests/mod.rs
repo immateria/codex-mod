@@ -3808,6 +3808,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
             stage1_epoch_count: 2,
             pending_stage1_count: 1,
             running_stage1_count: 0,
+            dead_lettered_stage1_count: 1,
             artifact_job_running: false,
             artifact_dirty: true,
             last_artifact_build_at: Some("2026-03-07T12:00:00Z".to_string()),
@@ -3847,6 +3848,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
                 .join("\n");
             rendered.contains("Memories root:")
                 && rendered.contains("SQLite: present")
+                && rendered.contains("dead_lettered=1")
                 && rendered.contains("artifact_dirty=on")
         })
     });

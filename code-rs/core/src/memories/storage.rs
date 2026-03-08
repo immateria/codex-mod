@@ -919,6 +919,7 @@ mod tests {
 
     use code_memories_state::{
         MemoriesState, Stage1EpochProvenance, Stage1EpochRecord,
+        STAGE1_TERMINAL_FAILURE_THRESHOLD,
     };
     use code_protocol::protocol::{RolloutLine, SessionSource};
     use tempfile::tempdir;
@@ -928,7 +929,9 @@ mod tests {
     static PUBLISH_TEST_GUARD: Mutex<()> = Mutex::new(());
 
     fn lock_publish_tests() -> MutexGuard<'static, ()> {
-        PUBLISH_TEST_GUARD.lock().expect("publish test guard")
+        PUBLISH_TEST_GUARD
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     fn make_entry(
@@ -939,6 +942,18 @@ mod tests {
         deleted: bool,
         snippet: Option<&str>,
     ) -> SessionIndexEntry {
+        make_entry_with_branch(session_id, source, last_event_at, archived, deleted, snippet, "main")
+    }
+
+    fn make_entry_with_branch(
+        session_id: Uuid,
+        source: SessionSource,
+        last_event_at: &str,
+        archived: bool,
+        deleted: bool,
+        snippet: Option<&str>,
+        git_branch: &str,
+    ) -> SessionIndexEntry {
         SessionIndexEntry {
             session_id,
             rollout_path: PathBuf::from(format!("sessions/{session_id}.jsonl")),
@@ -948,7 +963,7 @@ mod tests {
             cwd_real: PathBuf::from("/tmp/project"),
             cwd_display: "~/project".to_string(),
             git_project_root: Some(PathBuf::from("/tmp/project")),
-            git_branch: Some("main".to_string()),
+            git_branch: Some(git_branch.to_string()),
             model_provider: None,
             session_source: source,
             message_count: 1,
@@ -1049,10 +1064,12 @@ mod tests {
         })
     }
 
-    fn unix_environment_snapshot(
+    fn environment_snapshot(
+        os_family: &str,
         cwd: &str,
         git_project_root: &str,
         shell: crate::shell::Shell,
+        git_branch: &str,
     ) -> EnvironmentContextSnapshot {
         EnvironmentContextSnapshot {
             version: EnvironmentContextSnapshot::VERSION,
@@ -1063,19 +1080,38 @@ mod tests {
             network_access: None,
             writable_roots: Vec::new(),
             operating_system: Some(crate::environment_context::OperatingSystemInfo {
-                family: Some("linux".to_string()),
+                family: Some(os_family.to_string()),
                 version: None,
                 architecture: None,
             }),
             common_tools: Vec::new(),
             shell: Some(shell),
-            git_branch: Some("main".to_string()),
+            git_branch: Some(git_branch.to_string()),
             reasoning_effort: None,
         }
     }
 
+    fn unix_environment_snapshot(
+        cwd: &str,
+        git_project_root: &str,
+        shell: crate::shell::Shell,
+    ) -> EnvironmentContextSnapshot {
+        environment_snapshot("linux", cwd, git_project_root, shell, "main")
+    }
+
     fn env_snapshot(cwd: &str, git_project_root: &str, shell: crate::shell::Shell) -> RolloutItem {
         let snapshot = unix_environment_snapshot(cwd, git_project_root, shell);
+        RolloutItem::ResponseItem(snapshot.to_response_item().expect("snapshot item"))
+    }
+
+    fn env_snapshot_with_branch(
+        os_family: &str,
+        cwd: &str,
+        git_project_root: &str,
+        shell: crate::shell::Shell,
+        git_branch: &str,
+    ) -> RolloutItem {
+        let snapshot = environment_snapshot(os_family, cwd, git_project_root, shell, git_branch);
         RolloutItem::ResponseItem(snapshot.to_response_item().expect("snapshot item"))
     }
 
@@ -1216,6 +1252,321 @@ mod tests {
             .await
             .expect("status after refresh");
         assert_eq!(status.stage1_epoch_count, 2);
+    }
+
+    #[tokio::test]
+    async fn refresh_and_prompt_selection_follow_shell_context() {
+        let _guard = lock_publish_tests();
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        let zsh_session_id = Uuid::new_v4();
+        let pwsh_session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let meta_at = now - chrono::TimeDelta::hours(8);
+        let zsh_at = now - chrono::TimeDelta::hours(6);
+        let pwsh_at = now - chrono::TimeDelta::hours(4);
+
+        let zsh_rollout_path = write_rollout_lines(
+            code_home,
+            zsh_session_id,
+            meta_at,
+            vec![
+                (
+                    zsh_at - chrono::TimeDelta::minutes(1),
+                    env_snapshot_with_branch(
+                        "linux",
+                        "/tmp/project",
+                        "/tmp/project",
+                        crate::shell::Shell::Zsh(crate::shell::ZshShell {
+                            shell_path: "/bin/zsh".to_string(),
+                            zshrc_path: "/tmp/.zshrc".to_string(),
+                        }),
+                        "main",
+                    ),
+                ),
+                (zsh_at, user_message("remember zsh thing")),
+            ],
+        )
+        .await
+        .expect("write zsh rollout");
+        let pwsh_rollout_path = write_rollout_lines(
+            code_home,
+            pwsh_session_id,
+            meta_at,
+            vec![
+                (
+                    pwsh_at - chrono::TimeDelta::minutes(1),
+                    env_snapshot_with_branch(
+                        "windows",
+                        "C:/project",
+                        "C:/project",
+                        crate::shell::Shell::PowerShell(crate::shell::PowerShellConfig {
+                            exe: "pwsh".to_string(),
+                            bash_exe_fallback: None,
+                        }),
+                        "main",
+                    ),
+                ),
+                (pwsh_at, user_message("remember powershell thing")),
+            ],
+        )
+        .await
+        .expect("write powershell rollout");
+
+        let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
+        let mut zsh_entry = make_entry(
+            zsh_session_id,
+            SessionSource::Cli,
+            &zsh_at.to_rfc3339(),
+            false,
+            false,
+            Some("remember zsh thing"),
+        );
+        zsh_entry.rollout_path = zsh_rollout_path;
+        catalog.entries.insert(zsh_session_id, zsh_entry);
+
+        let mut pwsh_entry = make_entry(
+            pwsh_session_id,
+            SessionSource::Cli,
+            &pwsh_at.to_rfc3339(),
+            false,
+            false,
+            Some("remember powershell thing"),
+        );
+        pwsh_entry.rollout_path = pwsh_rollout_path;
+        pwsh_entry.cwd_real = PathBuf::from("C:/project");
+        pwsh_entry.cwd_display = "C:/project".to_string();
+        pwsh_entry.git_project_root = Some(PathBuf::from("C:/project"));
+        catalog.entries.insert(pwsh_session_id, pwsh_entry);
+        catalog.save().expect("save catalog");
+
+        let settings = MemoriesConfig {
+            max_raw_memories_for_consolidation: 8,
+            max_rollout_age_days: 60,
+            max_rollouts_per_startup: 8,
+            min_rollout_idle_hours: 0,
+            ..MemoriesConfig::default()
+        };
+        refresh_memory_artifacts_from_catalog(code_home, &settings, true)
+            .await
+            .expect("refresh memories");
+
+        let zsh_prompt = crate::memories::build_memory_tool_developer_instructions(
+            code_home,
+            &crate::memories::manifest::MemoriesCurrentContext {
+                platform_family: MemoryPlatformFamily::Unix,
+                shell_style: Some(MemoryShellStyle::Zsh),
+                shell_program: Some("zsh".to_string()),
+                workspace_root: Some("/tmp/project".to_string()),
+                git_branch: Some("main".to_string()),
+            },
+        )
+        .await
+        .expect("zsh prompt");
+        assert!(zsh_prompt.instructions.contains("remember zsh thing"));
+        assert!(!zsh_prompt.instructions.contains("remember powershell thing"));
+
+        let pwsh_prompt = crate::memories::build_memory_tool_developer_instructions(
+            code_home,
+            &crate::memories::manifest::MemoriesCurrentContext {
+                platform_family: MemoryPlatformFamily::Windows,
+                shell_style: Some(MemoryShellStyle::PowerShell),
+                shell_program: Some("pwsh".to_string()),
+                workspace_root: Some("C:/project".to_string()),
+                git_branch: Some("main".to_string()),
+            },
+        )
+        .await
+        .expect("powershell prompt");
+        assert!(pwsh_prompt.instructions.contains("remember powershell thing"));
+        assert!(!pwsh_prompt.instructions.contains("remember zsh thing"));
+    }
+
+    #[tokio::test]
+    async fn refresh_and_prompt_selection_prefers_same_branch_in_same_workspace() {
+        let _guard = lock_publish_tests();
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        let main_session_id = Uuid::new_v4();
+        let feature_session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let meta_at = now - chrono::TimeDelta::hours(10);
+        let main_at = now - chrono::TimeDelta::hours(6);
+        let feature_at = now - chrono::TimeDelta::hours(2);
+
+        let main_rollout_path = write_rollout_lines(
+            code_home,
+            main_session_id,
+            meta_at,
+            vec![
+                (
+                    main_at - chrono::TimeDelta::minutes(1),
+                    env_snapshot_with_branch(
+                        "linux",
+                        "/tmp/project",
+                        "/tmp/project",
+                        crate::shell::Shell::Zsh(crate::shell::ZshShell {
+                            shell_path: "/bin/zsh".to_string(),
+                            zshrc_path: "/tmp/.zshrc".to_string(),
+                        }),
+                        "main",
+                    ),
+                ),
+                (main_at, user_message("remember main branch thing")),
+            ],
+        )
+        .await
+        .expect("write main rollout");
+        let feature_rollout_path = write_rollout_lines(
+            code_home,
+            feature_session_id,
+            meta_at,
+            vec![
+                (
+                    feature_at - chrono::TimeDelta::minutes(1),
+                    env_snapshot_with_branch(
+                        "linux",
+                        "/tmp/project",
+                        "/tmp/project",
+                        crate::shell::Shell::Zsh(crate::shell::ZshShell {
+                            shell_path: "/bin/zsh".to_string(),
+                            zshrc_path: "/tmp/.zshrc".to_string(),
+                        }),
+                        "feature/demo",
+                    ),
+                ),
+                (feature_at, user_message("remember feature branch thing")),
+            ],
+        )
+        .await
+        .expect("write feature rollout");
+
+        let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
+        let mut main_entry = make_entry_with_branch(
+            main_session_id,
+            SessionSource::Cli,
+            &main_at.to_rfc3339(),
+            false,
+            false,
+            Some("remember main branch thing"),
+            "main",
+        );
+        main_entry.rollout_path = main_rollout_path;
+        catalog.entries.insert(main_session_id, main_entry);
+
+        let mut feature_entry = make_entry_with_branch(
+            feature_session_id,
+            SessionSource::Cli,
+            &feature_at.to_rfc3339(),
+            false,
+            false,
+            Some("remember feature branch thing"),
+            "feature/demo",
+        );
+        feature_entry.rollout_path = feature_rollout_path;
+        catalog.entries.insert(feature_session_id, feature_entry);
+        catalog.save().expect("save catalog");
+
+        let settings = MemoriesConfig {
+            max_raw_memories_for_consolidation: 8,
+            max_rollout_age_days: 60,
+            max_rollouts_per_startup: 8,
+            min_rollout_idle_hours: 0,
+            ..MemoriesConfig::default()
+        };
+        refresh_memory_artifacts_from_catalog(code_home, &settings, true)
+            .await
+            .expect("refresh memories");
+
+        let prompt = crate::memories::build_memory_tool_developer_instructions(
+            code_home,
+            &crate::memories::manifest::MemoriesCurrentContext {
+                platform_family: MemoryPlatformFamily::Unix,
+                shell_style: Some(MemoryShellStyle::Zsh),
+                shell_program: Some("zsh".to_string()),
+                workspace_root: Some("/tmp/project".to_string()),
+                git_branch: Some("main".to_string()),
+            },
+        )
+        .await
+        .expect("main-branch prompt");
+
+        assert_eq!(prompt.selected_epoch_ids.len(), 2);
+        assert_eq!(prompt.selected_epoch_ids[0].thread_id, main_session_id);
+        assert!(prompt.instructions.contains("remember main branch thing"));
+        assert!(prompt.instructions.contains("remember feature branch thing"));
+    }
+
+    #[tokio::test]
+    async fn active_snapshot_with_no_compatible_entries_injects_nothing_end_to_end() {
+        let _guard = lock_publish_tests();
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        let session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let meta_at = now - chrono::TimeDelta::hours(6);
+        let user_at = now - chrono::TimeDelta::hours(5);
+        let rollout_rel_path = write_rollout_lines(
+            code_home,
+            session_id,
+            meta_at,
+            vec![
+                (
+                    user_at - chrono::TimeDelta::minutes(1),
+                    env_snapshot_with_branch(
+                        "linux",
+                        "/tmp/project",
+                        "/tmp/project",
+                        crate::shell::Shell::Zsh(crate::shell::ZshShell {
+                            shell_path: "/bin/zsh".to_string(),
+                            zshrc_path: "/tmp/.zshrc".to_string(),
+                        }),
+                        "main",
+                    ),
+                ),
+                (user_at, user_message("remember zsh-only thing")),
+            ],
+        )
+        .await
+        .expect("write rollout");
+
+        let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
+        let mut entry = make_entry(
+            session_id,
+            SessionSource::Cli,
+            &user_at.to_rfc3339(),
+            false,
+            false,
+            Some("remember zsh-only thing"),
+        );
+        entry.rollout_path = rollout_rel_path;
+        catalog.entries.insert(session_id, entry);
+        catalog.save().expect("save catalog");
+
+        let settings = MemoriesConfig {
+            max_raw_memories_for_consolidation: 8,
+            max_rollout_age_days: 60,
+            max_rollouts_per_startup: 8,
+            min_rollout_idle_hours: 0,
+            ..MemoriesConfig::default()
+        };
+        refresh_memory_artifacts_from_catalog(code_home, &settings, true)
+            .await
+            .expect("refresh memories");
+
+        let prompt = crate::memories::build_memory_tool_developer_instructions(
+            code_home,
+            &crate::memories::manifest::MemoriesCurrentContext {
+                platform_family: MemoryPlatformFamily::Windows,
+                shell_style: Some(MemoryShellStyle::PowerShell),
+                shell_program: Some("pwsh".to_string()),
+                workspace_root: Some("C:/project".to_string()),
+                git_branch: Some("main".to_string()),
+            },
+        )
+        .await;
+
+        assert!(prompt.is_none());
     }
 
     #[tokio::test]
@@ -1523,6 +1874,107 @@ mod tests {
             .await
             .expect("status after manual refresh");
         assert_eq!(status.stage1_epoch_count, 1);
+    }
+
+    #[tokio::test]
+    async fn dead_lettered_stage1_jobs_are_skipped_by_normal_refresh_and_forced_refresh_recovers() {
+        let _guard = lock_publish_tests();
+        let temp = tempdir().expect("tempdir");
+        let code_home = temp.path();
+        let session_id = Uuid::new_v4();
+        let now = DateTime::<Utc>::from_timestamp_secs(Utc::now().timestamp()).expect("time");
+        let meta_at = now - chrono::TimeDelta::hours(6);
+        let user_at = now - chrono::TimeDelta::hours(5);
+        let rollout_rel_path = rollout_rel_path(session_id, meta_at);
+
+        let mut catalog = SessionCatalog::load(code_home).expect("load catalog");
+        let mut entry = make_entry(
+            session_id,
+            SessionSource::Cli,
+            &user_at.to_rfc3339(),
+            false,
+            false,
+            None,
+        );
+        entry.rollout_path = rollout_rel_path.clone();
+        catalog.entries.insert(session_id, entry);
+        catalog.save().expect("save catalog");
+
+        let settings = MemoriesConfig {
+            max_raw_memories_for_consolidation: 8,
+            max_rollout_age_days: 60,
+            max_rollouts_per_startup: 8,
+            min_rollout_idle_hours: 0,
+            ..MemoriesConfig::default()
+        };
+
+        for _ in 0..STAGE1_TERMINAL_FAILURE_THRESHOLD {
+            refresh_memory_artifacts_from_catalog(code_home, &settings, true)
+                .await
+                .expect("forced refresh while rollout is broken");
+        }
+
+        let state = MemoriesState::open(code_home).await.expect("open state");
+        let status = state
+            .status(crate::rollout::INTERACTIVE_SESSION_SOURCES)
+            .await
+            .expect("status after dead letter");
+        assert_eq!(status.stage1_epoch_count, 0);
+        assert_eq!(status.dead_lettered_stage1_count, 1);
+        assert_eq!(status.pending_stage1_count, 0);
+
+        refresh_memory_artifacts_from_catalog(code_home, &settings, false)
+            .await
+            .expect("normal refresh after dead letter");
+
+        let status = state
+            .status(crate::rollout::INTERACTIVE_SESSION_SOURCES)
+            .await
+            .expect("status after normal refresh");
+        assert_eq!(status.stage1_epoch_count, 0);
+        assert_eq!(status.dead_lettered_stage1_count, 1);
+        assert_eq!(status.pending_stage1_count, 0);
+
+        let written_rollout_path = write_rollout_lines(
+            code_home,
+            session_id,
+            meta_at,
+            vec![
+                (
+                    user_at - chrono::TimeDelta::minutes(1),
+                    env_snapshot_with_branch(
+                        "linux",
+                        "/tmp/project",
+                        "/tmp/project",
+                        crate::shell::Shell::Zsh(crate::shell::ZshShell {
+                            shell_path: "/bin/zsh".to_string(),
+                            zshrc_path: "/tmp/.zshrc".to_string(),
+                        }),
+                        "main",
+                    ),
+                ),
+                (user_at, user_message("remember recovered rollout")),
+            ],
+        )
+        .await
+        .expect("write repaired rollout");
+        assert_eq!(written_rollout_path, rollout_rel_path);
+
+        let mut catalog = SessionCatalog::load(code_home).expect("reload catalog");
+        let entry = catalog.entries.get_mut(&session_id).expect("entry");
+        entry.last_user_snippet = None;
+        catalog.save().expect("save repaired catalog");
+
+        refresh_memory_artifacts_from_catalog(code_home, &settings, true)
+            .await
+            .expect("forced refresh retries dead-lettered job");
+
+        let status = state
+            .status(crate::rollout::INTERACTIVE_SESSION_SOURCES)
+            .await
+            .expect("status after recovery");
+        assert_eq!(status.stage1_epoch_count, 1);
+        assert_eq!(status.dead_lettered_stage1_count, 0);
     }
 
     #[tokio::test]

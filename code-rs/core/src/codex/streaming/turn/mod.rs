@@ -78,17 +78,21 @@ pub(super) async fn run_turn(
         )
         .await
         {
-            if memory_prompt.used_fallback_summary {
-                tracing::debug!(
-                    "memories prompt used canonical summary fallback; skipping epoch usage attribution"
-                );
-            } else if let Err(err) = crate::memories::note_selected_memories_used(
+            match crate::memories::record_memory_prompt_usage(
                 sess.client.code_home(),
-                &memory_prompt.selected_epoch_ids,
+                &memory_prompt,
             )
             .await
             {
-                tracing::warn!("failed to record memories usage: {err}");
+                Ok(false) => {
+                tracing::debug!(
+                    "memories prompt used canonical summary fallback; skipping epoch usage attribution"
+                );
+                }
+                Ok(true) => {}
+                Err(err) => {
+                    tracing::warn!("failed to record memories usage: {err}");
+                }
             }
             base_prepend_developer_messages.push(memory_prompt.instructions);
         }

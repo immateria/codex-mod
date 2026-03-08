@@ -14,11 +14,18 @@ use tracing::warn;
 use uuid::Uuid;
 
 const APP_ID: i64 = 1_129_136_980;
-const STATE_SCHEMA_VERSION: i64 = 5;
+const STATE_SCHEMA_VERSION: i64 = 6;
 const ARTIFACT_STATE_KEY: &str = "global";
 const JOB_KIND_STAGE1: &str = "stage1";
 const JOB_KIND_ARTIFACTS: &str = "artifacts";
 const JOB_LEASE_SECONDS: i64 = 300;
+/// Consecutive stage1 extraction failures before the job is dead-lettered.
+///
+/// This is intentionally an internal policy constant, not user-facing config:
+/// operators still have an explicit recovery path via forced/manual refresh,
+/// and exposing this now would add TOML/UI surface without evidence that it
+/// needs to be tuned per installation.
+pub const STAGE1_TERMINAL_FAILURE_THRESHOLD: i64 = 8;
 const STAGE1_RETRY_BASE_SECONDS: i64 = 300;
 const STAGE1_RETRY_MAX_SECONDS: i64 = 86_400;
 
@@ -231,6 +238,7 @@ pub struct MemoriesStateStatus {
     pub stage1_epoch_count: usize,
     pub pending_stage1_count: usize,
     pub running_stage1_count: usize,
+    pub dead_lettered_stage1_count: usize,
     pub artifact_job_running: bool,
     pub artifact_dirty: bool,
     pub last_artifact_build_at: Option<String>,
@@ -407,24 +415,31 @@ async fn apply_migrations(pool: &SqlitePool) -> Result<()> {
         .await?;
 
     match current_version {
-        0 => create_schema_v5(&mut tx).await?,
+        0 => create_schema_v6(&mut tx).await?,
         1 => {
             migrate_v1_to_v2(&mut tx).await?;
             migrate_v2_to_v3(&mut tx).await?;
             migrate_v3_to_v4(&mut tx).await?;
             migrate_v4_to_v5(&mut tx).await?;
+            migrate_v5_to_v6(&mut tx).await?;
         }
         2 => {
             migrate_v2_to_v3(&mut tx).await?;
             migrate_v3_to_v4(&mut tx).await?;
             migrate_v4_to_v5(&mut tx).await?;
+            migrate_v5_to_v6(&mut tx).await?;
         }
         3 => {
             migrate_v3_to_v4(&mut tx).await?;
             migrate_v4_to_v5(&mut tx).await?;
+            migrate_v5_to_v6(&mut tx).await?;
         }
-        4 => migrate_v4_to_v5(&mut tx).await?,
-        5 => {}
+        4 => {
+            migrate_v4_to_v5(&mut tx).await?;
+            migrate_v5_to_v6(&mut tx).await?;
+        }
+        5 => migrate_v5_to_v6(&mut tx).await?,
+        6 => {}
         version => {
             return Err(anyhow::anyhow!(
                 "unsupported memories sqlite schema version {version}"
@@ -444,7 +459,7 @@ async fn apply_migrations(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn create_schema_v5(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> {
+async fn create_schema_v6(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> {
     tx.execute(sqlx::query(
         r#"
 CREATE TABLE IF NOT EXISTS memory_threads (
@@ -505,6 +520,8 @@ CREATE TABLE IF NOT EXISTS memory_jobs (
     last_error TEXT,
     retry_after INTEGER,
     failure_count INTEGER NOT NULL DEFAULT 0,
+    terminal_failure INTEGER NOT NULL DEFAULT 0,
+    terminal_failed_at INTEGER,
     PRIMARY KEY(kind, job_key)
 )
         "#,
@@ -551,6 +568,18 @@ async fn create_indexes_v4(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()>
 async fn migrate_v4_to_v5(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> {
     tx.execute(sqlx::query(
         "ALTER TABLE stage1_epochs ADD COLUMN provenance TEXT NOT NULL DEFAULT 'derived'",
+    ))
+    .await?;
+    Ok(())
+}
+
+async fn migrate_v5_to_v6(tx: &mut sqlx::Transaction<'_, Sqlite>) -> Result<()> {
+    tx.execute(sqlx::query(
+        "ALTER TABLE memory_jobs ADD COLUMN terminal_failure INTEGER NOT NULL DEFAULT 0",
+    ))
+    .await?;
+    tx.execute(sqlx::query(
+        "ALTER TABLE memory_jobs ADD COLUMN terminal_failed_at INTEGER",
     ))
     .await?;
     Ok(())
@@ -1102,7 +1131,8 @@ WHERE mt.archived = 0
 "#,
         );
         if !bypass_retry_backoff {
-            query.push_str("  AND (mj.retry_after IS NULL OR mj.retry_after < ?)\n");
+        query.push_str("  AND (mj.retry_after IS NULL OR mj.retry_after < ?)\n");
+            query.push_str("  AND COALESCE(mj.terminal_failure, 0) = 0\n");
         }
         if !allowed.is_empty() {
             query.push_str("  AND mt.source IN (");
@@ -1139,13 +1169,14 @@ WHERE mt.archived = 0
             let thread_id = Uuid::parse_str(&thread_id_text)?;
             let updated = sqlx::query(
                 r#"
-INSERT INTO memory_jobs (kind, job_key, ownership_token, lease_until, last_error, retry_after, failure_count)
-VALUES (?, ?, ?, ?, NULL, NULL, 0)
+INSERT INTO memory_jobs (
+    kind, job_key, ownership_token, lease_until, last_error, retry_after, failure_count,
+    terminal_failure, terminal_failed_at
+)
+VALUES (?, ?, ?, ?, NULL, NULL, 0, 0, NULL)
 ON CONFLICT(kind, job_key) DO UPDATE SET
     ownership_token = excluded.ownership_token,
-    lease_until = excluded.lease_until,
-    last_error = NULL,
-    retry_after = NULL
+    lease_until = excluded.lease_until
 WHERE memory_jobs.lease_until IS NULL OR memory_jobs.lease_until < ? OR memory_jobs.ownership_token IS NULL
                 "#,
             )
@@ -1244,7 +1275,7 @@ INSERT INTO stage1_epochs (
         }
 
         sqlx::query(
-            "UPDATE memory_jobs SET ownership_token = NULL, lease_until = NULL, last_error = NULL, retry_after = NULL, failure_count = 0 WHERE kind = ? AND job_key = ?",
+            "UPDATE memory_jobs SET ownership_token = NULL, lease_until = NULL, last_error = NULL, retry_after = NULL, failure_count = 0, terminal_failure = 0, terminal_failed_at = NULL WHERE kind = ? AND job_key = ?",
         )
         .bind(JOB_KIND_STAGE1)
         .bind(thread_id.to_string())
@@ -1433,13 +1464,17 @@ WHERE memory_jobs.lease_until IS NULL OR memory_jobs.lease_until < ? OR memory_j
         .await?
         .unwrap_or(0);
         let next_failure_count = failure_count.saturating_add(1);
-        let retry_after = now_epoch() + stage1_retry_delay_seconds(next_failure_count);
+        let now = now_epoch();
+        let retry_after = now + stage1_retry_delay_seconds(next_failure_count);
+        let terminal_failure = next_failure_count >= STAGE1_TERMINAL_FAILURE_THRESHOLD;
         sqlx::query(
-            "UPDATE memory_jobs SET ownership_token = NULL, lease_until = NULL, last_error = ?, retry_after = ?, failure_count = ? WHERE kind = ? AND job_key = ?",
+            "UPDATE memory_jobs SET ownership_token = NULL, lease_until = NULL, last_error = ?, retry_after = ?, failure_count = ?, terminal_failure = ?, terminal_failed_at = ? WHERE kind = ? AND job_key = ?",
         )
         .bind(reason)
         .bind(retry_after)
         .bind(next_failure_count)
+        .bind(terminal_failure)
+        .bind(terminal_failure.then_some(now))
         .bind(JOB_KIND_STAGE1)
         .bind(thread_id.to_string())
         .execute(&mut *tx)
@@ -1572,6 +1607,7 @@ WHERE mt.archived = 0
         pending_query.push_bind(now);
         pending_query.push(
             r#")
+  AND COALESCE(mj.terminal_failure, 0) = 0
 "#,
         );
         if !allowed.is_empty() {
@@ -1583,6 +1619,46 @@ WHERE mt.archived = 0
             sources.push_unseparated(")\n");
         }
         let pending_stage1_count: i64 = pending_query
+            .build_query_scalar()
+            .fetch_one(&self.pool)
+            .await?;
+
+        let mut dead_lettered_query = QueryBuilder::<Sqlite>::new(
+            r#"
+SELECT COUNT(*)
+FROM memory_jobs mj
+JOIN memory_threads mt ON mt.thread_id = mj.job_key
+LEFT JOIN (
+    SELECT thread_id, MAX(source_updated_at) AS source_updated_at
+    FROM stage1_epochs
+    GROUP BY thread_id
+) se ON se.thread_id = mt.thread_id
+WHERE mj.kind = "#,
+        );
+        dead_lettered_query.push_bind(JOB_KIND_STAGE1);
+        dead_lettered_query.push(
+            r#"
+  AND COALESCE(mj.terminal_failure, 0) != 0
+  AND (mj.lease_until IS NULL OR mj.lease_until < "#,
+        );
+        dead_lettered_query.push_bind(now);
+        dead_lettered_query.push(
+            r#" OR mj.ownership_token IS NULL)
+  AND mt.archived = 0
+  AND mt.deleted = 0
+  AND mt.memory_mode = 'enabled'
+  AND COALESCE(se.source_updated_at, -1) < mt.updated_at
+"#,
+        );
+        if !allowed.is_empty() {
+            dead_lettered_query.push("  AND mt.source IN (");
+            let mut sources = dead_lettered_query.separated(", ");
+            for source in &allowed {
+                sources.push_bind(source);
+            }
+            sources.push_unseparated(")\n");
+        }
+        let dead_lettered_stage1_count: i64 = dead_lettered_query
             .build_query_scalar()
             .fetch_one(&self.pool)
             .await?;
@@ -1610,6 +1686,7 @@ WHERE mt.archived = 0
             stage1_epoch_count: stage1_epoch_count as usize,
             pending_stage1_count: pending_stage1_count as usize,
             running_stage1_count: running_stage1_count as usize,
+            dead_lettered_stage1_count: dead_lettered_stage1_count as usize,
             artifact_job_running: artifact_running > 0,
             artifact_dirty: artifact_dirty != 0,
             last_artifact_build_at: as_iso(last_artifact_build_at),
@@ -1808,6 +1885,16 @@ CREATE TABLE artifact_state (
         .execute(pool)
         .await
         .expect("seed v4 artifact_state");
+    }
+
+    async fn create_v5_schema_for_test(pool: &SqlitePool) {
+        create_v4_schema_for_test(pool).await;
+        sqlx::query(
+            "ALTER TABLE stage1_epochs ADD COLUMN provenance TEXT NOT NULL DEFAULT 'derived'",
+        )
+        .execute(pool)
+        .await
+        .expect("add v5 provenance");
     }
 
     async fn succeed_artifacts(state: &MemoriesState) {
@@ -2104,6 +2191,70 @@ INSERT INTO stage1_epochs (
     }
 
     #[tokio::test]
+    async fn migrate_v5_db_defaults_stage1_jobs_to_non_terminal() {
+        let temp = tempdir().expect("tempdir");
+        let db_path = db_path(temp.path());
+        let thread_id = Uuid::new_v4();
+        let updated_at = now_epoch() - 172_800;
+        let pool = open_test_pool(&db_path).await;
+
+        sqlx::query(format!("PRAGMA application_id = {APP_ID}").as_str())
+            .execute(&pool)
+            .await
+            .expect("set app id");
+        sqlx::query("PRAGMA user_version = 5")
+            .execute(&pool)
+            .await
+            .expect("set user version");
+        create_v5_schema_for_test(&pool).await;
+        sqlx::query(
+            r#"
+INSERT INTO memory_threads (
+    thread_id, rollout_path, source, cwd, cwd_display, updated_at, updated_at_label,
+    archived, deleted, memory_mode, catalog_seen_at, git_project_root, git_branch, last_user_snippet
+) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 'enabled', ?, ?, ?, ?)
+            "#,
+        )
+        .bind(thread_id.to_string())
+        .bind(format!("sessions/{thread_id}.jsonl"))
+        .bind(session_source_label(&SessionSource::Cli))
+        .bind("/tmp/workspace")
+        .bind("~/workspace")
+        .bind(updated_at)
+        .bind(as_iso(Some(updated_at)).expect("iso"))
+        .bind(updated_at)
+        .bind("/tmp/workspace")
+        .bind("main")
+        .bind("Investigate regression")
+        .execute(&pool)
+        .await
+        .expect("insert thread");
+        sqlx::query(
+            r#"
+INSERT INTO memory_jobs (
+    kind, job_key, ownership_token, lease_until, last_error, retry_after, failure_count
+) VALUES (?, ?, NULL, NULL, ?, ?, ?)
+            "#,
+        )
+        .bind(JOB_KIND_STAGE1)
+        .bind(thread_id.to_string())
+        .bind("old error")
+        .bind(updated_at)
+        .bind(3_i64)
+        .execute(&pool)
+        .await
+        .expect("insert stage1 job");
+        drop(pool);
+
+        let state = MemoriesState::open(temp.path()).await.expect("open migrated v6 state");
+        let claims = state
+            .claim_stage1_candidates(1, 365, 0, INTERACTIVE_SOURCES, false)
+            .await
+            .expect("claim stage1");
+        assert_eq!(claims.len(), 1);
+    }
+
+    #[tokio::test]
     async fn stage1_failures_back_off_until_retry_window_expires() {
         let temp = tempdir().expect("tempdir");
         let state = MemoriesState::open(temp.path()).await.expect("open state");
@@ -2146,6 +2297,108 @@ INSERT INTO stage1_epochs (
             .await
             .expect("claim after retry");
         assert_eq!(claims.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn dead_lettered_stage1_jobs_are_excluded_from_normal_claims() {
+        let temp = tempdir().expect("tempdir");
+        let state = MemoriesState::open(temp.path()).await.expect("open state");
+        let thread_id = Uuid::new_v4();
+        state
+            .reconcile_threads(&[sample_thread(thread_id, now_epoch() - 172_800)])
+            .await
+            .expect("reconcile thread");
+
+        for _ in 0..STAGE1_TERMINAL_FAILURE_THRESHOLD {
+            let claims = state
+                .claim_stage1_candidates(1, 365, 0, INTERACTIVE_SOURCES, true)
+                .await
+                .expect("claim stage1");
+            assert_eq!(claims.len(), 1);
+            state
+                .fail_stage1_job(thread_id, "boom")
+                .await
+                .expect("fail stage1");
+        }
+
+        let status = stage1_status(&state).await;
+        assert_eq!(status.dead_lettered_stage1_count, 1);
+        assert_eq!(status.pending_stage1_count, 0);
+
+        let claims = state
+            .claim_stage1_candidates(1, 365, 0, INTERACTIVE_SOURCES, false)
+            .await
+            .expect("normal claim after dead letter");
+        assert!(claims.is_empty());
+
+        let forced_claims = state
+            .claim_stage1_candidates(1, 365, 0, INTERACTIVE_SOURCES, true)
+            .await
+            .expect("forced claim after dead letter");
+        assert_eq!(forced_claims.len(), 1);
+
+        let status = stage1_status(&state).await;
+        assert_eq!(status.dead_lettered_stage1_count, 0);
+        assert_eq!(status.running_stage1_count, 1);
+    }
+
+    #[tokio::test]
+    async fn successful_replace_clears_terminal_stage1_failure_state() {
+        let temp = tempdir().expect("tempdir");
+        let state = MemoriesState::open(temp.path()).await.expect("open state");
+        let thread_id = Uuid::new_v4();
+        let updated_at = now_epoch() - 172_800;
+        state
+            .reconcile_threads(&[sample_thread(thread_id, updated_at)])
+            .await
+            .expect("reconcile thread");
+
+        for _ in 0..STAGE1_TERMINAL_FAILURE_THRESHOLD {
+            let claims = state
+                .claim_stage1_candidates(1, 365, 0, INTERACTIVE_SOURCES, true)
+                .await
+                .expect("claim stage1");
+            assert_eq!(claims.len(), 1);
+            state
+                .fail_stage1_job(thread_id, "boom")
+                .await
+                .expect("fail stage1");
+        }
+
+        let claims = state
+            .claim_stage1_candidates(1, 365, 0, INTERACTIVE_SOURCES, true)
+            .await
+            .expect("forced claim");
+        assert_eq!(claims.len(), 1);
+        state
+            .replace_stage1_epochs(thread_id, &[sample_epoch(thread_id, 0, updated_at, "fixed")])
+            .await
+            .expect("replace epochs");
+
+        let status = stage1_status(&state).await;
+        assert_eq!(status.dead_lettered_stage1_count, 0);
+        assert_eq!(status.pending_stage1_count, 0);
+
+        let pool = open_test_pool(&state.db_path()).await;
+        let row = sqlx::query(
+            "SELECT failure_count, retry_after, last_error, terminal_failure, terminal_failed_at FROM memory_jobs WHERE kind = ? AND job_key = ?",
+        )
+        .bind(JOB_KIND_STAGE1)
+        .bind(thread_id.to_string())
+        .fetch_one(&pool)
+        .await
+        .expect("fetch stage1 job");
+        let failure_count: i64 = row.try_get("failure_count").expect("failure_count");
+        let retry_after: Option<i64> = row.try_get("retry_after").expect("retry_after");
+        let last_error: Option<String> = row.try_get("last_error").expect("last_error");
+        let terminal_failure: i64 = row.try_get("terminal_failure").expect("terminal_failure");
+        let terminal_failed_at: Option<i64> =
+            row.try_get("terminal_failed_at").expect("terminal_failed_at");
+        assert_eq!(failure_count, 0);
+        assert!(retry_after.is_none());
+        assert!(last_error.is_none());
+        assert_eq!(terminal_failure, 0);
+        assert!(terminal_failed_at.is_none());
     }
 
     #[tokio::test]
