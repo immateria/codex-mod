@@ -996,9 +996,8 @@ impl ChatComposer {
         }
     }
 
-    pub fn set_ctrl_c_quit_hint(&mut self, show: bool, has_focus: bool) {
+    pub fn set_ctrl_c_quit_hint(&mut self, show: bool) {
         self.ctrl_c_quit_hint = show;
-        self.set_has_focus(has_focus);
     }
 
     pub fn set_standard_terminal_hint(&mut self, hint: Option<String>) {

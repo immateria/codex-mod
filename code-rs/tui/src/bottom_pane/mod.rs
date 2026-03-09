@@ -936,16 +936,14 @@ impl<'a> BottomPane<'a> {
 
     pub(crate) fn show_ctrl_c_quit_hint(&mut self) {
         self.ctrl_c_quit_hint = true;
-        self.composer
-            .set_ctrl_c_quit_hint(true, self.has_input_focus);
+        self.composer.set_ctrl_c_quit_hint(true);
         self.request_redraw();
     }
 
     pub(crate) fn clear_ctrl_c_quit_hint(&mut self) {
         if self.ctrl_c_quit_hint {
             self.ctrl_c_quit_hint = false;
-            self.composer
-                .set_ctrl_c_quit_hint(false, self.has_input_focus);
+            self.composer.set_ctrl_c_quit_hint(false);
             self.request_redraw();
         }
     }
@@ -1280,8 +1278,7 @@ impl<'a> BottomPane<'a> {
     pub(crate) fn set_input_focus(&mut self, has_focus: bool) {
         self.has_input_focus = has_focus;
         self.composer.set_has_focus(has_focus);
-        self.composer
-            .set_ctrl_c_quit_hint(self.ctrl_c_quit_hint, self.has_input_focus);
+        self.composer.set_ctrl_c_quit_hint(self.ctrl_c_quit_hint);
     }
 
     pub(crate) fn on_history_entry_response(
@@ -1311,8 +1308,7 @@ impl<'a> BottomPane<'a> {
             if !self.has_input_focus {
                 self.set_input_focus(true);
             } else {
-                self.composer
-                    .set_ctrl_c_quit_hint(self.ctrl_c_quit_hint, self.has_input_focus);
+                self.composer.set_ctrl_c_quit_hint(self.ctrl_c_quit_hint);
             }
         }
     }
