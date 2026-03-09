@@ -293,7 +293,6 @@ impl ChatWidget<'_> {
                     }
                 }
                 self.bottom_pane.set_token_usage(
-                    self.total_token_usage.clone(),
                     self.last_token_usage.clone(),
                     self.config.model_context_window,
                     self.config.context_mode,

@@ -993,13 +993,11 @@ impl<'a> BottomPane<'a> {
     /// is forwarded directly to the underlying `ChatComposer`.
     pub(crate) fn set_token_usage(
         &mut self,
-        total_token_usage: TokenUsage,
         last_token_usage: TokenUsage,
         model_context_window: Option<u64>,
         context_mode: Option<ContextMode>,
     ) {
         self.composer.set_token_usage(
-            total_token_usage,
             last_token_usage,
             model_context_window,
             context_mode,

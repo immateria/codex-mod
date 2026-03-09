@@ -478,7 +478,6 @@ impl ChatWidget<'_> {
         self.config.model_auto_compact_token_limit = next_auto_compact;
         self.submit_op(self.current_configure_session_op());
         self.bottom_pane.set_token_usage(
-            self.total_token_usage.clone(),
             self.last_token_usage.clone(),
             self.config.model_context_window,
             self.config.context_mode,
