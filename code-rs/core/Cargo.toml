@@ -25,6 +25,8 @@ code-apply-patch = { workspace = true }
 code-file-search = { workspace = true }
 code-utils-absolute-path = { workspace = true }
 code-utils-json-to-toml = { workspace = true }
+code-utils-pty = { workspace = true }
+code-utils-string = { workspace = true }
 code-protocol = { workspace = true }
 code-network-proxy = { workspace = true }
 code-rmcp-client = { workspace = true }
@@ -36,6 +38,7 @@ code-message-history = { workspace = true }
 code-memories-state = { workspace = true }
 code-mcp-call-limiter = { workspace = true }
 code-shell-command = { workspace = true }
+code-windows-sandbox = { workspace = true }
 code-version = { path = "../code-version" }
 code-keyring-store = { workspace = true }
 code-skills = { workspace = true }

@@ -23,6 +23,13 @@ use crate::error_code::INTERNAL_ERROR_CODE;
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ConnectionId(pub u64);
 
+/// A request id scoped to a specific transport connection.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct ConnectionRequestId {
+    pub(crate) connection_id: ConnectionId,
+    pub(crate) request_id: RequestId,
+}
+
 /// Envelope describing whether an outgoing message should be routed to a single
 /// connection or broadcast to all initialized connections.
 #[derive(Debug, Clone)]
@@ -231,20 +238,44 @@ impl OutgoingMessageSender {
     }
 
     pub async fn send_response<T: Serialize>(&self, id: RequestId, response: T) {
+        self.send_response_impl(None, id, response).await;
+    }
+
+    pub(crate) async fn send_response_to_connection<T: Serialize>(
+        &self,
+        connection_id: ConnectionId,
+        id: RequestId,
+        response: T,
+    ) {
+        self.send_response_impl(Some(connection_id), id, response)
+            .await;
+    }
+
+    async fn send_response_impl<T: Serialize>(
+        &self,
+        connection_id: Option<ConnectionId>,
+        id: RequestId,
+        response: T,
+    ) {
         match serde_json::to_value(response) {
             Ok(result) => {
                 let outgoing_message = OutgoingMessage::Response(OutgoingResponse { id, result });
-                if let Err(err) = self
-                    .send_envelope(OutgoingEnvelope::Broadcast {
+                let envelope = match connection_id {
+                    Some(connection_id) => OutgoingEnvelope::ToConnection {
+                        connection_id,
                         message: outgoing_message,
-                    })
-                    .await
-                {
+                    },
+                    None => OutgoingEnvelope::Broadcast {
+                        message: outgoing_message,
+                    },
+                };
+                if let Err(err) = self.send_envelope(envelope).await {
                     warn!("failed to queue response: {err:?}");
                 }
             }
             Err(err) => {
-                self.send_error(
+                self.send_error_impl(
+                    connection_id,
                     id,
                     JSONRPCErrorError {
                         code: INTERNAL_ERROR_CODE,
@@ -289,13 +320,35 @@ impl OutgoingMessageSender {
     }
 
     pub async fn send_error(&self, id: RequestId, error: JSONRPCErrorError) {
+        self.send_error_impl(None, id, error).await;
+    }
+
+    pub(crate) async fn send_error_to_connection(
+        &self,
+        connection_id: ConnectionId,
+        id: RequestId,
+        error: JSONRPCErrorError,
+    ) {
+        self.send_error_impl(Some(connection_id), id, error).await;
+    }
+
+    async fn send_error_impl(
+        &self,
+        connection_id: Option<ConnectionId>,
+        id: RequestId,
+        error: JSONRPCErrorError,
+    ) {
         let outgoing_message = OutgoingMessage::Error(OutgoingError { id, error });
-        if let Err(err) = self
-            .send_envelope(OutgoingEnvelope::Broadcast {
+        let envelope = match connection_id {
+            Some(connection_id) => OutgoingEnvelope::ToConnection {
+                connection_id,
                 message: outgoing_message,
-            })
-            .await
-        {
+            },
+            None => OutgoingEnvelope::Broadcast {
+                message: outgoing_message,
+            },
+        };
+        if let Err(err) = self.send_envelope(envelope).await {
             warn!("failed to queue error: {err:?}");
         }
     }

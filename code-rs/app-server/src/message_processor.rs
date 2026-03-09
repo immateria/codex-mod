@@ -9,6 +9,7 @@ use crate::code_message_processor::CodexMessageProcessor;
 use crate::external_agent_config_api::ExternalAgentConfigApi;
 use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
+use crate::outgoing_message::ConnectionRequestId;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::thread_state::ThreadStateManager;
@@ -40,6 +41,7 @@ mod v2;
 
 pub(crate) struct MessageProcessor {
     outgoing: Arc<OutgoingMessageSender>,
+    command_exec_manager: crate::command_exec::CommandExecManager,
     code_message_processor: CodexMessageProcessor,
     external_agent_config_api: ExternalAgentConfigApi,
     base_config: Arc<Config>,
@@ -98,6 +100,7 @@ impl MessageProcessor {
 
         Self {
             outgoing,
+            command_exec_manager: crate::command_exec::CommandExecManager::default(),
             code_message_processor,
             external_agent_config_api,
             base_config: config_for_processor,
@@ -280,6 +283,9 @@ impl MessageProcessor {
 
     pub(crate) async fn on_connection_closed(&mut self, connection_id: ConnectionId) {
         self.thread_state_manager.remove_connection(connection_id).await;
+        self.command_exec_manager
+            .connection_closed(connection_id)
+            .await;
         self.code_message_processor
             .on_connection_closed(connection_id)
             .await;
@@ -312,6 +318,10 @@ impl MessageProcessor {
         request_id: mcp_types::RequestId,
         request: &ApiClientRequest,
     ) -> bool {
+        let connection_request_id = ConnectionRequestId {
+            connection_id,
+            request_id: request_id.clone(),
+        };
         match request {
             ApiClientRequest::ConfigRead { params, .. } => {
                 match self.config_service.read(params.clone()) {
@@ -414,6 +424,31 @@ impl MessageProcessor {
             }
             ApiClientRequest::ModelList { params, .. } => {
                 self.list_models_v2(request_id, params.clone()).await;
+                true
+            }
+            ApiClientRequest::WindowsSandboxSetupStart { params, .. } => {
+                self.windows_sandbox_setup_start(connection_request_id, params.clone())
+                    .await;
+                true
+            }
+            ApiClientRequest::OneOffCommandExec { params, .. } => {
+                self.command_exec_start(connection_request_id, params.clone())
+                    .await;
+                true
+            }
+            ApiClientRequest::CommandExecWrite { params, .. } => {
+                self.command_exec_write(connection_request_id, params.clone())
+                    .await;
+                true
+            }
+            ApiClientRequest::CommandExecTerminate { params, .. } => {
+                self.command_exec_terminate(connection_request_id, params.clone())
+                    .await;
+                true
+            }
+            ApiClientRequest::CommandExecResize { params, .. } => {
+                self.command_exec_resize(connection_request_id, params.clone())
+                    .await;
                 true
             }
             ApiClientRequest::ThreadList { params, .. } => {

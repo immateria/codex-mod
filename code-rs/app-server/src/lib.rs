@@ -39,6 +39,7 @@ use crate::transport::start_stdio_connection;
 use crate::transport::start_websocket_acceptor;
 
 pub mod code_message_processor;
+mod command_exec;
 mod error_code;
 mod external_agent_config_api;
 mod fuzzy_file_search;

@@ -16,6 +16,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+base64 = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 code-arg0 = { workspace = true }
@@ -25,6 +26,7 @@ code-file-search = { workspace = true }
 code-login = { workspace = true }
 code-app-server-protocol = { workspace = true }
 code-protocol = { workspace = true }
+code-utils-pty = { workspace = true }
 code-utils-absolute-path = { workspace = true }
 code-utils-json-to-toml = { workspace = true }
 futures = { workspace = true }
@@ -43,6 +45,7 @@ tokio = { workspace = true, features = [
     "rt-multi-thread",
     "signal",
 ] }
+tokio-util = { workspace = true, features = ["rt"] }
 tokio-tungstenite = { version = "0.23", default-features = true, features = ["rustls-tls-webpki-roots"] }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

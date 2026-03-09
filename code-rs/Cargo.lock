@@ -1246,6 +1246,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "code-app-server-protocol",
@@ -1258,6 +1259,7 @@ dependencies = [
  "code-protocol",
  "code-utils-json-to-toml",
  "codex-utils-absolute-path",
+ "codex-utils-pty",
  "futures",
  "owo-colors",
  "serde",
@@ -1265,6 +1267,7 @@ dependencies = [
  "sha1",
  "tokio",
  "tokio-tungstenite",
+ "tokio-util",
  "toml 0.9.8",
  "tracing",
  "tracing-subscriber",
@@ -1431,6 +1434,7 @@ name = "code-cli"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "clap_complete",
@@ -1565,6 +1569,9 @@ dependencies = [
  "codex-network-proxy",
  "codex-shell-command",
  "codex-utils-absolute-path",
+ "codex-utils-pty",
+ "codex-utils-string",
+ "codex-windows-sandbox",
  "core-foundation 0.9.4",
  "crc32fast",
  "dirs",
@@ -2202,6 +2209,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-utils-pty"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "filedescriptor",
+ "lazy_static",
+ "libc",
+ "log",
+ "portable-pty",
+ "pretty_assertions",
+ "shared_library",
+ "tokio",
+ "winapi",
+]
+
+[[package]]
 name = "codex-utils-rustls-provider"
 version = "0.0.0"
 dependencies = [
@@ -2223,6 +2246,36 @@ name = "codex-utils-stream-parser"
 version = "0.0.0"
 dependencies = [
  "pretty_assertions",
+]
+
+[[package]]
+name = "codex-utils-string"
+version = "0.0.0"
+dependencies = [
+ "pretty_assertions",
+ "regex-lite",
+]
+
+[[package]]
+name = "codex-windows-sandbox"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "chrono",
+ "code-protocol",
+ "codex-utils-absolute-path",
+ "codex-utils-string",
+ "dirs-next",
+ "dunce",
+ "pretty_assertions",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "windows 0.58.0",
+ "windows-sys 0.52.0",
+ "winres",
 ]
 
 [[package]]
@@ -8742,6 +8795,15 @@ dependencies = [
 
 [[package]]
 name = "toml"
+version = "0.5.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "toml"
 version = "0.8.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc1beb996b9d83529a9e75c17a1686767d148d70663143c7854d8b4a09ced362"
@@ -10199,6 +10261,15 @@ checksum = "a277a57398d4bfa075df44f501a17cfdf8542d224f0d36095a2adc7aee4ef0a5"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "winres"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b68db261ef59e9e52806f688020631e987592bd83619edccda9c47d42cde4f6c"
+dependencies = [
+ "toml 0.5.11",
 ]
 
 [[package]]

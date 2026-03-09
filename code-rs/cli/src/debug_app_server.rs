@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
+use base64::Engine;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader;
@@ -187,6 +188,12 @@ impl AppServerClient {
                 ServerNotification::CommandExecutionOutputDelta(delta) => {
                     print!("{}", delta.delta);
                     std::io::stdout().flush().ok();
+                }
+                ServerNotification::CommandExecOutputDelta(delta) => {
+                    if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(&delta.delta_base64) {
+                        print!("{}", String::from_utf8_lossy(&bytes));
+                        std::io::stdout().flush().ok();
+                    }
                 }
                 ServerNotification::TurnCompleted(payload) => {
                     if payload.thread_id == thread_id && payload.turn.id == turn_id {

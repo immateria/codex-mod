@@ -18,6 +18,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader;
 use tokio::process::Child;
 use tokio::time::Sleep;
+use tokio_util::sync::CancellationToken;
 
 use crate::codex::Session;
 use crate::error::CodexErr;
@@ -41,6 +42,8 @@ use serde_bytes::ByteBuf;
 
 // Shell calls now default to NO hard timeout; long-running commands are
 // backgrounded by higher-level orchestration.
+pub const DEFAULT_EXEC_COMMAND_TIMEOUT_MS: u64 = 10 * 60 * 1000;
+pub const IO_DRAIN_TIMEOUT_MS: u64 = 2_000;
 
 // Hardcode these since it does not seem worth including the libc crate just
 // for these.
@@ -113,6 +116,16 @@ pub enum SandboxType {
 
     /// Only available on Linux.
     LinuxSeccomp,
+
+    /// Only available on Windows.
+    WindowsRestrictedToken,
+}
+
+#[derive(Clone, Debug)]
+pub enum ExecExpiration {
+    DefaultTimeout,
+    Timeout(Duration),
+    Cancellation(CancellationToken),
 }
 
 #[derive(Clone)]
@@ -213,6 +226,12 @@ pub async fn process_exec_tool_call_with_managed_network(
             .await?;
 
             consume_truncated_output(child, timeout_duration, stdout_stream).await
+        }
+        SandboxType::WindowsRestrictedToken => {
+            return Err(CodexErr::UnsupportedOperation(
+                "Windows restricted-token sandbox execution requires the app-server exec v2 path"
+                    .to_string(),
+            ));
         }
     };
     let duration = start.elapsed();

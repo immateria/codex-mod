@@ -9,6 +9,7 @@ use crate::config_types::ContextMode;
 use crate::config_types::ServiceTier;
 use crate::config_types::TextVerbosity;
 use crate::config_types::Personality;
+use crate::config_types::WindowsToml;
 use crate::protocol::AskForApproval;
 
 /// Collection of common configuration options that a user can define as a unit
@@ -44,6 +45,7 @@ pub struct ConfigProfile {
     pub model_personality: Option<Personality>,
     pub context_mode: Option<ContextMode>,
     pub service_tier: Option<ServiceTier>,
+    pub windows: Option<WindowsToml>,
     pub memories: Option<MemoriesToml>,
     pub chatgpt_base_url: Option<String>,
     pub experimental_instructions_file: Option<PathBuf>,

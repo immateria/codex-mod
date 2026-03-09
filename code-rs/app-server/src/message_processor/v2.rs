@@ -4,6 +4,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use code_app_server_protocol::AskForApproval;
+use code_app_server_protocol::CommandExecParams;
+use code_app_server_protocol::CommandExecResizeParams;
+use code_app_server_protocol::CommandExecTerminateParams;
+use code_app_server_protocol::CommandExecWriteParams;
 use code_app_server_protocol::ListMcpServerStatusParams;
 use code_app_server_protocol::ListMcpServerStatusResponse;
 use code_app_server_protocol::CommandAction;
@@ -35,6 +39,10 @@ use code_app_server_protocol::TurnStartResponse;
 use code_app_server_protocol::TurnStartedNotification;
 use code_app_server_protocol::TurnStatus;
 use code_app_server_protocol::UserInput;
+use code_app_server_protocol::WindowsSandboxSetupCompletedNotification;
+use code_app_server_protocol::WindowsSandboxSetupMode;
+use code_app_server_protocol::WindowsSandboxSetupStartParams;
+use code_app_server_protocol::WindowsSandboxSetupStartResponse;
 use chrono::Utc;
 use code_common::model_presets;
 use code_core::SessionCatalog;
@@ -42,6 +50,7 @@ use code_core::SessionIndexEntry;
 use code_core::SessionQuery;
 use code_core::config::ConfigBuilder;
 use code_core::config::ConfigOverrides;
+use code_core::exec::ExecExpiration;
 use code_core::entry_to_rollout_path;
 use code_core::mcp_connection_manager::McpConnectionManager;
 use code_core::mcp_snapshot::collect_runtime_snapshot;
@@ -54,16 +63,20 @@ use code_protocol::models::ContentItem;
 use code_protocol::models::ReasoningItemContent;
 use code_protocol::models::ReasoningItemReasoningSummary;
 use code_protocol::models::ResponseItem;
+use code_protocol::models::SandboxPermissions;
 use code_protocol::protocol::RolloutItem;
 use code_protocol::protocol::RolloutLine;
 use code_protocol::protocol::SessionSource;
 use code_protocol::protocol::SubAgentSource;
 use mcp_types::JSONRPCErrorError;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use super::MessageProcessor;
 use crate::error_code::INTERNAL_ERROR_CODE;
+use crate::error_code::INVALID_PARAMS_ERROR_CODE;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
+use crate::outgoing_message::ConnectionRequestId;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::OutgoingNotification;
@@ -76,6 +89,425 @@ use status_conversion::convert_mcp_resources;
 use status_conversion::convert_mcp_tool;
 
 impl MessageProcessor {
+    pub(super) async fn command_exec_start(
+        &self,
+        request_id: ConnectionRequestId,
+        params: CommandExecParams,
+    ) {
+        let CommandExecParams {
+            command,
+            process_id,
+            tty,
+            stream_stdin,
+            stream_stdout_stderr,
+            output_bytes_cap,
+            disable_output_cap,
+            disable_timeout,
+            timeout_ms,
+            cwd,
+            env,
+            size,
+            sandbox_policy,
+        } = params;
+
+        if command.is_empty() {
+            self.outgoing
+                .send_error_to_connection(
+                    request_id.connection_id,
+                    request_id.request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_REQUEST_ERROR_CODE,
+                        message: "command must not be empty".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        if size.is_some() && !tty {
+            self.outgoing
+                .send_error_to_connection(
+                    request_id.connection_id,
+                    request_id.request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_REQUEST_ERROR_CODE,
+                        message: "command/exec size requires tty=true".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        if disable_timeout && timeout_ms.is_some() {
+            self.outgoing
+                .send_error_to_connection(
+                    request_id.connection_id,
+                    request_id.request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_PARAMS_ERROR_CODE,
+                        message: "command/exec disableTimeout and timeoutMs are mutually exclusive"
+                            .to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        if let Some(timeout_ms) = timeout_ms
+            && timeout_ms < 0
+        {
+            self.outgoing
+                .send_error_to_connection(
+                    request_id.connection_id,
+                    request_id.request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_PARAMS_ERROR_CODE,
+                        message: "command/exec timeoutMs must be non-negative".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        if disable_output_cap && output_bytes_cap.is_some() {
+            self.outgoing
+                .send_error_to_connection(
+                    request_id.connection_id,
+                    request_id.request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_PARAMS_ERROR_CODE,
+                        message:
+                            "command/exec disableOutputCap and outputBytesCap are mutually exclusive"
+                                .to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        let requested_cwd = cwd.unwrap_or_else(|| self.base_config.cwd.clone());
+        let config = match ConfigBuilder::new()
+            .with_code_home(self.base_config.code_home.clone())
+            .with_cli_overrides(self.cli_overrides.clone())
+            .with_overrides(ConfigOverrides {
+                cwd: Some(requested_cwd.clone()),
+                code_linux_sandbox_exe: self.code_linux_sandbox_exe.clone(),
+                ..Default::default()
+            })
+            .with_loader_overrides(code_core::config_loader::LoaderOverrides::default())
+            .load()
+        {
+            Ok(config) => config,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        request_id.connection_id,
+                        request_id.request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("failed to load command/exec config: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let effective_policy = sandbox_policy
+            .as_ref()
+            .map(SandboxPolicy::to_core)
+            .unwrap_or_else(|| code_core::sandboxing::protocol_policy_from_local(&config.sandbox_policy));
+        let local_policy = code_core::sandboxing::local_policy_from_protocol(&effective_policy);
+
+        let mut env_map = code_core::exec_env::create_env(&config.shell_environment_policy);
+        if let Some(env_overrides) = env {
+            for (key, value) in env_overrides {
+                match value {
+                    Some(value) => {
+                        env_map.insert(key, value);
+                    }
+                    None => {
+                        env_map.remove(&key);
+                    }
+                }
+            }
+        }
+
+        let started_network_proxy = match config.network_proxy.as_ref() {
+            Some(proxy_spec) => match proxy_spec
+                .start_proxy(&local_policy, None, None, false)
+                .await
+            {
+                Ok(proxy) => Some(proxy),
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            request_id.connection_id,
+                            request_id.request_id,
+                            JSONRPCErrorError {
+                                code: INTERNAL_ERROR_CODE,
+                                message: format!("failed to start network proxy: {err}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+            },
+            None => None,
+        };
+
+        let size = match size
+            .map(crate::command_exec::terminal_size_from_protocol)
+            .transpose()
+        {
+            Ok(size) => size,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(request_id.connection_id, request_id.request_id, error)
+                    .await;
+                return;
+            }
+        };
+
+        let expiration = if disable_timeout {
+            ExecExpiration::Cancellation(CancellationToken::new())
+        } else if let Some(timeout_ms) = timeout_ms {
+            ExecExpiration::Timeout(std::time::Duration::from_millis(timeout_ms as u64))
+        } else {
+            ExecExpiration::DefaultTimeout
+        };
+
+        let output_bytes_cap = if disable_output_cap {
+            None
+        } else {
+            Some(output_bytes_cap.unwrap_or(code_utils_pty::DEFAULT_OUTPUT_BYTES_CAP))
+        };
+
+        let network = started_network_proxy
+            .as_ref()
+            .map(code_core::config::network_proxy_spec::StartedNetworkProxy::proxy);
+        let exec_request = match code_core::sandboxing::build_exec_request(
+            code_core::sandboxing::BuildExecRequestParams {
+                command,
+                cwd: requested_cwd,
+                env: env_map,
+                network,
+                expiration,
+                sandbox_permissions: SandboxPermissions::UseDefault,
+                windows_sandbox_level: config.windows_sandbox_level,
+                justification: None,
+                sandbox_policy: effective_policy,
+                sandbox_policy_cwd: config.cwd.clone(),
+                code_linux_sandbox_exe: config.code_linux_sandbox_exe.clone(),
+            },
+        ) {
+            Ok(exec_request) => exec_request,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        request_id.connection_id,
+                        request_id.request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("exec failed: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        if let Err(error) = self
+            .command_exec_manager
+            .start(crate::command_exec::StartCommandExecParams {
+                outgoing: Arc::clone(&self.outgoing),
+                request_id: request_id.clone(),
+                process_id,
+                exec_request,
+                started_network_proxy,
+                tty,
+                stream_stdin,
+                stream_stdout_stderr,
+                output_bytes_cap,
+                size,
+            })
+            .await
+        {
+            self.outgoing
+                .send_error_to_connection(request_id.connection_id, request_id.request_id, error)
+                .await;
+        }
+    }
+
+    pub(super) async fn command_exec_write(
+        &self,
+        request_id: ConnectionRequestId,
+        params: CommandExecWriteParams,
+    ) {
+        match self.command_exec_manager.write(request_id.clone(), params).await {
+            Ok(response) => self
+                .outgoing
+                .send_response_to_connection(
+                    request_id.connection_id,
+                    request_id.request_id,
+                    response,
+                )
+                .await,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        request_id.connection_id,
+                        request_id.request_id,
+                        error,
+                    )
+                    .await
+            }
+        }
+    }
+
+    pub(super) async fn command_exec_resize(
+        &self,
+        request_id: ConnectionRequestId,
+        params: CommandExecResizeParams,
+    ) {
+        match self.command_exec_manager.resize(request_id.clone(), params).await {
+            Ok(response) => self
+                .outgoing
+                .send_response_to_connection(
+                    request_id.connection_id,
+                    request_id.request_id,
+                    response,
+                )
+                .await,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        request_id.connection_id,
+                        request_id.request_id,
+                        error,
+                    )
+                    .await
+            }
+        }
+    }
+
+    pub(super) async fn command_exec_terminate(
+        &self,
+        request_id: ConnectionRequestId,
+        params: CommandExecTerminateParams,
+    ) {
+        match self
+            .command_exec_manager
+            .terminate(request_id.clone(), params)
+            .await
+        {
+            Ok(response) => self
+                .outgoing
+                .send_response_to_connection(
+                    request_id.connection_id,
+                    request_id.request_id,
+                    response,
+                )
+                .await,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        request_id.connection_id,
+                        request_id.request_id,
+                        error,
+                    )
+                    .await
+            }
+        }
+    }
+
+    pub(super) async fn windows_sandbox_setup_start(
+        &self,
+        request_id: ConnectionRequestId,
+        params: WindowsSandboxSetupStartParams,
+    ) {
+        self.outgoing
+            .send_response_to_connection(
+                request_id.connection_id,
+                request_id.request_id.clone(),
+                WindowsSandboxSetupStartResponse { started: true },
+            )
+            .await;
+
+        let mode = match params.mode {
+            WindowsSandboxSetupMode::Elevated => {
+                code_core::windows_sandbox::WindowsSandboxSetupMode::Elevated
+            }
+            WindowsSandboxSetupMode::Unelevated => {
+                code_core::windows_sandbox::WindowsSandboxSetupMode::Unelevated
+            }
+        };
+        let command_cwd = params
+            .cwd
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.base_config.cwd.clone());
+        let connection_id = request_id.connection_id;
+        let outgoing = Arc::clone(&self.outgoing);
+        let code_home = self.base_config.code_home.clone();
+        let cli_overrides = self.cli_overrides.clone();
+        let code_linux_sandbox_exe = self.code_linux_sandbox_exe.clone();
+
+        tokio::spawn(async move {
+            let derived_config = ConfigBuilder::new()
+                .with_code_home(code_home)
+                .with_cli_overrides(cli_overrides)
+                .with_overrides(ConfigOverrides {
+                    cwd: Some(command_cwd.clone()),
+                    code_linux_sandbox_exe,
+                    ..Default::default()
+                })
+                .with_loader_overrides(code_core::config_loader::LoaderOverrides::default())
+                .load();
+            let setup_result = match derived_config {
+                Ok(config) => {
+                    let setup_request = code_core::windows_sandbox::WindowsSandboxSetupRequest {
+                        mode,
+                        policy: config.sandbox_policy.clone(),
+                        policy_cwd: config.cwd.clone(),
+                        command_cwd,
+                        env_map: std::env::vars().collect(),
+                        codex_home: config.code_home.clone(),
+                        active_profile: config.active_profile.clone(),
+                    };
+                    code_core::windows_sandbox::run_windows_sandbox_setup(setup_request).await
+                }
+                Err(err) => Err(err.into()),
+            };
+            send_server_notification_to_connection(
+                outgoing.as_ref(),
+                connection_id,
+                ServerNotification::WindowsSandboxSetupCompleted(
+                    WindowsSandboxSetupCompletedNotification {
+                        mode: match mode {
+                            code_core::windows_sandbox::WindowsSandboxSetupMode::Elevated => {
+                                WindowsSandboxSetupMode::Elevated
+                            }
+                            code_core::windows_sandbox::WindowsSandboxSetupMode::Unelevated => {
+                                WindowsSandboxSetupMode::Unelevated
+                            }
+                        },
+                        success: setup_result.is_ok(),
+                        error: setup_result.err().map(|err| err.to_string()),
+                    },
+                ),
+            )
+            .await;
+        });
+    }
+
     pub(super) async fn list_models_v2(
         &self,
         request_id: mcp_types::RequestId,

@@ -37,6 +37,8 @@ use crate::config_types::Tui;
 use crate::config_types::UriBasedFileOpener;
 use crate::config_types::ConfirmGuardConfig;
 use crate::config_types::Personality;
+use crate::config_types::WindowsSandboxModeToml;
+use crate::config_types::WindowsToml;
 use crate::config_types::DEFAULT_OTEL_ENVIRONMENT;
 use crate::git_info::resolve_root_git_project_for_trust;
 use crate::model_family::ModelFamily;
@@ -55,6 +57,7 @@ use crate::config_types::ServiceTier;
 use crate::project_features::{load_project_commands, ProjectCommand, ProjectHooks};
 use code_app_server_protocol::AuthMode;
 use code_protocol::config_types::SandboxMode;
+use code_protocol::config_types::WindowsSandboxLevel;
 use code_protocol::dynamic_tools::DynamicToolSpec;
 use code_rmcp_client::OAuthCredentialsStoreMode;
 use schemars::JsonSchema;
@@ -132,6 +135,7 @@ pub use sources::{
     set_tui_theme_name,
     set_validation_group_enabled,
     set_validation_tool_enabled,
+    set_windows_sandbox_mode,
     write_global_mcp_servers,
 };
 pub use sources::ShellStyleSkillMode;
@@ -496,6 +500,12 @@ pub struct Config {
     /// `Some(Fast)` sends `service_tier=priority` to the Responses API.
     /// `None` sends no override (legacy standard behavior).
     pub service_tier: Option<ServiceTier>,
+
+    /// Requested Windows sandbox mode from config, if any.
+    pub windows_sandbox_mode: Option<WindowsSandboxModeToml>,
+
+    /// Effective Windows sandbox level derived from config and legacy feature flags.
+    pub windows_sandbox_level: WindowsSandboxLevel,
 
     /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
     pub chatgpt_base_url: String,
@@ -875,6 +885,7 @@ pub struct ConfigToml {
     pub model_personality: Option<Personality>,
     pub context_mode: Option<ContextMode>,
     pub service_tier: Option<ServiceTier>,
+    pub windows: Option<WindowsToml>,
 
     /// Override to force-enable reasoning summaries for the configured model.
     pub model_supports_reasoning_summaries: Option<bool>,
@@ -1346,6 +1357,49 @@ pub struct FeaturesToml {
     /// configs. Runtime memories behavior is controlled by `[memories]`.
     #[serde(default)]
     pub memories: Option<bool>,
+
+    /// Legacy compatibility toggle for Windows restricted-token sandboxing.
+    #[serde(default)]
+    pub experimental_windows_sandbox: Option<bool>,
+
+    /// Legacy alias for `experimental_windows_sandbox`.
+    #[serde(default)]
+    pub enable_experimental_windows_sandbox: Option<bool>,
+
+    /// Legacy compatibility toggle for elevated Windows sandboxing.
+    #[serde(default)]
+    pub elevated_windows_sandbox: Option<bool>,
+}
+
+fn legacy_windows_sandbox_mode(features: Option<&FeaturesToml>) -> Option<WindowsSandboxModeToml> {
+    let features = features?;
+    if features.elevated_windows_sandbox.unwrap_or(false) {
+        return Some(WindowsSandboxModeToml::Elevated);
+    }
+    if features.experimental_windows_sandbox.unwrap_or(false)
+        || features.enable_experimental_windows_sandbox.unwrap_or(false)
+    {
+        return Some(WindowsSandboxModeToml::Unelevated);
+    }
+    None
+}
+
+fn resolve_windows_sandbox_mode(
+    cfg: &ConfigToml,
+    profile: &ConfigProfile,
+) -> Option<WindowsSandboxModeToml> {
+    profile
+        .windows
+        .as_ref()
+        .and_then(|windows| windows.sandbox)
+        .or_else(|| cfg.windows.as_ref().and_then(|windows| windows.sandbox))
+        .or_else(|| legacy_windows_sandbox_mode(cfg.features.as_ref()))
+}
+
+fn windows_sandbox_level_from_mode(
+    mode: Option<WindowsSandboxModeToml>,
+) -> WindowsSandboxLevel {
+    mode.map_or(WindowsSandboxLevel::Disabled, WindowsSandboxModeToml::sandbox_level)
 }
 
 impl ConfigToml {
@@ -1518,6 +1572,7 @@ impl Config {
                 }
                 None => (None, ConfigProfile::default()),
             };
+        let windows_sandbox_mode = resolve_windows_sandbox_mode(&cfg, &config_profile);
 
         // (removed placeholder) sandbox_policy computed below after resolving project overrides.
 
@@ -1748,7 +1803,6 @@ impl Config {
         } else {
             OPENAI_DEFAULT_MODEL
         };
-
         let model_explicit = model.is_some() || config_profile.model.is_some() || cfg.model.is_some();
 
         let model = model
@@ -1765,6 +1819,7 @@ impl Config {
             Some(ServiceTier::Standard) => None,
             None => None,
         };
+        let windows_sandbox_level = windows_sandbox_level_from_mode(windows_sandbox_mode);
         let context_mode = config_profile
             .context_mode
             .or(cfg.context_mode)
@@ -2158,6 +2213,8 @@ impl Config {
                 .or(cfg.model_text_verbosity)
                 .unwrap_or_default(),
             service_tier,
+            windows_sandbox_mode,
+            windows_sandbox_level,
 
             chatgpt_base_url: config_profile
                 .chatgpt_base_url

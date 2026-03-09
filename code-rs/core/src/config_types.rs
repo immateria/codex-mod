@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
+use code_protocol::config_types::WindowsSandboxLevel;
 use schemars::JsonSchema;
 use wildmatch::WildMatchPattern;
 
@@ -250,6 +251,31 @@ pub enum ContextMode {
     #[default]
     Auto,
     Disabled,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum WindowsSandboxModeToml {
+    #[default]
+    Unelevated,
+    Elevated,
+}
+
+impl WindowsSandboxModeToml {
+    pub const fn sandbox_level(self) -> WindowsSandboxLevel {
+        match self {
+            Self::Unelevated => WindowsSandboxLevel::RestrictedToken,
+            Self::Elevated => WindowsSandboxLevel::Elevated,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, JsonSchema, Default)]
+#[schemars(deny_unknown_fields)]
+pub struct WindowsToml {
+    pub sandbox: Option<WindowsSandboxModeToml>,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]

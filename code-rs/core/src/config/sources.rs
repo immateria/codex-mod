@@ -19,6 +19,7 @@ use crate::config_types::{
     StatusLineLane,
     ThemeColors,
     ThemeName,
+    WindowsSandboxModeToml,
 };
 use crate::protocol::{ApprovedCommandMatchKind, AskForApproval};
 use code_protocol::config_types::SandboxMode;
@@ -3985,6 +3986,59 @@ pub fn set_project_memories_settings(
         }
         None => {
             project_table.remove("memories");
+        }
+    }
+
+    persist_config_doc(code_home, &config_path, &doc)?;
+    Ok(())
+}
+
+pub fn set_windows_sandbox_mode(
+    code_home: &Path,
+    profile_name: Option<&str>,
+    mode: Option<WindowsSandboxModeToml>,
+) -> anyhow::Result<()> {
+    let (mut doc, config_path) = load_config_doc(code_home)?;
+    let windows_table = if let Some(profile_name) = profile_name {
+        let profiles_table = doc["profiles"]
+            .or_insert(TomlItem::Table(TomlTable::new()))
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("`profiles` must be a TOML table"))?;
+        let profile_table = profiles_table[profile_name]
+            .or_insert(TomlItem::Table(TomlTable::new()))
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("`profiles.{profile_name}` must be a TOML table"))?;
+        profile_table["windows"]
+            .or_insert(TomlItem::Table(TomlTable::new()))
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("`profiles.{profile_name}.windows` must be a TOML table"))?
+    } else {
+        doc["windows"]
+            .or_insert(TomlItem::Table(TomlTable::new()))
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("`windows` must be a TOML table"))?
+    };
+
+    match mode {
+        Some(mode) => {
+            let value = match mode {
+                WindowsSandboxModeToml::Unelevated => "unelevated",
+                WindowsSandboxModeToml::Elevated => "elevated",
+            };
+            windows_table["sandbox"] = toml_edit::value(value);
+        }
+        None => {
+            windows_table.remove("sandbox");
+        }
+    }
+
+    if windows_table.is_empty() {
+        if let Some(profile_name) = profile_name {
+            if let Some(profile_table) = doc["profiles"][profile_name].as_table_mut() {
+                profile_table.remove("windows");
+            }
+        } else {
+            doc.as_table_mut().remove("windows");
         }
     }
 
