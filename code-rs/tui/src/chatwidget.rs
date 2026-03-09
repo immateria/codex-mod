@@ -5483,7 +5483,6 @@ fi\n\
         self.finalize_active_stream();
         self.stream_state.drop_streaming = true;
         self.bottom_pane.set_task_running(false);
-        self.bottom_pane.clear_live_ring();
         self.maybe_hide_spinner();
     }
 

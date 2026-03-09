@@ -51,7 +51,6 @@ impl ChatWidget<'_> {
         // Immediately drop the running status so the next message can be typed/run,
         // even if backend cleanup (and Error event) arrives slightly later.
         self.bottom_pane.set_task_running(false);
-        self.bottom_pane.clear_live_ring();
         // Reset with max width to disable wrapping
         self.live_builder = RowBuilder::new(usize::MAX);
         // Stream state is now managed by StreamController

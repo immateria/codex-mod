@@ -102,12 +102,7 @@ impl ChatWidget<'_> {
             6,
         );
 
-        self.bottom_pane.show_list_selection(
-            "Cloud tasks".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(crate) fn show_cloud_tasks_loading(&mut self) {
@@ -125,12 +120,7 @@ impl ChatWidget<'_> {
             self.app_event_tx.clone(),
             6,
         );
-        self.bottom_pane.show_list_selection(
-            "Loading cloud tasks".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(crate) fn present_cloud_tasks(
@@ -181,12 +171,7 @@ impl ChatWidget<'_> {
             self.app_event_tx.clone(),
             8,
         );
-        self.bottom_pane.show_list_selection(
-            "Select environment".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(crate) fn present_cloud_environment_picker(
@@ -241,12 +226,7 @@ impl ChatWidget<'_> {
             10,
         );
 
-        self.bottom_pane.show_list_selection(
-            "Select environment".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(crate) fn set_cloud_environment(&mut self, environment: Option<CloudEnvironment>) {
@@ -361,12 +341,7 @@ impl ChatWidget<'_> {
             8,
         );
 
-        self.bottom_pane.show_list_selection(
-            format!("Cloud task: {}", task.title),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(crate) fn show_cloud_task_create_prompt(&mut self) {
@@ -572,12 +547,7 @@ impl ChatWidget<'_> {
             self.app_event_tx.clone(),
             6,
         );
-        self.bottom_pane.show_list_selection(
-            "Git repository required".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
         self.request_redraw();
     }
 

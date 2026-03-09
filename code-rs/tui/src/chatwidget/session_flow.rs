@@ -68,6 +68,13 @@ impl ChatWidget<'_> {
             .as_ref()
             .is_some_and(|ids| !ids.is_empty());
         bottom_pane.set_force_top_spacer(bottom_status_line_enabled);
+        bottom_pane.set_subagent_commands(
+            config
+                .subagent_commands
+                .iter()
+                .map(|command| command.name.clone())
+                .collect(),
+        );
 
         let mut new_widget = Self {
             app_event_tx,
@@ -404,12 +411,19 @@ impl ChatWidget<'_> {
         // Basic widget state mirrors `new`
         let history_cells: Vec<Box<dyn HistoryCell>> = Vec::new();
 
-        let bottom_pane = BottomPane::new(BottomPaneParams {
+        let mut bottom_pane = BottomPane::new(BottomPaneParams {
             app_event_tx: app_event_tx.clone(),
             has_input_focus: true,
             using_chatgpt_auth: config.using_chatgpt_auth,
             auto_drive_variant,
         });
+        bottom_pane.set_subagent_commands(
+            config
+                .subagent_commands
+                .iter()
+                .map(|command| command.name.clone())
+                .collect(),
+        );
 
         let mut w = Self {
             app_event_tx,

@@ -30,6 +30,8 @@ pub use config_summary::create_config_summary_entries;
 pub mod fuzzy_match;
 // Shared model presets used by TUI and MCP server
 pub mod model_presets;
+// Shared picker ordering used by model-selection UIs
+pub mod model_picker_order;
 // Shared shell presets used by TUI shell selector
 pub mod shell_presets;
 // Shared approval presets (AskForApproval + Sandbox) used by TUI and MCP server

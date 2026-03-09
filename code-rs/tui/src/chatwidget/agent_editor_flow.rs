@@ -217,6 +217,13 @@ impl ChatWidget<'_> {
             self.config.subagent_commands.push(cmd);
         }
 
+        self.bottom_pane.set_subagent_commands(
+            self.config
+                .subagent_commands
+                .iter()
+                .map(|c| c.name.clone())
+                .collect(),
+        );
         self.refresh_settings_overview_rows();
     }
 
@@ -224,6 +231,13 @@ impl ChatWidget<'_> {
         self.config
             .subagent_commands
             .retain(|c| !c.name.eq_ignore_ascii_case(name));
+        self.bottom_pane.set_subagent_commands(
+            self.config
+                .subagent_commands
+                .iter()
+                .map(|c| c.name.clone())
+                .collect(),
+        );
         self.refresh_settings_overview_rows();
     }
 

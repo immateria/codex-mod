@@ -714,12 +714,7 @@ impl ChatWidget<'_> {
             6,
         );
 
-        self.bottom_pane.show_list_selection(
-            "Review options".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(crate) fn show_review_custom_prompt(&mut self) {
@@ -1950,12 +1945,7 @@ impl ChatWidget<'_> {
             self.app_event_tx.clone(),
             6,
         );
-        self.bottom_pane.show_list_selection(
-            "Select a commit".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(crate) fn present_review_commit_picker(&mut self, commits: Vec<CommitLogEntry>) {
@@ -2031,12 +2021,7 @@ impl ChatWidget<'_> {
             10,
         );
 
-        self.bottom_pane.show_list_selection(
-            "Select a commit to review".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(crate) fn show_review_branch_loading(&mut self) {
@@ -2054,12 +2039,7 @@ impl ChatWidget<'_> {
             self.app_event_tx.clone(),
             6,
         );
-        self.bottom_pane.show_list_selection(
-            "Select a base branch".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(crate) fn present_review_branch_picker(
@@ -2141,12 +2121,7 @@ impl ChatWidget<'_> {
             10,
         );
 
-        self.bottom_pane.show_list_selection(
-            "Compare against a branch".to_string(),
-            None,
-            None,
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     /// Handle `/review [focus]` command by starting a dedicated review session.

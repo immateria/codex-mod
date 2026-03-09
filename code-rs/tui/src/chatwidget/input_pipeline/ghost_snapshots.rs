@@ -578,12 +578,7 @@ impl ChatWidget<'_> {
             1,
         );
 
-        self.bottom_pane.show_list_selection(
-            title.to_string(),
-            None,
-            Some("Esc close".to_string()),
-            view,
-        );
+        self.bottom_pane.show_list_selection(view);
     }
 
     pub(in super::super) fn show_undo_snapshot_picker(&mut self) {
@@ -1234,7 +1229,6 @@ impl ChatWidget<'_> {
         self.refresh_queued_user_messages(false);
         self.bottom_pane.clear_composer();
         self.bottom_pane.clear_ctrl_c_quit_hint();
-        self.bottom_pane.clear_live_ring();
         self.bottom_pane.set_task_running(false);
         self.active_task_ids.clear();
         if !self.agents_terminal.active {

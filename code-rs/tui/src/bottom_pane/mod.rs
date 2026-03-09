@@ -33,6 +33,7 @@ mod bottom_pane_view;
 mod chat_composer;
 mod chat_composer_history;
 mod custom_prompt_view;
+mod model_selection_state;
 pub(crate) mod prompt_args;
 mod command_popup;
 mod file_search_popup;
@@ -91,7 +92,7 @@ pub(crate) use auto_coordinator_view::{
 pub(crate) use auto_drive_settings_view::{AutoDriveSettingsInit, AutoDriveSettingsView};
 pub(crate) use account_switch_settings_view::AccountSwitchSettingsView;
 pub(crate) use memories_settings_view::MemoriesSettingsView;
-pub(crate) use model_selection_view::ModelSelectionViewParams;
+pub(crate) use model_selection_state::{ModelSelectionTarget, ModelSelectionViewParams};
 pub(crate) use login_accounts_view::{
     LoginAccountsState,
     LoginAccountsView,
@@ -132,6 +133,7 @@ pub(crate) enum ActiveViewKind {
     None,
     AutoCoordinator,
     ModelSelection,
+    RequestUserInput,
     ShellSelection,
     Other,
 }
@@ -150,10 +152,8 @@ pub(crate) struct BottomPane<'a> {
     has_input_focus: bool,
     is_task_running: bool,
     ctrl_c_quit_hint: bool,
-
-    /// True if the active view is the StatusIndicatorView that replaces the
-    /// composer during a running task.
-    status_view_active: bool,
+    compact_compose: bool,
+    pending_auto_coordinator: Option<AutoCoordinatorViewModel>,
 
     /// Whether to reserve an empty spacer line above the input composer.
     /// Defaults to true for visual breathing room, but can be disabled when
@@ -164,7 +164,7 @@ pub(crate) struct BottomPane<'a> {
     /// bottom status line) can reliably render into it.
     force_top_spacer: bool,
 
-    pub(crate) using_chatgpt_auth: bool,
+    using_chatgpt_auth: bool,
 
     auto_drive_variant: AutoDriveVariant,
     auto_drive_active: bool,
@@ -181,9 +181,10 @@ pub(crate) struct BottomPaneParams {
     pub(crate) auto_drive_variant: AutoDriveVariant,
 }
 
-impl BottomPane<'_> {
+impl<'a> BottomPane<'a> {
     // Reduce bottom padding so footer sits one line lower
     const BOTTOM_PAD_LINES: u16 = 1;
+    const HORIZONTAL_PADDING: u16 = 1;
     pub fn new(params: BottomPaneParams) -> Self {
         let composer = ChatComposer::new(
             params.has_input_focus,
@@ -199,7 +200,8 @@ impl BottomPane<'_> {
             has_input_focus: params.has_input_focus,
             is_task_running: false,
             ctrl_c_quit_hint: false,
-            status_view_active: false,
+            compact_compose: false,
+            pending_auto_coordinator: None,
             top_spacer_enabled: true,
             force_top_spacer: false,
             using_chatgpt_auth: params.using_chatgpt_auth,
@@ -258,6 +260,123 @@ impl BottomPane<'_> {
         self.apply_auto_drive_style();
     }
 
+    fn set_view(
+        &mut self,
+        view: Box<dyn BottomPaneView<'a> + 'a>,
+        kind: ActiveViewKind,
+        height_change: bool,
+    ) {
+        self.active_view = Some(view);
+        self.active_view_kind = kind;
+        if height_change {
+            self.request_redraw_with_height_change();
+        } else {
+            self.request_redraw();
+        }
+    }
+
+    fn set_other_view(&mut self, view: impl BottomPaneView<'a> + 'a, height_change: bool) {
+        self.set_view(Box::new(view), ActiveViewKind::Other, height_change);
+    }
+
+    fn active_view_as<T: 'static>(&mut self) -> Option<&mut T> {
+        self.active_view
+            .as_mut()?
+            .as_any_mut()?
+            .downcast_mut::<T>()
+    }
+
+    fn compute_active_view_rect(
+        &self,
+        area: Rect,
+        view: &dyn BottomPaneView<'a>,
+    ) -> Option<Rect> {
+        let horizontal_padding = BottomPane::HORIZONTAL_PADDING;
+        if matches!(self.active_view_kind, ActiveViewKind::AutoCoordinator) {
+            let content_width = area.width.saturating_sub(horizontal_padding * 2);
+            let composer_visible = view
+                .as_any()
+                .and_then(|any| any.downcast_ref::<AutoCoordinatorView>())
+                .map(auto_coordinator_view::AutoCoordinatorView::composer_visible)
+                .unwrap_or(true);
+            let composer_height = if composer_visible {
+                self.composer.desired_height(area.width)
+            } else {
+                self.composer.footer_height()
+            };
+            let max_view_height = area
+                .height
+                .saturating_sub(composer_height)
+                .saturating_sub(BottomPane::BOTTOM_PAD_LINES);
+            let view_height = view.desired_height(content_width).min(max_view_height);
+            if view_height == 0 {
+                return None;
+            }
+            return Some(Rect {
+                x: area.x.saturating_add(horizontal_padding),
+                y: area.y,
+                width: content_width,
+                height: view_height,
+            });
+        }
+
+        let mut avail = area.height;
+        if self.top_spacer_enabled && avail > 0 {
+            avail = avail.saturating_sub(1);
+        }
+        let pad = BottomPane::BOTTOM_PAD_LINES.min(avail.saturating_sub(1));
+        let view_height = avail.saturating_sub(pad);
+        if view_height == 0 {
+            return None;
+        }
+        let y_base = if self.top_spacer_enabled {
+            area.y.saturating_add(1)
+        } else {
+            area.y
+        };
+        Some(Rect {
+            x: area.x.saturating_add(horizontal_padding),
+            y: y_base,
+            width: area.width.saturating_sub(horizontal_padding * 2),
+            height: view_height,
+        })
+    }
+
+    fn schedule_redraw_after(&self, dur: Duration, task_name: &'static str) {
+        let tx = self.app_event_tx.clone();
+        let redraw_delay = dur + Duration::from_millis(120);
+        if thread_spawner::spawn_lightweight(task_name, move || {
+            std::thread::sleep(redraw_delay);
+            tx.send(AppEvent::RequestRedraw);
+        })
+        .is_none()
+        {
+            self.app_event_tx.send(AppEvent::ScheduleFrameIn(redraw_delay));
+        }
+    }
+
+    fn flush_pending_auto_coordinator(&mut self) -> bool {
+        if self.active_view.is_some() {
+            return false;
+        }
+        let Some(model) = self.pending_auto_coordinator.take() else {
+            return false;
+        };
+        self.show_auto_coordinator_view(model);
+        true
+    }
+
+    fn clear_active_view_state(&mut self) {
+        self.active_view = None;
+        self.active_view_kind = ActiveViewKind::None;
+        self.set_standard_terminal_hint(None);
+        let _ = self.flush_pending_auto_coordinator();
+    }
+
+    fn callback_claimed_active_view(&self, original_kind: ActiveViewKind) -> bool {
+        self.active_view.is_some() || self.active_view_kind != original_kind
+    }
+
     fn disable_auto_drive_style(&mut self) {
         if !self.auto_drive_active {
             return;
@@ -283,45 +402,27 @@ impl BottomPane<'_> {
     }
 
     pub fn show_notifications_settings(&mut self, view: NotificationsSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_network_settings(&mut self, view: NetworkSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_exec_limits_settings(&mut self, view: ExecLimitsSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_js_repl_settings(&mut self, view: JsReplSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_interface_settings(&mut self, view: InterfaceSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_shell_profiles_settings(&mut self, view: ShellProfilesSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub(crate) fn apply_shell_profiles_generated_summary(
@@ -329,13 +430,7 @@ impl BottomPane<'_> {
         style: code_core::config_types::ShellScriptStyle,
         summary: String,
     ) -> bool {
-        let Some(view) = self.active_view.as_mut() else {
-            return false;
-        };
-        let Some(any) = view.as_any_mut() else {
-            return false;
-        };
-        let Some(shell_profiles) = any.downcast_mut::<ShellProfilesSettingsView>() else {
+        let Some(shell_profiles) = self.active_view_as::<ShellProfilesSettingsView>() else {
             return false;
         };
 
@@ -349,13 +444,7 @@ impl BottomPane<'_> {
         style: code_core::config_types::ShellScriptStyle,
         error: String,
     ) -> bool {
-        let Some(view) = self.active_view.as_mut() else {
-            return false;
-        };
-        let Some(any) = view.as_any_mut() else {
-            return false;
-        };
-        let Some(shell_profiles) = any.downcast_mut::<ShellProfilesSettingsView>() else {
+        let Some(shell_profiles) = self.active_view_as::<ShellProfilesSettingsView>() else {
             return false;
         };
 
@@ -365,87 +454,51 @@ impl BottomPane<'_> {
     }
 
     pub fn show_settings_overview(&mut self, view: SettingsOverviewView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_update_settings(&mut self, view: UpdateSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_status_line_setup(&mut self, view: StatusLineSetupView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_planning_settings(&mut self, view: PlanningSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_review_settings(&mut self, view: ReviewSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_validation_settings(&mut self, view: ValidationSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_prompts_settings(&mut self, view: prompts_settings_view::PromptsSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_skills_settings(&mut self, view: skills_settings_view::SkillsSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_memories_settings(&mut self, view: MemoriesSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_auto_drive_settings_panel(&mut self, view: AutoDriveSettingsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub fn show_login_accounts(&mut self, view: LoginAccountsView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw();
+        self.set_other_view(view, false);
     }
 
     pub fn show_login_add_account(&mut self, view: LoginAddAccountView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw();
+        self.set_other_view(view, false);
     }
 
     pub fn set_using_chatgpt_auth(&mut self, using: bool) {
@@ -489,11 +542,7 @@ impl BottomPane<'_> {
             } else {
                 0
             };
-            let pad = if is_auto {
-                BottomPane::BOTTOM_PAD_LINES
-            } else {
-                0
-            };
+            let pad = BottomPane::BOTTOM_PAD_LINES;
             let base_height = view
                 .desired_height(width)
                 .saturating_add(top_spacer)
@@ -502,33 +551,22 @@ impl BottomPane<'_> {
             (base_height, pad)
         } else {
             // Optionally add 1 for the empty line above the composer
-            let spacer = if self.top_spacer_enabled { 1 } else { 0 };
-            (spacer + self.composer.desired_height(width), Self::BOTTOM_PAD_LINES)
+            let spacer: u16 = if self.top_spacer_enabled { 1 } else { 0 };
+            (
+                spacer.saturating_add(self.composer.desired_height(width)),
+                Self::BOTTOM_PAD_LINES,
+            )
         };
 
         view_height.saturating_add(pad_lines)
     }
 
     pub fn cursor_pos(&self, area: Rect) -> Option<(u16, u16)> {
-        // Hide the cursor whenever an overlay view is active (e.g. approval modal).
-        // But keep cursor visible when only status overlay is shown.
+        // Hide the cursor whenever any overlay view is active.
         if self.active_view.is_some() {
             None
         } else {
-            // Account for the optional empty line above the composer
-            let y_offset = if self.top_spacer_enabled { 1u16 } else { 0u16 };
-
-            // Adjust composer area to account for empty line and padding
-            let horizontal_padding = 1u16; // Message input uses 1 char padding
-            let composer_rect = Rect {
-                x: area.x + horizontal_padding,
-                y: area.y + y_offset,
-                width: area.width.saturating_sub(horizontal_padding * 2),
-                height: (area.height.saturating_sub(y_offset)).saturating_sub(
-                    BottomPane::BOTTOM_PAD_LINES
-                        .min((area.height.saturating_sub(y_offset)).saturating_sub(1)),
-                ),
-            };
+            let composer_rect = compute_composer_rect(area, self.top_spacer_enabled);
             self.composer.cursor_pos(composer_rect)
         }
     }
@@ -538,18 +576,27 @@ impl BottomPane<'_> {
     pub fn handle_mouse_event(&mut self, mouse_event: crossterm::event::MouseEvent, area: Rect) -> (InputResult, bool) {
         // If there's an active view, forward to it
         if let Some(mut view) = self.active_view.take() {
-            let result = view.handle_mouse_event(self, mouse_event, area);
+            let kind = self.active_view_kind;
+            let view_rect = self.compute_active_view_rect(area, view.as_ref());
+            let result = view.handle_mouse_event(
+                self,
+                mouse_event,
+                view_rect.unwrap_or_else(|| compute_composer_rect(area, self.top_spacer_enabled)),
+            );
             let is_complete = view.is_complete();
 
-            // Put the view back (unless it's complete)
-            if !is_complete {
-                self.active_view = Some(view);
-            } else {
-                self.active_view_kind = ActiveViewKind::None;
-                self.set_standard_terminal_hint(None);
+            // Only restore the local view if the callback did not already
+            // claim active view ownership by mutating `self.active_view`.
+            if !self.callback_claimed_active_view(kind) {
+                if !is_complete {
+                    self.active_view = Some(view);
+                    self.active_view_kind = kind;
+                } else {
+                    self.clear_active_view_state();
+                }
             }
 
-            let needs_redraw = matches!(result, ConditionalUpdate::NeedsRedraw);
+            let needs_redraw = matches!(result, ConditionalUpdate::NeedsRedraw) || is_complete;
             return (InputResult::None, needs_redraw);
         }
 
@@ -564,8 +611,13 @@ impl BottomPane<'_> {
     /// Update hover state in the active view.
     /// Returns true if a redraw is needed.
     pub fn update_hover(&mut self, mouse_pos: (u16, u16), area: Rect) -> bool {
+        let view_rect = self
+            .active_view
+            .as_ref()
+            .and_then(|view| self.compute_active_view_rect(area, view.as_ref()))
+            .unwrap_or_else(|| compute_composer_rect(area, self.top_spacer_enabled));
         if let Some(view) = self.active_view.as_mut() {
-            view.update_hover(mouse_pos, area)
+            view.update_hover(mouse_pos, view_rect)
         } else {
             false
         }
@@ -587,20 +639,35 @@ impl BottomPane<'_> {
                 {
                     auto_view.handle_active_key_event(self, key_event)
                 } else {
-                    let _ = view.handle_key_event_with_result(self, key_event);
-                    true
+                    let update = view.handle_key_event_with_result(self, key_event);
+                    let is_complete = view.is_complete();
+                    if !self.callback_claimed_active_view(kind) {
+                        if !is_complete {
+                            self.active_view = Some(view);
+                            self.active_view_kind = kind;
+                        } else {
+                            self.clear_active_view_state();
+                        }
+                    }
+                    if matches!(update, ConditionalUpdate::NeedsRedraw) || is_complete {
+                        self.request_redraw();
+                    }
+                    return InputResult::None;
                 };
 
-                if !view.is_complete() {
-                    self.active_view = Some(view);
-                    self.active_view_kind = kind;
-                } else {
-                    self.active_view_kind = ActiveViewKind::None;
-                    self.set_standard_terminal_hint(None);
+                if !self.callback_claimed_active_view(kind) {
+                    if !view.is_complete() {
+                        self.active_view = Some(view);
+                        self.active_view_kind = kind;
+                    } else {
+                        self.clear_active_view_state();
+                    }
                 }
 
                 if consumed {
                     self.request_redraw();
+                    // When Auto Drive hides the composer, Up/Down should keep
+                    // scrolling chat history instead of becoming dead keys.
                     if matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
                         match key_event.code {
                             KeyCode::Up => return InputResult::ScrollUp,
@@ -616,12 +683,13 @@ impl BottomPane<'_> {
 
             let update = view.handle_key_event_with_result(self, key_event);
             let is_complete = view.is_complete();
-            if !is_complete {
-                self.active_view = Some(view);
-                self.active_view_kind = kind;
-            } else {
-                self.active_view_kind = ActiveViewKind::None;
-                self.set_standard_terminal_hint(None);
+            if !self.callback_claimed_active_view(kind) {
+                if !is_complete {
+                    self.active_view = Some(view);
+                    self.active_view_kind = kind;
+                } else {
+                    self.clear_active_view_state();
+                }
             }
             let needs_redraw = matches!(update, ConditionalUpdate::NeedsRedraw) || is_complete;
             if needs_redraw {
@@ -681,19 +749,24 @@ impl BottomPane<'_> {
         let event = view.on_ctrl_c(self);
         match event {
             CancellationEvent::Handled => {
-                if !view.is_complete() {
-                    self.active_view = Some(view);
-                    self.active_view_kind = kind;
-                } else {
-                    self.active_view_kind = ActiveViewKind::None;
-                    self.set_standard_terminal_hint(None);
+                if !self.callback_claimed_active_view(kind) {
+                    if !view.is_complete() {
+                        self.active_view = Some(view);
+                        self.active_view_kind = kind;
+                    } else {
+                        self.clear_active_view_state();
+                    }
                 }
-                // Don't create a status view - keep composer visible
-                self.show_ctrl_c_quit_hint();
             }
             CancellationEvent::Ignored => {
-                self.active_view = Some(view);
-                self.active_view_kind = kind;
+                if !self.callback_claimed_active_view(kind) {
+                    if !view.is_complete() {
+                        self.active_view = Some(view);
+                        self.active_view_kind = kind;
+                    } else {
+                        self.clear_active_view_state();
+                    }
+                }
             }
         }
         event
@@ -701,15 +774,13 @@ impl BottomPane<'_> {
 
     pub fn handle_paste(&mut self, pasted: String) {
         if let Some(mut view) = self.active_view.take() {
-            use crate::bottom_pane::bottom_pane_view::ConditionalUpdate;
             let kind = self.active_view_kind;
             let update = view.handle_paste_with_composer(&mut self.composer, pasted);
             if !view.is_complete() {
                 self.active_view = Some(view);
                 self.active_view_kind = kind;
             } else {
-                self.active_view_kind = ActiveViewKind::None;
-                self.set_standard_terminal_hint(None);
+                self.clear_active_view_state();
             }
             if matches!(update, ConditionalUpdate::NeedsRedraw) {
                 self.request_redraw();
@@ -774,6 +845,10 @@ impl BottomPane<'_> {
         self.composer.set_custom_prompts(prompts);
     }
 
+    pub(crate) fn set_subagent_commands(&mut self, names: Vec<String>) {
+        self.composer.set_subagent_commands(names);
+    }
+
     pub(crate) fn custom_prompts(&self) -> &[CustomPrompt] {
         &self.custom_prompts
     }
@@ -790,6 +865,7 @@ impl BottomPane<'_> {
     /// above the input composer is removed so the history can scroll into that
     /// row. This is typically toggled when the user scrolls up.
     pub(crate) fn set_compact_compose(&mut self, compact: bool) {
+        self.compact_compose = compact;
         let new_enabled = if self.force_top_spacer { true } else { !compact };
         if self.top_spacer_enabled != new_enabled {
             self.top_spacer_enabled = new_enabled;
@@ -802,8 +878,9 @@ impl BottomPane<'_> {
             return;
         }
         self.force_top_spacer = enabled;
-        if enabled && !self.top_spacer_enabled {
-            self.top_spacer_enabled = true;
+        let new_enabled = enabled || !self.compact_compose;
+        if self.top_spacer_enabled != new_enabled {
+            self.top_spacer_enabled = new_enabled;
             self.request_redraw();
         }
     }
@@ -894,10 +971,8 @@ impl BottomPane<'_> {
                     self.active_view = Some(view);
                     self.active_view_kind = kind;
                 } else {
-                    self.active_view_kind = ActiveViewKind::None;
-                    self.set_standard_terminal_hint(None);
+                    self.clear_active_view_state();
                 }
-                self.status_view_active = false;
             }
         }
     }
@@ -959,22 +1034,13 @@ impl BottomPane<'_> {
 
         // Otherwise create a new approval modal overlay.
         let modal = ApprovalModalView::new(request, ticket, self.app_event_tx.clone());
-        self.active_view = Some(Box::new(modal));
-        self.active_view_kind = ActiveViewKind::Other;
-        // Hide any overlay status while a modal is visible.
-        // Status shown in composer title now
-        self.status_view_active = false;
-        self.request_redraw()
+        self.set_other_view(modal, false)
     }
 
     /// Show the model selection UI
     pub fn show_model_selection(&mut self, params: ModelSelectionViewParams) {
         let view = ModelSelectionView::new(params, self.app_event_tx.clone());
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::ModelSelection;
-        // Status shown in composer title now
-        self.status_view_active = false;
-        self.request_redraw_with_height_change()
+        self.set_view(Box::new(view), ActiveViewKind::ModelSelection, true)
     }
 
     /// Show the shell selection UI
@@ -984,100 +1050,63 @@ impl BottomPane<'_> {
         shell_presets: Vec<ShellPreset>,
     ) {
         let view = ShellSelectionView::new(current_shell, shell_presets, self.app_event_tx.clone());
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::ShellSelection;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change()
+        self.set_view(Box::new(view), ActiveViewKind::ShellSelection, true)
     }
 
     /// Show the theme selection UI
     pub fn show_theme_selection(
         &mut self,
-        _current_theme: ThemeName,
+        current_theme: ThemeName,
         tail_ticket: BackgroundOrderTicket,
         before_ticket: BackgroundOrderTicket,
     ) {
         let view = ThemeSelectionView::new(
-            crate::theme::current_theme_name(),
+            current_theme,
             self.app_event_tx.clone(),
             tail_ticket,
             before_ticket,
         );
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        // Status shown in composer title now
-        self.status_view_active = false;
-        self.request_redraw_with_height_change()
+        self.set_other_view(view, true)
     }
 
     /// Show the verbosity selection UI
     pub fn show_verbosity_selection(&mut self, current_verbosity: TextVerbosity) {
         let view = VerbositySelectionView::new(current_verbosity, self.app_event_tx.clone());
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        // Status shown in composer title now
-        self.status_view_active = false;
-        self.request_redraw_with_height_change()
+        self.set_other_view(view, true)
     }
 
     /// Show a multi-line prompt input view (used for custom review instructions)
     pub fn show_custom_prompt(&mut self, view: CustomPromptView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub(crate) fn show_request_user_input(&mut self, view: RequestUserInputView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_view(Box::new(view), ActiveViewKind::RequestUserInput, true);
     }
 
     pub(crate) fn close_request_user_input_view(&mut self) {
-        let should_close = self
-            .active_view
-            .as_ref()
-            .and_then(|view| view.as_any())
-            .is_some_and(<dyn std::any::Any + 'static>::is::<RequestUserInputView>);
-        if !should_close {
+        if self.active_view_kind != ActiveViewKind::RequestUserInput {
             return;
         }
 
-        self.active_view = None;
-        self.active_view_kind = ActiveViewKind::None;
-        self.set_standard_terminal_hint(None);
-        self.status_view_active = false;
+        self.clear_active_view_state();
+        self.request_redraw_with_height_change();
     }
 
     pub(crate) fn clear_active_view(&mut self) {
-        self.active_view = None;
-        self.active_view_kind = ActiveViewKind::None;
-        self.set_standard_terminal_hint(None);
-        self.status_view_active = false;
+        self.clear_active_view_state();
     }
 
     /// Show a generic list selection popup with items and actions.
     pub fn show_list_selection(
         &mut self,
-        _title: String,
-        _subtitle: Option<String>,
-        _footer_hint: Option<String>,
         items: crate::bottom_pane::list_selection_view::ListSelectionView,
     ) {
-        self.active_view = Some(Box::new(items));
-        self.active_view_kind = ActiveViewKind::Other;
-        // Status shown in composer title now
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(items, true);
     }
 
     pub fn show_cloud_tasks(&mut self, view: CloudTasksView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     /// Show the resume selection UI with structured rows
@@ -1096,27 +1125,18 @@ impl BottomPane<'_> {
             action,
             self.app_event_tx.clone(),
         );
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change()
+        self.set_other_view(view, true)
     }
 
     pub fn show_undo_timeline_view(&mut self, view: UndoTimelineView) {
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     /// Show MCP servers status/toggle UI
     pub fn show_mcp_settings(&mut self, rows: crate::bottom_pane::mcp_settings_view::McpServerRows) {
         use mcp_settings_view::McpSettingsView;
         let view = McpSettingsView::new(rows, self.app_event_tx.clone());
-        self.active_view = Some(Box::new(view));
-        self.active_view_kind = ActiveViewKind::Other;
-        self.status_view_active = false;
-        self.request_redraw_with_height_change();
+        self.set_other_view(view, true);
     }
 
     pub(crate) fn show_auto_coordinator_view(&mut self, model: AutoCoordinatorViewModel) {
@@ -1124,6 +1144,7 @@ impl BottomPane<'_> {
             && self.active_view_kind == ActiveViewKind::AutoCoordinator
                 && let Some(existing_any) = existing.as_any_mut()
                     && let Some(auto_view) = existing_any.downcast_mut::<AutoCoordinatorView>() {
+                        self.pending_auto_coordinator = None;
                         auto_view.update_model(model);
                         auto_view.set_style(self.auto_drive_variant.style());
                         let status_text = self
@@ -1137,7 +1158,6 @@ impl BottomPane<'_> {
                             ComposerRenderMode::FooterOnly
                         };
                         self.composer.set_render_mode(mode);
-                        self.status_view_active = false;
                         self.composer.set_embedded_mode(false);
                         self.enable_auto_drive_style();
                         self.request_redraw();
@@ -1145,7 +1165,9 @@ impl BottomPane<'_> {
                     }
 
         if self.active_view.is_some() && self.active_view_kind != ActiveViewKind::AutoCoordinator {
+            self.pending_auto_coordinator = Some(model);
             self.composer.set_render_mode(ComposerRenderMode::Full);
+            self.enable_auto_drive_style();
             return;
         }
 
@@ -1164,9 +1186,9 @@ impl BottomPane<'_> {
         } else {
             ComposerRenderMode::FooterOnly
         };
+        self.pending_auto_coordinator = None;
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::AutoCoordinator;
-        self.status_view_active = false;
         self.composer.set_embedded_mode(false);
         self.composer.set_render_mode(mode);
         self.enable_auto_drive_style();
@@ -1175,10 +1197,7 @@ impl BottomPane<'_> {
 
     pub(crate) fn clear_auto_coordinator_view(&mut self, disable_style: bool) {
         if self.active_view_kind == ActiveViewKind::AutoCoordinator {
-            self.active_view = None;
-            self.active_view_kind = ActiveViewKind::None;
-            self.set_standard_terminal_hint(None);
-            self.status_view_active = false;
+            self.clear_active_view_state();
             self.composer.set_embedded_mode(false);
             self.composer.set_render_mode(ComposerRenderMode::Full);
             if disable_style {
@@ -1199,7 +1218,7 @@ impl BottomPane<'_> {
         self.disable_auto_drive_style();
     }
 
-    /// Height (terminal rows) required by the current bottom pane.
+    /// Sends a redraw request to the app event channel.
     pub(crate) fn request_redraw(&self) {
         self.app_event_tx.send(AppEvent::RequestRedraw)
     }
@@ -1211,13 +1230,7 @@ impl BottomPane<'_> {
     }
 
     pub(crate) fn update_model_selection_presets(&mut self, presets: Vec<ModelPreset>) {
-        let Some(view) = self.active_view.as_mut() else {
-            return;
-        };
-        let Some(model_view) = view
-            .as_any_mut()
-            .and_then(|any| any.downcast_mut::<ModelSelectionView>())
-        else {
+        let Some(model_view) = self.active_view_as::<ModelSelectionView>() else {
             return;
         };
 
@@ -1232,7 +1245,9 @@ impl BottomPane<'_> {
         self.composer.flash_footer_notice(text);
         // Ask app to schedule a redraw shortly to clear the notice automatically
         self.app_event_tx
-            .send(AppEvent::ScheduleFrameIn(std::time::Duration::from_millis(2100)));
+            .send(AppEvent::ScheduleFrameIn(
+                ChatComposer::DEFAULT_FOOTER_NOTICE_DURATION + Duration::from_millis(100),
+            ));
         self.request_redraw();
     }
 
@@ -1289,10 +1304,6 @@ impl BottomPane<'_> {
         self.request_redraw();
     }
 
-    pub(crate) fn clear_live_ring(&mut self) {}
-    
-    // test helper removed
-
     /// Ensure input focus is maintained, especially after redraws or content updates
     pub(crate) fn ensure_input_focus(&mut self) {
         // Only ensure focus if there's no active modal view
@@ -1309,40 +1320,17 @@ impl BottomPane<'_> {
     pub(crate) fn set_access_mode_label(&mut self, label: Option<String>) {
         self.composer.set_access_mode_label(label);
         // Hide the "(Shift+Tab change)" suffix after a short time for persistent modes.
-        // Avoid using a global frame scheduler which can be coalesced; instead spawn
-        // a tiny timer to request a redraw slightly after expiry.
         let dur = Duration::from_secs(4);
         self.composer.set_access_mode_hint_for(dur);
-        let tx = self.app_event_tx.clone();
-        let fallback_tx = self.app_event_tx.clone();
-        if thread_spawner::spawn_lightweight("access-hint", move || {
-            std::thread::sleep(dur + Duration::from_millis(120));
-            tx.send(AppEvent::RequestRedraw);
-        })
-        .is_none()
-        {
-            fallback_tx.send(AppEvent::RequestRedraw);
-        }
+        self.schedule_redraw_after(dur, "access-hint");
         self.request_redraw();
     }
 
     pub(crate) fn set_access_mode_label_ephemeral(&mut self, label: String, dur: Duration) {
         self.composer.set_access_mode_label_ephemeral(label, dur);
-        // Schedule a redraw after expiry without blocking other scheduled frames.
-        let tx = self.app_event_tx.clone();
-        let fallback_tx = self.app_event_tx.clone();
-        if thread_spawner::spawn_lightweight("access-hint-ephemeral", move || {
-            std::thread::sleep(dur + Duration::from_millis(120));
-            tx.send(AppEvent::RequestRedraw);
-        })
-        .is_none()
-        {
-            fallback_tx.send(AppEvent::RequestRedraw);
-        }
+        self.schedule_redraw_after(dur, "access-hint-ephemeral");
         self.request_redraw();
     }
-
-    // Removed restart_live_status_with_text – no longer used by the current streaming UI.
 }
 
 #[cfg(feature = "code-fork")]
@@ -1375,43 +1363,16 @@ impl WidgetRef for &BottomPane<'_> {
 
         let mut composer_rect = compute_composer_rect(area, self.top_spacer_enabled);
         let mut composer_needs_render = true;
-        let horizontal_padding = 1u16;
 
         if let Some(view) = &self.active_view
             && !view.is_complete() {
                 let is_auto = matches!(self.active_view_kind, ActiveViewKind::AutoCoordinator);
                 if is_auto {
-                    let content_width = area.width.saturating_sub(horizontal_padding * 2);
-                    let composer_visible = view
-                        .as_ref()
-                        .as_any()
-                        .and_then(|any| any.downcast_ref::<AutoCoordinatorView>())
-                        .map(auto_coordinator_view::AutoCoordinatorView::composer_visible)
-                        .unwrap_or(true);
-                    let composer_height = if composer_visible {
-                        self.composer.desired_height(area.width)
-                    } else {
-                        self.composer.footer_height()
-                    };
-                    let pad = BottomPane::BOTTOM_PAD_LINES;
-                    let max_view_height = area
-                        .height
-                        .saturating_sub(composer_height)
-                        .saturating_sub(pad);
-                    let desired_height = view.desired_height(content_width);
-                    let view_height = desired_height.min(max_view_height);
-
-                    if view_height > 0 {
-                        let view_rect = Rect {
-                            x: area.x + horizontal_padding,
-                            y: area.y,
-                            width: content_width,
-                            height: view_height,
-                        };
+                    if let Some(view_rect) = self.compute_active_view_rect(area, view.as_ref()) {
                         let view_bg = ratatui::style::Style::default().bg(crate::colors::background());
                         fill_rect(buf, view_rect, None, view_bg);
                         view.render(view_rect, buf);
-                        let remaining_height = area.height.saturating_sub(view_height);
+                        let remaining_height = area.height.saturating_sub(view_rect.height);
                         if remaining_height > 0 {
                             let composer_area = Rect {
                                 x: area.x,
@@ -1425,30 +1386,11 @@ impl WidgetRef for &BottomPane<'_> {
                         composer_rect = compute_composer_rect(area, self.top_spacer_enabled);
                     }
                 } else {
-                    let mut avail = area.height;
-                    if self.top_spacer_enabled && avail > 0 {
-                        avail = avail.saturating_sub(1);
-                    }
-                    if avail > 0 {
-                        let pad = BottomPane::BOTTOM_PAD_LINES.min(avail.saturating_sub(1));
-                        let view_height = avail.saturating_sub(pad);
-                        if view_height > 0 {
-                            let y_base = if self.top_spacer_enabled {
-                                area.y + 1
-                            } else {
-                                area.y
-                            };
-                            let view_rect = Rect {
-                                x: area.x + horizontal_padding,
-                                y: y_base,
-                                width: area.width.saturating_sub(horizontal_padding * 2),
-                                height: view_height,
-                            };
-                            let view_bg = ratatui::style::Style::default().bg(crate::colors::background());
-                            fill_rect(buf, view_rect, None, view_bg);
-                            view.render_with_composer(view_rect, buf, &self.composer);
-                            composer_needs_render = false;
-                        }
+                    if let Some(view_rect) = self.compute_active_view_rect(area, view.as_ref()) {
+                        let view_bg = ratatui::style::Style::default().bg(crate::colors::background());
+                        fill_rect(buf, view_rect, None, view_bg);
+                        view.render_with_composer(view_rect, buf, &self.composer);
+                        composer_needs_render = false;
                     }
                 }
             }
@@ -1463,7 +1405,7 @@ impl WidgetRef for &BottomPane<'_> {
 }
 
 fn compute_composer_rect(area: Rect, top_spacer_enabled: bool) -> Rect {
-    let horizontal_padding = 1u16;
+    let horizontal_padding = BottomPane::HORIZONTAL_PADDING;
     let mut y_offset = 0u16;
     if top_spacer_enabled {
         y_offset = y_offset.saturating_add(1);
@@ -1473,9 +1415,148 @@ fn compute_composer_rect(area: Rect, top_spacer_enabled: bool) -> Rect {
         BottomPane::BOTTOM_PAD_LINES.min(available.saturating_sub(1)),
     );
     Rect {
-        x: area.x + horizontal_padding,
-        y: area.y + y_offset,
+        x: area.x.saturating_add(horizontal_padding),
+        y: area.y.saturating_add(y_offset),
         width: area.width.saturating_sub(horizontal_padding * 2),
         height,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+    use std::any::Any;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    use std::sync::mpsc;
+
+    struct RecordingView {
+        last_mouse_area: Rc<RefCell<Option<Rect>>>,
+        ignored_on_ctrl_c: bool,
+    }
+
+    impl RecordingView {
+        fn new(last_mouse_area: Rc<RefCell<Option<Rect>>>) -> Self {
+            Self {
+                last_mouse_area,
+                ignored_on_ctrl_c: false,
+            }
+        }
+
+        fn with_ignored_ctrl_c() -> Self {
+            Self {
+                last_mouse_area: Rc::new(RefCell::new(None)),
+                ignored_on_ctrl_c: true,
+            }
+        }
+    }
+
+    impl<'a> BottomPaneView<'a> for RecordingView {
+        fn handle_mouse_event(
+            &mut self,
+            _pane: &mut BottomPane<'a>,
+            _mouse_event: MouseEvent,
+            area: Rect,
+        ) -> ConditionalUpdate {
+            *self.last_mouse_area.borrow_mut() = Some(area);
+            ConditionalUpdate::NeedsRedraw
+        }
+
+        fn handle_key_event_with_result(
+            &mut self,
+            pane: &mut BottomPane<'a>,
+            _key_event: KeyEvent,
+        ) -> ConditionalUpdate {
+            pane.clear_active_view();
+            ConditionalUpdate::NeedsRedraw
+        }
+
+        fn is_complete(&self) -> bool {
+            false
+        }
+
+        fn on_ctrl_c(&mut self, _pane: &mut BottomPane<'a>) -> CancellationEvent {
+            if self.ignored_on_ctrl_c {
+                CancellationEvent::Ignored
+            } else {
+                CancellationEvent::Handled
+            }
+        }
+
+        fn desired_height(&self, _width: u16) -> u16 {
+            4
+        }
+
+        fn render(&self, _area: Rect, _buf: &mut Buffer) {}
+
+        fn as_any(&self) -> Option<&dyn Any> {
+            Some(self)
+        }
+
+        fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
+            Some(self)
+        }
+    }
+
+    fn make_bottom_pane() -> BottomPane<'static> {
+        let (tx, _rx) = mpsc::channel();
+        BottomPane::new(BottomPaneParams {
+            app_event_tx: AppEventSender::new(tx),
+            has_input_focus: true,
+            using_chatgpt_auth: false,
+            auto_drive_variant: AutoDriveVariant::default(),
+        })
+    }
+
+    #[test]
+    fn mouse_events_use_rendered_view_rect() {
+        let last_mouse_area = Rc::new(RefCell::new(None));
+        let mut pane = make_bottom_pane();
+        pane.set_other_view(RecordingView::new(last_mouse_area.clone()), false);
+
+        let area = Rect::new(0, 0, 40, 10);
+        let mouse = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 3,
+            row: 3,
+            modifiers: crossterm::event::KeyModifiers::NONE,
+        };
+
+        let _ = pane.handle_mouse_event(mouse, area);
+
+        assert_eq!(
+            *last_mouse_area.borrow(),
+            Some(Rect::new(1, 1, 38, 8))
+        );
+    }
+
+    #[test]
+    fn callback_clear_does_not_reinsert_taken_view() {
+        let mut pane = make_bottom_pane();
+        pane.set_other_view(
+            RecordingView {
+                last_mouse_area: Rc::new(RefCell::new(None)),
+                ignored_on_ctrl_c: false,
+            },
+            false,
+        );
+
+        let _ = pane.handle_key_event(KeyEvent::from(KeyCode::Enter));
+
+        assert!(!pane.has_active_view());
+        assert_eq!(pane.active_view_kind, ActiveViewKind::None);
+    }
+
+    #[test]
+    fn ignored_ctrl_c_does_not_show_quit_hint() {
+        let mut pane = make_bottom_pane();
+        pane.set_other_view(RecordingView::with_ignored_ctrl_c(), false);
+
+        let event = pane.on_ctrl_c();
+
+        assert_eq!(event, CancellationEvent::Ignored);
+        assert!(pane.has_active_view());
+        assert!(!pane.ctrl_c_quit_hint_visible());
     }
 }

@@ -115,7 +115,7 @@ use crate::bottom_pane::list_selection_view::{ListSelectionView, SelectionItem};
 use crate::bottom_pane::CloudTasksView;
 use crate::bottom_pane::validation_settings_view;
 use crate::bottom_pane::validation_settings_view::{GroupStatus, ToolRow};
-use crate::bottom_pane::model_selection_view::ModelSelectionTarget;
+use crate::bottom_pane::ModelSelectionTarget;
 use crate::bottom_pane::BottomPane;
 use crate::bottom_pane::BottomPaneParams;
 use crate::bottom_pane::{UndoTimelineEntry, UndoTimelineEntryKind, UndoTimelineView};

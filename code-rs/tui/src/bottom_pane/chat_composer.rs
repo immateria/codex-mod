@@ -39,6 +39,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::thread;
+use std::thread::JoinHandle;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -50,6 +51,28 @@ const LARGE_PASTE_CHAR_THRESHOLD: usize = 1000;
 struct PostPasteSpaceGuard {
     expires_at: Instant,
     cursor_pos: usize,
+}
+
+struct AnimationThread {
+    running: Arc<AtomicBool>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl AnimationThread {
+    fn stop(&mut self) {
+        self.running.store(false, Ordering::Release);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+struct TokenCursorContext<'a> {
+    text: &'a str,
+    safe_cursor: usize,
+    after_cursor: &'a str,
+    start_idx: usize,
+    end_idx: usize,
 }
 
 fn parse_slash_name(line: &str) -> Option<(&str, &str)> {
@@ -86,7 +109,6 @@ pub(crate) enum ComposerRenderMode {
 }
 
 struct TokenUsageInfo {
-    _total_token_usage: TokenUsage,
     last_token_usage: TokenUsage,
     model_context_window: Option<u64>,
     context_mode: Option<ContextMode>,
@@ -176,9 +198,10 @@ pub(crate) struct ChatComposer {
     // Current status message to display when task is running
     status_message: String,
     // Animation thread for spinning icon when task is running
-    animation_running: Option<Arc<AtomicBool>>,
+    animation_running: Option<AnimationThread>,
     using_chatgpt_auth: bool,
     custom_prompts: Vec<CustomPrompt>,
+    subagent_commands: Vec<String>,
     // Ephemeral footer notice and its expiry
     footer_notice: Option<(String, std::time::Instant)>,
     // Persistent hint for specific modes (e.g., standard terminal mode)
@@ -224,6 +247,9 @@ enum FilePopupOrigin {
 }
 
 impl ChatComposer {
+    pub(crate) const DEFAULT_FOOTER_NOTICE_DURATION: std::time::Duration =
+        std::time::Duration::from_secs(2);
+
     pub fn new(
         has_input_focus: bool,
         app_event_tx: AppEventSender,
@@ -251,6 +277,7 @@ impl ChatComposer {
             animation_running: None,
             using_chatgpt_auth,
             custom_prompts: Vec::new(),
+            subagent_commands: Vec::new(),
             footer_notice: None,
             standard_terminal_hint: None,
             auto_review_status: None,
@@ -275,6 +302,18 @@ impl ChatComposer {
 
     pub fn set_using_chatgpt_auth(&mut self, using: bool) {
         self.using_chatgpt_auth = using;
+    }
+
+    pub(crate) fn set_subagent_commands(&mut self, mut names: Vec<String>) {
+        names.retain(|n| {
+            let lower = n.to_ascii_lowercase();
+            lower != "plan" && lower != "solve" && lower != "code"
+        });
+        names.sort();
+        self.subagent_commands = names;
+        if let ActivePopup::Command(popup) = &mut self.active_popup {
+            popup.set_subagent_commands(self.subagent_commands.clone());
+        }
     }
 
     pub(crate) fn set_auto_review_status(&mut self, status: Option<AutoReviewFooterStatus>) {
@@ -328,7 +367,7 @@ impl ChatComposer {
                 // reduce perceived frame skipping under load. We purposely
                 // avoid very small intervals to keep CPU impact low.
                 let fallback_tx = self.app_event_tx.clone();
-                if thread_spawner::spawn_lightweight("composer-anim", move || {
+                if let Some(handle) = thread_spawner::spawn_lightweight("composer-anim", move || {
                     use std::time::Instant;
                     // Default to ~120ms if spinner state is not yet initialized
                     let default_ms: u64 = 120;
@@ -350,7 +389,7 @@ impl ChatComposer {
                         .checked_add(if period_ms == 0 { Duration::from_millis(default_ms) } else { period })
                         .unwrap_or_else(Instant::now);
 
-                    while animation_flag_clone.load(Ordering::Relaxed) {
+                    while animation_flag_clone.load(Ordering::Acquire) {
                         let now = Instant::now();
                         if now < next {
                             let sleep_dur = next - now;
@@ -367,19 +406,20 @@ impl ChatComposer {
                             next = target;
                         }
                     }
-                })
-                .is_none()
-                {
-                    animation_flag.store(false, Ordering::Relaxed);
-                    fallback_tx.send(crate::app_event::AppEvent::RequestRedraw);
+                }) {
+                    self.animation_running = Some(AnimationThread {
+                        running: animation_flag,
+                        handle: Some(handle),
+                    });
                 } else {
-                    self.animation_running = Some(animation_flag);
+                    animation_flag.store(false, Ordering::Release);
+                    fallback_tx.send(crate::app_event::AppEvent::RequestRedraw);
                 }
             }
         } else {
             // Stop animation thread
-            if let Some(animation_flag) = self.animation_running.take() {
-                animation_flag.store(false, Ordering::Relaxed);
+            if let Some(mut animation_thread) = self.animation_running.take() {
+                animation_thread.stop();
             }
         }
     }
@@ -398,7 +438,7 @@ impl ChatComposer {
     }
 
     pub fn flash_footer_notice(&mut self, text: String) {
-        let expiry = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        let expiry = std::time::Instant::now() + Self::DEFAULT_FOOTER_NOTICE_DURATION;
         self.footer_notice = Some((text, expiry));
     }
 
@@ -487,7 +527,7 @@ impl ChatComposer {
             return String::new();
         }
 
-        let lower = technical_message.to_lowercase();
+        let lower = technical_message.to_ascii_lowercase();
 
         // Auto Review: preserve the phase text so the footer shows
         // "Auto Review: Reviewing/Resolving" instead of a generic label.
@@ -508,7 +548,6 @@ impl ChatComposer {
             || lower.contains("thinking")
             || lower.contains("planning")
             || lower.contains("waiting for model")
-            || lower.contains("model")
         {
             "Thinking".to_string()
         }
@@ -589,46 +628,21 @@ impl ChatComposer {
     }
 
     pub fn desired_height(&self, width: u16) -> u16 {
-        // Calculate hint/popup height
-        let hint_height = match (&self.active_popup, self.embedded_mode) {
-            (ActivePopup::Command(c), _) => c.calculate_required_height(),
-            (ActivePopup::File(c), _) => c.calculate_required_height(),
-            (ActivePopup::None, true) => 0,
-            (ActivePopup::None, false) => 1,
-        };
+        if self.render_mode == ComposerRenderMode::FooterOnly {
+            return self.footer_height();
+        }
 
-        // IMPORTANT: `width` here is the full BottomPane width. Subtract the
-        // configured outer padding, border, and inner padding to match wrapping.
-        let content_width = width.saturating_sub(crate::layout_consts::COMPOSER_CONTENT_WIDTH_OFFSET);
-        let content_lines = self.textarea.desired_height(content_width).max(1); // At least 1 line
-
-        // Total input height: content + border (2) only, no vertical padding
-        // Minimum of 3 ensures at least 1 visible line with border
-        let input_height = (content_lines + 2).max(3);
-
+        let hint_height = self.footer_height();
+        let input_height = self.desired_input_height(width);
         input_height + hint_height
     }
 
     pub fn cursor_pos(&self, area: Rect) -> Option<(u16, u16)> {
-        // Split area: textarea with border at top, hints/popup at bottom
-        let hint_height = match (&self.active_popup, self.embedded_mode) {
-            (ActivePopup::Command(popup), _) => popup.calculate_required_height(),
-            (ActivePopup::File(popup), _) => popup.calculate_required_height(),
-            (ActivePopup::None, true) => 0,
-            (ActivePopup::None, false) => 1,
-        };
-        // Calculate dynamic height based on content
-        let content_width = area.width.saturating_sub(4); // Account for border and padding
-        let content_lines = self.textarea.desired_height(content_width).max(1);
-        let desired_input_height = (content_lines + 2).max(3); // Parent layout enforces max
+        if self.render_mode == ComposerRenderMode::FooterOnly {
+            return None;
+        }
 
-        // Use desired height but don't exceed available space
-        let input_height = desired_input_height.min(area.height.saturating_sub(hint_height));
-        let [input_area, _] = Layout::vertical([
-            Constraint::Length(input_height),
-            Constraint::Length(hint_height),
-        ])
-        .areas(area);
+        let (input_area, _) = self.layout_areas(area)?;
 
         // Get inner area of the bordered input box
         let input_block = Block::default().borders(Borders::ALL);
@@ -642,6 +656,41 @@ impl ChatComposer {
             .cursor_pos_with_state(padded_textarea_rect, *state)
     }
 
+    fn desired_input_height(&self, width: u16) -> u16 {
+        let content_width = width
+            .saturating_sub(crate::layout_consts::COMPOSER_CONTENT_WIDTH_OFFSET);
+        let content_lines = self.textarea.desired_height(content_width).max(1);
+        (content_lines + 2).max(3)
+    }
+
+    fn layout_areas(&self, area: Rect) -> Option<(Rect, Option<Rect>)> {
+        let footer_height = self.footer_height();
+        let desired_input_height = self.desired_input_height(area.width);
+        let available_height = area.height.saturating_sub(footer_height);
+        if available_height == 0 {
+            return None;
+        }
+        let input_height = desired_input_height.min(available_height);
+        if footer_height == 0 {
+            Some((
+                Rect {
+                    x: area.x,
+                    y: area.y,
+                    width: area.width,
+                    height: available_height,
+                },
+                None,
+            ))
+        } else {
+            let [input_area, footer_area] = Layout::vertical([
+                Constraint::Length(input_height),
+                Constraint::Length(footer_height),
+            ])
+            .areas(area);
+            Some((input_area, Some(footer_area)))
+        }
+    }
+
     /// Returns true if the composer currently contains no user input.
     pub(crate) fn is_empty(&self) -> bool {
         self.textarea.is_empty()
@@ -652,7 +701,7 @@ impl ChatComposer {
     /// context when the composer is empty.
     pub(crate) fn set_token_usage(
         &mut self,
-        total_token_usage: TokenUsage,
+        _total_token_usage: TokenUsage,
         last_token_usage: TokenUsage,
         model_context_window: Option<u64>,
         context_mode: Option<ContextMode>,
@@ -664,7 +713,6 @@ impl ChatComposer {
             .unwrap_or_else(|| last_token_usage.cached_input_tokens);
 
         self.token_usage_info = Some(TokenUsageInfo {
-            _total_token_usage: total_token_usage,
             last_token_usage,
             model_context_window,
             context_mode,
@@ -708,7 +756,6 @@ impl ChatComposer {
 
     pub fn handle_paste(&mut self, pasted: String) -> bool {
         self.post_paste_space_guard = None;
-        let char_count = pasted.chars().count();
         // If the pasted text looks like a base64/data-URI image, decode it and insert as a path.
         if let Ok((path, info)) = try_decode_base64_image_to_temp_png(&pasted) {
             let filename = path
@@ -723,12 +770,18 @@ impl ChatComposer {
             self.app_event_tx
                 .send(crate::app_event::AppEvent::RegisterPastedImage { placeholder: placeholder.clone(), path });
             self.flash_footer_notice(format!("Added image {}x{} (PNG)", info.width, info.height));
-        } else if char_count > LARGE_PASTE_CHAR_THRESHOLD {
-            let placeholder = format!("[Pasted Content {char_count} chars]");
-            self.textarea.insert_str(&placeholder);
-            self.pending_pastes.push((placeholder, pasted));
-            self.typed_anything = true; // Mark that user has interacted via paste
-        } else if self.handle_paste_image_path(pasted.clone()) {
+        } else if pasted.len() > LARGE_PASTE_CHAR_THRESHOLD {
+            let char_count = pasted.chars().count();
+            if char_count > LARGE_PASTE_CHAR_THRESHOLD {
+                let placeholder = format!("[Pasted Content {char_count} chars]");
+                self.textarea.insert_str(&placeholder);
+                self.pending_pastes.push((placeholder, pasted));
+                self.typed_anything = true; // Mark that user has interacted via paste
+            } else {
+                self.textarea.insert_str(&pasted);
+                self.typed_anything = true; // Mark that user has interacted via paste
+            }
+        } else if self.handle_paste_image_path(&pasted) {
             self.textarea.insert_str(" ");
             self.typed_anything = true; // Mark that user has interacted via paste
         } else if pasted.trim().is_empty() {
@@ -773,8 +826,8 @@ impl ChatComposer {
     /// filesystem path (including file:// URLs and Windows paths), insert the
     /// normalized path directly into the composer and return true. The caller
     /// will add a trailing space to separate from subsequent input.
-    fn handle_paste_image_path(&mut self, pasted: String) -> bool {
-        if let Some(path) = normalize_pasted_path(&pasted) {
+    fn handle_paste_image_path(&mut self, pasted: &str) -> bool {
+        if let Some(path) = normalize_pasted_path(pasted) {
             // Insert the normalized path verbatim. We don't attempt to load the
             // file or special-case images here; higher layers handle attachments.
             self.textarea.insert_str(&path.to_string_lossy());
@@ -1190,10 +1243,10 @@ impl ChatComposer {
         };
 
         let command_text = self.textarea.text().to_string();
-        self.history.record_local_submission(&command_text);
 
         match sel {
             CommandItem::Builtin(cmd) => {
+                self.history.record_local_submission(&command_text);
                 if cmd.is_prompt_expanding() {
                     self.app_event_tx.send(crate::app_event::AppEvent::PrepareAgents);
                 }
@@ -1204,6 +1257,7 @@ impl ChatComposer {
                 (InputResult::Command(cmd), true)
             }
             CommandItem::UserPrompt(idx) => {
+                self.history.record_local_submission(&command_text);
                 let prompt_content = popup.prompt(idx).map(|p| p.content.clone());
                 self.textarea.set_text("");
                 self.active_popup = ActivePopup::None;
@@ -1349,53 +1403,12 @@ impl ChatComposer {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                if let Some(sel) = popup.selected_item() {
-                    let command_text = self.textarea.text().to_string();
-                    self.history.record_local_submission(&command_text);
-
-                    match sel {
-                        CommandItem::Builtin(cmd) => {
-                            if cmd.is_prompt_expanding() {
-                                self.app_event_tx.send(crate::app_event::AppEvent::PrepareAgents);
-                            }
-                            self.app_event_tx
-                                .send(crate::app_event::AppEvent::DispatchCommand(cmd, command_text.clone()));
-                            self.textarea.set_text("");
-                            self.active_popup = ActivePopup::None;
-                            return (InputResult::Command(cmd), true);
-                        }
-                        CommandItem::UserPrompt(idx) => {
-                            let prompt_content = popup
-                                .prompt(idx)
-                                .map(|p| p.content.clone());
-                            self.textarea.set_text("");
-                            self.active_popup = ActivePopup::None;
-                            if let Some(contents) = prompt_content {
-                                return (InputResult::Submitted(contents), true);
-                            }
-                            return (InputResult::None, true);
-                        }
-                        CommandItem::Subagent(i) => {
-                            if let Some(name) = popup.subagent_name(i) {
-                                let first_line = command_text.lines().next().unwrap_or("");
-                                let starts_with = first_line
-                                    .trim_start()
-                                    .starts_with(&format!("/{name}"));
-                                if starts_with {
-                                    self.active_popup = ActivePopup::None;
-                                    return self
-                                        .handle_key_event_without_popup(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-                                }
-                                self.textarea.set_text(&format!("/{name} "));
-                                let new_cursor = self.textarea.text().len();
-                                self.textarea.set_cursor(new_cursor);
-                                return (InputResult::None, true);
-                            }
-                            return (InputResult::None, true);
-                        }
-                    }
+                let result = self.confirm_slash_popup_selection();
+                if result.1 {
+                    result
+                } else {
+                    self.handle_key_event_without_popup(key_event)
                 }
-                self.handle_key_event_without_popup(key_event)
             }
             input => self.handle_input_basic(input),
         }
@@ -1403,16 +1416,33 @@ impl ChatComposer {
 
     #[inline]
     fn clamp_to_char_boundary(text: &str, pos: usize) -> usize {
-        let mut p = pos.min(text.len());
-        if p < text.len() && !text.is_char_boundary(p) {
-            p = text
-                .char_indices()
-                .map(|(i, _)| i)
-                .take_while(|&i| i <= p)
-                .last()
-                .unwrap_or(0);
+        text.floor_char_boundary(pos.min(text.len()))
+    }
+
+    fn token_cursor_context(textarea: &TextArea) -> TokenCursorContext<'_> {
+        let text = textarea.text();
+        let safe_cursor = Self::clamp_to_char_boundary(text, textarea.cursor());
+        let before_cursor = &text[..safe_cursor];
+        let after_cursor = &text[safe_cursor..];
+        let start_idx = before_cursor
+            .char_indices()
+            .rfind(|(_, c)| c.is_whitespace())
+            .map(|(idx, c)| idx + c.len_utf8())
+            .unwrap_or(0);
+        let end_rel_idx = after_cursor
+            .char_indices()
+            .find(|(_, c)| c.is_whitespace())
+            .map(|(idx, _)| idx)
+            .unwrap_or(after_cursor.len());
+        let end_idx = safe_cursor + end_rel_idx;
+
+        TokenCursorContext {
+            text,
+            safe_cursor,
+            after_cursor,
+            start_idx,
+            end_idx,
         }
-        p
     }
 
     /// Handle key events when file search popup is visible.
@@ -1463,18 +1493,7 @@ impl ChatComposer {
                 code: KeyCode::Enter,
                 modifiers: KeyModifiers::NONE,
                 ..
-            } => {
-                if let Some(sel) = popup.selected_match() {
-                    let sel_path = sel.to_string();
-                    // Drop popup borrow before using self mutably again.
-                    self.insert_selected_path(&sel_path);
-                    self.active_popup = ActivePopup::None;
-                    self.file_popup_origin = None;
-                    self.current_file_query = None;
-                    return (InputResult::None, true);
-                }
-                (InputResult::None, false)
-            }
+            } => self.confirm_file_popup_selection(),
             input => self.handle_input_basic(input),
         }
     }
@@ -1491,29 +1510,11 @@ impl ChatComposer {
     ///   returned without the leading `@`. This includes the case where the
     ///   token is just "@" (empty query), which is used to trigger a UI hint
     fn current_at_token(textarea: &TextArea) -> Option<String> {
-        let cursor_offset = textarea.cursor();
-        let text = textarea.text();
-
-        // Adjust the provided byte offset to the nearest valid char boundary at or before it.
-        let mut safe_cursor = cursor_offset.min(text.len());
-        // If we're not on a char boundary, move back to the start of the current char.
-        if safe_cursor < text.len() && !text.is_char_boundary(safe_cursor) {
-            // Find the last valid boundary <= cursor_offset.
-            safe_cursor = text
-                .char_indices()
-                .map(|(i, _)| i)
-                .take_while(|&i| i <= cursor_offset)
-                .last()
-                .unwrap_or(0);
-        }
-
-        // Split the line around the (now safe) cursor position.
-        let before_cursor = &text[..safe_cursor];
-        let after_cursor = &text[safe_cursor..];
+        let ctx = Self::token_cursor_context(textarea);
 
         // Detect whether we're on whitespace at the cursor boundary.
-        let at_whitespace = if safe_cursor < text.len() {
-            text[safe_cursor..]
+        let at_whitespace = if ctx.safe_cursor < ctx.text.len() {
+            ctx.text[ctx.safe_cursor..]
                 .chars()
                 .next()
                 .map(char::is_whitespace)
@@ -1523,38 +1524,28 @@ impl ChatComposer {
         };
 
         // Left candidate: token containing the cursor position.
-        let start_left = before_cursor
-            .char_indices()
-            .rfind(|(_, c)| c.is_whitespace())
-            .map(|(idx, c)| idx + c.len_utf8())
-            .unwrap_or(0);
-        let end_left_rel = after_cursor
-            .char_indices()
-            .find(|(_, c)| c.is_whitespace())
-            .map(|(idx, _)| idx)
-            .unwrap_or(after_cursor.len());
-        let end_left = safe_cursor + end_left_rel;
-        let token_left = if start_left < end_left {
-            Some(&text[start_left..end_left])
+        let token_left = if ctx.start_idx < ctx.end_idx {
+            Some(&ctx.text[ctx.start_idx..ctx.end_idx])
         } else {
             None
         };
 
         // Right candidate: token immediately after any whitespace from the cursor.
-        let ws_len_right: usize = after_cursor
+        let ws_len_right: usize = ctx
+            .after_cursor
             .chars()
             .take_while(|c| c.is_whitespace())
             .map(char::len_utf8)
             .sum();
-        let start_right = safe_cursor + ws_len_right;
-        let end_right_rel = text[start_right..]
+        let start_right = ctx.safe_cursor + ws_len_right;
+        let end_right_rel = ctx.text[start_right..]
             .char_indices()
             .find(|(_, c)| c.is_whitespace())
             .map(|(idx, _)| idx)
-            .unwrap_or(text.len() - start_right);
+            .unwrap_or(ctx.text.len() - start_right);
         let end_right = start_right + end_right_rel;
         let token_right = if start_right < end_right {
-            Some(&text[start_right..end_right])
+            Some(&ctx.text[start_right..end_right])
         } else {
             None
         };
@@ -1575,7 +1566,7 @@ impl ChatComposer {
             }
             return left_at;
         }
-        if after_cursor.starts_with('@') {
+        if ctx.after_cursor.starts_with('@') {
             return right_at.or(left_at);
         }
         left_at.or(right_at)
@@ -1597,39 +1588,12 @@ impl ChatComposer {
 
         // Otherwise, consider the generic token under the cursor, but only
         // auto-trigger for tokens starting with "./".
-        let cursor_offset = textarea.cursor();
-        let text = textarea.text();
-
-        let mut safe_cursor = cursor_offset.min(text.len());
-        if safe_cursor < text.len() && !text.is_char_boundary(safe_cursor) {
-            safe_cursor = text
-                .char_indices()
-                .map(|(i, _)| i)
-                .take_while(|&i| i <= cursor_offset)
-                .last()
-                .unwrap_or(0);
-        }
-
-        let before_cursor = &text[..safe_cursor];
-        let after_cursor = &text[safe_cursor..];
-
-        let start_idx = before_cursor
-            .char_indices()
-            .rfind(|(_, c)| c.is_whitespace())
-            .map(|(idx, c)| idx + c.len_utf8())
-            .unwrap_or(0);
-        let end_rel_idx = after_cursor
-            .char_indices()
-            .find(|(_, c)| c.is_whitespace())
-            .map(|(idx, _)| idx)
-            .unwrap_or(after_cursor.len());
-        let end_idx = safe_cursor + end_rel_idx;
-
-        if start_idx >= end_idx {
+        let ctx = Self::token_cursor_context(textarea);
+        if ctx.start_idx >= ctx.end_idx {
             return None;
         }
 
-        let token = &text[start_idx..end_idx];
+        let token = &ctx.text[ctx.start_idx..ctx.end_idx];
 
         // Strip a leading '@' if the user typed it but we didn't catch it
         // (paranoia; current_at_token should have handled this case).
@@ -1645,37 +1609,12 @@ impl ChatComposer {
     /// Extract the generic token under the cursor (no special rules).
     /// Used for Tab-triggered one-off file searches.
     fn current_generic_token(textarea: &TextArea) -> Option<String> {
-        let cursor_offset = textarea.cursor();
-        let text = textarea.text();
-
-        let mut safe_cursor = cursor_offset.min(text.len());
-        if safe_cursor < text.len() && !text.is_char_boundary(safe_cursor) {
-            safe_cursor = text
-                .char_indices()
-                .map(|(i, _)| i)
-                .take_while(|&i| i <= cursor_offset)
-                .last()
-                .unwrap_or(0);
+        let ctx = Self::token_cursor_context(textarea);
+        if ctx.start_idx >= ctx.end_idx {
+            return None;
         }
 
-        let before_cursor = &text[..safe_cursor];
-        let after_cursor = &text[safe_cursor..];
-
-        let start_idx = before_cursor
-            .char_indices()
-            .rfind(|(_, c)| c.is_whitespace())
-            .map(|(idx, c)| idx + c.len_utf8())
-            .unwrap_or(0);
-        let end_rel_idx = after_cursor
-            .char_indices()
-            .find(|(_, c)| c.is_whitespace())
-            .map(|(idx, _)| idx)
-            .unwrap_or(after_cursor.len());
-        let end_idx = safe_cursor + end_rel_idx;
-
-        if start_idx >= end_idx { return None; }
-
-        Some(text[start_idx..end_idx].trim().to_string())
+        Some(ctx.text[ctx.start_idx..ctx.end_idx].trim().to_string())
     }
 
     /// Replace the active `@token` (the one under the cursor) with `path`.
@@ -1710,8 +1649,8 @@ impl ChatComposer {
         // local prompt arg parser treats it as a single argument. Avoid adding
         // quotes when the path already contains one to keep behavior simple.
         let needs_quotes = path.chars().any(char::is_whitespace);
-        let inserted = if needs_quotes && !path.contains('"') {
-            format!("\"{path}\"")
+        let inserted = if needs_quotes {
+            format!("\"{}\"", path.replace('"', "\\\""))
         } else {
             path.to_string()
         };
@@ -2077,20 +2016,8 @@ impl ChatComposer {
                     if !self.custom_prompts.is_empty() {
                         command_popup.set_prompts(self.custom_prompts.clone());
                     }
-                    // Load saved subagent commands to include in autocomplete (exclude built-ins)
-                    if let Ok(cfg) = code_core::config::Config::load_with_cli_overrides(vec![], code_core::config::ConfigOverrides::default()) {
-                        let mut names: Vec<String> = cfg
-                            .subagent_commands
-                            .iter()
-                            .map(|c| c.name.clone())
-                            .filter(|n| {
-                                let l = n.to_ascii_lowercase();
-                                l != "plan" && l != "solve" && l != "code"
-                            })
-                            .collect();
-                        // Stable sort for presentation
-                        names.sort();
-                        command_popup.set_subagent_commands(names);
+                    if !self.subagent_commands.is_empty() {
+                        command_popup.set_subagent_commands(self.subagent_commands.clone());
                     }
                     command_popup.on_composer_text_change(first_line.to_string());
                     self.active_popup = ActivePopup::Command(command_popup);
@@ -2102,9 +2029,9 @@ impl ChatComposer {
     }
 
     pub(crate) fn set_custom_prompts(&mut self, prompts: Vec<CustomPrompt>) {
-        self.custom_prompts = prompts.clone();
+        self.custom_prompts = prompts;
         if let ActivePopup::Command(popup) = &mut self.active_popup {
-            popup.set_prompts(prompts);
+            popup.set_prompts(self.custom_prompts.clone());
         }
     }
 
@@ -2465,6 +2392,8 @@ impl ChatComposer {
                     return;
                 }
 
+                let now = Instant::now();
+
                 let key_hint_style = Style::default().fg(crate::colors::function());
                 let label_style = Style::default().fg(crate::colors::text_dim());
 
@@ -2536,7 +2465,7 @@ impl ChatComposer {
 
                 // Access mode label + hint (misc left, removable priority 6)
                 let show_access_label = if let Some(until) = self.access_mode_label_expiry {
-                    std::time::Instant::now() <= until
+                    now <= until
                 } else {
                     true
                 };
@@ -2545,7 +2474,7 @@ impl ChatComposer {
                     && let Some(label) = &self.access_mode_label {
                         left_misc_before_ctrlc.push(Span::from(label.clone()).style(label_style));
                         let show_suffix = if let Some(until) = self.access_mode_hint_expiry {
-                            std::time::Instant::now() <= until
+                            now <= until
                         } else {
                             self.access_mode_label_expiry.is_some()
                         };
@@ -2614,7 +2543,7 @@ impl ChatComposer {
                 }
 
                 if let Some((msg, until)) = &self.footer_notice
-                    && std::time::Instant::now() <= *until {
+                    && now <= *until {
                         if !left_misc_after_ctrlc.is_empty() {
                             left_misc_after_ctrlc.push(Span::from("   "));
                         }
@@ -2962,6 +2891,14 @@ impl ChatComposer {
     }
 }
 
+impl Drop for ChatComposer {
+    fn drop(&mut self) {
+        if let Some(mut animation_thread) = self.animation_running.take() {
+            animation_thread.stop();
+        }
+    }
+}
+
 impl WidgetRef for ChatComposer {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
         if self.render_mode == ComposerRenderMode::FooterOnly {
@@ -2979,35 +2916,8 @@ impl WidgetRef for ChatComposer {
             return;
         }
 
-        let footer_height = self.footer_height();
-
-        let content_width = area.width.saturating_sub(4);
-        let content_lines = self.textarea.desired_height(content_width).max(1);
-        let desired_input_height = (content_lines + 2).max(3);
-
-        let available_height = area.height.saturating_sub(footer_height);
-        if available_height == 0 {
+        let Some((input_area, footer_area)) = self.layout_areas(area) else {
             return;
-        }
-        let input_height = desired_input_height.min(available_height);
-
-        let (input_area, footer_area) = if footer_height == 0 {
-            (
-                Rect {
-                    x: area.x,
-                    y: area.y,
-                    width: area.width,
-                    height: available_height,
-                },
-                None,
-            )
-        } else {
-            let [input_area, footer_area] = Layout::vertical([
-                Constraint::Length(input_height),
-                Constraint::Length(footer_height),
-            ])
-            .areas(area);
-            (input_area, Some(footer_area))
         };
 
         if let Some(area) = footer_area {
@@ -3077,7 +2987,10 @@ impl WidgetRef for ChatComposer {
         }
 
         // Add padding inside the text area (1 char horizontal only, no vertical padding)
-        let padded_textarea_rect = textarea_rect.inner(Margin::new(1, 0));
+        let padded_textarea_rect = textarea_rect.inner(Margin::new(
+            crate::layout_consts::COMPOSER_INNER_HPAD,
+            0,
+        ));
         // Cache the textarea rect for mouse click-to-cursor positioning
         *self.last_textarea_rect.borrow_mut() = Some(padded_textarea_rect);
 
@@ -3400,6 +3313,66 @@ mod tests {
         assert_eq!(
             ChatComposer::map_status_message("waiting for user input"),
             "Working".to_string()
+        );
+        assert_eq!(
+            ChatComposer::map_status_message("chat completions model"),
+            "Responding".to_string()
+        );
+    }
+
+    #[test]
+    fn subagent_popup_prefill_does_not_record_submission_history() {
+        let (tx, _rx) = std::sync::mpsc::channel::<AppEvent>();
+        let app_tx = AppEventSender::new(tx);
+        let mut composer = ChatComposer::new(true, app_tx, true);
+        composer.set_subagent_commands(vec!["qwertyagent".to_string()]);
+        composer.textarea.set_text("/qwe");
+        composer.sync_command_popup();
+
+        let (result, handled) = composer.confirm_slash_popup_selection();
+
+        assert_eq!(result, InputResult::None);
+        assert!(handled);
+        assert_eq!(composer.textarea.text(), "/qwertyagent ");
+        composer.textarea.set_text("");
+        assert!(!composer.try_history_up());
+    }
+
+    #[test]
+    fn footer_only_mode_uses_footer_height_and_hides_cursor() {
+        let (tx, _rx) = std::sync::mpsc::channel::<AppEvent>();
+        let app_tx = AppEventSender::new(tx);
+        let mut composer = ChatComposer::new(true, app_tx, true);
+        composer.set_render_mode(ComposerRenderMode::FooterOnly);
+        composer.standard_terminal_hint = Some("Terminal mode".to_string());
+        composer.active_popup = ActivePopup::Command(CommandPopup::new_with_filter(true));
+
+        assert_eq!(composer.footer_height(), 1);
+        assert_eq!(composer.desired_height(80), 1);
+        assert_eq!(
+            composer.cursor_pos(Rect {
+                x: 0,
+                y: 0,
+                width: 80,
+                height: 3,
+            }),
+            None
+        );
+    }
+
+    #[test]
+    fn insert_selected_path_quotes_and_escapes_internal_quotes() {
+        let (tx, _rx) = std::sync::mpsc::channel::<AppEvent>();
+        let app_tx = AppEventSender::new(tx);
+        let mut composer = ChatComposer::new(true, app_tx, true);
+        composer.textarea.set_text("@fi");
+        composer.textarea.set_cursor(3);
+
+        composer.insert_selected_path("/tmp/my \"quoted\" file.txt");
+
+        assert_eq!(
+            composer.textarea.text(),
+            "\"/tmp/my \\\"quoted\\\" file.txt\" "
         );
     }
 }

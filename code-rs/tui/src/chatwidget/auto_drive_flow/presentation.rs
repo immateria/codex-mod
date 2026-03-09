@@ -8,7 +8,6 @@ impl ChatWidget<'_> {
                 return;
             }
             if let Some(summary) = self.auto_state.last_run_summary.clone() {
-                self.bottom_pane.clear_live_ring();
                 self.auto_reset_intro_timing();
                 self.auto_ensure_intro_timing();
                 let mut status_lines: Vec<String> = Vec::new();
@@ -58,7 +57,6 @@ impl ChatWidget<'_> {
         }
 
         self.bottom_pane.clear_auto_coordinator_view(true);
-        self.bottom_pane.clear_live_ring();
         self.bottom_pane.set_standard_terminal_hint(None);
         self.auto_reset_intro_timing();
         return;
@@ -72,12 +70,9 @@ impl ChatWidget<'_> {
 
     if self.auto_state.is_paused_manual() {
         self.bottom_pane.clear_auto_coordinator_view(false);
-        self.bottom_pane.clear_live_ring();
         self.bottom_pane.set_standard_terminal_hint(None);
         return;
     }
-
-        self.bottom_pane.clear_live_ring();
 
         let status_text = if self.auto_state.awaiting_review() {
             "waiting for code review...".to_string()
