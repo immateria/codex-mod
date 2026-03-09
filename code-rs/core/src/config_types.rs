@@ -229,6 +229,29 @@ pub enum OtelHttpProtocol {
     Json,
 }
 
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Display,
+    JsonSchema,
+    Default,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum ContextMode {
+    #[serde(rename = "1m")]
+    #[strum(serialize = "1m")]
+    OneM,
+    #[default]
+    Auto,
+    Disabled,
+}
+
 #[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum OtelExporterKind {

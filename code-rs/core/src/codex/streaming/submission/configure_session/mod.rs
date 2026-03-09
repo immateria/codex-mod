@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::config_types::McpServerConfig;
+use crate::config_types::ContextMode as ContextModeConfig;
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use crate::config_types::ServiceTier;
@@ -58,6 +59,9 @@ pub(super) async fn handle_configure_session(
         model_reasoning_summary,
         model_text_verbosity,
         service_tier,
+        context_mode,
+        model_context_window,
+        model_auto_compact_token_limit,
         user_instructions: provided_user_instructions,
         base_instructions: provided_base_instructions,
         approval_policy,
@@ -90,6 +94,9 @@ pub(super) async fn handle_configure_session(
         model_reasoning_summary,
         model_text_verbosity,
         service_tier,
+        context_mode,
+        model_context_window,
+        model_auto_compact_token_limit,
         provided_user_instructions,
         provided_base_instructions,
         approval_policy,
@@ -137,6 +144,9 @@ struct ConfigureSessionRequest {
     model_reasoning_summary: ReasoningSummaryConfig,
     model_text_verbosity: TextVerbosityConfig,
     service_tier: Option<ServiceTier>,
+    context_mode: Option<ContextModeConfig>,
+    model_context_window: Option<u64>,
+    model_auto_compact_token_limit: Option<i64>,
     provided_user_instructions: Option<String>,
     provided_base_instructions: Option<String>,
     approval_policy: AskForApproval,

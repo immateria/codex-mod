@@ -33,3 +33,105 @@ pub use types::{
     OpenAiTool,
     ResponsesApiTool,
 };
+
+pub(crate) fn create_additional_permissions_schema() -> JsonSchema {
+    JsonSchema::Object {
+        properties: std::collections::BTreeMap::from([
+            (
+                "network".to_string(),
+                JsonSchema::Boolean {
+                    description: Some(
+                        "Whether this command needs sandboxed network access.".to_string(),
+                    ),
+                },
+            ),
+            (
+                "file_system".to_string(),
+                JsonSchema::Object {
+                    properties: std::collections::BTreeMap::from([
+                        (
+                            "read".to_string(),
+                            JsonSchema::Array {
+                                items: Box::new(JsonSchema::String {
+                                    description: None,
+                                    allowed_values: None,
+                                }),
+                                description: Some(
+                                    "Additional filesystem paths to grant read access for this command."
+                                        .to_string(),
+                                ),
+                            },
+                        ),
+                        (
+                            "write".to_string(),
+                            JsonSchema::Array {
+                                items: Box::new(JsonSchema::String {
+                                    description: None,
+                                    allowed_values: None,
+                                }),
+                                description: Some(
+                                    "Additional filesystem paths to grant write access for this command."
+                                        .to_string(),
+                                ),
+                            },
+                        ),
+                    ]),
+                    required: None,
+                    additional_properties: Some(false.into()),
+                },
+            ),
+            (
+                "macos".to_string(),
+                JsonSchema::Object {
+                    properties: std::collections::BTreeMap::from([
+                        (
+                            "preferences".to_string(),
+                            JsonSchema::String {
+                                description: Some(
+                                    "Optional macOS preferences access mode (for example: readonly or readwrite)."
+                                        .to_string(),
+                                ),
+                                allowed_values: None,
+                            },
+                        ),
+                        (
+                            "automations".to_string(),
+                            JsonSchema::Array {
+                                items: Box::new(JsonSchema::String {
+                                    description: None,
+                                    allowed_values: None,
+                                }),
+                                description: Some(
+                                    "Optional list of macOS bundle IDs that need automation access."
+                                        .to_string(),
+                                ),
+                            },
+                        ),
+                        (
+                            "accessibility".to_string(),
+                            JsonSchema::Boolean {
+                                description: Some(
+                                    "Whether this command needs macOS Accessibility access."
+                                        .to_string(),
+                                ),
+                            },
+                        ),
+                        (
+                            "calendar".to_string(),
+                            JsonSchema::Boolean {
+                                description: Some(
+                                    "Whether this command needs macOS Calendar access."
+                                        .to_string(),
+                                ),
+                            },
+                        ),
+                    ]),
+                    required: None,
+                    additional_properties: Some(false.into()),
+                },
+            ),
+        ]),
+        required: None,
+        additional_properties: Some(false.into()),
+    }
+}

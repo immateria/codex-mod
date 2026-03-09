@@ -4923,6 +4923,9 @@ fi\n\
             model_reasoning_summary: self.config.model_reasoning_summary,
             model_text_verbosity: self.config.model_text_verbosity,
             service_tier: self.config.service_tier,
+            context_mode: self.config.context_mode,
+            model_context_window: self.config.model_context_window,
+            model_auto_compact_token_limit: self.config.model_auto_compact_token_limit,
             user_instructions: self.config.user_instructions.clone(),
             base_instructions: self.config.base_instructions.clone(),
             approval_policy: self.config.approval_policy,
@@ -8006,6 +8009,7 @@ fi\n\
             self.total_token_usage.clone(),
             self.last_token_usage.clone(),
             self.config.model_context_window,
+            self.config.context_mode,
         );
     }
 

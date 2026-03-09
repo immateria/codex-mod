@@ -296,8 +296,13 @@ impl ChatWidget<'_> {
                     self.total_token_usage.clone(),
                     self.last_token_usage.clone(),
                     self.config.model_context_window,
+                    self.config.context_mode,
                 );
                 self.update_stream_token_usage_metadata();
+            }
+            EventMsg::AutoContextCheck(event) => {
+                self.bottom_pane.set_auto_context_phase(event.phase);
+                self.request_redraw();
             }
             EventMsg::Error(ErrorEvent { message }) => {
                 self.on_error(message);

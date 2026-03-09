@@ -1,6 +1,5 @@
 use crate::markdown_stream::AnimatedLineStreamer;
 use crate::markdown_stream::MarkdownStreamCollector;
-use crate::memory_citation::MemoryCitationParser;
 pub(crate) mod controller;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -12,8 +11,6 @@ pub(crate) enum StreamKind {
 pub(crate) struct StreamState {
     pub(crate) collector: MarkdownStreamCollector,
     pub(crate) streamer: AnimatedLineStreamer,
-    pub(crate) citation_parser: MemoryCitationParser,
-    pub(crate) citations: Vec<String>,
     pub(crate) has_seen_delta: bool,
     pub(crate) last_commit_instant: Option<std::time::Instant>,
     pub(crate) tail_chars_since_commit: usize,
@@ -30,8 +27,6 @@ impl StreamState {
         Self {
             collector,
             streamer: AnimatedLineStreamer::new(),
-            citation_parser: MemoryCitationParser::default(),
-            citations: Vec::new(),
             has_seen_delta: false,
             last_commit_instant: None,
             tail_chars_since_commit: 0,
@@ -42,8 +37,6 @@ impl StreamState {
         // Preserve bold_first_sentence setting in collector
         self.collector.clear();
         self.streamer.clear();
-        self.citation_parser.clear();
-        self.citations.clear();
         self.has_seen_delta = false;
         self.last_commit_instant = None;
         self.tail_chars_since_commit = 0;

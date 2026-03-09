@@ -25,6 +25,7 @@ use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use crate::config_types::McpServerSchedulingToml;
 use crate::config_types::McpToolSchedulingOverrideToml;
 use crate::config_types::MemoriesConfig;
+use crate::config_types::ContextMode as ContextModeConfig;
 use crate::config_types::ShellConfig;
 use crate::config_types::ShellScriptStyle;
 use crate::config_types::ShellStyleProfileConfig;
@@ -117,6 +118,15 @@ pub struct ConfigureSessionOp {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub service_tier: Option<ServiceTierConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub context_mode: Option<ContextModeConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub model_context_window: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub model_auto_compact_token_limit: Option<i64>,
     pub user_instructions: Option<String>,
     pub base_instructions: Option<String>,
     pub approval_policy: AskForApproval,
@@ -871,6 +881,9 @@ pub enum EventMsg {
     /// used in the current session and the latest rate limit snapshot.
     TokenCount(TokenCountEvent),
 
+    /// Auto Context is evaluating whether to compact before the next turn.
+    AutoContextCheck(AutoContextCheckEvent),
+
     /// Agent text output message
     AgentMessage(AgentMessageEvent),
 
@@ -1088,6 +1101,18 @@ pub struct TokenUsageInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_response_model: Option<String>,
     pub model_context_window: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AutoContextPhase {
+    Checking,
+    Compacting,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AutoContextCheckEvent {
+    pub phase: Option<AutoContextPhase>,
 }
 
 impl TokenUsageInfo {
@@ -1740,6 +1765,9 @@ mod tests {
             model_reasoning_summary: ReasoningSummaryConfig::Concise,
             model_text_verbosity: TextVerbosityConfig::High,
             service_tier: Some(ServiceTierConfig::Fast),
+            context_mode: Some(ContextModeConfig::Auto),
+            model_context_window: Some(1_000_000),
+            model_auto_compact_token_limit: Some(900_000),
             user_instructions: Some("Stay focused.".to_string()),
             base_instructions: None,
             approval_policy: AskForApproval::OnRequest,

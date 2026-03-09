@@ -15,6 +15,9 @@ impl Runner<'_> {
             model_reasoning_summary,
             model_text_verbosity,
             service_tier,
+            context_mode,
+            model_context_window,
+            model_auto_compact_token_limit,
             provided_user_instructions,
             provided_base_instructions,
             approval_policy,
@@ -73,6 +76,7 @@ impl Runner<'_> {
         updated_config.model_reasoning_summary = model_reasoning_summary;
         updated_config.model_text_verbosity = model_text_verbosity;
         updated_config.service_tier = service_tier;
+        updated_config.context_mode = context_mode;
         updated_config.user_instructions = provided_user_instructions;
         let base_instructions = provided_base_instructions.or_else(|| {
             crate::model_family::base_instructions_override_for_personality(
@@ -119,26 +123,33 @@ impl Runner<'_> {
         let new_default_tool_output_max_bytes = updated_config.model_family.tool_output_max_bytes();
 
         let old_context_window = old_model_family.context_window;
-        let new_context_window = updated_config.model_family.context_window;
         let old_max_tokens = old_model_family.max_output_tokens;
         let new_max_tokens = updated_config.model_family.max_output_tokens;
         let old_auto_compact = old_model_family.auto_compact_token_limit();
-        let new_auto_compact = updated_config.model_family.auto_compact_token_limit();
 
-        maybe_update_from_model_info(
-            &mut updated_config.model_context_window,
-            old_context_window,
-            new_context_window,
-        );
+        updated_config.model_context_window = model_context_window;
         maybe_update_from_model_info(
             &mut updated_config.model_max_output_tokens,
             old_max_tokens,
             new_max_tokens,
         );
+        updated_config.model_auto_compact_token_limit = model_auto_compact_token_limit;
+
+        let (resolved_context_window, resolved_auto_compact) =
+            crate::model_family::resolve_context_mode_limits(
+                &updated_config.model,
+                updated_config.context_mode,
+                &updated_config.model_family,
+            );
+        maybe_update_from_model_info(
+            &mut updated_config.model_context_window,
+            old_context_window,
+            resolved_context_window,
+        );
         maybe_update_from_model_info(
             &mut updated_config.model_auto_compact_token_limit,
             old_auto_compact,
-            new_auto_compact,
+            resolved_auto_compact,
         );
 
         if old_tool_output_max_bytes == old_default_tool_output_max_bytes {
