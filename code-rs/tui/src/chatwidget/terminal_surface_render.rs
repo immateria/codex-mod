@@ -7,6 +7,12 @@ use super::terminal_surface_header::render_plain_header_template;
 use super::terminal_surface_header::render_dynamic_header_line;
 use super::terminal_surface_header::render_styled_header_template;
 
+type TrackedClickableLine = (
+    usize,
+    Vec<(std::ops::Range<usize>, ClickableAction)>,
+    usize,
+);
+
 impl ChatWidget<'_> {
     pub(crate) fn export_transcript_lines_for_buffer(&self) -> Vec<ratatui::text::Line<'static>> {
         let mut out: Vec<ratatui::text::Line<'static>> = Vec::new();
@@ -391,15 +397,11 @@ impl ChatWidget<'_> {
         let show_bottom_line = header_cfg.show_bottom_line && bottom_text.is_some();
 
         let mut status_lines: Vec<Line<'static>> = Vec::new();
-        let mut tracked_clickable_lines: Vec<(
-            usize,
-            Vec<(std::ops::Range<usize>, ClickableAction)>,
-            usize,
-        )> = Vec::new();
+        let mut tracked_clickable_lines: Vec<TrackedClickableLine> = Vec::new();
         if let Some(notice) = self.startup_model_migration_notice.as_ref() {
             let notice_line = self.render_startup_model_migration_notice_line(
                 notice,
-                header_template_ctx.hovered_action.clone(),
+                header_template_ctx.hovered_action,
                 hover_style,
             );
             tracked_clickable_lines.push((0, notice_line.clickable_ranges, notice_line.width));

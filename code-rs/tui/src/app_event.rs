@@ -1,6 +1,7 @@
 use code_core::config_types::AutoDriveModelRoutingEntry;
 use code_core::config_types::AuthCredentialsStoreMode;
 use code_core::config_types::ReasoningEffort;
+use code_core::config_types::ContextMode;
 use code_core::config_types::ServiceTier;
 use code_core::config_types::ShellConfig;
 use code_core::config_types::MemoriesToml;
@@ -217,6 +218,9 @@ pub(crate) enum AppEvent {
     /// Internal: when interrupts queue up behind a stalled/idle stream,
     /// finalize the stream and flush the queue so Exec/Tool cells render.
     FlushInterruptsIfIdle,
+    /// Internal: re-check whether a turn-level spinner is truly stuck after a
+    /// short grace period.
+    RecheckSpinnerIfIdle,
 
     KeyEvent(KeyEvent),
 
@@ -333,6 +337,11 @@ pub(crate) enum AppEvent {
     },
     UpdateServiceTierSelection {
         service_tier: Option<ServiceTier>,
+    },
+
+    /// Update the session context mode.
+    UpdateSessionContextModeSelection {
+        context_mode: Option<ContextMode>,
     },
 
     /// Update the dedicated review model + reasoning effort

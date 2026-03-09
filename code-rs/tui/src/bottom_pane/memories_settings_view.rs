@@ -211,11 +211,15 @@ impl MemoriesSettingsView {
         }
     }
 
-    fn current_scope_settings_mut(&mut self) -> Option<&mut MemoriesToml> {
+    fn ensure_current_scope_settings_mut(&mut self) -> &mut MemoriesToml {
         match self.scope {
-            MemoriesScopeChoice::Global => Some(&mut self.global_settings),
-            MemoriesScopeChoice::Profile => Some(self.profile_settings.get_or_insert_with(MemoriesToml::default)),
-            MemoriesScopeChoice::Project => Some(self.project_settings.get_or_insert_with(MemoriesToml::default)),
+            MemoriesScopeChoice::Global => &mut self.global_settings,
+            MemoriesScopeChoice::Profile => {
+                self.profile_settings.get_or_insert_with(MemoriesToml::default)
+            }
+            MemoriesScopeChoice::Project => {
+                self.project_settings.get_or_insert_with(MemoriesToml::default)
+            }
         }
     }
 
@@ -601,9 +605,7 @@ impl MemoriesSettingsView {
                     }
                     _ => false,
                 };
-                let settings = self
-                    .current_scope_settings_mut()
-                    .expect("optional scope settings should be created when editing");
+                let settings = self.ensure_current_scope_settings_mut();
                 let target = match row {
                     RowKind::GenerateMemories => &mut settings.generate_memories,
                     RowKind::UseMemories => &mut settings.use_memories,
@@ -724,9 +726,7 @@ impl MemoriesSettingsView {
                 self.global_settings.min_rollout_idle_hours = Some(value);
             }
             (_, EditTarget::MaxRawMemories) => {
-                let settings = self
-                    .current_scope_settings_mut()
-                    .expect("optional scope settings should exist while editing");
+                let settings = self.ensure_current_scope_settings_mut();
                 let trimmed = text.trim();
                 if trimmed.is_empty() {
                     settings.max_raw_memories_for_consolidation = None;
@@ -742,9 +742,7 @@ impl MemoriesSettingsView {
                 self.prune_optional_scope();
             }
             (_, EditTarget::MaxRolloutAgeDays) => {
-                let settings = self
-                    .current_scope_settings_mut()
-                    .expect("optional scope settings should exist while editing");
+                let settings = self.ensure_current_scope_settings_mut();
                 let trimmed = text.trim();
                 if trimmed.is_empty() {
                     settings.max_rollout_age_days = None;
@@ -758,9 +756,7 @@ impl MemoriesSettingsView {
                 self.prune_optional_scope();
             }
             (_, EditTarget::MaxRolloutsPerStartup) => {
-                let settings = self
-                    .current_scope_settings_mut()
-                    .expect("optional scope settings should exist while editing");
+                let settings = self.ensure_current_scope_settings_mut();
                 let trimmed = text.trim();
                 if trimmed.is_empty() {
                     settings.max_rollouts_per_startup = None;
@@ -774,9 +770,7 @@ impl MemoriesSettingsView {
                 self.prune_optional_scope();
             }
             (_, EditTarget::MinRolloutIdleHours) => {
-                let settings = self
-                    .current_scope_settings_mut()
-                    .expect("optional scope settings should exist while editing");
+                let settings = self.ensure_current_scope_settings_mut();
                 let trimmed = text.trim();
                 if trimmed.is_empty() {
                     settings.min_rollout_idle_hours = None;

@@ -1,4 +1,5 @@
 use super::*;
+use crate::bottom_pane::ModelSelectionViewParams;
 
 impl ChatWidget<'_> {
     pub(super) fn available_model_presets(&self) -> Vec<ModelPreset> {
@@ -241,14 +242,15 @@ impl ChatWidget<'_> {
             return;
         }
 
-        self.bottom_pane.show_model_selection(
+        self.bottom_pane.show_model_selection(ModelSelectionViewParams {
             presets,
-            self.config.model.clone(),
-            self.config.model_reasoning_effort,
-            self.config.service_tier,
-            false,
-            ModelSelectionTarget::Session,
-        );
+            current_model: self.config.model.clone(),
+            current_effort: self.config.model_reasoning_effort,
+            current_service_tier: self.config.service_tier,
+            current_context_mode: self.config.context_mode,
+            use_chat_model: false,
+            target: ModelSelectionTarget::Session,
+        });
     }
 
     pub(crate) fn show_review_model_selector(&mut self) {
@@ -264,14 +266,15 @@ impl ChatWidget<'_> {
             self.pending_settings_return = Some(SettingsSection::Review);
             self.close_settings_overlay();
         }
-        self.bottom_pane.show_model_selection(
+        self.bottom_pane.show_model_selection(ModelSelectionViewParams {
             presets,
-            self.config.review_model.clone(),
-            self.config.review_model_reasoning_effort,
-            self.config.service_tier,
-            self.config.review_use_chat_model,
-            ModelSelectionTarget::Review,
-        );
+            current_model: self.config.review_model.clone(),
+            current_effort: self.config.review_model_reasoning_effort,
+            current_service_tier: self.config.service_tier,
+            current_context_mode: None,
+            use_chat_model: self.config.review_use_chat_model,
+            target: ModelSelectionTarget::Review,
+        });
     }
 
     pub(crate) fn show_review_resolve_model_selector(&mut self) {
@@ -296,14 +299,15 @@ impl ChatWidget<'_> {
         } else {
             self.config.review_resolve_model_reasoning_effort
         };
-        self.bottom_pane.show_model_selection(
+        self.bottom_pane.show_model_selection(ModelSelectionViewParams {
             presets,
-            current,
-            effort,
-            self.config.service_tier,
-            self.config.review_resolve_use_chat_model,
-            ModelSelectionTarget::ReviewResolve,
-        );
+            current_model: current,
+            current_effort: effort,
+            current_service_tier: self.config.service_tier,
+            current_context_mode: None,
+            use_chat_model: self.config.review_resolve_use_chat_model,
+            target: ModelSelectionTarget::ReviewResolve,
+        });
     }
 
     pub(crate) fn show_auto_review_model_selector(&mut self) {
@@ -328,14 +332,15 @@ impl ChatWidget<'_> {
         } else {
             self.config.auto_review_model_reasoning_effort
         };
-        self.bottom_pane.show_model_selection(
+        self.bottom_pane.show_model_selection(ModelSelectionViewParams {
             presets,
-            current,
-            effort,
-            self.config.service_tier,
-            self.config.auto_review_use_chat_model,
-            ModelSelectionTarget::AutoReview,
-        );
+            current_model: current,
+            current_effort: effort,
+            current_service_tier: self.config.service_tier,
+            current_context_mode: None,
+            use_chat_model: self.config.auto_review_use_chat_model,
+            target: ModelSelectionTarget::AutoReview,
+        });
     }
 
     pub(crate) fn show_auto_review_resolve_model_selector(&mut self) {
@@ -360,14 +365,15 @@ impl ChatWidget<'_> {
         } else {
             self.config.auto_review_resolve_model_reasoning_effort
         };
-        self.bottom_pane.show_model_selection(
+        self.bottom_pane.show_model_selection(ModelSelectionViewParams {
             presets,
-            current,
-            effort,
-            self.config.service_tier,
-            self.config.auto_review_resolve_use_chat_model,
-            ModelSelectionTarget::AutoReviewResolve,
-        );
+            current_model: current,
+            current_effort: effort,
+            current_service_tier: self.config.service_tier,
+            current_context_mode: None,
+            use_chat_model: self.config.auto_review_resolve_use_chat_model,
+            target: ModelSelectionTarget::AutoReviewResolve,
+        });
     }
 
     pub(crate) fn show_planning_model_selector(&mut self) {
@@ -389,15 +395,15 @@ impl ChatWidget<'_> {
             self.config.planning_model.clone()
         };
         let effort = self.config.planning_model_reasoning_effort;
-        self.bottom_pane
-            .show_model_selection(
-                presets,
-                current,
-                effort,
-                self.config.service_tier,
-                self.config.planning_use_chat_model,
-                ModelSelectionTarget::Planning,
-            );
+        self.bottom_pane.show_model_selection(ModelSelectionViewParams {
+            presets,
+            current_model: current,
+            current_effort: effort,
+            current_service_tier: self.config.service_tier,
+            current_context_mode: None,
+            use_chat_model: self.config.planning_use_chat_model,
+            target: ModelSelectionTarget::Planning,
+        });
     }
 
     pub(crate) fn show_auto_drive_model_selector(&mut self) {
@@ -413,14 +419,15 @@ impl ChatWidget<'_> {
             self.pending_settings_return = Some(SettingsSection::AutoDrive);
             self.close_settings_overlay();
         }
-        self.bottom_pane.show_model_selection(
+        self.bottom_pane.show_model_selection(ModelSelectionViewParams {
             presets,
-            self.config.auto_drive.model.clone(),
-            self.config.auto_drive.model_reasoning_effort,
-            self.config.service_tier,
-            self.config.auto_drive_use_chat_model,
-            ModelSelectionTarget::AutoDrive,
-        );
+            current_model: self.config.auto_drive.model.clone(),
+            current_effort: self.config.auto_drive.model_reasoning_effort,
+            current_service_tier: self.config.service_tier,
+            current_context_mode: None,
+            use_chat_model: self.config.auto_drive_use_chat_model,
+            target: ModelSelectionTarget::AutoDrive,
+        });
     }
 
     pub(crate) fn apply_model_selection(&mut self, model: String, effort: Option<ReasoningEffort>) {
@@ -447,6 +454,35 @@ impl ChatWidget<'_> {
         };
         self.bottom_pane
             .flash_footer_notice(format!("Fast mode {status}."));
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
+    pub(crate) fn apply_session_context_mode_selection(
+        &mut self,
+        context_mode: Option<code_core::config_types::ContextMode>,
+    ) {
+        let context_mode = context_mode.or(Some(code_core::config_types::ContextMode::Disabled));
+        if self.config.context_mode == context_mode {
+            return;
+        }
+
+        self.config.context_mode = context_mode;
+        let (next_context_window, next_auto_compact) =
+            code_core::model_family::resolve_context_mode_limits(
+                &self.config.model,
+                self.config.context_mode,
+                &self.config.model_family,
+            );
+        self.config.model_context_window = next_context_window;
+        self.config.model_auto_compact_token_limit = next_auto_compact;
+        self.submit_op(self.current_configure_session_op());
+        self.bottom_pane.set_token_usage(
+            self.total_token_usage.clone(),
+            self.last_token_usage.clone(),
+            self.config.model_context_window,
+            self.config.context_mode,
+        );
         self.refresh_settings_overview_rows();
         self.request_redraw();
     }
@@ -1333,14 +1369,15 @@ impl ChatWidget<'_> {
                 return;
             }
 
-        self.bottom_pane.show_model_selection(
-            presets,
-            self.config.model.clone(),
-            self.config.model_reasoning_effort,
-            self.config.service_tier,
-            false,
-            ModelSelectionTarget::Session,
-        );
+            self.bottom_pane.show_model_selection(ModelSelectionViewParams {
+                presets,
+                current_model: self.config.model.clone(),
+                current_effort: self.config.model_reasoning_effort,
+                current_service_tier: self.config.service_tier,
+                current_context_mode: self.config.context_mode,
+                use_chat_model: false,
+                target: ModelSelectionTarget::Session,
+            });
         }
     }
 

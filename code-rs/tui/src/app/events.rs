@@ -252,6 +252,11 @@ impl App<'_> {
                         widget.flush_interrupts_if_stream_idle();
                     }
                 }
+                AppEvent::RecheckSpinnerIfIdle => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.recheck_spinner_if_idle();
+                    }
+                }
                 AppEvent::Redraw => {
                     if self.timing_enabled { self.timing.on_redraw_begin(); }
                     let t0 = Instant::now();
@@ -2109,6 +2114,11 @@ impl App<'_> {
                 AppEvent::ShellStyleProfileSummaryGenerationFailed { style, error } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.apply_shell_style_profile_summary_generation_failed(style, error);
+                    }
+                }
+                AppEvent::UpdateSessionContextModeSelection { context_mode } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apply_session_context_mode_selection(context_mode);
                     }
                 }
                 AppEvent::UpdateReviewModelSelection { model, effort } => {

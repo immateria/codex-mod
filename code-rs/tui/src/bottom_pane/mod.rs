@@ -91,6 +91,7 @@ pub(crate) use auto_coordinator_view::{
 pub(crate) use auto_drive_settings_view::{AutoDriveSettingsInit, AutoDriveSettingsView};
 pub(crate) use account_switch_settings_view::AccountSwitchSettingsView;
 pub(crate) use memories_settings_view::MemoriesSettingsView;
+pub(crate) use model_selection_view::ModelSelectionViewParams;
 pub(crate) use login_accounts_view::{
     LoginAccountsState,
     LoginAccountsView,
@@ -114,11 +115,11 @@ use approval_modal_view::ApprovalModalView;
 #[cfg(feature = "code-fork")]
 use approval_ui::ApprovalUi;
 use code_common::model_presets::ModelPreset;
-use code_core::config_types::ReasoningEffort;
-use code_core::config_types::ServiceTier;
+use code_core::config_types::ContextMode;
+use code_core::protocol::AutoContextPhase;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
-pub(crate) use model_selection_view::{ModelSelectionTarget, ModelSelectionView};
+pub(crate) use model_selection_view::ModelSelectionView;
 pub(crate) use shell_selection_view::ShellSelectionView;
 pub(crate) use mcp_settings_view::McpSettingsView;
 pub(crate) use theme_selection_view::ThemeSelectionView;
@@ -922,9 +923,19 @@ impl BottomPane<'_> {
         total_token_usage: TokenUsage,
         last_token_usage: TokenUsage,
         model_context_window: Option<u64>,
+        context_mode: Option<ContextMode>,
     ) {
-        self.composer
-            .set_token_usage(total_token_usage, last_token_usage, model_context_window);
+        self.composer.set_token_usage(
+            total_token_usage,
+            last_token_usage,
+            model_context_window,
+            context_mode,
+        );
+        self.request_redraw();
+    }
+
+    pub(crate) fn set_auto_context_phase(&mut self, phase: Option<AutoContextPhase>) {
+        self.composer.set_auto_context_phase(phase);
         self.request_redraw();
     }
 
@@ -957,24 +968,8 @@ impl BottomPane<'_> {
     }
 
     /// Show the model selection UI
-    pub fn show_model_selection(
-        &mut self,
-        presets: Vec<ModelPreset>,
-        current_model: String,
-        current_effort: ReasoningEffort,
-        current_service_tier: Option<ServiceTier>,
-        use_chat_model: bool,
-        target: ModelSelectionTarget,
-    ) {
-        let view = ModelSelectionView::new(
-            presets,
-            current_model,
-            current_effort,
-            current_service_tier,
-            use_chat_model,
-            target,
-            self.app_event_tx.clone(),
-        );
+    pub fn show_model_selection(&mut self, params: ModelSelectionViewParams) {
+        let view = ModelSelectionView::new(params, self.app_event_tx.clone());
         self.active_view = Some(Box::new(view));
         self.active_view_kind = ActiveViewKind::ModelSelection;
         // Status shown in composer title now

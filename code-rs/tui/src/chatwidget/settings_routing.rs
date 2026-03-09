@@ -4,6 +4,7 @@ use crate::bottom_pane::{
     InterfaceSettingsView,
     JsReplSettingsView,
     MemoriesSettingsView,
+    ModelSelectionViewParams,
     NetworkSettingsView,
     ShellProfilesSettingsView,
     ShellSelectionView,
@@ -254,12 +255,15 @@ impl ChatWidget<'_> {
         let current_model = self.config.model.clone();
         let current_effort = self.config.model_reasoning_effort;
         ModelSelectionView::new(
-            presets,
-            current_model,
-            current_effort,
-            self.config.service_tier,
-            false,
-            ModelSelectionTarget::Session,
+            ModelSelectionViewParams {
+                presets,
+                current_model,
+                current_effort,
+                current_service_tier: self.config.service_tier,
+                current_context_mode: self.config.context_mode,
+                use_chat_model: false,
+                target: ModelSelectionTarget::Session,
+            },
             self.app_event_tx.clone(),
         )
     }
@@ -1299,14 +1303,15 @@ impl ChatWidget<'_> {
         let current_model = self.config.model.clone();
         let current_effort = self.config.model_reasoning_effort;
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_model_selection(
+            this.bottom_pane.show_model_selection(ModelSelectionViewParams {
                 presets,
                 current_model,
                 current_effort,
-                this.config.service_tier,
-                false,
-                ModelSelectionTarget::Session,
-            );
+                current_service_tier: this.config.service_tier,
+                current_context_mode: this.config.context_mode,
+                use_chat_model: false,
+                target: ModelSelectionTarget::Session,
+            });
         })
     }
 

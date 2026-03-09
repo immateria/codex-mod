@@ -3843,7 +3843,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
             let rendered = cell
                 .display_lines_trimmed()
                 .iter()
-                .map(|line| line.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>()
                 .join("\n");
             rendered.contains("Memories root:")

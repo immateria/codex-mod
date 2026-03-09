@@ -80,7 +80,7 @@ pub(crate) fn current_context_from_runtime(
         .unwrap_or(fallback_platform_family);
     let shell_style = snapshot
         .and_then(|snap| snap.shell.as_ref())
-        .and_then(|shell| shell.script_style())
+        .and_then(Shell::script_style)
         .map(memory_shell_style_from_script_style)
         .or(fallback_shell_style);
     let shell_program = snapshot

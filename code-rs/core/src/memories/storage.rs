@@ -216,8 +216,7 @@ fn derive_stage1_epochs_from_lines(
     claim: &Stage1Claim,
     lines: &[RecordedRolloutLine],
 ) -> Vec<Stage1EpochInput> {
-    let fallback_context = fallback_context_key(claim);
-    let mut current_context = fallback_context.clone();
+    let mut current_context = fallback_context_key(claim);
     let mut current_epoch = EpochAccumulator::new(
         current_context.clone(),
         claim.cwd_display.clone(),
@@ -337,10 +336,10 @@ fn context_key_from_snapshot(
     let shell_style = snapshot
         .shell
         .as_ref()
-        .and_then(|shell| shell.script_style())
+        .and_then(crate::shell::Shell::script_style)
         .map(memory_shell_style_from_script_style)
         .unwrap_or(MemoryShellStyle::Unknown);
-    let shell_program = snapshot.shell.as_ref().and_then(|shell| shell.name());
+    let shell_program = snapshot.shell.as_ref().and_then(crate::shell::Shell::name);
     let workspace_root = snapshot
         .git_project_root
         .clone()
@@ -915,7 +914,7 @@ fn rollout_summary_slug(cwd_display: &str, git_branch: Option<&str>, max_len: us
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-    use std::sync::{Mutex, MutexGuard};
+    use std::sync::OnceLock;
 
     use code_memories_state::{
         MemoriesState, Stage1EpochProvenance, Stage1EpochRecord,
@@ -926,12 +925,13 @@ mod tests {
 
     use super::*;
 
-    static PUBLISH_TEST_GUARD: Mutex<()> = Mutex::new(());
+    static PUBLISH_TEST_GUARD: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
 
-    fn lock_publish_tests() -> MutexGuard<'static, ()> {
+    async fn lock_publish_tests() -> tokio::sync::MutexGuard<'static, ()> {
         PUBLISH_TEST_GUARD
+            .get_or_init(|| tokio::sync::Mutex::new(()))
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .await
     }
 
     fn make_entry(
@@ -1139,7 +1139,7 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_writes_epoch_manifest_and_artifacts() {
-        let _guard = lock_publish_tests();
+        let _guard = lock_publish_tests().await;
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let session_id = Uuid::new_v4();
@@ -1192,7 +1192,7 @@ mod tests {
 
     #[tokio::test]
     async fn shell_change_creates_multiple_epochs() {
-        let _guard = lock_publish_tests();
+        let _guard = lock_publish_tests().await;
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let session_id = Uuid::new_v4();
@@ -1256,7 +1256,7 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_and_prompt_selection_follow_shell_context() {
-        let _guard = lock_publish_tests();
+        let _guard = lock_publish_tests().await;
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let zsh_session_id = Uuid::new_v4();
@@ -1384,7 +1384,7 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_and_prompt_selection_prefers_same_branch_in_same_workspace() {
-        let _guard = lock_publish_tests();
+        let _guard = lock_publish_tests().await;
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let main_session_id = Uuid::new_v4();
@@ -1499,7 +1499,7 @@ mod tests {
 
     #[tokio::test]
     async fn active_snapshot_with_no_compatible_entries_injects_nothing_end_to_end() {
-        let _guard = lock_publish_tests();
+        let _guard = lock_publish_tests().await;
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let session_id = Uuid::new_v4();
@@ -1805,7 +1805,7 @@ mod tests {
             last_usage: None,
         };
 
-        let summary = render_memory_summary(&[record.clone()]);
+        let summary = render_memory_summary(std::slice::from_ref(&record));
         let prompt_entry = render_prompt_entry(&record);
 
         assert!(raw_memory.contains("provenance: catalog_fallback"));
@@ -1816,7 +1816,7 @@ mod tests {
 
     #[tokio::test]
     async fn manual_refresh_bypasses_stage1_retry_backoff() {
-        let _guard = lock_publish_tests();
+        let _guard = lock_publish_tests().await;
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let session_id = Uuid::new_v4();
@@ -1878,7 +1878,7 @@ mod tests {
 
     #[tokio::test]
     async fn dead_lettered_stage1_jobs_are_skipped_by_normal_refresh_and_forced_refresh_recovers() {
-        let _guard = lock_publish_tests();
+        let _guard = lock_publish_tests().await;
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let session_id = Uuid::new_v4();
@@ -1979,7 +1979,7 @@ mod tests {
 
     #[tokio::test]
     async fn publish_switches_active_snapshot_without_clearing_previous_one_first() {
-        let _guard = lock_publish_tests();
+        let _guard = lock_publish_tests().await;
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let memories_root = code_home.join("memories");
@@ -2022,7 +2022,7 @@ mod tests {
 
     #[tokio::test]
     async fn failed_publish_before_pointer_swap_keeps_previous_snapshot_active() {
-        let _guard = lock_publish_tests();
+        let _guard = lock_publish_tests().await;
         let temp = tempdir().expect("tempdir");
         let code_home = temp.path();
         let first = MemoryArtifacts {

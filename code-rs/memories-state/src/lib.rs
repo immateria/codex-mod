@@ -2414,7 +2414,7 @@ INSERT INTO memory_jobs (
 
         let epoch = sample_epoch(thread_id, 0, updated_at, "raw");
         state
-            .replace_stage1_epochs(thread_id, &[epoch.clone()])
+            .replace_stage1_epochs(thread_id, std::slice::from_ref(&epoch))
             .await
             .expect("replace epochs");
         succeed_artifacts(&state).await;
@@ -2431,7 +2431,7 @@ INSERT INTO memory_jobs (
         assert_eq!(selected[0].usage_count, 1);
 
         state
-            .replace_stage1_epochs(thread_id, &[epoch.clone()])
+            .replace_stage1_epochs(thread_id, std::slice::from_ref(&epoch))
             .await
             .expect("replace unchanged epochs");
         assert!(!stage1_status(&state).await.artifact_dirty);
@@ -2605,11 +2605,11 @@ INSERT INTO memory_jobs (
         let older_epoch = sample_epoch(older_id, 0, older_updated_at, "older");
         let newer_epoch = sample_epoch(newer_id, 0, newer_updated_at, "newer");
         state
-            .replace_stage1_epochs(older_id, &[older_epoch.clone()])
+            .replace_stage1_epochs(older_id, std::slice::from_ref(&older_epoch))
             .await
             .expect("replace older");
         state
-            .replace_stage1_epochs(newer_id, &[newer_epoch.clone()])
+            .replace_stage1_epochs(newer_id, std::slice::from_ref(&newer_epoch))
             .await
             .expect("replace newer");
 
@@ -2683,7 +2683,7 @@ INSERT INTO memory_jobs (
 
         let epoch = sample_epoch(thread_id, 0, stale_source_updated_at, "old epoch");
         state
-            .replace_stage1_epochs(thread_id, &[epoch.clone()])
+            .replace_stage1_epochs(thread_id, std::slice::from_ref(&epoch))
             .await
             .expect("replace initial epoch");
         state

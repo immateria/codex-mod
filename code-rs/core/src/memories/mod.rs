@@ -815,7 +815,7 @@ mod tests {
             rollout_slug: "memory-slug".to_string(),
         };
         state
-            .replace_stage1_epochs(thread_id, &[epoch.clone()])
+            .replace_stage1_epochs(thread_id, std::slice::from_ref(&epoch))
             .await
             .expect("replace stage1 epochs");
         let lease = state
