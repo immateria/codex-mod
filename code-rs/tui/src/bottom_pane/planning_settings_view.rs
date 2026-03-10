@@ -4,7 +4,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -18,6 +18,7 @@ use crate::ui_interaction::{
     SelectableListMouseResult,
 };
 use crate::components::scroll_state::ScrollState;
+use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
 use super::BottomPane;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -205,26 +206,15 @@ impl PlanningSettingsView {
     }
 
     fn row_at_position(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        if area.width == 0 || area.height == 0 {
-            return None;
-        }
-
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return None;
-        }
-
-        let is_inside_inner = x >= inner.x
-            && x < inner.x.saturating_add(inner.width)
-            && y >= inner.y
-            && y < inner.y.saturating_add(inner.height);
-
-        if !is_inside_inner {
+        let content = SettingsPanel::new("Planning Settings", SettingsPanelStyle::bottom_pane())
+            .layout(area)?
+            .content;
+        if !content.contains(ratatui::layout::Position { x, y }) {
             return None;
         }
 
         // Header consumes three lines; the first selectable row starts after that.
-        let row_y = inner.y.saturating_add(3);
+        let row_y = content.y.saturating_add(3);
         if y == row_y {
             Some(0)
         } else {
@@ -292,18 +282,10 @@ impl<'a> BottomPaneView<'a> for PlanningSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
+        let Some(layout) = SettingsPanel::new("Planning Settings", SettingsPanelStyle::bottom_pane())
+            .render(area, buf) else {
             return;
-        }
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(colors::border()))
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .title(" Planning Settings ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
+        };
 
         let header_lines = vec![
             Line::from(Span::styled(
@@ -330,6 +312,46 @@ impl<'a> BottomPaneView<'a> for PlanningSettingsView {
         Paragraph::new(lines)
             .alignment(Alignment::Left)
             .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .render(inner, buf);
+            .render(layout.content, buf);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    use std::sync::mpsc::channel;
+
+    fn left_click(x: u16, y: u16) -> MouseEvent {
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: x,
+            row: y,
+            modifiers: KeyModifiers::NONE,
+        }
+    }
+
+    #[test]
+    fn planning_mouse_hit_targets_content_row() {
+        let (tx, _rx) = channel();
+        let mut view = PlanningSettingsView::new(
+            false,
+            "gpt-5.3-codex".to_string(),
+            ReasoningEffort::Medium,
+            AppEventSender::new(tx),
+        );
+        let area = Rect::new(0, 0, 40, 8);
+        let content = SettingsPanel::new("Planning Settings", SettingsPanelStyle::bottom_pane())
+            .layout(area)
+            .expect("layout")
+            .content;
+        assert_eq!(
+            view.row_at_position(area, content.x, content.y.saturating_add(3)),
+            Some(0)
+        );
+        assert!(view.handle_mouse_event_direct(
+            left_click(content.x, content.y.saturating_add(3)),
+            area
+        ));
     }
 }

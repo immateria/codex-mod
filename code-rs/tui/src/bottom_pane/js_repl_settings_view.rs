@@ -25,10 +25,11 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
+use super::settings_ui::frame::SettingsFrame;
 use super::settings_ui::rows::{
-    render_kv_row,
+    render_kv_rows,
     selection_index_at as row_selection_index_at,
+    KeyValueRow,
     StyledText,
 };
 use super::BottomPane;
@@ -386,7 +387,7 @@ impl JsReplSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = compute_settings_frame_layout(area, " JS REPL ", Self::HEADER_HEIGHT, 0)?;
+        let layout = SettingsFrame::new(" JS REPL ", self.render_header_lines(), vec![]).layout(area)?;
         row_selection_index_at(layout.body, x, y, self.state.scroll_top, self.build_rows().len())
     }
 
@@ -633,12 +634,13 @@ impl JsReplSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let header_lines = self.render_header_lines();
-        let Some(layout) = render_settings_frame(area, buf, " JS REPL ", header_lines, vec![]) else {
+        let Some(layout) = SettingsFrame::new(" JS REPL ", self.render_header_lines(), vec![])
+            .render(area, buf)
+        else {
             return;
         };
 
-        let visible_slots = layout.visible_rows;
+        let visible_slots = layout.visible_rows();
         self.viewport_rows.set(visible_slots);
 
         let rows = self.build_rows();
@@ -675,71 +677,55 @@ impl JsReplSettingsView {
         };
         let apply_suffix = if self.dirty { " *" } else { "" };
 
-        let mut remaining = visible_slots;
-        let mut row_index = scroll_top;
-        while remaining > 0 && row_index < rows.len() {
-            let kind = rows[row_index];
-            let selected = row_index == selected_idx;
-            let row_area = Rect::new(
-                layout.body.x,
-                layout.body.y.saturating_add((row_index - scroll_top) as u16),
-                layout.body.width,
-                1,
-            );
-            let (label, value) = match kind {
-                RowKind::Enabled => (
-                    "Enabled",
-                    Some(StyledText::new(
-                        enabled_label,
-                        Style::default()
-                            .fg(enabled_color)
-                            .add_modifier(Modifier::BOLD),
-                    )),
-                ),
-                RowKind::RuntimeKind => (
-                    "Runtime",
-                    Some(StyledText::new(
-                        runtime_label,
-                        Style::default().fg(crate::colors::info()),
-                    )),
-                ),
-                RowKind::RuntimePath => (
-                    "Runtime path",
-                    Some(StyledText::new(
+        let row_specs: Vec<KeyValueRow<'_>> = rows
+            .iter()
+            .copied()
+            .map(|kind| match kind {
+                RowKind::Enabled => KeyValueRow::new("Enabled").with_value(StyledText::new(
+                    enabled_label,
+                    Style::default()
+                        .fg(enabled_color)
+                        .add_modifier(Modifier::BOLD),
+                )),
+                RowKind::RuntimeKind => KeyValueRow::new("Runtime").with_value(StyledText::new(
+                    runtime_label,
+                    Style::default().fg(crate::colors::info()),
+                )),
+                RowKind::RuntimePath => KeyValueRow::new("Runtime path").with_value(
+                    StyledText::new(
                         runtime_path.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    )),
+                    ),
                 ),
-                RowKind::PickRuntimePath => ("Pick runtime path (file picker)", None),
-                RowKind::ClearRuntimePath => ("Clear runtime path (use PATH)", None),
-                RowKind::RuntimeArgs => (
-                    "Runtime args",
-                    Some(StyledText::new(
+                RowKind::PickRuntimePath => KeyValueRow::new("Pick runtime path (file picker)"),
+                RowKind::ClearRuntimePath => KeyValueRow::new("Clear runtime path (use PATH)"),
+                RowKind::RuntimeArgs => KeyValueRow::new("Runtime args").with_value(
+                    StyledText::new(
                         runtime_args.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    )),
+                    ),
                 ),
-                RowKind::NodeModuleDirs => (
-                    "Node module dirs",
-                    Some(StyledText::new(
+                RowKind::NodeModuleDirs => KeyValueRow::new("Node module dirs").with_value(
+                    StyledText::new(
                         module_dirs.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    )),
+                    ),
                 ),
-                RowKind::AddNodeModuleDir => ("Add node module dir (folder picker)", None),
-                RowKind::Apply => (
-                    "Apply changes",
-                    Some(StyledText::new(
-                        apply_suffix,
-                        Style::default().fg(crate::colors::warning()),
-                    )),
-                ),
-                RowKind::Close => ("Close", None),
-            };
-            render_kv_row(row_area, buf, selected, label, value, None, None);
-            remaining = remaining.saturating_sub(1);
-            row_index += 1;
-        }
+                RowKind::AddNodeModuleDir => KeyValueRow::new("Add node module dir (folder picker)"),
+                RowKind::Apply => KeyValueRow::new("Apply changes").with_value(StyledText::new(
+                    apply_suffix,
+                    Style::default().fg(crate::colors::warning()),
+                )),
+                RowKind::Close => KeyValueRow::new("Close"),
+            })
+            .collect();
+        render_kv_rows(
+            layout.body,
+            buf,
+            scroll_top,
+            Some(selected_idx),
+            &row_specs,
+        );
     }
 
     fn render_edit(

@@ -6,11 +6,11 @@ use code_core::protocol::Op;
 use code_protocol::custom_prompts::CustomPrompt;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::prelude::Widget;
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::Paragraph;
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -26,8 +26,11 @@ use crate::ui_interaction::{
     SelectableListMouseConfig,
     SelectableListMouseResult,
 };
+use super::settings_ui::buttons::{render_text_button_strip, text_button_at, TextButton};
+use super::settings_ui::fields::BorderedField;
+use super::settings_ui::frame::SettingsFrame;
+use super::settings_ui::rows::selection_index_at as row_selection_index_at;
 use super::BottomPane;
-// Panel helpers unused now that we render inline
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Focus {
@@ -58,6 +61,9 @@ pub(crate) struct PromptsSettingsView {
 }
 
 impl PromptsSettingsView {
+    const DEFAULT_HEIGHT: u16 = 20;
+    const BUTTON_LABELS: [&str; 3] = ["Save", "Delete", "Cancel"];
+
     pub fn new(prompts: Vec<CustomPrompt>, app_event_tx: AppEventSender) -> Self {
         let mut name_field = FormTextField::new_single_line();
         name_field.set_filter(InputFilter::Id);
@@ -73,6 +79,22 @@ impl PromptsSettingsView {
             app_event_tx,
             is_complete: false,
             mode: Mode::List,
+        }
+    }
+
+    fn name_field_title(&self) -> &'static str {
+        if matches!(self.focus, Focus::Name) {
+            "Name (slug) • Enter to save"
+        } else {
+            "Name (slug)"
+        }
+    }
+
+    fn body_field_title(&self) -> &'static str {
+        if matches!(self.focus, Focus::Body) {
+            "Content (multiline)"
+        } else {
+            "Content"
         }
     }
 
@@ -168,18 +190,19 @@ impl PromptsSettingsView {
 
     fn render_body(&self, area: Rect, buf: &mut Buffer) {
         match self.mode {
-            Mode::List => {
-                self.render_list(area, buf);
-            }
-            Mode::Edit => {
-            self.render_form(area, buf);
+            Mode::List => self.render_list(area, buf),
+            Mode::Edit => self.render_form(area, buf),
         }
-    }
     }
 
     fn render_list(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 { return; }
-        let mut lines: Vec<Line> = Vec::new();
+        let Some(layout) = SettingsFrame::new("Custom Prompts", self.list_header_lines(), Vec::new())
+            .render(area, buf)
+        else {
+            return;
+        };
+
+        let mut lines: Vec<Line<'static>> = Vec::new();
         for (idx, p) in self.prompts.iter().enumerate() {
             let preview = p.content.lines().next().unwrap_or("").trim();
             let arrow = if idx == self.selected { "›" } else { " " };
@@ -199,7 +222,7 @@ impl PromptsSettingsView {
             lines.push(line);
         }
         if lines.is_empty() {
-            lines.push(Line::from("No prompts yet. Press Ctrl+N to create."));
+            lines.push(Line::from("No prompts yet. Press Enter or Ctrl+N to create one."));
         }
 
         // Add new row
@@ -212,156 +235,105 @@ impl PromptsSettingsView {
         let add_line = Line::from(vec![Span::styled(format!("{add_arrow} Add new…"), add_style)]);
         lines.push(add_line);
 
-        let title = Paragraph::new(vec![Line::from(Span::styled(
-            "Custom prompts allow you to save reusable prompts initiated with a simple slash command. They are invoked with /name. Create and update your custom prompts below.",
-            Style::default().fg(colors::text_dim()),
-        ))])
-        .alignment(Alignment::Left)
-        .wrap(Wrap { trim: true })
-        .style(Style::default().bg(colors::background()));
-
         let list = Paragraph::new(lines)
-            .alignment(Alignment::Left)
             .style(Style::default().bg(colors::background()));
-
-        let outer = Block::default().borders(Borders::ALL).style(Style::default().bg(colors::background()));
-        let inner = outer.inner(area);
-        outer.render(area, buf);
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Min(1),
-            ])
-            .split(inner);
-
-        title.render(chunks[0], buf);
-        list.render(chunks[1], buf);
+        list.render(layout.body, buf);
     }
 
     fn render_form(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 { return; }
+        let Some(layout) = SettingsFrame::new("Custom Prompt", Vec::new(), vec![Line::from("")])
+            .render(area, buf)
+        else {
+            return;
+        };
         let vertical = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(3), // name block
                 Constraint::Min(6),    // body block
-                Constraint::Length(1), // buttons
                 Constraint::Length(1), // status
             ])
-            .split(area);
+            .split(layout.body);
 
-        // Name field with border
-        let name_title = if matches!(self.focus, Focus::Name) { "Name (slug) • Enter to save" } else { "Name (slug)" };
-        let mut name_block = Block::default().borders(Borders::ALL).title(name_title);
-        if matches!(self.focus, Focus::Name) {
-            name_block = name_block.border_style(Style::default().fg(colors::primary()));
-        }
-        let name_inner = name_block.inner(vertical[0]);
-        name_block.render(vertical[0], buf);
-        self.name_field.render(name_inner, buf, matches!(self.focus, Focus::Name));
+        let name_title = self.name_field_title();
+        let name_block = BorderedField::new(name_title, matches!(self.focus, Focus::Name));
+        let _ = name_block.render(vertical[0], buf, &self.name_field);
 
-        // Body field with border
-        let body_title = if matches!(self.focus, Focus::Body) { "Content (multiline)" } else { "Content" };
-        let mut body_block = Block::default().borders(Borders::ALL).title(body_title);
-        if matches!(self.focus, Focus::Body) {
-            body_block = body_block.border_style(Style::default().fg(colors::primary()));
-        }
-        let body_inner = body_block.inner(vertical[1]);
-        body_block.render(vertical[1], buf);
-        self.body_field.render(body_inner, buf, matches!(self.focus, Focus::Body));
+        let body_title = self.body_field_title();
+        let body_block = BorderedField::new(body_title, matches!(self.focus, Focus::Body));
+        let _ = body_block.render(vertical[1], buf, &self.body_field);
 
-        // Buttons
-        let buttons_area = vertical[2];
-        let save_label = if matches!(self.focus, Focus::Save) { "[Save]" } else { "Save" };
-        let delete_label = if matches!(self.focus, Focus::Delete) { "[Delete]" } else { "Delete" };
-        let cancel_label = if matches!(self.focus, Focus::Cancel) { "[Cancel]" } else { "Cancel" };
-        let btn_span = |label: &str, focus: Focus, color: Style| {
-            if self.focus == focus {
-                Span::styled(label.to_string(), color.bg(colors::primary()).fg(colors::background()))
-            } else {
-                Span::styled(label.to_string(), color)
-            }
-        };
-        let line = Line::from(vec![
-            btn_span(save_label, Focus::Save, Style::default().fg(colors::success()).add_modifier(Modifier::BOLD)),
-            Span::raw("   "),
-            btn_span(delete_label, Focus::Delete, Style::default().fg(colors::error()).add_modifier(Modifier::BOLD)),
-            Span::raw("   "),
-            btn_span(cancel_label, Focus::Cancel, Style::default().fg(colors::text_dim()).add_modifier(Modifier::BOLD)),
-            Span::raw("    Tab cycle • Enter activates"),
-        ]);
-        Paragraph::new(line).render(buttons_area, buf);
-
-        // Status
         if let Some((msg, style)) = &self.status {
             Paragraph::new(Line::from(Span::styled(msg.clone(), *style)))
-                .alignment(Alignment::Left)
-                .render(vertical[3], buf);
+                .render(vertical[2], buf);
         }
+
+        render_text_button_strip(
+            layout.footer,
+            buf,
+            &[
+                TextButton::new(
+                    Focus::Save,
+                    Self::BUTTON_LABELS[0],
+                    matches!(self.focus, Focus::Save),
+                    false,
+                    Style::default().fg(colors::success()).add_modifier(Modifier::BOLD),
+                ),
+                TextButton::new(
+                    Focus::Delete,
+                    Self::BUTTON_LABELS[1],
+                    matches!(self.focus, Focus::Delete),
+                    false,
+                    Style::default().fg(colors::error()).add_modifier(Modifier::BOLD),
+                ),
+                TextButton::new(
+                    Focus::Cancel,
+                    Self::BUTTON_LABELS[2],
+                    matches!(self.focus, Focus::Cancel),
+                    false,
+                    Style::default().fg(colors::text_dim()).add_modifier(Modifier::BOLD),
+                ),
+            ],
+        );
     }
 
     fn list_selection_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let outer = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().bg(colors::background()));
-        let inner = outer.inner(area);
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Min(1)])
-            .split(inner);
-        let list_area = chunks[1];
-
-        if x < list_area.x
-            || x >= list_area.x.saturating_add(list_area.width)
-            || y < list_area.y
-            || y >= list_area.y.saturating_add(list_area.height)
-        {
+        let Some(layout) = SettingsFrame::new("Custom Prompts", self.list_header_lines(), Vec::new())
+            .layout(area)
+        else {
             return None;
-        }
-
-        let rel_y = y.saturating_sub(list_area.y) as usize;
+        };
+        let rel_y = row_selection_index_at(layout.body, x, y, 0, layout.visible_rows())?;
         if self.prompts.is_empty() {
-            if rel_y == 1 { Some(0) } else { None }
-        } else if rel_y < self.prompts.len() {
+            (rel_y == 1).then_some(0)
+        } else if rel_y <= self.prompts.len() {
             Some(rel_y)
-        } else if rel_y == self.prompts.len() {
-            Some(self.prompts.len())
         } else {
             None
         }
     }
 
     fn button_focus_at(&self, buttons_area: Rect, mouse_event: MouseEvent) -> Option<Focus> {
-        if mouse_event.column < buttons_area.x
-            || mouse_event.column >= buttons_area.x.saturating_add(buttons_area.width)
-            || mouse_event.row < buttons_area.y
-            || mouse_event.row >= buttons_area.y.saturating_add(buttons_area.height)
-        {
-            return None;
-        }
+        text_button_at(
+            mouse_event.column,
+            mouse_event.row,
+            buttons_area,
+            &[
+                TextButton::new(Focus::Save, Self::BUTTON_LABELS[0], false, false, Style::new()),
+                TextButton::new(Focus::Delete, Self::BUTTON_LABELS[1], false, false, Style::new()),
+                TextButton::new(Focus::Cancel, Self::BUTTON_LABELS[2], false, false, Style::new()),
+            ],
+        )
+    }
 
-        let save_label = if matches!(self.focus, Focus::Save) { "[Save]" } else { "Save" };
-        let delete_label = if matches!(self.focus, Focus::Delete) { "[Delete]" } else { "Delete" };
-        let cancel_label = if matches!(self.focus, Focus::Cancel) { "[Cancel]" } else { "Cancel" };
-
-        let x = mouse_event.column.saturating_sub(buttons_area.x) as usize;
-        let save_start = 0usize;
-        let delete_start = save_label.len().saturating_add(3);
-        let cancel_start = delete_start
-            .saturating_add(delete_label.len())
-            .saturating_add(3);
-
-        if x >= save_start && x < save_start.saturating_add(save_label.len()) {
-            return Some(Focus::Save);
-        }
-        if x >= delete_start && x < delete_start.saturating_add(delete_label.len()) {
-            return Some(Focus::Delete);
-        }
-        if x >= cancel_start && x < cancel_start.saturating_add(cancel_label.len()) {
-            return Some(Focus::Cancel);
-        }
-        None
+    fn list_header_lines(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(Span::styled(
+                "Custom prompts allow you to save reusable prompts initiated with a simple slash command. They are invoked with /name. Create and update your custom prompts below.",
+                Style::default().fg(colors::text_dim()),
+            )),
+            Line::from(""),
+        ]
     }
 
     fn handle_list_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -384,21 +356,30 @@ impl PromptsSettingsView {
     }
 
     fn handle_edit_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let Some(layout) =
+            SettingsFrame::new("Custom Prompt", Vec::new(), vec![Line::from("")]).layout(area)
+        else {
+            return false;
+        };
         let vertical = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(3),
                 Constraint::Min(6),
                 Constraint::Length(1),
-                Constraint::Length(1),
             ])
-            .split(area);
+            .split(layout.body);
         let name_rect = vertical[0];
         let body_rect = vertical[1];
-        let buttons_rect = vertical[2];
+        let status_rect = vertical[2];
+        let buttons_rect = layout.footer;
 
-        let name_inner = Block::default().borders(Borders::ALL).inner(name_rect);
-        let body_inner = Block::default().borders(Borders::ALL).inner(body_rect);
+        let name_inner =
+            BorderedField::new(self.name_field_title(), matches!(self.focus, Focus::Name))
+                .inner(name_rect);
+        let body_inner =
+            BorderedField::new(self.body_field_title(), matches!(self.focus, Focus::Body))
+                .inner(body_rect);
 
         match mouse_event.kind {
             MouseEventKind::Moved => {
@@ -431,6 +412,9 @@ impl PromptsSettingsView {
                     self.focus = Focus::Body;
                     let _ = self.body_field.handle_mouse_click(col, row, body_inner);
                     return true;
+                }
+                if status_rect.contains(ratatui::layout::Position { x: col, y: row }) {
+                    return false;
                 }
                 if let Some(focus) = self.button_focus_at(buttons_rect, mouse_event) {
                     self.focus = focus;
@@ -478,20 +462,15 @@ impl PromptsSettingsView {
         match key.code {
             KeyCode::Up => {
                 if self.selected > 0 { self.selected -= 1; }
-                return true;
+                true
             }
             KeyCode::Down => {
                 let max = self.prompts.len();
                 if self.selected < max { self.selected += 1; }
-                return true;
+                true
             }
-            KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.start_new_prompt();
-                return true;
-            }
-            _ => {}
+            _ => false,
         }
-        false
     }
 
     fn start_new_prompt(&mut self) {
@@ -508,6 +487,7 @@ impl PromptsSettingsView {
             self.name_field.set_text(&p.name);
             self.body_field.set_text(&p.content);
             self.focus = Focus::Name;
+            self.status = None;
         }
     }
 
@@ -595,15 +575,13 @@ impl PromptsSettingsView {
         }
 
         // Update local list
-        let mut updated = self.prompts.clone();
         let new_entry = CustomPrompt { name, path, content: body, description: None, argument_hint: None };
-        if self.selected < updated.len() {
-            updated[self.selected] = new_entry;
+        if self.selected < self.prompts.len() {
+            self.prompts[self.selected] = new_entry;
         } else {
-            updated.push(new_entry);
-            self.selected = updated.len() - 1;
+            self.prompts.push(new_entry);
+            self.selected = self.prompts.len() - 1;
         }
-        self.prompts = updated;
         self.status = Some(("Saved.".to_string(), Style::default().fg(colors::success())));
 
         // Trigger reload so composer autocomplete picks it up.
@@ -637,8 +615,8 @@ impl PromptsSettingsView {
 }
 
 impl<'a> BottomPaneView<'a> for PromptsSettingsView {
-    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        let _ = self.handle_key_event_direct(key_event);
+    fn handle_key_event(&mut self, pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+        self.handle_key_event_with_result(pane, key_event);
     }
 
     fn handle_key_event_with_result(
@@ -663,7 +641,7 @@ impl<'a> BottomPaneView<'a> for PromptsSettingsView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        20
+        Self::DEFAULT_HEIGHT
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {

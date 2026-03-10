@@ -13,7 +13,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
+use super::settings_ui::frame::SettingsFrame;
 use crate::ui_interaction::{
     redraw_if,
     route_selectable_list_mouse_with_config,
@@ -315,15 +315,12 @@ impl ValidationSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let header_lines = self.render_header_lines();
-        let footer_lines = self.render_footer_lines();
-        let layout =
-            compute_settings_frame_layout(
-                area,
-                " Validation Settings ",
-                header_lines.len(),
-                footer_lines.len(),
-            )?;
+        let layout = SettingsFrame::new(
+            " Validation Settings ",
+            self.render_header_lines(),
+            self.render_footer_lines(),
+        )
+        .layout(area)?;
         if !layout.body.contains(ratatui::layout::Position { x, y }) {
             return None;
         }
@@ -571,18 +568,16 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
             return;
         }
 
-        let header_lines = self.render_header_lines();
-        let footer_lines = self.render_footer_lines();
-        let Some(layout) = render_settings_frame(
-            area,
-            buf,
+        let Some(layout) = SettingsFrame::new(
             " Validation Settings ",
-            header_lines,
-            footer_lines,
-        ) else {
+            self.render_header_lines(),
+            self.render_footer_lines(),
+        )
+        .render(area, buf)
+        else {
             return;
         };
-        let visible_slots = layout.visible_rows;
+        let visible_slots = layout.visible_rows();
         self.viewport_rows.set(visible_slots);
 
         let (rows, selection_rows, _) = self.build_rows();

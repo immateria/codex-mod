@@ -3,7 +3,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -19,6 +19,7 @@ use crate::ui_interaction::{
     wrap_next,
     wrap_prev,
 };
+use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
 use super::BottomPane;
 // TODO - This is currently unlinked here, on the official CODEX side, etc. figure out what to do later.
 /// Interactive UI for GitHub workflow monitoring settings.
@@ -63,14 +64,11 @@ impl GithubSettingsView {
         }
     }
 
-    fn content_area(area: Rect) -> Rect {
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        Rect {
-            x: inner.x.saturating_add(1),
-            y: inner.y,
-            width: inner.width.saturating_sub(2),
-            height: inner.height,
-        }
+    fn panel() -> SettingsPanel<'static> {
+        SettingsPanel::new(
+            "GitHub Settings",
+            SettingsPanelStyle::bottom_pane().with_margin(ratatui::layout::Margin::new(1, 0)),
+        )
     }
 
     fn selectable_regions() -> [RelativeHitRegion; 2] {
@@ -120,7 +118,9 @@ impl GithubSettingsView {
     }
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let content_area = Self::content_area(area);
+        let Some(content_area) = Self::panel().layout(area).map(|layout| layout.content) else {
+            return false;
+        };
         let mut selected = self.selected_row;
         let result = route_selectable_regions_mouse_with_config(
             mouse_event,
@@ -174,15 +174,9 @@ impl<'a> BottomPaneView<'a> for GithubSettingsView {
     fn desired_height(&self, _width: u16) -> u16 { 9 }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(" GitHub Settings ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
+        let Some(layout) = Self::panel().render(area, buf) else {
+            return;
+        };
 
         let status_line = if self.token_ready {
             Line::from(vec![
@@ -235,6 +229,34 @@ impl<'a> BottomPaneView<'a> for GithubSettingsView {
         let paragraph = Paragraph::new(lines)
             .alignment(Alignment::Left)
             .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
-        paragraph.render(Rect { x: inner.x.saturating_add(1), y: inner.y, width: inner.width.saturating_sub(2), height: inner.height }, buf);
+        paragraph.render(layout.content, buf);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    use std::sync::mpsc::channel;
+
+    fn left_click(x: u16, y: u16) -> MouseEvent {
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: x,
+            row: y,
+            modifiers: KeyModifiers::NONE,
+        }
+    }
+
+    #[test]
+    fn github_content_hit_regions_map_to_toggle_and_close() {
+        let (tx, _rx) = channel();
+        let mut view = GithubSettingsView::new(false, "token missing".to_string(), false, AppEventSender::new(tx));
+        let area = Rect::new(0, 0, 40, 9);
+        let content = GithubSettingsView::panel().layout(area).expect("layout").content;
+        assert!(view.handle_mouse_event_direct(left_click(content.x, content.y.saturating_add(2)), area));
+        assert_eq!(view.selected_row, GithubSettingsView::TOGGLE_ROW);
+        assert!(view.handle_mouse_event_direct(left_click(content.x, content.y.saturating_add(4)), area));
+        assert_eq!(view.selected_row, GithubSettingsView::CLOSE_ROW);
     }
 }

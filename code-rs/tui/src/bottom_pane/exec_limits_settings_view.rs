@@ -22,10 +22,11 @@ use crate::ui_interaction::{
 };
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
+use super::settings_ui::frame::SettingsFrame;
 use super::settings_ui::rows::{
-    render_kv_row,
+    render_kv_rows,
     selection_index_at as row_selection_index_at,
+    KeyValueRow,
     StyledText,
 };
 use super::BottomPane;
@@ -502,10 +503,12 @@ impl ExecLimitsSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let header_lines = self.render_header_lines();
-        let footer_lines = self.render_footer_lines();
-        let layout =
-            compute_settings_frame_layout(area, " Exec Limits ", header_lines.len(), footer_lines.len())?;
+        let layout = SettingsFrame::new(
+            " Exec Limits ",
+            self.render_header_lines(),
+            self.render_footer_lines(),
+        )
+        .layout(area)?;
         row_selection_index_at(
             layout.body,
             x,
@@ -588,14 +591,16 @@ impl ExecLimitsSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let header_lines = self.render_header_lines();
-        let footer_lines = self.render_footer_lines();
-        let Some(layout) =
-            render_settings_frame(area, buf, " Exec Limits ", header_lines, footer_lines)
+        let Some(layout) = SettingsFrame::new(
+            " Exec Limits ",
+            self.render_header_lines(),
+            self.render_footer_lines(),
+        )
+        .render(area, buf)
         else {
             return;
         };
-        let visible_slots = layout.visible_rows;
+        let visible_slots = layout.visible_rows();
         self.viewport_rows.set(visible_slots);
 
         let rows = Self::build_rows();
@@ -606,50 +611,33 @@ impl ExecLimitsSettingsView {
         state.ensure_visible(total, visible_slots);
         self.state.set(state);
 
-        let start = state.scroll_top.min(total.saturating_sub(1));
-        let end = (start + visible_slots).min(total);
-        for (abs_idx, row) in rows
+        let is_dirty = self.settings != self.last_applied;
+        let row_specs: Vec<KeyValueRow<'_>> = rows
             .iter()
             .copied()
-            .enumerate()
-            .skip(start)
-            .take(end.saturating_sub(start))
-        {
-            let is_selected = abs_idx == selected_idx;
-            let is_dirty = self.settings != self.last_applied;
-            let (label, value) = match row {
-                RowKind::PidsMax => (
-                    "Process limit (pids.max)",
-                    Self::format_limit_pids(self.settings.pids_max),
+            .map(|row| match row {
+                RowKind::PidsMax => KeyValueRow::new("Process limit (pids.max)").with_value(
+                    StyledText::new(
+                        Self::format_limit_pids(self.settings.pids_max),
+                        Style::default().fg(colors::success()),
+                    ),
                 ),
-                RowKind::MemoryMax => (
-                    "Memory limit (memory.max)",
-                    Self::format_limit_memory(self.settings.memory_max_mb),
+                RowKind::MemoryMax => KeyValueRow::new("Memory limit (memory.max)").with_value(
+                    StyledText::new(
+                        Self::format_limit_memory(self.settings.memory_max_mb),
+                        Style::default().fg(colors::success()),
+                    ),
                 ),
-                RowKind::ResetBothAuto => ("Reset both to Auto", "".to_string()),
-                RowKind::DisableBoth => ("Disable both", "".to_string()),
-                RowKind::Apply => (
-                    "Apply",
-                    if is_dirty {
-                        "Pending".to_string()
-                    } else {
-                        "Saved".to_string()
-                    },
-                ),
-                RowKind::Close => ("Close", "".to_string()),
-            };
-
-            let row_area = Rect::new(
-                layout.body.x,
-                layout.body.y.saturating_add((abs_idx - start) as u16),
-                layout.body.width,
-                1,
-            );
-            let value = (!value.is_empty()).then(|| {
-                StyledText::new(value, Style::default().fg(colors::success()))
-            });
-            render_kv_row(row_area, buf, is_selected, label, value, None, None);
-        }
+                RowKind::ResetBothAuto => KeyValueRow::new("Reset both to Auto"),
+                RowKind::DisableBoth => KeyValueRow::new("Disable both"),
+                RowKind::Apply => KeyValueRow::new("Apply").with_value(StyledText::new(
+                    if is_dirty { "Pending" } else { "Saved" },
+                    Style::default().fg(colors::success()),
+                )),
+                RowKind::Close => KeyValueRow::new("Close"),
+            })
+            .collect();
+        render_kv_rows(layout.body, buf, state.scroll_top, Some(selected_idx), &row_specs);
     }
 
     fn render_edit(

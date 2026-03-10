@@ -347,7 +347,10 @@ mod tests {
         let save_x = layout
             .buttons_row
             .x
-            .saturating_add(GENERATE_BUTTON_LABEL.len() as u16 + BUTTON_GAP_WIDTH)
+            .saturating_add(
+                GENERATE_BUTTON_LABEL.len() as u16
+                    + crate::bottom_pane::settings_ui::layout::DEFAULT_BUTTON_GAP.len() as u16,
+            )
             .saturating_add(1);
         let hover_save = mouse_move(save_x, layout.buttons_row.y);
         assert!(view.handle_mouse_event_direct(hover_save, area));

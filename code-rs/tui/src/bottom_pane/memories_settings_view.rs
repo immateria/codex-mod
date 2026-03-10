@@ -25,10 +25,11 @@ use crate::ui_interaction::{
 };
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
+use super::settings_ui::frame::SettingsFrame;
 use super::settings_ui::rows::{
-    render_kv_row,
+    render_kv_rows,
     selection_index_at as row_selection_index_at,
+    KeyValueRow,
     StyledText,
 };
 use super::BottomPane;
@@ -950,14 +951,12 @@ impl MemoriesSettingsView {
     }
 
     fn selection_index_at(&self, x: u16, y: u16, area: Rect) -> Option<usize> {
-        let footer_lines = self.main_footer_lines();
-        let layout =
-            compute_settings_frame_layout(
-                area,
-                " Memories ",
-                self.render_header_lines().len(),
-                footer_lines.len(),
-            )?;
+        let layout = SettingsFrame::new(
+            " Memories ",
+            self.render_header_lines(),
+            self.main_footer_lines(),
+        )
+        .layout(area)?;
         row_selection_index_at(layout.body, x, y, self.state.get().scroll_top, Self::rows().len())
     }
 
@@ -1003,48 +1002,46 @@ impl MemoriesSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let footer_lines = self.main_footer_lines();
-        let Some(layout) = render_settings_frame(
-            area,
-            buf,
+        let Some(layout) = SettingsFrame::new(
             " Memories ",
             self.render_header_lines(),
-            footer_lines,
-        ) else {
+            self.main_footer_lines(),
+        )
+        .render(area, buf)
+        else {
             return;
         };
         let rows = Self::rows();
         let total = rows.len();
         let mut state = self.state.get();
         state.clamp_selection(total);
-        state.ensure_visible(total, layout.visible_rows);
-        self.viewport_rows.set(layout.visible_rows);
+        state.ensure_visible(total, layout.visible_rows());
+        self.viewport_rows.set(layout.visible_rows());
         self.state.set(state);
 
         let selected = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
         let scroll_top = state.scroll_top.min(total.saturating_sub(1));
-        let mut rel_idx = 0usize;
-        let mut abs_idx = scroll_top;
-        while rel_idx < layout.visible_rows && abs_idx < total {
-            let row = rows[abs_idx];
-            let y = layout.body.y.saturating_add(rel_idx as u16);
-            let row_area = Rect::new(layout.body.x, y, layout.body.width, 1);
-            let is_selected = abs_idx == selected;
-            let value = self.row_value(row);
-            let value = (!value.is_empty()).then(|| {
-                StyledText::new(
-                    value,
-                    if is_selected {
-                        Style::default().fg(colors::text_bright()).add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default().fg(colors::text_dim())
-                    },
-                )
-            });
-            render_kv_row(row_area, buf, is_selected, Self::row_label(row), value, None, None);
-            rel_idx += 1;
-            abs_idx += 1;
-        }
+        let row_specs: Vec<KeyValueRow<'_>> = rows
+            .iter()
+            .enumerate()
+            .map(|(idx, row)| {
+                let is_selected = idx == selected;
+                let mut spec = KeyValueRow::new(Self::row_label(*row));
+                let value = self.row_value(*row);
+                if !value.is_empty() {
+                    spec = spec.with_value(StyledText::new(
+                        value,
+                        if is_selected {
+                            Style::default().fg(colors::text_bright()).add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default().fg(colors::text_dim())
+                        },
+                    ));
+                }
+                spec
+            })
+            .collect();
+        render_kv_rows(layout.body, buf, scroll_top, Some(selected), &row_specs);
     }
 
     fn render_edit(

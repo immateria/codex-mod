@@ -25,10 +25,11 @@ use crate::ui_interaction::{
 use std::cell::Cell;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
+use super::settings_ui::frame::SettingsFrame;
 use super::settings_ui::rows::{
-    render_kv_row,
+    render_kv_rows,
     selection_index_at as row_selection_index_at,
+    KeyValueRow,
     StyledText,
 };
 use super::BottomPane;
@@ -592,8 +593,7 @@ impl NetworkSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16, show_advanced: bool) -> Option<usize> {
-        let header_lines = self.render_header_lines();
-        let layout = compute_settings_frame_layout(area, " Network ", header_lines.len(), 0)?;
+        let layout = SettingsFrame::new(" Network ", self.render_header_lines(), vec![]).layout(area)?;
         row_selection_index_at(
             layout.body,
             x,
@@ -604,12 +604,13 @@ impl NetworkSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer, show_advanced: bool) {
-        let header_lines = self.render_header_lines();
-        let Some(layout) = render_settings_frame(area, buf, " Network ", header_lines, vec![]) else {
+        let Some(layout) = SettingsFrame::new(" Network ", self.render_header_lines(), vec![])
+            .render(area, buf)
+        else {
             return;
         };
 
-        let visible_slots = layout.visible_rows;
+        let visible_slots = layout.visible_rows();
         self.viewport_rows.set(visible_slots);
 
         let rows = self.build_rows(show_advanced);
@@ -659,103 +660,80 @@ impl NetworkSettingsView {
 
         let apply_suffix = if self.dirty { " *" } else { "" };
 
-        let mut remaining = visible_slots;
-        let mut row_index = scroll_top;
-        while remaining > 0 && row_index < rows.len() {
-            let kind = rows[row_index];
-            let selected = row_index == selected_idx;
-            let row_area = Rect::new(
-                layout.body.x,
-                layout.body.y.saturating_add((row_index - scroll_top) as u16),
-                layout.body.width,
-                1,
-            );
-            let (label, value) = match kind {
-                RowKind::Enabled => (
-                    "Enabled",
-                    Some(StyledText::new(
-                        enabled_label,
-                        Style::default()
-                            .fg(enabled_color)
-                            .add_modifier(Modifier::BOLD),
-                    )),
-                ),
-                RowKind::Mode => (
-                    "Mode",
-                    Some(StyledText::new(
-                        mode,
-                        Style::default().fg(crate::colors::info()),
-                    )),
-                ),
-                RowKind::AllowedDomains => (
-                    "Allowed domains",
-                    Some(StyledText::new(
+        let row_specs: Vec<KeyValueRow<'_>> = rows
+            .iter()
+            .copied()
+            .map(|kind| match kind {
+                RowKind::Enabled => KeyValueRow::new("Enabled").with_value(StyledText::new(
+                    enabled_label,
+                    Style::default()
+                        .fg(enabled_color)
+                        .add_modifier(Modifier::BOLD),
+                )),
+                RowKind::Mode => KeyValueRow::new("Mode").with_value(StyledText::new(
+                    mode,
+                    Style::default().fg(crate::colors::info()),
+                )),
+                RowKind::AllowedDomains => {
+                    KeyValueRow::new("Allowed domains").with_value(StyledText::new(
                         allowed_summary.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    )),
-                ),
-                RowKind::DeniedDomains => (
-                    "Denied domains",
-                    Some(StyledText::new(
+                    ))
+                }
+                RowKind::DeniedDomains => {
+                    KeyValueRow::new("Denied domains").with_value(StyledText::new(
                         denied_summary.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    )),
-                ),
-                RowKind::AllowLocalBinding => (
-                    "Allow local binding",
-                    Some(StyledText::new(
+                    ))
+                }
+                RowKind::AllowLocalBinding => KeyValueRow::new("Allow local binding")
+                    .with_value(StyledText::new(
                         local_label,
                         Style::default().fg(crate::colors::text_dim()),
                     )),
-                ),
-                RowKind::AdvancedToggle => (
-                    "Advanced",
-                    Some(StyledText::new(
+                RowKind::AdvancedToggle => KeyValueRow::new("Advanced").with_value(
+                    StyledText::new(
                         advanced_label,
                         Style::default().fg(crate::colors::text_dim()),
-                    )),
+                    ),
                 ),
-                RowKind::Socks5Enabled => (
-                    "SOCKS5",
-                    Some(StyledText::new(
+                RowKind::Socks5Enabled => KeyValueRow::new("SOCKS5").with_value(
+                    StyledText::new(
                         socks_label,
                         Style::default().fg(crate::colors::text_dim()),
-                    )),
+                    ),
                 ),
-                RowKind::Socks5Udp => (
-                    "SOCKS5 UDP",
-                    Some(StyledText::new(
+                RowKind::Socks5Udp => KeyValueRow::new("SOCKS5 UDP").with_value(
+                    StyledText::new(
                         socks_udp_label,
                         Style::default().fg(crate::colors::text_dim()),
-                    )),
+                    ),
                 ),
-                RowKind::AllowUpstreamProxyEnv => (
-                    "Allow upstream proxy env",
-                    Some(StyledText::new(
+                RowKind::AllowUpstreamProxyEnv => KeyValueRow::new("Allow upstream proxy env")
+                    .with_value(StyledText::new(
                         upstream_env_label,
                         Style::default().fg(crate::colors::text_dim()),
                     )),
-                ),
-                RowKind::AllowUnixSockets => (
-                    "Allow unix sockets",
-                    Some(StyledText::new(
+                RowKind::AllowUnixSockets => {
+                    KeyValueRow::new("Allow unix sockets").with_value(StyledText::new(
                         unix_summary.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    )),
-                ),
-                RowKind::Apply => (
-                    "Apply changes",
-                    Some(StyledText::new(
-                        apply_suffix,
-                        Style::default().fg(crate::colors::warning()),
-                    )),
-                ),
-                RowKind::Close => ("Close", None),
-            };
-            render_kv_row(row_area, buf, selected, label, value, None, None);
-            remaining = remaining.saturating_sub(1);
-            row_index += 1;
-        }
+                    ))
+                }
+                RowKind::Apply => KeyValueRow::new("Apply changes").with_value(StyledText::new(
+                    apply_suffix,
+                    Style::default().fg(crate::colors::warning()),
+                )),
+                RowKind::Close => KeyValueRow::new("Close"),
+            })
+            .collect();
+        render_kv_rows(
+            layout.body,
+            buf,
+            scroll_top,
+            Some(selected_idx),
+            &row_specs,
+        );
     }
 
     fn render_edit(&self, area: Rect, buf: &mut Buffer, target: EditTarget, field: &FormTextField) {

@@ -1,5 +1,5 @@
 use super::*;
-use crate::bottom_pane::settings_ui::buttons::text_button_at;
+use crate::bottom_pane::settings_ui::buttons::{text_button_at, TextButton};
 
 impl SkillsSettingsView {
     pub fn handle_key_event_direct(&mut self, key: KeyEvent) -> bool {
@@ -587,19 +587,12 @@ impl SkillsSettingsView {
             y,
             row,
             &[
-                GENERATE_BUTTON_LABEL,
-                SAVE_BUTTON_LABEL,
-                DELETE_BUTTON_LABEL,
-                CANCEL_BUTTON_LABEL,
+                TextButton::new(ActionButton::Generate, GENERATE_BUTTON_LABEL, false, false, Style::new()),
+                TextButton::new(ActionButton::Save, SAVE_BUTTON_LABEL, false, false, Style::new()),
+                TextButton::new(ActionButton::Delete, DELETE_BUTTON_LABEL, false, false, Style::new()),
+                TextButton::new(ActionButton::Cancel, CANCEL_BUTTON_LABEL, false, false, Style::new()),
             ],
         )
-        .map(|index| match index {
-            0 => ActionButton::Generate,
-            1 => ActionButton::Save,
-            2 => ActionButton::Delete,
-            3 => ActionButton::Cancel,
-            _ => unreachable!(),
-        })
     }
 
     fn set_hovered_button(&mut self, hovered: Option<ActionButton>) -> bool {

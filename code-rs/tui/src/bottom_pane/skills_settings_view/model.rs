@@ -1,7 +1,5 @@
 use super::*;
 
-pub(super) const BUTTON_GAP_WIDTH: u16 =
-    crate::bottom_pane::settings_ui::layout::DEFAULT_BUTTON_GAP.len() as u16;
 pub(super) const SKILLS_SETTINGS_VIEW_HEIGHT: u16 = 28;
 pub(super) const GENERATE_BUTTON_LABEL: &str = "Generate draft";
 pub(super) const SAVE_BUTTON_LABEL: &str = "Save";

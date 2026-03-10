@@ -1,6 +1,8 @@
 use super::*;
-use crate::bottom_pane::settings_ui::buttons::{render_text_button_strip, TextButton};
-use crate::bottom_pane::settings_ui::fields::{bordered_field_block, render_bordered_field};
+use crate::bottom_pane::settings_ui::buttons::{
+    render_text_button_strip, text_button_strip_width, TextButton,
+};
+use crate::bottom_pane::settings_ui::fields::BorderedField;
 
 const LABEL_COLUMN_WIDTH: u16 = 24;
 const LOW_HEIGHT_THRESHOLD: usize = 24;
@@ -163,103 +165,69 @@ impl SkillsSettingsView {
             .render(layout.style_profile_row, buf);
         }
 
-        render_bordered_field(
-            buf,
-            layout.style_references_outer,
-            &style_references_block(
-                self.editor.style_references_dirty,
-                matches!(self.editor.focus, Focus::StyleReferences),
-            ),
-            &self.editor.style_references_field,
+        let _ = style_references_block(
+            self.editor.style_references_dirty,
             matches!(self.editor.focus, Focus::StyleReferences),
-        );
-        render_bordered_field(
-            buf,
-            layout.style_skill_roots_outer,
-            &style_skill_roots_block(
-                self.editor.style_skill_roots_dirty,
-                matches!(self.editor.focus, Focus::StyleSkillRoots),
-            ),
-            &self.editor.style_skill_roots_field,
+        )
+        .render(layout.style_references_outer, buf, &self.editor.style_references_field);
+        let _ = style_skill_roots_block(
+            self.editor.style_skill_roots_dirty,
             matches!(self.editor.focus, Focus::StyleSkillRoots),
-        );
-        render_bordered_field(
-            buf,
-            layout.style_mcp_include_outer,
-            &style_mcp_include_block(
-                self.editor.style_mcp_include_dirty,
-                matches!(self.editor.focus, Focus::StyleMcpInclude),
-            ),
-            &self.editor.style_mcp_include_field,
+        )
+        .render(layout.style_skill_roots_outer, buf, &self.editor.style_skill_roots_field);
+        let _ = style_mcp_include_block(
+            self.editor.style_mcp_include_dirty,
             matches!(self.editor.focus, Focus::StyleMcpInclude),
-        );
-        render_bordered_field(
-            buf,
-            layout.style_mcp_exclude_outer,
-            &style_mcp_exclude_block(
-                self.editor.style_mcp_exclude_dirty,
-                matches!(self.editor.focus, Focus::StyleMcpExclude),
-            ),
-            &self.editor.style_mcp_exclude_field,
+        )
+        .render(layout.style_mcp_include_outer, buf, &self.editor.style_mcp_include_field);
+        let _ = style_mcp_exclude_block(
+            self.editor.style_mcp_exclude_dirty,
             matches!(self.editor.focus, Focus::StyleMcpExclude),
-        );
+        )
+        .render(layout.style_mcp_exclude_outer, buf, &self.editor.style_mcp_exclude_field);
 
-        render_bordered_field(
-            buf,
-            layout.examples_outer,
-            &examples_block(matches!(self.editor.focus, Focus::Examples)),
-            &self.editor.examples_field,
-            matches!(self.editor.focus, Focus::Examples),
-        );
+        let _ = examples_block(matches!(self.editor.focus, Focus::Examples))
+            .render(layout.examples_outer, buf, &self.editor.examples_field);
 
-        render_bordered_field(
-            buf,
-            layout.body_outer,
-            &body_block(matches!(self.editor.focus, Focus::Body)),
-            &self.editor.body_field,
-            matches!(self.editor.focus, Focus::Body),
-        );
+        let _ = body_block(matches!(self.editor.focus, Focus::Body))
+            .render(layout.body_outer, buf, &self.editor.body_field);
 
-        render_text_button_strip(
-            layout.buttons_row,
-            buf,
-            &[
-                TextButton {
-                    label: GENERATE_BUTTON_LABEL,
-                    focused: self.editor.focus == Focus::Generate,
-                    hovered: self.editor.hovered_button == Some(ActionButton::Generate),
-                    style: Style::default().fg(colors::info()).add_modifier(Modifier::BOLD),
-                },
-                TextButton {
-                    label: SAVE_BUTTON_LABEL,
-                    focused: self.editor.focus == Focus::Save,
-                    hovered: self.editor.hovered_button == Some(ActionButton::Save),
-                    style: Style::default().fg(colors::success()).add_modifier(Modifier::BOLD),
-                },
-                TextButton {
-                    label: DELETE_BUTTON_LABEL,
-                    focused: self.editor.focus == Focus::Delete,
-                    hovered: self.editor.hovered_button == Some(ActionButton::Delete),
-                    style: Style::default().fg(colors::error()).add_modifier(Modifier::BOLD),
-                },
-                TextButton {
-                    label: CANCEL_BUTTON_LABEL,
-                    focused: self.editor.focus == Focus::Cancel,
-                    hovered: self.editor.hovered_button == Some(ActionButton::Cancel),
-                    style: Style::default().fg(colors::text_dim()).add_modifier(Modifier::BOLD),
-                },
-            ],
-        );
+        let buttons = [
+            TextButton::new(
+                ActionButton::Generate,
+                GENERATE_BUTTON_LABEL,
+                self.editor.focus == Focus::Generate,
+                self.editor.hovered_button == Some(ActionButton::Generate),
+                Style::default().fg(colors::info()).add_modifier(Modifier::BOLD),
+            ),
+            TextButton::new(
+                ActionButton::Save,
+                SAVE_BUTTON_LABEL,
+                self.editor.focus == Focus::Save,
+                self.editor.hovered_button == Some(ActionButton::Save),
+                Style::default().fg(colors::success()).add_modifier(Modifier::BOLD),
+            ),
+            TextButton::new(
+                ActionButton::Delete,
+                DELETE_BUTTON_LABEL,
+                self.editor.focus == Focus::Delete,
+                self.editor.hovered_button == Some(ActionButton::Delete),
+                Style::default().fg(colors::error()).add_modifier(Modifier::BOLD),
+            ),
+            TextButton::new(
+                ActionButton::Cancel,
+                CANCEL_BUTTON_LABEL,
+                self.editor.focus == Focus::Cancel,
+                self.editor.hovered_button == Some(ActionButton::Cancel),
+                Style::default().fg(colors::text_dim()).add_modifier(Modifier::BOLD),
+            ),
+        ];
+        render_text_button_strip(layout.buttons_row, buf, &buttons);
         let hint_x = layout
             .buttons_row
             .x
-            .saturating_add((
-                GENERATE_BUTTON_LABEL.len()
-                    + SAVE_BUTTON_LABEL.len()
-                    + DELETE_BUTTON_LABEL.len()
-                    + CANCEL_BUTTON_LABEL.len()
-            ) as u16)
-            .saturating_add((BUTTON_GAP_WIDTH * 3).saturating_add(4));
+            .saturating_add(text_button_strip_width(&buttons))
+            .saturating_add(4);
         Paragraph::new(Line::from(Span::raw(
             "Tab cycle - Enter activates - <-/-> mode - Ctrl+G generate",
         )))
@@ -499,46 +467,46 @@ fn advance_section(top: &mut usize, height: usize) -> (usize, usize) {
     (section_top, height)
 }
 
-fn style_references_block(dirty: bool, focused: bool) -> Block<'static> {
+fn style_references_block(dirty: bool, focused: bool) -> BorderedField<'static> {
     let title = if dirty {
         "Style references [edited] (one path per line)".to_string()
     } else {
         "Style references (one path per line)".to_string()
     };
-    bordered_field_block(title, focused)
+    BorderedField::new(title, focused)
 }
 
-fn style_skill_roots_block(dirty: bool, focused: bool) -> Block<'static> {
+fn style_skill_roots_block(dirty: bool, focused: bool) -> BorderedField<'static> {
     let title = if dirty {
         "Style skill roots [edited] (one path per line)".to_string()
     } else {
         "Style skill roots (one path per line)".to_string()
     };
-    bordered_field_block(title, focused)
+    BorderedField::new(title, focused)
 }
 
-fn style_mcp_include_block(dirty: bool, focused: bool) -> Block<'static> {
+fn style_mcp_include_block(dirty: bool, focused: bool) -> BorderedField<'static> {
     let title = if dirty {
         "Style MCP include [edited] (one server per line)".to_string()
     } else {
         "Style MCP include (one server per line)".to_string()
     };
-    bordered_field_block(title, focused)
+    BorderedField::new(title, focused)
 }
 
-fn style_mcp_exclude_block(dirty: bool, focused: bool) -> Block<'static> {
+fn style_mcp_exclude_block(dirty: bool, focused: bool) -> BorderedField<'static> {
     let title = if dirty {
         "Style MCP exclude [edited] (one server per line)".to_string()
     } else {
         "Style MCP exclude (one server per line)".to_string()
     };
-    bordered_field_block(title, focused)
+    BorderedField::new(title, focused)
 }
 
-fn examples_block(focused: bool) -> Block<'static> {
-    bordered_field_block("Trigger Examples / User Requests".to_string(), focused)
+fn examples_block(focused: bool) -> BorderedField<'static> {
+    BorderedField::new("Trigger Examples / User Requests".to_string(), focused)
 }
 
-fn body_block(focused: bool) -> Block<'static> {
-    bordered_field_block("SKILL.md Body".to_string(), focused)
+fn body_block(focused: bool) -> BorderedField<'static> {
+    BorderedField::new("SKILL.md Body".to_string(), focused)
 }

@@ -25,7 +25,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
-use super::settings_panel::{render_panel, PanelFrameStyle};
+use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
 
 #[derive(Debug, Clone, Default)]
 pub struct UpdateSharedState {
@@ -268,6 +268,13 @@ impl UpdateSettingsView {
         }
     }
 
+    fn panel() -> SettingsPanel<'static> {
+        SettingsPanel::new(
+            Self::PANEL_TITLE,
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+        )
+    }
+
     pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         let handled = match key_event.code {
             KeyCode::Esc => {
@@ -309,12 +316,15 @@ impl UpdateSettingsView {
     }
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let Some(content) = Self::panel().layout(area).map(|layout| layout.content) else {
+            return false;
+        };
         let mut selected = self.field;
         let result = route_selectable_regions_mouse_with_config(
             mouse_event,
             &mut selected,
             Self::FIELD_COUNT,
-            area,
+            content,
             &Self::HIT_REGIONS,
             SelectableListMouseConfig::default(),
         );
@@ -385,16 +395,57 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        render_panel(
-            area,
-            buf,
-            Self::PANEL_TITLE,
-            PanelFrameStyle::bottom_pane().with_margin(Margin::new(1, 0)),
-            |inner, buf| self.render_panel_body(inner, buf),
-        );
+        if let Some(layout) = Self::panel().render(area, buf) {
+            self.render_panel_body(layout.content, buf);
+        }
     }
 
     fn handle_paste(&mut self, _text: String) -> ConditionalUpdate {
         ConditionalUpdate::NoRedraw
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn render_without_frame_writes_body_content() {
+        let area = Rect::new(0, 0, 30, 8);
+        let mut buf = Buffer::empty(area);
+        let shared = Arc::new(Mutex::new(UpdateSharedState::default()));
+        let lines = {
+            let state = shared
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            let mut lines: Vec<Line<'static>> = Vec::new();
+            lines.push(Line::from(vec![Span::styled(
+                "Upgrade",
+                Style::default().add_modifier(Modifier::BOLD),
+            )]));
+            let version_summary = if state.checking {
+                "checking…".to_string()
+            } else if let Some(err) = &state.error {
+                err.clone()
+            } else if let Some(latest) = &state.latest_version {
+                format!("1.0.0 → {latest}")
+            } else {
+                "1.0.0".to_string()
+            };
+            lines.push(Line::from(vec![
+                Span::styled("› ", Style::default().fg(colors::primary())),
+                Span::styled("Run Upgrade", Style::default().fg(colors::primary())),
+                Span::raw("  "),
+                Span::styled(version_summary, Style::default().fg(colors::text_dim())),
+            ]));
+            lines
+        };
+        Paragraph::new(lines)
+            .alignment(Alignment::Left)
+            .style(Style::default().bg(colors::background()).fg(colors::text()))
+            .wrap(Wrap { trim: false })
+            .render(area, &mut buf);
+        assert_eq!(buf[(area.x, area.y)].symbol(), "U");
     }
 }
