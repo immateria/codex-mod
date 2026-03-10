@@ -5,7 +5,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 use std::cell::Cell;
 
 use crate::app_event::AppEvent;
@@ -13,6 +13,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
 use crate::ui_interaction::{
     redraw_if,
     route_selectable_list_mouse_with_config,
@@ -314,41 +315,19 @@ impl ValidationSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        if area.width == 0 || area.height == 0 {
+        let header_lines = self.render_header_lines();
+        let footer_lines = self.render_footer_lines();
+        let layout =
+            compute_settings_frame_layout(
+                area,
+                " Validation Settings ",
+                header_lines.len(),
+                footer_lines.len(),
+            )?;
+        if !layout.body.contains(ratatui::layout::Position { x, y }) {
             return None;
         }
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return None;
-        }
-        if x < inner.x
-            || x >= inner.x.saturating_add(inner.width)
-            || y < inner.y
-            || y >= inner.y.saturating_add(inner.height)
-        {
-            return None;
-        }
-
-        let header_height = self.render_header_lines().len();
-        let footer_height = {
-            let available_height = inner.height as usize;
-            if available_height > header_height {
-                1 + self.render_footer_lines().len()
-            } else {
-                0
-            }
-        };
-        let available_height = inner.height as usize;
-        let list_height = available_height.saturating_sub(header_height + footer_height);
-        if list_height == 0 {
-            return None;
-        }
-
-        let rel_y = y.saturating_sub(inner.y) as usize;
-        if rel_y < header_height || rel_y >= header_height + list_height {
-            return None;
-        }
-        let line_offset = rel_y - header_height;
+        let line_offset = y.saturating_sub(layout.body.y) as usize;
 
         let (rows, selection_rows, _) = self.build_rows();
         let selection_count = selection_rows.len();
@@ -592,28 +571,18 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
             return;
         }
 
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(colors::border()))
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .title(" Validation Settings ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
         let header_lines = self.render_header_lines();
         let footer_lines = self.render_footer_lines();
-
-        let available_height = inner.height as usize;
-        let header_height = header_lines.len().min(available_height) as usize;
-        let footer_height = if available_height > header_height {
-            1 + footer_lines.len()
-        } else {
-            0
+        let Some(layout) = render_settings_frame(
+            area,
+            buf,
+            " Validation Settings ",
+            header_lines,
+            footer_lines,
+        ) else {
+            return;
         };
-        let list_height = available_height.saturating_sub(header_height + footer_height);
-        let visible_slots = list_height.max(1);
+        let visible_slots = layout.visible_rows;
         self.viewport_rows.set(visible_slots);
 
         let (rows, selection_rows, _) = self.build_rows();
@@ -634,7 +603,6 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
         }
 
         let mut visible_lines: Vec<Line> = Vec::new();
-        visible_lines.extend(header_lines.iter().cloned());
 
         let mut remaining = visible_slots;
         let mut row_index = start_row;
@@ -646,15 +614,10 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
             row_index += 1;
         }
 
-        if footer_height > 0 {
-            visible_lines.push(Line::from(""));
-            visible_lines.extend(footer_lines);
-        }
-
         Paragraph::new(visible_lines)
             .alignment(Alignment::Left)
             .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .render(inner, buf);
+            .render(layout.body, buf);
     }
 }
 

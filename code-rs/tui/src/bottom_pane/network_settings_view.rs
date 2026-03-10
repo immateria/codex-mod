@@ -25,6 +25,12 @@ use crate::ui_interaction::{
 use std::cell::Cell;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
+use super::settings_ui::rows::{
+    render_kv_row,
+    selection_index_at as row_selection_index_at,
+    StyledText,
+};
 use super::BottomPane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -526,7 +532,7 @@ impl NetworkSettingsView {
                     mouse_event,
                     &mut selected,
                     total,
-                    |x, y| self.selection_index_at(area, x, y),
+                    |x, y| self.selection_index_at(area, x, y, show_advanced),
                     SelectableListMouseConfig {
                         hover_select: true,
                         require_pointer_hit_for_scroll: true,
@@ -585,78 +591,25 @@ impl NetworkSettingsView {
         }
     }
 
-    fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        if area.width == 0 || area.height == 0 {
-            return None;
-        }
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return None;
-        }
-        if x < inner.x
-            || x >= inner.x.saturating_add(inner.width)
-            || y < inner.y
-            || y >= inner.y.saturating_add(inner.height)
-        {
-            return None;
-        }
-
+    fn selection_index_at(&self, area: Rect, x: u16, y: u16, show_advanced: bool) -> Option<usize> {
         let header_lines = self.render_header_lines();
-        let available_height = inner.height as usize;
-        let header_height = header_lines.len().min(available_height);
-        let list_height = available_height.saturating_sub(header_height);
-        if list_height == 0 {
-            return None;
-        }
-
-        let rel_y = y.saturating_sub(inner.y) as usize;
-        if rel_y < header_height || rel_y >= header_height + list_height {
-            return None;
-        }
-        let line_offset = rel_y - header_height;
-
-        let scroll_top = self.state.scroll_top;
-        Some(scroll_top.saturating_add(line_offset))
+        let layout = compute_settings_frame_layout(area, " Network ", header_lines.len(), 0)?;
+        row_selection_index_at(
+            layout.body,
+            x,
+            y,
+            self.state.scroll_top,
+            self.build_rows(show_advanced).len(),
+        )
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer, show_advanced: bool) {
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(" Network ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
-        if inner.width == 0 || inner.height == 0 {
-            return;
-        }
-
-        let row_style = |selected: bool| {
-            if selected {
-                Style::default()
-                    .bg(crate::colors::selection())
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            }
-        };
-
-        let arrow_style = |selected: bool| {
-            if selected {
-                Style::default().fg(crate::colors::primary())
-            } else {
-                Style::default().fg(crate::colors::text_dim())
-            }
-        };
-
         let header_lines = self.render_header_lines();
-        let available_height = inner.height as usize;
-        let header_height = header_lines.len().min(available_height);
-        let list_height = available_height.saturating_sub(header_height);
-        let visible_slots = list_height.max(1);
+        let Some(layout) = render_settings_frame(area, buf, " Network ", header_lines, vec![]) else {
+            return;
+        };
+
+        let visible_slots = layout.visible_rows;
         self.viewport_rows.set(visible_slots);
 
         let rows = self.build_rows(show_advanced);
@@ -667,9 +620,6 @@ impl NetworkSettingsView {
             .unwrap_or(0)
             .min(total.saturating_sub(1));
         let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
-
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.extend(header_lines);
 
         let enabled_label = if self.settings.enabled { "Enabled" } else { "Disabled" };
         let enabled_color = if self.settings.enabled {
@@ -714,95 +664,98 @@ impl NetworkSettingsView {
         while remaining > 0 && row_index < rows.len() {
             let kind = rows[row_index];
             let selected = row_index == selected_idx;
-            let arrow = if selected { "› " } else { "  " };
-            let mut spans = vec![Span::styled(arrow, arrow_style(selected))];
-            match kind {
-                RowKind::Enabled => {
-                    spans.push(Span::raw("Enabled: "));
-                    spans.push(Span::styled(
+            let row_area = Rect::new(
+                layout.body.x,
+                layout.body.y.saturating_add((row_index - scroll_top) as u16),
+                layout.body.width,
+                1,
+            );
+            let (label, value) = match kind {
+                RowKind::Enabled => (
+                    "Enabled",
+                    Some(StyledText::new(
                         enabled_label,
                         Style::default()
                             .fg(enabled_color)
                             .add_modifier(Modifier::BOLD),
-                    ));
-                }
-                RowKind::Mode => {
-                    spans.push(Span::raw("Mode: "));
-                    spans.push(Span::styled(mode, Style::default().fg(crate::colors::info())));
-                }
-                RowKind::AllowedDomains => {
-                    spans.push(Span::raw("Allowed domains: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::Mode => (
+                    "Mode",
+                    Some(StyledText::new(
+                        mode,
+                        Style::default().fg(crate::colors::info()),
+                    )),
+                ),
+                RowKind::AllowedDomains => (
+                    "Allowed domains",
+                    Some(StyledText::new(
                         allowed_summary.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::DeniedDomains => {
-                    spans.push(Span::raw("Denied domains: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::DeniedDomains => (
+                    "Denied domains",
+                    Some(StyledText::new(
                         denied_summary.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::AllowLocalBinding => {
-                    spans.push(Span::raw("Allow local binding: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::AllowLocalBinding => (
+                    "Allow local binding",
+                    Some(StyledText::new(
                         local_label,
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::AdvancedToggle => {
-                    spans.push(Span::raw("Advanced: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::AdvancedToggle => (
+                    "Advanced",
+                    Some(StyledText::new(
                         advanced_label,
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::Socks5Enabled => {
-                    spans.push(Span::raw("SOCKS5: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::Socks5Enabled => (
+                    "SOCKS5",
+                    Some(StyledText::new(
                         socks_label,
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::Socks5Udp => {
-                    spans.push(Span::raw("SOCKS5 UDP: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::Socks5Udp => (
+                    "SOCKS5 UDP",
+                    Some(StyledText::new(
                         socks_udp_label,
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::AllowUpstreamProxyEnv => {
-                    spans.push(Span::raw("Allow upstream proxy env: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::AllowUpstreamProxyEnv => (
+                    "Allow upstream proxy env",
+                    Some(StyledText::new(
                         upstream_env_label,
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::AllowUnixSockets => {
-                    spans.push(Span::raw("Allow unix sockets: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::AllowUnixSockets => (
+                    "Allow unix sockets",
+                    Some(StyledText::new(
                         unix_summary.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::Apply => {
-                    spans.push(Span::raw("Apply changes"));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::Apply => (
+                    "Apply changes",
+                    Some(StyledText::new(
                         apply_suffix,
                         Style::default().fg(crate::colors::warning()),
-                    ));
-                }
-                RowKind::Close => {
-                    spans.push(Span::raw("Close"));
-                }
-            }
-            lines.push(Line::from(spans).style(row_style(selected)));
+                    )),
+                ),
+                RowKind::Close => ("Close", None),
+            };
+            render_kv_row(row_area, buf, selected, label, value, None, None);
             remaining = remaining.saturating_sub(1);
             row_index += 1;
         }
-
-        Paragraph::new(lines).render(inner, buf);
     }
 
     fn render_edit(&self, area: Rect, buf: &mut Buffer, target: EditTarget, field: &FormTextField) {

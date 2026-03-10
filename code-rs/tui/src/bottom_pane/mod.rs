@@ -70,6 +70,7 @@ mod settings_overview_view;
 mod settings_overlay;
 mod status_line_setup;
 mod request_user_input_view;
+pub(crate) mod settings_ui;
 pub(crate) use settings_overlay::SettingsSection;
 pub(crate) mod review_settings_view;
 pub mod settings_panel;

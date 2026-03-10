@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
 
@@ -22,6 +22,12 @@ use crate::ui_interaction::{
 };
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
+use super::settings_ui::rows::{
+    render_kv_row,
+    selection_index_at as row_selection_index_at,
+    StyledText,
+};
 use super::BottomPane;
 
 const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -68,8 +74,6 @@ pub(crate) struct ExecLimitsSettingsView {
 
 #[derive(Clone, Copy, Debug)]
 struct MainLayout {
-    inner: Rect,
-    header_height: usize,
     visible_slots: usize,
 }
 
@@ -136,8 +140,6 @@ impl ExecLimitsSettingsView {
             self.render_footer_lines().len(),
         );
         Some(MainLayout {
-            inner,
-            header_height,
             visible_slots,
         })
     }
@@ -500,34 +502,17 @@ impl ExecLimitsSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = self.compute_main_layout(area)?;
-        let inner = layout.inner;
-
-        if x < inner.x
-            || x >= inner.x.saturating_add(inner.width)
-            || y < inner.y
-            || y >= inner.y.saturating_add(inner.height)
-        {
-            return None;
-        }
-
-        let rel_y = y.saturating_sub(inner.y) as usize;
-        if rel_y < layout.header_height || rel_y >= layout.header_height + layout.visible_slots {
-            return None;
-        }
-        let line_offset = rel_y - layout.header_height;
-
-        let rows = Self::build_rows();
-        let total = rows.len();
-        if total == 0 {
-            return None;
-        }
-        let idx = self.state.get().scroll_top.saturating_add(line_offset);
-        if idx >= total {
-            None
-        } else {
-            Some(idx)
-        }
+        let header_lines = self.render_header_lines();
+        let footer_lines = self.render_footer_lines();
+        let layout =
+            compute_settings_frame_layout(area, " Exec Limits ", header_lines.len(), footer_lines.len())?;
+        row_selection_index_at(
+            layout.body,
+            x,
+            y,
+            self.state.get().scroll_top,
+            Self::build_rows().len(),
+        )
     }
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -603,23 +588,14 @@ impl ExecLimitsSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(colors::border()))
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .title(" Exec Limits ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
         let header_lines = self.render_header_lines();
         let footer_lines = self.render_footer_lines();
-
-        let available_height = inner.height as usize;
-        let header_height = header_lines.len().min(available_height);
-        let (_footer_height, visible_slots) =
-            Self::compute_main_heights(available_height, header_height, footer_lines.len());
+        let Some(layout) =
+            render_settings_frame(area, buf, " Exec Limits ", header_lines, footer_lines)
+        else {
+            return;
+        };
+        let visible_slots = layout.visible_rows;
         self.viewport_rows.set(visible_slots);
 
         let rows = Self::build_rows();
@@ -630,10 +606,6 @@ impl ExecLimitsSettingsView {
         state.ensure_visible(total, visible_slots);
         self.state.set(state);
 
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.extend(header_lines);
-
-        // List rows (scrolled)
         let start = state.scroll_top.min(total.saturating_sub(1));
         let end = (start + visible_slots).min(total);
         for (abs_idx, row) in rows
@@ -667,48 +639,17 @@ impl ExecLimitsSettingsView {
                 RowKind::Close => ("Close", "".to_string()),
             };
 
-            let mut spans = Vec::new();
-            spans.push(Span::styled(
-                if is_selected { "❯ " } else { "  " },
-                Style::default().fg(colors::text_dim()),
-            ));
-            spans.push(Span::styled(
-                format!("{label:<24}"),
-                Style::default()
-                    .fg(if is_selected {
-                        colors::text()
-                    } else {
-                        colors::text_dim()
-                    })
-                    .add_modifier(if is_selected { Modifier::BOLD } else { Modifier::empty() }),
-            ));
-            if !value.is_empty() {
-                spans.push(Span::styled(
-                    value,
-                    Style::default().fg(colors::success()),
-                ));
-            }
-
-            let line = Line::from(spans).style(if is_selected {
-                Style::default().bg(colors::selection()).fg(colors::text())
-            } else {
-                Style::default()
+            let row_area = Rect::new(
+                layout.body.x,
+                layout.body.y.saturating_add((abs_idx - start) as u16),
+                layout.body.width,
+                1,
+            );
+            let value = (!value.is_empty()).then(|| {
+                StyledText::new(value, Style::default().fg(colors::success()))
             });
-            lines.push(line);
+            render_kv_row(row_area, buf, is_selected, label, value, None, None);
         }
-
-        // Pad remaining visible slots
-        while lines.len() < header_height + visible_slots {
-            lines.push(Line::from(" "));
-        }
-
-        lines.extend([Line::from(" ")]);
-        lines.extend(footer_lines);
-
-        Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(colors::background()))
-            .render(inner, buf);
     }
 
     fn render_edit(

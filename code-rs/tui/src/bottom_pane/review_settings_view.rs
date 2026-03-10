@@ -4,7 +4,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 use std::cell::Cell;
 
 use crate::app_event::AppEvent;
@@ -12,6 +12,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
 use crate::ui_interaction::{
     redraw_if,
     route_selectable_list_mouse_with_config,
@@ -377,6 +378,42 @@ impl ReviewSettingsView {
         parts.join("-")
     }
 
+    fn render_header_lines(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(Span::styled(
+                "Configure /review and Auto Review models, resolve models, and follow-ups.",
+                Style::default().fg(colors::text_dim()),
+            )),
+            Line::from(Span::styled(
+                "Use ↑↓ to navigate · Enter select/open · Space toggle · ←→ adjust values · Esc close",
+                Style::default().fg(colors::text_dim()),
+            )),
+            Line::from(""),
+        ]
+    }
+
+    fn render_footer_lines(&self) -> Vec<Line<'static>> {
+        let mut lines = vec![Line::from(vec![
+            Span::styled("↑↓", Style::default().fg(colors::function())),
+            Span::styled(" Navigate  ", Style::default().fg(colors::text_dim())),
+            Span::styled("Enter", Style::default().fg(colors::success())),
+            Span::styled(" Select  ", Style::default().fg(colors::text_dim())),
+            Span::styled("Space", Style::default().fg(colors::success())),
+            Span::styled(" Toggle  ", Style::default().fg(colors::text_dim())),
+            Span::styled("←→", Style::default().fg(colors::function())),
+            Span::styled(" Adjust  ", Style::default().fg(colors::text_dim())),
+            Span::styled("Esc", Style::default().fg(colors::error())),
+            Span::styled(" Close", Style::default().fg(colors::text_dim())),
+        ])];
+        if let Some(notice) = &self.pending_notice {
+            lines.push(Line::from(vec![Span::styled(
+                notice.clone(),
+                Style::default().fg(colors::warning()),
+            )]));
+        }
+        lines
+    }
+
     fn render_row(&self, row: &RowData, selected: bool) -> Line<'static> {
         let arrow = if selected { "› " } else { "  " };
         let arrow_style = if selected {
@@ -694,39 +731,19 @@ impl ReviewSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        if area.width == 0 || area.height == 0 {
+        let header_lines = self.render_header_lines();
+        let footer_lines = self.render_footer_lines();
+        let layout =
+            compute_settings_frame_layout(
+                area,
+                " Review Settings ",
+                header_lines.len(),
+                footer_lines.len(),
+            )?;
+        if !layout.body.contains(ratatui::layout::Position { x, y }) {
             return None;
         }
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return None;
-        }
-        if x < inner.x
-            || x >= inner.x.saturating_add(inner.width)
-            || y < inner.y
-            || y >= inner.y.saturating_add(inner.height)
-        {
-            return None;
-        }
-
-        let header_height = 3usize;
-        let footer_lines = if self.pending_notice.is_some() { 2usize } else { 1usize };
-        let available_height = inner.height as usize;
-        let footer_height = if available_height > header_height {
-            1 + footer_lines
-        } else {
-            0
-        };
-        let list_height = available_height.saturating_sub(header_height + footer_height);
-        if list_height == 0 {
-            return None;
-        }
-
-        let rel_y = y.saturating_sub(inner.y) as usize;
-        if rel_y < header_height || rel_y >= header_height + list_height {
-            return None;
-        }
-        let row_idx = rel_y - header_height;
+        let row_idx = y.saturating_sub(layout.body.y) as usize;
         let (_, selection_rows, _) = self.build_rows();
         selection_rows.iter().position(|&row| row == row_idx)
     }
@@ -891,56 +908,18 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
         if area.height == 0 || area.width == 0 {
             return;
         }
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(colors::border()))
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .title(" Review Settings ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
-        let header_lines = [Line::from(Span::styled(
-                "Configure /review and Auto Review models, resolve models, and follow-ups.",
-                Style::default().fg(colors::text_dim()),
-            )),
-            Line::from(Span::styled(
-                "Use ↑↓ to navigate · Enter select/open · Space toggle · ←→ adjust values · Esc close",
-                Style::default().fg(colors::text_dim()),
-            )),
-            Line::from("")];
-        let footer_lines = {
-            let mut lines = vec![Line::from(vec![
-                Span::styled("↑↓", Style::default().fg(colors::function())),
-                Span::styled(" Navigate  ", Style::default().fg(colors::text_dim())),
-                Span::styled("Enter", Style::default().fg(colors::success())),
-                Span::styled(" Select  ", Style::default().fg(colors::text_dim())),
-                Span::styled("Space", Style::default().fg(colors::success())),
-                Span::styled(" Toggle  ", Style::default().fg(colors::text_dim())),
-                Span::styled("←→", Style::default().fg(colors::function())),
-                Span::styled(" Adjust  ", Style::default().fg(colors::text_dim())),
-                Span::styled("Esc", Style::default().fg(colors::error())),
-                Span::styled(" Close", Style::default().fg(colors::text_dim())),
-            ])];
-            if let Some(notice) = &self.pending_notice {
-                lines.push(Line::from(vec![Span::styled(
-                    notice.clone(),
-                    Style::default().fg(colors::warning()),
-                )]));
-            }
-            lines
+        let header_lines = self.render_header_lines();
+        let footer_lines = self.render_footer_lines();
+        let Some(layout) = render_settings_frame(
+            area,
+            buf,
+            " Review Settings ",
+            header_lines,
+            footer_lines,
+        ) else {
+            return;
         };
-
-        let available_height = inner.height as usize;
-        let header_height = header_lines.len().min(available_height);
-        let footer_height = if available_height > header_height {
-            1 + footer_lines.len()
-        } else {
-            0
-        };
-        let list_height = available_height.saturating_sub(header_height + footer_height);
-        let visible_slots = list_height.max(1);
+        let visible_slots = layout.visible_rows;
         self.viewport_rows.set(visible_slots);
 
         let (rows, selection_rows, _) = self.build_rows();
@@ -949,7 +928,6 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
         let selected_row_index = selection_rows.get(selected_idx).copied().unwrap_or(0);
 
         let mut visible_lines: Vec<Line> = Vec::new();
-        visible_lines.extend(header_lines.iter().cloned());
 
         let mut remaining = visible_slots;
         let mut row_index = 0;
@@ -960,14 +938,9 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
             row_index += 1;
         }
 
-        if footer_height > 0 {
-            visible_lines.push(Line::from(""));
-            visible_lines.extend(footer_lines);
-        }
-
         Paragraph::new(visible_lines)
             .alignment(Alignment::Left)
             .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .render(inner, buf);
+            .render(layout.body, buf);
     }
 }

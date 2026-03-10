@@ -25,6 +25,12 @@ use crate::ui_interaction::{
 };
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
+use super::settings_ui::rows::{
+    render_kv_row,
+    selection_index_at as row_selection_index_at,
+    StyledText,
+};
 use super::BottomPane;
 
 const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -70,13 +76,6 @@ enum ViewMode {
         error: Option<String>,
     },
     Transition,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct MainLayout {
-    inner: Rect,
-    header_height: usize,
-    visible_slots: usize,
 }
 
 pub(crate) struct MemoriesSettingsView {
@@ -505,27 +504,21 @@ impl MemoriesSettingsView {
         ])]
     }
 
-    fn compute_main_layout(&self, area: Rect) -> Option<MainLayout> {
-        if area.width == 0 || area.height == 0 {
-            return None;
-        }
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return None;
-        }
-
-        let header_height = self.render_header_lines().len().min(inner.height as usize);
-        let footer_height = if inner.height as usize > header_height {
-            1 + self.render_footer_lines().len()
+    fn main_footer_lines(&self) -> Vec<Line<'static>> {
+        let footer_text = self
+            .status
+            .as_ref()
+            .map(|(text, _)| text.clone())
+            .unwrap_or_else(|| self.row_description(self.selected_row()).to_string());
+        let footer_style = if self.status.as_ref().is_some_and(|(_, is_error)| *is_error) {
+            Style::default().fg(colors::error())
         } else {
-            0
+            Style::default().fg(colors::text_dim())
         };
-        let list_height = (inner.height as usize).saturating_sub(header_height + footer_height);
-        Some(MainLayout {
-            inner,
-            header_height,
-            visible_slots: list_height.max(1),
-        })
+
+        let mut lines = vec![Line::from(Span::styled(footer_text, footer_style))];
+        lines.extend(self.render_footer_lines());
+        lines
     }
 
     fn edit_field_area(area: Rect) -> Rect {
@@ -957,18 +950,15 @@ impl MemoriesSettingsView {
     }
 
     fn selection_index_at(&self, x: u16, y: u16, area: Rect) -> Option<usize> {
-        let layout = self.compute_main_layout(area)?;
-        if !crate::ui_interaction::contains_point(layout.inner, x, y) {
-            return None;
-        }
-        let list_top = layout.inner.y.saturating_add(layout.header_height as u16);
-        let list_height = layout.visible_slots as u16;
-        if y < list_top || y >= list_top.saturating_add(list_height) {
-            return None;
-        }
-        let rel = y.saturating_sub(list_top) as usize;
-        let idx = self.state.get().scroll_top.saturating_add(rel);
-        (idx < Self::rows().len()).then_some(idx)
+        let footer_lines = self.main_footer_lines();
+        let layout =
+            compute_settings_frame_layout(
+                area,
+                " Memories ",
+                self.render_header_lines().len(),
+                footer_lines.len(),
+            )?;
+        row_selection_index_at(layout.body, x, y, self.state.get().scroll_top, Self::rows().len())
     }
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -1013,102 +1003,48 @@ impl MemoriesSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let block = Block::default().borders(Borders::ALL).title(" Memories ");
-        Clear.render(area, buf);
-        block.render(area, buf);
-        let Some(layout) = self.compute_main_layout(area) else {
+        let footer_lines = self.main_footer_lines();
+        let Some(layout) = render_settings_frame(
+            area,
+            buf,
+            " Memories ",
+            self.render_header_lines(),
+            footer_lines,
+        ) else {
             return;
         };
-        let base = Style::default().bg(colors::background()).fg(colors::text());
-
-        let header_lines = self.render_header_lines();
-        Paragraph::new(header_lines)
-            .style(base)
-            .render(
-                Rect {
-                    x: layout.inner.x,
-                    y: layout.inner.y,
-                    width: layout.inner.width,
-                    height: layout.header_height as u16,
-                },
-                buf,
-            );
-
         let rows = Self::rows();
         let total = rows.len();
         let mut state = self.state.get();
         state.clamp_selection(total);
-        state.ensure_visible(total, layout.visible_slots);
-        self.viewport_rows.set(layout.visible_slots);
+        state.ensure_visible(total, layout.visible_rows);
+        self.viewport_rows.set(layout.visible_rows);
         self.state.set(state);
 
         let selected = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
         let scroll_top = state.scroll_top.min(total.saturating_sub(1));
         let mut rel_idx = 0usize;
         let mut abs_idx = scroll_top;
-        let list_y = layout.inner.y.saturating_add(layout.header_height as u16);
-        while rel_idx < layout.visible_slots && abs_idx < total {
+        while rel_idx < layout.visible_rows && abs_idx < total {
             let row = rows[abs_idx];
-            let y = list_y.saturating_add(rel_idx as u16);
-            let row_area = Rect::new(layout.inner.x, y, layout.inner.width, 1);
+            let y = layout.body.y.saturating_add(rel_idx as u16);
+            let row_area = Rect::new(layout.body.x, y, layout.body.width, 1);
             let is_selected = abs_idx == selected;
-            let style = if is_selected {
-                Style::default()
-                    .bg(colors::selection())
-                    .fg(colors::text_bright())
-            } else {
-                base
-            };
-            let mut spans = vec![Span::styled(
-                format!("{} {}: ", if is_selected { ">" } else { " " }, Self::row_label(row)),
-                style.add_modifier(Modifier::BOLD),
-            )];
             let value = self.row_value(row);
-            if !value.is_empty() {
-                spans.push(Span::styled(
+            let value = (!value.is_empty()).then(|| {
+                StyledText::new(
                     value,
                     if is_selected {
-                        style.add_modifier(Modifier::BOLD)
+                        Style::default().fg(colors::text_bright()).add_modifier(Modifier::BOLD)
                     } else {
-                        Style::default().bg(colors::background()).fg(colors::text_dim())
+                        Style::default().fg(colors::text_dim())
                     },
-                ));
-            }
-            Paragraph::new(Line::from(spans)).style(style).render(row_area, buf);
+                )
+            });
+            render_kv_row(row_area, buf, is_selected, Self::row_label(row), value, None, None);
             rel_idx += 1;
             abs_idx += 1;
         }
-
-        let footer_y = layout
-            .inner
-            .y
-            .saturating_add(layout.header_height as u16)
-            .saturating_add(layout.visible_slots as u16);
-        let footer_text = self
-            .status
-            .as_ref()
-            .map(|(text, _)| text.clone())
-            .unwrap_or_else(|| self.row_description(self.selected_row()).to_string());
-        let footer_style = if self.status.as_ref().is_some_and(|(_, is_error)| *is_error) {
-            Style::default().fg(colors::error())
-        } else {
-            Style::default().fg(colors::text_dim())
-        };
-        Paragraph::new(Line::from(Span::styled(footer_text, footer_style))).render(
-            Rect::new(layout.inner.x, footer_y, layout.inner.width, 1),
-            buf,
-        );
-        Paragraph::new(self.render_footer_lines())
-            .style(base)
-            .render(
-                Rect::new(
-                    layout.inner.x,
-                    footer_y.saturating_add(1),
-                    layout.inner.width,
-                    self.render_footer_lines().len() as u16,
-                ),
-                buf,
-            );
     }
 
     fn render_edit(

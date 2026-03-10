@@ -25,6 +25,12 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::frame::{compute_settings_frame_layout, render_settings_frame};
+use super::settings_ui::rows::{
+    render_kv_row,
+    selection_index_at as row_selection_index_at,
+    StyledText,
+};
 use super::BottomPane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -380,36 +386,8 @@ impl JsReplSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        if area.width == 0 || area.height == 0 {
-            return None;
-        }
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return None;
-        }
-        if x < inner.x
-            || x >= inner.x.saturating_add(inner.width)
-            || y < inner.y
-            || y >= inner.y.saturating_add(inner.height)
-        {
-            return None;
-        }
-
-        let available_height = inner.height as usize;
-        let header_height = Self::HEADER_HEIGHT.min(available_height);
-        let list_height = available_height.saturating_sub(header_height);
-        if list_height == 0 {
-            return None;
-        }
-
-        let rel_y = y.saturating_sub(inner.y) as usize;
-        if rel_y < header_height || rel_y >= header_height + list_height {
-            return None;
-        }
-        let line_offset = rel_y - header_height;
-
-        let scroll_top = self.state.scroll_top;
-        Some(scroll_top.saturating_add(line_offset))
+        let layout = compute_settings_frame_layout(area, " JS REPL ", Self::HEADER_HEIGHT, 0)?;
+        row_selection_index_at(layout.body, x, y, self.state.scroll_top, self.build_rows().len())
     }
 
     fn edit_textarea_rect(area: Rect) -> Rect {
@@ -655,42 +633,12 @@ impl JsReplSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(" JS REPL ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
-        if inner.width == 0 || inner.height == 0 {
-            return;
-        }
-
-        let row_style = |selected: bool| {
-            if selected {
-                Style::default()
-                    .bg(crate::colors::selection())
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            }
-        };
-        let arrow_style = |selected: bool| {
-            if selected {
-                Style::default().fg(crate::colors::primary())
-            } else {
-                Style::default().fg(crate::colors::text_dim())
-            }
-        };
-
         let header_lines = self.render_header_lines();
-        let available_height = inner.height as usize;
-        let header_height = header_lines.len().min(available_height);
-        let list_height = available_height.saturating_sub(header_height);
-        let visible_slots = list_height.max(1);
+        let Some(layout) = render_settings_frame(area, buf, " JS REPL ", header_lines, vec![]) else {
+            return;
+        };
+
+        let visible_slots = layout.visible_rows;
         self.viewport_rows.set(visible_slots);
 
         let rows = self.build_rows();
@@ -701,9 +649,6 @@ impl JsReplSettingsView {
             .unwrap_or(0)
             .min(total.saturating_sub(1));
         let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
-
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.extend(header_lines);
 
         let enabled_label = if self.settings.enabled { "Enabled" } else { "Disabled" };
         let enabled_color = if self.settings.enabled {
@@ -735,70 +680,66 @@ impl JsReplSettingsView {
         while remaining > 0 && row_index < rows.len() {
             let kind = rows[row_index];
             let selected = row_index == selected_idx;
-            let arrow = if selected { "› " } else { "  " };
-            let mut spans = vec![Span::styled(arrow, arrow_style(selected))];
-            match kind {
-                RowKind::Enabled => {
-                    spans.push(Span::raw("Enabled: "));
-                    spans.push(Span::styled(
+            let row_area = Rect::new(
+                layout.body.x,
+                layout.body.y.saturating_add((row_index - scroll_top) as u16),
+                layout.body.width,
+                1,
+            );
+            let (label, value) = match kind {
+                RowKind::Enabled => (
+                    "Enabled",
+                    Some(StyledText::new(
                         enabled_label,
                         Style::default()
                             .fg(enabled_color)
                             .add_modifier(Modifier::BOLD),
-                    ));
-                }
-                RowKind::RuntimeKind => {
-                    spans.push(Span::raw("Runtime: "));
-                    spans.push(Span::styled(
-                        runtime_label.to_string(),
+                    )),
+                ),
+                RowKind::RuntimeKind => (
+                    "Runtime",
+                    Some(StyledText::new(
+                        runtime_label,
                         Style::default().fg(crate::colors::info()),
-                    ));
-                }
-                RowKind::RuntimePath => {
-                    spans.push(Span::raw("Runtime path: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::RuntimePath => (
+                    "Runtime path",
+                    Some(StyledText::new(
                         runtime_path.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::PickRuntimePath => {
-                    spans.push(Span::raw("Pick runtime path (file picker)"));
-                }
-                RowKind::ClearRuntimePath => {
-                    spans.push(Span::raw("Clear runtime path (use PATH)"));
-                }
-                RowKind::RuntimeArgs => {
-                    spans.push(Span::raw("Runtime args: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::PickRuntimePath => ("Pick runtime path (file picker)", None),
+                RowKind::ClearRuntimePath => ("Clear runtime path (use PATH)", None),
+                RowKind::RuntimeArgs => (
+                    "Runtime args",
+                    Some(StyledText::new(
                         runtime_args.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::NodeModuleDirs => {
-                    spans.push(Span::raw("Node module dirs: "));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::NodeModuleDirs => (
+                    "Node module dirs",
+                    Some(StyledText::new(
                         module_dirs.clone(),
                         Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                RowKind::AddNodeModuleDir => {
-                    spans.push(Span::raw("Add node module dir (folder picker)"));
-                }
-                RowKind::Apply => {
-                    spans.push(Span::raw("Apply changes"));
-                    spans.push(Span::styled(
+                    )),
+                ),
+                RowKind::AddNodeModuleDir => ("Add node module dir (folder picker)", None),
+                RowKind::Apply => (
+                    "Apply changes",
+                    Some(StyledText::new(
                         apply_suffix,
                         Style::default().fg(crate::colors::warning()),
-                    ));
-                }
-                RowKind::Close => spans.push(Span::raw("Close")),
-            }
-            lines.push(Line::from(spans).style(row_style(selected)));
+                    )),
+                ),
+                RowKind::Close => ("Close", None),
+            };
+            render_kv_row(row_area, buf, selected, label, value, None, None);
             remaining = remaining.saturating_sub(1);
             row_index += 1;
         }
-
-        Paragraph::new(lines).render(inner, buf);
     }
 
     fn render_edit(
