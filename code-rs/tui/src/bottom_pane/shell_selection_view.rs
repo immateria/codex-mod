@@ -6,7 +6,7 @@ use crate::ui_interaction::{
     SelectableListMouseConfig,
     SelectableListMouseResult,
 };
-use super::settings_panel::{render_panel, PanelFrameStyle};
+use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
 use super::BottomPane;
 use super::SettingsSection;
 use crate::app_event::AppEvent;
@@ -66,6 +66,10 @@ pub(crate) struct ShellSelectionView {
 }
 
 impl ShellSelectionView {
+    fn panel(title: &str) -> SettingsPanel<'_> {
+        SettingsPanel::new(title.to_string(), SettingsPanelStyle::bottom_pane())
+    }
+
     pub fn new(
         current_shell: Option<ShellConfig>,
         presets: Vec<ShellPreset>,
@@ -610,13 +614,14 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
             "Select Shell"
         };
 
-        render_panel(area, buf, title, PanelFrameStyle::bottom_pane(), |content_area, buf| {
-            if self.custom_input_mode {
-                self.render_custom_input(content_area, buf);
-            } else {
-                self.render_shell_list(content_area, buf);
-            }
-        });
+        let Some(layout) = Self::panel(title).render(area, buf) else {
+            return;
+        };
+        if self.custom_input_mode {
+            self.render_custom_input(layout.content, buf);
+        } else {
+            self.render_shell_list(layout.content, buf);
+        }
     }
 }
 

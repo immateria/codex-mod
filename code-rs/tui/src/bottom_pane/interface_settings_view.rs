@@ -40,7 +40,7 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_panel::{panel_content_rect, render_panel, PanelFrameStyle};
+use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
 use super::BottomPane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -213,6 +213,13 @@ pub(crate) struct InterfaceSettingsView {
 }
 
 impl InterfaceSettingsView {
+    fn panel() -> SettingsPanel<'static> {
+        SettingsPanel::new(
+            "Interface",
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+        )
+    }
+
     pub fn new(
         code_home: PathBuf,
         settings: SettingsMenuConfig,
@@ -865,11 +872,13 @@ impl InterfaceSettingsView {
     }
 
     fn content_area(area: Rect) -> Rect {
-        panel_content_rect(area, PanelFrameStyle::bottom_pane().with_margin(Margin::new(1, 0)))
+        Self::panel()
+            .layout(area)
+            .map(|layout| layout.content)
+            .unwrap_or_default()
     }
 
-    fn layout_main(area: Rect) -> Option<(Rect, Rect, Rect)> {
-        let content = Self::content_area(area);
+    fn layout_main(content: Rect) -> Option<(Rect, Rect, Rect)> {
         if content.width == 0 || content.height < 3 {
             return None;
         }
@@ -891,7 +900,7 @@ impl InterfaceSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let (_header, list, _footer) = Self::layout_main(area)?;
+        let (_header, list, _footer) = Self::layout_main(Self::content_area(area))?;
         if list.width == 0 || list.height == 0 {
             return None;
         }
@@ -1433,276 +1442,289 @@ impl InterfaceSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let style = PanelFrameStyle::bottom_pane().with_margin(Margin::new(1, 0));
-        render_panel(area, buf, "Interface", style, |_content, buf| {
-            let Some((header, list, footer)) = Self::layout_main(area) else {
-                return;
-            };
+        let Some(layout) = Self::panel().render(area, buf) else {
+            return;
+        };
+        let Some((header, list, footer)) = Self::layout_main(layout.content) else {
+            return;
+        };
 
-            let header_line = Line::from(vec![
-                Span::styled("Enter", Style::default().fg(crate::colors::function())),
-                Span::styled(" activate  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("←/→", Style::default().fg(crate::colors::function())),
-                Span::styled(" adjust  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Esc", Style::default().fg(crate::colors::function())),
-                Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
-            ]);
-            write_line(
-                buf,
-                header.x,
-                header.y,
-                header.width,
-                &header_line,
-                Style::default().bg(crate::colors::background()),
-            );
+        let header_line = Line::from(vec![
+            Span::styled("Enter", Style::default().fg(crate::colors::function())),
+            Span::styled(" activate  ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("←/→", Style::default().fg(crate::colors::function())),
+            Span::styled(" adjust  ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("Esc", Style::default().fg(crate::colors::function())),
+            Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
+        ]);
+        write_line(
+            buf,
+            header.x,
+            header.y,
+            header.width,
+            &header_line,
+            Style::default().bg(crate::colors::background()),
+        );
 
-            let rows = self.build_rows();
-            let total = rows.len();
-            let selected = self.state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
-            let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
-            let visible_rows = list.height.max(1) as usize;
-            self.viewport_rows.set(visible_rows);
+        let rows = self.build_rows();
+        let total = rows.len();
+        let selected = self.state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+        let visible_rows = list.height.max(1) as usize;
+        self.viewport_rows.set(visible_rows);
 
-            let mut abs_idx = scroll_top;
-            let mut rel_idx = 0usize;
-            while rel_idx < visible_rows && abs_idx < rows.len() {
-                let kind = rows[abs_idx];
-                let y = list.y.saturating_add(rel_idx as u16);
-                let row_area = Rect::new(list.x, y, list.width, 1);
-                let is_selected = abs_idx == selected;
-                let base = if is_selected {
-                    Style::default()
-                        .bg(crate::colors::selection())
-                        .fg(crate::colors::text_bright())
-                } else {
-                    Style::default().bg(crate::colors::background()).fg(crate::colors::text())
-                };
-                fill_rect(buf, row_area, Some(' '), base);
-
-                let (label, value) = match kind {
-                    RowKind::OpenMode => {
-                        let mode = Self::open_mode_label(self.settings.open_mode);
-                        let desc = Self::open_mode_description(
-                            self.settings.open_mode,
-                            self.settings.overlay_min_width,
-                        );
-                        ("Settings menu", format!("{mode} ({desc})"))
-                    }
-                    RowKind::OverlayMinWidth => (
-                        "Overlay min width",
-                        format!("{}", self.settings.overlay_min_width),
-                    ),
-                    RowKind::HotkeyScope => ("Hotkey scope", self.hotkey_scope.label().to_string()),
-                    RowKind::ModelSelectorHotkey => (
-                        "Hotkey: model selector",
-                        self.hotkey_value_label_for_row(kind),
-                    ),
-                    RowKind::ReasoningEffortHotkey => (
-                        "Hotkey: reasoning effort",
-                        self.hotkey_value_label_for_row(kind),
-                    ),
-                    RowKind::ShellSelectorHotkey => (
-                        "Hotkey: shell selector",
-                        self.hotkey_value_label_for_row(kind),
-                    ),
-                    RowKind::NetworkSettingsHotkey => (
-                        "Hotkey: network settings",
-                        self.hotkey_value_label_for_row(kind),
-                    ),
-                    RowKind::ExecOutputFoldHotkey => (
-                        "Hotkey: fold output/details",
-                        self.hotkey_value_label_for_row(kind),
-                    ),
-                    RowKind::JsReplCodeFoldHotkey => (
-                        "Hotkey: fold JS REPL code",
-                        self.hotkey_value_label_for_row(kind),
-                    ),
-                    RowKind::JumpToParentCallHotkey => (
-                        "Hotkey: jump to parent call",
-                        self.hotkey_value_label_for_row(kind),
-                    ),
-                    RowKind::JumpToLatestChildCallHotkey => (
-                        "Hotkey: jump to child call",
-                        self.hotkey_value_label_for_row(kind),
-                    ),
-                    RowKind::ShowConfigToml => ("Show config.toml", String::new()),
-                    RowKind::ShowCodeHome => ("Show CODE_HOME", String::new()),
-                    RowKind::Apply => {
-                        let suffix = if self.dirty_settings || self.dirty_hotkeys {
-                            " *"
-                        } else {
-                            ""
-                        };
-                        ("Apply", suffix.to_string())
-                    }
-                    RowKind::Close => ("Close", String::new()),
-                };
-
-                let mut parts = vec![
-                    Span::styled(
-                        format!("{} {label}: ", if is_selected { ">" } else { " " }),
-                        base.add_modifier(Modifier::BOLD),
-                    ),
-                ];
-                if !value.is_empty() {
-                    let value_style = if is_selected {
-                        base.add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default()
-                            .bg(crate::colors::background())
-                            .fg(crate::colors::text_dim())
-                    };
-                    parts.push(Span::styled(value, value_style));
-                }
-                let line = Line::from(parts);
-                write_line(buf, row_area.x, row_area.y, row_area.width, &line, base);
-
-                abs_idx = abs_idx.saturating_add(1);
-                rel_idx = rel_idx.saturating_add(1);
-            }
-
-            let (footer_text, footer_style) = if let Some((status, is_error)) = self.status.as_ref()
-            {
-                let style = if *is_error {
-                    Style::default().fg(crate::colors::error())
-                } else {
-                    Style::default().fg(crate::colors::text_dim())
-                };
-                (status.as_str(), style)
+        let mut abs_idx = scroll_top;
+        let mut rel_idx = 0usize;
+        while rel_idx < visible_rows && abs_idx < rows.len() {
+            let kind = rows[abs_idx];
+            let y = list.y.saturating_add(rel_idx as u16);
+            let row_area = Rect::new(list.x, y, list.width, 1);
+            let is_selected = abs_idx == selected;
+            let base = if is_selected {
+                Style::default()
+                    .bg(crate::colors::selection())
+                    .fg(crate::colors::text_bright())
             } else {
-                (
-                    Self::help_for(self.selected_row()),
-                    Style::default().fg(crate::colors::text_dim()),
-                )
+                Style::default().bg(crate::colors::background()).fg(crate::colors::text())
             };
-            let footer_line = Line::from(vec![Span::styled(footer_text.to_string(), footer_style)]);
-            write_line(
-                buf,
-                footer.x,
-                footer.y,
-                footer.width,
-                &footer_line,
-                Style::default().bg(crate::colors::background()),
-            );
-        });
+            fill_rect(buf, row_area, Some(' '), base);
+
+            let (label, value) = match kind {
+                RowKind::OpenMode => {
+                    let mode = Self::open_mode_label(self.settings.open_mode);
+                    let desc = Self::open_mode_description(
+                        self.settings.open_mode,
+                        self.settings.overlay_min_width,
+                    );
+                    ("Settings menu", format!("{mode} ({desc})"))
+                }
+                RowKind::OverlayMinWidth => (
+                    "Overlay min width",
+                    format!("{}", self.settings.overlay_min_width),
+                ),
+                RowKind::HotkeyScope => ("Hotkey scope", self.hotkey_scope.label().to_string()),
+                RowKind::ModelSelectorHotkey => (
+                    "Hotkey: model selector",
+                    self.hotkey_value_label_for_row(kind),
+                ),
+                RowKind::ReasoningEffortHotkey => (
+                    "Hotkey: reasoning effort",
+                    self.hotkey_value_label_for_row(kind),
+                ),
+                RowKind::ShellSelectorHotkey => (
+                    "Hotkey: shell selector",
+                    self.hotkey_value_label_for_row(kind),
+                ),
+                RowKind::NetworkSettingsHotkey => (
+                    "Hotkey: network settings",
+                    self.hotkey_value_label_for_row(kind),
+                ),
+                RowKind::ExecOutputFoldHotkey => (
+                    "Hotkey: fold output/details",
+                    self.hotkey_value_label_for_row(kind),
+                ),
+                RowKind::JsReplCodeFoldHotkey => (
+                    "Hotkey: fold JS REPL code",
+                    self.hotkey_value_label_for_row(kind),
+                ),
+                RowKind::JumpToParentCallHotkey => (
+                    "Hotkey: jump to parent call",
+                    self.hotkey_value_label_for_row(kind),
+                ),
+                RowKind::JumpToLatestChildCallHotkey => (
+                    "Hotkey: jump to child call",
+                    self.hotkey_value_label_for_row(kind),
+                ),
+                RowKind::ShowConfigToml => ("Show config.toml", String::new()),
+                RowKind::ShowCodeHome => ("Show CODE_HOME", String::new()),
+                RowKind::Apply => {
+                    let suffix = if self.dirty_settings || self.dirty_hotkeys {
+                        " *"
+                    } else {
+                        ""
+                    };
+                    ("Apply", suffix.to_string())
+                }
+                RowKind::Close => ("Close", String::new()),
+            };
+
+            let mut parts = vec![
+                Span::styled(
+                    format!("{} {label}: ", if is_selected { ">" } else { " " }),
+                    base.add_modifier(Modifier::BOLD),
+                ),
+            ];
+            if !value.is_empty() {
+                let value_style = if is_selected {
+                    base.add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                        .bg(crate::colors::background())
+                        .fg(crate::colors::text_dim())
+                };
+                parts.push(Span::styled(value, value_style));
+            }
+            let line = Line::from(parts);
+            write_line(buf, row_area.x, row_area.y, row_area.width, &line, base);
+
+            abs_idx = abs_idx.saturating_add(1);
+            rel_idx = rel_idx.saturating_add(1);
+        }
+
+        let (footer_text, footer_style) = if let Some((status, is_error)) = self.status.as_ref() {
+            let style = if *is_error {
+                Style::default().fg(crate::colors::error())
+            } else {
+                Style::default().fg(crate::colors::text_dim())
+            };
+            (status.as_str(), style)
+        } else {
+            (
+                Self::help_for(self.selected_row()),
+                Style::default().fg(crate::colors::text_dim()),
+            )
+        };
+        let footer_line = Line::from(vec![Span::styled(footer_text.to_string(), footer_style)]);
+        write_line(
+            buf,
+            footer.x,
+            footer.y,
+            footer.width,
+            &footer_line,
+            Style::default().bg(crate::colors::background()),
+        );
     }
 
-    fn render_edit_width(&self, area: Rect, buf: &mut Buffer, field: &FormTextField, error: Option<&str>) {
-        let style = PanelFrameStyle::bottom_pane().with_margin(Margin::new(1, 0));
-        render_panel(area, buf, "Interface", style, |content, buf| {
-            if content.width == 0 || content.height == 0 {
-                return;
+    fn render_edit_width(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        field: &FormTextField,
+        error: Option<&str>,
+    ) {
+        let Some(layout) = Self::panel().render(area, buf) else {
+            return;
+        };
+        let content = layout.content;
+        if content.width == 0 || content.height == 0 {
+            return;
+        }
+        let base = Style::default().bg(crate::colors::background()).fg(crate::colors::text());
+
+        let label = Line::from(vec![Span::styled(
+            "Overlay min width (columns):".to_string(),
+            Style::default().fg(crate::colors::text()),
+        )]);
+        write_line(buf, content.x, content.y, content.width, &label, base);
+
+        let field_area = Rect::new(content.x, content.y.saturating_add(1), content.width, 1);
+        fill_rect(buf, field_area, Some(' '), base);
+        field.render(field_area, buf, true);
+
+        let hint_y = content.y.saturating_add(3);
+        let hint_line = Line::from(vec![
+            Span::styled("Enter", Style::default().fg(crate::colors::function())),
+            Span::styled("/", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("Ctrl+S", Style::default().fg(crate::colors::function())),
+            Span::styled(" save  ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("Esc", Style::default().fg(crate::colors::function())),
+            Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
+        ]);
+        if hint_y < content.y.saturating_add(content.height) {
+            write_line(buf, content.x, hint_y, content.width, &hint_line, base);
+        }
+
+        if let Some(error) = error {
+            let err_y = content.y.saturating_add(2);
+            if err_y < content.y.saturating_add(content.height) {
+                let err_line = Line::from(vec![Span::styled(
+                    error.to_string(),
+                    Style::default().fg(crate::colors::warning()),
+                )]);
+                write_line(buf, content.x, err_y, content.width, &err_line, base);
+            };
+        }
+    }
+
+    fn render_capture_hotkey(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        row: RowKind,
+        error: Option<&str>,
+    ) {
+        let Some(layout) = Self::panel().render(area, buf) else {
+            return;
+        };
+        let content = layout.content;
+        if content.width == 0 || content.height == 0 {
+            return;
+        }
+        let base = Style::default().bg(crate::colors::background()).fg(crate::colors::text());
+
+        let label = match row {
+            RowKind::ModelSelectorHotkey => "Hotkey: model selector",
+            RowKind::ReasoningEffortHotkey => "Hotkey: reasoning effort",
+            RowKind::ShellSelectorHotkey => "Hotkey: shell selector",
+            RowKind::NetworkSettingsHotkey => "Hotkey: network settings",
+            RowKind::ExecOutputFoldHotkey => "Hotkey: fold output/details",
+            RowKind::JsReplCodeFoldHotkey => "Hotkey: fold JS REPL code",
+            RowKind::JumpToParentCallHotkey => "Hotkey: jump to parent call",
+            RowKind::JumpToLatestChildCallHotkey => "Hotkey: jump to child call",
+            _ => "Hotkey",
+        };
+        let current = self.hotkey_value_label_for_row(row);
+        let title = Line::from(vec![Span::styled(
+            format!("{label} (current: {current})"),
+            Style::default().fg(crate::colors::text()),
+        )]);
+        write_line(buf, content.x, content.y, content.width, &title, base);
+
+        if let Some(error) = error {
+            let err_y = content.y.saturating_add(1);
+            if err_y < content.y.saturating_add(content.height) {
+                let err_line = Line::from(vec![Span::styled(
+                    error.to_string(),
+                    Style::default().fg(crate::colors::warning()),
+                )]);
+                write_line(buf, content.x, err_y, content.width, &err_line, base);
             }
-            let base = Style::default().bg(crate::colors::background()).fg(crate::colors::text());
+        }
 
-            let label = Line::from(vec![Span::styled(
-                "Overlay min width (columns):".to_string(),
-                Style::default().fg(crate::colors::text()),
+        let hint_y = content.y.saturating_add(2);
+        if hint_y < content.y.saturating_add(content.height) {
+            let inherit_hint = match self.hotkey_scope {
+                HotkeyScope::Global => None,
+                _ => Some("  i inherit"),
+            };
+            let legacy_hint = match row {
+                RowKind::ExecOutputFoldHotkey
+                | RowKind::JsReplCodeFoldHotkey
+                | RowKind::JumpToParentCallHotkey
+                | RowKind::JumpToLatestChildCallHotkey => Some("  l legacy"),
+                _ => None,
+            };
+            let max_key = self.hotkey_scope.max_function_key();
+            let hint = format!(
+                "Press F2-F{max_key} or Ctrl/Alt+letter (e.g. ctrl+h).  d disable{legacy}{inherit}",
+                legacy = legacy_hint.unwrap_or(""),
+                inherit = inherit_hint.unwrap_or(""),
+            );
+            let hint_line = Line::from(vec![Span::styled(
+                hint,
+                Style::default().fg(crate::colors::text_dim()),
             )]);
-            write_line(buf, content.x, content.y, content.width, &label, base);
+            write_line(buf, content.x, hint_y, content.width, &hint_line, base);
+        }
 
-            let field_area = Rect::new(content.x, content.y.saturating_add(1), content.width, 1);
-            fill_rect(buf, field_area, Some(' '), base);
-            field.render(field_area, buf, true);
-
-            let hint_y = content.y.saturating_add(3);
-            let hint_line = Line::from(vec![
-                Span::styled("Enter", Style::default().fg(crate::colors::function())),
-                Span::styled("/", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Ctrl+S", Style::default().fg(crate::colors::function())),
-                Span::styled(" save  ", Style::default().fg(crate::colors::text_dim())),
+        let hint2_y = content.y.saturating_add(3);
+        if hint2_y < content.y.saturating_add(content.height) {
+            let hint2 = Line::from(vec![
                 Span::styled("Esc", Style::default().fg(crate::colors::function())),
                 Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
             ]);
-            if hint_y < content.y.saturating_add(content.height) {
-                write_line(buf, content.x, hint_y, content.width, &hint_line, base);
-            }
-
-            if let Some(error) = error {
-                let err_y = content.y.saturating_add(2);
-                if err_y < content.y.saturating_add(content.height) {
-                    let err_line = Line::from(vec![Span::styled(
-                        error.to_string(),
-                        Style::default().fg(crate::colors::warning()),
-                    )]);
-                    write_line(buf, content.x, err_y, content.width, &err_line, base);
-                }
-            }
-        });
-    }
-
-    fn render_capture_hotkey(&self, area: Rect, buf: &mut Buffer, row: RowKind, error: Option<&str>) {
-        let style = PanelFrameStyle::bottom_pane().with_margin(Margin::new(1, 0));
-        render_panel(area, buf, "Interface", style, |content, buf| {
-            if content.width == 0 || content.height == 0 {
-                return;
-            }
-            let base = Style::default().bg(crate::colors::background()).fg(crate::colors::text());
-
-            let label = match row {
-                RowKind::ModelSelectorHotkey => "Hotkey: model selector",
-                RowKind::ReasoningEffortHotkey => "Hotkey: reasoning effort",
-                RowKind::ShellSelectorHotkey => "Hotkey: shell selector",
-                RowKind::NetworkSettingsHotkey => "Hotkey: network settings",
-                RowKind::ExecOutputFoldHotkey => "Hotkey: fold output/details",
-                RowKind::JsReplCodeFoldHotkey => "Hotkey: fold JS REPL code",
-                RowKind::JumpToParentCallHotkey => "Hotkey: jump to parent call",
-                RowKind::JumpToLatestChildCallHotkey => "Hotkey: jump to child call",
-                _ => "Hotkey",
-            };
-            let current = self.hotkey_value_label_for_row(row);
-            let title = Line::from(vec![Span::styled(
-                format!("{label} (current: {current})"),
-                Style::default().fg(crate::colors::text()),
-            )]);
-            write_line(buf, content.x, content.y, content.width, &title, base);
-
-            if let Some(error) = error {
-                let err_y = content.y.saturating_add(1);
-                if err_y < content.y.saturating_add(content.height) {
-                    let err_line = Line::from(vec![Span::styled(
-                        error.to_string(),
-                        Style::default().fg(crate::colors::warning()),
-                    )]);
-                    write_line(buf, content.x, err_y, content.width, &err_line, base);
-                }
-            }
-
-            let hint_y = content.y.saturating_add(2);
-            if hint_y < content.y.saturating_add(content.height) {
-                let inherit_hint = match self.hotkey_scope {
-                    HotkeyScope::Global => None,
-                    _ => Some("  i inherit"),
-                };
-                let legacy_hint = match row {
-                    RowKind::ExecOutputFoldHotkey
-                    | RowKind::JsReplCodeFoldHotkey
-                    | RowKind::JumpToParentCallHotkey
-                    | RowKind::JumpToLatestChildCallHotkey => Some("  l legacy"),
-                    _ => None,
-                };
-                let max_key = self.hotkey_scope.max_function_key();
-                let hint = format!(
-                    "Press F2-F{max_key} or Ctrl/Alt+letter (e.g. ctrl+h).  d disable{legacy}{inherit}",
-                    legacy = legacy_hint.unwrap_or(""),
-                    inherit = inherit_hint.unwrap_or(""),
-                );
-                let hint_line = Line::from(vec![Span::styled(
-                    hint,
-                    Style::default().fg(crate::colors::text_dim()),
-                )]);
-                write_line(buf, content.x, hint_y, content.width, &hint_line, base);
-            }
-
-            let hint2_y = content.y.saturating_add(3);
-            if hint2_y < content.y.saturating_add(content.height) {
-                let hint2 = Line::from(vec![
-                    Span::styled("Esc", Style::default().fg(crate::colors::function())),
-                    Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
-                ]);
-                write_line(buf, content.x, hint2_y, content.width, &hint2, base);
-            }
-        });
+            write_line(buf, content.x, hint2_y, content.width, &hint2, base);
+        }
     }
 }
 
