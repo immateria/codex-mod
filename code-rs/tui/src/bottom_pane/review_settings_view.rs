@@ -11,12 +11,17 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::selectable_list_page::SettingsSelectableListPage;
+use super::settings_ui::hints::{shortcut_line, KeyHint};
+use super::settings_ui::line_runs::{selection_id_at, SelectableLineRun};
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::toggle;
 use crate::ui_interaction::{
     redraw_if,
     route_selectable_list_mouse_with_config,
     SelectableListMouseConfig,
     SelectableListMouseResult,
+    scroll_top_to_keep_visible,
 };
 use crate::components::scroll_state::ScrollState;
 use super::BottomPane;
@@ -46,6 +51,19 @@ enum RowData {
     AutoReviewModel,
     AutoReviewResolveModel,
     AutoReviewAttempts,
+}
+
+#[derive(Clone, Debug)]
+struct ReviewListModel {
+    runs: Vec<SelectableLineRun<'static, usize>>,
+    /// Selection index -> semantic kind.
+    selection_kinds: Vec<SelectionKind>,
+    /// Selection index -> absolute line index within the flattened run list.
+    selection_line: Vec<usize>,
+    /// Selection index -> inclusive (section_start_line, section_end_line).
+    section_bounds: Vec<(usize, usize)>,
+    /// Total line count across all runs.
+    total_lines: usize,
 }
 
 pub(crate) struct ReviewSettingsView {
@@ -302,31 +320,196 @@ impl ReviewSettingsView {
             .send(AppEvent::ShowAutoReviewResolveModelSelector);
     }
 
-    fn build_rows(&self) -> (Vec<RowData>, Vec<usize>, Vec<SelectionKind>) {
-        let rows = vec![
-            RowData::SectionReview,
-            RowData::ReviewEnabled,
-            RowData::ReviewModel,
-            RowData::ReviewResolveModel,
-            RowData::ReviewAttempts,
-            RowData::SectionAutoReview,
-            RowData::AutoReviewEnabled,
-            RowData::AutoReviewModel,
-            RowData::AutoReviewResolveModel,
-            RowData::AutoReviewAttempts,
-        ];
-        let selection_rows = vec![1, 2, 3, 4, 6, 7, 8, 9];
-        let selection_kinds = vec![
-            SelectionKind::ReviewEnabled,
-            SelectionKind::ReviewModel,
-            SelectionKind::ReviewResolveModel,
-            SelectionKind::ReviewAttempts,
-            SelectionKind::AutoReviewEnabled,
-            SelectionKind::AutoReviewModel,
-            SelectionKind::AutoReviewResolveModel,
-            SelectionKind::AutoReviewAttempts,
-        ];
-        (rows, selection_rows, selection_kinds)
+    fn build_model(&self, selected_idx: usize) -> ReviewListModel {
+        let mut runs = Vec::new();
+        let mut selection_kinds = Vec::new();
+        let mut selection_line = Vec::new();
+        let mut section_bounds = Vec::new();
+
+        let mut current_line = 0usize;
+
+        let review_section_start = current_line;
+        runs.push(SelectableLineRun::plain(vec![self.render_row(
+            &RowData::SectionReview,
+            false,
+        )]));
+        current_line = current_line.saturating_add(1);
+
+        let review_enabled_idx = selection_kinds.len();
+        selection_kinds.push(SelectionKind::ReviewEnabled);
+        selection_line.push(current_line);
+        section_bounds.push((0, 0));
+        runs.push(
+            SelectableLineRun::selectable(
+                review_enabled_idx,
+                vec![self.render_row(&RowData::ReviewEnabled, review_enabled_idx == selected_idx)],
+            )
+            .with_style(if review_enabled_idx == selected_idx {
+                Style::new().bg(colors::selection())
+            } else {
+                Style::new()
+            }),
+        );
+        current_line = current_line.saturating_add(1);
+
+        let review_model_idx = selection_kinds.len();
+        selection_kinds.push(SelectionKind::ReviewModel);
+        selection_line.push(current_line);
+        section_bounds.push((0, 0));
+        runs.push(
+            SelectableLineRun::selectable(
+                review_model_idx,
+                vec![self.render_row(&RowData::ReviewModel, review_model_idx == selected_idx)],
+            )
+            .with_style(if review_model_idx == selected_idx {
+                Style::new().bg(colors::selection())
+            } else {
+                Style::new()
+            }),
+        );
+        current_line = current_line.saturating_add(1);
+
+        let review_resolve_idx = selection_kinds.len();
+        selection_kinds.push(SelectionKind::ReviewResolveModel);
+        selection_line.push(current_line);
+        section_bounds.push((0, 0));
+        runs.push(
+            SelectableLineRun::selectable(
+                review_resolve_idx,
+                vec![self.render_row(
+                    &RowData::ReviewResolveModel,
+                    review_resolve_idx == selected_idx,
+                )],
+            )
+            .with_style(if review_resolve_idx == selected_idx {
+                Style::new().bg(colors::selection())
+            } else {
+                Style::new()
+            }),
+        );
+        current_line = current_line.saturating_add(1);
+
+        let review_attempts_idx = selection_kinds.len();
+        selection_kinds.push(SelectionKind::ReviewAttempts);
+        selection_line.push(current_line);
+        section_bounds.push((0, 0));
+        runs.push(
+            SelectableLineRun::selectable(
+                review_attempts_idx,
+                vec![self.render_row(&RowData::ReviewAttempts, review_attempts_idx == selected_idx)],
+            )
+            .with_style(if review_attempts_idx == selected_idx {
+                Style::new().bg(colors::selection())
+            } else {
+                Style::new()
+            }),
+        );
+        current_line = current_line.saturating_add(1);
+
+        let review_section_end = current_line.saturating_sub(1);
+        for idx in 0..selection_kinds.len() {
+            section_bounds[idx] = (review_section_start, review_section_end);
+        }
+
+        let auto_review_section_start = current_line;
+        runs.push(SelectableLineRun::plain(vec![self.render_row(
+            &RowData::SectionAutoReview,
+            false,
+        )]));
+        current_line = current_line.saturating_add(1);
+
+        let auto_review_enabled_idx = selection_kinds.len();
+        selection_kinds.push(SelectionKind::AutoReviewEnabled);
+        selection_line.push(current_line);
+        section_bounds.push((0, 0));
+        runs.push(
+            SelectableLineRun::selectable(
+                auto_review_enabled_idx,
+                vec![self.render_row(
+                    &RowData::AutoReviewEnabled,
+                    auto_review_enabled_idx == selected_idx,
+                )],
+            )
+            .with_style(if auto_review_enabled_idx == selected_idx {
+                Style::new().bg(colors::selection())
+            } else {
+                Style::new()
+            }),
+        );
+        current_line = current_line.saturating_add(1);
+
+        let auto_review_model_idx = selection_kinds.len();
+        selection_kinds.push(SelectionKind::AutoReviewModel);
+        selection_line.push(current_line);
+        section_bounds.push((0, 0));
+        runs.push(
+            SelectableLineRun::selectable(
+                auto_review_model_idx,
+                vec![self.render_row(
+                    &RowData::AutoReviewModel,
+                    auto_review_model_idx == selected_idx,
+                )],
+            )
+            .with_style(if auto_review_model_idx == selected_idx {
+                Style::new().bg(colors::selection())
+            } else {
+                Style::new()
+            }),
+        );
+        current_line = current_line.saturating_add(1);
+
+        let auto_review_resolve_idx = selection_kinds.len();
+        selection_kinds.push(SelectionKind::AutoReviewResolveModel);
+        selection_line.push(current_line);
+        section_bounds.push((0, 0));
+        runs.push(
+            SelectableLineRun::selectable(
+                auto_review_resolve_idx,
+                vec![self.render_row(
+                    &RowData::AutoReviewResolveModel,
+                    auto_review_resolve_idx == selected_idx,
+                )],
+            )
+            .with_style(if auto_review_resolve_idx == selected_idx {
+                Style::new().bg(colors::selection())
+            } else {
+                Style::new()
+            }),
+        );
+        current_line = current_line.saturating_add(1);
+
+        let auto_review_attempts_idx = selection_kinds.len();
+        selection_kinds.push(SelectionKind::AutoReviewAttempts);
+        selection_line.push(current_line);
+        section_bounds.push((0, 0));
+        runs.push(
+            SelectableLineRun::selectable(
+                auto_review_attempts_idx,
+                vec![self.render_row(
+                    &RowData::AutoReviewAttempts,
+                    auto_review_attempts_idx == selected_idx,
+                )],
+            )
+            .with_style(if auto_review_attempts_idx == selected_idx {
+                Style::new().bg(colors::selection())
+            } else {
+                Style::new()
+            }),
+        );
+        current_line = current_line.saturating_add(1);
+
+        let auto_review_section_end = current_line.saturating_sub(1);
+        for idx in review_attempts_idx.saturating_add(1)..selection_kinds.len() {
+            section_bounds[idx] = (auto_review_section_start, auto_review_section_end);
+        }
+
+        ReviewListModel {
+            runs,
+            selection_kinds,
+            selection_line,
+            section_bounds,
+            total_lines: current_line,
+        }
     }
 
     fn reasoning_label(effort: ReasoningEffort) -> &'static str {
@@ -383,34 +566,32 @@ impl ReviewSettingsView {
     }
 
     fn render_footer_lines(&self) -> Vec<Line<'static>> {
-        let mut lines = vec![Line::from(vec![
-            Span::styled("↑↓", Style::default().fg(colors::function())),
-            Span::styled(" Navigate  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Enter", Style::default().fg(colors::success())),
-            Span::styled(" Select  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Space", Style::default().fg(colors::success())),
-            Span::styled(" Toggle  ", Style::default().fg(colors::text_dim())),
-            Span::styled("←→", Style::default().fg(colors::function())),
-            Span::styled(" Adjust  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Esc", Style::default().fg(colors::error())),
-            Span::styled(" Close", Style::default().fg(colors::text_dim())),
-        ])];
-        if let Some(notice) = &self.pending_notice {
-            lines.push(Line::from(vec![Span::styled(
+        let shortcuts = shortcut_line(&[
+            KeyHint::new("↑↓", " Navigate").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new("Enter", " Select").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("Space", " Toggle").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("←→", " Adjust").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new("Esc", " Close").with_key_style(Style::new().fg(colors::error())),
+        ]);
+
+        let notice_line = match &self.pending_notice {
+            Some(notice) => Line::from(Span::styled(
                 notice.clone(),
-                Style::default().fg(colors::warning()),
-            )]));
-        }
-        lines
+                Style::new().fg(colors::warning()),
+            )),
+            None => Line::default(),
+        };
+
+        vec![shortcuts, notice_line]
     }
 
-    fn page(&self) -> SettingsSelectableListPage<'static> {
-        SettingsSelectableListPage::new(
-            " Review Settings ",
+    fn page(&self) -> SettingsMenuPage<'static> {
+        SettingsMenuPage::new(
+            "Review Settings",
+            SettingsPanelStyle::bottom_pane(),
             self.render_header_lines(),
             self.render_footer_lines(),
         )
-        .with_default_visible_rows(DEFAULT_VISIBLE_ROWS)
     }
 
     fn render_row(&self, row: &RowData, selected: bool) -> Line<'static> {
@@ -445,11 +626,8 @@ impl ReviewSettingsView {
                 } else {
                     Style::default().fg(colors::text()).add_modifier(Modifier::BOLD)
                 };
-                let status_span = if self.review_auto_resolve_enabled {
-                    Span::styled("On", Style::default().fg(colors::success()))
-                } else {
-                    Span::styled("Off", Style::default().fg(colors::text_dim()))
-                };
+                let status = toggle::on_off_word(self.review_auto_resolve_enabled);
+                let status_span = Span::styled(status.text, status.style);
                 let mut spans = vec![
                     Span::styled(arrow, arrow_style),
                     Span::styled("Enabled", label_style),
@@ -581,11 +759,8 @@ impl ReviewSettingsView {
                 } else {
                     Style::default().fg(colors::text()).add_modifier(Modifier::BOLD)
                 };
-                let status_span = if self.auto_review_enabled {
-                    Span::styled("On", Style::default().fg(colors::success()))
-                } else {
-                    Span::styled("Off", Style::default().fg(colors::text_dim()))
-                };
+                let status = toggle::on_off_word(self.auto_review_enabled);
+                let status_span = Span::styled(status.text, status.style);
                 let mut spans = vec![
                     Span::styled(arrow, arrow_style),
                     Span::styled("Enabled", label_style),
@@ -729,56 +904,34 @@ impl ReviewSettingsView {
         }
     }
 
-    fn section_bounds_for_row(rows: &[RowData], row_index: usize) -> (usize, usize) {
-        let mut section_start = 0;
-        for idx in (0..=row_index).rev() {
-            if matches!(
-                rows[idx],
-                RowData::SectionReview | RowData::SectionAutoReview
-            ) {
-                section_start = idx;
-                break;
-            }
-        }
-
-        let mut section_end = rows.len().saturating_sub(1);
-        for idx in (section_start.saturating_add(1))..rows.len() {
-            if matches!(
-                rows[idx],
-                RowData::SectionReview | RowData::SectionAutoReview
-            ) {
-                section_end = idx.saturating_sub(1);
-                break;
-            }
-        }
-
-        (section_start, section_end)
-    }
-
-    fn ensure_selected_row_visible(
-        &mut self,
-        rows: &[RowData],
-        selection_rows: &[usize],
-        body_height: usize,
-    ) {
-        if body_height == 0 || rows.is_empty() {
-            self.state.scroll_top = 0;
-            return;
-        }
-        if selection_rows.is_empty() {
+    fn ensure_selected_visible(&mut self, model: &ReviewListModel, body_height: usize) {
+        if body_height == 0 || model.total_lines == 0 || model.selection_kinds.is_empty() {
             self.state.scroll_top = 0;
             return;
         }
 
+        let total = model.selection_kinds.len();
+        self.state.clamp_selection(total);
         let Some(sel_idx) = self.state.selected_idx else {
             self.state.scroll_top = 0;
             return;
         };
-        let sel_idx = sel_idx.min(selection_rows.len().saturating_sub(1));
+        let sel_idx = sel_idx.min(total.saturating_sub(1));
         self.state.selected_idx = Some(sel_idx);
 
-        let selected_row = selection_rows[sel_idx].min(rows.len().saturating_sub(1));
-        let (section_start, section_end) = Self::section_bounds_for_row(rows, selected_row);
+        let selected_line = model
+            .selection_line
+            .get(sel_idx)
+            .copied()
+            .unwrap_or(0)
+            .min(model.total_lines.saturating_sub(1));
+        let (section_start, section_end) = model
+            .section_bounds
+            .get(sel_idx)
+            .copied()
+            .unwrap_or((0, model.total_lines.saturating_sub(1)));
+        let section_end = section_end.min(model.total_lines.saturating_sub(1));
+        let section_start = section_start.min(section_end);
         let section_len = section_end.saturating_sub(section_start).saturating_add(1);
 
         // If the full section fits, pin it to the top so the section header is visible.
@@ -788,26 +941,22 @@ impl ReviewSettingsView {
         }
 
         // If we can show the section header while keeping the selection visible, do so.
-        if selected_row <= section_start.saturating_add(body_height.saturating_sub(1)) {
+        if selected_line <= section_start.saturating_add(body_height.saturating_sub(1)) {
             self.state.scroll_top = section_start;
             return;
         }
 
-        let max_scroll_top = section_end
-            .saturating_add(1)
-            .saturating_sub(body_height);
-        let mut scroll_top = self.state.scroll_top.clamp(section_start, max_scroll_top);
-        let bottom = scroll_top.saturating_add(body_height.saturating_sub(1));
+        let max_scroll_top = section_end.saturating_add(1).saturating_sub(body_height);
+        let current_scroll_top = self.state.scroll_top.clamp(section_start, max_scroll_top);
+        let next = scroll_top_to_keep_visible(
+            current_scroll_top,
+            max_scroll_top,
+            body_height,
+            selected_line,
+            1,
+        );
 
-        if selected_row < scroll_top {
-            scroll_top = selected_row;
-        } else if selected_row > bottom {
-            scroll_top = selected_row
-                .saturating_add(1)
-                .saturating_sub(body_height);
-        }
-
-        self.state.scroll_top = scroll_top.clamp(section_start, max_scroll_top);
+        self.state.scroll_top = next.clamp(section_start, max_scroll_top);
     }
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -816,55 +965,40 @@ impl ReviewSettingsView {
             return false;
         };
 
-        let (rows, selection_rows, selection_kinds) = self.build_rows();
-        let total = selection_kinds.len();
+        let mut model = self.build_model(self.state.selected_idx.unwrap_or(0));
+        let total = model.selection_kinds.len();
         if total == 0 {
             return false;
         }
 
         self.state.clamp_selection(total);
-        self.ensure_selected_row_visible(
-            &rows,
-            &selection_rows,
-            layout.body.height as usize,
-        );
+        model = self.build_model(self.state.selected_idx.unwrap_or(0));
+        self.ensure_selected_visible(&model, layout.body.height as usize);
 
         let mut selected = self.state.selected_idx.unwrap_or(0);
         let result = route_selectable_list_mouse_with_config(
             mouse_event,
             &mut selected,
             total,
-            |x, y| {
-                SettingsSelectableListPage::selection_index_at(
-                    layout.body,
-                    x,
-                    y,
-                    self.state.scroll_top,
-                    &selection_rows,
-                )
-            },
+            |x, y| selection_id_at(layout.body, x, y, self.state.scroll_top, &model.runs),
             SelectableListMouseConfig::default(),
         );
         self.state.selected_idx = Some(selected);
 
         if matches!(result, SelectableListMouseResult::Activated)
-            && let Some(kind) = selection_kinds.get(selected).copied() {
+            && let Some(kind) = model.selection_kinds.get(selected).copied() {
                 self.activate_selection_kind(kind);
             }
         if result.handled() {
-            self.ensure_selected_row_visible(
-                &rows,
-                &selection_rows,
-                layout.body.height as usize,
-            );
+            self.ensure_selected_visible(&model, layout.body.height as usize);
         }
 
         result.handled()
     }
 
     fn handle_key_event_impl(&mut self, key_event: KeyEvent) -> bool {
-        let (rows, selection_rows, selection_kinds) = self.build_rows();
-        let total = selection_kinds.len();
+        let mut model = self.build_model(self.state.selected_idx.unwrap_or(0));
+        let total = model.selection_kinds.len();
         if total == 0 {
             if matches!(key_event.code, KeyCode::Esc) {
                 self.is_complete = true;
@@ -877,11 +1011,12 @@ impl ReviewSettingsView {
             0 => DEFAULT_VISIBLE_ROWS,
             other => other,
         };
-        self.ensure_selected_row_visible(&rows, &selection_rows, body_height_hint);
+        model = self.build_model(self.state.selected_idx.unwrap_or(0));
+        self.ensure_selected_visible(&model, body_height_hint);
         let current_kind = self
             .state
             .selected_idx
-            .and_then(|sel| selection_kinds.get(sel))
+            .and_then(|sel| model.selection_kinds.get(sel))
             .copied();
         let handled = match key_event {
             KeyEvent { code: KeyCode::Up, .. } => {
@@ -941,7 +1076,7 @@ impl ReviewSettingsView {
         };
 
         self.state.clamp_selection(total);
-        self.ensure_selected_row_visible(&rows, &selection_rows, body_height_hint);
+        self.ensure_selected_visible(&model, body_height_hint);
         handled
     }
 }
@@ -981,20 +1116,84 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
             return;
         }
         let page = self.page();
-        let Some(layout) = page.render_shell(area, buf) else {
+        let model = self.build_model(self.state.selected_idx.unwrap_or(0));
+        let mut rects = Vec::new();
+        let Some(layout) =
+            page.render_runs(area, buf, self.state.scroll_top, &model.runs, &mut rects)
+        else {
             return;
         };
         let visible_slots = layout.body.height as usize;
         self.viewport_rows.set(visible_slots);
+    }
+}
 
-        let (rows, selection_rows, _) = self.build_rows();
-        let start_row = self.state.scroll_top.min(rows.len().saturating_sub(1));
-        let selection_count = selection_rows.len();
-        let selected_idx = self.state.selected_idx.unwrap_or(0).min(selection_count.saturating_sub(1));
-        let selected_row_index = selection_rows.get(selected_idx).copied().unwrap_or(0);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
 
-        SettingsSelectableListPage::render_rows(layout.body, buf, start_row, rows.len(), |row_index| {
-            self.render_row(&rows[row_index], row_index == selected_row_index)
-        });
+    fn make_view() -> ReviewSettingsView {
+        let (tx, _rx) = mpsc::channel::<AppEvent>();
+        ReviewSettingsView::new(ReviewSettingsInit {
+            review_use_chat_model: false,
+            review_model: "gpt-5.4".to_string(),
+            review_reasoning: ReasoningEffort::Medium,
+            review_resolve_use_chat_model: false,
+            review_resolve_model: "gpt-5.4".to_string(),
+            review_resolve_reasoning: ReasoningEffort::Medium,
+            review_auto_resolve_enabled: true,
+            review_followups: AutoResolveAttemptLimit::DEFAULT,
+            auto_review_enabled: true,
+            auto_review_use_chat_model: false,
+            auto_review_model: "gpt-5.4".to_string(),
+            auto_review_reasoning: ReasoningEffort::Medium,
+            auto_review_resolve_use_chat_model: false,
+            auto_review_resolve_model: "gpt-5.4".to_string(),
+            auto_review_resolve_reasoning: ReasoningEffort::Medium,
+            auto_review_followups: AutoResolveAttemptLimit::DEFAULT,
+            app_event_tx: AppEventSender::new(tx),
+        })
+    }
+
+    #[test]
+    fn selection_index_to_kind_order_is_stable() {
+        let view = make_view();
+        let model = view.build_model(0);
+        assert_eq!(
+            model.selection_kinds,
+            vec![
+                SelectionKind::ReviewEnabled,
+                SelectionKind::ReviewModel,
+                SelectionKind::ReviewResolveModel,
+                SelectionKind::ReviewAttempts,
+                SelectionKind::AutoReviewEnabled,
+                SelectionKind::AutoReviewModel,
+                SelectionKind::AutoReviewResolveModel,
+                SelectionKind::AutoReviewAttempts,
+            ]
+        );
+    }
+
+    #[test]
+    fn ensure_selected_visible_clamps_scroll_within_section() {
+        let mut view = make_view();
+        view.state.selected_idx = Some(3);
+        view.state.scroll_top = 0;
+        let model = view.build_model(view.state.selected_idx.unwrap_or(0));
+        view.ensure_selected_visible(&model, 3);
+        assert_eq!(view.state.scroll_top, 2);
+    }
+
+    #[test]
+    fn selection_id_at_matches_run_geometry_with_scroll() {
+        let view = make_view();
+        let model = view.build_model(0);
+        let area = Rect::new(2, 4, 20, 10);
+
+        assert_eq!(selection_id_at(area, 3, 4, 0, &model.runs), None);
+        assert_eq!(selection_id_at(area, 3, 5, 0, &model.runs), Some(0));
+        assert_eq!(selection_id_at(area, 3, 6, 0, &model.runs), Some(1));
+        assert_eq!(selection_id_at(area, 3, 4, 2, &model.runs), Some(1));
     }
 }

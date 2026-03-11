@@ -34,12 +34,19 @@ pub(crate) fn enabled_word(enabled: bool) -> StyledText<'static> {
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn enabled_word_warning_off(enabled: bool) -> StyledText<'static> {
     if enabled {
         StyledText::new("enabled", Style::new().fg(colors::success()))
     } else {
         StyledText::new("disabled", Style::new().fg(colors::warning()))
+    }
+}
+
+pub(crate) fn on_off_word(on: bool) -> StyledText<'static> {
+    if on {
+        StyledText::new("On", Style::new().fg(colors::success()))
+    } else {
+        StyledText::new("Off", Style::new().fg(colors::text_dim()))
     }
 }
 
@@ -82,5 +89,16 @@ mod tests {
         let warn_off = enabled_word_warning_off(false);
         assert_eq!(warn_off.text.as_ref(), "disabled");
         assert_eq!(warn_off.style.fg, Some(colors::warning()));
+    }
+
+    #[test]
+    fn on_off_word_helpers_use_expected_colors() {
+        let on = on_off_word(true);
+        assert_eq!(on.text.as_ref(), "On");
+        assert_eq!(on.style.fg, Some(colors::success()));
+
+        let off = on_off_word(false);
+        assert_eq!(off.text.as_ref(), "Off");
+        assert_eq!(off.style.fg, Some(colors::text_dim()));
     }
 }
