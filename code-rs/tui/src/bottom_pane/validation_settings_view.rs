@@ -2,10 +2,9 @@ use code_core::config_types::{validation_tool_category, ValidationCategory};
 use code_core::protocol::ValidationGroup;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Widget};
 use std::cell::Cell;
 
 use crate::app_event::AppEvent;
@@ -13,7 +12,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::SettingsFrame;
+use super::settings_ui::selectable_list_page::SettingsSelectableListPage;
 use crate::ui_interaction::{
     redraw_if,
     route_selectable_list_mouse_with_config,
@@ -129,12 +128,7 @@ impl ValidationSettingsView {
     }
 
     fn visible_budget(&self, total: usize) -> usize {
-        if total == 0 {
-            return 1;
-        }
-        let hint = self.viewport_rows.get();
-        let target = if hint == 0 { DEFAULT_VISIBLE_ROWS } else { hint };
-        target.clamp(1, total)
+        self.page().visible_budget(self.viewport_rows.get(), total)
     }
 
     fn build_rows(&self) -> (Vec<RowData>, Vec<usize>, Vec<SelectionKind>) {
@@ -315,16 +309,10 @@ impl ValidationSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = SettingsFrame::new(
-            " Validation Settings ",
-            self.render_header_lines(),
-            self.render_footer_lines(),
-        )
-        .layout(area)?;
+        let layout = self.page().layout(area)?;
         if !layout.body.contains(ratatui::layout::Position { x, y }) {
             return None;
         }
-        let line_offset = y.saturating_sub(layout.body.y) as usize;
 
         let (rows, selection_rows, _) = self.build_rows();
         let selection_count = selection_rows.len();
@@ -344,8 +332,7 @@ impl ValidationSettingsView {
             }
         }
 
-        let row_index = start_row.saturating_add(line_offset);
-        selection_rows.iter().position(|&row| row == row_index)
+        SettingsSelectableListPage::selection_index_at(layout.body, x, y, start_row, &selection_rows)
     }
 
     pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
@@ -435,6 +422,15 @@ impl ValidationSettingsView {
             )]));
         }
         lines
+    }
+
+    fn page(&self) -> SettingsSelectableListPage<'static> {
+        SettingsSelectableListPage::new(
+            " Validation Settings ",
+            self.render_header_lines(),
+            self.render_footer_lines(),
+        )
+        .with_default_visible_rows(DEFAULT_VISIBLE_ROWS)
     }
 
     fn render_row(&self, row: &RowData, selected: bool) -> Line<'static> {
@@ -568,16 +564,11 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
             return;
         }
 
-        let Some(layout) = SettingsFrame::new(
-            " Validation Settings ",
-            self.render_header_lines(),
-            self.render_footer_lines(),
-        )
-        .render(area, buf)
-        else {
+        let page = self.page();
+        let Some(layout) = page.render_shell(area, buf) else {
             return;
         };
-        let visible_slots = layout.visible_rows();
+        let visible_slots = layout.body.height as usize;
         self.viewport_rows.set(visible_slots);
 
         let (rows, selection_rows, _) = self.build_rows();
@@ -597,22 +588,13 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
             }
         }
 
-        let mut visible_lines: Vec<Line> = Vec::new();
-
-        let mut remaining = visible_slots;
-        let mut row_index = start_row;
-        while remaining > 0 && row_index < rows.len() {
-            let is_selected = row_index == selected_row_index;
-            let line = self.render_row(&rows[row_index], is_selected);
-            visible_lines.push(line);
-            remaining = remaining.saturating_sub(1);
-            row_index += 1;
-        }
-
-        Paragraph::new(visible_lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .render(layout.body, buf);
+        SettingsSelectableListPage::render_rows(
+            layout.body,
+            buf,
+            start_row,
+            rows.len(),
+            |row_index| self.render_row(&rows[row_index], row_index == selected_row_index),
+        );
     }
 }
 

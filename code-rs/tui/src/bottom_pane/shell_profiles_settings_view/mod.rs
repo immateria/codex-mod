@@ -343,7 +343,7 @@ impl ShellProfilesSettingsView {
         match mode {
             ViewMode::Main => self.handle_mouse_event_main(mouse_event, area),
             ViewMode::EditList { target, before } => {
-                let Some((layout, field_inner)) = Self::compute_editor_layout(area, target) else {
+                let Some(layout) = self.compute_editor_layout(area, target) else {
                     self.mode = ViewMode::EditList { target, before };
                     return false;
                 };
@@ -351,7 +351,12 @@ impl ShellProfilesSettingsView {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         if let Some(action) =
-                            Self::editor_footer_action_at(target, mouse_event.column, mouse_event.row, layout.footer)
+                            self.editor_footer_action_at(
+                                target,
+                                mouse_event.column,
+                                mouse_event.row,
+                                &layout,
+                            )
                         {
                             match action {
                                 EditorFooterAction::Save => {
@@ -389,21 +394,21 @@ impl ShellProfilesSettingsView {
                             }
                         }
 
-                        if layout.body.contains(ratatui::layout::Position {
+                        if layout.page.body.contains(ratatui::layout::Position {
                             x: mouse_event.column,
                             y: mouse_event.row,
                         }) {
                             self.editor_field_mut(target).handle_mouse_click(
                                 mouse_event.column,
                                 mouse_event.row,
-                                field_inner,
+                                layout.sections[0].inner,
                             )
                         } else {
                             false
                         }
                     }
                     MouseEventKind::ScrollDown => {
-                        if layout.body.contains(ratatui::layout::Position {
+                        if layout.page.body.contains(ratatui::layout::Position {
                             x: mouse_event.column,
                             y: mouse_event.row,
                         }) {
@@ -413,7 +418,7 @@ impl ShellProfilesSettingsView {
                         }
                     }
                     MouseEventKind::ScrollUp => {
-                        if layout.body.contains(ratatui::layout::Position {
+                        if layout.page.body.contains(ratatui::layout::Position {
                             x: mouse_event.column,
                             y: mouse_event.row,
                         }) {

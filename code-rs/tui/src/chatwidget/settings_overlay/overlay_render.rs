@@ -6,7 +6,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
 use unicode_width::UnicodeWidthStr;
 
 use crate::bottom_pane::{
-    settings_panel::{render_panel, PanelFrameStyle},
+    settings_ui::panel::{SettingsPanel, SettingsPanelStyle},
     SettingsSection,
 };
 use crate::live_wrap::take_prefix_by_width;
@@ -432,7 +432,7 @@ impl SettingsOverlayView {
         }
 
         let title = Self::section_panel_title(self.active_section());
-        let mut style = PanelFrameStyle::overlay().with_margin(Margin::new(1, 1));
+        let mut style = SettingsPanelStyle::overlay().with_margin(Margin::new(1, 1));
         style.border_style = Style::default()
             .fg(if self.is_content_focused() {
                 crate::colors::border_focused()
@@ -440,16 +440,12 @@ impl SettingsOverlayView {
                 crate::colors::border_dim()
             })
             .bg(crate::colors::background());
-        render_panel(
-            area,
-            buf,
-            title,
-            style,
-            |inner, buf| {
-                self.render_content(inner, buf);
-                self.strip_child_border(inner, buf);
-            },
-        );
+        let panel = SettingsPanel::new(title, style);
+        let Some(layout) = panel.render(area, buf) else {
+            return;
+        };
+        self.render_content(layout.content, buf);
+        self.strip_child_border(layout.content, buf);
     }
 
     fn section_panel_title(section: SettingsSection) -> &'static str {

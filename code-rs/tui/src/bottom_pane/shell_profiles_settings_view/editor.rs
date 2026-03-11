@@ -1,8 +1,13 @@
 use super::*;
-use crate::bottom_pane::settings_ui::buttons::{render_text_button_strip, text_button_at, TextButton};
-use crate::bottom_pane::settings_ui::fields::BorderedField;
-use crate::bottom_pane::settings_ui::frame::{SettingsFrame, SettingsFrameLayout};
-use crate::bottom_pane::settings_ui::layout::DEFAULT_BUTTON_GAP;
+use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
+use crate::bottom_pane::settings_ui::buttons::{TextButton, TextButtonAlign};
+use crate::bottom_pane::settings_ui::form_page::{
+    SettingsFormPage,
+    SettingsFormPageLayout,
+    SettingsFormSection,
+};
+use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
+use ratatui::layout::Constraint;
 
 impl ShellProfilesSettingsView {
     pub(super) fn open_editor(&mut self, target: ListTarget) {
@@ -57,6 +62,34 @@ impl ShellProfilesSettingsView {
         ))
     }
 
+    fn editor_page(&self, target: ListTarget) -> SettingsActionPage<'static> {
+        SettingsActionPage::new(
+            "Shell Profiles",
+            SettingsPanelStyle::bottom_pane(),
+            vec![
+                Line::from(Span::styled(
+                    Self::editor_title(target),
+                    Style::default()
+                        .fg(crate::colors::text_bright())
+                        .add_modifier(Modifier::BOLD),
+                )),
+                self.editor_status_line(target),
+            ],
+            Vec::new(),
+        )
+    }
+
+    fn editor_form_page(&self, target: ListTarget) -> SettingsFormPage<'static> {
+        SettingsFormPage::new(
+            self.editor_page(target),
+            vec![SettingsFormSection::new(
+                Self::editor_field_title(target),
+                true,
+                Constraint::Min(1),
+            )],
+        )
+    }
+
     fn editor_footer_actions(target: ListTarget) -> &'static [EditorFooterAction] {
         match target {
             ListTarget::Summary => &[
@@ -100,62 +133,24 @@ impl ShellProfilesSettingsView {
         }
     }
 
-    fn editor_button_rect(target: ListTarget, footer: Rect) -> Rect {
-        let labels: Vec<&str> = Self::editor_footer_actions(target)
-            .iter()
-            .map(|action| Self::footer_action_label(*action))
-            .collect();
-        let content_width: u16 = labels
-            .iter()
-            .enumerate()
-            .map(|(idx, label)| {
-                let width = u16::try_from(unicode_width::UnicodeWidthStr::width(*label))
-                    .unwrap_or(u16::MAX);
-                if idx + 1 < labels.len() {
-                    width.saturating_add(DEFAULT_BUTTON_GAP.len() as u16)
-                } else {
-                    width
-                }
-            })
-            .fold(0, u16::saturating_add)
-            .min(footer.width);
-        Rect::new(
-            footer.x.saturating_add(footer.width.saturating_sub(content_width)),
-            footer.y,
-            content_width,
-            footer.height,
-        )
-    }
-
     pub(super) fn editor_footer_action_at(
+        &self,
         target: ListTarget,
         x: u16,
         y: u16,
-        footer: Rect,
+        layout: &SettingsFormPageLayout,
     ) -> Option<EditorFooterAction> {
+        let page = self.editor_form_page(target);
         let actions = Self::editor_footer_buttons(target, None);
-        let buttons_rect = Self::editor_button_rect(target, footer);
-        text_button_at(x, y, buttons_rect, &actions)
+        page.action_at(layout, x, y, &actions, TextButtonAlign::End)
     }
 
     pub(super) fn compute_editor_layout(
+        &self,
         area: Rect,
         target: ListTarget,
-    ) -> Option<(SettingsFrameLayout, Rect)> {
-        let header_lines = vec![
-            Line::from(Span::styled(
-                Self::editor_title(target),
-                Style::default()
-                    .fg(crate::colors::text_bright())
-                    .add_modifier(Modifier::BOLD),
-            )),
-            Line::from(""),
-        ];
-        let layout = SettingsFrame::new("Shell Profiles", header_lines, vec![Line::from("")])
-            .layout(area)?;
-        let block = BorderedField::new(Self::editor_field_title(target), true);
-        let field_inner = block.inner(layout.body);
-        Some((layout, field_inner))
+    ) -> Option<SettingsFormPageLayout> {
+        self.editor_form_page(target).layout(area)
     }
 
     pub(super) fn editor_append_picker_path(&mut self, target: ListTarget) {
@@ -210,35 +205,19 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn render_editor(&self, area: Rect, buf: &mut Buffer, target: ListTarget) {
-        let header_lines = vec![Line::from(Span::styled(
-            Self::editor_title(target),
-            Style::default()
-                .fg(crate::colors::text_bright())
-                .add_modifier(Modifier::BOLD),
-        )), self.editor_status_line(target)];
-        let Some(layout) = SettingsFrame::new("Shell Profiles", header_lines, vec![Line::from("")])
-            .render(area, buf)
+        let page = self.editor_form_page(target);
+        let field = match target {
+            ListTarget::Summary => &self.summary_field,
+            ListTarget::References => &self.references_field,
+            ListTarget::SkillRoots => &self.skill_roots_field,
+        };
+        let Some(layout) = page.render(area, buf, &[field])
         else {
             return;
         };
 
-        let focused = true;
-        let block = BorderedField::new(Self::editor_field_title(target), focused);
-        match target {
-            ListTarget::Summary => {
-                let _ = block.render(layout.body, buf, &self.summary_field);
-            }
-            ListTarget::References => {
-                let _ = block.render(layout.body, buf, &self.references_field);
-            }
-            ListTarget::SkillRoots => {
-                let _ = block.render(layout.body, buf, &self.skill_roots_field);
-            }
-        }
-
-        let buttons_rect = Self::editor_button_rect(target, layout.footer);
         let buttons = Self::editor_footer_buttons(target, None);
-        render_text_button_strip(buttons_rect, buf, &buttons);
+        page.render_actions(&layout, buf, &buttons, TextButtonAlign::End);
     }
 
     fn editor_footer_buttons(

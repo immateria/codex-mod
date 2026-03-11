@@ -1,10 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::prelude::Widget;
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
 use code_common::summarize_sandbox_policy;
 use code_core::config::{NetworkModeToml, NetworkProxySettingsToml};
@@ -25,13 +23,10 @@ use crate::ui_interaction::{
 use std::cell::Cell;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::SettingsFrame;
-use super::settings_ui::rows::{
-    render_kv_rows,
-    selection_index_at as row_selection_index_at,
-    KeyValueRow,
-    StyledText,
-};
+use super::settings_ui::editor_page::SettingsEditorPage;
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::row_page::SettingsRowPage;
+use super::settings_ui::rows::{KeyValueRow, StyledText};
 use super::BottomPane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -560,19 +555,12 @@ impl NetworkSettingsView {
             ViewMode::EditList { target, mut field, show_advanced } => {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
-                        let inner = Rect {
-                            x: area.x.saturating_add(1),
-                            y: area.y.saturating_add(1),
-                            width: area.width.saturating_sub(2),
-                            height: area.height.saturating_sub(2),
+                        let Some(field_area) =
+                            Self::edit_page(target).layout(area).map(|layout| layout.field)
+                        else {
+                            return false;
                         };
-                        let textarea = Rect {
-                            x: inner.x,
-                            y: inner.y.saturating_add(2),
-                            width: inner.width,
-                            height: inner.height.saturating_sub(2),
-                        };
-                        field.handle_mouse_click(mouse_event.column, mouse_event.row, textarea)
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
                     }
                     MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
                     MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
@@ -593,8 +581,9 @@ impl NetworkSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16, show_advanced: bool) -> Option<usize> {
-        let layout = SettingsFrame::new(" Network ", self.render_header_lines(), vec![]).layout(area)?;
-        row_selection_index_at(
+        let page = SettingsRowPage::new(" Network ", self.render_header_lines(), vec![]);
+        let layout = page.layout(area)?;
+        SettingsRowPage::selection_index_at(
             layout.body,
             x,
             y,
@@ -603,16 +592,29 @@ impl NetworkSettingsView {
         )
     }
 
-    fn render_main(&self, area: Rect, buf: &mut Buffer, show_advanced: bool) {
-        let Some(layout) = SettingsFrame::new(" Network ", self.render_header_lines(), vec![])
-            .render(area, buf)
-        else {
-            return;
+    fn edit_page(target: EditTarget) -> SettingsEditorPage<'static> {
+        let (title, field_title) = match target {
+            EditTarget::AllowedDomains => (" Network: Allowed Domains ", "Allowed domains"),
+            EditTarget::DeniedDomains => (" Network: Denied Domains ", "Denied domains"),
+            EditTarget::AllowUnixSockets => (" Network: Unix Sockets ", "Unix sockets"),
         };
+        SettingsEditorPage::new(
+            title,
+            SettingsPanelStyle::bottom_pane(),
+            field_title,
+            vec![
+                Line::from(vec![Span::styled(
+                    "One entry per line. Ctrl+S to save. Esc to cancel.",
+                    Style::default().fg(crate::colors::text_dim()),
+                )]),
+                Line::from(""),
+            ],
+            vec![],
+        )
+        .with_wrap_lines(true)
+    }
 
-        let visible_slots = layout.visible_rows();
-        self.viewport_rows.set(visible_slots);
-
+    fn render_main(&self, area: Rect, buf: &mut Buffer, show_advanced: bool) {
         let rows = self.build_rows(show_advanced);
         let total = rows.len();
         let selected_idx = self
@@ -727,56 +729,20 @@ impl NetworkSettingsView {
                 RowKind::Close => KeyValueRow::new("Close"),
             })
             .collect();
-        render_kv_rows(
-            layout.body,
+        let Some(layout) = SettingsRowPage::new(" Network ", self.render_header_lines(), vec![]).render(
+            area,
             buf,
             scroll_top,
             Some(selected_idx),
             &row_specs,
-        );
+        ) else {
+            return;
+        };
+        self.viewport_rows.set(layout.visible_rows());
     }
 
     fn render_edit(&self, area: Rect, buf: &mut Buffer, target: EditTarget, field: &FormTextField) {
-        Clear.render(area, buf);
-        let title = match target {
-            EditTarget::AllowedDomains => " Network: Allowed Domains ",
-            EditTarget::DeniedDomains => " Network: Denied Domains ",
-            EditTarget::AllowUnixSockets => " Network: Unix Sockets ",
-        };
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(title)
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
-        if inner.width == 0 || inner.height == 0 {
-            return;
-        }
-
-        let header = vec![
-            Line::from(vec![Span::styled(
-                "One entry per line. Ctrl+S to save. Esc to cancel.",
-                Style::default().fg(crate::colors::text_dim()),
-            )]),
-            Line::from(""),
-        ];
-        Paragraph::new(header)
-            .wrap(Wrap { trim: false })
-            .render(inner, buf);
-
-        let textarea = Rect {
-            x: inner.x,
-            y: inner.y.saturating_add(2),
-            width: inner.width,
-            height: inner.height.saturating_sub(2),
-        };
-        if textarea.width == 0 || textarea.height == 0 {
-            return;
-        }
-        field.render(textarea, buf, true);
+        let _ = Self::edit_page(target).render(area, buf, field);
     }
 }
 

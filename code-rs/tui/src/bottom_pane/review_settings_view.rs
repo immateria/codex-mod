@@ -1,10 +1,9 @@
 use code_core::config_types::{AutoResolveAttemptLimit, ReasoningEffort};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Widget};
 use std::cell::Cell;
 
 use crate::app_event::AppEvent;
@@ -12,7 +11,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::SettingsFrame;
+use super::settings_ui::selectable_list_page::SettingsSelectableListPage;
 use crate::ui_interaction::{
     redraw_if,
     route_selectable_list_mouse_with_config,
@@ -330,15 +329,6 @@ impl ReviewSettingsView {
         (rows, selection_rows, selection_kinds)
     }
 
-    fn visible_budget(&self, total: usize) -> usize {
-        if total == 0 {
-            return 1;
-        }
-        let hint = self.viewport_rows.get();
-        let target = if hint == 0 { DEFAULT_VISIBLE_ROWS } else { hint };
-        target.clamp(1, total)
-    }
-
     fn reasoning_label(effort: ReasoningEffort) -> &'static str {
         match effort {
             ReasoningEffort::XHigh => "XHigh",
@@ -412,6 +402,15 @@ impl ReviewSettingsView {
             )]));
         }
         lines
+    }
+
+    fn page(&self) -> SettingsSelectableListPage<'static> {
+        SettingsSelectableListPage::new(
+            " Review Settings ",
+            self.render_header_lines(),
+            self.render_footer_lines(),
+        )
+        .with_default_visible_rows(DEFAULT_VISIBLE_ROWS)
     }
 
     fn render_row(&self, row: &RowData, selected: bool) -> Line<'static> {
@@ -730,39 +729,120 @@ impl ReviewSettingsView {
         }
     }
 
-    fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = SettingsFrame::new(
-            " Review Settings ",
-            self.render_header_lines(),
-            self.render_footer_lines(),
-        )
-        .layout(area)?;
-        if !layout.body.contains(ratatui::layout::Position { x, y }) {
-            return None;
+    fn section_bounds_for_row(rows: &[RowData], row_index: usize) -> (usize, usize) {
+        let mut section_start = 0;
+        for idx in (0..=row_index).rev() {
+            if matches!(
+                rows[idx],
+                RowData::SectionReview | RowData::SectionAutoReview
+            ) {
+                section_start = idx;
+                break;
+            }
         }
-        let row_idx = y.saturating_sub(layout.body.y) as usize;
-        let (_, selection_rows, _) = self.build_rows();
-        selection_rows.iter().position(|&row| row == row_idx)
+
+        let mut section_end = rows.len().saturating_sub(1);
+        for idx in (section_start.saturating_add(1))..rows.len() {
+            if matches!(
+                rows[idx],
+                RowData::SectionReview | RowData::SectionAutoReview
+            ) {
+                section_end = idx.saturating_sub(1);
+                break;
+            }
+        }
+
+        (section_start, section_end)
+    }
+
+    fn ensure_selected_row_visible(
+        &mut self,
+        rows: &[RowData],
+        selection_rows: &[usize],
+        body_height: usize,
+    ) {
+        if body_height == 0 || rows.is_empty() {
+            self.state.scroll_top = 0;
+            return;
+        }
+        if selection_rows.is_empty() {
+            self.state.scroll_top = 0;
+            return;
+        }
+
+        let Some(sel_idx) = self.state.selected_idx else {
+            self.state.scroll_top = 0;
+            return;
+        };
+        let sel_idx = sel_idx.min(selection_rows.len().saturating_sub(1));
+        self.state.selected_idx = Some(sel_idx);
+
+        let selected_row = selection_rows[sel_idx].min(rows.len().saturating_sub(1));
+        let (section_start, section_end) = Self::section_bounds_for_row(rows, selected_row);
+        let section_len = section_end.saturating_sub(section_start).saturating_add(1);
+
+        // If the full section fits, pin it to the top so the section header is visible.
+        if section_len <= body_height {
+            self.state.scroll_top = section_start;
+            return;
+        }
+
+        // If we can show the section header while keeping the selection visible, do so.
+        if selected_row <= section_start.saturating_add(body_height.saturating_sub(1)) {
+            self.state.scroll_top = section_start;
+            return;
+        }
+
+        let max_scroll_top = section_end
+            .saturating_add(1)
+            .saturating_sub(body_height);
+        let mut scroll_top = self.state.scroll_top.clamp(section_start, max_scroll_top);
+        let bottom = scroll_top.saturating_add(body_height.saturating_sub(1));
+
+        if selected_row < scroll_top {
+            scroll_top = selected_row;
+        } else if selected_row > bottom {
+            scroll_top = selected_row
+                .saturating_add(1)
+                .saturating_sub(body_height);
+        }
+
+        self.state.scroll_top = scroll_top.clamp(section_start, max_scroll_top);
     }
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let (_, _, selection_kinds) = self.build_rows();
+        let page = self.page();
+        let Some(layout) = page.layout(area) else {
+            return false;
+        };
+
+        let (rows, selection_rows, selection_kinds) = self.build_rows();
         let total = selection_kinds.len();
         if total == 0 {
             return false;
         }
 
-        if self.state.selected_idx.is_none() {
-            self.state.selected_idx = Some(0);
-        }
         self.state.clamp_selection(total);
+        self.ensure_selected_row_visible(
+            &rows,
+            &selection_rows,
+            layout.body.height as usize,
+        );
 
         let mut selected = self.state.selected_idx.unwrap_or(0);
         let result = route_selectable_list_mouse_with_config(
             mouse_event,
             &mut selected,
             total,
-            |x, y| self.selection_index_at(area, x, y),
+            |x, y| {
+                SettingsSelectableListPage::selection_index_at(
+                    layout.body,
+                    x,
+                    y,
+                    self.state.scroll_top,
+                    &selection_rows,
+                )
+            },
             SelectableListMouseConfig::default(),
         );
         self.state.selected_idx = Some(selected);
@@ -772,16 +852,19 @@ impl ReviewSettingsView {
                 self.activate_selection_kind(kind);
             }
         if result.handled() {
-            let visible_budget = self.visible_budget(total);
-            self.state.ensure_visible(total, visible_budget);
+            self.ensure_selected_row_visible(
+                &rows,
+                &selection_rows,
+                layout.body.height as usize,
+            );
         }
 
         result.handled()
     }
 
     fn handle_key_event_impl(&mut self, key_event: KeyEvent) -> bool {
-        let (_, _, selection_kinds) = self.build_rows();
-        let mut total = selection_kinds.len();
+        let (rows, selection_rows, selection_kinds) = self.build_rows();
+        let total = selection_kinds.len();
         if total == 0 {
             if matches!(key_event.code, KeyCode::Esc) {
                 self.is_complete = true;
@@ -789,12 +872,12 @@ impl ReviewSettingsView {
             }
             return false;
         }
-        if self.state.selected_idx.is_none() {
-            self.state.selected_idx = Some(0);
-        }
         self.state.clamp_selection(total);
-        let visible_budget = self.visible_budget(total);
-        self.state.ensure_visible(total, visible_budget);
+        let body_height_hint = match self.viewport_rows.get() {
+            0 => DEFAULT_VISIBLE_ROWS,
+            other => other,
+        };
+        self.ensure_selected_row_visible(&rows, &selection_rows, body_height_hint);
         let current_kind = self
             .state
             .selected_idx
@@ -857,16 +940,8 @@ impl ReviewSettingsView {
             _ => false,
         };
 
-        let (_, _, selection_kinds) = self.build_rows();
-        total = selection_kinds.len();
-        if total == 0 {
-            self.state.selected_idx = None;
-            self.state.scroll_top = 0;
-        } else {
-            self.state.clamp_selection(total);
-            let visible_budget = self.visible_budget(total);
-            self.state.ensure_visible(total, visible_budget);
-        }
+        self.state.clamp_selection(total);
+        self.ensure_selected_row_visible(&rows, &selection_rows, body_height_hint);
         handled
     }
 }
@@ -905,37 +980,21 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
         if area.height == 0 || area.width == 0 {
             return;
         }
-        let Some(layout) = SettingsFrame::new(
-            " Review Settings ",
-            self.render_header_lines(),
-            self.render_footer_lines(),
-        )
-        .render(area, buf)
-        else {
+        let page = self.page();
+        let Some(layout) = page.render_shell(area, buf) else {
             return;
         };
-        let visible_slots = layout.visible_rows();
+        let visible_slots = layout.body.height as usize;
         self.viewport_rows.set(visible_slots);
 
         let (rows, selection_rows, _) = self.build_rows();
+        let start_row = self.state.scroll_top.min(rows.len().saturating_sub(1));
         let selection_count = selection_rows.len();
         let selected_idx = self.state.selected_idx.unwrap_or(0).min(selection_count.saturating_sub(1));
         let selected_row_index = selection_rows.get(selected_idx).copied().unwrap_or(0);
 
-        let mut visible_lines: Vec<Line> = Vec::new();
-
-        let mut remaining = visible_slots;
-        let mut row_index = 0;
-        while remaining > 0 && row_index < rows.len() {
-            let is_selected = row_index == selected_row_index;
-            visible_lines.push(self.render_row(&rows[row_index], is_selected));
-            remaining = remaining.saturating_sub(1);
-            row_index += 1;
-        }
-
-        Paragraph::new(visible_lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .render(layout.body, buf);
+        SettingsSelectableListPage::render_rows(layout.body, buf, start_row, rows.len(), |row_index| {
+            self.render_row(&rows[row_index], row_index == selected_row_index)
+        });
     }
 }

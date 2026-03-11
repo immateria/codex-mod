@@ -1,10 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::prelude::Widget;
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, Borders};
 
 use code_core::config::{JsReplRuntimeKindToml, JsReplSettingsToml};
 
@@ -25,13 +24,10 @@ use std::cell::Cell;
 use std::path::PathBuf;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::SettingsFrame;
-use super::settings_ui::rows::{
-    render_kv_rows,
-    selection_index_at as row_selection_index_at,
-    KeyValueRow,
-    StyledText,
-};
+use super::settings_ui::editor_page::SettingsEditorPage;
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::row_page::SettingsRowPage;
+use super::settings_ui::rows::{KeyValueRow, StyledText};
 use super::BottomPane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -82,7 +78,6 @@ pub(crate) struct JsReplSettingsView {
 impl JsReplSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
     const HEADER_HEIGHT: usize = 3; // status + hint/note + blank line
-    const EDIT_HEADER_HEIGHT: u16 = 2; // hint line + blank line
 
     pub(crate) fn new(
         settings: JsReplSettingsToml,
@@ -387,18 +382,64 @@ impl JsReplSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = SettingsFrame::new(" JS REPL ", self.render_header_lines(), vec![]).layout(area)?;
-        row_selection_index_at(layout.body, x, y, self.state.scroll_top, self.build_rows().len())
+        let page = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]);
+        let layout = page.layout(area)?;
+        SettingsRowPage::selection_index_at(
+            layout.body,
+            x,
+            y,
+            self.state.scroll_top,
+            self.build_rows().len(),
+        )
     }
 
-    fn edit_textarea_rect(area: Rect) -> Rect {
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        Rect {
-            x: inner.x,
-            y: inner.y.saturating_add(Self::EDIT_HEADER_HEIGHT),
-            width: inner.width,
-            height: inner.height.saturating_sub(Self::EDIT_HEADER_HEIGHT),
+    fn text_edit_title(target: TextTarget) -> &'static str {
+        match target {
+            TextTarget::RuntimePath => " JS REPL: Runtime Path ",
         }
+    }
+
+    fn list_edit_title(target: ListTarget) -> &'static str {
+        match target {
+            ListTarget::RuntimeArgs => " JS REPL: Runtime Args ",
+            ListTarget::NodeModuleDirs => " JS REPL: Node Module Dirs ",
+        }
+    }
+
+    fn text_edit_page(target: TextTarget) -> SettingsEditorPage<'static> {
+        SettingsEditorPage::new(
+            Self::text_edit_title(target),
+            SettingsPanelStyle::bottom_pane(),
+            "Runtime path",
+            vec![
+                Line::from(vec![Span::styled(
+                    "Ctrl+S to save. Esc to cancel.",
+                    Style::default().fg(crate::colors::text_dim()),
+                )]),
+                Line::from(""),
+            ],
+            vec![],
+        )
+    }
+
+    fn list_edit_page(target: ListTarget) -> SettingsEditorPage<'static> {
+        let field_title = match target {
+            ListTarget::RuntimeArgs => "Runtime args",
+            ListTarget::NodeModuleDirs => "Node module dirs",
+        };
+        SettingsEditorPage::new(
+            Self::list_edit_title(target),
+            SettingsPanelStyle::bottom_pane(),
+            field_title,
+            vec![
+                Line::from(vec![Span::styled(
+                    "One entry per line. Ctrl+S to save. Esc to cancel.",
+                    Style::default().fg(crate::colors::text_dim()),
+                )]),
+                Line::from(""),
+            ],
+            vec![],
+        )
     }
 
     fn list_visible_slots_for_area(&self, area: Rect) -> usize {
@@ -599,8 +640,12 @@ impl JsReplSettingsView {
             ViewMode::EditText { target, mut field } => {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
-                        let textarea = Self::edit_textarea_rect(area);
-                        field.handle_mouse_click(mouse_event.column, mouse_event.row, textarea)
+                        let Some(field_area) =
+                            Self::text_edit_page(target).layout(area).map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
                     }
                     MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
                     MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
@@ -612,8 +657,12 @@ impl JsReplSettingsView {
             ViewMode::EditList { target, mut field } => {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
-                        let textarea = Self::edit_textarea_rect(area);
-                        field.handle_mouse_click(mouse_event.column, mouse_event.row, textarea)
+                        let Some(field_area) =
+                            Self::list_edit_page(target).layout(area).map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
                     }
                     MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
                     MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
@@ -634,15 +683,6 @@ impl JsReplSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = SettingsFrame::new(" JS REPL ", self.render_header_lines(), vec![])
-            .render(area, buf)
-        else {
-            return;
-        };
-
-        let visible_slots = layout.visible_rows();
-        self.viewport_rows.set(visible_slots);
-
         let rows = self.build_rows();
         let total = rows.len();
         let selected_idx = self
@@ -719,52 +759,18 @@ impl JsReplSettingsView {
                 RowKind::Close => KeyValueRow::new("Close"),
             })
             .collect();
-        render_kv_rows(
-            layout.body,
+        let Some(layout) = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]).render(
+            area,
             buf,
             scroll_top,
             Some(selected_idx),
             &row_specs,
-        );
+        ) else {
+            return;
+        };
+        self.viewport_rows.set(layout.visible_rows());
     }
 
-    fn render_edit(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        title: &'static str,
-        field: &FormTextField,
-        hint: &'static str,
-    ) {
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(title)
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
-        if inner.width == 0 || inner.height == 0 {
-            return;
-        }
-
-        let header = vec![
-            Line::from(vec![Span::styled(
-                hint,
-                Style::default().fg(crate::colors::text_dim()),
-            )]),
-            Line::from(""),
-        ];
-        Paragraph::new(header).render(inner, buf);
-
-        let textarea = Self::edit_textarea_rect(area);
-        if textarea.width == 0 || textarea.height == 0 {
-            return;
-        }
-        field.render(textarea, buf, true);
-    }
 }
 
 impl<'a> BottomPaneView<'a> for JsReplSettingsView {
@@ -814,23 +820,10 @@ impl<'a> BottomPaneView<'a> for JsReplSettingsView {
         match &self.mode {
             ViewMode::Main => self.render_main(area, buf),
             ViewMode::EditText { target, field } => {
-                let title = match target {
-                    TextTarget::RuntimePath => " JS REPL: Runtime Path ",
-                };
-                self.render_edit(area, buf, title, field, "Ctrl+S to save. Esc to cancel.");
+                let _ = Self::text_edit_page(*target).render(area, buf, field);
             }
             ViewMode::EditList { target, field } => {
-                let title = match target {
-                    ListTarget::RuntimeArgs => " JS REPL: Runtime Args ",
-                    ListTarget::NodeModuleDirs => " JS REPL: Node Module Dirs ",
-                };
-                self.render_edit(
-                    area,
-                    buf,
-                    title,
-                    field,
-                    "One entry per line. Ctrl+S to save. Esc to cancel.",
-                );
+                let _ = Self::list_edit_page(*target).render(area, buf, field);
             }
             ViewMode::Transition => self.render_main(area, buf),
         }

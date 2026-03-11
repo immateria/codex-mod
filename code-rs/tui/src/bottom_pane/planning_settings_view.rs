@@ -1,24 +1,26 @@
 use code_core::config_types::ReasoningEffort;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::layout::{Margin, Rect};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Widget};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
+use crate::ui_interaction::redraw_if;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use crate::ui_interaction::{
-    redraw_if,
-    route_selectable_list_mouse_with_config,
-    SelectableListMouseConfig,
-    SelectableListMouseResult,
+use super::settings_ui::hints::{shortcut_line, KeyHint};
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::menu_rows::{
+    selection_id_at as selection_menu_id_at,
+    render_menu_rows,
+    SettingsMenuRow,
 };
 use crate::components::scroll_state::ScrollState;
-use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::rows::StyledText;
 use super::BottomPane;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -36,6 +38,29 @@ pub(crate) struct PlanningSettingsView {
 }
 
 impl PlanningSettingsView {
+    fn page(&self) -> SettingsMenuPage<'static> {
+        SettingsMenuPage::new(
+            "Planning Settings",
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
+            vec![
+                Line::from(Span::styled(
+                    "Select the model used when you’re in Plan Mode (Read Only).",
+                    Style::new().fg(colors::text_dim()),
+                )),
+                shortcut_line(&[
+                    KeyHint::new("↑↓", " navigate")
+                        .with_key_style(Style::new().fg(colors::function())),
+                    KeyHint::new("Enter/Space", " toggle/open")
+                        .with_key_style(Style::new().fg(colors::function())),
+                    KeyHint::new("Esc", " close")
+                        .with_key_style(Style::new().fg(colors::function())),
+                ]),
+                Line::from(""),
+            ],
+            vec![],
+        )
+    }
+
     pub fn new(
         use_chat_model: bool,
         planning_model: String,
@@ -79,59 +104,44 @@ impl PlanningSettingsView {
         }
     }
 
-    fn render_row(&self, row: PlanningRow, selected: bool) -> Line<'static> {
-        let arrow = if selected { "› " } else { "  " };
-        let arrow_style = if selected {
-            Style::default().fg(colors::primary())
+    fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, PlanningRow>> {
+        let value_text = if self.use_chat_model {
+            "Follow Chat Mode".to_string()
         } else {
-            Style::default().fg(colors::text_dim())
+            format!(
+                "{} ({})",
+                Self::format_model_label(&self.planning_model),
+                Self::reasoning_label(self.planning_reasoning)
+            )
         };
+        vec![
+            SettingsMenuRow::new(PlanningRow::CustomModel, "Planning model")
+                .with_value(StyledText::new(value_text, Style::new().fg(colors::function())))
+                .with_selected_hint("Enter to change"),
+        ]
+    }
 
-        match row {
-            PlanningRow::CustomModel => {
-                let label_style = if selected {
-                    Style::default()
-                        .fg(colors::primary())
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(colors::text()).add_modifier(Modifier::BOLD)
-                };
-                let value_style = if selected {
-                    Style::default()
-                        .fg(colors::function())
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(colors::text())
-                };
-                let (value_text, hint_text) = if self.use_chat_model {
-                    (
-                        "Follow Chat Mode".to_string(),
-                        Some("Enter to change".to_string()),
-                    )
-                } else {
-                    (
-                        format!(
-                            "{} ({})",
-                            Self::format_model_label(&self.planning_model),
-                            Self::reasoning_label(self.planning_reasoning)
-                        ),
-                        Some("Enter to change".to_string()),
-                    )
-                };
-                let mut spans = vec![
-                    Span::styled(arrow, arrow_style),
-                    Span::styled("Planning model", label_style),
-                    Span::raw("  "),
-                    Span::styled(value_text, value_style),
-                ];
-                if selected
-                    && let Some(hint) = hint_text {
-                        spans.push(Span::raw("  "));
-                        spans.push(Span::styled(hint, Style::default().fg(colors::text_dim())));
-                    }
-                Line::from(spans)
-            }
-        }
+    fn selected_row(&self) -> Option<PlanningRow> {
+        self.rows().get(self.state.selected_idx.unwrap_or(0)).copied()
+    }
+
+    fn row_at_position(&self, body: Rect, x: u16, y: u16) -> Option<PlanningRow> {
+        let rows = self.menu_rows();
+        selection_menu_id_at(body, x, y, 0, &rows)
+    }
+
+    fn render_rows(&self, area: Rect, buf: &mut Buffer) {
+        let rows = self.menu_rows();
+        let mut rects = Vec::new();
+        render_menu_rows(
+            area,
+            buf,
+            0,
+            self.selected_row(),
+            &rows,
+            Style::new().bg(colors::background()).fg(colors::text()),
+            &mut rects,
+        );
     }
 
     fn reasoning_label(effort: ReasoningEffort) -> &'static str {
@@ -205,43 +215,22 @@ impl PlanningSettingsView {
         }
     }
 
-    fn row_at_position(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let content = SettingsPanel::new("Planning Settings", SettingsPanelStyle::bottom_pane())
-            .layout(area)?
-            .content;
-        if !content.contains(ratatui::layout::Position { x, y }) {
-            return None;
-        }
-
-        // Header consumes three lines; the first selectable row starts after that.
-        let row_y = content.y.saturating_add(3);
-        if y == row_y {
-            Some(0)
-        } else {
-            None
-        }
-    }
-
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let rows = self.rows();
-        let mut selected = self.state.selected_idx.unwrap_or(0);
-        let result = route_selectable_list_mouse_with_config(
-            mouse_event,
-            &mut selected,
-            rows.len(),
-            |x, y| self.row_at_position(area, x, y),
-            SelectableListMouseConfig {
-                hover_select: false,
-                scroll_select: false,
-                ..SelectableListMouseConfig::default()
-            },
-        );
-        self.state.selected_idx = Some(selected);
-        if matches!(result, SelectableListMouseResult::Activated)
-            && let Some(row) = rows.get(selected).copied() {
-                self.handle_enter(row);
-            }
-        result.handled()
+        let Some(layout) = self.page().layout(area) else {
+            return false;
+        };
+        let Some(row) = self.row_at_position(layout.body, mouse_event.column, mouse_event.row) else {
+            return false;
+        };
+
+        self.state.selected_idx = Some(0);
+        if matches!(
+            mouse_event.kind,
+            crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
+        ) {
+            self.handle_enter(row);
+        }
+        true
     }
 }
 
@@ -282,37 +271,10 @@ impl<'a> BottomPaneView<'a> for PlanningSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = SettingsPanel::new("Planning Settings", SettingsPanelStyle::bottom_pane())
-            .render(area, buf) else {
+        let Some(layout) = self.page().render_shell(area, buf) else {
             return;
         };
-
-        let header_lines = vec![
-            Line::from(Span::styled(
-                "Select the model used when you’re in Plan Mode (Read Only).",
-                Style::default().fg(colors::text_dim()),
-            )),
-            Line::from(Span::styled(
-                "Use ↑↓ to navigate · Enter/Space to toggle/open · Esc close",
-                Style::default().fg(colors::text_dim()),
-            )),
-            Line::from(""),
-        ];
-
-        let rows = self.rows();
-        let selected_idx = self.state.selected_idx.unwrap_or(0).min(rows.len().saturating_sub(1));
-
-        let mut lines: Vec<Line> = Vec::new();
-        lines.extend(header_lines);
-        for (idx, row) in rows.iter().enumerate() {
-            let selected = idx == selected_idx;
-            lines.push(self.render_row(*row, selected));
-        }
-
-        Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .render(layout.content, buf);
+        self.render_rows(layout.body, buf);
     }
 }
 
@@ -341,16 +303,14 @@ mod tests {
             AppEventSender::new(tx),
         );
         let area = Rect::new(0, 0, 40, 8);
-        let content = SettingsPanel::new("Planning Settings", SettingsPanelStyle::bottom_pane())
-            .layout(area)
-            .expect("layout")
-            .content;
+        let page = view.page();
+        let layout = page.layout(area).expect("layout");
         assert_eq!(
-            view.row_at_position(area, content.x, content.y.saturating_add(3)),
-            Some(0)
+            view.row_at_position(layout.body, layout.body.x, layout.body.y),
+            Some(PlanningRow::CustomModel)
         );
         assert!(view.handle_mouse_event_direct(
-            left_click(content.x, content.y.saturating_add(3)),
+            left_click(layout.body.x, layout.body.y),
             area
         ));
     }

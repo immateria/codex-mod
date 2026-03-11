@@ -1,8 +1,6 @@
 use super::*;
-use crate::bottom_pane::settings_ui::rows::{
-    render_kv_rows, selection_index_at as row_selection_index_at, KeyValueRow, StyledText,
-};
-use crate::bottom_pane::settings_ui::frame::SettingsFrame;
+use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
+use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
 use crate::bottom_pane::shell_profiles_settings_view::persistence::{
     parse_path_list, style_profile_is_empty,
 };
@@ -273,16 +271,39 @@ impl ShellProfilesSettingsView {
         ))]
     }
 
-    pub(super) fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = SettingsFrame::new(
+    fn main_page(&self) -> SettingsRowPage<'static> {
+        SettingsRowPage::new(
             "Shell Profiles",
             self.main_header_lines(),
             self.main_footer_lines(),
         )
-        .layout(area)?;
+    }
+
+    fn main_row_specs(&self) -> Vec<KeyValueRow<'_>> {
+        Self::rows()
+            .iter()
+            .copied()
+            .map(|row| {
+                let mut spec = KeyValueRow::new(Self::row_label(row));
+                if let Some(value) = self.row_value(row) {
+                    spec = spec.with_value(StyledText::new(
+                        value,
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                }
+                if let Some(hint) = Self::selected_hint(row) {
+                    spec = spec.with_selected_hint(hint);
+                }
+                spec
+            })
+            .collect()
+    }
+
+    pub(super) fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
+        let layout = self.main_page().layout(area)?;
         let rows = Self::rows();
         let scroll_top = self.scroll.scroll_top.min(rows.len().saturating_sub(1));
-        row_selection_index_at(layout.body, x, y, scroll_top, rows.len())
+        SettingsRowPage::selection_index_at(layout.body, x, y, scroll_top, rows.len())
     }
 
     pub(super) fn handle_mouse_event_main(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -329,17 +350,18 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = SettingsFrame::new(
-            "Shell Profiles",
-            self.main_header_lines(),
-            self.main_footer_lines(),
-        )
-        .render(area, buf)
+        let row_specs = self.main_row_specs();
+        let rows = Self::rows();
+        let total = rows.len();
+        let scroll_top = self.scroll.scroll_top.min(total.saturating_sub(1));
+        let selected = Some(self.scroll.selected_idx.unwrap_or(0).min(total.saturating_sub(1)));
+        let Some(layout) = self
+            .main_page()
+            .render(area, buf, scroll_top, selected, &row_specs)
         else {
             return;
         };
         self.viewport_rows.set(layout.visible_rows().max(1));
-        self.render_list(layout.body, buf);
     }
 
     fn selected_hint(row: RowKind) -> Option<&'static str> {
@@ -352,32 +374,4 @@ impl ShellProfilesSettingsView {
         }
     }
 
-    pub(super) fn render_list(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
-            return;
-        }
-
-        let rows = Self::rows();
-        let total = rows.len();
-        let scroll_top = self.scroll.scroll_top.min(total.saturating_sub(1));
-        let selected = Some(self.scroll.selected_idx.unwrap_or(0).min(total.saturating_sub(1)));
-        let row_specs: Vec<KeyValueRow<'_>> = rows
-            .iter()
-            .copied()
-            .map(|row| {
-                let mut spec = KeyValueRow::new(Self::row_label(row));
-                if let Some(value) = self.row_value(row) {
-                    spec = spec.with_value(StyledText::new(
-                        value,
-                        Style::default().fg(crate::colors::text_dim()),
-                    ));
-                }
-                if let Some(hint) = Self::selected_hint(row) {
-                    spec = spec.with_selected_hint(hint);
-                }
-                spec
-            })
-            .collect();
-        render_kv_rows(area, buf, scroll_top, selected, &row_specs);
-    }
 }

@@ -17,13 +17,19 @@ use crossterm::event::{
 };
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::prelude::Widget;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Wrap};
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_panel::{PanelFrameStyle, panel_content_rect, render_panel};
+use super::settings_ui::action_page::SettingsActionPage;
+use super::settings_ui::buttons::{TextButton, TextButtonAlign};
+use super::settings_ui::hints::{status_and_shortcuts, KeyHint};
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::menu_rows::{
+    render_menu_rows, selection_id_at as selection_menu_id_at, SettingsMenuRow,
+};
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::rows::StyledText;
 use super::BottomPane;
 
 const ROUTING_REASONING_LEVELS: [ReasoningEffort; 5] = [
@@ -381,36 +387,6 @@ impl AutoDriveSettingsView {
         self.hovered = None;
     }
 
-    fn option_style(&self, index: usize, selected: bool) -> Style {
-        let hovered = matches!(self.hovered, Some(HoverTarget::MainOption(idx)) if idx == index);
-        if selected {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::BOLD)
-        } else if hovered {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::UNDERLINED)
-        } else {
-            Style::default().fg(colors::text())
-        }
-    }
-
-    fn routing_row_style(&self, index: usize, selected: bool) -> Style {
-        let hovered = matches!(self.hovered, Some(HoverTarget::RoutingRow(idx)) if idx == index);
-        if selected {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::BOLD)
-        } else if hovered {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::UNDERLINED)
-        } else {
-            Style::default().fg(colors::text())
-        }
-    }
-
     fn set_status_message(&mut self, message: impl Into<String>) {
         self.status_message = Some(message.into());
     }
@@ -603,374 +579,299 @@ impl AutoDriveSettingsView {
         }
     }
 
-    fn option_label(&self, index: usize) -> Line<'static> {
-        let selected = index == self.selected_index;
-        let indicator = if selected { "›" } else { " " };
-        let prefix = format!("{indicator} ");
-        let (label, enabled) = match index {
-            0 => ("Auto Drive model", true),
-            1 => (
-                "Agents enabled (uses multiple agents to speed up complex tasks)",
-                self.agents_enabled,
+    fn page(&self) -> SettingsMenuPage<'static> {
+        match &self.mode {
+            AutoDriveSettingsMode::Main => SettingsMenuPage::new(
+                Self::PANEL_TITLE,
+                SettingsPanelStyle::bottom_pane(),
+                Vec::new(),
+                self.main_footer_lines(),
             ),
-            2 => (
-                "Diagnostics enabled (monitors and adjusts system in real time)",
-                self.diagnostics_enabled,
-            ),
-            3 => (
-                "Coordinator model routing (choose model + reasoning per turn)",
-                self.model_routing_enabled,
-            ),
-            4 => ("Routing entries (add/remove/edit per-model routes)", true),
-            5 => (
-                "Auto-continue delay",
-                matches!(self.continue_mode, AutoContinueMode::Manual),
-            ),
-            _ => ("", false),
-        };
-
-        let label_style = self.option_style(index, selected);
-
-        let mut spans = vec![Span::styled(prefix, label_style)];
-        match index {
-            0 => {
-                if self.use_chat_model {
-                    spans.push(Span::styled("Follow Chat Mode", label_style));
-                    if selected {
-                        spans.push(Span::raw("  (Enter to change)"));
-                    }
-                } else {
-                    let model_label = self.model.trim();
-                    let display = if model_label.is_empty() {
-                        "(not set)".to_string()
-                    } else {
-                        format!(
-                            "{} · {}",
-                            Self::format_model_label(model_label),
-                            Self::reasoning_label(self.model_reasoning)
-                        )
-                    };
-                    spans.push(Span::styled(display, label_style));
-                    if selected {
-                        spans.push(Span::raw("  (Enter to change)"));
-                    }
-                }
-            }
-            1..=3 => {
-                let checkbox = if enabled { "[x]" } else { "[ ]" };
-                spans.push(Span::styled(format!("{checkbox} {label}"), label_style));
-            }
-            4 => {
-                let count = self.model_routing_entries.len();
-                let enabled_count = self.enabled_routing_entry_count();
-                spans.push(Span::styled(label.to_string(), label_style));
-                spans.push(Span::raw("  "));
-                spans.push(Span::styled(
-                    format!("{enabled_count}/{count} enabled"),
+            AutoDriveSettingsMode::RoutingList => SettingsMenuPage::new(
+                Self::PANEL_TITLE,
+                SettingsPanelStyle::bottom_pane(),
+                vec![Line::from(Span::styled(
+                    "Routing entries",
                     Style::default()
-                        .fg(colors::text_dim())
-                        .add_modifier(if selected {
-                            Modifier::BOLD
-                        } else {
-                            Modifier::empty()
-                        }),
-                ));
-                if selected {
-                    spans.push(Span::raw("  (Enter to edit)"));
-                }
+                        .fg(colors::primary())
+                        .add_modifier(Modifier::BOLD),
+                ))],
+                self.routing_list_footer_lines(),
+            ),
+            AutoDriveSettingsMode::RoutingEditor(_) => {
+                unreachable!("routing editor uses SettingsActionPage")
             }
-            5 => {
-                spans.push(Span::styled(label.to_string(), label_style));
-                spans.push(Span::raw("  "));
-                spans.push(Span::styled(
-                    self.continue_mode.label().to_string(),
-                    Style::default()
-                        .fg(colors::text_dim())
-                        .add_modifier(if selected {
-                            Modifier::BOLD
-                        } else {
-                            Modifier::empty()
-                        }),
-                ));
-            }
-            _ => {}
         }
-
-        Line::from(spans)
     }
 
-    fn info_lines_main(&self) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
-        for idx in 0..Self::option_count() {
-            lines.push(self.option_label(idx));
-        }
-        lines.push(Line::default());
-
-        if let Some(message) = self.status_message.as_deref() {
-            lines.push(Line::from(Span::styled(
-                message.to_string(),
-                Style::default().fg(colors::warning()),
-            )));
-            lines.push(Line::default());
-        }
-
-        let footer_style = Style::default().fg(colors::text_dim());
-        lines.push(Line::from(vec![
-            Span::styled("Enter", Style::default().fg(colors::primary())),
-            Span::styled(" select/toggle", footer_style),
-            Span::raw("   "),
-            Span::styled("←/→", Style::default().fg(colors::primary())),
-            Span::styled(" adjust delay", footer_style),
-            Span::raw("   "),
-            Span::styled("Esc", Style::default().fg(colors::primary())),
-            Span::styled(" close", footer_style),
-            Span::raw("   "),
-            Span::styled("Ctrl+S", Style::default().fg(colors::primary())),
-            Span::styled(" close", footer_style),
-        ]));
-
-        lines
-    }
-
-    fn info_lines_routing_list(&self) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
-        lines.push(Line::from(Span::styled(
-            "Routing entries",
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::BOLD),
-        )));
-
-        for (idx, entry) in self.model_routing_entries.iter().enumerate() {
-            let selected = self.routing_selected_index == idx;
-            let prefix = if selected { "› " } else { "  " };
-            let style = self.routing_row_style(idx, selected);
-            let checkbox = if entry.enabled { "[x]" } else { "[ ]" };
-            lines.push(Line::from(vec![
-                Span::styled(prefix, style),
-                Span::styled(format!("{checkbox} {}", Self::route_entry_summary(entry)), style),
-            ]));
-        }
-
-        let add_idx = self.model_routing_entries.len();
-        let add_selected = self.routing_selected_index == add_idx;
-        let add_style = self.routing_row_style(add_idx, add_selected);
-        let add_prefix = if add_selected { "› " } else { "  " };
-        lines.push(Line::from(vec![
-            Span::styled(add_prefix, add_style),
-            Span::styled("+ Add routing entry", add_style),
-        ]));
-
-        lines.push(Line::default());
-        if let Some(message) = self.status_message.as_deref() {
-            lines.push(Line::from(Span::styled(
-                message.to_string(),
-                Style::default().fg(colors::warning()),
-            )));
-            lines.push(Line::default());
-        }
-
-        let footer_style = Style::default().fg(colors::text_dim());
-        lines.push(Line::from(vec![
-            Span::styled("Enter", Style::default().fg(colors::primary())),
-            Span::styled(" edit/add", footer_style),
-            Span::raw("   "),
-            Span::styled("Space", Style::default().fg(colors::primary())),
-            Span::styled(" toggle enabled", footer_style),
-            Span::raw("   "),
-            Span::styled("D", Style::default().fg(colors::primary())),
-            Span::styled(" remove", footer_style),
-            Span::raw("   "),
-            Span::styled("Esc", Style::default().fg(colors::primary())),
-            Span::styled(" back", footer_style),
-        ]));
-
-        lines
-    }
-
-    fn info_lines_routing_editor(&self, editor: &RoutingEditorState) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
+    fn routing_editor_page(&self, editor: &RoutingEditorState) -> SettingsActionPage<'static> {
         let title = if editor.index.is_some() {
             "Edit routing entry"
         } else {
             "Add routing entry"
         };
-        lines.push(Line::from(Span::styled(
-            title,
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::BOLD),
-        )));
+        SettingsActionPage::new(
+            Self::PANEL_TITLE,
+            SettingsPanelStyle::bottom_pane(),
+            vec![Line::from(Span::styled(
+                title,
+                Style::default()
+                    .fg(colors::primary())
+                    .add_modifier(Modifier::BOLD),
+            ))],
+            self.routing_editor_footer_lines(),
+        )
+        .with_action_rows(1)
+        .with_min_body_rows(4)
+    }
 
+    fn main_footer_lines(&self) -> Vec<Line<'static>> {
+        status_and_shortcuts(
+            self.status_message
+                .as_deref()
+                .map(|message| super::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
+            &[
+                KeyHint::new("Enter", " select/toggle"),
+                KeyHint::new("←/→", " adjust delay"),
+                KeyHint::new("Esc", " close"),
+                KeyHint::new("Ctrl+S", " close"),
+            ],
+        )
+    }
+
+    fn routing_list_footer_lines(&self) -> Vec<Line<'static>> {
+        status_and_shortcuts(
+            self.status_message
+                .as_deref()
+                .map(|message| super::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
+            &[
+                KeyHint::new("Enter", " edit/add"),
+                KeyHint::new("Space", " toggle enabled"),
+                KeyHint::new("D", " remove"),
+                KeyHint::new("Esc", " back"),
+            ],
+        )
+    }
+
+    fn routing_editor_footer_lines(&self) -> Vec<Line<'static>> {
+        status_and_shortcuts(
+            self.status_message
+                .as_deref()
+                .map(|message| super::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
+            &[
+                KeyHint::new("Tab", " next field"),
+                KeyHint::new("Space", " toggle"),
+                KeyHint::new("Enter", " save/activate"),
+                KeyHint::new("Esc", " back"),
+            ],
+        )
+    }
+
+    fn main_menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
+        let model_value = if self.use_chat_model {
+            "Follow Chat Mode".to_string()
+        } else {
+            let model_label = self.model.trim();
+            if model_label.is_empty() {
+                "(not set)".to_string()
+            } else {
+                format!(
+                    "{} · {}",
+                    Self::format_model_label(model_label),
+                    Self::reasoning_label(self.model_reasoning)
+                )
+            }
+        };
+        vec![
+            SettingsMenuRow::new(0, "Auto Drive model")
+                .with_value(StyledText::new(model_value, Style::new().fg(colors::text_dim())))
+                .with_selected_hint("Enter to change"),
+            SettingsMenuRow::new(
+                1,
+                "Agents enabled (uses multiple agents to speed up complex tasks)",
+            )
+            .with_value(StyledText::new(
+                if self.agents_enabled { "On" } else { "Off" },
+                Style::new().fg(colors::text_dim()),
+            )),
+            SettingsMenuRow::new(
+                2,
+                "Diagnostics enabled (monitors and adjusts system in real time)",
+            )
+            .with_value(StyledText::new(
+                if self.diagnostics_enabled { "On" } else { "Off" },
+                Style::new().fg(colors::text_dim()),
+            )),
+            SettingsMenuRow::new(
+                3,
+                "Coordinator model routing (choose model + reasoning per turn)",
+            )
+            .with_value(StyledText::new(
+                if self.model_routing_enabled {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                },
+                Style::new().fg(colors::text_dim()),
+            )),
+            SettingsMenuRow::new(4, "Routing entries (add/remove/edit per-model routes)")
+                .with_value(StyledText::new(
+                    format!(
+                        "{}/{} enabled",
+                        self.enabled_routing_entry_count(),
+                        self.model_routing_entries.len()
+                    ),
+                    Style::new().fg(colors::text_dim()),
+                ))
+                .with_selected_hint("Enter to edit"),
+            SettingsMenuRow::new(5, "Auto-continue delay").with_value(StyledText::new(
+                self.continue_mode.label(),
+                Style::new().fg(colors::text_dim()),
+            )),
+        ]
+    }
+
+    fn routing_list_menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
+        let mut rows = self
+            .model_routing_entries
+            .iter()
+            .enumerate()
+            .map(|(idx, entry)| {
+                let checkbox = if entry.enabled { "[x]" } else { "[ ]" };
+                SettingsMenuRow::new(
+                    idx,
+                    format!("{checkbox} {}", Self::route_entry_summary(entry)),
+                )
+            })
+            .collect::<Vec<_>>();
+        rows.push(SettingsMenuRow::new(
+            self.model_routing_entries.len(),
+            "+ Add routing entry",
+        ));
+        rows
+    }
+
+    fn routing_editor_menu_rows(
+        &self,
+        editor: &RoutingEditorState,
+    ) -> Vec<SettingsMenuRow<'static, RoutingEditorField>> {
         let model = self
             .routing_model_options
             .get(editor.model_cursor)
             .cloned()
             .unwrap_or_else(Self::default_routing_model);
-        lines.push(self.editor_row(
-            editor,
-            RoutingEditorField::Model,
-            format!("Model: {model}"),
-        ));
-
-        lines.push(self.editor_row(
-            editor,
-            RoutingEditorField::Enabled,
-            format!("Enabled: {}", if editor.enabled { "Yes" } else { "No" }),
-        ));
-
-        let reasoning_parts = ROUTING_REASONING_LEVELS
+        let reasoning = ROUTING_REASONING_LEVELS
             .iter()
             .enumerate()
             .map(|(idx, level)| {
-                let cursor = if editor.reasoning_cursor == idx {
-                    ">"
-                } else {
-                    " "
-                };
-                let checkbox = if editor.reasoning_enabled[idx] {
-                    "[x]"
-                } else {
-                    "[ ]"
-                };
+                let cursor = if editor.reasoning_cursor == idx { ">" } else { " " };
+                let checkbox = if editor.reasoning_enabled[idx] { "[x]" } else { "[ ]" };
                 format!("{cursor}{checkbox}{}", Self::reasoning_label(*level).to_ascii_lowercase())
             })
             .collect::<Vec<_>>()
             .join("  ");
-        lines.push(self.editor_row(
-            editor,
-            RoutingEditorField::Reasoning,
-            format!("Reasoning: {reasoning_parts}"),
-        ));
-
         let description = if editor.description.trim().is_empty() {
             "(empty)".to_string()
         } else {
             editor.description.clone()
         };
-        lines.push(self.editor_row(
-            editor,
-            RoutingEditorField::Description,
-            format!("Description: {description}"),
-        ));
-
-        let save_selected = editor.selected_field == RoutingEditorField::Save;
-        let cancel_selected = editor.selected_field == RoutingEditorField::Cancel;
-        let save_hovered = matches!(
-            self.hovered,
-            Some(HoverTarget::RoutingEditor(RoutingEditorField::Save))
-        );
-        let cancel_hovered = matches!(
-            self.hovered,
-            Some(HoverTarget::RoutingEditor(RoutingEditorField::Cancel))
-        );
-        let save_style = if save_selected {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::BOLD)
-        } else if save_hovered {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::UNDERLINED)
-        } else {
-            Style::default().fg(colors::text())
-        };
-        let cancel_style = if cancel_selected {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::BOLD)
-        } else if cancel_hovered {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::UNDERLINED)
-        } else {
-            Style::default().fg(colors::text())
-        };
-        lines.push(Line::from(vec![
-            Span::raw("  "),
-            Span::styled(if save_selected { "› Save" } else { "  Save" }, save_style),
-            Span::raw("    "),
-            Span::styled(
-                if cancel_selected { "› Cancel" } else { "  Cancel" },
-                cancel_style,
-            ),
-        ]));
-
-        lines.push(Line::default());
-        if let Some(message) = self.status_message.as_deref() {
-            lines.push(Line::from(Span::styled(
-                message.to_string(),
-                Style::default().fg(colors::warning()),
-            )));
-            lines.push(Line::default());
-        }
-
-        let footer_style = Style::default().fg(colors::text_dim());
-        lines.push(Line::from(vec![
-            Span::styled("Tab", Style::default().fg(colors::primary())),
-            Span::styled(" next field", footer_style),
-            Span::raw("   "),
-            Span::styled("Space", Style::default().fg(colors::primary())),
-            Span::styled(" toggle", footer_style),
-            Span::raw("   "),
-            Span::styled("Enter", Style::default().fg(colors::primary())),
-            Span::styled(" save/activate", footer_style),
-            Span::raw("   "),
-            Span::styled("Esc", Style::default().fg(colors::primary())),
-            Span::styled(" back", footer_style),
-        ]));
-
-        lines
+        vec![
+            SettingsMenuRow::new(RoutingEditorField::Model, "Model")
+                .with_value(StyledText::new(model, Style::new().fg(colors::text_dim())))
+                .with_selected_hint("Enter/Space to cycle"),
+            SettingsMenuRow::new(RoutingEditorField::Enabled, "Enabled")
+                .with_value(StyledText::new(
+                    if editor.enabled { "Yes" } else { "No" },
+                    Style::new().fg(colors::text_dim()),
+                ))
+                .with_selected_hint("Enter/Space to toggle"),
+            SettingsMenuRow::new(RoutingEditorField::Reasoning, "Reasoning")
+                .with_detail(StyledText::new(reasoning, Style::new().fg(colors::text_dim())))
+                .with_selected_hint("←/→ move, Space toggle"),
+            SettingsMenuRow::new(RoutingEditorField::Description, "Description")
+                .with_detail(StyledText::new(description, Style::new().fg(colors::text_dim()))),
+        ]
     }
 
-    fn editor_row(
+    fn routing_editor_selected_body_field(
         &self,
         editor: &RoutingEditorState,
-        field: RoutingEditorField,
-        text: String,
-    ) -> Line<'static> {
-        let selected = editor.selected_field == field;
-        let hovered =
-            matches!(self.hovered, Some(HoverTarget::RoutingEditor(hovered)) if hovered == field);
-        let prefix = if selected { "› " } else { "  " };
-        let style = if selected {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::BOLD)
-        } else if hovered {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::UNDERLINED)
-        } else {
-            Style::default().fg(colors::text())
-        };
-        Line::from(vec![
-            Span::styled(prefix, style),
-            Span::styled(text, style),
-        ])
-    }
-
-    fn info_lines(&self) -> Vec<Line<'static>> {
-        match &self.mode {
-            AutoDriveSettingsMode::Main => self.info_lines_main(),
-            AutoDriveSettingsMode::RoutingList => self.info_lines_routing_list(),
-            AutoDriveSettingsMode::RoutingEditor(editor) => self.info_lines_routing_editor(editor),
+    ) -> Option<RoutingEditorField> {
+        match editor.selected_field {
+            RoutingEditorField::Model
+            | RoutingEditorField::Enabled
+            | RoutingEditorField::Reasoning
+            | RoutingEditorField::Description => Some(editor.selected_field),
+            RoutingEditorField::Save | RoutingEditorField::Cancel => None,
         }
     }
 
-    fn render_panel_body(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
-            return;
-        }
-
-        Paragraph::new(self.info_lines())
-            .wrap(Wrap { trim: true })
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .render(area, buf);
+    fn routing_editor_action_buttons(
+        &self,
+        selected_field: RoutingEditorField,
+    ) -> [TextButton<'static, RoutingEditorField>; 2] {
+        [
+            TextButton::new(
+                RoutingEditorField::Save,
+                "Save",
+                selected_field == RoutingEditorField::Save,
+                self.hovered == Some(HoverTarget::RoutingEditor(RoutingEditorField::Save)),
+                Style::new().fg(colors::success()).bold(),
+            ),
+            TextButton::new(
+                RoutingEditorField::Cancel,
+                "Cancel",
+                selected_field == RoutingEditorField::Cancel,
+                self.hovered == Some(HoverTarget::RoutingEditor(RoutingEditorField::Cancel)),
+                Style::new().fg(colors::error()).bold(),
+            ),
+        ]
     }
 
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
-        self.render_panel_body(area, buf);
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        match &self.mode {
+            AutoDriveSettingsMode::Main => {
+                let mut rects = Vec::new();
+                let rows = self.main_menu_rows();
+                render_menu_rows(
+                    area,
+                    buf,
+                    0,
+                    Some(self.selected_index),
+                    &rows,
+                    base,
+                    &mut rects,
+                );
+            }
+            AutoDriveSettingsMode::RoutingList => {
+                let mut rects = Vec::new();
+                let rows = self.routing_list_menu_rows();
+                render_menu_rows(
+                    area,
+                    buf,
+                    0,
+                    Some(self.routing_selected_index),
+                    &rows,
+                    base,
+                    &mut rects,
+                );
+            }
+            AutoDriveSettingsMode::RoutingEditor(editor) => {
+                let selected = self.routing_editor_selected_body_field(editor);
+                let mut rects = Vec::new();
+                let rows = self.routing_editor_menu_rows(&editor);
+                render_menu_rows(
+                    area,
+                    buf,
+                    0,
+                    selected,
+                    &rows,
+                    base,
+                    &mut rects,
+                );
+            }
+        }
     }
 
     fn handle_main_key(&mut self, key_event: KeyEvent) -> bool {
@@ -1281,50 +1182,40 @@ impl AutoDriveSettingsView {
     }
 
     fn update_hover_internal(&mut self, mouse_pos: (u16, u16), area: Rect) -> bool {
-        let (x, y) = mouse_pos;
-        if area.width == 0 || area.height == 0 {
-            return self.set_hovered(None);
-        }
-        if x < area.x
-            || y < area.y
-            || x >= area.x.saturating_add(area.width)
-            || y >= area.y.saturating_add(area.height)
-        {
-            return self.set_hovered(None);
-        }
-
-        let rel_y = y.saturating_sub(area.y) as usize;
         match &self.mode {
             AutoDriveSettingsMode::Main => {
-                let hovered = (rel_y < Self::option_count()).then_some(HoverTarget::MainOption(rel_y));
+                let rows = self.main_menu_rows();
+                let body = self.page().layout(area).map(|layout| layout.body).unwrap_or(area);
+                let hovered = selection_menu_id_at(body, mouse_pos.0, mouse_pos.1, 0, &rows)
+                    .map(HoverTarget::MainOption);
                 self.set_hovered(hovered)
             }
             AutoDriveSettingsMode::RoutingList => {
-                // Title is line 0.
-                if rel_y == 0 {
-                    return self.set_hovered(None);
-                }
-                let row = rel_y.saturating_sub(1);
-                let total = self.routing_row_count();
-                let hovered = (row < total).then_some(HoverTarget::RoutingRow(row));
+                let rows = self.routing_list_menu_rows();
+                let body = self.page().layout(area).map(|layout| layout.body).unwrap_or(area);
+                let hovered = selection_menu_id_at(body, mouse_pos.0, mouse_pos.1, 0, &rows)
+                    .map(HoverTarget::RoutingRow);
                 self.set_hovered(hovered)
             }
-            AutoDriveSettingsMode::RoutingEditor(_) => {
-                let hovered = match rel_y {
-                    1 => Some(HoverTarget::RoutingEditor(RoutingEditorField::Model)),
-                    2 => Some(HoverTarget::RoutingEditor(RoutingEditorField::Enabled)),
-                    3 => Some(HoverTarget::RoutingEditor(RoutingEditorField::Reasoning)),
-                    4 => Some(HoverTarget::RoutingEditor(RoutingEditorField::Description)),
-                    5 => {
-                        let save_cutoff = area.x.saturating_add(12);
-                        if x < save_cutoff {
-                            Some(HoverTarget::RoutingEditor(RoutingEditorField::Save))
-                        } else {
-                            Some(HoverTarget::RoutingEditor(RoutingEditorField::Cancel))
-                        }
-                    }
-                    _ => None,
+            AutoDriveSettingsMode::RoutingEditor(editor) => {
+                let editor = editor.clone();
+                let page = self.routing_editor_page(&editor);
+                let Some(layout) = page.layout(area) else {
+                    return self.set_hovered(None);
                 };
+                let buttons = self.routing_editor_action_buttons(editor.selected_field);
+                if let Some(action) = page.action_at(
+                    &layout,
+                    mouse_pos.0,
+                    mouse_pos.1,
+                    &buttons,
+                    TextButtonAlign::End,
+                ) {
+                    return self.set_hovered(Some(HoverTarget::RoutingEditor(action)));
+                }
+                let rows = self.routing_editor_menu_rows(&editor);
+                let hovered = selection_menu_id_at(layout.body, mouse_pos.0, mouse_pos.1, 0, &rows)
+                    .map(HoverTarget::RoutingEditor);
                 self.set_hovered(hovered)
             }
         }
@@ -1342,6 +1233,8 @@ impl AutoDriveSettingsView {
 
         match &self.mode {
             AutoDriveSettingsMode::Main => {
+                let rows = self.main_menu_rows();
+                let body = self.page().layout(area).map(|layout| layout.body).unwrap_or(area);
                 let config = SelectableListMouseConfig {
                     hover_select: false,
                     require_pointer_hit_for_scroll: true,
@@ -1351,17 +1244,7 @@ impl AutoDriveSettingsView {
                     mouse_event,
                     &mut self.selected_index,
                     Self::option_count(),
-                    |x, y| {
-                        if x < area.x
-                            || y < area.y
-                            || x >= area.x.saturating_add(area.width)
-                            || y >= area.y.saturating_add(area.height)
-                        {
-                            return None;
-                        }
-                        let rel_y = y.saturating_sub(area.y) as usize;
-                        (rel_y < Self::option_count()).then_some(rel_y)
-                    },
+                    |x, y| selection_menu_id_at(body, x, y, 0, &rows),
                     config,
                 );
 
@@ -1376,6 +1259,8 @@ impl AutoDriveSettingsView {
             }
             AutoDriveSettingsMode::RoutingList => {
                 let total = self.routing_row_count();
+                let rows = self.routing_list_menu_rows();
+                let body = self.page().layout(area).map(|layout| layout.body).unwrap_or(area);
                 let config = SelectableListMouseConfig {
                     hover_select: false,
                     require_pointer_hit_for_scroll: true,
@@ -1385,21 +1270,7 @@ impl AutoDriveSettingsView {
                     mouse_event,
                     &mut self.routing_selected_index,
                     total,
-                    |x, y| {
-                        if x < area.x
-                            || y < area.y
-                            || x >= area.x.saturating_add(area.width)
-                            || y >= area.y.saturating_add(area.height)
-                        {
-                            return None;
-                        }
-                        let rel_y = y.saturating_sub(area.y) as usize;
-                        if rel_y == 0 {
-                            return None;
-                        }
-                        let row = rel_y.saturating_sub(1);
-                        (row < total).then_some(row)
-                    },
+                    |x, y| selection_menu_id_at(body, x, y, 0, &rows),
                     config,
                 );
 
@@ -1409,8 +1280,8 @@ impl AutoDriveSettingsView {
                         if idx >= self.model_routing_entries.len() {
                             self.open_routing_editor(None);
                         } else {
-                            let checkbox_start = area.x.saturating_add(2);
-                            let checkbox_end = area.x.saturating_add(5);
+                            let checkbox_start = body.x.saturating_add(2);
+                            let checkbox_end = body.x.saturating_add(5);
                             if mouse_event.column >= checkbox_start && mouse_event.column < checkbox_end
                             {
                                 self.try_toggle_routing_entry_enabled(idx);
@@ -1424,24 +1295,44 @@ impl AutoDriveSettingsView {
                     SelectableListMouseResult::Ignored => false,
                 }
             }
-            AutoDriveSettingsMode::RoutingEditor(_) => {
+            AutoDriveSettingsMode::RoutingEditor(editor) => {
                 if !matches!(mouse_event.kind, MouseEventKind::Down(MouseButton::Left)) {
                     return false;
                 }
-
-                let x = mouse_event.column;
-                let y = mouse_event.row;
-                if x < area.x
-                    || y < area.y
-                    || x >= area.x.saturating_add(area.width)
-                    || y >= area.y.saturating_add(area.height)
-                {
+                let editor = editor.clone();
+                let page = self.routing_editor_page(&editor);
+                let Some(layout) = page.layout(area) else {
                     return false;
+                };
+                let buttons = self.routing_editor_action_buttons(editor.selected_field);
+                if let Some(action) = page.action_at(
+                    &layout,
+                    mouse_event.column,
+                    mouse_event.row,
+                    &buttons,
+                    TextButtonAlign::End,
+                ) {
+                    return match action {
+                        RoutingEditorField::Save => {
+                            self.save_routing_editor();
+                            true
+                        }
+                        RoutingEditorField::Cancel => {
+                            self.close_routing_editor();
+                            true
+                        }
+                        _ => false,
+                    };
                 }
-
-                let rel_y = y.saturating_sub(area.y) as usize;
-                match rel_y {
-                    1 => {
+                let rows = self.routing_editor_menu_rows(&editor);
+                match selection_menu_id_at(
+                    layout.body,
+                    mouse_event.column,
+                    mouse_event.row,
+                    0,
+                    &rows,
+                ) {
+                    Some(RoutingEditorField::Model) => {
                         let has_models = !self.routing_model_options.is_empty();
                         let model_options_len = self.routing_model_options.len();
                         self.update_routing_editor(|editor| {
@@ -1452,21 +1343,21 @@ impl AutoDriveSettingsView {
                         });
                         true
                     }
-                    2 => {
+                    Some(RoutingEditorField::Enabled) => {
                         self.update_routing_editor(|editor| {
                             editor.selected_field = RoutingEditorField::Enabled;
                             editor.enabled = !editor.enabled;
                         });
                         true
                     }
-                    3 => {
+                    Some(RoutingEditorField::Reasoning) => {
                         self.update_routing_editor(|editor| {
                             editor.selected_field = RoutingEditorField::Reasoning;
                             editor.toggle_reasoning_at_cursor();
                         });
                         true
                     }
-                    4 => {
+                    Some(RoutingEditorField::Description) => {
                         let mut changed = false;
                         self.update_routing_editor(|editor| {
                             if editor.selected_field != RoutingEditorField::Description {
@@ -1476,16 +1367,8 @@ impl AutoDriveSettingsView {
                         });
                         changed
                     }
-                    5 => {
-                        let save_cutoff = area.x.saturating_add(12);
-                        if x < save_cutoff {
-                            self.save_routing_editor();
-                        } else {
-                            self.close_routing_editor();
-                        }
-                        true
-                    }
-                    _ => false,
+                    Some(RoutingEditorField::Save | RoutingEditorField::Cancel) => false,
+                    None => false,
                 }
             }
         }
@@ -1560,13 +1443,11 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        let content = panel_content_rect(area, PanelFrameStyle::bottom_pane());
-        redraw_if(self.handle_mouse_event_internal(mouse_event, content))
+        redraw_if(self.handle_mouse_event_internal(mouse_event, area))
     }
 
     fn update_hover(&mut self, mouse_pos: (u16, u16), area: Rect) -> bool {
-        let content = panel_content_rect(area, PanelFrameStyle::bottom_pane());
-        self.update_hover_internal(mouse_pos, content)
+        self.update_hover_internal(mouse_pos, area)
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
@@ -1582,13 +1463,39 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        render_panel(
-            area,
-            buf,
-            Self::PANEL_TITLE,
-            PanelFrameStyle::bottom_pane(),
-            |inner, buf| self.render_panel_body(inner, buf),
-        );
+        match &self.mode {
+            AutoDriveSettingsMode::Main => {
+                let rows = self.main_menu_rows();
+                let _ = self
+                    .page()
+                    .render_menu_rows(area, buf, 0, Some(self.selected_index), &rows);
+            }
+            AutoDriveSettingsMode::RoutingList => {
+                let rows = self.routing_list_menu_rows();
+                let _ = self
+                    .page()
+                    .render_menu_rows(area, buf, 0, Some(self.routing_selected_index), &rows);
+            }
+            AutoDriveSettingsMode::RoutingEditor(editor) => {
+                let page = self.routing_editor_page(editor);
+                let Some(layout) = page.render(area, buf) else {
+                    return;
+                };
+                let rows = self.routing_editor_menu_rows(editor);
+                let mut rects = Vec::new();
+                render_menu_rows(
+                    layout.body,
+                    buf,
+                    0,
+                    self.routing_editor_selected_body_field(editor),
+                    &rows,
+                    Style::new().bg(colors::background()).fg(colors::text()),
+                    &mut rects,
+                );
+                let buttons = self.routing_editor_action_buttons(editor.selected_field);
+                page.render_actions(&layout, buf, &buttons, TextButtonAlign::End);
+            }
+        }
     }
 
     fn update_status_text(&mut self, _text: String) -> ConditionalUpdate {

@@ -6,11 +6,9 @@ use code_core::protocol::Op;
 use code_protocol::custom_prompts::CustomPrompt;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::layout::{Constraint, Rect};
+use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::prelude::Widget;
-use ratatui::widgets::Paragraph;
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -26,10 +24,12 @@ use crate::ui_interaction::{
     SelectableListMouseConfig,
     SelectableListMouseResult,
 };
-use super::settings_ui::buttons::{render_text_button_strip, text_button_at, TextButton};
-use super::settings_ui::fields::BorderedField;
-use super::settings_ui::frame::SettingsFrame;
-use super::settings_ui::rows::selection_index_at as row_selection_index_at;
+use super::settings_ui::action_page::SettingsActionPage;
+use super::settings_ui::buttons::{TextButton, TextButtonAlign};
+use super::settings_ui::form_page::{SettingsFormPage, SettingsFormPageLayout, SettingsFormSection};
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::menu_rows::SettingsMenuRow;
+use super::settings_ui::panel::SettingsPanelStyle;
 use super::BottomPane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -96,6 +96,102 @@ impl PromptsSettingsView {
         } else {
             "Content"
         }
+    }
+
+    fn edit_page(&self) -> SettingsActionPage<'static> {
+        let footer_lines = self
+            .status
+            .as_ref()
+            .map(|(msg, style)| vec![Line::from(Span::styled(msg.clone(), *style))])
+            .unwrap_or_default();
+        SettingsActionPage::new(
+            "Custom Prompt",
+            super::settings_ui::panel::SettingsPanelStyle::bottom_pane(),
+            Vec::new(),
+            footer_lines,
+        )
+    }
+
+    fn edit_form_page(&self) -> SettingsFormPage<'static> {
+        SettingsFormPage::new(
+            self.edit_page(),
+            vec![
+                SettingsFormSection::new(
+                    self.name_field_title(),
+                    matches!(self.focus, Focus::Name),
+                    Constraint::Length(3),
+                ),
+                SettingsFormSection::new(
+                    self.body_field_title(),
+                    matches!(self.focus, Focus::Body),
+                    Constraint::Min(6),
+                ),
+            ],
+        )
+    }
+
+    fn list_page(&self) -> SettingsMenuPage<'static> {
+        SettingsMenuPage::new(
+            "Custom Prompts",
+            SettingsPanelStyle::bottom_pane(),
+            self.list_header_lines(),
+            Vec::new(),
+        )
+    }
+
+    fn list_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
+        let mut rows = self
+            .prompts
+            .iter()
+            .enumerate()
+            .map(|(idx, prompt)| {
+                let preview = prompt.content.lines().next().unwrap_or("").trim().to_string();
+                let mut row = SettingsMenuRow::new(idx, format!("/{}", prompt.name));
+                if !preview.is_empty() {
+                    row = row.with_detail(super::settings_ui::rows::StyledText::new(
+                        preview,
+                        Style::new().fg(colors::text_dim()),
+                    ));
+                }
+                row
+            })
+            .collect::<Vec<_>>();
+
+        rows.push(
+            SettingsMenuRow::new(self.prompts.len(), "Add new…").with_detail(
+                super::settings_ui::rows::StyledText::new(
+                    "Create a custom slash prompt",
+                    Style::new().fg(colors::text_dim()),
+                ),
+            ),
+        );
+        rows
+    }
+
+    fn edit_buttons(&self) -> [TextButton<'static, Focus>; 3] {
+        [
+            TextButton::new(
+                Focus::Save,
+                Self::BUTTON_LABELS[0],
+                matches!(self.focus, Focus::Save),
+                false,
+                Style::new().fg(colors::success()).bold(),
+            ),
+            TextButton::new(
+                Focus::Delete,
+                Self::BUTTON_LABELS[1],
+                matches!(self.focus, Focus::Delete),
+                false,
+                Style::new().fg(colors::error()).bold(),
+            ),
+            TextButton::new(
+                Focus::Cancel,
+                Self::BUTTON_LABELS[2],
+                matches!(self.focus, Focus::Cancel),
+                false,
+                Style::new().fg(colors::text_dim()).bold(),
+            ),
+        ]
     }
 
     pub fn handle_key_event_direct(&mut self, key: KeyEvent) -> bool {
@@ -196,133 +292,43 @@ impl PromptsSettingsView {
     }
 
     fn render_list(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = SettingsFrame::new("Custom Prompts", self.list_header_lines(), Vec::new())
-            .render(area, buf)
+        let rows = self.list_rows();
+        let Some(_layout) = self
+            .list_page()
+            .render_menu_rows(area, buf, 0, Some(self.selected), &rows)
         else {
             return;
         };
-
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        for (idx, p) in self.prompts.iter().enumerate() {
-            let preview = p.content.lines().next().unwrap_or("").trim();
-            let arrow = if idx == self.selected { "›" } else { " " };
-            let name_style = if idx == self.selected {
-                Style::default().fg(colors::primary()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(colors::text())
-            };
-            let name_span = Span::styled(format!("{arrow} /{}", p.name), name_style);
-            let preview_span = Span::styled(
-                format!("  {preview}"),
-                Style::default().fg(colors::text_dim()),
-            );
-            let mut spans = vec![name_span];
-            if !preview.is_empty() { spans.push(preview_span); }
-            let line = Line::from(spans);
-            lines.push(line);
-        }
-        if lines.is_empty() {
-            lines.push(Line::from("No prompts yet. Press Enter or Ctrl+N to create one."));
-        }
-
-        // Add new row
-        let add_arrow = if self.selected == self.prompts.len() { "›" } else { " " };
-        let add_style = if self.selected == self.prompts.len() {
-            Style::default().fg(colors::primary()).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(colors::success()).add_modifier(Modifier::BOLD)
-        };
-        let add_line = Line::from(vec![Span::styled(format!("{add_arrow} Add new…"), add_style)]);
-        lines.push(add_line);
-
-        let list = Paragraph::new(lines)
-            .style(Style::default().bg(colors::background()));
-        list.render(layout.body, buf);
     }
 
     fn render_form(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = SettingsFrame::new("Custom Prompt", Vec::new(), vec![Line::from("")])
-            .render(area, buf)
+        let page = self.edit_form_page();
+        let Some(layout) = page.render(area, buf, &[&self.name_field, &self.body_field])
         else {
             return;
         };
-        let vertical = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3), // name block
-                Constraint::Min(6),    // body block
-                Constraint::Length(1), // status
-            ])
-            .split(layout.body);
-
-        let name_title = self.name_field_title();
-        let name_block = BorderedField::new(name_title, matches!(self.focus, Focus::Name));
-        let _ = name_block.render(vertical[0], buf, &self.name_field);
-
-        let body_title = self.body_field_title();
-        let body_block = BorderedField::new(body_title, matches!(self.focus, Focus::Body));
-        let _ = body_block.render(vertical[1], buf, &self.body_field);
-
-        if let Some((msg, style)) = &self.status {
-            Paragraph::new(Line::from(Span::styled(msg.clone(), *style)))
-                .render(vertical[2], buf);
-        }
-
-        render_text_button_strip(
-            layout.footer,
-            buf,
-            &[
-                TextButton::new(
-                    Focus::Save,
-                    Self::BUTTON_LABELS[0],
-                    matches!(self.focus, Focus::Save),
-                    false,
-                    Style::default().fg(colors::success()).add_modifier(Modifier::BOLD),
-                ),
-                TextButton::new(
-                    Focus::Delete,
-                    Self::BUTTON_LABELS[1],
-                    matches!(self.focus, Focus::Delete),
-                    false,
-                    Style::default().fg(colors::error()).add_modifier(Modifier::BOLD),
-                ),
-                TextButton::new(
-                    Focus::Cancel,
-                    Self::BUTTON_LABELS[2],
-                    matches!(self.focus, Focus::Cancel),
-                    false,
-                    Style::default().fg(colors::text_dim()).add_modifier(Modifier::BOLD),
-                ),
-            ],
-        );
+        let buttons = self.edit_buttons();
+        page.render_actions(&layout, buf, &buttons, TextButtonAlign::End);
     }
 
     fn list_selection_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let Some(layout) = SettingsFrame::new("Custom Prompts", self.list_header_lines(), Vec::new())
-            .layout(area)
-        else {
-            return None;
-        };
-        let rel_y = row_selection_index_at(layout.body, x, y, 0, layout.visible_rows())?;
-        if self.prompts.is_empty() {
-            (rel_y == 1).then_some(0)
-        } else if rel_y <= self.prompts.len() {
-            Some(rel_y)
-        } else {
-            None
-        }
+        let layout = self.list_page().layout(area)?;
+        let rows = self.list_rows();
+        SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, 0, &rows)
     }
 
-    fn button_focus_at(&self, buttons_area: Rect, mouse_event: MouseEvent) -> Option<Focus> {
-        text_button_at(
+    fn button_focus_at(
+        &self,
+        page: &SettingsFormPage<'_>,
+        layout: &SettingsFormPageLayout,
+        mouse_event: MouseEvent,
+    ) -> Option<Focus> {
+        page.action_at(
+            layout,
             mouse_event.column,
             mouse_event.row,
-            buttons_area,
-            &[
-                TextButton::new(Focus::Save, Self::BUTTON_LABELS[0], false, false, Style::new()),
-                TextButton::new(Focus::Delete, Self::BUTTON_LABELS[1], false, false, Style::new()),
-                TextButton::new(Focus::Cancel, Self::BUTTON_LABELS[2], false, false, Style::new()),
-            ],
+            &self.edit_buttons(),
+            TextButtonAlign::End,
         )
     }
 
@@ -356,34 +362,15 @@ impl PromptsSettingsView {
     }
 
     fn handle_edit_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let Some(layout) =
-            SettingsFrame::new("Custom Prompt", Vec::new(), vec![Line::from("")]).layout(area)
+        let page = self.edit_form_page();
+        let Some(layout) = page.layout(area)
         else {
             return false;
         };
-        let vertical = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Min(6),
-                Constraint::Length(1),
-            ])
-            .split(layout.body);
-        let name_rect = vertical[0];
-        let body_rect = vertical[1];
-        let status_rect = vertical[2];
-        let buttons_rect = layout.footer;
-
-        let name_inner =
-            BorderedField::new(self.name_field_title(), matches!(self.focus, Focus::Name))
-                .inner(name_rect);
-        let body_inner =
-            BorderedField::new(self.body_field_title(), matches!(self.focus, Focus::Body))
-                .inner(body_rect);
 
         match mouse_event.kind {
             MouseEventKind::Moved => {
-                if let Some(focus) = self.button_focus_at(buttons_rect, mouse_event) {
+                if let Some(focus) = self.button_focus_at(&page, &layout, mouse_event) {
                     if self.focus == focus {
                         return false;
                     }
@@ -395,28 +382,29 @@ impl PromptsSettingsView {
             MouseEventKind::Down(MouseButton::Left) => {
                 let col = mouse_event.column;
                 let row = mouse_event.row;
-                if col >= name_rect.x
-                    && col < name_rect.x.saturating_add(name_rect.width)
-                    && row >= name_rect.y
-                    && row < name_rect.y.saturating_add(name_rect.height)
-                {
-                    self.focus = Focus::Name;
-                    let _ = self.name_field.handle_mouse_click(col, row, name_inner);
+                if let Some(section_idx) = page.field_index_at(&layout, col, row) {
+                    match section_idx {
+                        0 => {
+                            self.focus = Focus::Name;
+                            let _ = self.name_field.handle_mouse_click(
+                                col,
+                                row,
+                                layout.sections[0].inner,
+                            );
+                        }
+                        1 => {
+                            self.focus = Focus::Body;
+                            let _ = self.body_field.handle_mouse_click(
+                                col,
+                                row,
+                                layout.sections[1].inner,
+                            );
+                        }
+                        _ => {}
+                    }
                     return true;
                 }
-                if col >= body_rect.x
-                    && col < body_rect.x.saturating_add(body_rect.width)
-                    && row >= body_rect.y
-                    && row < body_rect.y.saturating_add(body_rect.height)
-                {
-                    self.focus = Focus::Body;
-                    let _ = self.body_field.handle_mouse_click(col, row, body_inner);
-                    return true;
-                }
-                if status_rect.contains(ratatui::layout::Position { x: col, y: row }) {
-                    return false;
-                }
-                if let Some(focus) = self.button_focus_at(buttons_rect, mouse_event) {
+                if let Some(focus) = self.button_focus_at(&page, &layout, mouse_event) {
                     self.focus = focus;
                     match focus {
                         Focus::Save => self.save_current(),
@@ -433,10 +421,9 @@ impl PromptsSettingsView {
                 false
             }
             MouseEventKind::ScrollUp => {
-                if mouse_event.column >= body_rect.x
-                    && mouse_event.column < body_rect.x.saturating_add(body_rect.width)
-                    && mouse_event.row >= body_rect.y
-                    && mouse_event.row < body_rect.y.saturating_add(body_rect.height)
+                if layout.sections[1]
+                    .outer
+                    .contains(ratatui::layout::Position { x: mouse_event.column, y: mouse_event.row })
                 {
                     self.focus = Focus::Body;
                     return self.body_field.handle_mouse_scroll(false);
@@ -444,10 +431,9 @@ impl PromptsSettingsView {
                 false
             }
             MouseEventKind::ScrollDown => {
-                if mouse_event.column >= body_rect.x
-                    && mouse_event.column < body_rect.x.saturating_add(body_rect.width)
-                    && mouse_event.row >= body_rect.y
-                    && mouse_event.row < body_rect.y.saturating_add(body_rect.height)
+                if layout.sections[1]
+                    .outer
+                    .contains(ratatui::layout::Position { x: mouse_event.column, y: mouse_event.row })
                 {
                     self.focus = Focus::Body;
                     return self.body_field.handle_mouse_scroll(true);

@@ -3,10 +3,10 @@ use std::time::{Duration, Instant};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
+use ratatui::layout::{Margin, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
+use ratatui::widgets::{Block, Borders};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -22,13 +22,10 @@ use crate::ui_interaction::{
 };
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::SettingsFrame;
-use super::settings_ui::rows::{
-    render_kv_rows,
-    selection_index_at as row_selection_index_at,
-    KeyValueRow,
-    StyledText,
-};
+use super::settings_ui::editor_page::SettingsEditorPage;
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::row_page::SettingsRowPage;
+use super::settings_ui::rows::{KeyValueRow, StyledText};
 use super::BottomPane;
 
 const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -143,17 +140,6 @@ impl ExecLimitsSettingsView {
         Some(MainLayout {
             visible_slots,
         })
-    }
-
-    fn edit_field_area(area: Rect) -> Rect {
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        Rect {
-            x: inner.x.saturating_add(2),
-            // Matches `render_edit` ("Enter/Ctrl+S…" + blank + "Value:" -> 3 lines)
-            y: inner.y.saturating_add(3),
-            width: inner.width.saturating_sub(4),
-            height: 1,
-        }
     }
 
     fn format_limit_pids(limit: code_core::config::ExecLimitToml) -> String {
@@ -503,13 +489,13 @@ impl ExecLimitsSettingsView {
     }
 
     fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = SettingsFrame::new(
+        let page = SettingsRowPage::new(
             " Exec Limits ",
             self.render_header_lines(),
             self.render_footer_lines(),
-        )
-        .layout(area)?;
-        row_selection_index_at(
+        );
+        let layout = page.layout(area)?;
+        SettingsRowPage::selection_index_at(
             layout.body,
             x,
             y,
@@ -571,12 +557,12 @@ impl ExecLimitsSettingsView {
             ViewMode::Edit { target, mut field, error } => {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
-                        // Focus click inside the input field area.
-                        field.handle_mouse_click(
-                            mouse_event.column,
-                            mouse_event.row,
-                            Self::edit_field_area(area),
-                        )
+                        let Some(field_area) =
+                            Self::edit_page(target, error.as_deref()).layout(area).map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
                     }
                     _ => false,
                 };
@@ -591,25 +577,11 @@ impl ExecLimitsSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = SettingsFrame::new(
-            " Exec Limits ",
-            self.render_header_lines(),
-            self.render_footer_lines(),
-        )
-        .render(area, buf)
-        else {
-            return;
-        };
-        let visible_slots = layout.visible_rows();
-        self.viewport_rows.set(visible_slots);
-
         let rows = Self::build_rows();
         let total = rows.len();
         let mut state = self.state.get();
         state.clamp_selection(total);
         let selected_idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
-        state.ensure_visible(total, visible_slots);
-        self.state.set(state);
 
         let is_dirty = self.settings != self.last_applied;
         let row_specs: Vec<KeyValueRow<'_>> = rows
@@ -637,7 +609,50 @@ impl ExecLimitsSettingsView {
                 RowKind::Close => KeyValueRow::new("Close"),
             })
             .collect();
-        render_kv_rows(layout.body, buf, state.scroll_top, Some(selected_idx), &row_specs);
+        let Some(layout) = SettingsRowPage::new(
+            " Exec Limits ",
+            self.render_header_lines(),
+            self.render_footer_lines(),
+        )
+        .render(area, buf, state.scroll_top, Some(selected_idx), &row_specs)
+        else {
+            return;
+        };
+        let visible_slots = layout.visible_rows();
+        state.ensure_visible(total, visible_slots);
+        self.state.set(state);
+        self.viewport_rows.set(visible_slots);
+    }
+
+    fn edit_page(target: EditTarget, error: Option<&str>) -> SettingsEditorPage<'static> {
+        let (title, field_title) = match target {
+            EditTarget::PidsMax => (" Edit Process Limit ", "Process limit"),
+            EditTarget::MemoryMax => (" Edit Memory Limit (MiB) ", "Memory limit (MiB)"),
+        };
+        let hint = Style::default().fg(colors::text_dim());
+        let mut post_field_lines = Vec::new();
+        if let Some(err) = error {
+            post_field_lines.push(Line::from(Span::styled(
+                err.to_string(),
+                Style::default().fg(colors::error()),
+            )));
+        } else {
+            post_field_lines.push(Line::from(Span::styled(
+                "Tip: type \"auto\" or \"disabled\".",
+                hint,
+            )));
+        }
+        SettingsEditorPage::new(
+            title,
+            SettingsPanelStyle::bottom_pane(),
+            field_title,
+            vec![
+                Line::from(Span::styled("Enter/Ctrl+S save · Esc cancel", hint)),
+                Line::from(""),
+            ],
+            post_field_lines,
+        )
+        .with_field_margin(Margin::new(2, 0))
     }
 
     fn render_edit(
@@ -648,49 +663,7 @@ impl ExecLimitsSettingsView {
         field: &FormTextField,
         error: Option<&str>,
     ) {
-        Clear.render(area, buf);
-        let title = match target {
-            EditTarget::PidsMax => " Edit Process Limit ",
-            EditTarget::MemoryMax => " Edit Memory Limit (MiB) ",
-        };
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(colors::border()))
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .title(title)
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
-        let hint = Style::default().fg(colors::text_dim());
-        let mut lines: Vec<Line<'static>> = vec![
-            Line::from(Span::styled("Enter/Ctrl+S save · Esc cancel", hint)),
-            Line::from(""),
-            Line::from(Span::styled("Value:", hint)),
-        ];
-
-        // Placeholder line (the field renders over it).
-        lines.push(Line::from(""));
-
-        if let Some(err) = error {
-            lines.push(Line::from(Span::styled(
-                err.to_string(),
-                Style::default().fg(colors::error()),
-            )));
-        } else {
-            lines.push(Line::from(Span::styled(
-                "Tip: type \"auto\" or \"disabled\".",
-                hint,
-            )));
-        }
-
-        Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(colors::background()))
-            .render(inner, buf);
-
-        // Render the input *after* the paragraph so it doesn't get overwritten.
-        field.render(Self::edit_field_area(area), buf, true);
+        let _ = Self::edit_page(target, error).render(area, buf, field);
     }
 }
 

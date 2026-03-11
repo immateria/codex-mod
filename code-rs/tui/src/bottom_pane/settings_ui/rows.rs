@@ -8,6 +8,7 @@ use ratatui::widgets::{Paragraph, Widget};
 
 use crate::colors;
 
+#[derive(Clone, Debug)]
 pub(crate) struct StyledText<'a> {
     pub(crate) text: Cow<'a, str>,
     pub(crate) style: Style,

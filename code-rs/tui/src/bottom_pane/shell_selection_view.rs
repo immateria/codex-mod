@@ -6,6 +6,11 @@ use crate::ui_interaction::{
     SelectableListMouseConfig,
     SelectableListMouseResult,
 };
+use super::settings_ui::line_runs::{
+    hit_test_selectable_runs,
+    render_selectable_runs,
+    SelectableLineRun,
+};
 use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
 use super::BottomPane;
 use super::SettingsSection;
@@ -21,11 +26,9 @@ use code_core::config_types::ShellScriptStyle;
 use code_core::split_command_and_args;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::prelude::Widget;
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
 use std::cell::RefCell;
 use unicode_width::UnicodeWidthStr;
 
@@ -59,7 +62,7 @@ pub(crate) struct ShellSelectionView {
     custom_style_override: Option<ShellScriptStyle>,
     native_picker_notice: Option<String>,
     /// Cached item rects from last render for mouse hit testing
-    item_rects: RefCell<Vec<Rect>>,
+    item_rects: RefCell<Vec<(usize, Rect)>>,
     /// Cached rect for the custom input field for mouse hit testing
     custom_field_rect: RefCell<Option<Rect>>,
     custom_help_rects: RefCell<Vec<(CustomHelpAction, Rect)>>,
@@ -454,15 +457,7 @@ impl ShellSelectionView {
 
     /// Find which item index a screen position corresponds to
     fn hit_test(&self, x: u16, y: u16) -> Option<usize> {
-        // Check cached item rects in render order (auto + presets + custom).
-        let item_rects = self.item_rects.borrow();
-        for (idx, rect) in item_rects.iter().enumerate() {
-            if x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height {
-                return Some(idx);
-            }
-        }
-
-        None
+        hit_test_selectable_runs(&self.item_rects.borrow(), x, y)
     }
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent) -> bool {
@@ -884,8 +879,7 @@ impl ShellSelectionView {
         *self.custom_field_rect.borrow_mut() = None;
         self.custom_help_rects.borrow_mut().clear();
 
-        let mut lines = Vec::new();
-        let mut current_y = area.y;
+        let mut runs = Vec::new();
 
         // Show current shell (or auto) at the top.
         {
@@ -896,20 +890,21 @@ impl ShellSelectionView {
                         .script_style
                         .or_else(|| ShellScriptStyle::infer_from_shell_program(&current.path))
                         .map(|style| style.to_string())
-                        .unwrap_or_else(|| "auto".to_string());
+                    .unwrap_or_else(|| "auto".to_string());
                     format!("{label} (style: {style})")
                 }
                 None => "auto-detected".to_string(),
             };
-            lines.push(Line::from(vec![
+            runs.push(SelectableLineRun::plain(vec![
+                Line::from(vec![
                 Span::styled("Current: ", Style::default()),
                 Span::styled(
                     current_label,
                     Style::default().fg(colors::text_bright()).add_modifier(Modifier::BOLD),
                 ),
+                ]),
+                Line::raw(""),
             ]));
-            lines.push(Line::raw(""));
-            current_y += 2;
         }
 
         // Auto option
@@ -923,27 +918,19 @@ impl ShellSelectionView {
         } else {
             Style::default()
         };
-        let auto_start_y = current_y;
-        lines.push(Line::from(vec![
+        let mut auto_lines = vec![Line::from(vec![
             Span::styled(auto_prefix, auto_style),
             Span::styled("Auto-detect shell", auto_style),
             Span::styled(" - ", Style::default().fg(colors::text_dim())),
             Span::styled("use system default", Style::default().fg(colors::text_dim())),
-        ]));
-        current_y += 1;
+        ])];
         if is_auto_selected {
-            lines.push(Line::from(Span::styled(
+            auto_lines.push(Line::from(Span::styled(
                 "    Clears the override and follows your default shell.",
                 Style::default().fg(colors::text_dim()).bg(colors::selection()),
             )));
-            current_y += 1;
         }
-        item_rects.push(Rect {
-            x: area.x,
-            y: auto_start_y,
-            width: area.width,
-            height: current_y.saturating_sub(auto_start_y),
-        });
+        runs.push(SelectableLineRun::selectable(0, auto_lines));
 
         // Render shell options
         for (idx, shell) in self.shells.iter().enumerate() {
@@ -963,8 +950,6 @@ impl ShellSelectionView {
             };
 
             let status = if shell.available { "" } else { " (not found)" };
-            let item_start_y = current_y;
-
             let style_label = shell
                 .preset
                 .script_style
@@ -974,39 +959,30 @@ impl ShellSelectionView {
                 .map(|style| style.to_string())
                 .unwrap_or_else(|| "auto".to_string());
 
-            lines.push(Line::from(vec![
+            let mut shell_lines = vec![Line::from(vec![
                 Span::styled(prefix, name_style),
                 Span::styled(format!("{}{}", shell.preset.display_name, status), name_style),
                 Span::styled(format!(" [{style_label}]"), Style::default().fg(colors::text_dim())),
                 Span::styled(" - ", Style::default().fg(colors::text_dim())),
                 Span::styled(&shell.preset.command, Style::default().fg(colors::text_dim())),
-            ]));
-            current_y += 1;
+            ])];
 
             if is_selected {
                 let info_style = Style::default().fg(colors::text_dim()).bg(colors::selection());
-                lines.push(Line::from(Span::styled(
+                shell_lines.push(Line::from(Span::styled(
                     format!("    {}", shell.preset.description),
                     info_style,
                 )));
-                current_y += 1;
                 let resolved = shell
                     .resolved_path
                     .as_deref()
                     .unwrap_or("not found in PATH");
-                lines.push(Line::from(Span::styled(
+                shell_lines.push(Line::from(Span::styled(
                     format!("    Binary: {resolved} (press p to pin, e/→ to edit)"),
                     info_style,
                 )));
-                current_y += 1;
             }
-
-            item_rects.push(Rect {
-                x: area.x,
-                y: item_start_y,
-                width: area.width,
-                height: current_y.saturating_sub(item_start_y),
-            });
+            runs.push(SelectableLineRun::selectable(item_idx, shell_lines));
         }
 
         // Custom path option
@@ -1020,30 +996,27 @@ impl ShellSelectionView {
             Style::default()
         };
 
-        lines.push(Line::raw(""));
-        current_y += 1;
-
-        let custom_start_y = current_y;
-
-        lines.push(Line::from(vec![
-            Span::styled(custom_prefix, custom_style),
-            Span::styled("Custom / pinned path...", custom_style),
-        ]));
-        current_y += 1;
-        item_rects.push(Rect {
-            x: area.x,
-            y: custom_start_y,
-            width: area.width,
-            height: current_y.saturating_sub(custom_start_y),
-        });
-
-        lines.push(Line::from(Span::styled(
+        runs.push(SelectableLineRun::plain(vec![Line::raw("")]));
+        runs.push(SelectableLineRun::selectable(
+            custom_idx,
+            vec![Line::from(vec![
+                Span::styled(custom_prefix, custom_style),
+                Span::styled("Custom / pinned path...", custom_style),
+            ])],
+        ));
+        runs.push(SelectableLineRun::plain(vec![Line::from(Span::styled(
             "Keys: Enter apply  •  e/→ edit/pin path  •  p pin resolved  •  Ctrl+P profiles  •  Esc close".to_string(),
             Style::default().fg(colors::text_dim()),
-        )));
+        ))]));
 
-        let para = Paragraph::new(lines).alignment(Alignment::Left);
-        para.render(area, buf);
+        render_selectable_runs(
+            area,
+            buf,
+            0,
+            &runs,
+            Style::default().bg(colors::background()).fg(colors::text()),
+            &mut item_rects,
+        );
     }
 }
 

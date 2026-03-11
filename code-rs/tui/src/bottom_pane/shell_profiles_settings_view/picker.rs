@@ -1,5 +1,7 @@
 use super::*;
-use crate::bottom_pane::settings_ui::frame::SettingsFrame;
+use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
+use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
+use crate::bottom_pane::settings_ui::sectioned_panel::SettingsSectionedPanelLayout;
 use crate::bottom_pane::shell_profiles_settings_view::model::PickListItem;
 use crate::bottom_pane::shell_profiles_settings_view::persistence::{
     normalize_list_key, style_profile_is_empty,
@@ -339,31 +341,31 @@ impl ShellProfilesSettingsView {
         ))]
     }
 
+    fn picker_page(&self, state: &PickListState) -> SettingsMenuPage<'static> {
+        SettingsMenuPage::new(
+            "Shell Profiles",
+            SettingsPanelStyle::bottom_pane(),
+            self.picker_header_lines(state),
+            Self::picker_footer_lines(),
+        )
+    }
+
     pub(super) fn compute_picker_layout(
         &self,
         area: Rect,
         state: &PickListState,
-    ) -> Option<crate::bottom_pane::settings_ui::frame::SettingsFrameLayout> {
-        SettingsFrame::new(
-            "Shell Profiles",
-            self.picker_header_lines(state),
-            Self::picker_footer_lines(),
-        )
-        .layout(area)
+    ) -> Option<SettingsSectionedPanelLayout> {
+        self.picker_page(state).layout(area)
     }
 
     pub(super) fn render_picker(&self, area: Rect, buf: &mut Buffer, state: &PickListState) {
-        let Some(layout) = SettingsFrame::new(
-            "Shell Profiles",
-            self.picker_header_lines(state),
-            Self::picker_footer_lines(),
-        )
-        .render(area, buf)
+        let Some(layout) = self.picker_page(state).render_shell(area, buf)
         else {
             return;
         };
 
-        self.pick_viewport_rows.set(layout.visible_rows().max(1));
+        self.pick_viewport_rows
+            .set((layout.body.height as usize).max(1));
         self.render_pick_list(layout.body, buf, state);
     }
 

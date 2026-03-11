@@ -73,7 +73,6 @@ mod request_user_input_view;
 pub(crate) mod settings_ui;
 pub(crate) use settings_overlay::SettingsSection;
 pub(crate) mod review_settings_view;
-pub mod settings_panel;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CancellationEvent {

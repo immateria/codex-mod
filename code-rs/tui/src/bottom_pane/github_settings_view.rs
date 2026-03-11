@@ -1,25 +1,24 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::layout::{Margin, Rect};
+use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Widget};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
+use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::hints::{shortcut_line, KeyHint};
 use crate::ui_interaction::{
-    RelativeHitRegion,
     redraw_if,
-    route_selectable_regions_mouse_with_config,
-    ScrollSelectionBehavior,
-    SelectableListMouseConfig,
-    SelectableListMouseResult,
     wrap_next,
     wrap_prev,
 };
-use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::menu_rows::SettingsMenuRow;
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::rows::StyledText;
 use super::BottomPane;
 // TODO - This is currently unlinked here, on the official CODEX side, etc. figure out what to do later.
 /// Interactive UI for GitHub workflow monitoring settings.
@@ -64,18 +63,64 @@ impl GithubSettingsView {
         }
     }
 
-    fn panel() -> SettingsPanel<'static> {
-        SettingsPanel::new(
+    fn page(&self) -> SettingsMenuPage<'static> {
+        SettingsMenuPage::new(
             "GitHub Settings",
-            SettingsPanelStyle::bottom_pane().with_margin(ratatui::layout::Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            self.header_lines(),
+            self.footer_lines(),
         )
     }
 
-    fn selectable_regions() -> [RelativeHitRegion; 2] {
-        [
-            // See render() line layout: status, blank, toggle, blank, close, ...
-            RelativeHitRegion::new(Self::TOGGLE_ROW, 2, 1),
-            RelativeHitRegion::new(Self::CLOSE_ROW, 4, 1),
+    fn header_lines(&self) -> Vec<Line<'static>> {
+        let status_line = if self.token_ready {
+            Line::from(vec![
+                Span::styled("Status: ", Style::new().fg(colors::text_dim())),
+                Span::styled("Ready", Style::new().fg(colors::success()).bold()),
+                Span::raw("  "),
+                Span::styled(self.token_status.clone(), Style::new().fg(colors::dim())),
+            ])
+        } else {
+            Line::from(vec![
+                Span::styled("Status: ", Style::new().fg(colors::text_dim())),
+                Span::styled("No token", Style::new().fg(colors::warning()).bold()),
+                Span::raw("  "),
+                Span::styled(
+                    "Set GH_TOKEN/GITHUB_TOKEN or run: 'gh auth login'",
+                    Style::new().fg(colors::dim()),
+                ),
+            ])
+        };
+
+        vec![status_line, Line::from("")]
+    }
+
+    fn footer_lines(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(""),
+            shortcut_line(&[
+                KeyHint::new("↑↓", " Navigate")
+                    .with_key_style(Style::new().fg(colors::light_blue())),
+                KeyHint::new("←→/Space", " Toggle")
+                    .with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Enter", " Toggle/Close")
+                    .with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Esc", " Cancel")
+                    .with_key_style(Style::new().fg(colors::error())),
+            ]),
+        ]
+    }
+
+    fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
+        let toggle_label = if self.watcher_enabled {
+            "Enabled"
+        } else {
+            "Disabled"
+        };
+        vec![
+            SettingsMenuRow::new(Self::TOGGLE_ROW, "Workflow Monitoring")
+                .with_value(StyledText::new(toggle_label, Style::new().fg(colors::text()))),
+            SettingsMenuRow::new(Self::CLOSE_ROW, "Close"),
         ]
     }
 
@@ -118,28 +163,26 @@ impl GithubSettingsView {
     }
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let Some(content_area) = Self::panel().layout(area).map(|layout| layout.content) else {
+        let page = self.page();
+        let Some(layout) = page.layout(area) else {
             return false;
         };
-        let mut selected = self.selected_row;
-        let result = route_selectable_regions_mouse_with_config(
-            mouse_event,
-            &mut selected,
-            Self::ROW_COUNT,
-            content_area,
-            &Self::selectable_regions(),
-            SelectableListMouseConfig {
-                scroll_behavior: ScrollSelectionBehavior::Wrap,
-                ..SelectableListMouseConfig::default()
-            },
-        );
+        let rows = self.menu_rows();
+        let Some(selected) = SettingsMenuPage::selection_menu_id_in_body(
+            layout.body,
+            mouse_event.column,
+            mouse_event.row,
+            0,
+            &rows,
+        ) else {
+            return false;
+        };
         self.selected_row = selected;
-
-        if matches!(result, SelectableListMouseResult::Activated) {
+        if matches!(mouse_event.kind, crossterm::event::MouseEventKind::Down(_)) {
             self.activate_selected_row();
+            return true;
         }
-
-        result.handled()
+        true
     }
 
     pub fn is_view_complete(&self) -> bool {
@@ -174,62 +217,10 @@ impl<'a> BottomPaneView<'a> for GithubSettingsView {
     fn desired_height(&self, _width: u16) -> u16 { 9 }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = Self::panel().render(area, buf) else {
-            return;
-        };
-
-        let status_line = if self.token_ready {
-            Line::from(vec![
-                Span::styled("Status: ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Ready", Style::default().fg(crate::colors::success()).add_modifier(Modifier::BOLD)),
-                Span::raw("  "),
-                Span::styled(&self.token_status, Style::default().fg(crate::colors::dim())),
-            ])
-        } else {
-            Line::from(vec![
-                Span::styled("Status: ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("No token", Style::default().fg(crate::colors::warning()).add_modifier(Modifier::BOLD)),
-                Span::raw("  "),
-                Span::styled(
-                    "Set GH_TOKEN/GITHUB_TOKEN or run: 'gh auth login'",
-                    Style::default().fg(crate::colors::dim()),
-                ),
-            ])
-        };
-
-        let toggle_label = if self.watcher_enabled { "Enabled" } else { "Disabled" };
-        let mut toggle_style = Style::default().fg(crate::colors::text());
-        if self.selected_row == 0 { toggle_style = toggle_style.bg(crate::colors::selection()).add_modifier(Modifier::BOLD); }
-
-        let lines = vec![
-            status_line,
-            Line::from(""),
-            Line::from(vec![
-                Span::styled("Workflow Monitoring: ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled(toggle_label, toggle_style),
-            ]),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled(if self.selected_row == 1 { "› " } else { "  " }, Style::default()),
-                Span::styled("Close", if self.selected_row == 1 { Style::default().bg(crate::colors::selection()).add_modifier(Modifier::BOLD) } else { Style::default() }),
-            ]),
-            Line::from(""),
-            Line::from(vec![
-                Span::styled("↑↓", Style::default().fg(crate::colors::light_blue())),
-                Span::raw(" Navigate  "),
-                Span::styled("←→/Space", Style::default().fg(crate::colors::success())),
-                Span::raw(" Toggle  "),
-                Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                Span::raw(" Toggle/Close  "),
-                Span::styled("Esc", Style::default().fg(crate::colors::error())),
-                Span::raw(" Cancel"),
-            ]),
-        ];
-
-        let paragraph = Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
-        paragraph.render(layout.content, buf);
+        let rows = self.menu_rows();
+        let _ = self
+            .page()
+            .render_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
     }
 }
 
@@ -253,10 +244,32 @@ mod tests {
         let (tx, _rx) = channel();
         let mut view = GithubSettingsView::new(false, "token missing".to_string(), false, AppEventSender::new(tx));
         let area = Rect::new(0, 0, 40, 9);
-        let content = GithubSettingsView::panel().layout(area).expect("layout").content;
-        assert!(view.handle_mouse_event_direct(left_click(content.x, content.y.saturating_add(2)), area));
+        let page = view.page();
+        let layout = page.layout(area).expect("layout");
+        let rows = view.menu_rows();
+        assert_eq!(
+            SettingsMenuPage::selection_menu_id_in_body(
+                layout.body,
+                layout.body.x,
+                layout.body.y,
+                0,
+                &rows,
+            ),
+            Some(GithubSettingsView::TOGGLE_ROW)
+        );
+        assert!(view.handle_mouse_event_direct(left_click(layout.body.x, layout.body.y), area));
         assert_eq!(view.selected_row, GithubSettingsView::TOGGLE_ROW);
-        assert!(view.handle_mouse_event_direct(left_click(content.x, content.y.saturating_add(4)), area));
+        assert_eq!(
+            SettingsMenuPage::selection_menu_id_in_body(
+                layout.body,
+                layout.body.x,
+                layout.body.y.saturating_add(1),
+                0,
+                &rows,
+            ),
+            Some(GithubSettingsView::CLOSE_ROW)
+        );
+        assert!(view.handle_mouse_event_direct(left_click(layout.body.x, layout.body.y.saturating_add(1)), area));
         assert_eq!(view.selected_row, GithubSettingsView::CLOSE_ROW);
     }
 }

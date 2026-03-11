@@ -3,11 +3,9 @@ use std::path::PathBuf;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::prelude::Widget;
+use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 use code_core::config_types::{MemoriesConfig, MemoriesToml};
 
@@ -25,13 +23,10 @@ use crate::ui_interaction::{
 };
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::settings_ui::frame::SettingsFrame;
-use super::settings_ui::rows::{
-    render_kv_rows,
-    selection_index_at as row_selection_index_at,
-    KeyValueRow,
-    StyledText,
-};
+use super::settings_ui::editor_page::SettingsEditorPage;
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::row_page::SettingsRowPage;
+use super::settings_ui::rows::{KeyValueRow, StyledText};
 use super::BottomPane;
 
 const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -522,14 +517,44 @@ impl MemoriesSettingsView {
         lines
     }
 
-    fn edit_field_area(area: Rect) -> Rect {
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        Rect {
-            x: inner.x.saturating_add(2),
-            y: inner.y.saturating_add(3),
-            width: inner.width.saturating_sub(4),
-            height: 1,
-        }
+    fn edit_page(
+        scope: MemoriesScopeChoice,
+        target: EditTarget,
+        error: Option<&str>,
+    ) -> SettingsEditorPage<'static> {
+        let label = match target {
+            EditTarget::MaxRawMemories => "Max retained memories",
+            EditTarget::MaxRolloutAgeDays => "Max rollout age (days)",
+            EditTarget::MaxRolloutsPerStartup => "Max rollouts per refresh",
+            EditTarget::MinRolloutIdleHours => "Min rollout idle (hours)",
+        };
+        let scope_note = match scope {
+            MemoriesScopeChoice::Global => "Global scope saves a concrete value.",
+            MemoriesScopeChoice::Profile | MemoriesScopeChoice::Project => {
+                "Leave blank to inherit from the next broader scope."
+            }
+        };
+        let post_field_lines = match error {
+            Some(message) => vec![Line::from(Span::styled(
+                message.to_string(),
+                Style::default().fg(colors::warning()),
+            ))],
+            None => vec![Line::from(Span::styled(
+                "Ctrl+S or Enter to save. Esc to cancel.",
+                Style::default().fg(colors::text_dim()),
+            ))],
+        };
+        SettingsEditorPage::new(
+            " Memories ",
+            SettingsPanelStyle::bottom_pane(),
+            label,
+            vec![
+                Line::from(Span::styled(scope_note, Style::default().fg(colors::text_dim()))),
+                Line::from(""),
+            ],
+            post_field_lines,
+        )
+        .with_field_margin(Margin::new(2, 0))
     }
 
     fn set_status(&mut self, text: impl Into<String>, is_error: bool) {
@@ -951,13 +976,19 @@ impl MemoriesSettingsView {
     }
 
     fn selection_index_at(&self, x: u16, y: u16, area: Rect) -> Option<usize> {
-        let layout = SettingsFrame::new(
+        let page = SettingsRowPage::new(
             " Memories ",
             self.render_header_lines(),
             self.main_footer_lines(),
+        );
+        let layout = page.layout(area)?;
+        SettingsRowPage::selection_index_at(
+            layout.body,
+            x,
+            y,
+            self.state.get().scroll_top,
+            Self::rows().len(),
         )
-        .layout(area)?;
-        row_selection_index_at(layout.body, x, y, self.state.get().scroll_top, Self::rows().len())
     }
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -988,9 +1019,14 @@ impl MemoriesSettingsView {
         }
 
         match &mut self.mode {
-            ViewMode::Edit { field, .. } => match mouse_event.kind {
+            ViewMode::Edit { target, field, error } => match mouse_event.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
-                    let field_area = Self::edit_field_area(area);
+                    let Some(field_area) = Self::edit_page(self.scope, *target, error.as_deref())
+                        .layout(area)
+                        .map(|layout| layout.field)
+                    else {
+                        return false;
+                    };
                     field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
                 }
                 MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
@@ -1002,22 +1038,10 @@ impl MemoriesSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = SettingsFrame::new(
-            " Memories ",
-            self.render_header_lines(),
-            self.main_footer_lines(),
-        )
-        .render(area, buf)
-        else {
-            return;
-        };
         let rows = Self::rows();
         let total = rows.len();
         let mut state = self.state.get();
         state.clamp_selection(total);
-        state.ensure_visible(total, layout.visible_rows());
-        self.viewport_rows.set(layout.visible_rows());
-        self.state.set(state);
 
         let selected = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
         let scroll_top = state.scroll_top.min(total.saturating_sub(1));
@@ -1041,7 +1065,18 @@ impl MemoriesSettingsView {
                 spec
             })
             .collect();
-        render_kv_rows(layout.body, buf, scroll_top, Some(selected), &row_specs);
+        let Some(layout) = SettingsRowPage::new(
+            " Memories ",
+            self.render_header_lines(),
+            self.main_footer_lines(),
+        )
+        .render(area, buf, scroll_top, Some(selected), &row_specs)
+        else {
+            return;
+        };
+        state.ensure_visible(total, layout.visible_rows());
+        self.viewport_rows.set(layout.visible_rows());
+        self.state.set(state);
     }
 
     fn render_edit(
@@ -1052,41 +1087,7 @@ impl MemoriesSettingsView {
         field: &FormTextField,
         error: Option<&str>,
     ) {
-        let block = Block::default().borders(Borders::ALL).title(" Memories ");
-        let inner = block.inner(area);
-        Clear.render(area, buf);
-        block.render(area, buf);
-        let label = match target {
-            EditTarget::MaxRawMemories => "Max retained memories",
-            EditTarget::MaxRolloutAgeDays => "Max rollout age (days)",
-            EditTarget::MaxRolloutsPerStartup => "Max rollouts per refresh",
-            EditTarget::MinRolloutIdleHours => "Min rollout idle (hours)",
-        };
-        let scope_note = match self.scope {
-            MemoriesScopeChoice::Global => "Global scope saves a concrete value.",
-            MemoriesScopeChoice::Profile | MemoriesScopeChoice::Project => {
-                "Leave blank to inherit from the next broader scope."
-            }
-        };
-        let mut lines = vec![
-            Line::from(Span::styled(label, Style::default().fg(colors::text()))),
-            Line::from(Span::styled(scope_note, Style::default().fg(colors::text_dim()))),
-            Line::from(""),
-        ];
-        if let Some(error) = error {
-            lines.push(Line::from(Span::styled(
-                error.to_string(),
-                Style::default().fg(colors::warning()),
-            )));
-        }
-        lines.push(Line::from(Span::styled(
-            "Ctrl+S or Enter to save. Esc to cancel.",
-            Style::default().fg(colors::text_dim()),
-        )));
-        Paragraph::new(lines)
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .render(inner, buf);
-        field.render(Self::edit_field_area(area), buf, true);
+        let _ = Self::edit_page(self.scope, target, error).render(area, buf, field);
     }
 
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {

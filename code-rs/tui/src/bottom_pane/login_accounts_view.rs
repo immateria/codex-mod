@@ -10,10 +10,10 @@ use code_core::config::{load_config_as_toml, set_account_store_paths};
 use code_login::AuthMode;
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Margin, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::layout::{Alignment, Constraint, Margin, Rect};
+use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
+use ratatui::widgets::{Paragraph, Widget, Wrap};
 use textwrap::Options as TwOptions;
 
 use crate::account_label::{account_display_label, account_mode_priority};
@@ -27,8 +27,6 @@ use crate::components::form_text_field::FormTextField;
 use crate::ui_interaction::{
     redraw_if,
     route_selectable_list_mouse_with_config,
-    split_header_body_footer,
-    split_two_pane_when_room,
     wrap_next,
     wrap_prev,
     ScrollSelectionBehavior,
@@ -36,7 +34,15 @@ use crate::ui_interaction::{
     SelectableListMouseResult,
 };
 use super::BottomPane;
-use super::settings_panel::{panel_content_rect, render_panel, PanelFrameStyle};
+use super::settings_ui::action_page::SettingsActionPage;
+use super::settings_ui::buttons::{TextButton, TextButtonAlign};
+use super::settings_ui::editor_page::SettingsEditorPage;
+use super::settings_ui::form_page::{SettingsFormPage, SettingsFormSection};
+use super::settings_ui::list_detail_page::{SettingsListDetailMode, SettingsListDetailPage};
+use super::settings_ui::message_page::SettingsMessagePage;
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::menu_rows::SettingsMenuRow;
+use super::settings_ui::panel::SettingsPanelStyle;
 
 const CHATGPT_REFRESH_INTERVAL_DAYS: i64 = 28;
 const ACCOUNTS_TWO_PANE_MIN_WIDTH: u16 = 96;
@@ -148,6 +154,12 @@ struct StorePathEditorState {
     selected_row: usize,
     read_paths_field: FormTextField,
     write_path_field: FormTextField,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StorePathEditorAction {
+    Save,
+    Cancel,
 }
 
 impl StorePathEditorState {
@@ -335,15 +347,22 @@ impl LoginAccountsState {
             }
     }
 
-    fn panel_frame_style() -> PanelFrameStyle {
-        PanelFrameStyle::bottom_pane().with_margin(Margin::new(1, 0))
+    fn panel_style() -> SettingsPanelStyle {
+        SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0))
     }
 
-    fn account_header_footer_heights(&self, content_area: Rect) -> (u16, u16) {
-        let header_height = (self.account_header_lines().len() as u16).min(content_area.height);
-        let footer_height =
-            (self.account_footer_lines().len() as u16).min(content_area.height.saturating_sub(1));
-        (header_height, footer_height)
+    fn accounts_page(&self) -> SettingsListDetailPage<'static> {
+        SettingsListDetailPage::new(
+            "Manage Accounts",
+            Self::panel_style(),
+            self.account_header_lines().len(),
+            self.account_footer_lines().len(),
+            ACCOUNTS_TWO_PANE_MIN_WIDTH,
+            ACCOUNTS_TWO_PANE_MIN_HEIGHT,
+            ACCOUNTS_LIST_PANE_PERCENT,
+            "Accounts",
+            "Details",
+        )
     }
 
     pub(crate) fn handle_key_event(&mut self, key_event: KeyEvent) -> bool {
@@ -381,9 +400,15 @@ impl LoginAccountsState {
                 self.mode = ViewMode::ConfirmRemove { account_id };
                 self.handle_confirm_remove_mouse(mouse_event, area)
             }
-            ViewMode::EditStorePaths(editor) => {
-                self.mode = ViewMode::EditStorePaths(editor);
-                false
+            ViewMode::EditStorePaths(mut editor) => {
+                let (keep_open, handled) =
+                    self.handle_store_paths_editor_mouse(mouse_event, area, &mut editor);
+                if keep_open {
+                    self.mode = ViewMode::EditStorePaths(editor);
+                } else {
+                    self.mode = ViewMode::List;
+                }
+                handled
             }
         }
     }
@@ -423,46 +448,10 @@ impl LoginAccountsState {
     }
 
     fn list_hit_area_for_mouse(&self, area: Rect) -> Option<Rect> {
-        let content_area = panel_content_rect(area, Self::panel_frame_style());
-        if content_area.width == 0 || content_area.height == 0 {
-            return None;
-        }
-
-        let (header_height, footer_height) = self.account_header_footer_heights(content_area);
-        let Some(layout) = split_header_body_footer(
-            content_area,
-            header_height as usize,
-            footer_height as usize,
-            2,
-        ) else {
-            let list_start = header_height.saturating_add(1);
-            let list_height = (self.render_account_list_lines().len() as u16)
-                .min(content_area.height.saturating_sub(list_start));
-            return Some(Rect {
-                x: content_area.x,
-                y: content_area.y.saturating_add(list_start),
-                width: content_area.width,
-                height: list_height,
-            });
-        };
-        let body_area = layout.body;
-        if body_area.width == 0 || body_area.height == 0 {
-            return None;
-        }
-
-        if let Some((list_pane, _detail_pane)) = split_two_pane_when_room(
-            body_area,
-            ACCOUNTS_TWO_PANE_MIN_WIDTH,
-            ACCOUNTS_TWO_PANE_MIN_HEIGHT,
-            ACCOUNTS_LIST_PANE_PERCENT,
-        ) {
-            let list_block = Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(crate::colors::border()))
-                .title(" Accounts ");
-            Some(list_block.inner(list_pane))
-        } else {
-            Some(body_area)
+        let layout = self.accounts_page().layout(area)?;
+        match layout.mode {
+            SettingsListDetailMode::Split { list_inner, .. } => Some(list_inner),
+            SettingsListDetailMode::Compact { content } => Some(content),
         }
     }
 
@@ -1136,277 +1125,275 @@ impl LoginAccountsState {
     }
 
     fn render_accounts_compact(&self, area: Rect, buf: &mut Buffer) {
-        let mut lines = self.render_account_list_lines();
-        lines.push(Line::from(""));
-        lines.extend(self.render_selected_details_lines());
-        Paragraph::new(lines)
-            .wrap(Wrap { trim: true })
+        let list_lines = self.render_account_list_lines();
+        let list_height = (list_lines.len()).min(area.height as usize) as u16;
+        let base = Style::default().bg(crate::colors::background()).fg(crate::colors::text());
+
+        Paragraph::new(list_lines)
             .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .render(area, buf);
-    }
+            .style(base)
+            .render(
+                Rect {
+                    x: area.x,
+                    y: area.y,
+                    width: area.width,
+                    height: list_height,
+                },
+                buf,
+            );
 
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        render_panel(
-            area,
-            buf,
-            "Manage Accounts",
-            Self::panel_frame_style(),
-            |content_area, buf| {
-                if let ViewMode::EditStorePaths(editor) = &self.mode {
-                    self.render_store_paths_editor(content_area, buf, editor.as_ref());
-                    return;
-                }
-
-                if content_area.width == 0 || content_area.height == 0 {
-                    return;
-                }
-
-                let header_lines = self.account_header_lines();
-                let footer_lines = self.account_footer_lines();
-                let Some(layout) = split_header_body_footer(
-                    content_area,
-                    header_lines.len(),
-                    footer_lines.len(),
-                    2,
-                ) else {
-                    let mut fallback = header_lines;
-                    fallback.push(Line::from(""));
-                    fallback.extend(self.render_account_list_lines());
-                    fallback.push(Line::from(""));
-                    fallback.extend(footer_lines);
-                    Paragraph::new(fallback)
-                        .wrap(Wrap { trim: true })
-                        .alignment(Alignment::Left)
-                        .style(
-                            Style::default()
-                                .bg(crate::colors::background())
-                                .fg(crate::colors::text()),
-                        )
-                        .render(content_area, buf);
-                    return;
-                };
-
-                Paragraph::new(header_lines)
-                    .wrap(Wrap { trim: true })
-                    .alignment(Alignment::Left)
-                    .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-                    .render(layout.header, buf);
-
-                if let Some((list_area, detail_area)) = split_two_pane_when_room(
-                    layout.body,
-                    ACCOUNTS_TWO_PANE_MIN_WIDTH,
-                    ACCOUNTS_TWO_PANE_MIN_HEIGHT,
-                    ACCOUNTS_LIST_PANE_PERCENT,
-                ) {
-                    let list_block = Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(crate::colors::border()))
-                        .title(" Accounts ");
-                    let list_inner = list_block.inner(list_area);
-                    list_block.render(list_area, buf);
-                    Paragraph::new(self.render_account_list_lines())
-                        .wrap(Wrap { trim: true })
-                        .alignment(Alignment::Left)
-                        .style(
-                            Style::default()
-                                .bg(crate::colors::background())
-                                .fg(crate::colors::text()),
-                        )
-                        .render(list_inner, buf);
-
-                    let detail_block = Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(crate::colors::border()))
-                        .title(" Details ");
-                    let detail_inner = detail_block.inner(detail_area);
-                    detail_block.render(detail_area, buf);
-                    Paragraph::new(self.render_selected_details_lines())
-                        .wrap(Wrap { trim: true })
-                        .alignment(Alignment::Left)
-                        .style(
-                            Style::default()
-                                .bg(crate::colors::background())
-                                .fg(crate::colors::text()),
-                        )
-                        .render(detail_inner, buf);
-                } else {
-                    self.render_accounts_compact(layout.body, buf);
-                }
-
-                Paragraph::new(footer_lines)
-                    .wrap(Wrap { trim: true })
-                    .alignment(Alignment::Left)
-                    .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-                    .render(layout.footer, buf);
-            },
-        );
-    }
-
-    fn render_store_paths_editor(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        editor: &StorePathEditorState,
-    ) {
-        let content_area = area;
-        if content_area.width == 0 || content_area.height == 0 {
+        let remaining_height = area.height.saturating_sub(list_height);
+        if remaining_height == 0 {
             return;
         }
 
-        let mut top_lines = Vec::new();
+        let mut detail_lines = Vec::new();
+        detail_lines.push(Line::from(""));
+        detail_lines.extend(self.render_selected_details_lines());
+        Paragraph::new(detail_lines)
+            .wrap(Wrap { trim: true })
+            .alignment(Alignment::Left)
+            .style(base)
+            .render(
+                Rect {
+                    x: area.x,
+                    y: area.y.saturating_add(list_height),
+                    width: area.width,
+                    height: remaining_height,
+                },
+                buf,
+            );
+    }
+
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        if let ViewMode::EditStorePaths(editor) = &self.mode {
+            self.render_store_paths_editor(area, buf, editor.as_ref());
+            return;
+        }
+
+        let header_lines = self.account_header_lines();
+        let footer_lines = self.account_footer_lines();
+        let page = self.accounts_page();
+        let Some(layout) = page.render(area, buf) else {
+            return;
+        };
+        let base = Style::default()
+            .bg(crate::colors::background())
+            .fg(crate::colors::text());
+
+        Paragraph::new(header_lines)
+            .wrap(Wrap { trim: true })
+            .alignment(Alignment::Left)
+            .style(base)
+            .render(layout.header, buf);
+
+        match layout.mode {
+            SettingsListDetailMode::Split {
+                list_inner,
+                detail_inner,
+                ..
+            } => {
+                Paragraph::new(self.render_account_list_lines())
+                    .alignment(Alignment::Left)
+                    .style(base)
+                    .render(list_inner, buf);
+
+                Paragraph::new(self.render_selected_details_lines())
+                    .wrap(Wrap { trim: true })
+                    .alignment(Alignment::Left)
+                    .style(base)
+                    .render(detail_inner, buf);
+            }
+            SettingsListDetailMode::Compact { content } => {
+                self.render_accounts_compact(content, buf);
+            }
+        }
+
+        Paragraph::new(footer_lines)
+            .wrap(Wrap { trim: true })
+            .alignment(Alignment::Left)
+            .style(base)
+            .render(layout.footer, buf);
+    }
+
+    fn render_store_paths_editor(&self, area: Rect, buf: &mut Buffer, editor: &StorePathEditorState) {
+        let page = self.store_paths_editor_form_page();
+        let Some(layout) = page.render(
+            area,
+            buf,
+            &[&editor.read_paths_field, &editor.write_path_field],
+        ) else {
+            return;
+        };
+
+        let buttons = self.store_paths_editor_buttons(editor.selected_row);
+        page.render_actions(&layout, buf, &buttons, TextButtonAlign::End);
+    }
+
+    fn store_paths_editor_page(&self) -> SettingsActionPage<'static> {
+        let mut header_lines = Vec::new();
         if let Some(feedback) = &self.feedback {
             let style = if feedback.is_error {
                 Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(crate::colors::success()).add_modifier(Modifier::BOLD)
             };
-            top_lines.push(Line::from(vec![Span::styled(feedback.message.clone(), style)]));
-            top_lines.push(Line::from(""));
+            header_lines.push(Line::from(vec![Span::styled(feedback.message.clone(), style)]));
+            header_lines.push(Line::from(""));
         }
-        top_lines.push(Line::from(vec![Span::styled(
+        header_lines.push(Line::from(vec![Span::styled(
             "Account Store Paths",
             Style::default().add_modifier(Modifier::BOLD),
         )]));
-        top_lines.push(Line::from("Set where account records are read/written."));
-        top_lines.push(Line::from(""));
+        header_lines.push(Line::from("Set where account records are read/written."));
+        header_lines.push(Line::from(""));
 
-        let top_height = (top_lines.len() as u16).min(content_area.height);
-        Paragraph::new(top_lines)
-            .wrap(Wrap { trim: false })
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .render(
-                Rect {
-                    x: content_area.x,
-                    y: content_area.y,
-                    width: content_area.width,
-                    height: top_height,
-                },
-                buf,
-            );
-
-        let mut y = content_area.y.saturating_add(top_height);
-
-        let read_selected = editor.selected_row == 0;
-        let read_label_style = if read_selected {
-            Style::default().fg(crate::colors::primary()).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(crate::colors::text())
-        };
-        Paragraph::new(Line::from(vec![
-            Span::styled(if read_selected { "› " } else { "  " }, read_label_style),
-            Span::styled("Read paths (one per line)", read_label_style),
-        ]))
-        .render(
-            Rect {
-                x: content_area.x,
-                y,
-                width: content_area.width,
-                height: 1,
-            },
-            buf,
-        );
-        y = y.saturating_add(1);
-
-        let remaining_after_read_label = content_area
-            .height
-            .saturating_sub(y.saturating_sub(content_area.y));
-        let read_field_height = remaining_after_read_label.clamp(1, 4);
-        editor.read_paths_field.render(
-            Rect {
-                x: content_area.x,
-                y,
-                width: content_area.width,
-                height: read_field_height,
-            },
-            buf,
-            read_selected,
-        );
-        y = y.saturating_add(read_field_height).saturating_add(1);
-
-        let write_selected = editor.selected_row == 1;
-        let write_label_style = if write_selected {
-            Style::default().fg(crate::colors::primary()).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(crate::colors::text())
-        };
-        Paragraph::new(Line::from(vec![
-            Span::styled(if write_selected { "› " } else { "  " }, write_label_style),
-            Span::styled("Write path", write_label_style),
-        ]))
-        .render(
-            Rect {
-                x: content_area.x,
-                y,
-                width: content_area.width,
-                height: 1,
-            },
-            buf,
-        );
-        y = y.saturating_add(1);
-
-        editor.write_path_field.render(
-            Rect {
-                x: content_area.x,
-                y,
-                width: content_area.width,
-                height: 1,
-            },
-            buf,
-            write_selected,
-        );
-        y = y.saturating_add(2);
-
-        let save_style = if editor.selected_row == 2 {
-            Style::default()
-                .fg(crate::colors::success())
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(crate::colors::text())
-        };
-        let cancel_style = if editor.selected_row == 3 {
-            Style::default()
-                .fg(crate::colors::error())
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(crate::colors::text())
-        };
-        Paragraph::new(Line::from(vec![
-            Span::styled(if editor.selected_row == 2 { "› " } else { "  " }, save_style),
-            Span::styled("Save", save_style),
-            Span::raw("    "),
-            Span::styled(if editor.selected_row == 3 { "› " } else { "  " }, cancel_style),
-            Span::styled("Cancel", cancel_style),
-        ]))
-        .render(
-            Rect {
-                x: content_area.x,
-                y,
-                width: content_area.width,
-                height: 1,
-            },
-            buf,
-        );
-        y = y.saturating_add(1);
-
-        Paragraph::new(Line::from(vec![
+        let footer_lines = vec![Line::from(vec![
             Span::styled("Tab", Style::default().fg(crate::colors::function())),
             Span::styled(" Next  ", Style::default().fg(crate::colors::text_dim())),
             Span::styled("S", Style::default().fg(crate::colors::success()).add_modifier(Modifier::BOLD)),
             Span::styled(" Save  ", Style::default().fg(crate::colors::text_dim())),
             Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
             Span::styled(" Back", Style::default().fg(crate::colors::text_dim())),
-        ]))
-        .render(
-            Rect {
-                x: content_area.x,
-                y,
-                width: content_area.width,
-                height: 1,
-            },
-            buf,
-        );
+        ])];
+
+        SettingsActionPage::new("Manage Accounts", Self::panel_style(), header_lines, footer_lines)
+            .with_action_rows(1)
+            .with_min_body_rows(6)
+    }
+
+    fn store_paths_editor_form_page(&self) -> SettingsFormPage<'static> {
+        SettingsFormPage::new(
+            self.store_paths_editor_page(),
+            vec![
+                SettingsFormSection::new(
+                    "Read paths (one per line)",
+                    false,
+                    Constraint::Length(4),
+                ),
+                SettingsFormSection::new("Write path", false, Constraint::Length(1)),
+            ],
+        )
+        .with_section_gap_rows(1)
+    }
+
+    fn store_paths_editor_buttons(
+        &self,
+        selected_row: usize,
+    ) -> [TextButton<'static, StorePathEditorAction>; 2] {
+        [
+            TextButton::new(
+                StorePathEditorAction::Save,
+                "Save",
+                selected_row == 2,
+                false,
+                Style::new().fg(crate::colors::success()).bold(),
+            ),
+            TextButton::new(
+                StorePathEditorAction::Cancel,
+                "Cancel",
+                selected_row == 3,
+                false,
+                Style::new().fg(crate::colors::error()).bold(),
+            ),
+        ]
+    }
+
+    fn handle_store_paths_editor_mouse(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+        editor: &mut StorePathEditorState,
+    ) -> (bool, bool) {
+        let page = self.store_paths_editor_form_page();
+        let Some(layout) = page.layout(area) else {
+            return (true, false);
+        };
+        let buttons = self.store_paths_editor_buttons(editor.selected_row);
+
+        match mouse_event.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                if let Some(action) = page.action_at(
+                    &layout,
+                    mouse_event.column,
+                    mouse_event.row,
+                    &buttons,
+                    TextButtonAlign::End,
+                ) {
+                    return match action {
+                        StorePathEditorAction::Save => {
+                            if self.save_store_paths_editor(editor) {
+                                (false, true)
+                            } else {
+                                (true, true)
+                            }
+                        }
+                        StorePathEditorAction::Cancel => (false, true),
+                    };
+                }
+                if let Some(section_idx) =
+                    page.field_index_at(&layout, mouse_event.column, mouse_event.row)
+                {
+                    match section_idx {
+                        0 => {
+                            editor.selected_row = 0;
+                            return (
+                                true,
+                                editor.read_paths_field.handle_mouse_click(
+                                    mouse_event.column,
+                                    mouse_event.row,
+                                    layout.sections[0].inner,
+                                ),
+                            );
+                        }
+                        1 => {
+                            editor.selected_row = 1;
+                            return (
+                                true,
+                                editor.write_path_field.handle_mouse_click(
+                                    mouse_event.column,
+                                    mouse_event.row,
+                                    layout.sections[1].inner,
+                                ),
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+                (true, false)
+            }
+            MouseEventKind::ScrollUp => {
+                let pos = ratatui::layout::Position {
+                    x: mouse_event.column,
+                    y: mouse_event.row,
+                };
+                if layout.sections[0].outer.contains(pos) {
+                    editor.selected_row = 0;
+                    return (true, editor.read_paths_field.handle_mouse_scroll(false));
+                }
+                if layout.sections[1].outer.contains(pos) {
+                    editor.selected_row = 1;
+                    return (true, editor.write_path_field.handle_mouse_scroll(false));
+                }
+                (true, false)
+            }
+            MouseEventKind::ScrollDown => {
+                let pos = ratatui::layout::Position {
+                    x: mouse_event.column,
+                    y: mouse_event.row,
+                };
+                if layout.sections[0].outer.contains(pos) {
+                    editor.selected_row = 0;
+                    return (true, editor.read_paths_field.handle_mouse_scroll(true));
+                }
+                if layout.sections[1].outer.contains(pos) {
+                    editor.selected_row = 1;
+                    return (true, editor.write_path_field.handle_mouse_scroll(true));
+                }
+                (true, false)
+            }
+            _ => (true, false),
+        }
     }
 
     fn should_close(&self) -> bool {
@@ -1679,130 +1666,153 @@ impl LoginAddAccountState {
         lines.max(10) + 2
     }
 
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        render_panel(
-            area,
-            buf,
-            "Add Account",
-            LoginAccountsState::panel_frame_style(),
-            |content_area, buf| {
-                let content_width = content_area.width.max(1);
-                let mut lines = Vec::new();
-                if let Some(feedback) = &self.feedback {
-                    let style = if feedback.is_error {
-                        Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default().fg(crate::colors::success()).add_modifier(Modifier::BOLD)
-                    };
-                    lines.push(Line::from(vec![Span::styled(feedback.message.clone(), style)]));
-                    lines.push(Line::from(""));
-                }
+    fn feedback_lines(&self) -> Vec<Line<'static>> {
+        let mut lines = Vec::new();
+        if let Some(feedback) = &self.feedback {
+            let style = if feedback.is_error {
+                Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(crate::colors::success()).add_modifier(Modifier::BOLD)
+            };
+            lines.push(Line::from(vec![Span::styled(feedback.message.clone(), style)]));
+            lines.push(Line::from(""));
+        }
+        lines
+    }
 
-                match &self.step {
-                    AddStep::Choose { selected } => {
-                        lines.push(Line::from("Choose how you’d like to add an account:"));
-                        lines.push(Line::from(""));
-                        let options = ["ChatGPT sign-in", "API key"];
-                        for (idx, option) in options.iter().enumerate() {
-                            let mut spans = Vec::new();
-                            if idx == *selected {
-                                spans.push(Span::styled("› ", Style::default().fg(crate::colors::primary())));
-                                spans.push(
-                                    Span::styled((*option).to_string(), Style::default().fg(crate::colors::primary()).add_modifier(Modifier::BOLD)),
-                                );
-                            } else {
-                                spans.push(Span::raw("  "));
-                                spans.push(Span::styled((*option).to_string(), Style::default().fg(crate::colors::text_dim())));
-                            }
-                            lines.push(Line::from(spans));
+    fn auth_progress_message_page(
+        &self,
+        body_lines: Vec<Line<'static>>,
+        footer_lines: Vec<Line<'static>>,
+    ) -> SettingsMessagePage<'static> {
+        SettingsMessagePage::new(
+            "Add Account",
+            LoginAccountsState::panel_style(),
+            self.feedback_lines(),
+            body_lines,
+            footer_lines,
+        )
+        .with_min_body_rows(3)
+    }
+
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        match &self.step {
+            AddStep::Choose { selected } => {
+                let mut header_lines = self.feedback_lines();
+                header_lines.push(Line::from("Choose how you’d like to add an account:"));
+                let footer_lines = vec![Line::from(vec![
+                    Span::styled("↑↓", Style::default().fg(crate::colors::function())),
+                    Span::styled(" Navigate  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                    Span::styled(" Select  ", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
+                    Span::styled(" Back", Style::default().fg(crate::colors::text_dim())),
+                ])];
+                let page = SettingsMenuPage::new(
+                    "Add Account",
+                    LoginAccountsState::panel_style(),
+                    header_lines,
+                    footer_lines,
+                );
+                let rows = vec![
+                    SettingsMenuRow::new(0usize, "ChatGPT sign-in"),
+                    SettingsMenuRow::new(1usize, "API key"),
+                ];
+                let _ = page.render_menu_rows(area, buf, 0, Some(*selected), &rows);
+            }
+            AddStep::ApiKey { field } => {
+                let mut pre_lines = self.feedback_lines();
+                pre_lines.push(Line::from("Paste your OpenAI API key:"));
+                let post_lines = vec![
+                    Line::from(""),
+                    Line::from(vec![
+                        Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                        Span::styled(" Save  ", Style::default().fg(crate::colors::text_dim())),
+                        Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
+                        Span::styled(" Cancel", Style::default().fg(crate::colors::text_dim())),
+                    ]),
+                ];
+                let page = SettingsEditorPage::new(
+                    "Add Account",
+                    LoginAccountsState::panel_style(),
+                    "OpenAI API key",
+                    pre_lines,
+                    post_lines,
+                );
+                let _ = page.render(area, buf, field);
+            }
+            AddStep::Waiting { auth_url } => {
+                let footer_lines = vec![Line::from(vec![
+                    Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
+                    Span::styled(" Cancel login", Style::default().fg(crate::colors::text_dim())),
+                ])];
+                let content_width = self
+                    .auth_progress_message_page(Vec::new(), footer_lines.clone())
+                    .layout(area)
+                    .map(|layout| layout.body.width.max(1))
+                    .unwrap_or(area.width.max(1));
+                let mut body_lines = vec![
+                    Line::from("Finish signing in with ChatGPT in your browser."),
+                    Line::from(vec![
+                        Span::styled("Not seeing a browser? ", Style::default().fg(crate::colors::text_dim())),
+                        Span::styled(
+                            "Press C to switch to code authentication.",
+                            Style::default().fg(crate::colors::primary()),
+                        ),
+                    ]),
+                ];
+                if let Some(url) = auth_url {
+                    for chunk in wrap_url_segments(url, content_width) {
+                        body_lines.push(Line::from(vec![Span::styled(
+                            chunk,
+                            Style::default().fg(crate::colors::primary()),
+                        )]));
+                    }
+                }
+                let page = self.auth_progress_message_page(body_lines, footer_lines);
+                let _ = page.render(area, buf);
+            }
+            AddStep::DeviceCode(state) => {
+                let footer_lines = vec![Line::from(vec![
+                    Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
+                    Span::styled(" Cancel login", Style::default().fg(crate::colors::text_dim())),
+                ])];
+                let content_width = self
+                    .auth_progress_message_page(Vec::new(), footer_lines.clone())
+                    .layout(area)
+                    .map(|layout| layout.body.width.max(1))
+                    .unwrap_or(area.width.max(1));
+                let mut body_lines = vec![Line::from("Complete sign-in using a verification code.")];
+                match state.status {
+                    DeviceCodeStatus::Generating => {
+                        body_lines.push(Line::from("Generating a secure code and link…"));
+                    }
+                    DeviceCodeStatus::WaitingForApproval => {
+                        if let Some(code) = &state.user_code {
+                            body_lines.push(Line::from(vec![
+                                Span::styled("Code: ", Style::default().fg(crate::colors::text_dim())),
+                                Span::styled(
+                                    code.clone(),
+                                    Style::default().fg(crate::colors::primary()).add_modifier(Modifier::BOLD),
+                                ),
+                            ]));
                         }
-                        lines.push(Line::from(""));
-                        lines.push(Line::from(vec![
-                            Span::styled("↑↓", Style::default().fg(crate::colors::function())),
-                            Span::styled(" Navigate  ", Style::default().fg(crate::colors::text_dim())),
-                            Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                            Span::styled(" Select  ", Style::default().fg(crate::colors::text_dim())),
-                            Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
-                            Span::styled(" Back", Style::default().fg(crate::colors::text_dim())),
-                        ]));
-                    }
-                    AddStep::ApiKey { field } => {
-                        lines.push(Line::from("Paste your OpenAI API key:"));
-                        lines.push(field.render_line());
-                        lines.push(Line::from(""));
-                        lines.push(Line::from(vec![
-                            Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                            Span::styled(" Save  ", Style::default().fg(crate::colors::text_dim())),
-                            Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
-                            Span::styled(" Cancel", Style::default().fg(crate::colors::text_dim())),
-                        ]));
-                    }
-                    AddStep::Waiting { auth_url } => {
-                        lines.push(Line::from("Finish signing in with ChatGPT in your browser."));
-                        lines.push(Line::from(vec![
-                            Span::styled("Not seeing a browser? ", Style::default().fg(crate::colors::text_dim())),
-                            Span::styled(
-                                "Press C to switch to code authentication.",
-                                Style::default().fg(crate::colors::primary()),
-                            ),
-                        ]));
-                        if let Some(url) = auth_url {
+                        if let Some(url) = &state.authorize_url {
+                            body_lines.push(Line::from("Visit this link on any device:"));
                             for chunk in wrap_url_segments(url, content_width) {
-                                lines.push(Line::from(vec![Span::styled(
+                                body_lines.push(Line::from(vec![Span::styled(
                                     chunk,
-                                    Style::default().fg(crate::colors::primary()),
+                                    Style::default().fg(crate::colors::info()),
                                 )]));
                             }
                         }
-                        lines.push(Line::from(""));
-                        lines.push(Line::from(vec![
-                            Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
-                            Span::styled(" Cancel login", Style::default().fg(crate::colors::text_dim())),
-                        ]));
-                    }
-                    AddStep::DeviceCode(state) => {
-                        lines.push(Line::from("Complete sign-in using a verification code."));
-                        match state.status {
-                            DeviceCodeStatus::Generating => {
-                                lines.push(Line::from("Generating a secure code and link…"));
-                            }
-                            DeviceCodeStatus::WaitingForApproval => {
-                                if let Some(code) = &state.user_code {
-                                    lines.push(Line::from(vec![
-                                        Span::styled("Code: ", Style::default().fg(crate::colors::text_dim())),
-                                        Span::styled(
-                                            code.clone(),
-                                            Style::default().fg(crate::colors::primary()).add_modifier(Modifier::BOLD),
-                                        ),
-                                    ]));
-                                }
-                                if let Some(url) = &state.authorize_url {
-                                    lines.push(Line::from("Visit this link on any device:"));
-                                    for chunk in wrap_url_segments(url, content_width) {
-                                        lines.push(Line::from(vec![Span::styled(
-                                            chunk,
-                                            Style::default().fg(crate::colors::info()),
-                                        )]));
-                                    }
-                                }
-                                lines.push(Line::from("Keep this code private. It expires after 15 minutes."));
-                            }
-                        }
-                        lines.push(Line::from(""));
-                        lines.push(Line::from(vec![
-                            Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
-                            Span::styled(" Cancel login", Style::default().fg(crate::colors::text_dim())),
-                        ]));
+                        body_lines.push(Line::from("Keep this code private. It expires after 15 minutes."));
                     }
                 }
-
-                Paragraph::new(lines)
-                    .wrap(Wrap { trim: true })
-                    .alignment(Alignment::Left)
-                    .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-                    .render(content_area, buf);
-            },
-        );
+                let page = self.auth_progress_message_page(body_lines, footer_lines);
+                let _ = page.render(area, buf);
+            }
+        }
     }
 
     pub fn acknowledge_chatgpt_started(&mut self, auth_url: String) {
@@ -2016,11 +2026,4 @@ fn jwt_expiry(token: &str) -> Option<DateTime<Utc>> {
     let payload_json = serde_json::from_slice::<JsonValue>(&payload_bytes).ok()?;
     let exp = payload_json.get("exp")?.as_i64()?;
     DateTime::from_timestamp(exp, 0)
-}
-
-impl FormTextField {
-    fn render_line(&self) -> Line<'static> {
-        let spans: Vec<Span<'static>> = vec![Span::raw(self.text().to_string()), Span::raw("_")];
-        Line::from(spans)
-    }
 }
