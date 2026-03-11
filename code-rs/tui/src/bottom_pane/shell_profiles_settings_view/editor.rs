@@ -9,7 +9,7 @@ use crate::bottom_pane::settings_ui::form_page::{
     SettingsFormSection,
 };
 use crate::bottom_pane::settings_ui::hints::{
-    status_or_shortcuts_line, title_line, KeyHint,
+    status_and_shortcuts_split, title_line, KeyHint,
 };
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use ratatui::layout::Constraint;
@@ -48,15 +48,18 @@ impl ShellProfilesSettingsView {
         }
     }
 
-    fn editor_status_line(&self, target: ListTarget) -> Line<'static> {
-        let status = self.status.as_deref().and_then(|status| {
+    fn editor_status_text(&self) -> Option<crate::bottom_pane::settings_ui::rows::StyledText<'static>> {
+        self.status.as_deref().and_then(|status| {
             let trimmed = status.trim().replace(['\r', '\n'], " ");
             (!trimmed.is_empty())
                 .then(|| crate::bottom_pane::settings_ui::rows::StyledText::new(
                     trimmed,
                     Style::new().fg(crate::colors::text_dim()),
                 ))
-        });
+        })
+    }
+
+    fn editor_shortcuts(target: ListTarget) -> Vec<KeyHint<'static>> {
         let hints = match target {
             ListTarget::Summary => vec![
                 KeyHint::new("Ctrl+S", " save"),
@@ -70,16 +73,20 @@ impl ShellProfilesSettingsView {
                 KeyHint::new("Esc", " cancel"),
             ],
         };
-        status_or_shortcuts_line(status, &hints)
+        hints
     }
 
     fn editor_page(&self, target: ListTarget) -> SettingsActionPage<'static> {
+        let status = self.editor_status_text();
+        let shortcuts = Self::editor_shortcuts(target);
+        let (status_lines, footer_lines) = status_and_shortcuts_split(status, &shortcuts);
         SettingsActionPage::new(
             "Shell Profiles",
             SettingsPanelStyle::bottom_pane(),
             vec![title_line(Self::editor_title(target))],
-            vec![self.editor_status_line(target)],
+            footer_lines,
         )
+        .with_status_lines(status_lines)
     }
 
     fn editor_form_page(&self, target: ListTarget) -> SettingsFormPage<'static> {

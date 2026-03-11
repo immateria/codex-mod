@@ -27,7 +27,9 @@ use crate::ui_interaction::{
 use super::settings_ui::action_page::SettingsActionPage;
 use super::settings_ui::buttons::{standard_button_specs, SettingsButtonKind, StandardButtonSpec};
 use super::settings_ui::form_page::{SettingsFormPage, SettingsFormPageLayout, SettingsFormSection};
-use super::settings_ui::hints::{shortcut_line, status_and_shortcuts, title_line, KeyHint};
+use super::settings_ui::hints::{
+    shortcut_line, status_and_shortcuts_split, title_line, KeyHint,
+};
 use super::settings_ui::menu_page::SettingsMenuPage;
 use super::settings_ui::menu_rows::SettingsMenuRow;
 use super::settings_ui::panel::SettingsPanelStyle;
@@ -103,7 +105,7 @@ impl PromptsSettingsView {
             .status
             .as_ref()
             .map(|(msg, style)| super::settings_ui::rows::StyledText::new(msg.clone(), *style));
-        let footer_lines = status_and_shortcuts(
+        let (status_lines, footer_lines) = status_and_shortcuts_split(
             status,
             &[
                 KeyHint::new("Tab", " next"),
@@ -123,6 +125,7 @@ impl PromptsSettingsView {
             })],
             footer_lines,
         )
+        .with_status_lines(status_lines)
     }
 
     fn edit_form_page(&self) -> SettingsFormPage<'static> {

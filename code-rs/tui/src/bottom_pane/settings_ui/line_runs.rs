@@ -3,6 +3,7 @@ use ratatui::layout::{Position, Rect};
 use ratatui::style::Style;
 use ratatui::text::Line;
 
+use crate::ui_interaction::scroll_top_to_keep_visible;
 use crate::util::buffer::{fill_rect, write_line};
 
 #[derive(Clone, Debug)]
@@ -142,6 +143,43 @@ pub(crate) fn selection_id_at<Id: Copy>(
     None
 }
 
+pub(crate) fn scroll_top_for_section(
+    current_scroll_top: usize,
+    body_height: usize,
+    selected_line: usize,
+    section_start: usize,
+    section_end: usize,
+) -> usize {
+    if body_height == 0 {
+        return current_scroll_top;
+    }
+
+    let section_end = section_end.max(section_start);
+    let selected_line = selected_line.clamp(section_start, section_end);
+    let section_len = section_end.saturating_sub(section_start).saturating_add(1);
+
+    // If the full section fits, pin it to the top so the section header is visible.
+    if section_len <= body_height {
+        return section_start;
+    }
+
+    // If we can show the section header while keeping the selection visible, do so.
+    if selected_line <= section_start.saturating_add(body_height.saturating_sub(1)) {
+        return section_start;
+    }
+
+    let max_scroll_top = section_end.saturating_add(1).saturating_sub(body_height);
+    let current_scroll_top = current_scroll_top.clamp(section_start, max_scroll_top);
+    let next = scroll_top_to_keep_visible(
+        current_scroll_top,
+        max_scroll_top,
+        body_height,
+        selected_line,
+        1,
+    );
+    next.clamp(section_start, max_scroll_top)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,5 +239,15 @@ mod tests {
         assert_eq!(selection_id_at(area, 3, 5, 1, &runs), Some(7));
         assert_eq!(selection_id_at(area, 3, 6, 1, &runs), Some(8));
         assert_eq!(selection_id_at(area, 1, 4, 1, &runs), None);
+    }
+
+    #[test]
+    fn scroll_top_for_section_pins_when_section_fits() {
+        assert_eq!(scroll_top_for_section(5, 5, 3, 2, 6), 2);
+    }
+
+    #[test]
+    fn scroll_top_for_section_keeps_selected_visible() {
+        assert_eq!(scroll_top_for_section(10, 3, 18, 10, 19), 16);
     }
 }

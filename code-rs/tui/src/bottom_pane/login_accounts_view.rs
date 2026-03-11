@@ -38,7 +38,9 @@ use super::settings_ui::action_page::SettingsActionPage;
 use super::settings_ui::buttons::{standard_button_specs, SettingsButtonKind, StandardButtonSpec};
 use super::settings_ui::editor_page::SettingsEditorPage;
 use super::settings_ui::form_page::{SettingsFormPage, SettingsFormSection};
-use super::settings_ui::hints::{status_and_shortcuts, title_line, KeyHint};
+use super::settings_ui::hints::{
+    status_and_shortcuts, status_and_shortcuts_split, title_line, KeyHint,
+};
 use super::settings_ui::list_detail_page::{SettingsListDetailMode, SettingsListDetailPage};
 use super::settings_ui::message_page::SettingsMessagePage;
 use super::settings_ui::menu_page::SettingsMenuPage;
@@ -1244,7 +1246,7 @@ impl LoginAccountsState {
             };
             super::settings_ui::rows::StyledText::new(feedback.message.clone(), style)
         });
-        let footer_lines = status_and_shortcuts(
+        let (status_lines, footer_lines) = status_and_shortcuts_split(
             status,
             &[
                 KeyHint::new("Tab", " next"),
@@ -1256,6 +1258,7 @@ impl LoginAccountsState {
         );
 
         SettingsActionPage::new("Manage Accounts", Self::panel_style(), header_lines, footer_lines)
+            .with_status_lines(status_lines)
             .with_action_rows(1)
             .with_min_body_rows(6)
     }

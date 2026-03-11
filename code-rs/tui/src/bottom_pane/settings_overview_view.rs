@@ -172,6 +172,7 @@ impl SettingsOverviewView {
                     .and_then(|section| self.rows.iter().position(|row| row.section == section))
             },
             SelectableListMouseConfig {
+                hover_select: false,
                 require_pointer_hit_for_scroll: true,
                 scroll_behavior: ScrollSelectionBehavior::Clamp,
                 ..SelectableListMouseConfig::default()

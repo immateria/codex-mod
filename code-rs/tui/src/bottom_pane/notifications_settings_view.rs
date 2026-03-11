@@ -23,6 +23,7 @@ use super::settings_ui::menu_page::SettingsMenuPage;
 use super::settings_ui::menu_rows::{selection_id_at as selection_menu_id_at, SettingsMenuRow};
 use super::settings_ui::panel::SettingsPanelStyle;
 use super::settings_ui::rows::StyledText;
+use super::settings_ui::toggle;
 use super::BottomPane;
 
 #[derive(Clone)]
@@ -86,15 +87,11 @@ impl NotificationsSettingsView {
     fn status_line(&self) -> Line<'static> {
         match &self.mode {
             NotificationsMode::Toggle { enabled } => {
-                let status = if *enabled { "Enabled" } else { "Disabled" };
-                let color = if *enabled {
-                    colors::success()
-                } else {
-                    colors::warning()
-                };
+                let mut status = toggle::enabled_word_warning_off(*enabled);
+                status.style = status.style.bold();
                 Line::from(vec![
                     Span::styled("Status: ", Style::new().fg(colors::text_dim())),
-                    Span::styled(status, Style::new().fg(color).bold()),
+                    Span::styled(status.text, status.style),
                 ])
             }
             NotificationsMode::Custom { entries } => {
@@ -142,12 +139,9 @@ impl NotificationsSettingsView {
     fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
         let notifications_row = match &self.mode {
             NotificationsMode::Toggle { enabled } => {
-                let status = if *enabled { "Enabled" } else { "Disabled" };
-                let color = if *enabled { colors::success() } else { colors::warning() };
-                SettingsMenuRow::new(0usize, "Notifications").with_value(StyledText::new(
-                    status.to_string(),
-                    Style::new().fg(color).bold(),
-                ))
+                let mut status = toggle::enabled_word_warning_off(*enabled);
+                status.style = status.style.bold();
+                SettingsMenuRow::new(0usize, "Notifications").with_value(status)
             }
             NotificationsMode::Custom { entries } => {
                 let filters = if entries.is_empty() {

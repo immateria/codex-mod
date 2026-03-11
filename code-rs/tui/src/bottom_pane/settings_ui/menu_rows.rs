@@ -1,18 +1,20 @@
 use std::borrow::Cow;
 
 use ratatui::buffer::Buffer;
+use ratatui::layout::{Position, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::layout::Rect;
+use unicode_width::UnicodeWidthStr;
 
 use crate::colors;
 
 use super::line_runs::{
     render_selectable_runs,
-    selection_id_at as selection_id_at_runs,
     SelectableLineRun,
 };
 use super::rows::StyledText;
+
+const SPACES: &str = "                                                                ";
 
 #[derive(Clone, Debug)]
 pub(crate) struct SettingsMenuRow<'a, Id> {
@@ -22,6 +24,8 @@ pub(crate) struct SettingsMenuRow<'a, Id> {
     pub(crate) detail: Option<StyledText<'a>>,
     pub(crate) selected_hint: Option<Cow<'a, str>>,
     pub(crate) enabled: bool,
+    pub(crate) indent_cols: u16,
+    pub(crate) label_pad_cols: Option<u16>,
 }
 
 impl<'a, Id> SettingsMenuRow<'a, Id> {
@@ -33,12 +37,23 @@ impl<'a, Id> SettingsMenuRow<'a, Id> {
             detail: None,
             selected_hint: None,
             enabled: true,
+            indent_cols: 0,
+            label_pad_cols: None,
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn disabled(mut self) -> Self {
         self.enabled = false;
+        self
+    }
+
+    pub(crate) fn with_indent_cols(mut self, cols: u16) -> Self {
+        self.indent_cols = cols;
+        self
+    }
+
+    pub(crate) fn with_label_pad_cols(mut self, cols: u16) -> Self {
+        self.label_pad_cols = Some(cols);
         self
     }
 
@@ -55,6 +70,14 @@ impl<'a, Id> SettingsMenuRow<'a, Id> {
     pub(crate) fn with_selected_hint(mut self, hint: impl Into<Cow<'a, str>>) -> Self {
         self.selected_hint = Some(hint.into());
         self
+    }
+}
+
+fn push_spaces<'a>(spans: &mut Vec<Span<'a>>, mut cols: u16) {
+    while cols > 0 {
+        let chunk = cols.min(SPACES.len() as u16) as usize;
+        spans.push(Span::raw(&SPACES[..chunk]));
+        cols = cols.saturating_sub(chunk as u16);
     }
 }
 
@@ -87,10 +110,23 @@ where
             label_style = label_style.bold();
         }
 
+        let label_cols = self
+            .label_pad_cols
+            .map(|_| u16::try_from(self.label.as_ref().width()).unwrap_or(u16::MAX));
+
         let mut spans = vec![
             Span::styled(if selected { "› " } else { "  " }, arrow_style),
-            Span::styled(self.label, label_style),
         ];
+        if self.indent_cols > 0 {
+            push_spaces(&mut spans, self.indent_cols);
+        }
+        spans.push(Span::styled(self.label, label_style));
+        if let Some(pad_cols) = self.label_pad_cols
+            && let Some(label_cols) = label_cols
+            && label_cols < pad_cols
+        {
+            push_spaces(&mut spans, pad_cols.saturating_sub(label_cols));
+        }
 
         if let Some(value) = self.value {
             spans.push(Span::raw("  "));
@@ -152,8 +188,17 @@ fn menu_row_run<'a, Id: Copy + PartialEq>(
 
     let mut spans = vec![
         Span::styled(if selected { "› " } else { "  " }, arrow_style),
-        Span::styled(row.label.as_ref(), label_style),
     ];
+    if row.indent_cols > 0 {
+        push_spaces(&mut spans, row.indent_cols);
+    }
+    spans.push(Span::styled(row.label.as_ref(), label_style));
+    if let Some(pad_cols) = row.label_pad_cols {
+        let label_cols = u16::try_from(row.label.as_ref().width()).unwrap_or(u16::MAX);
+        if label_cols < pad_cols {
+            push_spaces(&mut spans, pad_cols.saturating_sub(label_cols));
+        }
+    }
 
     if let Some(value) = &row.value {
         spans.push(Span::raw("  "));
@@ -211,16 +256,29 @@ pub(crate) fn selection_id_at<Id: Copy + PartialEq>(
     scroll_top: usize,
     rows: &[SettingsMenuRow<'_, Id>],
 ) -> Option<Id> {
-    let runs = rows
-        .iter()
-        .map(|row| row.to_run(None))
-        .collect::<Vec<_>>();
-    selection_id_at_runs(body, x, y, scroll_top, &runs)
+    if !body.contains(Position { x, y }) {
+        return None;
+    }
+
+    let rel = y.saturating_sub(body.y) as usize;
+    let idx = scroll_top.saturating_add(rel);
+    let row = rows.get(idx)?;
+    if !row.enabled {
+        return None;
+    }
+    Some(row.id)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn line_text(line: &Line<'_>) -> String {
+        line.spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect()
+    }
 
     #[test]
     fn selection_skips_disabled_rows() {
@@ -230,6 +288,24 @@ mod tests {
         let rows = vec![first, SettingsMenuRow::new(2usize, "Second")];
         assert_eq!(selection_id_at(area, 1, 0, 0, &rows), None);
         assert_eq!(selection_id_at(area, 1, 1, 0, &rows), Some(2));
+        assert_eq!(selection_id_at(area, 1, 0, 1, &rows), Some(2));
+    }
+
+    #[test]
+    fn menu_row_indent_inserts_spaces_after_arrow() {
+        let run = SettingsMenuRow::new(1usize, "Child")
+            .with_indent_cols(2)
+            .into_run(Some(1));
+        assert_eq!(line_text(&run.lines[0]), "›   Child");
+    }
+
+    #[test]
+    fn menu_row_label_padding_aligns_value_column() {
+        let run = SettingsMenuRow::new(1usize, "A")
+            .with_label_pad_cols(4)
+            .with_value(StyledText::new("v", Style::new()))
+            .into_run(Some(1));
+        assert_eq!(line_text(&run.lines[0]), "› A     v");
     }
 
     #[test]

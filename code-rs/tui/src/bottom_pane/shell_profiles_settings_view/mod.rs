@@ -463,7 +463,7 @@ impl ShellProfilesSettingsView {
                     total,
                     row_at_position,
                     SelectableListMouseConfig {
-                        hover_select: true,
+                        hover_select: false,
                         require_pointer_hit_for_scroll: true,
                         scroll_behavior: ScrollSelectionBehavior::Clamp,
                         ..SelectableListMouseConfig::default()

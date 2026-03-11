@@ -19,11 +19,12 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
+use unicode_width::UnicodeWidthStr;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::settings_ui::action_page::SettingsActionPage;
 use super::settings_ui::buttons::{standard_button_specs, SettingsButtonKind, StandardButtonSpec};
-use super::settings_ui::hints::{status_and_shortcuts, KeyHint};
+use super::settings_ui::hints::{status_and_shortcuts, status_and_shortcuts_split, KeyHint};
 use super::settings_ui::menu_page::SettingsMenuPage;
 use super::settings_ui::menu_rows::{
     render_menu_rows, selection_id_at as selection_menu_id_at, SettingsMenuRow,
@@ -611,6 +612,21 @@ impl AutoDriveSettingsView {
         } else {
             "Add routing entry"
         };
+        let status = self.status_message.as_deref().map(|message| {
+            super::settings_ui::rows::StyledText::new(
+                message,
+                Style::new().fg(colors::warning()),
+            )
+        });
+        let (status_lines, footer_lines) = status_and_shortcuts_split(
+            status,
+            &[
+                KeyHint::new("Tab", " next field"),
+                KeyHint::new("Space", " toggle"),
+                KeyHint::new("Enter", " save/activate"),
+                KeyHint::new("Esc", " back"),
+            ],
+        );
         SettingsActionPage::new(
             Self::PANEL_TITLE,
             SettingsPanelStyle::bottom_pane(),
@@ -620,8 +636,9 @@ impl AutoDriveSettingsView {
                     .fg(colors::primary())
                     .add_modifier(Modifier::BOLD),
             ))],
-            self.routing_editor_footer_lines(),
+            footer_lines,
         )
+        .with_status_lines(status_lines)
         .with_action_rows(1)
         .with_min_body_rows(4)
     }
@@ -654,20 +671,6 @@ impl AutoDriveSettingsView {
         )
     }
 
-    fn routing_editor_footer_lines(&self) -> Vec<Line<'static>> {
-        status_and_shortcuts(
-            self.status_message
-                .as_deref()
-                .map(|message| super::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
-            &[
-                KeyHint::new("Tab", " next field"),
-                KeyHint::new("Space", " toggle"),
-                KeyHint::new("Enter", " save/activate"),
-                KeyHint::new("Esc", " back"),
-            ],
-        )
-    }
-
     fn main_menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
         let model_value = if self.use_chat_model {
             "Follow Chat Mode".to_string()
@@ -691,30 +694,17 @@ impl AutoDriveSettingsView {
                 1,
                 "Agents enabled (uses multiple agents to speed up complex tasks)",
             )
-            .with_value(StyledText::new(
-                if self.agents_enabled { "On" } else { "Off" },
-                Style::new().fg(colors::text_dim()),
-            )),
+            .with_value(toggle::on_off_word(self.agents_enabled)),
             SettingsMenuRow::new(
                 2,
                 "Diagnostics enabled (monitors and adjusts system in real time)",
             )
-            .with_value(StyledText::new(
-                if self.diagnostics_enabled { "On" } else { "Off" },
-                Style::new().fg(colors::text_dim()),
-            )),
+            .with_value(toggle::on_off_word(self.diagnostics_enabled)),
             SettingsMenuRow::new(
                 3,
                 "Coordinator model routing (choose model + reasoning per turn)",
             )
-            .with_value(StyledText::new(
-                if self.model_routing_enabled {
-                    "Enabled"
-                } else {
-                    "Disabled"
-                },
-                Style::new().fg(colors::text_dim()),
-            )),
+            .with_value(toggle::enabled_word(self.model_routing_enabled)),
             SettingsMenuRow::new(4, "Routing entries (add/remove/edit per-model routes)")
                 .with_value(StyledText::new(
                     format!(
@@ -753,6 +743,15 @@ impl AutoDriveSettingsView {
         &self,
         editor: &RoutingEditorState,
     ) -> Vec<SettingsMenuRow<'static, RoutingEditorField>> {
+        let label_pad_cols = u16::try_from(
+            ["Model", "Enabled", "Reasoning", "Description"]
+                .iter()
+                .map(|label| label.width())
+                .max()
+                .unwrap_or(0),
+        )
+        .unwrap_or(u16::MAX);
+
         let model = self
             .routing_model_options
             .get(editor.model_cursor)
@@ -779,18 +778,19 @@ impl AutoDriveSettingsView {
         };
         vec![
             SettingsMenuRow::new(RoutingEditorField::Model, "Model")
+                .with_label_pad_cols(label_pad_cols)
                 .with_value(StyledText::new(model, Style::new().fg(colors::text_dim())))
                 .with_selected_hint("Enter/Space to cycle"),
             SettingsMenuRow::new(RoutingEditorField::Enabled, "Enabled")
-                .with_value(StyledText::new(
-                    if editor.enabled { "Yes" } else { "No" },
-                    Style::new().fg(colors::text_dim()),
-                ))
+                .with_label_pad_cols(label_pad_cols)
+                .with_value(toggle::on_off_word(editor.enabled))
                 .with_selected_hint("Enter/Space to toggle"),
             SettingsMenuRow::new(RoutingEditorField::Reasoning, "Reasoning")
+                .with_label_pad_cols(label_pad_cols)
                 .with_detail(StyledText::new(reasoning, Style::new().fg(colors::text_dim())))
                 .with_selected_hint("←/→ move, Space toggle"),
             SettingsMenuRow::new(RoutingEditorField::Description, "Description")
+                .with_label_pad_cols(label_pad_cols)
                 .with_detail(StyledText::new(description, Style::new().fg(colors::text_dim()))),
         ]
     }

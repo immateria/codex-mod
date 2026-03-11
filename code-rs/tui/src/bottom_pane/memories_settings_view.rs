@@ -1001,7 +1001,7 @@ impl MemoriesSettingsView {
                 rows.len(),
                 |x, y| self.selection_index_at(x, y, area),
                 SelectableListMouseConfig {
-                    hover_select: true,
+                    hover_select: false,
                     activate_on_left_click: true,
                     scroll_select: true,
                     require_pointer_hit_for_scroll: false,

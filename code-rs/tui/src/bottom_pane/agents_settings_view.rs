@@ -22,7 +22,7 @@ use super::settings_ui::buttons::{
     TextButtonAlign,
 };
 use super::settings_ui::fields::BorderedField;
-use super::settings_ui::hints::{status_and_shortcuts, title_line, KeyHint};
+use super::settings_ui::hints::{status_and_shortcuts_split, title_line, KeyHint};
 use super::settings_ui::panel::SettingsPanelStyle;
 use super::settings_ui::rows::StyledText;
 use super::settings_ui::toggle;
@@ -287,33 +287,30 @@ impl SubagentEditorView {
         vec![title_line(title)]
     }
 
-    fn footer_lines(&self) -> Vec<Line<'static>> {
-        let status = self.confirm_delete.then_some(StyledText::new(
+    fn action_status_text(&self) -> Option<StyledText<'static>> {
+        self.confirm_delete.then_some(StyledText::new(
             "Confirm delete: this removes the command from config.".to_string(),
             Style::new().fg(colors::error()).bold(),
-        ));
-        status_and_shortcuts(
-            status,
-            &[
-                KeyHint::new("Tab", " next"),
-                KeyHint::new("Shift+Tab", " prev"),
-                KeyHint::new("Space", " toggle")
-                    .with_key_style(Style::new().fg(colors::success())),
-                KeyHint::new("Ctrl+S", " save")
-                    .with_key_style(Style::new().fg(colors::success())),
-                KeyHint::new("Esc", " back")
-                    .with_key_style(Style::new().fg(colors::error())),
-            ],
-        )
+        ))
     }
 
     fn page(&self) -> SettingsActionPage<'static> {
+        let hints = [
+            KeyHint::new("Tab", " next"),
+            KeyHint::new("Shift+Tab", " prev"),
+            KeyHint::new("Space", " toggle").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+        ];
+        let (status_lines, footer_lines) =
+            status_and_shortcuts_split(self.action_status_text(), &hints);
         SettingsActionPage::new(
             "Configure Agent Command",
             Self::panel_style(),
             self.header_lines(),
-            self.footer_lines(),
+            footer_lines,
         )
+        .with_status_lines(status_lines)
         .with_wrap_lines(true)
     }
 
@@ -622,7 +619,8 @@ impl<'a> BottomPaneView<'a> for SubagentEditorView {
             .max(10);
 
         let header_rows = self.header_lines().len() as u16;
-        let footer_rows = self.footer_lines().len() as u16;
+        let status_rows = u16::from(self.confirm_delete);
+        let footer_rows = 1u16;
         let action_rows = 1u16;
 
         let gap_h = 1u16;
@@ -643,7 +641,7 @@ impl<'a> BottomPaneView<'a> for SubagentEditorView {
             + agent_box_h
             + gap_h
             + orch_box_h;
-        let total_rows = header_rows + body_rows + action_rows + footer_rows;
+        let total_rows = header_rows + body_rows + status_rows + action_rows + footer_rows;
         total_rows.saturating_add(2).clamp(10, 50)
     }
 

@@ -637,19 +637,17 @@ impl ShellSelectionView {
     }
 
     fn edit_page(&self) -> SettingsActionPage<'_> {
-        let footer_lines = vec![
-            self.edit_status_line(),
-            hints::shortcut_line(&[
-                KeyHint::new("Tab", " focus"),
-                KeyHint::new("Enter", " apply"),
-                KeyHint::new("Ctrl+O", " pick"),
-                KeyHint::new("Ctrl+V", " show"),
-                KeyHint::new("Ctrl+R", " resolve"),
-                KeyHint::new("Ctrl+T", " style"),
-                KeyHint::new("Ctrl+P", " profiles"),
-                KeyHint::new("Esc", " back"),
-            ]),
-        ];
+        let status_lines = vec![self.edit_status_line()];
+        let footer_lines = vec![hints::shortcut_line(&[
+            KeyHint::new("Tab", " focus"),
+            KeyHint::new("Enter", " apply"),
+            KeyHint::new("Ctrl+O", " pick"),
+            KeyHint::new("Ctrl+V", " show"),
+            KeyHint::new("Ctrl+R", " resolve"),
+            KeyHint::new("Ctrl+T", " style"),
+            KeyHint::new("Ctrl+P", " profiles"),
+            KeyHint::new("Esc", " back"),
+        ])];
 
         SettingsActionPage::new(
             "Edit Shell Command",
@@ -657,6 +655,7 @@ impl ShellSelectionView {
             Vec::new(),
             footer_lines,
         )
+        .with_status_lines(status_lines)
         .with_min_body_rows(6)
         .with_wrap_lines(true)
     }
@@ -782,7 +781,11 @@ impl ShellSelectionView {
                         let focus_changed = self.edit_focus != EditFocus::Field;
                         self.edit_focus = EditFocus::Field;
                         self.hovered_action = None;
-                        let inner = BorderedField::new("Shell command", true).inner(field_outer);
+                        let inner = BorderedField::new(
+                            "Shell command",
+                            matches!(self.edit_focus, EditFocus::Field),
+                        )
+                        .inner(field_outer);
                         let handled = self.custom_field.handle_mouse_click(
                             mouse_event.column,
                             mouse_event.row,

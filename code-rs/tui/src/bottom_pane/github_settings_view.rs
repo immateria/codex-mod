@@ -18,7 +18,7 @@ use crate::ui_interaction::{
 use super::settings_ui::menu_page::SettingsMenuPage;
 use super::settings_ui::menu_rows::SettingsMenuRow;
 use super::settings_ui::panel::SettingsPanelStyle;
-use super::settings_ui::rows::StyledText;
+use super::settings_ui::toggle;
 use super::BottomPane;
 // TODO - This is currently unlinked here, on the official CODEX side, etc. figure out what to do later.
 /// Interactive UI for GitHub workflow monitoring settings.
@@ -112,14 +112,9 @@ impl GithubSettingsView {
     }
 
     fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
-        let toggle_label = if self.watcher_enabled {
-            "Enabled"
-        } else {
-            "Disabled"
-        };
         vec![
             SettingsMenuRow::new(Self::TOGGLE_ROW, "Workflow Monitoring")
-                .with_value(StyledText::new(toggle_label, Style::new().fg(colors::text()))),
+                .with_value(toggle::enabled_word(self.watcher_enabled)),
             SettingsMenuRow::new(Self::CLOSE_ROW, "Close"),
         ]
     }

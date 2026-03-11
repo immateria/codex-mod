@@ -3,9 +3,10 @@ use code_core::protocol::ValidationGroup;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 use std::cell::Cell;
+use unicode_width::UnicodeWidthStr;
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -13,16 +14,17 @@ use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::settings_ui::hints::{shortcut_line, KeyHint};
-use super::settings_ui::line_runs::{selection_id_at, SelectableLineRun};
+use super::settings_ui::line_runs::{scroll_top_for_section, selection_id_at, SelectableLineRun};
+use super::settings_ui::menu_rows::SettingsMenuRow;
 use super::settings_ui::menu_page::SettingsMenuPage;
 use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::rows::StyledText;
 use super::settings_ui::toggle;
 use crate::ui_interaction::{
     redraw_if,
     route_selectable_list_mouse_with_config,
     SelectableListMouseConfig,
     SelectableListMouseResult,
-    scroll_top_to_keep_visible,
 };
 use crate::components::scroll_state::ScrollState;
 use super::BottomPane;
@@ -55,17 +57,10 @@ enum SelectionKind {
     Tool(usize),
 }
 
-enum RowData {
-    Header { group_idx: usize },
-    Spacer,
-    Tool { idx: usize },
-}
-
 const DEFAULT_VISIBLE_ROWS: usize = 8;
 
 #[derive(Clone, Debug)]
 struct ValidationListModel {
-    runs: Vec<SelectableLineRun<'static, usize>>,
     /// Selection index -> semantic kind.
     selection_kinds: Vec<SelectionKind>,
     /// Selection index -> absolute line index within the flattened run list.
@@ -82,7 +77,7 @@ pub(crate) struct ValidationSettingsView {
     app_event_tx: AppEventSender,
     state: ScrollState,
     is_complete: bool,
-    tool_name_width: usize,
+    tool_label_pad_cols: u16,
     viewport_rows: Cell<usize>,
     pending_notice: Option<String>,
 }
@@ -95,14 +90,15 @@ impl ValidationSettingsView {
     ) -> Self {
         let mut state = ScrollState::new();
         state.selected_idx = Some(0);
-        let tool_name_width = tools.iter().map(|row| row.status.name.len()).max().unwrap_or(0);
+        let tool_label_pad_cols = tools.iter().map(|row| row.status.name.width()).max().unwrap_or(0);
+        let tool_label_pad_cols = u16::try_from(tool_label_pad_cols).unwrap_or(u16::MAX);
         Self {
             groups,
             tools,
             app_event_tx,
             state,
             is_complete: false,
-            tool_name_width,
+            tool_label_pad_cols,
             viewport_rows: Cell::new(0),
             pending_notice: None,
         }
@@ -145,8 +141,7 @@ impl ValidationSettingsView {
         }
     }
 
-    fn build_model(&self, selected_idx: usize) -> ValidationListModel {
-        let mut runs = Vec::new();
+    fn build_model(&self) -> ValidationListModel {
         let mut selection_kinds = Vec::new();
         let mut selection_line = Vec::new();
         let mut section_bounds = Vec::new();
@@ -157,24 +152,9 @@ impl ValidationSettingsView {
             let section_start = current_line;
             let section_selection_start = selection_kinds.len();
 
-            let group_sel_idx = selection_kinds.len();
             selection_kinds.push(SelectionKind::Group(group_idx));
             selection_line.push(current_line);
             section_bounds.push((0, 0));
-            runs.push(
-                SelectableLineRun::selectable(
-                    group_sel_idx,
-                    vec![self.render_row(
-                        &RowData::Header { group_idx },
-                        group_sel_idx == selected_idx,
-                    )],
-                )
-                .with_style(if group_sel_idx == selected_idx {
-                    Style::new().bg(colors::selection())
-                } else {
-                    Style::new()
-                }),
-            );
             current_line = current_line.saturating_add(1);
 
             for (idx, row) in self.tools.iter().enumerate() {
@@ -182,29 +162,9 @@ impl ValidationSettingsView {
                     continue;
                 }
                 if *enabled {
-                    let tool_sel_idx = selection_kinds.len();
                     selection_kinds.push(SelectionKind::Tool(idx));
                     selection_line.push(current_line);
                     section_bounds.push((0, 0));
-                    runs.push(
-                        SelectableLineRun::selectable(
-                            tool_sel_idx,
-                            vec![self.render_row(
-                                &RowData::Tool { idx },
-                                tool_sel_idx == selected_idx,
-                            )],
-                        )
-                        .with_style(if tool_sel_idx == selected_idx {
-                            Style::new().bg(colors::selection())
-                        } else {
-                            Style::new()
-                        }),
-                    );
-                } else {
-                    runs.push(SelectableLineRun::plain(vec![self.render_row(
-                        &RowData::Tool { idx },
-                        false,
-                    )]));
                 }
                 current_line = current_line.saturating_add(1);
             }
@@ -215,18 +175,101 @@ impl ValidationSettingsView {
             }
 
             if group_idx + 1 < self.groups.len() {
-                runs.push(SelectableLineRun::plain(vec![self.render_row(&RowData::Spacer, false)]));
                 current_line = current_line.saturating_add(1);
             }
         }
 
         ValidationListModel {
-            runs,
             selection_kinds,
             selection_line,
             section_bounds,
             total_lines: current_line,
         }
+    }
+
+    fn build_runs(&self, selected_idx: usize) -> Vec<SelectableLineRun<'_, usize>> {
+        let mut runs = Vec::new();
+        let mut selection_idx = 0usize;
+
+        for (group_idx, (status, enabled)) in self.groups.iter().enumerate() {
+            let group_sel_idx = selection_idx;
+            selection_idx = selection_idx.saturating_add(1);
+            let group_description = match status.group {
+                ValidationGroup::Functional => "Compile & structural checks",
+                ValidationGroup::Stylistic => "Formatting and style linting",
+            };
+            let group_hint = if *enabled {
+                "(press Enter to disable)"
+            } else {
+                "(press Enter to enable)"
+            };
+            runs.push(
+                SettingsMenuRow::new(group_sel_idx, status.name)
+                    .with_value(toggle::enabled_word(*enabled))
+                    .with_detail(StyledText::new(
+                        group_description,
+                        Style::new().fg(colors::text_dim()),
+                    ))
+                    .with_selected_hint(group_hint)
+                    .into_run(Some(selected_idx)),
+            );
+
+            for row in &self.tools {
+                if group_for_category(row.status.category) != status.group {
+                    continue;
+                }
+
+                let tool_sel_idx = selection_idx;
+
+                if *enabled {
+                    selection_idx = selection_idx.saturating_add(1);
+
+                    let mut tool_row = SettingsMenuRow::new(tool_sel_idx, row.status.name)
+                        .with_indent_cols(2)
+                        .with_label_pad_cols(self.tool_label_pad_cols)
+                        .with_detail(StyledText::new(
+                            row.status.description,
+                            Style::new().fg(colors::text_dim()),
+                        ));
+
+                    tool_row = if !row.status.installed {
+                        tool_row.with_value(StyledText::new(
+                            "missing",
+                            Style::new().fg(colors::warning()).bold(),
+                        ))
+                    } else {
+                        tool_row.with_value(toggle::enabled_word_warning_off(row.enabled))
+                    };
+
+                    let tool_hint = if !row.status.installed {
+                        "(press Enter to install)"
+                    } else {
+                        "(press Enter to toggle)"
+                    };
+                    tool_row = tool_row.with_selected_hint(tool_hint);
+
+                    runs.push(tool_row.into_run(Some(selected_idx)));
+                } else {
+                    runs.push(
+                        SettingsMenuRow::new(tool_sel_idx, row.status.name)
+                            .with_indent_cols(2)
+                            .with_label_pad_cols(self.tool_label_pad_cols)
+                            .with_detail(StyledText::new(
+                                row.status.description,
+                                Style::new().fg(colors::text_dim()),
+                            ))
+                            .disabled()
+                            .into_run(Some(selected_idx)),
+                    );
+                }
+            }
+
+            if group_idx + 1 < self.groups.len() {
+                runs.push(SelectableLineRun::plain(vec![Line::from("")]));
+            }
+        }
+
+        runs
     }
 
     fn activate_selection(&mut self, pane: Option<&mut BottomPane<'_>>, selection: SelectionKind) {
@@ -301,31 +344,14 @@ impl ValidationSettingsView {
             .unwrap_or((0, model.total_lines.saturating_sub(1)));
         let section_end = section_end.min(model.total_lines.saturating_sub(1));
         let section_start = section_start.min(section_end);
-        let section_len = section_end.saturating_sub(section_start).saturating_add(1);
 
-        // If the full section fits, pin it to the top so the section header is visible.
-        if section_len <= body_height {
-            self.state.scroll_top = section_start;
-            return;
-        }
-
-        // If we can show the section header while keeping the selection visible, do so.
-        if selected_line <= section_start.saturating_add(body_height.saturating_sub(1)) {
-            self.state.scroll_top = section_start;
-            return;
-        }
-
-        let max_scroll_top = section_end.saturating_add(1).saturating_sub(body_height);
-        let current_scroll_top = self.state.scroll_top.clamp(section_start, max_scroll_top);
-        let next = scroll_top_to_keep_visible(
-            current_scroll_top,
-            max_scroll_top,
+        self.state.scroll_top = scroll_top_for_section(
+            self.state.scroll_top,
             body_height,
             selected_line,
-            1,
+            section_start,
+            section_end,
         );
-
-        self.state.scroll_top = next.clamp(section_start, max_scroll_top);
     }
 
     fn handle_key_event_internal(
@@ -338,7 +364,7 @@ impl ValidationSettingsView {
             other => other,
         };
 
-        let mut model = self.build_model(self.state.selected_idx.unwrap_or(0));
+        let mut model = self.build_model();
         let mut total = model.selection_kinds.len();
         if total == 0 {
             if matches!(key_event.code, KeyCode::Esc) {
@@ -348,11 +374,6 @@ impl ValidationSettingsView {
             return false;
         }
 
-        if self.state.selected_idx.is_none() {
-            self.state.selected_idx = Some(0);
-        }
-        self.state.clamp_selection(total);
-        model = self.build_model(self.state.selected_idx.unwrap_or(0));
         self.ensure_selected_visible(&model, body_height_hint);
 
         let current_kind = self
@@ -364,10 +385,12 @@ impl ValidationSettingsView {
         let handled = match key_event {
             KeyEvent { code: KeyCode::Up, .. } => {
                 self.state.move_up_wrap(total);
+                self.ensure_selected_visible(&model, body_height_hint);
                 true
             }
             KeyEvent { code: KeyCode::Down, .. } => {
                 self.state.move_down_wrap(total);
+                self.ensure_selected_visible(&model, body_height_hint);
                 true
             }
             KeyEvent { code: KeyCode::Left, .. } | KeyEvent { code: KeyCode::Right, .. } => {
@@ -409,15 +432,15 @@ impl ValidationSettingsView {
             _ => false,
         };
 
-        model = self.build_model(self.state.selected_idx.unwrap_or(0));
-        total = model.selection_kinds.len();
-        if total == 0 {
-            self.state.selected_idx = None;
-            self.state.scroll_top = 0;
-        } else {
-            self.state.clamp_selection(total);
-            model = self.build_model(self.state.selected_idx.unwrap_or(0));
-            self.ensure_selected_visible(&model, body_height_hint);
+        if handled {
+            model = self.build_model();
+            total = model.selection_kinds.len();
+            if total == 0 {
+                self.state.selected_idx = None;
+                self.state.scroll_top = 0;
+            } else {
+                self.ensure_selected_visible(&model, body_height_hint);
+            }
         }
         handled
     }
@@ -437,30 +460,31 @@ impl ValidationSettingsView {
             return false;
         };
 
-        let mut model = self.build_model(self.state.selected_idx.unwrap_or(0));
+        let mut model = self.build_model();
         let total = model.selection_kinds.len();
         if total == 0 {
             return false;
         }
 
-        if self.state.selected_idx.is_none() {
-            self.state.selected_idx = Some(0);
-        }
-        self.state.clamp_selection(total);
-        model = self.build_model(self.state.selected_idx.unwrap_or(0));
         self.ensure_selected_visible(&model, layout.body.height as usize);
+        let scroll_top = self.state.scroll_top;
 
         let mut selected = self.state.selected_idx.unwrap_or(0);
-        let result = route_selectable_list_mouse_with_config(
-            mouse_event,
-            &mut selected,
-            total,
-            |x, y| selection_id_at(layout.body, x, y, self.state.scroll_top, &model.runs),
-            SelectableListMouseConfig {
-                hover_select: false,
-                ..SelectableListMouseConfig::default()
-            },
-        );
+        let result = {
+            // Hit-testing is based on run geometry; selection-specific styling doesn't
+            // affect line/rect boundaries, so we build runs without a selected row.
+            let runs = self.build_runs(usize::MAX);
+            route_selectable_list_mouse_with_config(
+                mouse_event,
+                &mut selected,
+                total,
+                |x, y| selection_id_at(layout.body, x, y, scroll_top, &runs),
+                SelectableListMouseConfig {
+                    hover_select: false,
+                    ..SelectableListMouseConfig::default()
+                },
+            )
+        };
         self.state.selected_idx = Some(selected);
 
         if matches!(result, SelectableListMouseResult::Activated)
@@ -469,14 +493,12 @@ impl ValidationSettingsView {
             }
 
         if result.handled() {
-            model = self.build_model(self.state.selected_idx.unwrap_or(0));
+            model = self.build_model();
             let total = model.selection_kinds.len();
             if total == 0 {
                 self.state.selected_idx = None;
                 self.state.scroll_top = 0;
             } else {
-                self.state.clamp_selection(total);
-                model = self.build_model(self.state.selected_idx.unwrap_or(0));
                 self.ensure_selected_visible(&model, layout.body.height as usize);
             }
         }
@@ -495,11 +517,11 @@ impl ValidationSettingsView {
         vec![
             Line::from(Span::styled(
                 "Toggle validation groups and installed tools.",
-                Style::default().fg(colors::text_dim()),
+                Style::new().fg(colors::text_dim()),
             )),
             Line::from(Span::styled(
                 "Use ↑↓ to navigate · Enter/Space toggle · Esc close",
-                Style::default().fg(colors::text_dim()),
+                Style::new().fg(colors::text_dim()),
             )),
             Line::from(""),
         ]
@@ -531,99 +553,6 @@ impl ValidationSettingsView {
             self.render_header_lines(),
             self.render_footer_lines(),
         )
-    }
-
-    fn render_row(&self, row: &RowData, selected: bool) -> Line<'static> {
-        let arrow = if selected { "› " } else { "  " };
-        let arrow_style = if selected {
-            Style::default().fg(colors::primary())
-        } else {
-            Style::default().fg(colors::text_dim())
-        };
-        match row {
-            RowData::Header { group_idx } => {
-                let Some((group, enabled)) = self.groups.get(*group_idx) else {
-                    return Line::from("");
-                };
-                let description = match group.group {
-                    ValidationGroup::Functional => "Compile & structural checks",
-                    ValidationGroup::Stylistic => "Formatting and style linting",
-                };
-                let label_style = if selected {
-                    Style::default().fg(colors::primary()).add_modifier(Modifier::BOLD)
-                } else if *enabled {
-                    Style::default().fg(colors::text()).add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(colors::text_dim()).add_modifier(Modifier::BOLD)
-                };
-                let enabled_state = toggle::enabled_word(*enabled);
-                let status_span = Span::styled(enabled_state.text, enabled_state.style);
-                let mut spans = vec![
-                    Span::styled(arrow, arrow_style),
-                    Span::styled(group.name, label_style),
-                    Span::raw("  "),
-                    status_span,
-                    Span::raw("  "),
-                    Span::styled(description, Style::default().fg(colors::text_dim())),
-                ];
-                if selected {
-                    let hint = if *enabled { "(press Enter to disable)" } else { "(press Enter to enable)" };
-                    spans.push(Span::raw("  "));
-                    spans.push(Span::styled(hint, Style::default().fg(colors::text_dim())));
-                }
-                Line::from(spans)
-            }
-            RowData::Spacer => Line::from(""),
-            RowData::Tool { idx } => {
-                let row = &self.tools[*idx];
-                let width = self.tool_name_width.max(row.status.name.len());
-                let base_style = if row.group_enabled {
-                    if selected {
-                        Style::default().fg(colors::primary()).add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default().fg(colors::text())
-                    }
-                } else {
-                    Style::default().fg(colors::text_dim())
-                };
-                let name_span = Span::styled(
-                    format!("{name:<width$}", name = row.status.name, width = width),
-                    base_style,
-                );
-                let mut spans = vec![Span::styled(arrow, arrow_style), Span::raw("  "), name_span];
-                spans.push(Span::raw("  "));
-                if row.group_enabled {
-                    if !row.status.installed {
-                        spans.push(Span::styled(
-                            "missing",
-                            Style::default()
-                                .fg(colors::warning())
-                                .add_modifier(Modifier::BOLD),
-                        ));
-                    } else {
-                        let status = toggle::enabled_word_warning_off(row.enabled);
-                        spans.push(Span::styled(status.text, status.style));
-                    }
-                    spans.push(Span::raw("  "));
-                    spans.push(Span::styled(row.status.description, Style::default().fg(colors::text_dim())));
-                    if selected {
-                        let hint = if !row.status.installed {
-                            "(press Enter to install)"
-                        } else {
-                            "(press Enter to toggle)"
-                        };
-                        spans.push(Span::raw("  "));
-                        spans.push(Span::styled(hint, Style::default().fg(colors::text_dim())));
-                    }
-                } else {
-                    spans.push(Span::styled(
-                        row.status.description,
-                        Style::default().fg(colors::text_dim()),
-                    ));
-                }
-                Line::from(spans)
-            }
-        }
     }
 }
 
@@ -665,10 +594,11 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
         }
 
         let page = self.page();
-        let model = self.build_model(self.state.selected_idx.unwrap_or(0));
+        let selected_idx = self.state.selected_idx.unwrap_or(usize::MAX);
+        let runs = self.build_runs(selected_idx);
         let mut rects = Vec::new();
         let Some(layout) =
-            page.render_runs(area, buf, self.state.scroll_top, &model.runs, &mut rects)
+            page.render_runs(area, buf, self.state.scroll_top, &runs, &mut rects)
         else {
             return;
         };
@@ -682,7 +612,7 @@ mod tests {
     use super::*;
     use std::sync::mpsc;
 
-    fn make_view(groups_enabled: bool) -> ValidationSettingsView {
+    fn make_view_with_tools(groups_enabled: bool, tool_names: &[&'static str]) -> ValidationSettingsView {
         let (tx, _rx) = mpsc::channel::<AppEvent>();
         let groups = vec![(
             GroupStatus {
@@ -691,18 +621,25 @@ mod tests {
             },
             groups_enabled,
         )];
-        let tools = vec![ToolRow {
-            status: ToolStatus {
-                name: "cargo-check",
-                description: "Run cargo check",
-                installed: true,
-                install_hint: String::new(),
-                category: ValidationCategory::Functional,
-            },
-            enabled: true,
-            group_enabled: groups_enabled,
-        }];
+        let tools = tool_names
+            .iter()
+            .map(|name| ToolRow {
+                status: ToolStatus {
+                    name: *name,
+                    description: "Run tool",
+                    installed: true,
+                    install_hint: String::new(),
+                    category: ValidationCategory::Functional,
+                },
+                enabled: true,
+                group_enabled: groups_enabled,
+            })
+            .collect();
         ValidationSettingsView::new(groups, tools, AppEventSender::new(tx))
+    }
+
+    fn make_view(groups_enabled: bool) -> ValidationSettingsView {
+        make_view_with_tools(groups_enabled, &["cargo-check"])
     }
 
     #[test]
@@ -711,7 +648,7 @@ mod tests {
         view.state.selected_idx = Some(1);
         view.toggle_group(0);
 
-        let model = view.build_model(view.state.selected_idx.unwrap_or(0));
+        let model = view.build_model();
         assert_eq!(model.selection_kinds.len(), 1);
         view.state.clamp_selection(model.selection_kinds.len());
         assert_eq!(view.state.selected_idx, Some(0));
@@ -720,18 +657,31 @@ mod tests {
     #[test]
     fn selection_id_at_matches_selectable_runs() {
         let view = make_view(true);
-        let model = view.build_model(0);
+        let runs = view.build_runs(0);
         let area = Rect::new(0, 0, 30, 3);
 
-        assert_eq!(selection_id_at(area, 1, 0, 0, &model.runs), Some(0));
-        assert_eq!(selection_id_at(area, 1, 1, 0, &model.runs), Some(1));
+        assert_eq!(selection_id_at(area, 1, 0, 0, &runs), Some(0));
+        assert_eq!(selection_id_at(area, 1, 1, 0, &runs), Some(1));
 
         let view_disabled = make_view(false);
-        let model_disabled = view_disabled.build_model(0);
+        let runs_disabled = view_disabled.build_runs(0);
         assert_eq!(
-            selection_id_at(area, 1, 1, 0, &model_disabled.runs),
+            selection_id_at(area, 1, 1, 0, &runs_disabled),
             None
         );
+    }
+
+    #[test]
+    fn ensure_selected_visible_clamps_scroll_top_within_section() {
+        let mut view = make_view_with_tools(true, &["a", "b", "c", "d", "e"]);
+        // Select the last tool row: group header=0, tool rows=1..=5.
+        view.state.selected_idx = Some(5);
+        view.state.scroll_top = 0;
+        let model = view.build_model();
+        view.ensure_selected_visible(&model, 3);
+
+        // Section has 6 lines (header + 5 tools), so max scroll top is 3 for a 3-row viewport.
+        assert_eq!(view.state.scroll_top, 3);
     }
 }
 
@@ -854,10 +804,8 @@ pub(crate) fn detect_tools() -> Vec<ToolStatus> {
 
 fn which(exe: &str) -> Option<std::path::PathBuf> {
     let name = std::ffi::OsStr::new(exe);
-    let paths: Vec<std::path::PathBuf> = std::env::var_os("PATH")
-        .map(|paths| std::env::split_paths(&paths).collect())
-        .unwrap_or_default();
-    for dir in paths {
+    let paths = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&paths) {
         let candidate = dir.join(name);
         if candidate.is_file() {
             return Some(candidate);

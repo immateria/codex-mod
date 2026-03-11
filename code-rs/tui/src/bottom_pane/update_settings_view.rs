@@ -326,7 +326,11 @@ impl UpdateSettingsView {
             Self::FIELD_COUNT,
             content,
             &Self::HIT_REGIONS,
-            SelectableListMouseConfig::default(),
+            SelectableListMouseConfig {
+                hover_select: false,
+                scroll_select: false,
+                ..SelectableListMouseConfig::default()
+            },
         );
         self.field = selected;
 

@@ -60,16 +60,6 @@ pub(crate) fn shortcut_line(hints: &[KeyHint<'_>]) -> Line<'static> {
     Line::from(spans)
 }
 
-pub(crate) fn status_or_shortcuts_line(
-    status: Option<StyledText<'_>>,
-    hints: &[KeyHint<'_>],
-) -> Line<'static> {
-    match status {
-        Some(status) => status_line(status),
-        None => shortcut_line(hints),
-    }
-}
-
 pub(crate) fn status_and_shortcuts(
     status: Option<StyledText<'_>>,
     hints: &[KeyHint<'_>],
@@ -84,6 +74,15 @@ pub(crate) fn status_and_shortcuts(
     }
     lines.push(shortcut_line(hints));
     lines
+}
+
+pub(crate) fn status_and_shortcuts_split(
+    status: Option<StyledText<'_>>,
+    hints: &[KeyHint<'_>],
+) -> (Vec<Line<'static>>, Vec<Line<'static>>) {
+    let status_lines = status.map(status_line).into_iter().collect();
+    let footer_lines = vec![shortcut_line(hints)];
+    (status_lines, footer_lines)
 }
 
 #[cfg(test)]
@@ -116,12 +115,15 @@ mod tests {
     }
 
     #[test]
-    fn status_or_shortcuts_line_prefers_status() {
-        let line = status_or_shortcuts_line(
+    fn status_and_shortcuts_split_returns_status_separately() {
+        let (status_lines, footer_lines) = status_and_shortcuts_split(
             Some(StyledText::new("warning", Style::new().fg(colors::warning()))),
             &[KeyHint::new("Enter", " save")],
         );
 
-        assert_eq!(line.spans[0].content, "warning");
+        assert_eq!(status_lines.len(), 1);
+        assert_eq!(footer_lines.len(), 1);
+        assert_eq!(status_lines[0].spans[0].content, "warning");
+        assert_eq!(footer_lines[0].spans[0].content, "Enter");
     }
 }
