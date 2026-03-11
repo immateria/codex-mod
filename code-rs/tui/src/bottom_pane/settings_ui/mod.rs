@@ -16,3 +16,5 @@ pub(crate) mod rows;
 pub(crate) mod selectable_list_page;
 pub(crate) mod sectioned_panel;
 pub(crate) mod message_page;
+pub(crate) mod wrap;
+pub(crate) mod toggle;

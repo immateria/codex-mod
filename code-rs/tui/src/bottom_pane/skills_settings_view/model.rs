@@ -1,10 +1,6 @@
 use super::*;
 
 pub(super) const SKILLS_SETTINGS_VIEW_HEIGHT: u16 = 28;
-pub(super) const GENERATE_BUTTON_LABEL: &str = "Generate draft";
-pub(super) const SAVE_BUTTON_LABEL: &str = "Save";
-pub(super) const DELETE_BUTTON_LABEL: &str = "Delete";
-pub(super) const CANCEL_BUTTON_LABEL: &str = "Cancel";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Focus {

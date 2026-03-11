@@ -26,10 +26,15 @@ impl<'a> BorderedField<'a> {
         self.block().inner(outer)
     }
 
-    pub(crate) fn render(&self, outer: Rect, buf: &mut Buffer, field: &FormTextField) -> Rect {
+    pub(crate) fn render_block(&self, outer: Rect, buf: &mut Buffer) -> Rect {
         let block = self.block();
         let inner = block.inner(outer);
         block.render(outer, buf);
+        inner
+    }
+
+    pub(crate) fn render(&self, outer: Rect, buf: &mut Buffer, field: &FormTextField) -> Rect {
+        let inner = self.render_block(outer, buf);
         field.render(inner, buf, self.focused);
         inner
     }

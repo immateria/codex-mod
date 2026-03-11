@@ -30,8 +30,7 @@ impl SettingsContent for ShellSettingsContent {
     }
 
     fn handle_mouse(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let _ = area;
-        self.view.handle_mouse_event_direct(mouse_event)
+        self.view.handle_mouse_event_direct(mouse_event, area)
     }
 
     fn handle_paste(&mut self, text: String) -> bool {

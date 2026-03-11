@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use ratatui::style::Style;
+use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
 use crate::colors;
@@ -32,7 +32,17 @@ impl<'a> KeyHint<'a> {
         self.key_style = key_style;
         self
     }
+}
 
+pub(crate) fn title_line(text: impl Into<Cow<'static, str>>) -> Line<'static> {
+    Line::from(Span::styled(
+        text.into().into_owned(),
+        Style::new().fg(colors::text_bright()).bold(),
+    ))
+}
+
+pub(crate) fn status_line(status: StyledText<'_>) -> Line<'static> {
+    Line::from(Span::styled(status.text.into_owned(), status.style))
 }
 
 pub(crate) fn shortcut_line(hints: &[KeyHint<'_>]) -> Line<'static> {
@@ -48,6 +58,16 @@ pub(crate) fn shortcut_line(hints: &[KeyHint<'_>]) -> Line<'static> {
         ));
     }
     Line::from(spans)
+}
+
+pub(crate) fn status_or_shortcuts_line(
+    status: Option<StyledText<'_>>,
+    hints: &[KeyHint<'_>],
+) -> Line<'static> {
+    match status {
+        Some(status) => status_line(status),
+        None => shortcut_line(hints),
+    }
 }
 
 pub(crate) fn status_and_shortcuts(
@@ -93,5 +113,15 @@ mod tests {
         assert_eq!(line.spans[1].content, " save");
         assert_eq!(line.spans[2].content, "   ");
         assert_eq!(line.spans[3].content, "Esc");
+    }
+
+    #[test]
+    fn status_or_shortcuts_line_prefers_status() {
+        let line = status_or_shortcuts_line(
+            Some(StyledText::new("warning", Style::new().fg(colors::warning()))),
+            &[KeyHint::new("Enter", " save")],
+        );
+
+        assert_eq!(line.spans[0].content, "warning");
     }
 }

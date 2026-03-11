@@ -8,6 +8,7 @@ use ratatui::text::Line;
 use crate::colors;
 use crate::util::buffer::{fill_rect, write_line};
 
+use super::line_runs::{render_selectable_runs, SelectableLineRun};
 use super::menu_rows::{
     render_menu_rows,
     selection_id_at as selection_menu_id_at,
@@ -91,6 +92,20 @@ impl<'a> SettingsMenuPage<'a> {
             base,
             &mut rects,
         );
+        Some(layout)
+    }
+
+    pub(crate) fn render_runs<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        scroll_top: usize,
+        runs: &[SelectableLineRun<'_, Id>],
+        out_rects: &mut Vec<(Id, Rect)>,
+    ) -> Option<SettingsSectionedPanelLayout> {
+        let layout = self.render_shell(area, buf)?;
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        render_selectable_runs(layout.body, buf, scroll_top, runs, base, out_rects);
         Some(layout)
     }
 }

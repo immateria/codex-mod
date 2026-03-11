@@ -7,7 +7,7 @@ use code_protocol::custom_prompts::CustomPrompt;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Rect};
-use ratatui::style::{Style, Stylize};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 use crate::app_event::AppEvent;
@@ -25,8 +25,9 @@ use crate::ui_interaction::{
     SelectableListMouseResult,
 };
 use super::settings_ui::action_page::SettingsActionPage;
-use super::settings_ui::buttons::{TextButton, TextButtonAlign};
+use super::settings_ui::buttons::{standard_button_specs, SettingsButtonKind, StandardButtonSpec};
 use super::settings_ui::form_page::{SettingsFormPage, SettingsFormPageLayout, SettingsFormSection};
+use super::settings_ui::hints::{shortcut_line, status_and_shortcuts, title_line, KeyHint};
 use super::settings_ui::menu_page::SettingsMenuPage;
 use super::settings_ui::menu_rows::SettingsMenuRow;
 use super::settings_ui::panel::SettingsPanelStyle;
@@ -62,7 +63,6 @@ pub(crate) struct PromptsSettingsView {
 
 impl PromptsSettingsView {
     const DEFAULT_HEIGHT: u16 = 20;
-    const BUTTON_LABELS: [&str; 3] = ["Save", "Delete", "Cancel"];
 
     pub fn new(prompts: Vec<CustomPrompt>, app_event_tx: AppEventSender) -> Self {
         let mut name_field = FormTextField::new_single_line();
@@ -99,15 +99,28 @@ impl PromptsSettingsView {
     }
 
     fn edit_page(&self) -> SettingsActionPage<'static> {
-        let footer_lines = self
+        let status = self
             .status
             .as_ref()
-            .map(|(msg, style)| vec![Line::from(Span::styled(msg.clone(), *style))])
-            .unwrap_or_default();
+            .map(|(msg, style)| super::settings_ui::rows::StyledText::new(msg.clone(), *style));
+        let footer_lines = status_and_shortcuts(
+            status,
+            &[
+                KeyHint::new("Tab", " next"),
+                KeyHint::new("Enter", " activate")
+                    .with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Esc", " back")
+                    .with_key_style(Style::new().fg(colors::error())),
+            ],
+        );
         SettingsActionPage::new(
             "Custom Prompt",
             super::settings_ui::panel::SettingsPanelStyle::bottom_pane(),
-            Vec::new(),
+            vec![title_line(if self.selected >= self.prompts.len() {
+                "New prompt"
+            } else {
+                "Edit prompt"
+            })],
             footer_lines,
         )
     }
@@ -135,7 +148,16 @@ impl PromptsSettingsView {
             "Custom Prompts",
             SettingsPanelStyle::bottom_pane(),
             self.list_header_lines(),
-            Vec::new(),
+            vec![shortcut_line(&[
+                KeyHint::new("↑↓", " navigate")
+                    .with_key_style(Style::new().fg(colors::function())),
+                KeyHint::new("Enter", " edit")
+                    .with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Ctrl+N", " new")
+                    .with_key_style(Style::new().fg(colors::info())),
+                KeyHint::new("Esc", " close")
+                    .with_key_style(Style::new().fg(colors::error())),
+            ])],
         )
     }
 
@@ -168,30 +190,19 @@ impl PromptsSettingsView {
         rows
     }
 
-    fn edit_buttons(&self) -> [TextButton<'static, Focus>; 3] {
-        [
-            TextButton::new(
-                Focus::Save,
-                Self::BUTTON_LABELS[0],
-                matches!(self.focus, Focus::Save),
-                false,
-                Style::new().fg(colors::success()).bold(),
-            ),
-            TextButton::new(
-                Focus::Delete,
-                Self::BUTTON_LABELS[1],
-                matches!(self.focus, Focus::Delete),
-                false,
-                Style::new().fg(colors::error()).bold(),
-            ),
-            TextButton::new(
-                Focus::Cancel,
-                Self::BUTTON_LABELS[2],
-                matches!(self.focus, Focus::Cancel),
-                false,
-                Style::new().fg(colors::text_dim()).bold(),
-            ),
-        ]
+    fn edit_button_specs(&self) -> Vec<StandardButtonSpec<Focus>> {
+        standard_button_specs(
+            &[
+                (Focus::Save, SettingsButtonKind::Save),
+                (Focus::Delete, SettingsButtonKind::Delete),
+                (Focus::Cancel, SettingsButtonKind::Cancel),
+            ],
+            match self.focus {
+                Focus::Save | Focus::Delete | Focus::Cancel => Some(self.focus),
+                _ => None,
+            },
+            None,
+        )
     }
 
     pub fn handle_key_event_direct(&mut self, key: KeyEvent) -> bool {
@@ -303,12 +314,16 @@ impl PromptsSettingsView {
 
     fn render_form(&self, area: Rect, buf: &mut Buffer) {
         let page = self.edit_form_page();
-        let Some(layout) = page.render(area, buf, &[&self.name_field, &self.body_field])
+        let buttons = self.edit_button_specs();
+        let Some(_layout) = page.render_with_standard_actions_end(
+            area,
+            buf,
+            &[&self.name_field, &self.body_field],
+            &buttons,
+        )
         else {
             return;
         };
-        let buttons = self.edit_buttons();
-        page.render_actions(&layout, buf, &buttons, TextButtonAlign::End);
     }
 
     fn list_selection_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
@@ -323,12 +338,11 @@ impl PromptsSettingsView {
         layout: &SettingsFormPageLayout,
         mouse_event: MouseEvent,
     ) -> Option<Focus> {
-        page.action_at(
+        page.standard_action_at_end(
             layout,
             mouse_event.column,
             mouse_event.row,
-            &self.edit_buttons(),
-            TextButtonAlign::End,
+            &self.edit_button_specs(),
         )
     }
 

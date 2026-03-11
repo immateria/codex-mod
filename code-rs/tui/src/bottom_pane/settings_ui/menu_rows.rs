@@ -36,6 +36,12 @@ impl<'a, Id> SettingsMenuRow<'a, Id> {
         }
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn disabled(mut self) -> Self {
+        self.enabled = false;
+        self
+    }
+
     pub(crate) fn with_value(mut self, value: StyledText<'a>) -> Self {
         self.value = Some(value);
         self
@@ -50,7 +56,74 @@ impl<'a, Id> SettingsMenuRow<'a, Id> {
         self.selected_hint = Some(hint.into());
         self
     }
+}
 
+impl<'a, Id> SettingsMenuRow<'a, Id>
+where
+    Id: Copy + PartialEq,
+{
+    pub(crate) fn to_run(&'a self, selected_id: Option<Id>) -> SelectableLineRun<'a, Id> {
+        menu_row_run(self, selected_id)
+    }
+
+    pub(crate) fn into_run(self, selected_id: Option<Id>) -> SelectableLineRun<'a, Id> {
+        let selected = selected_id == Some(self.id) && self.enabled;
+        let base = if selected {
+            Style::new().bg(colors::selection()).fg(colors::text())
+        } else {
+            Style::new().bg(colors::background()).fg(colors::text())
+        };
+        let arrow_style = if selected {
+            Style::new().bg(colors::selection()).fg(colors::primary())
+        } else {
+            Style::new().bg(colors::background()).fg(colors::text_dim())
+        };
+        let mut label_style = if self.enabled {
+            Style::new().fg(colors::text())
+        } else {
+            Style::new().fg(colors::dim())
+        };
+        if selected {
+            label_style = label_style.bold();
+        }
+
+        let mut spans = vec![
+            Span::styled(if selected { "› " } else { "  " }, arrow_style),
+            Span::styled(self.label, label_style),
+        ];
+
+        if let Some(value) = self.value {
+            spans.push(Span::raw("  "));
+            let mut value_style = value.style;
+            if !self.enabled {
+                value_style = value_style.fg(colors::dim());
+            }
+            spans.push(Span::styled(value.text, value_style));
+        }
+
+        if let Some(detail) = self.detail {
+            spans.push(Span::raw("  "));
+            let mut detail_style = detail.style;
+            if !self.enabled {
+                detail_style = detail_style.fg(colors::dim());
+            }
+            spans.push(Span::styled(detail.text, detail_style));
+        }
+
+        if selected
+            && let Some(hint) = self.selected_hint
+        {
+            spans.push(Span::raw("  "));
+            spans.push(Span::styled(hint, Style::new().fg(colors::text_dim())));
+        }
+
+        let run = if self.enabled {
+            SelectableLineRun::selectable(self.id, vec![Line::from(spans)])
+        } else {
+            SelectableLineRun::plain(vec![Line::from(spans)])
+        };
+        run.with_style(base)
+    }
 }
 
 fn menu_row_run<'a, Id: Copy + PartialEq>(
@@ -126,7 +199,7 @@ pub(crate) fn render_menu_rows<Id: Copy + PartialEq>(
 ) {
     let runs = rows
         .iter()
-        .map(|row| menu_row_run(row, selected_id))
+        .map(|row| row.to_run(selected_id))
         .collect::<Vec<_>>();
     render_selectable_runs(area, buf, scroll_top, &runs, base_style, out_rects);
 }
@@ -140,7 +213,7 @@ pub(crate) fn selection_id_at<Id: Copy + PartialEq>(
 ) -> Option<Id> {
     let runs = rows
         .iter()
-        .map(|row| menu_row_run(row, None))
+        .map(|row| row.to_run(None))
         .collect::<Vec<_>>();
     selection_id_at_runs(body, x, y, scroll_top, &runs)
 }

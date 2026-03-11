@@ -6,7 +6,7 @@ use ratatui::layout::{Constraint, Layout, Position, Rect};
 use crate::components::form_text_field::FormTextField;
 
 use super::action_page::{SettingsActionPage, SettingsActionPageLayout};
-use super::buttons::{TextButton, TextButtonAlign};
+use super::buttons::{StandardButtonSpec, TextButtonAlign};
 use super::fields::BorderedField;
 
 #[derive(Clone, Debug)]
@@ -147,25 +147,60 @@ impl<'a> SettingsFormPage<'a> {
             .position(|section| section.outer.contains(pos))
     }
 
-    pub(crate) fn render_actions<Id>(
+    pub(crate) fn render_standard_actions<Id: Copy>(
         &self,
         layout: &SettingsFormPageLayout,
         buf: &mut Buffer,
-        buttons: &[TextButton<'_, Id>],
+        buttons: &[StandardButtonSpec<Id>],
         align: TextButtonAlign,
     ) {
-        self.page.render_actions(&layout.page, buf, buttons, align);
+        self.page
+            .render_standard_actions(&layout.page, buf, buttons, align);
     }
 
-    pub(crate) fn action_at<Id: Copy>(
+    pub(crate) fn render_with_standard_actions<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+        buttons: &[StandardButtonSpec<Id>],
+        align: TextButtonAlign,
+    ) -> Option<SettingsFormPageLayout> {
+        let layout = self.render(area, buf, fields)?;
+        self.render_standard_actions(&layout, buf, buttons, align);
+        Some(layout)
+    }
+
+    pub(crate) fn render_with_standard_actions_end<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<SettingsFormPageLayout> {
+        self.render_with_standard_actions(area, buf, fields, buttons, TextButtonAlign::End)
+    }
+
+    pub(crate) fn standard_action_at<Id: Copy>(
         &self,
         layout: &SettingsFormPageLayout,
         x: u16,
         y: u16,
-        buttons: &[TextButton<'_, Id>],
+        buttons: &[StandardButtonSpec<Id>],
         align: TextButtonAlign,
     ) -> Option<Id> {
-        self.page.action_at(&layout.page, x, y, buttons, align)
+        self.page
+            .standard_action_at(&layout.page, x, y, buttons, align)
+    }
+
+    pub(crate) fn standard_action_at_end<Id: Copy>(
+        &self,
+        layout: &SettingsFormPageLayout,
+        x: u16,
+        y: u16,
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<Id> {
+        self.standard_action_at(layout, x, y, buttons, TextButtonAlign::End)
     }
 }
 

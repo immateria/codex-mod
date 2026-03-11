@@ -9,7 +9,8 @@ use ratatui::widgets::{Paragraph, Widget, Wrap};
 use crate::colors;
 
 use super::buttons::{
-    render_text_button_strip_aligned, text_button_at_aligned, TextButton, TextButtonAlign,
+    render_standard_button_strip_aligned, standard_button_at_aligned, StandardButtonSpec,
+    TextButtonAlign,
 };
 use super::panel::SettingsPanelStyle;
 use super::sectioned_panel::{SettingsSectionedPanel, SettingsSectionedPanelLayout};
@@ -131,31 +132,62 @@ impl<'a> SettingsActionPage<'a> {
         Some(layout)
     }
 
-    pub(crate) fn render_actions<Id>(
+    pub(crate) fn render_standard_actions<Id: Copy>(
         &self,
         layout: &SettingsActionPageLayout,
         buf: &mut Buffer,
-        buttons: &[TextButton<'_, Id>],
+        buttons: &[StandardButtonSpec<Id>],
         align: TextButtonAlign,
     ) {
         if layout.actions.width == 0 || layout.actions.height == 0 || buttons.is_empty() {
             return;
         }
-        render_text_button_strip_aligned(layout.actions, buf, buttons, align);
+        render_standard_button_strip_aligned(layout.actions, buf, buttons, align);
     }
 
-    pub(crate) fn action_at<Id: Copy>(
+    pub(crate) fn render_with_standard_actions<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        buttons: &[StandardButtonSpec<Id>],
+        align: TextButtonAlign,
+    ) -> Option<SettingsActionPageLayout> {
+        let layout = self.render(area, buf)?;
+        self.render_standard_actions(&layout, buf, buttons, align);
+        Some(layout)
+    }
+
+    pub(crate) fn render_with_standard_actions_end<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<SettingsActionPageLayout> {
+        self.render_with_standard_actions(area, buf, buttons, TextButtonAlign::End)
+    }
+
+    pub(crate) fn standard_action_at<Id: Copy>(
         &self,
         layout: &SettingsActionPageLayout,
         x: u16,
         y: u16,
-        buttons: &[TextButton<'_, Id>],
+        buttons: &[StandardButtonSpec<Id>],
         align: TextButtonAlign,
     ) -> Option<Id> {
         if layout.actions.width == 0 || layout.actions.height == 0 || buttons.is_empty() {
             return None;
         }
-        text_button_at_aligned(x, y, layout.actions, buttons, align)
+        standard_button_at_aligned(x, y, layout.actions, buttons, align)
+    }
+
+    pub(crate) fn standard_action_at_end<Id: Copy>(
+        &self,
+        layout: &SettingsActionPageLayout,
+        x: u16,
+        y: u16,
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<Id> {
+        self.standard_action_at(layout, x, y, buttons, TextButtonAlign::End)
     }
 
 }
@@ -163,7 +195,7 @@ impl<'a> SettingsActionPage<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::buttons::{TextButton, TextButtonAlign};
+    use super::super::buttons::TextButtonAlign;
     use ratatui::layout::Margin;
 
     #[test]
@@ -192,9 +224,14 @@ mod tests {
             vec![],
         );
         let layout = page.layout(Rect::new(0, 0, 30, 7)).expect("layout");
-        let buttons = [TextButton::new(7usize, "Save", false, false, Style::new())];
+        let buttons = [StandardButtonSpec::new(
+            7usize,
+            super::super::buttons::SettingsButtonKind::Save,
+            false,
+            false,
+        )];
         assert_eq!(
-            page.action_at(
+            page.standard_action_at(
                 &layout,
                 layout.actions.x + layout.actions.width.saturating_sub(4),
                 layout.actions.y,

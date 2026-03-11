@@ -1,5 +1,10 @@
 use super::*;
-use crate::bottom_pane::settings_ui::buttons::{text_button_at, TextButton};
+use crate::bottom_pane::settings_ui::buttons::{
+    standard_button_at,
+    standard_button_specs,
+    SettingsButtonKind,
+    StandardButtonSpec,
+};
 
 impl SkillsSettingsView {
     pub fn handle_key_event_direct(&mut self, key: KeyEvent) -> bool {
@@ -582,16 +587,27 @@ impl SkillsSettingsView {
     }
 
     fn edit_button_at(&self, x: u16, y: u16, row: Rect) -> Option<ActionButton> {
-        text_button_at(
-            x,
-            y,
-            row,
+        standard_button_at(x, y, row, &self.action_button_specs())
+    }
+
+    pub(super) fn action_button_specs(&self) -> Vec<StandardButtonSpec<ActionButton>> {
+        let focused = match self.editor.focus {
+            Focus::Generate => Some(ActionButton::Generate),
+            Focus::Save => Some(ActionButton::Save),
+            Focus::Delete => Some(ActionButton::Delete),
+            Focus::Cancel => Some(ActionButton::Cancel),
+            _ => None,
+        };
+
+        standard_button_specs(
             &[
-                TextButton::new(ActionButton::Generate, GENERATE_BUTTON_LABEL, false, false, Style::new()),
-                TextButton::new(ActionButton::Save, SAVE_BUTTON_LABEL, false, false, Style::new()),
-                TextButton::new(ActionButton::Delete, DELETE_BUTTON_LABEL, false, false, Style::new()),
-                TextButton::new(ActionButton::Cancel, CANCEL_BUTTON_LABEL, false, false, Style::new()),
+                (ActionButton::Generate, SettingsButtonKind::GenerateDraft),
+                (ActionButton::Save, SettingsButtonKind::Save),
+                (ActionButton::Delete, SettingsButtonKind::Delete),
+                (ActionButton::Cancel, SettingsButtonKind::Cancel),
             ],
+            focused,
+            self.editor.hovered_button,
         )
     }
 

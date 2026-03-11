@@ -1,10 +1,8 @@
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::ui_interaction::{
-    RelativeHitRegion,
     redraw_if,
-    route_selectable_regions_mouse_with_config,
-    ScrollSelectionBehavior,
+    route_selectable_list_mouse_with_config,
     SelectableListMouseConfig,
     SelectableListMouseResult,
     wrap_next,
@@ -14,13 +12,19 @@ use crate::colors;
 use code_core::config_types::AuthCredentialsStoreMode;
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::prelude::Widget;
-use ratatui::style::{Modifier, Style};
+use ratatui::layout::{Margin, Rect};
+use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Wrap};
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::hints::{shortcut_line, KeyHint};
+use super::settings_ui::line_runs::selection_id_at as selection_run_id_at;
+use super::settings_ui::line_runs::SelectableLineRun;
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::menu_rows::{selection_id_at as selection_menu_id_at, SettingsMenuRow};
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::rows::StyledText;
+use super::settings_ui::toggle;
 use super::BottomPane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,21 +48,8 @@ pub(crate) struct AccountSwitchSettingsView {
 
 impl AccountSwitchSettingsView {
     const MAIN_OPTION_COUNT: usize = 6;
-    const MAIN_HIT_REGIONS: [RelativeHitRegion; Self::MAIN_OPTION_COUNT] = [
-        RelativeHitRegion::new(0, 2, 2),
-        RelativeHitRegion::new(1, 4, 2),
-        RelativeHitRegion::new(2, 6, 2),
-        RelativeHitRegion::new(3, 9, 2),
-        RelativeHitRegion::new(4, 11, 2),
-        RelativeHitRegion::new(5, 14, 1),
-    ];
 
     const CONFIRM_OPTION_COUNT: usize = 3;
-    const CONFIRM_HIT_REGIONS: [RelativeHitRegion; Self::CONFIRM_OPTION_COUNT] = [
-        RelativeHitRegion::new(0, 4, 1),
-        RelativeHitRegion::new(1, 5, 1),
-        RelativeHitRegion::new(2, 6, 1),
-    ];
 
     pub(crate) fn new(
         app_event_tx: AppEventSender,
@@ -181,208 +172,155 @@ impl AccountSwitchSettingsView {
         }
     }
 
-    fn main_info_lines(&self) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
-        lines.push(Line::from(vec![Span::styled(
+    fn main_page(&self) -> SettingsMenuPage<'static> {
+        SettingsMenuPage::new(
             "Accounts",
-            Style::default().add_modifier(Modifier::BOLD),
-        )]));
-        lines.push(Line::from(""));
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
+            Vec::new(),
+            vec![shortcut_line(&[
+                KeyHint::new("↑↓/Tab", " navigate").with_key_style(Style::new().fg(colors::function())),
+                KeyHint::new("Enter/Space", " activate").with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error()).bold()),
+            ])],
+        )
+    }
 
-        let highlight = Style::default()
-            .fg(colors::primary())
-            .add_modifier(Modifier::BOLD);
-        let normal = Style::default().fg(colors::text());
-        let dim = Style::default().fg(colors::text_dim());
+    fn main_runs(&self, selected_id: Option<usize>) -> Vec<SelectableLineRun<'static, usize>> {
+        let bool_value = |enabled: bool| toggle::checkbox_marker(enabled);
 
-        let row = |idx: usize, label: &str, enabled: bool| -> Line<'static> {
-            let selected = idx == self.selected_index;
-            let indicator = if selected { ">" } else { " " };
-            let style = if selected { highlight } else { normal };
-            let state_style = if enabled {
-                Style::default().fg(colors::success())
-            } else {
-                Style::default().fg(colors::text_dim())
-            };
-            Line::from(vec![
-                Span::styled(format!("{indicator} "), style),
-                Span::styled(label.to_string(), style),
-                Span::raw("  "),
-                Span::styled(
-                    format!("[{}]", if enabled { "x" } else { " " }),
-                    state_style,
-                ),
-            ])
-        };
+        let mut runs = Vec::new();
 
-        lines.push(row(
-            0,
-            "Auto-switch on rate/usage limit",
-            self.auto_switch_enabled,
-        ));
-        lines.push(Line::from(vec![
+        let mut auto = SettingsMenuRow::new(0usize, "Auto-switch on rate/usage limit")
+            .with_value(bool_value(self.auto_switch_enabled))
+            .with_selected_hint("Enter to toggle")
+            .into_run(selected_id);
+        auto.lines.push(Line::from(vec![
             Span::raw("    "),
             Span::styled(
                 "Switches to another connected account on 429/usage_limit.",
-                dim,
+                Style::new().fg(colors::text_dim()),
             ),
         ]));
+        runs.push(auto);
 
-        lines.push(row(
-            1,
-            "API key fallback when all accounts limited",
-            self.api_key_fallback_enabled,
-        ));
-        lines.push(Line::from(vec![
+        let mut fallback = SettingsMenuRow::new(1usize, "API key fallback when all accounts limited")
+            .with_value(bool_value(self.api_key_fallback_enabled))
+            .with_selected_hint("Enter to toggle")
+            .into_run(selected_id);
+        fallback.lines.push(Line::from(vec![
             Span::raw("    "),
             Span::styled(
                 "Only used if every connected ChatGPT account is limited.",
-                dim,
+                Style::new().fg(colors::text_dim()),
             ),
         ]));
+        runs.push(fallback);
 
-        let store_selected = self.selected_index == 2;
-        let store_style = if store_selected { highlight } else { normal };
-        let indicator = if store_selected { ">" } else { " " };
         let store_mode = Self::auth_store_mode_label(self.auth_credentials_store_mode);
-        lines.push(Line::from(vec![
-            Span::styled(format!("{indicator} "), store_style),
-            Span::styled("Credential store".to_string(), store_style),
-            Span::raw("  "),
-            Span::styled(
-                format!("[{store_mode}]"),
-                Style::default().fg(colors::primary()),
-            ),
-        ]));
         let store_detail = match self.auth_credentials_store_mode {
             AuthCredentialsStoreMode::Ephemeral => {
                 "In-memory only (will not persist across restarts)."
             }
             _ => "Where Code stores CLI auth credentials (auth.json payload).",
         };
-        lines.push(Line::from(vec![
+        let mut store = SettingsMenuRow::new(2usize, "Credential store")
+            .with_value(StyledText::new(
+                format!("[{store_mode}]"),
+                Style::new().fg(colors::primary()).bold(),
+            ))
+            .with_selected_hint("Enter to change")
+            .into_run(selected_id);
+        store.lines.push(Line::from(vec![
             Span::raw("    "),
-            Span::styled(store_detail, dim),
+            Span::styled(store_detail, Style::new().fg(colors::text_dim())),
         ]));
+        runs.push(store);
 
-        lines.push(Line::from(""));
+        runs.push(SelectableLineRun::plain(vec![Line::from("")]));
 
-        let manage_selected = self.selected_index == 3;
-        let manage_style = if manage_selected { highlight } else { normal };
-        let manage_indicator = if manage_selected { ">" } else { " " };
-        lines.push(Line::from(vec![
-            Span::styled(format!("{manage_indicator} "), manage_style),
-            Span::styled("Manage connected accounts", manage_style),
-        ]));
-        lines.push(Line::from(vec![
+        let mut manage = SettingsMenuRow::new(3usize, "Manage connected accounts")
+            .with_selected_hint("Enter to open")
+            .into_run(selected_id);
+        manage.lines.push(Line::from(vec![
             Span::raw("    "),
-            Span::styled("View, switch, and remove stored accounts.", dim),
+            Span::styled(
+                "View, switch, and remove stored accounts.",
+                Style::new().fg(colors::text_dim()),
+            ),
         ]));
+        runs.push(manage);
 
-        let add_selected = self.selected_index == 4;
-        let add_style = if add_selected { highlight } else { normal };
-        let add_indicator = if add_selected { ">" } else { " " };
-        lines.push(Line::from(vec![
-            Span::styled(format!("{add_indicator} "), add_style),
-            Span::styled("Add account", add_style),
-        ]));
-        lines.push(Line::from(vec![
+        let mut add = SettingsMenuRow::new(4usize, "Add account")
+            .with_selected_hint("Enter to open")
+            .into_run(selected_id);
+        add.lines.push(Line::from(vec![
             Span::raw("    "),
-            Span::styled("Start ChatGPT or API-key account setup.", dim),
+            Span::styled(
+                "Start ChatGPT or API-key account setup.",
+                Style::new().fg(colors::text_dim()),
+            ),
         ]));
+        runs.push(add);
 
-        lines.push(Line::from(""));
+        runs.push(SelectableLineRun::plain(vec![Line::from("")]));
 
-        let close_selected = self.selected_index == 5;
-        let close_style = if close_selected { highlight } else { normal };
-        let indicator = if close_selected { ">" } else { " " };
-        lines.push(Line::from(vec![
-            Span::styled(format!("{indicator} "), close_style),
-            Span::styled("Close", close_style),
-        ]));
+        runs.push(
+            SettingsMenuRow::new(5usize, "Close")
+                .with_selected_hint("Enter to close")
+                .into_run(selected_id),
+        );
 
-        lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(" Up/Down", Style::default().fg(colors::function())),
-            Span::styled(" Navigate  ", dim),
-            Span::styled("Enter", Style::default().fg(colors::success())),
-            Span::styled(" Toggle/Open  ", dim),
-            Span::styled("Esc", Style::default().fg(colors::error())),
-            Span::styled(" Close", dim),
-        ]));
-
-        lines
+        runs
     }
 
-    fn confirm_info_lines(&self, target: AuthCredentialsStoreMode, selected: usize) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
-        lines.push(Line::from(vec![Span::styled(
-            "Credential store",
-            Style::default().add_modifier(Modifier::BOLD),
-        )]));
-        lines.push(Line::from(""));
-
-        let dim = Style::default().fg(colors::text_dim());
+    fn confirm_page(&self, target: AuthCredentialsStoreMode) -> SettingsMenuPage<'static> {
         let current = Self::auth_store_mode_label(self.auth_credentials_store_mode);
         let next = Self::auth_store_mode_label(target);
-        lines.push(Line::from(vec![
-            Span::styled("Current: ", dim),
-            Span::styled(current, Style::default().fg(colors::text())),
-            Span::styled("   New: ", dim),
-            Span::styled(next, Style::default().fg(colors::primary()).add_modifier(Modifier::BOLD)),
-        ]));
-        lines.push(Line::from(""));
-
-        let highlight = Style::default()
-            .fg(colors::primary())
-            .add_modifier(Modifier::BOLD);
-        let normal = Style::default().fg(colors::text());
-
-        let row = |idx: usize, label: &str| -> Line<'static> {
-            let is_selected = idx == selected;
-            let indicator = if is_selected { ">" } else { " " };
-            let style = if is_selected { highlight } else { normal };
+        let header_lines = vec![
             Line::from(vec![
-                Span::styled(format!("{indicator} "), style),
-                Span::styled(label.to_string(), style),
-            ])
-        };
+                Span::styled("Current: ", Style::new().fg(colors::text_dim())),
+                Span::styled(current, Style::new().fg(colors::text())),
+                Span::styled("   New: ", Style::new().fg(colors::text_dim())),
+                Span::styled(next, Style::new().fg(colors::primary()).bold()),
+            ]),
+            Line::from(""),
+        ];
+        let footer_lines = vec![shortcut_line(&[
+            KeyHint::new("↑↓/Tab", " select").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new("Enter/Space", " apply").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error()).bold()),
+        ])];
 
-        lines.push(row(0, "Apply + migrate existing credentials"));
-        lines.push(row(1, "Apply (do not migrate)  (may log you out)"));
-        lines.push(row(2, "Cancel"));
-
-        lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(" Up/Down", Style::default().fg(colors::function())),
-            Span::styled(" Select  ", dim),
-            Span::styled("Enter", Style::default().fg(colors::success())),
-            Span::styled(" Apply  ", dim),
-            Span::styled("Esc", Style::default().fg(colors::error())),
-            Span::styled(" Back", dim),
-        ]));
-
-        lines
+        SettingsMenuPage::new(
+            "Credential store",
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
+            header_lines,
+            footer_lines,
+        )
     }
 
-    fn info_lines(&self) -> Vec<Line<'static>> {
-        match self.view_mode {
-            ViewMode::Main => self.main_info_lines(),
-            ViewMode::ConfirmStoreChange { target, selected } => {
-                self.confirm_info_lines(target, selected)
-            }
-        }
+    fn confirm_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
+        vec![
+            SettingsMenuRow::new(0usize, "Apply + migrate existing credentials"),
+            SettingsMenuRow::new(1usize, "Apply (do not migrate)  (may log you out)"),
+            SettingsMenuRow::new(2usize, "Cancel"),
+        ]
     }
 
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
-            return;
+        match self.view_mode {
+            ViewMode::Main => {
+                let page = self.main_page();
+                let runs = self.main_runs(Some(self.selected_index));
+                let mut rects = Vec::new();
+                let _ = page.render_runs(area, buf, 0, &runs, &mut rects);
+            }
+            ViewMode::ConfirmStoreChange { target, selected } => {
+                let page = self.confirm_page(target);
+                let rows = self.confirm_rows();
+                let _ = page.render_menu_rows(area, buf, 0, Some(selected), &rows);
+            }
         }
-
-        Paragraph::new(self.info_lines())
-            .wrap(Wrap { trim: true })
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .render(area, buf);
     }
 
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
@@ -454,16 +392,20 @@ impl AccountSwitchSettingsView {
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         match self.view_mode {
             ViewMode::Main => {
+                let page = self.main_page();
+                let runs = self.main_runs(None);
+                let Some(layout) = page.layout(area) else {
+                    return false;
+                };
                 let mut selected = self.selected_index;
-                let result = route_selectable_regions_mouse_with_config(
+                let result = route_selectable_list_mouse_with_config(
                     mouse_event,
                     &mut selected,
                     Self::MAIN_OPTION_COUNT,
-                    area,
-                    &Self::MAIN_HIT_REGIONS,
+                    |x, y| selection_run_id_at(layout.body, x, y, 0, &runs),
                     SelectableListMouseConfig {
-                        require_pointer_hit_for_scroll: true,
-                        scroll_behavior: ScrollSelectionBehavior::Clamp,
+                        hover_select: false,
+                        scroll_select: false,
                         ..SelectableListMouseConfig::default()
                     },
                 );
@@ -474,17 +416,21 @@ impl AccountSwitchSettingsView {
                 }
                 result.handled()
             }
-            ViewMode::ConfirmStoreChange { .. } => {
+            ViewMode::ConfirmStoreChange { target, .. } => {
+                let page = self.confirm_page(target);
+                let rows = self.confirm_rows();
+                let Some(layout) = page.layout(area) else {
+                    return false;
+                };
                 let mut selected = self.confirm_selected_index();
-                let result = route_selectable_regions_mouse_with_config(
+                let result = route_selectable_list_mouse_with_config(
                     mouse_event,
                     &mut selected,
                     Self::CONFIRM_OPTION_COUNT,
-                    area,
-                    &Self::CONFIRM_HIT_REGIONS,
+                    |x, y| selection_menu_id_at(layout.body, x, y, 0, &rows),
                     SelectableListMouseConfig {
-                        require_pointer_hit_for_scroll: true,
-                        scroll_behavior: ScrollSelectionBehavior::Clamp,
+                        hover_select: false,
+                        scroll_select: false,
                         ..SelectableListMouseConfig::default()
                     },
                 );

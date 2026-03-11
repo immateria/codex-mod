@@ -1,25 +1,28 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::layout::{Margin, Rect};
+use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::ui_interaction::{
-    RelativeHitRegion,
     redraw_if,
-    route_selectable_regions_mouse_with_config,
-    ScrollSelectionBehavior,
+    route_selectable_list_mouse_with_config,
     SelectableListMouseConfig,
     SelectableListMouseResult,
     wrap_next,
     wrap_prev,
 };
 use crate::chatwidget::BackgroundOrderTicket;
+use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::hints::{shortcut_line, KeyHint};
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::menu_rows::{selection_id_at as selection_menu_id_at, SettingsMenuRow};
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::rows::StyledText;
 use super::BottomPane;
 
 #[derive(Clone)]
@@ -38,10 +41,6 @@ pub(crate) struct NotificationsSettingsView {
 
 impl NotificationsSettingsView {
     const SELECTABLE_ROWS: usize = 2;
-    const HIT_REGIONS: [RelativeHitRegion; Self::SELECTABLE_ROWS] = [
-        RelativeHitRegion::new(0, 2, 1),
-        RelativeHitRegion::new(1, 4, 1),
-    ];
 
     pub fn new(
         mode: NotificationsMode,
@@ -89,13 +88,13 @@ impl NotificationsSettingsView {
             NotificationsMode::Toggle { enabled } => {
                 let status = if *enabled { "Enabled" } else { "Disabled" };
                 let color = if *enabled {
-                    crate::colors::success()
+                    colors::success()
                 } else {
-                    crate::colors::warning()
+                    colors::warning()
                 };
                 Line::from(vec![
-                    Span::styled("Status: ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled(status, Style::default().fg(color).add_modifier(Modifier::BOLD)),
+                    Span::styled("Status: ", Style::new().fg(colors::text_dim())),
+                    Span::styled(status, Style::new().fg(color).bold()),
                 ])
             }
             NotificationsMode::Custom { entries } => {
@@ -105,33 +104,67 @@ impl NotificationsSettingsView {
                     entries.join(", ")
                 };
                 Line::from(vec![
-                    Span::styled("Status: ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("Custom filter", Style::default().fg(crate::colors::info()).add_modifier(Modifier::BOLD)),
+                    Span::styled("Status: ", Style::new().fg(colors::text_dim())),
+                    Span::styled("Custom filter", Style::new().fg(colors::info()).bold()),
                     Span::raw("  "),
-                    Span::styled(filters, Style::default().fg(crate::colors::dim())),
+                    Span::styled(filters, Style::new().fg(colors::dim())),
                 ])
             }
         }
     }
 
-    fn toggle_line(&self) -> Line<'static> {
-        match &self.mode {
+    fn page(&self) -> SettingsMenuPage<'static> {
+        let footer_lines = match &self.mode {
+            NotificationsMode::Toggle { .. } => vec![shortcut_line(&[
+                KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(colors::function())),
+                KeyHint::new("←→/Space", " toggle").with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Enter", " toggle/close").with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error()).bold()),
+            ])],
+            NotificationsMode::Custom { .. } => vec![Line::from(vec![
+                Span::styled("Edit ", Style::new().fg(colors::text_dim())),
+                Span::styled("[tui].notifications", Style::new().fg(colors::info())),
+                Span::styled(
+                    " in ~/.code/config.toml to adjust filters.",
+                    Style::new().fg(colors::text_dim()),
+                ),
+            ])],
+        };
+
+        SettingsMenuPage::new(
+            "Notifications",
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
+            vec![self.status_line(), Line::from("")],
+            footer_lines,
+        )
+    }
+
+    fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
+        let notifications_row = match &self.mode {
             NotificationsMode::Toggle { enabled } => {
-                let label = if *enabled { "Enabled" } else { "Disabled" };
-                Line::from(vec![
-                    Span::styled("Notifications: ", Style::default().fg(crate::colors::text_dim())),
-                    Span::raw(label),
-                ])
+                let status = if *enabled { "Enabled" } else { "Disabled" };
+                let color = if *enabled { colors::success() } else { colors::warning() };
+                SettingsMenuRow::new(0usize, "Notifications").with_value(StyledText::new(
+                    status.to_string(),
+                    Style::new().fg(color).bold(),
+                ))
             }
-            NotificationsMode::Custom { .. } => {
-                Line::from(vec![
-                    Span::styled(
-                        "Notifications are managed by your config file.",
-                        Style::default().fg(crate::colors::text()),
-                    ),
-                ])
+            NotificationsMode::Custom { entries } => {
+                let filters = if entries.is_empty() {
+                    "<none>".to_string()
+                } else {
+                    entries.join(", ")
+                };
+                SettingsMenuRow::new(0usize, "Notifications")
+                    .with_value(StyledText::new(
+                        "Custom filter".to_string(),
+                        Style::new().fg(colors::info()).bold(),
+                    ))
+                    .with_detail(StyledText::new(filters, Style::new().fg(colors::dim())))
             }
-        }
+        };
+
+        vec![notifications_row, SettingsMenuRow::new(1usize, "Close")]
     }
 
     fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
@@ -174,15 +207,20 @@ impl NotificationsSettingsView {
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let mut selected = self.selected_row;
-        let result = route_selectable_regions_mouse_with_config(
+        let rows = self.menu_rows();
+        let Some(layout) = self.page().layout(area) else {
+            return false;
+        };
+        let result = route_selectable_list_mouse_with_config(
             mouse_event,
             &mut selected,
-            Self::SELECTABLE_ROWS,
-            area,
-            &Self::HIT_REGIONS,
+            rows.len(),
+            |x, y| {
+                selection_menu_id_at(layout.body, x, y, 0, &rows)
+            },
             SelectableListMouseConfig {
-                require_pointer_hit_for_scroll: true,
-                scroll_behavior: ScrollSelectionBehavior::Clamp,
+                hover_select: false,
+                scroll_select: false,
                 ..SelectableListMouseConfig::default()
             },
         );
@@ -225,75 +263,8 @@ impl<'a> BottomPaneView<'a> for NotificationsSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(" Notifications ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-
-        let mut lines = Vec::new();
-        lines.push(self.status_line());
-        lines.push(Line::from(""));
-        let mut toggle_line = self.toggle_line();
-        if self.selected_row == 0 {
-            toggle_line = toggle_line
-                .style(
-                    Style::default()
-                        .bg(crate::colors::selection())
-                        .add_modifier(Modifier::BOLD),
-                );
-        }
-        lines.push(toggle_line);
-        lines.push(Line::from(""));
-        let mut close_line = Line::from(vec![
-            Span::raw(if self.selected_row == 1 { "> " } else { "  " }),
-            Span::raw("Close"),
-        ]);
-        if self.selected_row == 1 {
-            close_line = close_line
-                .style(
-                    Style::default()
-                        .bg(crate::colors::selection())
-                        .add_modifier(Modifier::BOLD),
-                );
-        }
-        lines.push(close_line);
-        lines.push(Line::from(""));
-
-        let footer = match &self.mode {
-            NotificationsMode::Toggle { .. } => Line::from(vec![
-                Span::styled("Up/Down", Style::default().fg(crate::colors::light_blue())),
-                Span::raw(" Navigate  "),
-                Span::styled("Left/Right or Space", Style::default().fg(crate::colors::success())),
-                Span::raw(" Toggle  "),
-                Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                Span::raw(" Toggle or Close  "),
-                Span::styled("Esc", Style::default().fg(crate::colors::error())),
-                Span::raw(" Cancel"),
-            ]),
-            NotificationsMode::Custom { .. } => Line::from(vec![
-                Span::styled("Edit ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("[tui].notifications", Style::default().fg(crate::colors::info())),
-                Span::styled(" in ~/.code/config.toml to adjust filters.", Style::default().fg(crate::colors::text_dim())),
-            ]),
-        };
-        lines.push(footer);
-
-        let paragraph = Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
-        paragraph.render(
-            Rect {
-                x: inner.x.saturating_add(1),
-                y: inner.y,
-                width: inner.width.saturating_sub(2),
-                height: inner.height,
-            },
-            buf,
-        );
+        let page = self.page();
+        let rows = self.menu_rows();
+        let _ = page.render_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
     }
 }

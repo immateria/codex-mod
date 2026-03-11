@@ -35,9 +35,10 @@ use crate::ui_interaction::{
 };
 use super::BottomPane;
 use super::settings_ui::action_page::SettingsActionPage;
-use super::settings_ui::buttons::{TextButton, TextButtonAlign};
+use super::settings_ui::buttons::{standard_button_specs, SettingsButtonKind, StandardButtonSpec};
 use super::settings_ui::editor_page::SettingsEditorPage;
 use super::settings_ui::form_page::{SettingsFormPage, SettingsFormSection};
+use super::settings_ui::hints::{status_and_shortcuts, title_line, KeyHint};
 use super::settings_ui::list_detail_page::{SettingsListDetailMode, SettingsListDetailPage};
 use super::settings_ui::message_page::SettingsMessagePage;
 use super::settings_ui::menu_page::SettingsMenuPage;
@@ -1218,44 +1219,41 @@ impl LoginAccountsState {
 
     fn render_store_paths_editor(&self, area: Rect, buf: &mut Buffer, editor: &StorePathEditorState) {
         let page = self.store_paths_editor_form_page();
-        let Some(layout) = page.render(
+        let buttons = self.store_paths_editor_button_specs(editor.selected_row);
+        let Some(_layout) = page.render_with_standard_actions_end(
             area,
             buf,
             &[&editor.read_paths_field, &editor.write_path_field],
+            &buttons,
         ) else {
             return;
         };
-
-        let buttons = self.store_paths_editor_buttons(editor.selected_row);
-        page.render_actions(&layout, buf, &buttons, TextButtonAlign::End);
     }
 
     fn store_paths_editor_page(&self) -> SettingsActionPage<'static> {
-        let mut header_lines = Vec::new();
-        if let Some(feedback) = &self.feedback {
+        let header_lines = vec![
+            title_line("Account Store Paths"),
+            Line::from("Set where account records are read/written."),
+            Line::from(""),
+        ];
+        let status = self.feedback.as_ref().map(|feedback| {
             let style = if feedback.is_error {
-                Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)
+                Style::new().fg(crate::colors::error()).bold()
             } else {
-                Style::default().fg(crate::colors::success()).add_modifier(Modifier::BOLD)
+                Style::new().fg(crate::colors::success()).bold()
             };
-            header_lines.push(Line::from(vec![Span::styled(feedback.message.clone(), style)]));
-            header_lines.push(Line::from(""));
-        }
-        header_lines.push(Line::from(vec![Span::styled(
-            "Account Store Paths",
-            Style::default().add_modifier(Modifier::BOLD),
-        )]));
-        header_lines.push(Line::from("Set where account records are read/written."));
-        header_lines.push(Line::from(""));
-
-        let footer_lines = vec![Line::from(vec![
-            Span::styled("Tab", Style::default().fg(crate::colors::function())),
-            Span::styled(" Next  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("S", Style::default().fg(crate::colors::success()).add_modifier(Modifier::BOLD)),
-            Span::styled(" Save  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
-            Span::styled(" Back", Style::default().fg(crate::colors::text_dim())),
-        ])];
+            super::settings_ui::rows::StyledText::new(feedback.message.clone(), style)
+        });
+        let footer_lines = status_and_shortcuts(
+            status,
+            &[
+                KeyHint::new("Tab", " next"),
+                KeyHint::new("S", " save")
+                    .with_key_style(Style::new().fg(crate::colors::success()).bold()),
+                KeyHint::new("Esc", " back")
+                    .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+            ],
+        );
 
         SettingsActionPage::new("Manage Accounts", Self::panel_style(), header_lines, footer_lines)
             .with_action_rows(1)
@@ -1277,26 +1275,22 @@ impl LoginAccountsState {
         .with_section_gap_rows(1)
     }
 
-    fn store_paths_editor_buttons(
+    fn store_paths_editor_button_specs(
         &self,
         selected_row: usize,
-    ) -> [TextButton<'static, StorePathEditorAction>; 2] {
-        [
-            TextButton::new(
-                StorePathEditorAction::Save,
-                "Save",
-                selected_row == 2,
-                false,
-                Style::new().fg(crate::colors::success()).bold(),
-            ),
-            TextButton::new(
-                StorePathEditorAction::Cancel,
-                "Cancel",
-                selected_row == 3,
-                false,
-                Style::new().fg(crate::colors::error()).bold(),
-            ),
-        ]
+    ) -> Vec<StandardButtonSpec<StorePathEditorAction>> {
+        standard_button_specs(
+            &[
+                (StorePathEditorAction::Save, SettingsButtonKind::Save),
+                (StorePathEditorAction::Cancel, SettingsButtonKind::Cancel),
+            ],
+            match selected_row {
+                2 => Some(StorePathEditorAction::Save),
+                3 => Some(StorePathEditorAction::Cancel),
+                _ => None,
+            },
+            None,
+        )
     }
 
     fn handle_store_paths_editor_mouse(
@@ -1309,16 +1303,15 @@ impl LoginAccountsState {
         let Some(layout) = page.layout(area) else {
             return (true, false);
         };
-        let buttons = self.store_paths_editor_buttons(editor.selected_row);
+        let buttons = self.store_paths_editor_button_specs(editor.selected_row);
 
         match mouse_event.kind {
             MouseEventKind::Down(MouseButton::Left) => {
-                if let Some(action) = page.action_at(
+                if let Some(action) = page.standard_action_at_end(
                     &layout,
                     mouse_event.column,
                     mouse_event.row,
                     &buttons,
-                    TextButtonAlign::End,
                 ) {
                     return match action {
                         StorePathEditorAction::Save => {
@@ -1666,18 +1659,19 @@ impl LoginAddAccountState {
         lines.max(10) + 2
     }
 
-    fn feedback_lines(&self) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
-        if let Some(feedback) = &self.feedback {
+    fn feedback_styled_text(&self) -> Option<super::settings_ui::rows::StyledText<'static>> {
+        self.feedback.as_ref().map(|feedback| {
             let style = if feedback.is_error {
-                Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)
+                Style::new().fg(crate::colors::error()).bold()
             } else {
-                Style::default().fg(crate::colors::success()).add_modifier(Modifier::BOLD)
+                Style::new().fg(crate::colors::success()).bold()
             };
-            lines.push(Line::from(vec![Span::styled(feedback.message.clone(), style)]));
-            lines.push(Line::from(""));
-        }
-        lines
+            super::settings_ui::rows::StyledText::new(feedback.message.clone(), style)
+        })
+    }
+
+    fn footer_status_and_shortcuts(&self, hints: &[KeyHint<'_>]) -> Vec<Line<'static>> {
+        status_and_shortcuts(self.feedback_styled_text(), hints)
     }
 
     fn auth_progress_message_page(
@@ -1688,7 +1682,7 @@ impl LoginAddAccountState {
         SettingsMessagePage::new(
             "Add Account",
             LoginAccountsState::panel_style(),
-            self.feedback_lines(),
+            Vec::new(),
             body_lines,
             footer_lines,
         )
@@ -1698,16 +1692,12 @@ impl LoginAddAccountState {
     pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
         match &self.step {
             AddStep::Choose { selected } => {
-                let mut header_lines = self.feedback_lines();
-                header_lines.push(Line::from("Choose how you’d like to add an account:"));
-                let footer_lines = vec![Line::from(vec![
-                    Span::styled("↑↓", Style::default().fg(crate::colors::function())),
-                    Span::styled(" Navigate  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                    Span::styled(" Select  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
-                    Span::styled(" Back", Style::default().fg(crate::colors::text_dim())),
-                ])];
+                let header_lines = vec![Line::from("Choose how you’d like to add an account:")];
+                let footer_lines = self.footer_status_and_shortcuts(&[
+                    KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(crate::colors::function())),
+                    KeyHint::new("Enter", " select").with_key_style(Style::new().fg(crate::colors::success())),
+                    KeyHint::new("Esc", " back").with_key_style(Style::new().fg(crate::colors::error()).bold()),
+                ]);
                 let page = SettingsMenuPage::new(
                     "Add Account",
                     LoginAccountsState::panel_style(),
@@ -1721,17 +1711,13 @@ impl LoginAddAccountState {
                 let _ = page.render_menu_rows(area, buf, 0, Some(*selected), &rows);
             }
             AddStep::ApiKey { field } => {
-                let mut pre_lines = self.feedback_lines();
-                pre_lines.push(Line::from("Paste your OpenAI API key:"));
-                let post_lines = vec![
-                    Line::from(""),
-                    Line::from(vec![
-                        Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                        Span::styled(" Save  ", Style::default().fg(crate::colors::text_dim())),
-                        Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
-                        Span::styled(" Cancel", Style::default().fg(crate::colors::text_dim())),
-                    ]),
-                ];
+                let pre_lines = vec![Line::from("Paste your OpenAI API key:")];
+                let post_lines = self.footer_status_and_shortcuts(&[
+                    KeyHint::new("Enter", " save")
+                        .with_key_style(Style::new().fg(crate::colors::success())),
+                    KeyHint::new("Esc", " cancel")
+                        .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+                ]);
                 let page = SettingsEditorPage::new(
                     "Add Account",
                     LoginAccountsState::panel_style(),
@@ -1742,10 +1728,10 @@ impl LoginAddAccountState {
                 let _ = page.render(area, buf, field);
             }
             AddStep::Waiting { auth_url } => {
-                let footer_lines = vec![Line::from(vec![
-                    Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
-                    Span::styled(" Cancel login", Style::default().fg(crate::colors::text_dim())),
-                ])];
+                let footer_lines = self.footer_status_and_shortcuts(&[
+                    KeyHint::new("Esc", " cancel login")
+                        .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+                ]);
                 let content_width = self
                     .auth_progress_message_page(Vec::new(), footer_lines.clone())
                     .layout(area)
@@ -1773,10 +1759,10 @@ impl LoginAddAccountState {
                 let _ = page.render(area, buf);
             }
             AddStep::DeviceCode(state) => {
-                let footer_lines = vec![Line::from(vec![
-                    Span::styled("Esc", Style::default().fg(crate::colors::error()).add_modifier(Modifier::BOLD)),
-                    Span::styled(" Cancel login", Style::default().fg(crate::colors::text_dim())),
-                ])];
+                let footer_lines = self.footer_status_and_shortcuts(&[
+                    KeyHint::new("Esc", " cancel login")
+                        .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+                ]);
                 let content_width = self
                     .auth_progress_message_page(Vec::new(), footer_lines.clone())
                     .layout(area)

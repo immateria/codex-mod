@@ -1,6 +1,7 @@
 use super::*;
 use crate::bottom_pane::settings_ui::buttons::{
-    render_text_button_strip, text_button_strip_width, TextButton,
+    render_standard_button_strip,
+    standard_button_strip_width,
 };
 use crate::bottom_pane::settings_ui::fields::BorderedField;
 
@@ -192,41 +193,12 @@ impl SkillsSettingsView {
         let _ = body_block(matches!(self.editor.focus, Focus::Body))
             .render(layout.body_outer, buf, &self.editor.body_field);
 
-        let buttons = [
-            TextButton::new(
-                ActionButton::Generate,
-                GENERATE_BUTTON_LABEL,
-                self.editor.focus == Focus::Generate,
-                self.editor.hovered_button == Some(ActionButton::Generate),
-                Style::default().fg(colors::info()).add_modifier(Modifier::BOLD),
-            ),
-            TextButton::new(
-                ActionButton::Save,
-                SAVE_BUTTON_LABEL,
-                self.editor.focus == Focus::Save,
-                self.editor.hovered_button == Some(ActionButton::Save),
-                Style::default().fg(colors::success()).add_modifier(Modifier::BOLD),
-            ),
-            TextButton::new(
-                ActionButton::Delete,
-                DELETE_BUTTON_LABEL,
-                self.editor.focus == Focus::Delete,
-                self.editor.hovered_button == Some(ActionButton::Delete),
-                Style::default().fg(colors::error()).add_modifier(Modifier::BOLD),
-            ),
-            TextButton::new(
-                ActionButton::Cancel,
-                CANCEL_BUTTON_LABEL,
-                self.editor.focus == Focus::Cancel,
-                self.editor.hovered_button == Some(ActionButton::Cancel),
-                Style::default().fg(colors::text_dim()).add_modifier(Modifier::BOLD),
-            ),
-        ];
-        render_text_button_strip(layout.buttons_row, buf, &buttons);
+        let buttons = self.action_button_specs();
+        render_standard_button_strip(layout.buttons_row, buf, &buttons);
         let hint_x = layout
             .buttons_row
             .x
-            .saturating_add(text_button_strip_width(&buttons))
+            .saturating_add(standard_button_strip_width(&buttons))
             .saturating_add(4);
         Paragraph::new(Line::from(Span::raw(
             "Tab cycle - Enter activates - <-/-> mode - Ctrl+G generate",

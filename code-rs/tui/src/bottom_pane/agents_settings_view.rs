@@ -1,21 +1,43 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect, Margin};
-use ratatui::style::{Modifier, Style};
+use ratatui::layout::{Margin, Rect};
+use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
-use unicode_width::UnicodeWidthStr;
+use ratatui::widgets::{Paragraph, Widget};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
+use crate::colors;
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-// list_selection_view no longer used (overview replaces the list)
 use super::BottomPane;
 use crate::components::form_text_field::FormTextField;
 use crate::ui_interaction::redraw_if;
 
-// Removed legacy AgentsSettingsView list. Overview replaces it.
+use super::settings_ui::action_page::SettingsActionPage;
+use super::settings_ui::buttons::{
+    standard_button_specs,
+    SettingsButtonKind,
+    StandardButtonSpec,
+    TextButtonAlign,
+};
+use super::settings_ui::fields::BorderedField;
+use super::settings_ui::hints::{status_and_shortcuts, title_line, KeyHint};
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::rows::StyledText;
+use super::settings_ui::toggle;
+use super::settings_ui::wrap::wrap_spans;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Focus {
+    Name,
+    Mode,
+    Agents,
+    Instructions,
+    Save,
+    Delete,
+    Cancel,
+}
 
 #[derive(Debug)]
 pub struct SubagentEditorView {
@@ -26,13 +48,17 @@ pub struct SubagentEditorView {
     orch_field: FormTextField,
     available_agents: Vec<String>,
     is_new: bool,
-    field: usize, // 0 name, 1 mode, 2 agents, 3 orch, 4 save, 5 cancel
+    focus: Focus,
     is_complete: bool,
     app_event_tx: AppEventSender,
     confirm_delete: bool,
 }
 
 impl SubagentEditorView {
+    fn panel_style() -> SettingsPanelStyle {
+        SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0))
+    }
+
     fn build_with(
         available_agents: Vec<String>,
         existing: Vec<code_core::config_types::SubagentCommandConfig>,
@@ -47,7 +73,7 @@ impl SubagentEditorView {
             orch_field: FormTextField::new_multi_line(),
             available_agents,
             is_new: name.is_empty(),
-            field: 0,
+            focus: Focus::Name,
             is_complete: false,
             app_event_tx,
             confirm_delete: false,
@@ -130,154 +156,415 @@ impl SubagentEditorView {
         self.app_event_tx.send(AppEvent::UpdateSubagentCommand(cfg));
     }
 
-    fn handle_key_event_internal(&mut self, key_event: KeyEvent) -> bool {
-        let show_delete = !self.is_new
-            && !matches!(
-                self.name_field.text().to_ascii_lowercase().as_str(),
-                "plan" | "solve" | "code"
-            );
-        let last_btn_idx = if show_delete { 6 } else { 5 };
+    fn show_delete(&self) -> bool {
+        if self.is_new {
+            return false;
+        }
+        let name = self.name_field.text();
+        !name.trim().is_empty()
+            && !["plan", "solve", "code"]
+                .iter()
+                .any(|reserved| name.eq_ignore_ascii_case(reserved))
+    }
 
+    fn focus_chain(&self) -> Vec<Focus> {
+        let mut chain = vec![Focus::Name, Focus::Mode, Focus::Agents, Focus::Instructions];
+        chain.extend(self.action_items().into_iter().map(|(id, _)| id));
+        chain
+    }
+
+    fn focus_prev(&mut self) {
+        let chain = self.focus_chain();
+        let Some(idx) = chain.iter().position(|f| *f == self.focus) else {
+            self.focus = Focus::Name;
+            return;
+        };
+        if idx > 0 {
+            self.focus = chain[idx - 1];
+        }
+    }
+
+    fn focus_next(&mut self) {
+        let chain = self.focus_chain();
+        let Some(idx) = chain.iter().position(|f| *f == self.focus) else {
+            self.focus = Focus::Name;
+            return;
+        };
+        if idx + 1 < chain.len() {
+            self.focus = chain[idx + 1];
+        }
+    }
+
+    fn action_items(&self) -> Vec<(Focus, SettingsButtonKind)> {
+        if self.confirm_delete {
+            vec![
+                (Focus::Delete, SettingsButtonKind::Delete),
+                (Focus::Cancel, SettingsButtonKind::Cancel),
+            ]
+        } else if self.show_delete() {
+            vec![
+                (Focus::Save, SettingsButtonKind::Save),
+                (Focus::Delete, SettingsButtonKind::Delete),
+                (Focus::Cancel, SettingsButtonKind::Cancel),
+            ]
+        } else {
+            vec![
+                (Focus::Save, SettingsButtonKind::Save),
+                (Focus::Cancel, SettingsButtonKind::Cancel),
+            ]
+        }
+    }
+
+    fn action_button_specs(&self) -> Vec<StandardButtonSpec<Focus>> {
+        let focused = matches!(self.focus, Focus::Save | Focus::Delete | Focus::Cancel)
+            .then_some(self.focus);
+        standard_button_specs(&self.action_items(), focused, None)
+    }
+
+    fn move_action_left(&mut self) {
+        let actions = self.action_items();
+        let Some(idx) = actions.iter().position(|(id, _)| *id == self.focus) else {
+            return;
+        };
+        if idx > 0 {
+            self.focus = actions[idx - 1].0;
+        }
+    }
+
+    fn move_action_right(&mut self) {
+        let actions = self.action_items();
+        let Some(idx) = actions.iter().position(|(id, _)| *id == self.focus) else {
+            return;
+        };
+        if idx + 1 < actions.len() {
+            self.focus = actions[idx + 1].0;
+        }
+    }
+
+    fn enter_confirm_delete(&mut self) {
+        self.confirm_delete = true;
+        self.focus = Focus::Delete;
+    }
+
+    fn exit_confirm_delete(&mut self) {
+        self.confirm_delete = false;
+        if self.show_delete() {
+            self.focus = Focus::Delete;
+        } else {
+            self.focus = Focus::Save;
+        }
+    }
+
+    fn delete_current(&mut self) {
+        let id = self.name_field.text().to_string();
+        if id.trim().is_empty() {
+            self.exit_confirm_delete();
+            return;
+        }
+
+        if let Ok(home) = code_core::config::find_code_home() {
+            let idc = id.clone();
+            tokio::spawn(async move {
+                let _ = code_core::config_edit::delete_subagent_command(&home, &idc).await;
+            });
+        }
+        self.app_event_tx.send(AppEvent::DeleteSubagentCommand(id));
+        self.is_complete = true;
+        self.app_event_tx.send(AppEvent::ShowAgentsOverview);
+    }
+
+    fn header_lines(&self) -> Vec<Line<'static>> {
+        let title = if self.is_new {
+            "New agent command".to_string()
+        } else {
+            let id = self.name_field.text();
+            if id.trim().is_empty() {
+                "Edit agent command".to_string()
+            } else {
+                format!("Edit agent command: {id}")
+            }
+        };
+        vec![title_line(title)]
+    }
+
+    fn footer_lines(&self) -> Vec<Line<'static>> {
+        let status = self.confirm_delete.then_some(StyledText::new(
+            "Confirm delete: this removes the command from config.".to_string(),
+            Style::new().fg(colors::error()).bold(),
+        ));
+        status_and_shortcuts(
+            status,
+            &[
+                KeyHint::new("Tab", " next"),
+                KeyHint::new("Shift+Tab", " prev"),
+                KeyHint::new("Space", " toggle")
+                    .with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Ctrl+S", " save")
+                    .with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Esc", " back")
+                    .with_key_style(Style::new().fg(colors::error())),
+            ],
+        )
+    }
+
+    fn page(&self) -> SettingsActionPage<'static> {
+        SettingsActionPage::new(
+            "Configure Agent Command",
+            Self::panel_style(),
+            self.header_lines(),
+            self.footer_lines(),
+        )
+        .with_wrap_lines(true)
+    }
+
+    fn agent_lines(&self, max_width: u16) -> Vec<Line<'static>> {
+        let max_width = max_width.max(1) as usize;
+        let mut spans = Vec::new();
+
+        for (idx, agent) in self.available_agents.iter().enumerate() {
+            if idx > 0 {
+                spans.push(Span::raw("  "));
+            }
+
+            let checked = if self.selected_agent_indices.contains(&idx) {
+                "[x]"
+            } else {
+                "[ ]"
+            };
+            let mut style = if self.selected_agent_indices.contains(&idx) {
+                Style::new().fg(colors::success()).bold()
+            } else {
+                Style::new().fg(colors::text_dim())
+            };
+
+            if self.focus == Focus::Agents && idx == self.agent_cursor {
+                style = style.bg(colors::selection()).bold();
+            }
+
+            spans.push(Span::styled(format!("{checked} {agent}"), style));
+        }
+
+        wrap_spans(spans, max_width)
+    }
+
+    fn render_body(&self, body: Rect, buf: &mut Buffer) {
+        if body.width == 0 || body.height == 0 {
+            return;
+        }
+
+        let gap_h = 1u16;
+        let id_box_h = 3u16;
+        let mode_box_h = 3u16;
+        let agent_inner_w = body.width.saturating_sub(4).max(1);
+        let agent_inner_lines = self.agent_lines(agent_inner_w).len() as u16;
+        let agent_box_h = agent_inner_lines.saturating_add(2).max(3);
+
+        let orch_inner_w = body.width.saturating_sub(2).max(1);
+        let desired_orch_inner = self.orch_field.desired_height(orch_inner_w).max(1);
+        let orch_box_h = desired_orch_inner.min(8).saturating_add(2).max(3);
+
+        let mut y = body.y;
+        let mut remaining = body.height;
+
+        let base_style = Style::new().bg(colors::background()).fg(colors::text());
+
+        let id_h = id_box_h.min(remaining);
+        let id_rect = Rect::new(body.x, y, body.width, id_h);
+        let _ = BorderedField::new("ID", self.focus == Focus::Name)
+            .render(id_rect, buf, &self.name_field);
+        y = y.saturating_add(id_h);
+        remaining = remaining.saturating_sub(id_h);
+
+        if remaining == 0 {
+            return;
+        }
+        let spacer = gap_h.min(remaining);
+        y = y.saturating_add(spacer);
+        remaining = remaining.saturating_sub(spacer);
+
+        if remaining == 0 {
+            return;
+        }
+        let mode_h = mode_box_h.min(remaining);
+        let mode_rect = Rect::new(body.x, y, body.width, mode_h);
+        let mode_inner = BorderedField::new("Mode", self.focus == Focus::Mode)
+            .render_block(mode_rect, buf)
+            .inner(Margin::new(1, 0));
+        let ro = toggle::checkbox_label(self.read_only, "read-only");
+        let ro_style = if self.read_only { ro.style.bold() } else { ro.style };
+        let wr = toggle::checkbox_label(!self.read_only, "write");
+        let wr_style = if self.read_only { wr.style } else { wr.style.bold() };
+        let mode_line = Line::from(vec![
+            Span::styled(ro.text, ro_style),
+            Span::raw("  "),
+            Span::styled(wr.text, wr_style),
+        ]);
+        Paragraph::new(vec![mode_line])
+            .style(base_style)
+            .render(mode_inner, buf);
+        y = y.saturating_add(mode_h);
+        remaining = remaining.saturating_sub(mode_h);
+
+        if remaining == 0 {
+            return;
+        }
+        let spacer = gap_h.min(remaining);
+        y = y.saturating_add(spacer);
+        remaining = remaining.saturating_sub(spacer);
+
+        if remaining == 0 {
+            return;
+        }
+        let agents_h = agent_box_h.min(remaining);
+        let agents_rect = Rect::new(body.x, y, body.width, agents_h);
+        let agents_inner = BorderedField::new("Agents", self.focus == Focus::Agents)
+            .render_block(agents_rect, buf)
+            .inner(Margin::new(1, 0));
+        let agent_lines = self.agent_lines(agents_inner.width);
+        Paragraph::new(agent_lines).style(base_style).render(agents_inner, buf);
+        y = y.saturating_add(agents_h);
+        remaining = remaining.saturating_sub(agents_h);
+
+        if remaining == 0 {
+            return;
+        }
+        let spacer = gap_h.min(remaining);
+        y = y.saturating_add(spacer);
+        remaining = remaining.saturating_sub(spacer);
+
+        if remaining == 0 {
+            return;
+        }
+        let orch_h = orch_box_h.min(remaining);
+        let orch_rect = Rect::new(body.x, y, body.width, orch_h);
+        let _ = BorderedField::new("Instructions", self.focus == Focus::Instructions)
+            .render(orch_rect, buf, &self.orch_field);
+    }
+
+    fn handle_key_event_internal(&mut self, key_event: KeyEvent) -> bool {
         match key_event {
             KeyEvent { code: KeyCode::Esc, .. } => {
-                self.is_complete = false;
+                self.is_complete = true;
+                self.confirm_delete = false;
                 self.app_event_tx.send(AppEvent::ShowAgentsOverview);
                 true
             }
             KeyEvent { code: KeyCode::Tab, .. } => {
-                self.field = (self.field + 1).min(last_btn_idx);
+                self.focus_next();
                 true
             }
             KeyEvent { code: KeyCode::BackTab, .. } => {
-                if self.field > 0 {
-                    self.field -= 1;
-                }
+                self.focus_prev();
                 true
             }
             KeyEvent { code: KeyCode::Up, modifiers, .. } => {
-                if self.field == 3 {
+                if self.focus == Focus::Instructions {
                     let at_start = self.orch_field.cursor_is_at_start();
-                    let _ = self.orch_field.handle_key(KeyEvent { code: KeyCode::Up, modifiers, ..key_event });
-                    if at_start && self.field > 0 {
-                        self.field -= 1;
+                    let _ = self
+                        .orch_field
+                        .handle_key(KeyEvent { code: KeyCode::Up, modifiers, ..key_event });
+                    if at_start {
+                        self.focus_prev();
                     }
-                } else if self.field > 0 {
-                    self.field -= 1;
+                } else {
+                    self.focus_prev();
                 }
                 true
             }
             KeyEvent { code: KeyCode::Down, modifiers, .. } => {
-                if self.field == 3 {
+                if self.focus == Focus::Instructions {
                     let at_end = self.orch_field.cursor_is_at_end();
-                    let _ = self.orch_field.handle_key(KeyEvent { code: KeyCode::Down, modifiers, ..key_event });
+                    let _ = self
+                        .orch_field
+                        .handle_key(KeyEvent { code: KeyCode::Down, modifiers, ..key_event });
                     if at_end {
-                        self.field = (self.field + 1).min(5);
+                        self.focus_next();
                     }
                 } else {
-                    self.field = (self.field + 1).min(5);
+                    self.focus_next();
                 }
                 true
             }
-            KeyEvent { code: KeyCode::Left, .. } if self.field == 1 => {
+            KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE, .. }
+                if matches!(self.focus, Focus::Save | Focus::Delete | Focus::Cancel) =>
+            {
+                self.move_action_left();
+                true
+            }
+            KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE, .. }
+                if matches!(self.focus, Focus::Save | Focus::Delete | Focus::Cancel) =>
+            {
+                self.move_action_right();
+                true
+            }
+            KeyEvent { code: KeyCode::Left | KeyCode::Right | KeyCode::Enter, modifiers: KeyModifiers::NONE, .. }
+                if self.focus == Focus::Mode =>
+            {
                 self.read_only = !self.read_only;
                 true
             }
-            KeyEvent { code: KeyCode::Right, .. } if self.field == 1 => {
-                self.read_only = !self.read_only;
-                true
-            }
-            KeyEvent { code: KeyCode::Enter, .. } if self.field == 1 => {
-                self.read_only = !self.read_only;
-                true
-            }
-            KeyEvent { code: KeyCode::Left, .. } if self.field == 2 => {
+            KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE, .. }
+                if self.focus == Focus::Agents =>
+            {
                 if self.agent_cursor > 0 {
                     self.agent_cursor -= 1;
                 }
                 true
             }
-            KeyEvent { code: KeyCode::Right, .. } if self.field == 2 => {
+            KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE, .. }
+                if self.focus == Focus::Agents =>
+            {
                 if self.agent_cursor + 1 < self.available_agents.len() {
                     self.agent_cursor += 1;
                 }
                 true
             }
-            KeyEvent { code: KeyCode::Char(' '), .. } if self.field == 2 => {
-                let idx = self.agent_cursor.min(self.available_agents.len().saturating_sub(1));
+            KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. }
+                if self.focus == Focus::Agents =>
+            {
+                let idx = self
+                    .agent_cursor
+                    .min(self.available_agents.len().saturating_sub(1));
                 self.toggle_agent_at(idx);
                 true
             }
-            KeyEvent { code: KeyCode::Enter, .. } if self.field == 2 => {
-                let idx = self.agent_cursor.min(self.available_agents.len().saturating_sub(1));
+            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. }
+                if self.focus == Focus::Agents =>
+            {
+                let idx = self
+                    .agent_cursor
+                    .min(self.available_agents.len().saturating_sub(1));
                 self.toggle_agent_at(idx);
                 true
             }
-            KeyEvent { code: KeyCode::Left, .. } if self.field >= 5 && show_delete => {
-                if self.field > 4 {
-                    self.field -= 1;
-                }
-                true
-            }
-            KeyEvent { code: KeyCode::Right, .. } if self.field >= 4 && show_delete => {
-                if self.field < 6 {
-                    self.field += 1;
-                }
-                true
-            }
-            KeyEvent { code: KeyCode::Left, .. } if !show_delete && self.field == 5 => {
-                self.field = 4;
-                true
-            }
-            KeyEvent { code: KeyCode::Right, .. } if !show_delete && self.field == 4 => {
-                self.field = 5;
-                true
-            }
-            ev @ KeyEvent { .. } if self.field == 0 => {
-                let _ = self.name_field.handle_key(ev);
-                true
-            }
-            ev @ KeyEvent { .. } if self.field == 3 => {
-                let _ = self.orch_field.handle_key(ev);
-                true
-            }
-            KeyEvent { code: KeyCode::Enter, .. } if self.field == 4 && !self.confirm_delete => {
+            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. }
+                if self.focus == Focus::Save && !self.confirm_delete =>
+            {
                 self.save();
                 self.is_complete = true;
                 true
             }
-            KeyEvent { code: KeyCode::Enter, .. } if self.field == 5 && show_delete && !self.confirm_delete => {
-                self.confirm_delete = true;
+            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. }
+                if self.focus == Focus::Delete && !self.confirm_delete =>
+            {
+                self.enter_confirm_delete();
                 true
             }
-            KeyEvent { code: KeyCode::Enter, .. } if self.field == 6 && !self.confirm_delete => {
-                self.is_complete = true;
-                self.app_event_tx.send(AppEvent::ShowAgentsOverview);
+            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. }
+                if self.focus == Focus::Delete && self.confirm_delete =>
+            {
+                self.delete_current();
                 true
             }
-            KeyEvent { code: KeyCode::Enter, .. } if self.field == 5 && !show_delete && !self.confirm_delete => {
-                self.is_complete = true;
-                self.app_event_tx.send(AppEvent::ShowAgentsOverview);
-                true
-            }
-            KeyEvent { code: KeyCode::Enter, .. } if self.confirm_delete && self.field == 4 => {
-                let id = self.name_field.text().to_string();
-                if !id.trim().is_empty() {
-                    if let Ok(home) = code_core::config::find_code_home() {
-                        let idc = id.clone();
-                        tokio::spawn(async move {
-                            let _ = code_core::config_edit::delete_subagent_command(&home, &idc).await;
-                        });
-                    }
-                    self.app_event_tx.send(AppEvent::DeleteSubagentCommand(id));
+            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. }
+                if self.focus == Focus::Cancel =>
+            {
+                if self.confirm_delete {
+                    self.exit_confirm_delete();
+                } else {
                     self.is_complete = true;
                     self.app_event_tx.send(AppEvent::ShowAgentsOverview);
-                } else {
-                    self.confirm_delete = false;
                 }
-                true
-            }
-            KeyEvent { code: KeyCode::Enter, .. } if self.confirm_delete && self.field == 5 => {
-                self.confirm_delete = false;
                 true
             }
             KeyEvent { code: KeyCode::Char('s'), modifiers, .. }
@@ -287,74 +574,20 @@ impl SubagentEditorView {
                 self.is_complete = true;
                 true
             }
+            ev @ KeyEvent { .. } if self.focus == Focus::Name => {
+                let _ = self.name_field.handle_key(ev);
+                true
+            }
+            ev @ KeyEvent { .. } if self.focus == Focus::Instructions => {
+                let _ = self.orch_field.handle_key(ev);
+                true
+            }
             _ => false,
         }
     }
 
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         self.handle_key_event_internal(key_event)
-    }
-
-    fn agent_lines(&self, max_width: u16) -> Vec<Line<'static>> {
-        let max_width = max_width.max(1) as usize;
-        let sel = |idx: usize| {
-            if self.field == idx {
-                Style::default()
-                    .bg(crate::colors::selection())
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            }
-        };
-        let label = |idx: usize| {
-            if self.field == idx {
-                Style::default()
-                    .fg(crate::colors::primary())
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            }
-        };
-
-        let mut spans: Vec<Span> = Vec::new();
-        spans.push(Span::raw(" "));
-        spans.push(Span::styled("Agents:", label(2)));
-        spans.push(Span::raw("  "));
-
-        for (idx, a) in self.available_agents.iter().enumerate() {
-            let checked = if self.selected_agent_indices.contains(&idx) { "[x]" } else { "[ ]" };
-            let mut style = sel(2);
-            if self.field == 2 && idx == self.agent_cursor {
-                style = style.fg(crate::colors::primary()).add_modifier(Modifier::BOLD);
-            }
-            spans.push(Span::styled(format!("{checked} {a}"), style));
-            spans.push(Span::raw("  "));
-        }
-
-        Self::wrap_spans(spans, max_width)
-    }
-
-    fn wrap_spans(spans: Vec<Span<'static>>, max_width: usize) -> Vec<Line<'static>> {
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        let mut current: Vec<Span> = Vec::new();
-        let mut width: usize = 0;
-
-        for span in spans.into_iter() {
-            let span_width = UnicodeWidthStr::width(span.content.as_ref());
-            if !current.is_empty() && width + span_width > max_width {
-                lines.push(Line::from(current));
-                current = Vec::new();
-                width = 0;
-            }
-            current.push(span);
-            width = width.saturating_add(span_width);
-        }
-
-        if current.is_empty() {
-            current.push(Span::raw(""));
-        }
-        lines.push(Line::from(current));
-        lines
     }
 }
 
@@ -374,189 +607,54 @@ impl<'a> BottomPaneView<'a> for SubagentEditorView {
     fn is_complete(&self) -> bool { self.is_complete }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
-        match self.field { 0 => self.name_field.handle_paste(text), 3 => self.orch_field.handle_paste(text), _ => {} }
+        match self.focus {
+            Focus::Name => self.name_field.handle_paste(text),
+            Focus::Instructions => self.orch_field.handle_paste(text),
+            _ => {}
+        }
         ConditionalUpdate::NeedsRedraw
     }
 
     fn desired_height(&self, width: u16) -> u16 {
-        let inner_w = width.saturating_sub(2);
-        let content_w = inner_w.saturating_sub(1).max(10) as usize;
-        let agent_rows = self.agent_lines(content_w as u16).len() as u16;
-        let name_box_h: u16 = 3;
-        let orch_inner_w = (content_w as u16).saturating_sub(4);
+        let content_w = width
+            .saturating_sub(2)
+            .saturating_sub(Self::panel_style().content_margin.horizontal * 2)
+            .max(10);
+
+        let header_rows = self.header_lines().len() as u16;
+        let footer_rows = self.footer_lines().len() as u16;
+        let action_rows = 1u16;
+
+        let gap_h = 1u16;
+        let id_box_h = 3u16;
+        let mode_box_h = 3u16;
+        let agent_inner_w = content_w.saturating_sub(4).max(1);
+        let agent_inner_lines = self.agent_lines(agent_inner_w).len() as u16;
+        let agent_box_h = agent_inner_lines.saturating_add(2).max(3);
+
+        let orch_inner_w = content_w.saturating_sub(2).max(1);
         let desired_orch_inner = self.orch_field.desired_height(orch_inner_w).max(1);
         let orch_box_h = desired_orch_inner.min(8).saturating_add(2).max(3);
 
-        let base_rows: u16 = 1  // title
-            + 1  // spacer after title
-            + name_box_h
-            + 1  // spacer
-            + 1  // mode row
-            + 1  // spacer before agents
-            + agent_rows.max(1)
-            + 1; // spacer before instructions box
-        let rows_after_orch: u16 = 1  // spacer after instructions box
-            + 1; // buttons row
-        let total_rows = base_rows + orch_box_h + rows_after_orch;
-        total_rows.saturating_add(2).clamp(8, 50)
+        let body_rows = id_box_h
+            + gap_h
+            + mode_box_h
+            + gap_h
+            + agent_box_h
+            + gap_h
+            + orch_box_h;
+        let total_rows = header_rows + body_rows + action_rows + footer_rows;
+        total_rows.saturating_add(2).clamp(10, 50)
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(" Configure Agent Command ")
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
-        // Compute the content rect once and reuse for layout and reserved lines
-        let content_rect = Rect { x: inner.x.saturating_add(1), y: inner.y, width: inner.width.saturating_sub(1), height: inner.height };
+        let page = self.page();
+        let buttons = self.action_button_specs();
+        let Some(layout) = page.render(area, buf) else {
+            return;
+        };
 
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        let sel = |idx: usize| if self.field == idx { Style::default().bg(crate::colors::selection()).add_modifier(Modifier::BOLD) } else { Style::default() };
-        let label = |idx: usize| if self.field == idx { Style::default().fg(crate::colors::primary()).add_modifier(Modifier::BOLD) } else { Style::default() };
-
-        // Bold title
-        lines.push(Line::from(Span::styled("Agents » Edit Command", Style::default().add_modifier(Modifier::BOLD))));
-        // Spacer after title
-        lines.push(Line::from(""));
-        // Reserve a box area for Name (we draw the bordered box with a title after)
-        let name_box_h: u16 = 3;
-        for _ in 0..name_box_h { lines.push(Line::from("")); }
-        // Spacer between inputs
-        lines.push(Line::from(""));
-        // Mode row: checkbox style (left padding to align with boxed inputs)
-        {
-            let mut spans: Vec<Span> = Vec::new();
-            spans.push(Span::raw(" "));
-            spans.push(Span::styled("Mode:", label(1)));
-            spans.push(Span::raw("  "));
-            // [x] read-only
-            let ro = if self.read_only { "[x]" } else { "[ ]" };
-            spans.push(Span::styled(format!("{ro} read-only"), sel(1)));
-            spans.push(Span::raw("  "));
-            // [x] write (inverse of read_only)
-            let wr = if self.read_only { "[ ]" } else { "[x]" };
-            spans.push(Span::styled(format!("{wr} write"), sel(1)));
-            lines.push(Line::from(spans));
-        }
-
-        // Spacer between inputs
-        lines.push(Line::from(""));
-        // Agents on the same line as label (left padding to align with boxed inputs)
-        {
-            let agent_lines = self.agent_lines(content_rect.width.saturating_sub(1));
-            lines.extend(agent_lines);
-        }
-
-        // Spacer between inputs
-        lines.push(Line::from(""));
-        // Reserve rows for the instructions box (height = inner + borders)
-        let orch_inner_w = content_rect.width.saturating_sub(4);
-        let desired_orch_inner = self.orch_field.desired_height(orch_inner_w).max(1);
-        let orch_box_h_reserved = desired_orch_inner.min(8).saturating_add(2).max(3);
-        for _ in 0..orch_box_h_reserved { lines.push(Line::from("")); }
-        // Spacer between inputs
-        lines.push(Line::from(""));
-
-        // Buttons row
-        let show_delete = !self.is_new && !matches!(self.name_field.text().to_ascii_lowercase().as_str(), "plan" | "solve" | "code");
-        if self.confirm_delete {
-            let confirm_style = sel(4).fg(crate::colors::error()).add_modifier(Modifier::BOLD);
-            let back_style = sel(5).fg(crate::colors::text());
-            let btn_spans: Vec<Span> = vec![
-                Span::styled("[ Confirm Delete ]", confirm_style),
-                Span::raw("  "),
-                Span::styled("[ Back ]", back_style),
-            ];
-            lines.push(Line::from(btn_spans));
-        } else if show_delete {
-            let save_style = sel(4).fg(crate::colors::success());
-            let delete_style = sel(5).fg(crate::colors::error());
-            let cancel_style = sel(6).fg(crate::colors::text());
-            let btn_spans: Vec<Span> = vec![
-                Span::styled("[ Save ]", save_style),
-                Span::raw("  "),
-                Span::styled("[ Delete ]", delete_style),
-                Span::raw("  "),
-                Span::styled("[ Cancel ]", cancel_style),
-            ];
-            lines.push(Line::from(btn_spans));
-        } else {
-            let save_style = sel(4).fg(crate::colors::success());
-            let cancel_style = sel(5).fg(crate::colors::text());
-            let btn_spans: Vec<Span> = vec![
-                Span::styled("[ Save ]", save_style),
-                Span::raw("  "),
-                Span::styled("[ Cancel ]", cancel_style),
-            ];
-            lines.push(Line::from(btn_spans));
-        }
-        // Remove any trailing blank lines so buttons hug the bottom frame
-        while lines
-            .last()
-            .map(|line| line.spans.iter().all(|s| s.content.trim().is_empty()))
-            .unwrap_or(false)
-        {
-            lines.pop();
-        }
-
-        let paragraph = Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .wrap(ratatui::widgets::Wrap { trim: false })
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()));
-        paragraph.render(content_rect, buf);
-
-        // Draw text fields over the paragraph using the same content rect
-        let content_w = content_rect.width;
-        let mut y = content_rect.y;
-
-        // Skip title + spacer
-        y = y.saturating_add(2);
-        // Row: Name box with title; height fixed (3)
-        let name_box_rect = Rect { x: content_rect.x, y, width: content_w, height: name_box_h };
-        let name_border = if self.field == 0 { Style::default().fg(crate::colors::primary()).add_modifier(Modifier::BOLD) } else { Style::default().fg(crate::colors::border()) };
-        let name_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(name_border)
-            .title(Line::from(" ID "));
-        let name_inner = name_block.inner(name_box_rect);
-        let name_padded = name_inner.inner(Margin::new(1, 0));
-        name_block.render(name_box_rect, buf);
-        self.name_field.render(name_padded, buf, self.field == 0);
-
-        // After name box + spacer + mode row + spacer + agents rows + spacer
-        y = y.saturating_add(name_box_h);
-        y = y.saturating_add(1); // spacer
-        y = y.saturating_add(1); // mode row
-        y = y.saturating_add(1); // spacer
-        let agent_rows = self.agent_lines(content_rect.width.saturating_sub(1)).len() as u16;
-        y = y.saturating_add(agent_rows.max(1));
-        y = y.saturating_add(1); // spacer
-        // Orchestrator box: height = inner content + 2 borders, with title as label
-        // Use the same clamped height for the actual box we render
-        let orch_box_h = orch_box_h_reserved;
-        let orch_inner_h = orch_box_h.saturating_sub(2);
-        let orch_box_rect = Rect { x: content_rect.x, y, width: content_w, height: orch_box_h };
-        let orch_border = if self.field == 3 { Style::default().fg(crate::colors::primary()).add_modifier(Modifier::BOLD) } else { Style::default().fg(crate::colors::border()) };
-        let orch_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(orch_border)
-            .title(Line::from(" Instructions "));
-        if orch_box_h >= 2 {
-            let orch_inner = orch_block.inner(orch_box_rect);
-            let orch_padded = orch_inner.inner(Margin::new(1, 0));
-            orch_block.render(orch_box_rect, buf);
-            // Render the text field only if there is inner height
-            if orch_inner_h > 0 {
-                self.orch_field.render(orch_padded, buf, self.field == 3);
-            }
-        }
+        self.render_body(layout.body, buf);
+        page.render_standard_actions(&layout, buf, &buttons, TextButtonAlign::End);
     }
 }
-
-impl SubagentEditorView {}
-
-// (handle_paste implemented in BottomPaneView impl below)

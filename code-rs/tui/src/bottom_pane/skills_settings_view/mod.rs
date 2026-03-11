@@ -344,12 +344,16 @@ mod tests {
         let area = Rect::new(0, 0, 140, 48);
         let layout = view.compute_form_layout(area).expect("layout should exist");
 
+        use unicode_width::UnicodeWidthStr;
         let save_x = layout
             .buttons_row
             .x
             .saturating_add(
-                GENERATE_BUTTON_LABEL.len() as u16
-                    + crate::bottom_pane::settings_ui::layout::DEFAULT_BUTTON_GAP.len() as u16,
+                u16::try_from("Generate draft".width()).unwrap_or(u16::MAX)
+                    + u16::try_from(
+                        crate::bottom_pane::settings_ui::layout::DEFAULT_BUTTON_GAP.width(),
+                    )
+                    .unwrap_or(u16::MAX),
             )
             .saturating_add(1);
         let hover_save = mouse_move(save_x, layout.buttons_row.y);

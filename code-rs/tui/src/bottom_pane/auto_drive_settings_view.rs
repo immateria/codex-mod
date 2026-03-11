@@ -17,12 +17,12 @@ use crossterm::event::{
 };
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style, Stylize};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::settings_ui::action_page::SettingsActionPage;
-use super::settings_ui::buttons::{TextButton, TextButtonAlign};
+use super::settings_ui::buttons::{standard_button_specs, SettingsButtonKind, StandardButtonSpec};
 use super::settings_ui::hints::{status_and_shortcuts, KeyHint};
 use super::settings_ui::menu_page::SettingsMenuPage;
 use super::settings_ui::menu_rows::{
@@ -30,6 +30,7 @@ use super::settings_ui::menu_rows::{
 };
 use super::settings_ui::panel::SettingsPanelStyle;
 use super::settings_ui::rows::StyledText;
+use super::settings_ui::toggle;
 use super::BottomPane;
 
 const ROUTING_REASONING_LEVELS: [ReasoningEffort; 5] = [
@@ -737,11 +738,8 @@ impl AutoDriveSettingsView {
             .iter()
             .enumerate()
             .map(|(idx, entry)| {
-                let checkbox = if entry.enabled { "[x]" } else { "[ ]" };
-                SettingsMenuRow::new(
-                    idx,
-                    format!("{checkbox} {}", Self::route_entry_summary(entry)),
-                )
+                SettingsMenuRow::new(idx, Self::route_entry_summary(entry))
+                    .with_value(toggle::checkbox_marker(entry.enabled))
             })
             .collect::<Vec<_>>();
         rows.push(SettingsMenuRow::new(
@@ -765,8 +763,12 @@ impl AutoDriveSettingsView {
             .enumerate()
             .map(|(idx, level)| {
                 let cursor = if editor.reasoning_cursor == idx { ">" } else { " " };
-                let checkbox = if editor.reasoning_enabled[idx] { "[x]" } else { "[ ]" };
-                format!("{cursor}{checkbox}{}", Self::reasoning_label(*level).to_ascii_lowercase())
+                let checkbox = toggle::checkbox_marker(editor.reasoning_enabled[idx]);
+                format!(
+                    "{cursor}{}{}",
+                    checkbox.text,
+                    Self::reasoning_label(*level).to_ascii_lowercase()
+                )
             })
             .collect::<Vec<_>>()
             .join("  ");
@@ -809,23 +811,26 @@ impl AutoDriveSettingsView {
     fn routing_editor_action_buttons(
         &self,
         selected_field: RoutingEditorField,
-    ) -> [TextButton<'static, RoutingEditorField>; 2] {
-        [
-            TextButton::new(
-                RoutingEditorField::Save,
-                "Save",
-                selected_field == RoutingEditorField::Save,
-                self.hovered == Some(HoverTarget::RoutingEditor(RoutingEditorField::Save)),
-                Style::new().fg(colors::success()).bold(),
-            ),
-            TextButton::new(
-                RoutingEditorField::Cancel,
-                "Cancel",
-                selected_field == RoutingEditorField::Cancel,
-                self.hovered == Some(HoverTarget::RoutingEditor(RoutingEditorField::Cancel)),
-                Style::new().fg(colors::error()).bold(),
-            ),
-        ]
+    ) -> Vec<StandardButtonSpec<RoutingEditorField>> {
+        standard_button_specs(
+            &[
+                (RoutingEditorField::Save, SettingsButtonKind::Save),
+                (RoutingEditorField::Cancel, SettingsButtonKind::Cancel),
+            ],
+            match selected_field {
+                RoutingEditorField::Save | RoutingEditorField::Cancel => Some(selected_field),
+                _ => None,
+            },
+            match self.hovered {
+                Some(HoverTarget::RoutingEditor(
+                    RoutingEditorField::Save | RoutingEditorField::Cancel,
+                )) => self.hovered.and_then(|target| match target {
+                    HoverTarget::RoutingEditor(field) => Some(field),
+                    _ => None,
+                }),
+                _ => None,
+            },
+        )
     }
 
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
@@ -1204,12 +1209,11 @@ impl AutoDriveSettingsView {
                     return self.set_hovered(None);
                 };
                 let buttons = self.routing_editor_action_buttons(editor.selected_field);
-                if let Some(action) = page.action_at(
+                if let Some(action) = page.standard_action_at_end(
                     &layout,
                     mouse_pos.0,
                     mouse_pos.1,
                     &buttons,
-                    TextButtonAlign::End,
                 ) {
                     return self.set_hovered(Some(HoverTarget::RoutingEditor(action)));
                 }
@@ -1305,12 +1309,11 @@ impl AutoDriveSettingsView {
                     return false;
                 };
                 let buttons = self.routing_editor_action_buttons(editor.selected_field);
-                if let Some(action) = page.action_at(
+                if let Some(action) = page.standard_action_at_end(
                     &layout,
                     mouse_event.column,
                     mouse_event.row,
                     &buttons,
-                    TextButtonAlign::End,
                 ) {
                     return match action {
                         RoutingEditorField::Save => {
@@ -1478,7 +1481,8 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
             }
             AutoDriveSettingsMode::RoutingEditor(editor) => {
                 let page = self.routing_editor_page(editor);
-                let Some(layout) = page.render(area, buf) else {
+                let buttons = self.routing_editor_action_buttons(editor.selected_field);
+                let Some(layout) = page.render_with_standard_actions_end(area, buf, &buttons) else {
                     return;
                 };
                 let rows = self.routing_editor_menu_rows(editor);
@@ -1492,8 +1496,6 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
                     Style::new().bg(colors::background()).fg(colors::text()),
                     &mut rects,
                 );
-                let buttons = self.routing_editor_action_buttons(editor.selected_field);
-                page.render_actions(&layout, buf, &buttons, TextButtonAlign::End);
             }
         }
     }

@@ -1,10 +1,15 @@
 use super::*;
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
-use crate::bottom_pane::settings_ui::buttons::{TextButton, TextButtonAlign};
+use crate::bottom_pane::settings_ui::buttons::{
+    standard_button_specs, SettingsButtonKind, StandardButtonSpec,
+};
 use crate::bottom_pane::settings_ui::form_page::{
     SettingsFormPage,
     SettingsFormPageLayout,
     SettingsFormSection,
+};
+use crate::bottom_pane::settings_ui::hints::{
+    status_or_shortcuts_line, title_line, KeyHint,
 };
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use ratatui::layout::Constraint;
@@ -44,38 +49,36 @@ impl ShellProfilesSettingsView {
     }
 
     fn editor_status_line(&self, target: ListTarget) -> Line<'static> {
-        let text = if let Some(status) = self.status.as_deref()
-            && !status.trim().is_empty()
-        {
-            status.trim().replace(['\r', '\n'], " ")
-        } else {
-            match target {
-                ListTarget::Summary => "Ctrl+S save  •  Ctrl+G generate  •  Esc cancel".to_string(),
-                ListTarget::References | ListTarget::SkillRoots => {
-                    "Ctrl+S save  •  Ctrl+O pick  •  Ctrl+V show  •  Esc cancel".to_string()
-                }
-            }
+        let status = self.status.as_deref().and_then(|status| {
+            let trimmed = status.trim().replace(['\r', '\n'], " ");
+            (!trimmed.is_empty())
+                .then(|| crate::bottom_pane::settings_ui::rows::StyledText::new(
+                    trimmed,
+                    Style::new().fg(crate::colors::text_dim()),
+                ))
+        });
+        let hints = match target {
+            ListTarget::Summary => vec![
+                KeyHint::new("Ctrl+S", " save"),
+                KeyHint::new("Ctrl+G", " generate"),
+                KeyHint::new("Esc", " cancel"),
+            ],
+            ListTarget::References | ListTarget::SkillRoots => vec![
+                KeyHint::new("Ctrl+S", " save"),
+                KeyHint::new("Ctrl+O", " pick"),
+                KeyHint::new("Ctrl+V", " show"),
+                KeyHint::new("Esc", " cancel"),
+            ],
         };
-        Line::from(Span::styled(
-            text,
-            Style::default().fg(crate::colors::text_dim()),
-        ))
+        status_or_shortcuts_line(status, &hints)
     }
 
     fn editor_page(&self, target: ListTarget) -> SettingsActionPage<'static> {
         SettingsActionPage::new(
             "Shell Profiles",
             SettingsPanelStyle::bottom_pane(),
-            vec![
-                Line::from(Span::styled(
-                    Self::editor_title(target),
-                    Style::default()
-                        .fg(crate::colors::text_bright())
-                        .add_modifier(Modifier::BOLD),
-                )),
-                self.editor_status_line(target),
-            ],
-            Vec::new(),
+            vec![title_line(Self::editor_title(target))],
+            vec![self.editor_status_line(target)],
         )
     }
 
@@ -106,30 +109,13 @@ impl ShellProfilesSettingsView {
         }
     }
 
-    fn footer_action_label(action: EditorFooterAction) -> &'static str {
+    fn footer_action_kind(action: EditorFooterAction) -> SettingsButtonKind {
         match action {
-            EditorFooterAction::Save => "Save",
-            EditorFooterAction::Generate => "Generate",
-            EditorFooterAction::Pick => "Pick",
-            EditorFooterAction::Show => "Show",
-            EditorFooterAction::Cancel => "Cancel",
-        }
-    }
-
-    fn footer_action_style(action: EditorFooterAction) -> Style {
-        match action {
-            EditorFooterAction::Save => {
-                Style::default().fg(crate::colors::success()).add_modifier(Modifier::BOLD)
-            }
-            EditorFooterAction::Generate => {
-                Style::default().fg(crate::colors::function()).add_modifier(Modifier::BOLD)
-            }
-            EditorFooterAction::Pick | EditorFooterAction::Show => {
-                Style::default().fg(crate::colors::primary()).add_modifier(Modifier::BOLD)
-            }
-            EditorFooterAction::Cancel => {
-                Style::default().fg(crate::colors::text_dim()).add_modifier(Modifier::BOLD)
-            }
+            EditorFooterAction::Save => SettingsButtonKind::Save,
+            EditorFooterAction::Generate => SettingsButtonKind::Generate,
+            EditorFooterAction::Pick => SettingsButtonKind::Pick,
+            EditorFooterAction::Show => SettingsButtonKind::Show,
+            EditorFooterAction::Cancel => SettingsButtonKind::Cancel,
         }
     }
 
@@ -141,8 +127,8 @@ impl ShellProfilesSettingsView {
         layout: &SettingsFormPageLayout,
     ) -> Option<EditorFooterAction> {
         let page = self.editor_form_page(target);
-        let actions = Self::editor_footer_buttons(target, None);
-        page.action_at(layout, x, y, &actions, TextButtonAlign::End)
+        let actions = Self::editor_footer_button_specs(target, None);
+        page.standard_action_at_end(layout, x, y, &actions)
     }
 
     pub(super) fn compute_editor_layout(
@@ -211,30 +197,21 @@ impl ShellProfilesSettingsView {
             ListTarget::References => &self.references_field,
             ListTarget::SkillRoots => &self.skill_roots_field,
         };
-        let Some(layout) = page.render(area, buf, &[field])
+        let buttons = Self::editor_footer_button_specs(target, None);
+        let Some(_layout) = page.render_with_standard_actions_end(area, buf, &[field], &buttons)
         else {
             return;
         };
-
-        let buttons = Self::editor_footer_buttons(target, None);
-        page.render_actions(&layout, buf, &buttons, TextButtonAlign::End);
     }
 
-    fn editor_footer_buttons(
+    fn editor_footer_button_specs(
         target: ListTarget,
         focused: Option<EditorFooterAction>,
-    ) -> Vec<TextButton<'static, EditorFooterAction>> {
-        Self::editor_footer_actions(target)
+    ) -> Vec<StandardButtonSpec<EditorFooterAction>> {
+        let items = Self::editor_footer_actions(target)
             .iter()
-            .map(|action| {
-                TextButton::new(
-                    *action,
-                    Self::footer_action_label(*action),
-                    focused == Some(*action),
-                    false,
-                    Self::footer_action_style(*action),
-                )
-            })
-            .collect()
+            .map(|action| (*action, Self::footer_action_kind(*action)))
+            .collect::<Vec<_>>();
+        standard_button_specs(&items, focused, None)
     }
 }

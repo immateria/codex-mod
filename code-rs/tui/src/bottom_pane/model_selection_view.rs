@@ -12,6 +12,7 @@ use super::settings_ui::line_runs::{
     SelectableLineRun,
 };
 use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
+use super::settings_ui::toggle;
 use super::BottomPane;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -328,7 +329,7 @@ impl ModelSelectionView {
         let is_hovered = self.hovered_index == Some(fast_index);
         let is_highlighted = is_selected || is_hovered;
         let fast_enabled = matches!(self.data.current.current_service_tier, Some(ServiceTier::Fast));
-        let status = if fast_enabled { "enabled" } else { "disabled" };
+        let status = toggle::enabled_word(fast_enabled);
 
         lines.push(SelectableLineRun::plain(vec![Line::from(vec![Span::styled(
             "Fast mode",
@@ -357,9 +358,15 @@ impl ModelSelectionView {
             fast_index,
             vec![Line::from(vec![
                 Span::styled(if is_selected { "› " } else { "  " }, arrow_style),
-                Span::styled(format!("Fast mode: {status}"), label_style),
+                Span::styled("Fast mode: ", label_style),
+                Span::styled(
+                    status.text,
+                    label_style.fg(status.style.fg.unwrap_or(colors::text())),
+                ),
             ])],
         ));
+        // Keep fast-mode height aligned with `FAST_MODE_SECTION_HEIGHT` for scroll math.
+        Self::push_blank_line(lines);
         Self::push_blank_line(lines);
     }
 
