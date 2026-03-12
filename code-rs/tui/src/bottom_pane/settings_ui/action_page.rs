@@ -7,6 +7,8 @@ use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 
 use crate::colors;
+use crate::ui_interaction::split_header_body_footer;
+use crate::util::buffer::fill_rect;
 
 use super::buttons::{
     render_standard_button_strip_aligned, standard_button_at_aligned, StandardButtonSpec,
@@ -141,6 +143,20 @@ impl<'a> SettingsActionPage<'a> {
         Some(self.layout_from_sectioned(layout))
     }
 
+    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsActionPageLayout> {
+        split_header_body_footer(
+            area,
+            self.header_lines.len(),
+            self.status_lines
+                .len()
+                .saturating_add(self.action_rows)
+                .saturating_add(self.footer_lines.len()),
+            self.min_body_rows.min(u16::MAX as usize) as u16,
+        )
+        .map(Into::into)
+        .map(|layout| self.layout_from_sectioned(layout))
+    }
+
     pub(crate) fn render(
         &self,
         area: Rect,
@@ -148,6 +164,20 @@ impl<'a> SettingsActionPage<'a> {
     ) -> Option<SettingsActionPageLayout> {
         let layout = self.sectioned_panel().render(area, buf)?;
         let layout = self.layout_from_sectioned(layout);
+        self.render_lines(layout.header, buf, &self.header_lines);
+        self.render_lines(layout.status, buf, &self.status_lines);
+        self.render_lines(layout.footer, buf, &self.footer_lines);
+        Some(layout)
+    }
+
+    pub(crate) fn render_content_shell(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsActionPageLayout> {
+        let layout = self.layout_content(area)?;
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        fill_rect(buf, area, Some(' '), base);
         self.render_lines(layout.header, buf, &self.header_lines);
         self.render_lines(layout.status, buf, &self.status_lines);
         self.render_lines(layout.footer, buf, &self.footer_lines);
@@ -212,6 +242,27 @@ impl<'a> SettingsActionPage<'a> {
         self.standard_action_at(layout, x, y, buttons, TextButtonAlign::End)
     }
 
+    pub(crate) fn render_content_with_standard_actions<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        buttons: &[StandardButtonSpec<Id>],
+        align: TextButtonAlign,
+    ) -> Option<SettingsActionPageLayout> {
+        let layout = self.render_content_shell(area, buf)?;
+        self.render_standard_actions(&layout, buf, buttons, align);
+        Some(layout)
+    }
+
+    pub(crate) fn render_content_with_standard_actions_end<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<SettingsActionPageLayout> {
+        self.render_content_with_standard_actions(area, buf, buttons, TextButtonAlign::End)
+    }
+
 }
 
 #[cfg(test)]
@@ -252,6 +303,50 @@ mod tests {
         assert_eq!(layout.status, Rect::new(2, 3, 26, 1));
         assert_eq!(layout.actions, Rect::new(2, 4, 26, 1));
         assert_eq!(layout.footer, Rect::new(2, 5, 26, 1));
+    }
+
+    #[test]
+    fn content_shell_layout_and_render_match_action_rects() {
+        let page = SettingsActionPage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane(),
+            vec![Line::from("header")],
+            vec![Line::from("footer")],
+        )
+        .with_status_lines(vec![Line::from("status")]);
+
+        let area = Rect::new(0, 0, 30, 8);
+        let layout = page.layout_content(area).expect("layout");
+        let mut buf = Buffer::empty(area);
+        let rendered = page.render_content_shell(area, &mut buf).expect("render");
+
+        assert_eq!(layout, rendered);
+        assert_eq!(layout.header, Rect::new(0, 0, 30, 1));
+        assert_eq!(layout.body, Rect::new(0, 1, 30, 4));
+        assert_eq!(layout.status, Rect::new(0, 5, 30, 1));
+        assert_eq!(layout.actions, Rect::new(0, 6, 30, 1));
+        assert_eq!(layout.footer, Rect::new(0, 7, 30, 1));
+    }
+
+    #[test]
+    fn footer_slicing_preserves_actions_when_footer_is_tiny() {
+        let page = SettingsActionPage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane(),
+            vec![],
+            vec![Line::from("footer")],
+        )
+        .with_status_lines(vec![Line::from("status")]);
+
+        let sectioned = SettingsSectionedPanelLayout {
+            header: Rect::new(0, 0, 20, 0),
+            body: Rect::new(0, 0, 20, 0),
+            footer: Rect::new(0, 0, 20, 1),
+        };
+        let layout = page.layout_from_sectioned(sectioned);
+        assert_eq!(layout.status.height, 0);
+        assert_eq!(layout.actions.height, 1);
+        assert_eq!(layout.footer.height, 0);
     }
 
     #[test]

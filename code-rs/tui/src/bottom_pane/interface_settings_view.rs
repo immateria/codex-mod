@@ -1042,12 +1042,84 @@ impl InterfaceSettingsView {
         }
     }
 
+    fn handle_mouse_event_main_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let rows = self.build_rows();
+        let total = rows.len();
+        if total == 0 {
+            return false;
+        }
+
+        let Some(layout) = self.main_page().layout_content(area) else {
+            return false;
+        };
+        let visible = layout.body.height.max(1) as usize;
+        self.viewport_rows.set(visible);
+
+        if self.state.selected_idx.is_none() {
+            self.state.selected_idx = Some(0);
+        }
+        self.state.clamp_selection(total);
+        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+        let mut selected = self.state.selected_idx.unwrap_or(0);
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            total,
+            |x, y| selection_index_at(layout.body, x, y, scroll_top, total),
+            SelectableListMouseConfig {
+                hover_select: false,
+                require_pointer_hit_for_scroll: true,
+                scroll_behavior: ScrollSelectionBehavior::Clamp,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+
+        match result {
+            SelectableListMouseResult::Ignored => false,
+            SelectableListMouseResult::SelectionChanged => {
+                self.state.selected_idx = Some(selected);
+                let visible = self.viewport_rows.get().max(1);
+                self.state.ensure_visible(total, visible);
+                true
+            }
+            SelectableListMouseResult::Activated => {
+                self.state.selected_idx = Some(selected);
+                let visible = self.viewport_rows.get().max(1);
+                self.state.ensure_visible(total, visible);
+                self.activate_selected_row();
+                true
+            }
+        }
+    }
+
     fn handle_mouse_event_edit(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         match mouse_event.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 if let ViewMode::EditWidth { field, error } = &mut self.mode {
                     let Some(field_area) = Self::edit_width_page(error.as_deref())
                         .layout(area)
+                        .map(|layout| layout.field)
+                    else {
+                        return false;
+                    };
+                    return field.handle_mouse_click(
+                        mouse_event.column,
+                        mouse_event.row,
+                        field_area,
+                    );
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+
+    fn handle_mouse_event_edit_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        match mouse_event.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                if let ViewMode::EditWidth { field, error } = &mut self.mode {
+                    let Some(field_area) = Self::edit_width_page(error.as_deref())
+                        .layout_content(area)
                         .map(|layout| layout.field)
                     else {
                         return false;
@@ -1468,6 +1540,14 @@ impl InterfaceSettingsView {
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         match &self.mode {
+            ViewMode::Main => self.handle_mouse_event_main_content(mouse_event, area),
+            ViewMode::EditWidth { .. } => self.handle_mouse_event_edit_content(mouse_event, area),
+            ViewMode::CaptureHotkey { .. } | ViewMode::Transition => false,
+        }
+    }
+
+    fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        match &self.mode {
             ViewMode::Main => self.handle_mouse_event_main(mouse_event, area),
             ViewMode::EditWidth { .. } => self.handle_mouse_event_edit(mouse_event, area),
             ViewMode::CaptureHotkey { .. } | ViewMode::Transition => false,
@@ -1476,6 +1556,21 @@ impl InterfaceSettingsView {
 
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
+    }
+
+    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main_without_frame(area, buf),
+            ViewMode::EditWidth { field, error } => {
+                let _ = Self::edit_width_page(error.as_deref()).render_content(area, buf, field);
+            }
+            ViewMode::CaptureHotkey { row, error } => {
+                let _ = self
+                    .capture_hotkey_page(*row, error.as_deref())
+                    .render_content(area, buf);
+            }
+            ViewMode::Transition => self.render_main_without_frame(area, buf),
+        }
     }
 
     fn help_for(row: RowKind) -> &'static str {
@@ -1627,6 +1722,32 @@ impl InterfaceSettingsView {
         self.viewport_rows.set(layout.body.height.max(1) as usize);
     }
 
+    fn render_main_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        let rows = self.build_rows();
+        let total = rows.len();
+        let selected_idx = self
+            .state
+            .selected_idx
+            .unwrap_or(0)
+            .min(total.saturating_sub(1));
+        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+
+        let menu_rows = self.main_menu_rows(&rows);
+        let selected_id = (total > 0).then_some(selected_idx);
+
+        let Some(layout) = self.main_page().render_content_menu_rows(
+            area,
+            buf,
+            scroll_top,
+            selected_id,
+            &menu_rows,
+        ) else {
+            return;
+        };
+
+        self.viewport_rows.set(layout.body.height.max(1) as usize);
+    }
+
     fn render_edit_width(
         &self,
         area: Rect,
@@ -1663,7 +1784,7 @@ impl<'a> BottomPaneView<'a> for InterfaceSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {

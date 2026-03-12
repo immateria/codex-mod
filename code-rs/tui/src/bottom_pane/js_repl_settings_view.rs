@@ -3,7 +3,6 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders};
 
 use code_core::config::{JsReplRuntimeKindToml, JsReplSettingsToml};
 
@@ -78,7 +77,6 @@ pub(crate) struct JsReplSettingsView {
 
 impl JsReplSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
-    const HEADER_HEIGHT: usize = 3; // status + hint/note + blank line
 
     pub(crate) fn new(
         settings: JsReplSettingsToml,
@@ -388,18 +386,6 @@ impl JsReplSettingsView {
         }
     }
 
-    fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let page = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]);
-        let layout = page.layout(area)?;
-        SettingsRowPage::selection_index_at(
-            layout.body,
-            x,
-            y,
-            self.state.scroll_top,
-            self.build_rows().len(),
-        )
-    }
-
     fn text_edit_title(target: TextTarget) -> &'static str {
         match target {
             TextTarget::RuntimePath => " JS REPL: Runtime Path ",
@@ -447,16 +433,6 @@ impl JsReplSettingsView {
             ],
             vec![],
         )
-    }
-
-    fn list_visible_slots_for_area(&self, area: Rect) -> usize {
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return 0;
-        }
-        let available_height = inner.height as usize;
-        let header_height = Self::HEADER_HEIGHT.min(available_height);
-        available_height.saturating_sub(header_height).max(1)
     }
 
     fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
@@ -605,6 +581,10 @@ impl JsReplSettingsView {
     }
 
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.handle_mouse_event_direct_content(mouse_event, area)
+    }
+
+    fn handle_mouse_event_direct_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
         match mode {
             ViewMode::Main => {
@@ -615,16 +595,115 @@ impl JsReplSettingsView {
                     return false;
                 }
 
-                let visible_slots = self.list_visible_slots_for_area(area);
+                let page = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]);
+                let Some(layout) = page.layout_content(area) else {
+                    self.mode = ViewMode::Main;
+                    return false;
+                };
+                let visible_slots = layout.visible_rows().max(1);
                 self.viewport_rows.set(visible_slots);
 
                 self.reconcile_selection_state(total);
+                let scroll_top = self.state.scroll_top;
+                let body = layout.body;
                 let mut selected = self.state.selected_idx.unwrap_or(0);
                 let result = route_selectable_list_mouse_with_config(
                     mouse_event,
                     &mut selected,
                     total,
-                    |x, y| self.selection_index_at(area, x, y),
+                    |x, y| SettingsRowPage::selection_index_at(body, x, y, scroll_top, total),
+                    SelectableListMouseConfig {
+                        hover_select: false,
+                        require_pointer_hit_for_scroll: true,
+                        scroll_behavior: ScrollSelectionBehavior::Clamp,
+                        ..SelectableListMouseConfig::default()
+                    },
+                );
+                self.state.selected_idx = Some(selected);
+                self.state.ensure_visible(total, visible_slots.min(total));
+
+                if matches!(result, SelectableListMouseResult::Activated)
+                    && let Some(kind) = rows.get(selected).copied()
+                {
+                    self.activate_row(kind);
+                }
+
+                self.mode = ViewMode::Main;
+                result.handled()
+            }
+            ViewMode::EditText { target, mut field } => {
+                let handled = match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        let Some(field_area) =
+                            Self::text_edit_page(target)
+                                .layout_content(area)
+                                .map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                    }
+                    MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
+                    MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
+                    _ => false,
+                };
+                self.mode = ViewMode::EditText { target, field };
+                handled
+            }
+            ViewMode::EditList { target, mut field } => {
+                let handled = match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        let Some(field_area) =
+                            Self::list_edit_page(target)
+                                .layout_content(area)
+                                .map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                    }
+                    MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
+                    MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
+                    _ => false,
+                };
+                self.mode = ViewMode::EditList { target, field };
+                handled
+            }
+            ViewMode::Transition => {
+                self.mode = ViewMode::Main;
+                false
+            }
+        }
+    }
+
+    fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+        match mode {
+            ViewMode::Main => {
+                let rows = self.build_rows();
+                let total = rows.len();
+                if total == 0 {
+                    self.mode = ViewMode::Main;
+                    return false;
+                }
+
+                let page = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]);
+                let Some(layout) = page.layout(area) else {
+                    self.mode = ViewMode::Main;
+                    return false;
+                };
+                let visible_slots = layout.visible_rows().max(1);
+                self.viewport_rows.set(visible_slots);
+
+                self.reconcile_selection_state(total);
+                let scroll_top = self.state.scroll_top;
+                let body = layout.body;
+                let mut selected = self.state.selected_idx.unwrap_or(0);
+                let result = route_selectable_list_mouse_with_config(
+                    mouse_event,
+                    &mut selected,
+                    total,
+                    |x, y| SettingsRowPage::selection_index_at(body, x, y, scroll_top, total),
                     SelectableListMouseConfig {
                         hover_select: false,
                         require_pointer_hit_for_scroll: true,
@@ -768,6 +847,94 @@ impl JsReplSettingsView {
         self.viewport_rows.set(layout.visible_rows());
     }
 
+    fn render_main_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        let rows = self.build_rows();
+        let total = rows.len();
+        let selected_idx = self
+            .state
+            .selected_idx
+            .unwrap_or(0)
+            .min(total.saturating_sub(1));
+        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+
+        let runtime_label = Self::runtime_label(self.settings.runtime);
+        let runtime_path = self
+            .settings
+            .runtime_path
+            .as_ref()
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|| "auto (PATH)".to_string());
+        let runtime_args = if self.settings.runtime_args.is_empty() {
+            "(none)".to_string()
+        } else {
+            format!("{} entries", self.settings.runtime_args.len())
+        };
+        let module_dirs = if self.settings.node_module_dirs.is_empty() {
+            "(none)".to_string()
+        } else {
+            format!("{} entries", self.settings.node_module_dirs.len())
+        };
+        let apply_suffix = if self.dirty { " *" } else { "" };
+
+        let row_specs: Vec<KeyValueRow<'_>> = rows
+            .iter()
+            .copied()
+            .map(|kind| match kind {
+                RowKind::Enabled => KeyValueRow::new("Enabled")
+                    .with_value(Self::enabled_value(self.settings.enabled)),
+                RowKind::RuntimeKind => KeyValueRow::new("Runtime").with_value(StyledText::new(
+                    runtime_label,
+                    Style::default().fg(crate::colors::info()),
+                )),
+                RowKind::RuntimePath => KeyValueRow::new("Runtime path").with_value(
+                    StyledText::new(
+                        runtime_path.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                ),
+                RowKind::PickRuntimePath => KeyValueRow::new("Pick runtime path (file picker)"),
+                RowKind::ClearRuntimePath => KeyValueRow::new("Clear runtime path (use PATH)"),
+                RowKind::RuntimeArgs => KeyValueRow::new("Runtime args").with_value(
+                    StyledText::new(
+                        runtime_args.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                ),
+                RowKind::NodeModuleDirs => KeyValueRow::new("Node module dirs").with_value(
+                    StyledText::new(
+                        module_dirs.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                ),
+                RowKind::AddNodeModuleDir => KeyValueRow::new("Add node module dir (folder picker)"),
+                RowKind::Apply => KeyValueRow::new("Apply changes").with_value(StyledText::new(
+                    apply_suffix,
+                    Style::default().fg(crate::colors::warning()),
+                )),
+                RowKind::Close => KeyValueRow::new("Close"),
+            })
+            .collect();
+        let Some(layout) = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![])
+            .render_content(area, buf, scroll_top, Some(selected_idx), &row_specs)
+        else {
+            return;
+        };
+        self.viewport_rows.set(layout.visible_rows());
+    }
+
+    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main_without_frame(area, buf),
+            ViewMode::EditText { target, field } => {
+                let _ = Self::text_edit_page(*target).render_content(area, buf, field);
+            }
+            ViewMode::EditList { target, field } => {
+                let _ = Self::list_edit_page(*target).render_content(area, buf, field);
+            }
+            ViewMode::Transition => self.render_main_without_frame(area, buf),
+        }
+    }
+
 }
 
 #[cfg(test)]
@@ -806,7 +973,7 @@ impl<'a> BottomPaneView<'a> for JsReplSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {

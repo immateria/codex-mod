@@ -7,6 +7,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Clear, Paragraph, Widget};
 
 use crate::colors;
+use crate::util::buffer::fill_rect;
 
 use super::layout::DEFAULT_FOOTER_GAP_LINES;
 
@@ -103,6 +104,13 @@ impl<'a> SettingsFrame<'a> {
         Some(self.layout_from_inner(inner))
     }
 
+    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsFrameLayout> {
+        if area.width == 0 || area.height == 0 {
+            return None;
+        }
+        Some(self.layout_from_inner(area))
+    }
+
     pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsFrameLayout> {
         let block = self.make_block();
         let inner = Self::inner_for_block(&block, area)?;
@@ -110,6 +118,30 @@ impl<'a> SettingsFrame<'a> {
         Clear.render(area, buf);
         block.render(area, buf);
         let base = Style::new().bg(colors::background()).fg(colors::text());
+
+        if layout.header.height > 0 {
+            Paragraph::new(self.header_lines.clone())
+                .style(base)
+                .render(layout.header, buf);
+        }
+
+        if !self.footer_lines.is_empty() && layout.footer.height > 0 {
+            Paragraph::new(self.footer_lines.clone())
+                .style(base)
+                .render(layout.footer, buf);
+        }
+
+        Some(layout)
+    }
+
+    pub(crate) fn render_content_shell(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsFrameLayout> {
+        let layout = self.layout_content(area)?;
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        fill_rect(buf, area, Some(' '), base);
 
         if layout.header.height > 0 {
             Paragraph::new(self.header_lines.clone())
@@ -154,6 +186,37 @@ mod tests {
         assert_eq!(layout.footer.y, 9);
         assert_eq!(layout.footer.height, 2);
         assert_eq!(layout.visible_rows(), 5);
+    }
+
+    #[test]
+    fn content_shell_layout_and_render_match_geometry() {
+        let frame = SettingsFrame::new(
+            " Test ",
+            vec![Line::from("h")],
+            vec![Line::from("f")],
+        );
+        let area = Rect::new(0, 0, 20, 6);
+        let layout = frame.layout_content(area).expect("layout");
+        let mut buf = Buffer::empty(area);
+        let rendered = frame
+            .render_content_shell(area, &mut buf)
+            .expect("render");
+
+        assert_eq!(rendered, layout);
+        assert_eq!(layout.header, Rect::new(0, 0, 20, 1));
+        assert_eq!(layout.body, Rect::new(0, 1, 20, 3));
+        assert_eq!(layout.footer, Rect::new(0, 5, 20, 1));
+        assert_eq!(
+            layout.footer.y,
+            layout
+                .body
+                .y
+                .saturating_add(layout.body.height)
+                .saturating_add(DEFAULT_FOOTER_GAP_LINES as u16)
+        );
+
+        // Content-only render should not draw a border at (0,0); it should render header text.
+        assert_eq!(buf[(0, 0)].symbol(), "h");
     }
 
     #[test]

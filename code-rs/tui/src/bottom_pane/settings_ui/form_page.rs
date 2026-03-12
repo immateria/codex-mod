@@ -113,6 +113,11 @@ impl<'a> SettingsFormPage<'a> {
         Some(self.layout_from_page(page))
     }
 
+    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsFormPageLayout> {
+        let page = self.page.layout_content(area)?;
+        Some(self.layout_from_page(page))
+    }
+
     pub(crate) fn render(
         &self,
         area: Rect,
@@ -120,6 +125,27 @@ impl<'a> SettingsFormPage<'a> {
         fields: &[&FormTextField],
     ) -> Option<SettingsFormPageLayout> {
         let page = self.page.render(area, buf)?;
+        let layout = self.layout_from_page(page);
+        debug_assert_eq!(fields.len(), self.sections.len());
+        for ((section, field), section_layout) in self
+            .sections
+            .iter()
+            .zip(fields.iter())
+            .zip(layout.sections.iter())
+        {
+            let bordered = BorderedField::new(section.title.clone(), section.focused);
+            let _ = bordered.render(section_layout.outer, buf, field);
+        }
+        Some(layout)
+    }
+
+    pub(crate) fn render_content(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+    ) -> Option<SettingsFormPageLayout> {
+        let page = self.page.render_content_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         debug_assert_eq!(fields.len(), self.sections.len());
         for ((section, field), section_layout) in self
@@ -171,6 +197,19 @@ impl<'a> SettingsFormPage<'a> {
         Some(layout)
     }
 
+    pub(crate) fn render_content_with_standard_actions<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+        buttons: &[StandardButtonSpec<Id>],
+        align: TextButtonAlign,
+    ) -> Option<SettingsFormPageLayout> {
+        let layout = self.render_content(area, buf, fields)?;
+        self.render_standard_actions(&layout, buf, buttons, align);
+        Some(layout)
+    }
+
     pub(crate) fn render_with_standard_actions_end<Id: Copy>(
         &self,
         area: Rect,
@@ -179,6 +218,16 @@ impl<'a> SettingsFormPage<'a> {
         buttons: &[StandardButtonSpec<Id>],
     ) -> Option<SettingsFormPageLayout> {
         self.render_with_standard_actions(area, buf, fields, buttons, TextButtonAlign::End)
+    }
+
+    pub(crate) fn render_content_with_standard_actions_end<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<SettingsFormPageLayout> {
+        self.render_content_with_standard_actions(area, buf, fields, buttons, TextButtonAlign::End)
     }
 
     pub(crate) fn standard_action_at<Id: Copy>(

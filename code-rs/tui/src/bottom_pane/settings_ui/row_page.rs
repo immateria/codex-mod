@@ -27,6 +27,10 @@ impl<'a> SettingsRowPage<'a> {
         self.frame.layout(area)
     }
 
+    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsFrameLayout> {
+        self.frame.layout_content(area)
+    }
+
     pub(crate) fn selection_index_at(
         body: Rect,
         x: u16,
@@ -46,6 +50,19 @@ impl<'a> SettingsRowPage<'a> {
         rows: &[KeyValueRow<'_>],
     ) -> Option<SettingsFrameLayout> {
         let layout = self.frame.render(area, buf)?;
+        render_kv_rows(layout.body, buf, scroll_top, selected_idx, rows);
+        Some(layout)
+    }
+
+    pub(crate) fn render_content(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        scroll_top: usize,
+        selected_idx: Option<usize>,
+        rows: &[KeyValueRow<'_>],
+    ) -> Option<SettingsFrameLayout> {
+        let layout = self.frame.render_content_shell(area, buf)?;
         render_kv_rows(layout.body, buf, scroll_top, selected_idx, rows);
         Some(layout)
     }

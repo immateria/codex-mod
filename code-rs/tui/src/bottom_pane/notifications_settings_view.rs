@@ -234,6 +234,12 @@ impl NotificationsSettingsView {
         self.process_key_event(key_event)
     }
 
+    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        let page = self.page();
+        let rows = self.menu_rows();
+        let _ = page.render_content_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
+    }
+
 }
 
 impl<'a> BottomPaneView<'a> for NotificationsSettingsView {

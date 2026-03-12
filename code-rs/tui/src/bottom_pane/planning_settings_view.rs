@@ -216,6 +216,24 @@ impl PlanningSettingsView {
     }
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let Some(layout) = self.page().layout_content(area) else {
+            return false;
+        };
+        let Some(row) = self.row_at_position(layout.body, mouse_event.column, mouse_event.row) else {
+            return false;
+        };
+
+        self.state.selected_idx = Some(0);
+        if matches!(
+            mouse_event.kind,
+            crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
+        ) {
+            self.handle_enter(row);
+        }
+        true
+    }
+
+    fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let Some(layout) = self.page().layout(area) else {
             return false;
         };
@@ -231,6 +249,13 @@ impl PlanningSettingsView {
             self.handle_enter(row);
         }
         true
+    }
+
+    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        let Some(layout) = self.page().render_content_shell(area, buf) else {
+            return;
+        };
+        self.render_rows(layout.body, buf);
     }
 }
 
@@ -259,7 +284,7 @@ impl<'a> BottomPaneView<'a> for PlanningSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {
@@ -304,7 +329,7 @@ mod tests {
         );
         let area = Rect::new(0, 0, 40, 8);
         let page = view.page();
-        let layout = page.layout(area).expect("layout");
+        let layout = page.layout_content(area).expect("layout");
         assert_eq!(
             view.row_at_position(layout.body, layout.body.x, layout.body.y),
             Some(PlanningRow::CustomModel)

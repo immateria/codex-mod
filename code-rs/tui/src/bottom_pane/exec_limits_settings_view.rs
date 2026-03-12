@@ -6,7 +6,6 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Margin, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders};
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
@@ -70,11 +69,6 @@ pub(crate) struct ExecLimitsSettingsView {
     app_event_tx: AppEventSender,
 }
 
-#[derive(Clone, Copy, Debug)]
-struct MainLayout {
-    visible_slots: usize,
-}
-
 impl ExecLimitsSettingsView {
     pub(crate) fn new(
         settings: code_core::config::ExecLimitsToml,
@@ -104,42 +98,6 @@ impl ExecLimitsSettingsView {
             RowKind::Apply,
             RowKind::Close,
         ]
-    }
-
-    fn compute_main_heights(
-        available_height: usize,
-        header_height: usize,
-        footer_lines_len: usize,
-    ) -> (usize, usize) {
-        let footer_height = if available_height > header_height {
-            1 + footer_lines_len
-        } else {
-            0
-        };
-        let list_height = available_height.saturating_sub(header_height + footer_height);
-        // Even if we can't fit the footer, we still render at least one selectable row.
-        let visible_slots = list_height.max(1);
-        (footer_height, visible_slots)
-    }
-
-    fn compute_main_layout(&self, area: Rect) -> Option<MainLayout> {
-        if area.width == 0 || area.height == 0 {
-            return None;
-        }
-        let inner = Block::default().borders(Borders::ALL).inner(area);
-        if inner.width == 0 || inner.height == 0 {
-            return None;
-        }
-
-        let header_height = self.render_header_lines().len().min(inner.height as usize);
-        let (_footer_height, visible_slots) = Self::compute_main_heights(
-            inner.height as usize,
-            header_height,
-            self.render_footer_lines().len(),
-        );
-        Some(MainLayout {
-            visible_slots,
-        })
     }
 
     fn format_limit_pids(limit: code_core::config::ExecLimitToml) -> String {
@@ -488,23 +446,11 @@ impl ExecLimitsSettingsView {
         }
     }
 
-    fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let page = SettingsRowPage::new(
-            " Exec Limits ",
-            self.render_header_lines(),
-            self.render_footer_lines(),
-        );
-        let layout = page.layout(area)?;
-        SettingsRowPage::selection_index_at(
-            layout.body,
-            x,
-            y,
-            self.state.get().scroll_top,
-            Self::build_rows().len(),
-        )
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.handle_mouse_event_direct_content(mouse_event, area)
     }
 
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn handle_mouse_event_direct_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
         match mode {
             ViewMode::Main => {
@@ -515,23 +461,28 @@ impl ExecLimitsSettingsView {
                     return false;
                 }
 
-                // Keep visible-row metrics in sync with current area so mouse navigation
-                // can't move selection off-screen.
-                let Some(layout) = self.compute_main_layout(area) else {
+                let page = SettingsRowPage::new(
+                    " Exec Limits ",
+                    self.render_header_lines(),
+                    self.render_footer_lines(),
+                );
+                let Some(layout) = page.layout_content(area) else {
                     self.mode = ViewMode::Main;
                     return false;
                 };
-                let visible_slots = layout.visible_slots;
+                let visible_slots = layout.visible_rows().max(1);
                 self.viewport_rows.set(visible_slots);
 
                 let mut state = self.state.get();
                 state.clamp_selection(total);
+                let scroll_top = state.scroll_top;
+                let body = layout.body;
                 let mut selected = state.selected_idx.unwrap_or(0);
                 let result = route_selectable_list_mouse_with_config(
                     mouse_event,
                     &mut selected,
                     total,
-                    |x, y| self.selection_index_at(area, x, y),
+                    |x, y| SettingsRowPage::selection_index_at(body, x, y, scroll_top, total),
                     SelectableListMouseConfig {
                         hover_select: false,
                         require_pointer_hit_for_scroll: true,
@@ -558,7 +509,87 @@ impl ExecLimitsSettingsView {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) =
-                            Self::edit_page(target, error.as_deref()).layout(area).map(|layout| layout.field)
+                            Self::edit_page(target, error.as_deref())
+                                .layout_content(area)
+                                .map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                    }
+                    _ => false,
+                };
+                self.mode = ViewMode::Edit { target, field, error };
+                handled
+            }
+            ViewMode::Transition => {
+                self.mode = ViewMode::Main;
+                false
+            }
+        }
+    }
+
+    fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+        match mode {
+            ViewMode::Main => {
+                let rows = Self::build_rows();
+                let total = rows.len();
+                if total == 0 {
+                    self.mode = ViewMode::Main;
+                    return false;
+                }
+
+                let page = SettingsRowPage::new(
+                    " Exec Limits ",
+                    self.render_header_lines(),
+                    self.render_footer_lines(),
+                );
+                let Some(layout) = page.layout(area) else {
+                    self.mode = ViewMode::Main;
+                    return false;
+                };
+                let visible_slots = layout.visible_rows().max(1);
+                self.viewport_rows.set(visible_slots);
+
+                let mut state = self.state.get();
+                state.clamp_selection(total);
+                let scroll_top = state.scroll_top;
+                let body = layout.body;
+                let mut selected = state.selected_idx.unwrap_or(0);
+                let result = route_selectable_list_mouse_with_config(
+                    mouse_event,
+                    &mut selected,
+                    total,
+                    |x, y| SettingsRowPage::selection_index_at(body, x, y, scroll_top, total),
+                    SelectableListMouseConfig {
+                        hover_select: false,
+                        require_pointer_hit_for_scroll: true,
+                        scroll_behavior: ScrollSelectionBehavior::Clamp,
+                        ..SelectableListMouseConfig::default()
+                    },
+                );
+                state.selected_idx = Some(selected);
+                state.ensure_visible(total, visible_slots);
+                self.state.set(state);
+
+                if matches!(result, SelectableListMouseResult::Activated)
+                    && let Some(kind) = rows.get(selected).copied()
+                {
+                    self.activate_row(kind);
+                }
+
+                if matches!(self.mode, ViewMode::Transition) {
+                    self.mode = ViewMode::Main;
+                }
+                result.handled()
+            }
+            ViewMode::Edit { target, mut field, error } => {
+                let handled = match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        let Some(field_area) = Self::edit_page(target, error.as_deref())
+                            .layout(area)
+                            .map(|layout| layout.field)
                         else {
                             return false;
                         };
@@ -624,6 +655,54 @@ impl ExecLimitsSettingsView {
         self.viewport_rows.set(visible_slots);
     }
 
+    fn render_main_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        let rows = Self::build_rows();
+        let total = rows.len();
+        let mut state = self.state.get();
+        state.clamp_selection(total);
+        let selected_idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+
+        let is_dirty = self.settings != self.last_applied;
+        let row_specs: Vec<KeyValueRow<'_>> = rows
+            .iter()
+            .copied()
+            .map(|row| match row {
+                RowKind::PidsMax => KeyValueRow::new("Process limit (pids.max)").with_value(
+                    StyledText::new(
+                        Self::format_limit_pids(self.settings.pids_max),
+                        Style::default().fg(colors::success()),
+                    ),
+                ),
+                RowKind::MemoryMax => KeyValueRow::new("Memory limit (memory.max)").with_value(
+                    StyledText::new(
+                        Self::format_limit_memory(self.settings.memory_max_mb),
+                        Style::default().fg(colors::success()),
+                    ),
+                ),
+                RowKind::ResetBothAuto => KeyValueRow::new("Reset both to Auto"),
+                RowKind::DisableBoth => KeyValueRow::new("Disable both"),
+                RowKind::Apply => KeyValueRow::new("Apply").with_value(StyledText::new(
+                    if is_dirty { "Pending" } else { "Saved" },
+                    Style::default().fg(colors::success()),
+                )),
+                RowKind::Close => KeyValueRow::new("Close"),
+            })
+            .collect();
+        let Some(layout) = SettingsRowPage::new(
+            " Exec Limits ",
+            self.render_header_lines(),
+            self.render_footer_lines(),
+        )
+        .render_content(area, buf, state.scroll_top, Some(selected_idx), &row_specs)
+        else {
+            return;
+        };
+        let visible_slots = layout.visible_rows();
+        state.ensure_visible(total, visible_slots);
+        self.state.set(state);
+        self.viewport_rows.set(visible_slots);
+    }
+
     fn edit_page(target: EditTarget, error: Option<&str>) -> SettingsEditorPage<'static> {
         let (title, field_title) = match target {
             EditTarget::PidsMax => (" Edit Process Limit ", "Process limit"),
@@ -665,6 +744,29 @@ impl ExecLimitsSettingsView {
     ) {
         let _ = Self::edit_page(target, error).render(area, buf, field);
     }
+
+    fn render_edit_without_frame(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        target: EditTarget,
+        field: &FormTextField,
+        error: Option<&str>,
+    ) {
+        let _ = Self::edit_page(target, error).render_content(area, buf, field);
+    }
+
+    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main_without_frame(area, buf),
+            ViewMode::Edit {
+                target,
+                field,
+                error,
+            } => self.render_edit_without_frame(area, buf, *target, field, error.as_deref()),
+            ViewMode::Transition => self.render_main_without_frame(area, buf),
+        }
+    }
 }
 
 impl<'a> BottomPaneView<'a> for ExecLimitsSettingsView {
@@ -682,7 +784,7 @@ impl<'a> BottomPaneView<'a> for ExecLimitsSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
@@ -765,7 +867,7 @@ mod tests {
             modifiers: KeyModifiers::NONE,
         };
 
-        assert!(view.handle_mouse_event_direct(mouse_event, area));
+        assert!(view.handle_mouse_event_direct_framed(mouse_event, area));
         match rx.try_recv() {
             Ok(AppEvent::SetExecLimitsSettings(_)) => {}
             other => panic!("expected SetExecLimitsSettings event, got: {other:?}"),

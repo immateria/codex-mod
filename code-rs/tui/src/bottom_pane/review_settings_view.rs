@@ -658,6 +658,21 @@ impl ReviewSettingsView {
         self.handle_key_event_impl(key_event)
     }
 
+    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        if area.height == 0 || area.width == 0 {
+            return;
+        }
+        let page = self.page();
+        let runs = self.build_runs(self.state.selected_idx.unwrap_or(usize::MAX));
+        let mut rects = Vec::new();
+        let Some(layout) =
+            page.render_content_runs(area, buf, self.state.scroll_top, &runs, &mut rects)
+        else {
+            return;
+        };
+        self.viewport_rows.set(layout.body.height as usize);
+    }
+
     fn activate_selection_kind(&mut self, kind: SelectionKind) {
         match kind {
             SelectionKind::ReviewEnabled => self.toggle_review_auto_resolve(),
@@ -711,10 +726,25 @@ impl ReviewSettingsView {
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let page = self.page();
+        let Some(layout) = page.layout_content(area) else {
+            return false;
+        };
+        self.handle_mouse_event_in_body(mouse_event, layout.body)
+    }
+
+    fn handle_mouse_event_direct_framed(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        let page = self.page();
         let Some(layout) = page.layout(area) else {
             return false;
         };
+        self.handle_mouse_event_in_body(mouse_event, layout.body)
+    }
 
+    fn handle_mouse_event_in_body(&mut self, mouse_event: MouseEvent, body: Rect) -> bool {
         let mut model = self.build_model();
         let total = model.selection_kinds.len();
         if total == 0 {
@@ -722,7 +752,7 @@ impl ReviewSettingsView {
         }
 
         self.state.clamp_selection(total);
-        self.ensure_selected_visible(&model, layout.body.height as usize);
+        self.ensure_selected_visible(&model, body.height as usize);
         let scroll_top = self.state.scroll_top;
 
         let mut selected = self.state.selected_idx.unwrap_or(0);
@@ -734,7 +764,7 @@ impl ReviewSettingsView {
                 mouse_event,
                 &mut selected,
                 total,
-                |x, y| selection_id_at(layout.body, x, y, scroll_top, &runs),
+                |x, y| selection_id_at(body, x, y, scroll_top, &runs),
                 SelectableListMouseConfig {
                     hover_select: false,
                     ..SelectableListMouseConfig::default()
@@ -744,12 +774,13 @@ impl ReviewSettingsView {
         self.state.selected_idx = Some(selected);
 
         if matches!(result, SelectableListMouseResult::Activated)
-            && let Some(kind) = model.selection_kinds.get(selected).copied() {
-                self.activate_selection_kind(kind);
-            }
+            && let Some(kind) = model.selection_kinds.get(selected).copied()
+        {
+            self.activate_selection_kind(kind);
+        }
         if result.handled() {
             model = self.build_model();
-            self.ensure_selected_visible(&model, layout.body.height as usize);
+            self.ensure_selected_visible(&model, body.height as usize);
         }
 
         result.handled()
@@ -858,7 +889,7 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {

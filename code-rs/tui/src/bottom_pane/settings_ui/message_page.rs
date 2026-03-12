@@ -61,12 +61,36 @@ impl<'a> SettingsMessagePage<'a> {
         Some(self.layout_from_page(page))
     }
 
+    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
+        let page = self.page.layout_content(area)?;
+        Some(self.layout_from_page(page))
+    }
+
     pub(crate) fn render(
         &self,
         area: Rect,
         buf: &mut Buffer,
     ) -> Option<SettingsMessagePageLayout> {
         let page = self.page.render(area, buf)?;
+        let layout = self.layout_from_page(page);
+        if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
+            let mut paragraph = Paragraph::new(self.body_lines.clone())
+                .alignment(Alignment::Left)
+                .style(self.body_style);
+            if self.body_wrap {
+                paragraph = paragraph.wrap(Wrap { trim: true });
+            }
+            paragraph.render(layout.body, buf);
+        }
+        Some(layout)
+    }
+
+    pub(crate) fn render_content(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsMessagePageLayout> {
+        let page = self.page.render_content_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
             let mut paragraph = Paragraph::new(self.body_lines.clone())
