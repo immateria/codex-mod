@@ -3037,7 +3037,7 @@ impl App<'_> {
                         }
                         new_widget.enable_perf(self.timing_enabled);
                         new_widget.check_for_initial_animations();
-                        *widget = Box::new(new_widget);
+                        **widget = new_widget;
                     } else {
                         let auth_manager = AuthManager::shared_with_mode_and_originator(
                             cfg.code_home.clone(),

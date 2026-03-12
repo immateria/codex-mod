@@ -355,9 +355,7 @@ impl ReviewSettingsView {
         current_line = current_line.saturating_add(1);
 
         let review_section_end = current_line.saturating_sub(1);
-        for idx in 0..selection_kinds.len() {
-            section_bounds[idx] = (review_section_start, review_section_end);
-        }
+        section_bounds.fill((review_section_start, review_section_end));
 
         let auto_review_section_start = current_line;
         current_line = current_line.saturating_add(1);
@@ -384,9 +382,8 @@ impl ReviewSettingsView {
         current_line = current_line.saturating_add(1);
 
         let auto_review_section_end = current_line.saturating_sub(1);
-        for idx in auto_review_selection_start..selection_kinds.len() {
-            section_bounds[idx] = (auto_review_section_start, auto_review_section_end);
-        }
+        section_bounds[auto_review_selection_start..]
+            .fill((auto_review_section_start, auto_review_section_end));
 
         ReviewListModel {
             selection_kinds,

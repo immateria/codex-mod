@@ -293,10 +293,7 @@ fn xterm_color_to_rgb(idx: u32) -> Option<(u8, u8, u8)> {
 
 fn parse_colorfgbg_env() -> Option<(u8, u8, u8)> {
     let raw = env::var("COLORFGBG").ok()?;
-    let bg_part = raw
-        .split(';')
-        .filter(|segment| !segment.is_empty())
-        .next_back()?;
+    let bg_part = raw.split(';').rfind(|segment| !segment.is_empty())?;
     if bg_part.eq_ignore_ascii_case("default") {
         return None;
     }

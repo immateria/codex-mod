@@ -876,7 +876,7 @@ impl AutoDriveSettingsView {
             }
             AutoDriveSettingsMode::RoutingEditor(editor) => {
                 let selected = self.routing_editor_selected_body_field(editor);
-                let rows = self.routing_editor_menu_rows(&editor);
+                let rows = self.routing_editor_menu_rows(editor);
                 render_menu_rows(
                     area,
                     buf,

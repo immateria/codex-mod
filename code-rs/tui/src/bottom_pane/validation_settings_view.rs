@@ -182,8 +182,8 @@ impl ValidationSettingsView {
             }
 
             let section_end = current_line.saturating_sub(1);
-            for idx in section_selection_start..selection_kinds.len() {
-                section_bounds[idx] = (section_start, section_end);
+            for bounds in &mut section_bounds[section_selection_start..] {
+                *bounds = (section_start, section_end);
             }
 
             if group_idx + 1 < self.groups.len() {

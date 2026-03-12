@@ -130,9 +130,7 @@ pub(super) fn filter_frontmatter_excluding_keys(frontmatter: &str, excluded_keys
                     }
                     break;
                 }
-                for _ in 0..pending_blanks {
-                    out.push("");
-                }
+                out.extend(std::iter::repeat_n("", pending_blanks));
                 continue;
             }
         }

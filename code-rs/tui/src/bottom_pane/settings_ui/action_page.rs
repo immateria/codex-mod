@@ -96,7 +96,7 @@ impl<'a> SettingsActionPage<'a> {
     fn sectioned_panel(&self) -> SettingsSectionedPanel<'_> {
         SettingsSectionedPanel::new(
             self.title.clone(),
-            self.style.clone(),
+            self.style,
             self.header_lines.len(),
             self.status_lines
                 .len()

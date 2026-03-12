@@ -41,6 +41,7 @@ pub(crate) struct SettingsListDetailPage<'a> {
 }
 
 impl<'a> SettingsListDetailPage<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         title: impl Into<Cow<'a, str>>,
         style: SettingsPanelStyle,

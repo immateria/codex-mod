@@ -1379,13 +1379,11 @@ impl WidgetRef for &BottomPane<'_> {
                     } else {
                         composer_rect = compute_composer_rect(area, self.top_spacer_enabled);
                     }
-                } else {
-                    if let Some(view_rect) = self.compute_active_view_rect(area, view.as_ref()) {
-                        let view_bg = ratatui::style::Style::default().bg(crate::colors::background());
-                        fill_rect(buf, view_rect, None, view_bg);
-                        view.render_with_composer(view_rect, buf, &self.composer);
-                        composer_needs_render = false;
-                    }
+                } else if let Some(view_rect) = self.compute_active_view_rect(area, view.as_ref()) {
+                    let view_bg = ratatui::style::Style::default().bg(crate::colors::background());
+                    fill_rect(buf, view_rect, None, view_bg);
+                    view.render_with_composer(view_rect, buf, &self.composer);
+                    composer_needs_render = false;
                 }
             }
 

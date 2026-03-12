@@ -60,7 +60,7 @@ impl ShellProfilesSettingsView {
     }
 
     fn editor_shortcuts(target: ListTarget) -> Vec<KeyHint<'static>> {
-        let hints = match target {
+        match target {
             ListTarget::Summary => vec![
                 KeyHint::new("Ctrl+S", " save"),
                 KeyHint::new("Ctrl+G", " generate"),
@@ -72,8 +72,7 @@ impl ShellProfilesSettingsView {
                 KeyHint::new("Ctrl+V", " show"),
                 KeyHint::new("Esc", " cancel"),
             ],
-        };
-        hints
+        }
     }
 
     fn editor_page(&self, target: ListTarget) -> SettingsActionPage<'static> {
