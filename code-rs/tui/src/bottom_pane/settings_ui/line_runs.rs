@@ -42,9 +42,38 @@ pub(crate) fn render_selectable_runs<Id: Copy>(
     scroll_top: usize,
     runs: &[SelectableLineRun<'_, Id>],
     base_style: Style,
+) {
+    render_selectable_runs_inner(area, buf, scroll_top, runs, base_style, None);
+}
+
+#[allow(dead_code)]
+pub(crate) fn render_selectable_runs_with_rects<Id: Copy>(
+    area: Rect,
+    buf: &mut Buffer,
+    scroll_top: usize,
+    runs: &[SelectableLineRun<'_, Id>],
+    base_style: Style,
     out_rects: &mut Vec<(Id, Rect)>,
 ) {
     out_rects.clear();
+    render_selectable_runs_inner(
+        area,
+        buf,
+        scroll_top,
+        runs,
+        base_style,
+        Some(out_rects),
+    );
+}
+
+fn render_selectable_runs_inner<Id: Copy>(
+    area: Rect,
+    buf: &mut Buffer,
+    scroll_top: usize,
+    runs: &[SelectableLineRun<'_, Id>],
+    base_style: Style,
+    mut out_rects: Option<&mut Vec<(Id, Rect)>>,
+) {
     if area.width == 0 || area.height == 0 {
         return;
     }
@@ -76,7 +105,9 @@ pub(crate) fn render_selectable_runs<Id: Copy>(
             write_line(buf, area.x, y, area.width, &run.lines[source_idx], run_style);
         }
 
-        if let Some(id) = run.id {
+        if let Some(id) = run.id
+            && let Some(out_rects) = out_rects.as_deref_mut()
+        {
             out_rects.push((
                 id,
                 Rect::new(
@@ -125,9 +156,10 @@ pub(crate) fn selection_id_at<Id: Copy>(
         );
 
         if let Some(id) = run.id
-            && rect.contains(Position { x, y }) {
-                return Some(id);
-            }
+            && rect.contains(Position { x, y })
+        {
+            return Some(id);
+        }
     }
 
     None
@@ -185,7 +217,7 @@ mod tests {
             SelectableLineRun::selectable(8usize, vec![Line::from("row c")]),
         ];
 
-        render_selectable_runs(area, &mut buf, 1, &runs, Style::new(), &mut rects);
+        render_selectable_runs_with_rects(area, &mut buf, 1, &runs, Style::new(), &mut rects);
         assert_eq!(rects.len(), 1);
         assert_eq!(rects[0], (7, Rect::new(0, 0, 20, 2)));
     }
@@ -204,7 +236,7 @@ mod tests {
             ],
         )];
 
-        render_selectable_runs(area, &mut buf, 1, &runs, Style::new(), &mut rects);
+        render_selectable_runs_with_rects(area, &mut buf, 1, &runs, Style::new(), &mut rects);
         assert_eq!(rects, vec![(1, Rect::new(0, 0, 20, 2))]);
     }
 

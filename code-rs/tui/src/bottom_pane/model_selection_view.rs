@@ -570,11 +570,10 @@ impl ModelSelectionView {
         framed: bool,
     ) {
         let runs = self.build_render_runs();
-        let mut rects = Vec::new();
         let layout = if framed {
-            page.render_runs(area, buf, self.scroll_offset, &runs, &mut rects)
+            page.render_runs(area, buf, self.scroll_offset, &runs)
         } else {
-            page.render_content_runs(area, buf, self.scroll_offset, &runs, &mut rects)
+            page.render_content_runs(area, buf, self.scroll_offset, &runs)
         };
         if let Some(layout) = layout {
             self.visible_body_rows.set(layout.body.height as usize);

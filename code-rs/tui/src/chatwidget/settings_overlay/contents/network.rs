@@ -18,7 +18,7 @@ impl NetworkSettingsContent {
 
 impl SettingsContent for NetworkSettingsContent {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render(area, buf);
+        self.view.render_without_frame(area, buf);
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> bool {

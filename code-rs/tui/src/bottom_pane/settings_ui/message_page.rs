@@ -61,11 +61,6 @@ impl<'a> SettingsMessagePage<'a> {
         Some(self.layout_from_page(page))
     }
 
-    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
-        let page = self.page.layout_content(area)?;
-        Some(self.layout_from_page(page))
-    }
-
     pub(crate) fn render(
         &self,
         area: Rect,

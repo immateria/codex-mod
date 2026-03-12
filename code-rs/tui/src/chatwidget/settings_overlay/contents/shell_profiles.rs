@@ -2,7 +2,7 @@ use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-use crate::bottom_pane::{BottomPaneView, ShellProfilesSettingsView};
+use crate::bottom_pane::ShellProfilesSettingsView;
 
 use super::super::SettingsContent;
 
@@ -38,7 +38,7 @@ impl ShellProfilesSettingsContent {
 
 impl SettingsContent for ShellProfilesSettingsContent {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render(area, buf);
+        self.view.render_without_frame(area, buf);
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> bool {

@@ -304,11 +304,6 @@ impl PromptsSettingsView {
 
     pub fn is_complete(&self) -> bool { self.is_complete }
 
-    pub fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 { return; }
-        self.render_body(area, buf);
-    }
-
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
         if area.width == 0 || area.height == 0 {
             return;

@@ -213,8 +213,7 @@ impl UpdateSettingsView {
 
         let Some(layout) = self.content_layout(area) else {
             let rows = self.rows();
-            let mut rects = Vec::new();
-            render_menu_rows(area, buf, 0, Some(self.field), &rows, base, &mut rects);
+            render_menu_rows(area, buf, 0, Some(self.field), &rows, base);
             return;
         };
 
@@ -229,8 +228,7 @@ impl UpdateSettingsView {
         }
 
         let rows = self.rows();
-        let mut rects = Vec::new();
-        render_menu_rows(layout.body, buf, 0, Some(self.field), &rows, base, &mut rects);
+        render_menu_rows(layout.body, buf, 0, Some(self.field), &rows, base);
 
         let footer_lines = Self::footer_lines();
         for (idx, line) in footer_lines

@@ -334,30 +334,56 @@ impl ShellProfilesSettingsView {
         true
     }
 
+    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main_without_frame(area, buf),
+            ViewMode::EditList { target, .. } => self.render_editor_without_frame(area, buf, *target),
+            ViewMode::PickList(state) => self.render_picker_without_frame(area, buf, state),
+        }
+    }
+
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.handle_mouse_event_direct_inner(mouse_event, area, false)
+    }
+
+    fn handle_mouse_event_direct_inner(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+        framed: bool,
+    ) -> bool {
         if self.is_complete {
             return false;
         }
 
         let mode = std::mem::replace(&mut self.mode, ViewMode::Main);
         match mode {
-            ViewMode::Main => self.handle_mouse_event_main(mouse_event, area),
+            ViewMode::Main => {
+                if framed {
+                    self.handle_mouse_event_main(mouse_event, area)
+                } else {
+                    self.handle_mouse_event_main_content(mouse_event, area)
+                }
+            }
             ViewMode::EditList { target, before } => {
-                let Some(layout) = self.compute_editor_layout(area, target) else {
+                let layout = if framed {
+                    self.compute_editor_layout(area, target)
+                } else {
+                    self.compute_editor_layout_content(area, target)
+                };
+                let Some(layout) = layout else {
                     self.mode = ViewMode::EditList { target, before };
                     return false;
                 };
 
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
-                        if let Some(action) =
-                            self.editor_footer_action_at(
-                                target,
-                                mouse_event.column,
-                                mouse_event.row,
-                                &layout,
-                            )
-                        {
+                        if let Some(action) = self.editor_footer_action_at(
+                            target,
+                            mouse_event.column,
+                            mouse_event.row,
+                            &layout,
+                        ) {
                             match action {
                                 EditorFooterAction::Save => {
                                     self.stage_pending_profile_from_fields();
@@ -385,8 +411,12 @@ impl ShellProfilesSettingsView {
                                 EditorFooterAction::Cancel => {
                                     match target {
                                         ListTarget::Summary => self.summary_field.set_text(&before),
-                                        ListTarget::References => self.references_field.set_text(&before),
-                                        ListTarget::SkillRoots => self.skill_roots_field.set_text(&before),
+                                        ListTarget::References => {
+                                            self.references_field.set_text(&before);
+                                        }
+                                        ListTarget::SkillRoots => {
+                                            self.skill_roots_field.set_text(&before);
+                                        }
                                     }
                                     self.mode = ViewMode::Main;
                                     return true;
@@ -446,10 +476,20 @@ impl ShellProfilesSettingsView {
                 let mut selected = state.scroll.selected_idx.unwrap_or(0);
                 let scroll_top = state.scroll.scroll_top.min(total.saturating_sub(1));
 
+                let layout = if framed {
+                    self.compute_picker_layout(area, &state)
+                } else {
+                    self.compute_picker_layout_content(area, &state)
+                };
+                let Some(layout) = layout else {
+                    self.mode = ViewMode::PickList(state);
+                    return false;
+                };
+                let body = layout.body;
+
                 let row_at_position = |x: u16, y: u16| -> Option<usize> {
-                    let layout = self.compute_picker_layout(area, &state)?;
                     crate::bottom_pane::settings_ui::rows::selection_index_at(
-                        layout.body,
+                        body,
                         x,
                         y,
                         scroll_top,
@@ -493,6 +533,14 @@ impl ShellProfilesSettingsView {
         }
     }
 
+    pub(crate) fn handle_mouse_event_direct_framed(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_inner(mouse_event, area, true)
+    }
+
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
     }
@@ -517,7 +565,7 @@ impl<'a> BottomPaneView<'a> for ShellProfilesSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {

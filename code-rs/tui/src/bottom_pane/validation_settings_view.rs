@@ -457,8 +457,7 @@ impl ValidationSettingsView {
         let page = self.page();
         let selected_idx = self.state.selected_idx.unwrap_or(usize::MAX);
         let runs = self.build_runs(selected_idx);
-        let mut rects = Vec::new();
-        let Some(layout) = page.render_content_runs(area, buf, self.state.scroll_top, &runs, &mut rects) else {
+        let Some(layout) = page.render_content_runs(area, buf, self.state.scroll_top, &runs) else {
             return;
         };
         self.viewport_rows.set(layout.body.height as usize);
@@ -466,7 +465,7 @@ impl ValidationSettingsView {
 
     fn handle_mouse_event_internal(
         &mut self,
-        mut pane: Option<&mut BottomPane<'_>>,
+        pane: Option<&mut BottomPane<'_>>,
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
@@ -632,9 +631,8 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
         let page = self.page();
         let selected_idx = self.state.selected_idx.unwrap_or(usize::MAX);
         let runs = self.build_runs(selected_idx);
-        let mut rects = Vec::new();
         let Some(layout) =
-            page.render_runs(area, buf, self.state.scroll_top, &runs, &mut rects)
+            page.render_runs(area, buf, self.state.scroll_top, &runs)
         else {
             return;
         };

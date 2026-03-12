@@ -2,7 +2,7 @@ use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-use crate::bottom_pane::{BottomPaneView, InterfaceSettingsView};
+use crate::bottom_pane::InterfaceSettingsView;
 
 use super::super::SettingsContent;
 
@@ -18,7 +18,7 @@ impl InterfaceSettingsContent {
 
 impl SettingsContent for InterfaceSettingsContent {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render(area, buf);
+        self.view.render_without_frame(area, buf);
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> bool {
@@ -37,4 +37,3 @@ impl SettingsContent for InterfaceSettingsContent {
         self.view.handle_paste_direct(text)
     }
 }
-

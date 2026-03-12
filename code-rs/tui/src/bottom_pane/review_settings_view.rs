@@ -664,9 +664,8 @@ impl ReviewSettingsView {
         }
         let page = self.page();
         let runs = self.build_runs(self.state.selected_idx.unwrap_or(usize::MAX));
-        let mut rects = Vec::new();
         let Some(layout) =
-            page.render_content_runs(area, buf, self.state.scroll_top, &runs, &mut rects)
+            page.render_content_runs(area, buf, self.state.scroll_top, &runs)
         else {
             return;
         };
@@ -906,9 +905,8 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
         }
         let page = self.page();
         let runs = self.build_runs(self.state.selected_idx.unwrap_or(usize::MAX));
-        let mut rects = Vec::new();
         let Some(layout) =
-            page.render_runs(area, buf, self.state.scroll_top, &runs, &mut rects)
+            page.render_runs(area, buf, self.state.scroll_top, &runs)
         else {
             return;
         };

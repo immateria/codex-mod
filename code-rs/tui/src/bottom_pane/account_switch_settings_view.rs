@@ -312,8 +312,7 @@ impl AccountSwitchSettingsView {
             ViewMode::Main => {
                 let page = self.main_page();
                 let runs = self.main_runs(Some(self.selected_index));
-                let mut rects = Vec::new();
-                let _ = page.render_content_runs(area, buf, 0, &runs, &mut rects);
+                let _ = page.render_content_runs(area, buf, 0, &runs);
             }
             ViewMode::ConfirmStoreChange { target, selected } => {
                 let page = self.confirm_page(target);

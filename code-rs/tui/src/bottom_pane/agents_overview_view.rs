@@ -285,8 +285,7 @@ impl<'a> BottomPaneView<'a> for AgentsOverviewView {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let runs = self.runs(Some(self.selected));
-        let mut rects = Vec::new();
-        let _ = page.render_runs(area, buf, 0, &runs, &mut rects);
+        let _ = page.render_runs(area, buf, 0, &runs);
     }
 }
 
@@ -320,4 +319,3 @@ mod tests {
         assert!(!combined.contains("not installed"));
     }
 }
-

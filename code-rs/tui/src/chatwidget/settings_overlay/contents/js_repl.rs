@@ -2,7 +2,7 @@ use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-use crate::bottom_pane::{BottomPaneView, JsReplSettingsView};
+use crate::bottom_pane::JsReplSettingsView;
 
 use super::super::SettingsContent;
 
@@ -18,7 +18,7 @@ impl JsReplSettingsContent {
 
 impl SettingsContent for JsReplSettingsContent {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render(area, buf);
+        self.view.render_without_frame(area, buf);
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> bool {
@@ -37,4 +37,3 @@ impl SettingsContent for JsReplSettingsContent {
         self.view.handle_paste_direct(text)
     }
 }
-

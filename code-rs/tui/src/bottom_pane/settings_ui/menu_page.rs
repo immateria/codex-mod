@@ -9,7 +9,11 @@ use crate::colors;
 use crate::ui_interaction::split_header_body_footer;
 use crate::util::buffer::{fill_rect, write_line};
 
-use super::line_runs::{render_selectable_runs, SelectableLineRun};
+use super::line_runs::{
+    render_selectable_runs,
+    render_selectable_runs_with_rects,
+    SelectableLineRun,
+};
 use super::menu_rows::{
     render_menu_rows,
     selection_id_at as selection_menu_id_at,
@@ -112,7 +116,6 @@ impl<'a> SettingsMenuPage<'a> {
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        let mut rects = Vec::new();
         render_menu_rows(
             layout.body,
             buf,
@@ -120,7 +123,6 @@ impl<'a> SettingsMenuPage<'a> {
             selected_id,
             rows,
             base,
-            &mut rects,
         );
         Some(layout)
     }
@@ -135,7 +137,6 @@ impl<'a> SettingsMenuPage<'a> {
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_content_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        let mut rects = Vec::new();
         render_menu_rows(
             layout.body,
             buf,
@@ -143,7 +144,6 @@ impl<'a> SettingsMenuPage<'a> {
             selected_id,
             rows,
             base,
-            &mut rects,
         );
         Some(layout)
     }
@@ -154,11 +154,25 @@ impl<'a> SettingsMenuPage<'a> {
         buf: &mut Buffer,
         scroll_top: usize,
         runs: &[SelectableLineRun<'_, Id>],
+    ) -> Option<SettingsSectionedPanelLayout> {
+        let layout = self.render_shell(area, buf)?;
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        render_selectable_runs(layout.body, buf, scroll_top, runs, base);
+        Some(layout)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn render_runs_with_rects<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        scroll_top: usize,
+        runs: &[SelectableLineRun<'_, Id>],
         out_rects: &mut Vec<(Id, Rect)>,
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        render_selectable_runs(layout.body, buf, scroll_top, runs, base, out_rects);
+        render_selectable_runs_with_rects(layout.body, buf, scroll_top, runs, base, out_rects);
         Some(layout)
     }
 
@@ -168,11 +182,25 @@ impl<'a> SettingsMenuPage<'a> {
         buf: &mut Buffer,
         scroll_top: usize,
         runs: &[SelectableLineRun<'_, Id>],
+    ) -> Option<SettingsSectionedPanelLayout> {
+        let layout = self.render_content_shell(area, buf)?;
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        render_selectable_runs(layout.body, buf, scroll_top, runs, base);
+        Some(layout)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn render_content_runs_with_rects<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        scroll_top: usize,
+        runs: &[SelectableLineRun<'_, Id>],
         out_rects: &mut Vec<(Id, Rect)>,
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_content_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        render_selectable_runs(layout.body, buf, scroll_top, runs, base, out_rects);
+        render_selectable_runs_with_rects(layout.body, buf, scroll_top, runs, base, out_rects);
         Some(layout)
     }
 }

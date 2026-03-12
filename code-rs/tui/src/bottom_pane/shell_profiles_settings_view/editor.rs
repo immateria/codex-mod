@@ -146,6 +146,14 @@ impl ShellProfilesSettingsView {
         self.editor_form_page(target).layout(area)
     }
 
+    pub(super) fn compute_editor_layout_content(
+        &self,
+        area: Rect,
+        target: ListTarget,
+    ) -> Option<SettingsFormPageLayout> {
+        self.editor_form_page(target).layout_content(area)
+    }
+
     pub(super) fn editor_append_picker_path(&mut self, target: ListTarget) {
         let kind = match target {
             ListTarget::Summary => {
@@ -206,6 +214,26 @@ impl ShellProfilesSettingsView {
         };
         let buttons = Self::editor_footer_button_specs(target, None);
         let Some(_layout) = page.render_with_standard_actions_end(area, buf, &[field], &buttons)
+        else {
+            return;
+        };
+    }
+
+    pub(super) fn render_editor_without_frame(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        target: ListTarget,
+    ) {
+        let page = self.editor_form_page(target);
+        let field = match target {
+            ListTarget::Summary => &self.summary_field,
+            ListTarget::References => &self.references_field,
+            ListTarget::SkillRoots => &self.skill_roots_field,
+        };
+        let buttons = Self::editor_footer_button_specs(target, None);
+        let Some(_layout) =
+            page.render_content_with_standard_actions_end(area, buf, &[field], &buttons)
         else {
             return;
         };

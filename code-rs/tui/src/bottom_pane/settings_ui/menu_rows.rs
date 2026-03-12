@@ -10,6 +10,7 @@ use crate::colors;
 
 use super::line_runs::{
     render_selectable_runs,
+    render_selectable_runs_with_rects,
     SelectableLineRun,
 };
 use super::rows::StyledText;
@@ -240,13 +241,29 @@ pub(crate) fn render_menu_rows<Id: Copy + PartialEq>(
     selected_id: Option<Id>,
     rows: &[SettingsMenuRow<'_, Id>],
     base_style: Style,
+) {
+    let runs = rows
+        .iter()
+        .map(|row| row.to_run(selected_id))
+        .collect::<Vec<_>>();
+    render_selectable_runs(area, buf, scroll_top, &runs, base_style);
+}
+
+#[allow(dead_code)]
+pub(crate) fn render_menu_rows_with_rects<Id: Copy + PartialEq>(
+    area: Rect,
+    buf: &mut Buffer,
+    scroll_top: usize,
+    selected_id: Option<Id>,
+    rows: &[SettingsMenuRow<'_, Id>],
+    base_style: Style,
     out_rects: &mut Vec<(Id, Rect)>,
 ) {
     let runs = rows
         .iter()
         .map(|row| row.to_run(selected_id))
         .collect::<Vec<_>>();
-    render_selectable_runs(area, buf, scroll_top, &runs, base_style, out_rects);
+    render_selectable_runs_with_rects(area, buf, scroll_top, &runs, base_style, out_rects);
 }
 
 pub(crate) fn selection_id_at<Id: Copy + PartialEq>(
@@ -317,7 +334,7 @@ mod tests {
             SettingsMenuRow::new(2usize, "Second"),
         ];
         let mut rects = Vec::new();
-        render_menu_rows(
+        render_menu_rows_with_rects(
             area,
             &mut buf,
             1,

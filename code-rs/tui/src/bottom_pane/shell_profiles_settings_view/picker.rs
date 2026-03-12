@@ -358,8 +358,32 @@ impl ShellProfilesSettingsView {
         self.picker_page(state).layout(area)
     }
 
+    pub(super) fn compute_picker_layout_content(
+        &self,
+        area: Rect,
+        state: &PickListState,
+    ) -> Option<SettingsSectionedPanelLayout> {
+        self.picker_page(state).layout_content(area)
+    }
+
     pub(super) fn render_picker(&self, area: Rect, buf: &mut Buffer, state: &PickListState) {
         let Some(layout) = self.picker_page(state).render_shell(area, buf)
+        else {
+            return;
+        };
+
+        self.pick_viewport_rows
+            .set((layout.body.height as usize).max(1));
+        self.render_pick_list(layout.body, buf, state);
+    }
+
+    pub(super) fn render_picker_without_frame(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        state: &PickListState,
+    ) {
+        let Some(layout) = self.picker_page(state).render_content_shell(area, buf)
         else {
             return;
         };

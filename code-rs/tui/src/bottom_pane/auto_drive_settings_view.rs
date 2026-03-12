@@ -837,7 +837,6 @@ impl AutoDriveSettingsView {
         let base = Style::new().bg(colors::background()).fg(colors::text());
         match &self.mode {
             AutoDriveSettingsMode::Main => {
-                let mut rects = Vec::new();
                 let rows = self.main_menu_rows();
                 render_menu_rows(
                     area,
@@ -846,11 +845,9 @@ impl AutoDriveSettingsView {
                     Some(self.selected_index),
                     &rows,
                     base,
-                    &mut rects,
                 );
             }
             AutoDriveSettingsMode::RoutingList => {
-                let mut rects = Vec::new();
                 let rows = self.routing_list_menu_rows();
                 render_menu_rows(
                     area,
@@ -859,12 +856,10 @@ impl AutoDriveSettingsView {
                     Some(self.routing_selected_index),
                     &rows,
                     base,
-                    &mut rects,
                 );
             }
             AutoDriveSettingsMode::RoutingEditor(editor) => {
                 let selected = self.routing_editor_selected_body_field(editor);
-                let mut rects = Vec::new();
                 let rows = self.routing_editor_menu_rows(&editor);
                 render_menu_rows(
                     area,
@@ -873,7 +868,6 @@ impl AutoDriveSettingsView {
                     selected,
                     &rows,
                     base,
-                    &mut rects,
                 );
             }
         }
@@ -1486,7 +1480,6 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
                     return;
                 };
                 let rows = self.routing_editor_menu_rows(editor);
-                let mut rects = Vec::new();
                 render_menu_rows(
                     layout.body,
                     buf,
@@ -1494,7 +1487,6 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
                     self.routing_editor_selected_body_field(editor),
                     &rows,
                     Style::new().bg(colors::background()).fg(colors::text()),
-                    &mut rects,
                 );
             }
         }

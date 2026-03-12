@@ -1117,15 +1117,13 @@ impl ShellSelectionView {
     fn render_list_mode(&self, area: Rect, buf: &mut Buffer) {
         let page = self.list_page();
         let runs = self.list_runs();
-        let mut rects = Vec::new();
-        let _ = page.render_runs(area, buf, 0, &runs, &mut rects);
+        let _ = page.render_runs(area, buf, 0, &runs);
     }
 
     fn render_list_mode_without_frame(&self, area: Rect, buf: &mut Buffer) {
         let page = self.list_page();
         let runs = self.list_runs();
-        let mut rects = Vec::new();
-        let _ = page.render_content_runs(area, buf, 0, &runs, &mut rects);
+        let _ = page.render_content_runs(area, buf, 0, &runs);
     }
 
     fn render_custom_mode(&self, area: Rect, buf: &mut Buffer) {

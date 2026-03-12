@@ -132,7 +132,6 @@ impl PlanningSettingsView {
 
     fn render_rows(&self, area: Rect, buf: &mut Buffer) {
         let rows = self.menu_rows();
-        let mut rects = Vec::new();
         render_menu_rows(
             area,
             buf,
@@ -140,7 +139,6 @@ impl PlanningSettingsView {
             self.selected_row(),
             &rows,
             Style::new().bg(colors::background()).fg(colors::text()),
-            &mut rects,
         );
     }
 
