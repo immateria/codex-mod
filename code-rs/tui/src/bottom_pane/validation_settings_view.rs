@@ -82,6 +82,18 @@ pub(crate) struct ValidationSettingsView {
     pending_notice: Option<String>,
 }
 
+pub(crate) struct ValidationSettingsViewFramed<'v> {
+    view: &'v ValidationSettingsView,
+}
+
+pub(crate) struct ValidationSettingsViewContentOnly<'v> {
+    view: &'v ValidationSettingsView,
+}
+
+pub(crate) struct ValidationSettingsViewContentOnlyMut<'v> {
+    view: &'v mut ValidationSettingsView,
+}
+
 impl ValidationSettingsView {
     pub fn new(
         groups: Vec<(GroupStatus, bool)>,
@@ -449,7 +461,19 @@ impl ValidationSettingsView {
         self.handle_key_event_internal(None, key_event)
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    pub(crate) fn framed(&self) -> ValidationSettingsViewFramed<'_> {
+        ValidationSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> ValidationSettingsViewContentOnly<'_> {
+        ValidationSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> ValidationSettingsViewContentOnlyMut<'_> {
+        ValidationSettingsViewContentOnlyMut { view: self }
+    }
+
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         if area.height == 0 || area.width == 0 {
             return;
         }
@@ -464,6 +488,24 @@ impl ValidationSettingsView {
             return;
         };
         self.viewport_rows.set(layout.body.height as usize);
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        if area.height == 0 || area.width == 0 {
+            return;
+        }
+
+        let page = self.page();
+        let selected_idx = self.state.selected_idx.unwrap_or(usize::MAX);
+        let runs = self.build_runs(selected_idx);
+        let Some(layout) = page
+            .framed()
+            .render_runs(area, buf, self.state.scroll_top, &runs)
+        else {
+            return;
+        };
+        let visible_slots = layout.body.height as usize;
+        self.viewport_rows.set(visible_slots);
     }
 
     fn handle_mouse_event_internal(
@@ -543,7 +585,7 @@ impl ValidationSettingsView {
         result.handled()
     }
 
-    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         self.handle_mouse_event_internal_content(None, mouse_event, area)
     }
 
@@ -594,6 +636,25 @@ impl ValidationSettingsView {
     }
 }
 
+impl<'v> ValidationSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> ValidationSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> ValidationSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
+    }
+}
+
 impl<'a> BottomPaneView<'a> for ValidationSettingsView {
     fn handle_key_event(&mut self, pane: &mut BottomPane<'a>, key_event: KeyEvent) {
         let _ = self.handle_key_event_internal(Some(pane), key_event);
@@ -627,21 +688,7 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 || area.width == 0 {
-            return;
-        }
-
-        let page = self.page();
-        let selected_idx = self.state.selected_idx.unwrap_or(usize::MAX);
-        let runs = self.build_runs(selected_idx);
-        let Some(layout) = page
-            .framed()
-            .render_runs(area, buf, self.state.scroll_top, &runs)
-        else {
-            return;
-        };
-        let visible_slots = layout.body.height as usize;
-        self.viewport_rows.set(visible_slots);
+        self.framed().render(area, buf);
     }
 }
 

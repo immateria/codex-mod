@@ -117,7 +117,7 @@ impl AccountsSettingsContent {
 impl SettingsContent for AccountsSettingsContent {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            AccountsSubmenuMode::Switch(view) => view.render_without_frame(area, buf),
+            AccountsSubmenuMode::Switch(view) => view.content_only().render(area, buf),
             AccountsSubmenuMode::Manage(state) => {
                 Self::render_embedded_accounts_state("Manage Accounts", area, buf, |inner, buffer| {
                     state.borrow().render(inner, buffer);
@@ -164,7 +164,10 @@ impl SettingsContent for AccountsSettingsContent {
 
     fn handle_mouse(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         match &mut self.mode {
-            AccountsSubmenuMode::Switch(view) => view.handle_mouse_event_direct(mouse_event, area),
+            AccountsSubmenuMode::Switch(view) => {
+                view.content_only_mut()
+                    .handle_mouse_event_direct(mouse_event, area)
+            }
             AccountsSubmenuMode::Manage(state) => {
                 let content_area = Rect {
                     x: area.x,

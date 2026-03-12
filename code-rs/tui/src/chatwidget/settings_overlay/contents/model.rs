@@ -18,7 +18,7 @@ impl ModelSettingsContent {
 
 impl SettingsContent for ModelSettingsContent {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_without_frame(area, buf);
+        self.view.content_only().render(area, buf);
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> bool {
@@ -31,7 +31,9 @@ impl SettingsContent for ModelSettingsContent {
 
     fn handle_mouse(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         matches!(
-            self.view.handle_mouse_event_direct(mouse_event, area),
+            self.view
+                .content_only_mut()
+                .handle_mouse_event_direct(mouse_event, area),
             ConditionalUpdate::NeedsRedraw
         )
     }

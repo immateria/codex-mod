@@ -69,6 +69,22 @@ pub(crate) struct ExecLimitsSettingsView {
     app_event_tx: AppEventSender,
 }
 
+pub(crate) struct ExecLimitsSettingsViewFramed<'v> {
+    view: &'v ExecLimitsSettingsView,
+}
+
+pub(crate) struct ExecLimitsSettingsViewContentOnly<'v> {
+    view: &'v ExecLimitsSettingsView,
+}
+
+pub(crate) struct ExecLimitsSettingsViewFramedMut<'v> {
+    view: &'v mut ExecLimitsSettingsView,
+}
+
+pub(crate) struct ExecLimitsSettingsViewContentOnlyMut<'v> {
+    view: &'v mut ExecLimitsSettingsView,
+}
+
 impl ExecLimitsSettingsView {
     pub(crate) fn new(
         settings: code_core::config::ExecLimitsToml,
@@ -436,6 +452,22 @@ impl ExecLimitsSettingsView {
         self.process_key_event(key_event)
     }
 
+    pub(crate) fn framed(&self) -> ExecLimitsSettingsViewFramed<'_> {
+        ExecLimitsSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> ExecLimitsSettingsViewContentOnly<'_> {
+        ExecLimitsSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> ExecLimitsSettingsViewFramedMut<'_> {
+        ExecLimitsSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> ExecLimitsSettingsViewContentOnlyMut<'_> {
+        ExecLimitsSettingsViewContentOnlyMut { view: self }
+    }
+
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
         match &mut self.mode {
             ViewMode::Edit { field, .. } => {
@@ -444,10 +476,6 @@ impl ExecLimitsSettingsView {
             }
             ViewMode::Main | ViewMode::Transition => false,
         }
-    }
-
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.handle_mouse_event_direct_content(mouse_event, area)
     }
 
     fn handle_mouse_event_direct_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -762,7 +790,7 @@ impl ExecLimitsSettingsView {
             .render(area, buf, field);
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main => self.render_main_without_frame(area, buf),
             ViewMode::Edit {
@@ -772,6 +800,42 @@ impl ExecLimitsSettingsView {
             } => self.render_edit_without_frame(area, buf, *target, field, error.as_deref()),
             ViewMode::Transition => self.render_main_without_frame(area, buf),
         }
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main(area, buf),
+            ViewMode::Edit {
+                target,
+                field,
+                error,
+            } => self.render_edit(area, buf, *target, field, error.as_deref()),
+            ViewMode::Transition => self.render_main(area, buf),
+        }
+    }
+}
+
+impl<'v> ExecLimitsSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> ExecLimitsSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> ExecLimitsSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> ExecLimitsSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_content(mouse_event, area)
     }
 }
 
@@ -790,7 +854,10 @@ impl<'a> BottomPaneView<'a> for ExecLimitsSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
@@ -815,15 +882,7 @@ impl<'a> BottomPaneView<'a> for ExecLimitsSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            ViewMode::Main => self.render_main(area, buf),
-            ViewMode::Edit {
-                target,
-                field,
-                error,
-            } => self.render_edit(area, buf, *target, field, error.as_deref()),
-            ViewMode::Transition => self.render_main(area, buf),
-        }
+        self.framed().render(area, buf);
     }
 }
 

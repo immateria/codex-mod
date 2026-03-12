@@ -66,6 +66,22 @@ pub(crate) struct ShellProfilesSettingsView {
     pick_viewport_rows: Cell<usize>,
 }
 
+pub(crate) struct ShellProfilesSettingsViewFramed<'v> {
+    view: &'v ShellProfilesSettingsView,
+}
+
+pub(crate) struct ShellProfilesSettingsViewContentOnly<'v> {
+    view: &'v ShellProfilesSettingsView,
+}
+
+pub(crate) struct ShellProfilesSettingsViewFramedMut<'v> {
+    view: &'v mut ShellProfilesSettingsView,
+}
+
+pub(crate) struct ShellProfilesSettingsViewContentOnlyMut<'v> {
+    view: &'v mut ShellProfilesSettingsView,
+}
+
 impl ShellProfilesSettingsView {
     pub(crate) fn new(
         code_home: PathBuf,
@@ -320,6 +336,22 @@ impl ShellProfilesSettingsView {
         }
     }
 
+    pub(crate) fn framed(&self) -> ShellProfilesSettingsViewFramed<'_> {
+        ShellProfilesSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> ShellProfilesSettingsViewContentOnly<'_> {
+        ShellProfilesSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> ShellProfilesSettingsViewFramedMut<'_> {
+        ShellProfilesSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> ShellProfilesSettingsViewContentOnlyMut<'_> {
+        ShellProfilesSettingsViewContentOnlyMut { view: self }
+    }
+
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
         if self.is_complete {
             return false;
@@ -334,7 +366,7 @@ impl ShellProfilesSettingsView {
         true
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main => self.render_main_without_frame(area, buf),
             ViewMode::EditList { target, .. } => self.render_editor_without_frame(area, buf, *target),
@@ -342,7 +374,15 @@ impl ShellProfilesSettingsView {
         }
     }
 
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main(area, buf),
+            ViewMode::EditList { target, .. } => self.render_editor(area, buf, *target),
+            ViewMode::PickList(state) => self.render_picker(area, buf, state),
+        }
+    }
+
+    fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         self.handle_mouse_event_direct_inner(mouse_event, area, false)
     }
 
@@ -533,7 +573,7 @@ impl ShellProfilesSettingsView {
         }
     }
 
-    pub(crate) fn handle_mouse_event_direct_framed(
+    fn handle_mouse_event_direct_framed(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
@@ -543,6 +583,31 @@ impl ShellProfilesSettingsView {
 
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
+    }
+}
+
+impl<'v> ShellProfilesSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> ShellProfilesSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> ShellProfilesSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> ShellProfilesSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 
@@ -565,7 +630,10 @@ impl<'a> BottomPaneView<'a> for ShellProfilesSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
@@ -581,11 +649,7 @@ impl<'a> BottomPaneView<'a> for ShellProfilesSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            ViewMode::Main => self.render_main(area, buf),
-            ViewMode::EditList { target, .. } => self.render_editor(area, buf, *target),
-            ViewMode::PickList(state) => self.render_picker(area, buf, state),
-        }
+        self.framed().render(area, buf);
     }
 
     fn as_any(&self) -> Option<&dyn Any> {

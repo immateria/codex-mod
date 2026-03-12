@@ -37,6 +37,22 @@ pub(crate) struct PlanningSettingsView {
     is_complete: bool,
 }
 
+pub(crate) struct PlanningSettingsViewFramed<'v> {
+    view: &'v PlanningSettingsView,
+}
+
+pub(crate) struct PlanningSettingsViewContentOnly<'v> {
+    view: &'v PlanningSettingsView,
+}
+
+pub(crate) struct PlanningSettingsViewFramedMut<'v> {
+    view: &'v mut PlanningSettingsView,
+}
+
+pub(crate) struct PlanningSettingsViewContentOnlyMut<'v> {
+    view: &'v mut PlanningSettingsView,
+}
+
 impl PlanningSettingsView {
     fn page(&self) -> SettingsMenuPage<'static> {
         SettingsMenuPage::new(
@@ -90,6 +106,22 @@ impl PlanningSettingsView {
 
     pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         self.handle_key(key_event)
+    }
+
+    pub(crate) fn framed(&self) -> PlanningSettingsViewFramed<'_> {
+        PlanningSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> PlanningSettingsViewContentOnly<'_> {
+        PlanningSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> PlanningSettingsViewFramedMut<'_> {
+        PlanningSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> PlanningSettingsViewContentOnlyMut<'_> {
+        PlanningSettingsViewContentOnlyMut { view: self }
     }
 
     fn rows(&self) -> Vec<PlanningRow> {
@@ -213,7 +245,11 @@ impl PlanningSettingsView {
         }
     }
 
-    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn handle_mouse_event_direct_content_only(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
         let Some(layout) = self.page().content_only().layout(area) else {
             return false;
         };
@@ -249,11 +285,43 @@ impl PlanningSettingsView {
         true
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         let Some(layout) = self.page().content_only().render_shell(area, buf) else {
             return;
         };
         self.render_rows(layout.body, buf);
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        let Some(layout) = self.page().framed().render_shell(area, buf) else {
+            return;
+        };
+        self.render_rows(layout.body, buf);
+    }
+}
+
+impl<'v> PlanningSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> PlanningSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> PlanningSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> PlanningSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 
@@ -282,7 +350,10 @@ impl<'a> BottomPaneView<'a> for PlanningSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn is_complete(&self) -> bool {
@@ -294,10 +365,7 @@ impl<'a> BottomPaneView<'a> for PlanningSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = self.page().framed().render_shell(area, buf) else {
-            return;
-        };
-        self.render_rows(layout.body, buf);
+        self.framed().render(area, buf);
     }
 }
 
@@ -332,9 +400,8 @@ mod tests {
             view.row_at_position(layout.body, layout.body.x, layout.body.y),
             Some(PlanningRow::CustomModel)
         );
-        assert!(view.handle_mouse_event_direct(
-            left_click(layout.body.x, layout.body.y),
-            area
-        ));
+        assert!(view
+            .content_only_mut()
+            .handle_mouse_event_direct(left_click(layout.body.x, layout.body.y), area));
     }
 }

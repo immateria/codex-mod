@@ -88,6 +88,22 @@ pub(crate) struct ShellSelectionView {
     hovered_action: Option<EditAction>,
 }
 
+pub(crate) struct ShellSelectionViewFramed<'v> {
+    view: &'v ShellSelectionView,
+}
+
+pub(crate) struct ShellSelectionViewContentOnly<'v> {
+    view: &'v ShellSelectionView,
+}
+
+pub(crate) struct ShellSelectionViewFramedMut<'v> {
+    view: &'v mut ShellSelectionView,
+}
+
+pub(crate) struct ShellSelectionViewContentOnlyMut<'v> {
+    view: &'v mut ShellSelectionView,
+}
+
 impl ShellSelectionView {
     pub fn new(
         current_shell: Option<ShellConfig>,
@@ -137,6 +153,22 @@ impl ShellSelectionView {
             selected_action: EditAction::Apply,
             hovered_action: None,
         }
+    }
+
+    pub(crate) fn framed(&self) -> ShellSelectionViewFramed<'_> {
+        ShellSelectionViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> ShellSelectionViewContentOnly<'_> {
+        ShellSelectionViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> ShellSelectionViewFramedMut<'_> {
+        ShellSelectionViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> ShellSelectionViewContentOnlyMut<'_> {
+        ShellSelectionViewContentOnlyMut { view: self }
     }
 
     fn pick_shell_binary_from_dialog(&mut self) -> bool {
@@ -735,7 +767,7 @@ impl ShellSelectionView {
         }
     }
 
-    pub(crate) fn handle_mouse_event_direct(
+    fn handle_mouse_event_direct_content_only(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
@@ -952,7 +984,10 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn update_hover(&mut self, mouse_pos: (u16, u16), area: Rect) -> bool {
@@ -970,11 +1005,7 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        if self.custom_input_mode {
-            self.render_custom_mode(area, buf);
-        } else {
-            self.render_list_mode(area, buf);
-        }
+        self.framed().render(area, buf);
     }
 }
 
@@ -1106,11 +1137,19 @@ impl ShellSelectionView {
         self.is_complete
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         if self.custom_input_mode {
             self.render_custom_mode_without_frame(area, buf);
         } else {
             self.render_list_mode_without_frame(area, buf);
+        }
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        if self.custom_input_mode {
+            self.render_custom_mode(area, buf);
+        } else {
+            self.render_list_mode(area, buf);
         }
     }
 
@@ -1218,6 +1257,31 @@ impl ShellSelectionView {
         };
         Paragraph::new(Line::from(Span::styled(style_text, style_style)))
             .render(style_inner, buf);
+    }
+}
+
+impl<'v> ShellSelectionViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> ShellSelectionViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> ShellSelectionViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> ShellSelectionViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

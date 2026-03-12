@@ -63,6 +63,22 @@ pub(crate) struct PromptsSettingsView {
     mode: Mode,
 }
 
+pub(crate) struct PromptsSettingsViewFramed<'v> {
+    view: &'v PromptsSettingsView,
+}
+
+pub(crate) struct PromptsSettingsViewContentOnly<'v> {
+    view: &'v PromptsSettingsView,
+}
+
+pub(crate) struct PromptsSettingsViewFramedMut<'v> {
+    view: &'v mut PromptsSettingsView,
+}
+
+pub(crate) struct PromptsSettingsViewContentOnlyMut<'v> {
+    view: &'v mut PromptsSettingsView,
+}
+
 impl PromptsSettingsView {
     const DEFAULT_HEIGHT: u16 = 20;
 
@@ -280,11 +296,26 @@ impl PromptsSettingsView {
         }
     }
 
-    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    pub(crate) fn framed(&self) -> PromptsSettingsViewFramed<'_> {
+        PromptsSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> PromptsSettingsViewContentOnly<'_> {
+        PromptsSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> PromptsSettingsViewFramedMut<'_> {
+        PromptsSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> PromptsSettingsViewContentOnlyMut<'_> {
+        PromptsSettingsViewContentOnlyMut { view: self }
+    }
+
+    fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         if self.is_complete || area.width == 0 || area.height == 0 {
             return false;
         }
-
         self.handle_mouse_event_direct_content(mouse_event, area)
     }
 
@@ -304,11 +335,18 @@ impl PromptsSettingsView {
 
     pub fn is_complete(&self) -> bool { self.is_complete }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         if area.width == 0 || area.height == 0 {
             return;
         }
         self.render_body_without_frame(area, buf);
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+        self.render_body(area, buf);
     }
 
     fn render_body(&self, area: Rect, buf: &mut Buffer) {
@@ -764,6 +802,31 @@ impl PromptsSettingsView {
     }
 }
 
+impl<'v> PromptsSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> PromptsSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> PromptsSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> PromptsSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
+    }
+}
+
 impl<'a> BottomPaneView<'a> for PromptsSettingsView {
     fn handle_key_event(&mut self, pane: &mut BottomPane<'a>, key_event: KeyEvent) {
         self.handle_key_event_with_result(pane, key_event);
@@ -783,7 +846,10 @@ impl<'a> BottomPaneView<'a> for PromptsSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn is_complete(&self) -> bool {
@@ -795,6 +861,6 @@ impl<'a> BottomPaneView<'a> for PromptsSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.render_body(area, buf);
+        self.framed().render(area, buf);
     }
 }

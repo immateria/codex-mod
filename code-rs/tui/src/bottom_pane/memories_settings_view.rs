@@ -93,6 +93,22 @@ pub(crate) struct MemoriesSettingsView {
     app_event_tx: AppEventSender,
 }
 
+pub(crate) struct MemoriesSettingsViewFramed<'v> {
+    view: &'v MemoriesSettingsView,
+}
+
+pub(crate) struct MemoriesSettingsViewContentOnly<'v> {
+    view: &'v MemoriesSettingsView,
+}
+
+pub(crate) struct MemoriesSettingsViewFramedMut<'v> {
+    view: &'v mut MemoriesSettingsView,
+}
+
+pub(crate) struct MemoriesSettingsViewContentOnlyMut<'v> {
+    view: &'v mut MemoriesSettingsView,
+}
+
 impl MemoriesSettingsView {
     pub(crate) fn new(
         code_home: PathBuf,
@@ -975,6 +991,22 @@ impl MemoriesSettingsView {
         }
     }
 
+    pub(crate) fn framed(&self) -> MemoriesSettingsViewFramed<'_> {
+        MemoriesSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> MemoriesSettingsViewContentOnly<'_> {
+        MemoriesSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> MemoriesSettingsViewFramedMut<'_> {
+        MemoriesSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> MemoriesSettingsViewContentOnlyMut<'_> {
+        MemoriesSettingsViewContentOnlyMut { view: self }
+    }
+
     fn main_page(&self) -> SettingsRowPage<'_> {
         SettingsRowPage::new(
             " Memories ",
@@ -1005,7 +1037,7 @@ impl MemoriesSettingsView {
         )
     }
 
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         if matches!(self.mode, ViewMode::Main) {
             let rows = Self::rows();
             let mut selected = self.state.get().selected_idx.unwrap_or(0);
@@ -1052,7 +1084,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    pub(crate) fn handle_mouse_event_direct_framed(
+    fn handle_mouse_event_direct_framed(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
@@ -1163,7 +1195,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, true),
             ViewMode::Edit { target, field, error } => {
@@ -1172,7 +1204,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    pub(crate) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, false),
             ViewMode::Edit { target, field, error } => {
@@ -1183,6 +1215,31 @@ impl MemoriesSettingsView {
 
     pub(crate) fn is_view_complete(&self) -> bool {
         self.is_complete
+    }
+}
+
+impl<'v> MemoriesSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> MemoriesSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> MemoriesSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> MemoriesSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 
@@ -1201,7 +1258,10 @@ impl<'a> BottomPaneView<'a> for MemoriesSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn is_complete(&self) -> bool {
@@ -1213,7 +1273,7 @@ impl<'a> BottomPaneView<'a> for MemoriesSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.render_framed(area, buf);
+        self.framed().render(area, buf);
     }
 }
 

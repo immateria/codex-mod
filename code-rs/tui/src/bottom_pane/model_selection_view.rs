@@ -45,6 +45,18 @@ pub(crate) struct ModelSelectionView {
     visible_body_rows: Cell<usize>,
 }
 
+pub(crate) struct ModelSelectionViewFramed<'v> {
+    view: &'v ModelSelectionView,
+}
+
+pub(crate) struct ModelSelectionViewContentOnly<'v> {
+    view: &'v ModelSelectionView,
+}
+
+pub(crate) struct ModelSelectionViewContentOnlyMut<'v> {
+    view: &'v mut ModelSelectionView,
+}
+
 impl ModelSelectionView {
     pub fn new(params: ModelSelectionViewParams, app_event_tx: AppEventSender) -> Self {
         let data = ModelSelectionData::new(params);
@@ -66,6 +78,18 @@ impl ModelSelectionView {
             self.header_lines(),
             self.footer_lines(),
         )
+    }
+
+    pub(crate) fn framed(&self) -> ModelSelectionViewFramed<'_> {
+        ModelSelectionViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> ModelSelectionViewContentOnly<'_> {
+        ModelSelectionViewContentOnly { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> ModelSelectionViewContentOnlyMut<'_> {
+        ModelSelectionViewContentOnlyMut { view: self }
     }
 
     pub(crate) fn update_presets(&mut self, presets: Vec<ModelPreset>) {
@@ -234,7 +258,7 @@ impl ModelSelectionView {
 
     /// Used when embedded in settings overlay. Mouse routing reuses the shared
     /// menu-page body layout and line-run hit testing.
-    pub(crate) fn handle_mouse_event_direct(
+    fn handle_mouse_event_direct_content_only(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
@@ -581,8 +605,31 @@ impl ModelSelectionView {
         }
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         self.render_in_page(&self.page(), area, buf, false);
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        self.render_in_page(&self.page(), area, buf, true);
+    }
+}
+
+impl<'v> ModelSelectionViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> ModelSelectionViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> ModelSelectionViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> ConditionalUpdate {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 
@@ -628,7 +675,7 @@ impl<'a> BottomPaneView<'a> for ModelSelectionView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.render_in_page(&self.page(), area, buf, true);
+        self.framed().render(area, buf);
     }
 }
 
@@ -831,7 +878,7 @@ mod tests {
         let mut buf = Buffer::empty(area);
 
         view.scroll_offset = view.selected_body_line(2);
-        view.render_without_frame(area, &mut buf);
+        view.content_only().render(area, &mut buf);
         let layout = view.page().content_only().layout(area).expect("layout");
 
         assert_eq!(view.hit_test_in_body(layout.body, 2, 0), Some(2));
@@ -859,7 +906,7 @@ mod tests {
         let area = Rect::new(0, 0, 60, 7);
         let mut buf = Buffer::empty(area);
 
-        view.render_without_frame(area, &mut buf);
+        view.content_only().render(area, &mut buf);
 
         let top_row: String = (0..area.width)
             .map(|x| buf[(x, 0)].symbol())

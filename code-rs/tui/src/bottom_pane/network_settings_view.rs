@@ -76,6 +76,22 @@ pub(crate) struct NetworkSettingsView {
     viewport_rows: Cell<usize>,
 }
 
+pub(crate) struct NetworkSettingsViewFramed<'v> {
+    view: &'v NetworkSettingsView,
+}
+
+pub(crate) struct NetworkSettingsViewContentOnly<'v> {
+    view: &'v NetworkSettingsView,
+}
+
+pub(crate) struct NetworkSettingsViewFramedMut<'v> {
+    view: &'v mut NetworkSettingsView,
+}
+
+pub(crate) struct NetworkSettingsViewContentOnlyMut<'v> {
+    view: &'v mut NetworkSettingsView,
+}
+
 impl NetworkSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
 
@@ -498,6 +514,22 @@ impl NetworkSettingsView {
         self.process_key_event(key_event)
     }
 
+    pub(crate) fn framed(&self) -> NetworkSettingsViewFramed<'_> {
+        NetworkSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> NetworkSettingsViewContentOnly<'_> {
+        NetworkSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> NetworkSettingsViewFramedMut<'_> {
+        NetworkSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> NetworkSettingsViewContentOnlyMut<'_> {
+        NetworkSettingsViewContentOnlyMut { view: self }
+    }
+
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
         match &mut self.mode {
             ViewMode::EditList { field, .. } => {
@@ -506,10 +538,6 @@ impl NetworkSettingsView {
             }
             ViewMode::Main { .. } | ViewMode::Transition => false,
         }
-    }
-
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.handle_mouse_event_direct_content(mouse_event, area)
     }
 
     fn handle_mouse_event_direct_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -943,7 +971,7 @@ impl NetworkSettingsView {
             .render(area, buf, field);
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main { show_advanced } => {
                 self.render_main_without_frame(area, buf, *show_advanced);
@@ -953,6 +981,38 @@ impl NetworkSettingsView {
             }
             ViewMode::Transition => self.render_main_without_frame(area, buf, false),
         }
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main { show_advanced } => self.render_main(area, buf, *show_advanced),
+            ViewMode::EditList { target, field, .. } => self.render_edit(area, buf, *target, field),
+            ViewMode::Transition => self.render_main(area, buf, false),
+        }
+    }
+}
+
+impl<'v> NetworkSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> NetworkSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> NetworkSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> NetworkSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_content(mouse_event, area)
     }
 }
 
@@ -975,7 +1035,10 @@ impl<'a> BottomPaneView<'a> for NetworkSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
@@ -1000,10 +1063,6 @@ impl<'a> BottomPaneView<'a> for NetworkSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            ViewMode::Main { show_advanced } => self.render_main(area, buf, *show_advanced),
-            ViewMode::EditList { target, field, .. } => self.render_edit(area, buf, *target, field),
-            ViewMode::Transition => self.render_main(area, buf, false),
-        }
+        self.framed().render(area, buf);
     }
 }

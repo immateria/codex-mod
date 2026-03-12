@@ -210,6 +210,22 @@ pub(crate) struct AutoDriveSettingsView {
     closing: bool,
 }
 
+pub(crate) struct AutoDriveSettingsViewFramed<'v> {
+    view: &'v AutoDriveSettingsView,
+}
+
+pub(crate) struct AutoDriveSettingsViewContentOnly<'v> {
+    view: &'v AutoDriveSettingsView,
+}
+
+pub(crate) struct AutoDriveSettingsViewFramedMut<'v> {
+    view: &'v mut AutoDriveSettingsView,
+}
+
+pub(crate) struct AutoDriveSettingsViewContentOnlyMut<'v> {
+    view: &'v mut AutoDriveSettingsView,
+}
+
 impl AutoDriveSettingsView {
     const PANEL_TITLE: &'static str = "Auto Drive Settings";
 
@@ -833,7 +849,7 @@ impl AutoDriveSettingsView {
         )
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         let base = Style::new().bg(colors::background()).fg(colors::text());
         match &self.mode {
             AutoDriveSettingsMode::Main => {
@@ -868,6 +884,44 @@ impl AutoDriveSettingsView {
                     selected,
                     &rows,
                     base,
+                );
+            }
+        }
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            AutoDriveSettingsMode::Main => {
+                let rows = self.main_menu_rows();
+                let _ = self
+                    .page()
+                    .framed()
+                    .render_menu_rows(area, buf, 0, Some(self.selected_index), &rows);
+            }
+            AutoDriveSettingsMode::RoutingList => {
+                let rows = self.routing_list_menu_rows();
+                let _ = self
+                    .page()
+                    .framed()
+                    .render_menu_rows(area, buf, 0, Some(self.routing_selected_index), &rows);
+            }
+            AutoDriveSettingsMode::RoutingEditor(editor) => {
+                let page = self.routing_editor_page(editor);
+                let buttons = self.routing_editor_action_buttons(editor.selected_field);
+                let Some(layout) = page
+                    .framed()
+                    .render_with_standard_actions_end(area, buf, &buttons)
+                else {
+                    return;
+                };
+                let rows = self.routing_editor_menu_rows(editor);
+                render_menu_rows(
+                    layout.body,
+                    buf,
+                    0,
+                    self.routing_editor_selected_body_field(editor),
+                    &rows,
+                    Style::new().bg(colors::background()).fg(colors::text()),
                 );
             }
         }
@@ -1219,6 +1273,30 @@ impl AutoDriveSettingsView {
         }
     }
 
+    fn update_hover_internal_content_only(&mut self, mouse_pos: (u16, u16), area: Rect) -> bool {
+        match &self.mode {
+            AutoDriveSettingsMode::Main => {
+                let rows = self.main_menu_rows();
+                let hovered = selection_menu_id_at(area, mouse_pos.0, mouse_pos.1, 0, &rows)
+                    .map(HoverTarget::MainOption);
+                self.set_hovered(hovered)
+            }
+            AutoDriveSettingsMode::RoutingList => {
+                let rows = self.routing_list_menu_rows();
+                let hovered = selection_menu_id_at(area, mouse_pos.0, mouse_pos.1, 0, &rows)
+                    .map(HoverTarget::RoutingRow);
+                self.set_hovered(hovered)
+            }
+            AutoDriveSettingsMode::RoutingEditor(editor) => {
+                let editor = editor.clone();
+                let rows = self.routing_editor_menu_rows(&editor);
+                let hovered = selection_menu_id_at(area, mouse_pos.0, mouse_pos.1, 0, &rows)
+                    .map(HoverTarget::RoutingEditor);
+                self.set_hovered(hovered)
+            }
+        }
+    }
+
     fn handle_mouse_event_internal(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         if area.width == 0 || area.height == 0 {
             return false;
@@ -1371,6 +1449,143 @@ impl AutoDriveSettingsView {
         }
     }
 
+    fn handle_mouse_event_internal_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        if area.width == 0 || area.height == 0 {
+            return false;
+        }
+
+        match mouse_event.kind {
+            MouseEventKind::Down(MouseButton::Left) | MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {}
+            _ => return false,
+        }
+
+        match &self.mode {
+            AutoDriveSettingsMode::Main => {
+                let rows = self.main_menu_rows();
+                let config = SelectableListMouseConfig {
+                    hover_select: false,
+                    require_pointer_hit_for_scroll: true,
+                    ..SelectableListMouseConfig::default()
+                };
+                let result = route_selectable_list_mouse_with_config(
+                    mouse_event,
+                    &mut self.selected_index,
+                    Self::option_count(),
+                    |x, y| selection_menu_id_at(area, x, y, 0, &rows),
+                    config,
+                );
+
+                match result {
+                    SelectableListMouseResult::Activated => {
+                        self.toggle_selected();
+                        true
+                    }
+                    SelectableListMouseResult::SelectionChanged => true,
+                    SelectableListMouseResult::Ignored => false,
+                }
+            }
+            AutoDriveSettingsMode::RoutingList => {
+                let total = self.routing_row_count();
+                let rows = self.routing_list_menu_rows();
+                let config = SelectableListMouseConfig {
+                    hover_select: false,
+                    require_pointer_hit_for_scroll: true,
+                    ..SelectableListMouseConfig::default()
+                };
+                let result = route_selectable_list_mouse_with_config(
+                    mouse_event,
+                    &mut self.routing_selected_index,
+                    total,
+                    |x, y| selection_menu_id_at(area, x, y, 0, &rows),
+                    config,
+                );
+
+                match result {
+                    SelectableListMouseResult::Activated => {
+                        let idx = self.routing_selected_index;
+                        if idx >= self.model_routing_entries.len() {
+                            self.open_routing_editor(None);
+                        } else {
+                            let checkbox_start = area.x.saturating_add(2);
+                            let checkbox_end = area.x.saturating_add(5);
+                            if mouse_event.column >= checkbox_start && mouse_event.column < checkbox_end
+                            {
+                                self.try_toggle_routing_entry_enabled(idx);
+                            } else {
+                                self.open_routing_editor(Some(idx));
+                            }
+                        }
+                        true
+                    }
+                    SelectableListMouseResult::SelectionChanged => true,
+                    SelectableListMouseResult::Ignored => false,
+                }
+            }
+            AutoDriveSettingsMode::RoutingEditor(editor) => {
+                if !matches!(mouse_event.kind, MouseEventKind::Down(MouseButton::Left)) {
+                    return false;
+                }
+                let editor = editor.clone();
+                let rows = self.routing_editor_menu_rows(&editor);
+                match selection_menu_id_at(area, mouse_event.column, mouse_event.row, 0, &rows) {
+                    Some(RoutingEditorField::Model) => {
+                        let has_models = !self.routing_model_options.is_empty();
+                        let model_options_len = self.routing_model_options.len();
+                        self.update_routing_editor(|editor| {
+                            editor.selected_field = RoutingEditorField::Model;
+                            if has_models {
+                                editor.model_cursor = (editor.model_cursor + 1) % model_options_len;
+                            }
+                        });
+                        true
+                    }
+                    Some(RoutingEditorField::Enabled) => {
+                        self.update_routing_editor(|editor| {
+                            editor.selected_field = RoutingEditorField::Enabled;
+                            editor.enabled = !editor.enabled;
+                        });
+                        true
+                    }
+                    Some(RoutingEditorField::Reasoning) => {
+                        self.update_routing_editor(|editor| {
+                            editor.selected_field = RoutingEditorField::Reasoning;
+                            editor.toggle_reasoning_at_cursor();
+                        });
+                        true
+                    }
+                    Some(RoutingEditorField::Description) => {
+                        let mut changed = false;
+                        self.update_routing_editor(|editor| {
+                            if editor.selected_field != RoutingEditorField::Description {
+                                editor.selected_field = RoutingEditorField::Description;
+                                changed = true;
+                            }
+                        });
+                        changed
+                    }
+                    Some(RoutingEditorField::Save | RoutingEditorField::Cancel) => false,
+                    None => false,
+                }
+            }
+        }
+    }
+
+    pub(crate) fn framed(&self) -> AutoDriveSettingsViewFramed<'_> {
+        AutoDriveSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> AutoDriveSettingsViewContentOnly<'_> {
+        AutoDriveSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> AutoDriveSettingsViewFramedMut<'_> {
+        AutoDriveSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> AutoDriveSettingsViewContentOnlyMut<'_> {
+        AutoDriveSettingsViewContentOnlyMut { view: self }
+    }
+
     pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
             return false;
@@ -1383,12 +1598,12 @@ impl AutoDriveSettingsView {
         handled
     }
 
-    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let handled = match mouse_event.kind {
             MouseEventKind::Moved => {
-                self.update_hover_internal((mouse_event.column, mouse_event.row), area)
+                self.update_hover_internal_content_only((mouse_event.column, mouse_event.row), area)
             }
-            _ => self.handle_mouse_event_internal(mouse_event, area),
+            _ => self.handle_mouse_event_internal_content_only(mouse_event, area),
         };
 
         if handled {
@@ -1421,6 +1636,31 @@ impl AutoDriveSettingsView {
     }
 }
 
+impl<'v> AutoDriveSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> AutoDriveSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> AutoDriveSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_internal(mouse_event, area)
+    }
+}
+
+impl<'v> AutoDriveSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
+    }
+}
+
 impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
     fn handle_key_event_with_result(
         &mut self,
@@ -1440,7 +1680,10 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_internal(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn update_hover(&mut self, mouse_pos: (u16, u16), area: Rect) -> bool {
@@ -1460,41 +1703,7 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            AutoDriveSettingsMode::Main => {
-                let rows = self.main_menu_rows();
-                let _ = self
-                    .page()
-                    .framed()
-                    .render_menu_rows(area, buf, 0, Some(self.selected_index), &rows);
-            }
-            AutoDriveSettingsMode::RoutingList => {
-                let rows = self.routing_list_menu_rows();
-                let _ = self
-                    .page()
-                    .framed()
-                    .render_menu_rows(area, buf, 0, Some(self.routing_selected_index), &rows);
-            }
-            AutoDriveSettingsMode::RoutingEditor(editor) => {
-                let page = self.routing_editor_page(editor);
-                let buttons = self.routing_editor_action_buttons(editor.selected_field);
-                let Some(layout) = page
-                    .framed()
-                    .render_with_standard_actions_end(area, buf, &buttons)
-                else {
-                    return;
-                };
-                let rows = self.routing_editor_menu_rows(editor);
-                render_menu_rows(
-                    layout.body,
-                    buf,
-                    0,
-                    self.routing_editor_selected_body_field(editor),
-                    &rows,
-                    Style::new().bg(colors::background()).fg(colors::text()),
-                );
-            }
-        }
+        self.framed().render(area, buf);
     }
 
     fn update_status_text(&mut self, _text: String) -> ConditionalUpdate {

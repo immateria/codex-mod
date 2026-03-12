@@ -75,6 +75,22 @@ pub(crate) struct JsReplSettingsView {
     viewport_rows: Cell<usize>,
 }
 
+pub(crate) struct JsReplSettingsViewFramed<'v> {
+    view: &'v JsReplSettingsView,
+}
+
+pub(crate) struct JsReplSettingsViewContentOnly<'v> {
+    view: &'v JsReplSettingsView,
+}
+
+pub(crate) struct JsReplSettingsViewFramedMut<'v> {
+    view: &'v mut JsReplSettingsView,
+}
+
+pub(crate) struct JsReplSettingsViewContentOnlyMut<'v> {
+    view: &'v mut JsReplSettingsView,
+}
+
 impl JsReplSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
 
@@ -570,6 +586,22 @@ impl JsReplSettingsView {
         self.process_key_event(key_event)
     }
 
+    pub(crate) fn framed(&self) -> JsReplSettingsViewFramed<'_> {
+        JsReplSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> JsReplSettingsViewContentOnly<'_> {
+        JsReplSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> JsReplSettingsViewFramedMut<'_> {
+        JsReplSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> JsReplSettingsViewContentOnlyMut<'_> {
+        JsReplSettingsViewContentOnlyMut { view: self }
+    }
+
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
         match &mut self.mode {
             ViewMode::EditText { field, .. } | ViewMode::EditList { field, .. } => {
@@ -578,10 +610,6 @@ impl JsReplSettingsView {
             }
             ViewMode::Main | ViewMode::Transition => false,
         }
-    }
-
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.handle_mouse_event_direct_content(mouse_event, area)
     }
 
     fn handle_mouse_event_direct_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -927,7 +955,7 @@ impl JsReplSettingsView {
         self.viewport_rows.set(layout.visible_rows());
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main => self.render_main_without_frame(area, buf),
             ViewMode::EditText { target, field } => {
@@ -944,6 +972,43 @@ impl JsReplSettingsView {
         }
     }
 
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main(area, buf),
+            ViewMode::EditText { target, field } => {
+                let _ = Self::text_edit_page(*target).framed().render(area, buf, field);
+            }
+            ViewMode::EditList { target, field } => {
+                let _ = Self::list_edit_page(*target).framed().render(area, buf, field);
+            }
+            ViewMode::Transition => self.render_main(area, buf),
+        }
+    }
+
+}
+
+impl<'v> JsReplSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> JsReplSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> JsReplSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> JsReplSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_content(mouse_event, area)
+    }
 }
 
 #[cfg(test)]
@@ -982,7 +1047,10 @@ impl<'a> BottomPaneView<'a> for JsReplSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
@@ -1007,15 +1075,6 @@ impl<'a> BottomPaneView<'a> for JsReplSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            ViewMode::Main => self.render_main(area, buf),
-            ViewMode::EditText { target, field } => {
-                let _ = Self::text_edit_page(*target).framed().render(area, buf, field);
-            }
-            ViewMode::EditList { target, field } => {
-                let _ = Self::list_edit_page(*target).framed().render(area, buf, field);
-            }
-            ViewMode::Transition => self.render_main(area, buf),
-        }
+        self.framed().render(area, buf);
     }
 }

@@ -82,6 +82,22 @@ pub(crate) struct ReviewSettingsView {
     pending_notice: Option<String>,
 }
 
+pub(crate) struct ReviewSettingsViewFramed<'v> {
+    view: &'v ReviewSettingsView,
+}
+
+pub(crate) struct ReviewSettingsViewContentOnly<'v> {
+    view: &'v ReviewSettingsView,
+}
+
+pub(crate) struct ReviewSettingsViewFramedMut<'v> {
+    view: &'v mut ReviewSettingsView,
+}
+
+pub(crate) struct ReviewSettingsViewContentOnlyMut<'v> {
+    view: &'v mut ReviewSettingsView,
+}
+
 pub(crate) struct ReviewSettingsInit {
     pub review_use_chat_model: bool,
     pub review_model: String,
@@ -658,7 +674,23 @@ impl ReviewSettingsView {
         self.handle_key_event_impl(key_event)
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    pub(crate) fn framed(&self) -> ReviewSettingsViewFramed<'_> {
+        ReviewSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> ReviewSettingsViewContentOnly<'_> {
+        ReviewSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> ReviewSettingsViewFramedMut<'_> {
+        ReviewSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> ReviewSettingsViewContentOnlyMut<'_> {
+        ReviewSettingsViewContentOnlyMut { view: self }
+    }
+
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         if area.height == 0 || area.width == 0 {
             return;
         }
@@ -671,6 +703,22 @@ impl ReviewSettingsView {
             return;
         };
         self.viewport_rows.set(layout.body.height as usize);
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        if area.height == 0 || area.width == 0 {
+            return;
+        }
+        let page = self.page();
+        let runs = self.build_runs(self.state.selected_idx.unwrap_or(usize::MAX));
+        let Some(layout) = page
+            .framed()
+            .render_runs(area, buf, self.state.scroll_top, &runs)
+        else {
+            return;
+        };
+        let visible_slots = layout.body.height as usize;
+        self.viewport_rows.set(visible_slots);
     }
 
     fn activate_selection_kind(&mut self, kind: SelectionKind) {
@@ -724,7 +772,7 @@ impl ReviewSettingsView {
         );
     }
 
-    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let page = self.page();
         let Some(layout) = page.content_only().layout(area) else {
             return false;
@@ -870,6 +918,31 @@ impl ReviewSettingsView {
     }
 }
 
+impl<'v> ReviewSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> ReviewSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> ReviewSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> ReviewSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
+    }
+}
+
 impl<'a> BottomPaneView<'a> for ReviewSettingsView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
         let _ = self.handle_key_event_impl(key_event);
@@ -889,7 +962,10 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn is_complete(&self) -> bool {
@@ -901,19 +977,7 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 || area.width == 0 {
-            return;
-        }
-        let page = self.page();
-        let runs = self.build_runs(self.state.selected_idx.unwrap_or(usize::MAX));
-        let Some(layout) = page
-            .framed()
-            .render_runs(area, buf, self.state.scroll_top, &runs)
-        else {
-            return;
-        };
-        let visible_slots = layout.body.height as usize;
-        self.viewport_rows.set(visible_slots);
+        self.framed().render(area, buf);
     }
 }
 

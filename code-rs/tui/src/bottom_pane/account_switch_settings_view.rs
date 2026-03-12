@@ -46,6 +46,22 @@ pub(crate) struct AccountSwitchSettingsView {
     is_complete: bool,
 }
 
+pub(crate) struct AccountSwitchSettingsViewFramed<'v> {
+    view: &'v AccountSwitchSettingsView,
+}
+
+pub(crate) struct AccountSwitchSettingsViewContentOnly<'v> {
+    view: &'v AccountSwitchSettingsView,
+}
+
+pub(crate) struct AccountSwitchSettingsViewFramedMut<'v> {
+    view: &'v mut AccountSwitchSettingsView,
+}
+
+pub(crate) struct AccountSwitchSettingsViewContentOnlyMut<'v> {
+    view: &'v mut AccountSwitchSettingsView,
+}
+
 impl AccountSwitchSettingsView {
     const MAIN_OPTION_COUNT: usize = 6;
 
@@ -66,6 +82,22 @@ impl AccountSwitchSettingsView {
             view_mode: ViewMode::Main,
             is_complete: false,
         }
+    }
+
+    pub(crate) fn framed(&self) -> AccountSwitchSettingsViewFramed<'_> {
+        AccountSwitchSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> AccountSwitchSettingsViewContentOnly<'_> {
+        AccountSwitchSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> AccountSwitchSettingsViewFramedMut<'_> {
+        AccountSwitchSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> AccountSwitchSettingsViewContentOnlyMut<'_> {
+        AccountSwitchSettingsViewContentOnlyMut { view: self }
     }
 
     fn auth_store_mode_label(mode: AuthCredentialsStoreMode) -> &'static str {
@@ -307,7 +339,7 @@ impl AccountSwitchSettingsView {
         ]
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match self.view_mode {
             ViewMode::Main => {
                 let page = self.main_page();
@@ -319,6 +351,23 @@ impl AccountSwitchSettingsView {
                 let rows = self.confirm_rows();
                 let _ = page
                     .content_only()
+                    .render_menu_rows(area, buf, 0, Some(selected), &rows);
+            }
+        }
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        match self.view_mode {
+            ViewMode::Main => {
+                let page = self.main_page();
+                let runs = self.main_runs(Some(self.selected_index));
+                let _ = page.framed().render_runs(area, buf, 0, &runs);
+            }
+            ViewMode::ConfirmStoreChange { target, selected } => {
+                let page = self.confirm_page(target);
+                let rows = self.confirm_rows();
+                let _ = page
+                    .framed()
                     .render_menu_rows(area, buf, 0, Some(selected), &rows);
             }
         }
@@ -390,63 +439,119 @@ impl AccountSwitchSettingsView {
         }
     }
 
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn handle_mouse_event_direct_content_only(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
         match self.view_mode {
             ViewMode::Main => {
                 let page = self.main_page();
-                let runs = self.main_runs(None);
                 let Some(layout) = page.content_only().layout(area) else {
                     return false;
                 };
-                let mut selected = self.selected_index;
-                let result = route_selectable_list_mouse_with_config(
-                    mouse_event,
-                    &mut selected,
-                    Self::MAIN_OPTION_COUNT,
-                    |x, y| selection_run_id_at(layout.body, x, y, 0, &runs),
-                    SelectableListMouseConfig {
-                        hover_select: false,
-                        scroll_select: false,
-                        ..SelectableListMouseConfig::default()
-                    },
-                );
-                self.selected_index = selected;
-
-                if matches!(result, SelectableListMouseResult::Activated) {
-                    self.activate_selected_main();
-                }
-                result.handled()
+                self.handle_mouse_event_main_in_body(mouse_event, layout.body)
             }
             ViewMode::ConfirmStoreChange { target, .. } => {
                 let page = self.confirm_page(target);
-                let rows = self.confirm_rows();
                 let Some(layout) = page.content_only().layout(area) else {
                     return false;
                 };
-                let mut selected = self.confirm_selected_index();
-                let result = route_selectable_list_mouse_with_config(
-                    mouse_event,
-                    &mut selected,
-                    Self::CONFIRM_OPTION_COUNT,
-                    |x, y| selection_menu_id_at(layout.body, x, y, 0, &rows),
-                    SelectableListMouseConfig {
-                        hover_select: false,
-                        scroll_select: false,
-                        ..SelectableListMouseConfig::default()
-                    },
-                );
-                self.set_confirm_selected_index(selected);
-
-                if matches!(result, SelectableListMouseResult::Activated) {
-                    self.activate_selected_confirm();
-                }
-                result.handled()
+                self.handle_mouse_event_confirm_in_body(mouse_event, layout.body)
             }
         }
     }
 
+    fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        match self.view_mode {
+            ViewMode::Main => {
+                let page = self.main_page();
+                let Some(layout) = page.framed().layout(area) else {
+                    return false;
+                };
+                self.handle_mouse_event_main_in_body(mouse_event, layout.body)
+            }
+            ViewMode::ConfirmStoreChange { target, .. } => {
+                let page = self.confirm_page(target);
+                let Some(layout) = page.framed().layout(area) else {
+                    return false;
+                };
+                self.handle_mouse_event_confirm_in_body(mouse_event, layout.body)
+            }
+        }
+    }
+
+    fn handle_mouse_event_main_in_body(&mut self, mouse_event: MouseEvent, body: Rect) -> bool {
+        let runs = self.main_runs(None);
+        let mut selected = self.selected_index;
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            Self::MAIN_OPTION_COUNT,
+            |x, y| selection_run_id_at(body, x, y, 0, &runs),
+            SelectableListMouseConfig {
+                hover_select: false,
+                scroll_select: false,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.selected_index = selected;
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            self.activate_selected_main();
+        }
+        result.handled()
+    }
+
+    fn handle_mouse_event_confirm_in_body(&mut self, mouse_event: MouseEvent, body: Rect) -> bool {
+        let rows = self.confirm_rows();
+        let mut selected = self.confirm_selected_index();
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            Self::CONFIRM_OPTION_COUNT,
+            |x, y| selection_menu_id_at(body, x, y, 0, &rows),
+            SelectableListMouseConfig {
+                hover_select: false,
+                scroll_select: false,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.set_confirm_selected_index(selected);
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            self.activate_selected_confirm();
+        }
+        result.handled()
+    }
+
     pub(crate) fn is_view_complete(&self) -> bool {
         self.is_complete
+    }
+}
+
+impl<'v> AccountSwitchSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> AccountSwitchSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> AccountSwitchSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> AccountSwitchSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 
@@ -469,7 +574,7 @@ impl<'a> BottomPaneView<'a> for AccountSwitchSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(self.framed_mut().handle_mouse_event_direct(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {
@@ -484,7 +589,7 @@ impl<'a> BottomPaneView<'a> for AccountSwitchSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.render_without_frame(area, buf);
+        self.framed().render(area, buf);
     }
 }
 
@@ -515,7 +620,7 @@ mod tests {
         let area = Rect::new(0, 0, 80, 18);
         let layout = view.main_page().content_only().layout(area).expect("layout");
 
-        assert!(view.handle_mouse_event_direct(
+        assert!(view.content_only_mut().handle_mouse_event_direct(
             mouse_left_click(layout.body.x + 1, layout.body.y),
             area,
         ));

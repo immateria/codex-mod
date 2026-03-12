@@ -40,6 +40,18 @@ pub(crate) struct NotificationsSettingsView {
     is_complete: bool,
 }
 
+pub(crate) struct NotificationsSettingsViewFramed<'v> {
+    view: &'v NotificationsSettingsView,
+}
+
+pub(crate) struct NotificationsSettingsViewContentOnly<'v> {
+    view: &'v NotificationsSettingsView,
+}
+
+pub(crate) struct NotificationsSettingsViewContentOnlyMut<'v> {
+    view: &'v mut NotificationsSettingsView,
+}
+
 impl NotificationsSettingsView {
     const SELECTABLE_ROWS: usize = 2;
 
@@ -199,7 +211,19 @@ impl NotificationsSettingsView {
         }
     }
 
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    pub(crate) fn framed(&self) -> NotificationsSettingsViewFramed<'_> {
+        NotificationsSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> NotificationsSettingsViewContentOnly<'_> {
+        NotificationsSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> NotificationsSettingsViewContentOnlyMut<'_> {
+        NotificationsSettingsViewContentOnlyMut { view: self }
+    }
+
+    fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let mut selected = self.selected_row;
         let rows = self.menu_rows();
         let Some(layout) = self.page().content_only().layout(area) else {
@@ -234,7 +258,7 @@ impl NotificationsSettingsView {
         self.process_key_event(key_event)
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let rows = self.menu_rows();
         let _ = page
@@ -242,6 +266,33 @@ impl NotificationsSettingsView {
             .render_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
     }
 
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        let page = self.page();
+        let rows = self.menu_rows();
+        let _ = page
+            .framed()
+            .render_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
+    }
+
+}
+
+impl<'v> NotificationsSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> NotificationsSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> NotificationsSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
+    }
 }
 
 impl<'a> BottomPaneView<'a> for NotificationsSettingsView {
@@ -266,10 +317,6 @@ impl<'a> BottomPaneView<'a> for NotificationsSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        let page = self.page();
-        let rows = self.menu_rows();
-        let _ = page
-            .framed()
-            .render_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
+        self.framed().render(area, buf);
     }
 }

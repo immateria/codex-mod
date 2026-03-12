@@ -51,6 +51,22 @@ pub(crate) struct UpdateSettingsView {
     manual_instructions: Option<String>,
 }
 
+pub(crate) struct UpdateSettingsViewFramed<'v> {
+    view: &'v UpdateSettingsView,
+}
+
+pub(crate) struct UpdateSettingsViewContentOnly<'v> {
+    view: &'v UpdateSettingsView,
+}
+
+pub(crate) struct UpdateSettingsViewFramedMut<'v> {
+    view: &'v mut UpdateSettingsView,
+}
+
+pub(crate) struct UpdateSettingsViewContentOnlyMut<'v> {
+    view: &'v mut UpdateSettingsView,
+}
+
 pub(crate) struct UpdateSettingsInit {
     pub(crate) app_event_tx: AppEventSender,
     pub(crate) ticket: BackgroundOrderTicket,
@@ -371,19 +387,76 @@ impl UpdateSettingsView {
         handled
     }
 
-    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    pub(crate) fn framed(&self) -> UpdateSettingsViewFramed<'_> {
+        UpdateSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> UpdateSettingsViewContentOnly<'_> {
+        UpdateSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> UpdateSettingsViewFramedMut<'_> {
+        UpdateSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> UpdateSettingsViewContentOnlyMut<'_> {
+        UpdateSettingsViewContentOnlyMut { view: self }
+    }
+
+    fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let Some(layout) = self.content_layout(area) else {
             return false;
         };
         self.handle_mouse_event_in_body(mouse_event, layout.body)
     }
 
+    fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.page()
+            .framed()
+            .layout(area)
+            .map(|layout| self.handle_mouse_event_in_body(mouse_event, layout.body))
+            .unwrap_or(false)
+    }
+
     pub fn is_view_complete(&self) -> bool {
         self.is_complete
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         self.render_body_without_frame(area, buf);
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        let rows = self.rows();
+        let _ = self
+            .page()
+            .framed()
+            .render_menu_rows(area, buf, 0, Some(self.field), &rows);
+    }
+}
+
+impl<'v> UpdateSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> UpdateSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> UpdateSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> UpdateSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 
@@ -406,13 +479,10 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        let handled = self
-            .page()
-            .framed()
-            .layout(area)
-            .map(|layout| self.handle_mouse_event_in_body(mouse_event, layout.body))
-            .unwrap_or(false);
-        redraw_if(handled)
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn is_complete(&self) -> bool {
@@ -428,11 +498,7 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        let rows = self.rows();
-        let _ = self
-            .page()
-            .framed()
-            .render_menu_rows(area, buf, 0, Some(self.field), &rows);
+        self.framed().render(area, buf);
     }
 
     fn handle_paste(&mut self, _text: String) -> ConditionalUpdate {

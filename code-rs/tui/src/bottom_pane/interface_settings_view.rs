@@ -218,6 +218,22 @@ pub(crate) struct InterfaceSettingsView {
     viewport_rows: Cell<usize>,
 }
 
+pub(crate) struct InterfaceSettingsViewFramed<'v> {
+    view: &'v InterfaceSettingsView,
+}
+
+pub(crate) struct InterfaceSettingsViewContentOnly<'v> {
+    view: &'v InterfaceSettingsView,
+}
+
+pub(crate) struct InterfaceSettingsViewFramedMut<'v> {
+    view: &'v mut InterfaceSettingsView,
+}
+
+pub(crate) struct InterfaceSettingsViewContentOnlyMut<'v> {
+    view: &'v mut InterfaceSettingsView,
+}
+
 impl InterfaceSettingsView {
     fn panel_style() -> SettingsPanelStyle {
         SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0))
@@ -1530,6 +1546,22 @@ impl InterfaceSettingsView {
         self.process_key_event(key_event)
     }
 
+    pub(crate) fn framed(&self) -> InterfaceSettingsViewFramed<'_> {
+        InterfaceSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> InterfaceSettingsViewContentOnly<'_> {
+        InterfaceSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> InterfaceSettingsViewFramedMut<'_> {
+        InterfaceSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> InterfaceSettingsViewContentOnlyMut<'_> {
+        InterfaceSettingsViewContentOnlyMut { view: self }
+    }
+
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
         match &mut self.mode {
             ViewMode::EditWidth { field, .. } => {
@@ -1540,7 +1572,7 @@ impl InterfaceSettingsView {
         }
     }
 
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         match &self.mode {
             ViewMode::Main => self.handle_mouse_event_main_content(mouse_event, area),
             ViewMode::EditWidth { .. } => self.handle_mouse_event_edit_content(mouse_event, area),
@@ -1560,7 +1592,7 @@ impl InterfaceSettingsView {
         self.is_complete
     }
 
-    pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             ViewMode::Main => self.render_main_without_frame(area, buf),
             ViewMode::EditWidth { field, error } => {
@@ -1774,6 +1806,44 @@ impl InterfaceSettingsView {
             .framed()
             .render(area, buf);
     }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main(area, buf),
+            ViewMode::EditWidth { field, error } => {
+                self.render_edit_width(area, buf, field, error.as_deref())
+            }
+            ViewMode::CaptureHotkey { row, error } => {
+                self.render_capture_hotkey(area, buf, *row, error.as_deref())
+            }
+            ViewMode::Transition => self.render_main(area, buf),
+        }
+    }
+}
+
+impl<'v> InterfaceSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> InterfaceSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> InterfaceSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> InterfaceSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
+    }
 }
 
 impl<'a> BottomPaneView<'a> for InterfaceSettingsView {
@@ -1791,7 +1861,10 @@ impl<'a> BottomPaneView<'a> for InterfaceSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
@@ -1815,15 +1888,6 @@ impl<'a> BottomPaneView<'a> for InterfaceSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            ViewMode::Main => self.render_main(area, buf),
-            ViewMode::EditWidth { field, error } => {
-                self.render_edit_width(area, buf, field, error.as_deref())
-            }
-            ViewMode::CaptureHotkey { row, error } => {
-                self.render_capture_hotkey(area, buf, *row, error.as_deref())
-            }
-            ViewMode::Transition => self.render_main(area, buf),
-        }
+        self.framed().render(area, buf);
     }
 }
