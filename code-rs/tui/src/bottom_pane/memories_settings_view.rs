@@ -1036,7 +1036,8 @@ impl MemoriesSettingsView {
             ViewMode::Edit { target, field, error } => match mouse_event.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     let Some(field_area) = Self::edit_page(self.scope, *target, error.as_deref())
-                        .layout_content(area)
+                        .content_only()
+                        .layout(area)
                         .map(|layout| layout.field)
                     else {
                         return false;
@@ -1086,6 +1087,7 @@ impl MemoriesSettingsView {
             ViewMode::Edit { target, field, error } => match mouse_event.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     let Some(field_area) = Self::edit_page(self.scope, *target, error.as_deref())
+                        .framed()
                         .layout(area)
                         .map(|layout| layout.field)
                     else {
@@ -1155,9 +1157,9 @@ impl MemoriesSettingsView {
     ) {
         let page = Self::edit_page(self.scope, target, error);
         if content_only {
-            let _ = page.render_content(area, buf, field);
+            let _ = page.content_only().render(area, buf, field);
         } else {
-            let _ = page.render(area, buf, field);
+            let _ = page.framed().render(area, buf, field);
         }
     }
 

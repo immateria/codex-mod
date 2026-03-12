@@ -26,6 +26,14 @@ pub(crate) struct SettingsMessagePage<'a> {
     body_style: Style,
 }
 
+pub(crate) struct SettingsMessagePageFramed<'p, 'a> {
+    page: &'p SettingsMessagePage<'a>,
+}
+
+pub(crate) struct SettingsMessagePageContentOnly<'p, 'a> {
+    page: &'p SettingsMessagePage<'a>,
+}
+
 impl<'a> SettingsMessagePage<'a> {
     pub(crate) fn new(
         title: impl Into<Cow<'a, str>>,
@@ -48,6 +56,14 @@ impl<'a> SettingsMessagePage<'a> {
         self
     }
 
+    pub(crate) fn framed(&self) -> SettingsMessagePageFramed<'_, 'a> {
+        SettingsMessagePageFramed { page: self }
+    }
+
+    pub(crate) fn content_only(&self) -> SettingsMessagePageContentOnly<'_, 'a> {
+        SettingsMessagePageContentOnly { page: self }
+    }
+
     fn layout_from_page(&self, page: SettingsActionPageLayout) -> SettingsMessagePageLayout {
         SettingsMessagePageLayout {
             header: page.header,
@@ -56,16 +72,18 @@ impl<'a> SettingsMessagePage<'a> {
         }
     }
 
-    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
+    fn layout_framed(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
         let page = self.page.framed().layout(area)?;
         Some(self.layout_from_page(page))
     }
 
-    pub(crate) fn render(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-    ) -> Option<SettingsMessagePageLayout> {
+    #[allow(dead_code)]
+    fn layout_content_only(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
+        let page = self.page.content_only().layout(area)?;
+        Some(self.layout_from_page(page))
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsMessagePageLayout> {
         let page = self.page.framed().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
@@ -80,11 +98,7 @@ impl<'a> SettingsMessagePage<'a> {
         Some(layout)
     }
 
-    pub(crate) fn render_content(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-    ) -> Option<SettingsMessagePageLayout> {
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsMessagePageLayout> {
         let page = self.page.content_only().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
@@ -97,6 +111,27 @@ impl<'a> SettingsMessagePage<'a> {
             paragraph.render(layout.body, buf);
         }
         Some(layout)
+    }
+}
+
+impl<'p, 'a> SettingsMessagePageFramed<'p, 'a> {
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
+        self.page.layout_framed(area)
+    }
+
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsMessagePageLayout> {
+        self.page.render_framed(area, buf)
+    }
+}
+
+impl<'p, 'a> SettingsMessagePageContentOnly<'p, 'a> {
+    #[allow(dead_code)]
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
+        self.page.layout_content_only(area)
+    }
+
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsMessagePageLayout> {
+        self.page.render_content_only(area, buf)
     }
 }
 
@@ -116,9 +151,9 @@ mod tests {
         )
         .with_min_body_rows(3);
         let area = Rect::new(0, 0, 30, 10);
-        let layout = page.layout(area).expect("layout");
+        let layout = page.framed().layout(area).expect("layout");
         let mut buf = Buffer::empty(area);
-        let rendered = page.render(area, &mut buf).expect("render");
+        let rendered = page.framed().render(area, &mut buf).expect("render");
         assert_eq!(layout, rendered);
         assert_eq!(layout.body, Rect::new(2, 2, 26, 3));
         assert_eq!(layout.footer, Rect::new(2, 6, 26, 1));
@@ -135,6 +170,24 @@ mod tests {
         );
         let area = Rect::new(0, 0, 20, 6);
         let mut buf = Buffer::empty(area);
-        assert!(page.render(area, &mut buf).is_some());
+        assert!(page.framed().render(area, &mut buf).is_some());
+        assert!(page.content_only().render(area, &mut buf).is_some());
+    }
+
+    #[test]
+    fn content_only_layout_and_render_agree() {
+        let page = SettingsMessagePage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            vec![Line::from("header")],
+            vec![Line::from("body")],
+            vec![Line::from("footer")],
+        )
+        .with_min_body_rows(3);
+        let area = Rect::new(0, 0, 30, 10);
+        let layout = page.content_only().layout(area).expect("layout");
+        let mut buf = Buffer::empty(area);
+        let rendered = page.content_only().render(area, &mut buf).expect("render");
+        assert_eq!(layout, rendered);
     }
 }

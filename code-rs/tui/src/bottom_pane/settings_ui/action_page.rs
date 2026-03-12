@@ -312,6 +312,7 @@ impl<'p, 'a> SettingsActionPageContentOnly<'p, 'a> {
 mod tests {
     use super::*;
     use super::super::buttons::TextButtonAlign;
+    use super::super::test_helpers::assert_layout_and_render_shell_agree;
     use ratatui::layout::Margin;
 
     #[test]
@@ -323,11 +324,11 @@ mod tests {
             vec![Line::from("footer")],
         );
         let area = Rect::new(0, 0, 30, 10);
-        let framed = page.framed();
-        let layout = framed.layout(area).expect("layout");
-        let mut buf = Buffer::empty(area);
-        let rendered = framed.render_shell(area, &mut buf).expect("render");
-        assert_eq!(layout, rendered);
+        let layout = assert_layout_and_render_shell_agree(
+            area,
+            |area| page.framed().layout(area),
+            |area, buf| page.framed().render_shell(area, buf),
+        );
         assert_eq!(layout.status, Rect::new(2, 6, 26, 0));
         assert_eq!(layout.actions, Rect::new(2, 6, 26, 1));
         assert_eq!(layout.footer, Rect::new(2, 7, 26, 1));
@@ -360,12 +361,11 @@ mod tests {
         .with_status_lines(vec![Line::from("status")]);
 
         let area = Rect::new(0, 0, 30, 8);
-        let content = page.content_only();
-        let layout = content.layout(area).expect("layout");
-        let mut buf = Buffer::empty(area);
-        let rendered = content.render_shell(area, &mut buf).expect("render");
-
-        assert_eq!(layout, rendered);
+        let layout = assert_layout_and_render_shell_agree(
+            area,
+            |area| page.content_only().layout(area),
+            |area, buf| page.content_only().render_shell(area, buf),
+        );
         assert_eq!(layout.header, Rect::new(0, 0, 30, 1));
         assert_eq!(layout.body, Rect::new(0, 1, 30, 4));
         assert_eq!(layout.status, Rect::new(0, 5, 30, 1));

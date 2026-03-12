@@ -636,7 +636,8 @@ impl JsReplSettingsView {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) =
                             Self::text_edit_page(target)
-                                .layout_content(area)
+                                .content_only()
+                                .layout(area)
                                 .map(|layout| layout.field)
                         else {
                             return false;
@@ -655,7 +656,8 @@ impl JsReplSettingsView {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) =
                             Self::list_edit_page(target)
-                                .layout_content(area)
+                                .content_only()
+                                .layout(area)
                                 .map(|layout| layout.field)
                         else {
                             return false;
@@ -727,7 +729,7 @@ impl JsReplSettingsView {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) =
-                            Self::text_edit_page(target).layout(area).map(|layout| layout.field)
+                            Self::text_edit_page(target).framed().layout(area).map(|layout| layout.field)
                         else {
                             return false;
                         };
@@ -744,7 +746,7 @@ impl JsReplSettingsView {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) =
-                            Self::list_edit_page(target).layout(area).map(|layout| layout.field)
+                            Self::list_edit_page(target).framed().layout(area).map(|layout| layout.field)
                         else {
                             return false;
                         };
@@ -929,10 +931,14 @@ impl JsReplSettingsView {
         match &self.mode {
             ViewMode::Main => self.render_main_without_frame(area, buf),
             ViewMode::EditText { target, field } => {
-                let _ = Self::text_edit_page(*target).render_content(area, buf, field);
+                let _ = Self::text_edit_page(*target)
+                    .content_only()
+                    .render(area, buf, field);
             }
             ViewMode::EditList { target, field } => {
-                let _ = Self::list_edit_page(*target).render_content(area, buf, field);
+                let _ = Self::list_edit_page(*target)
+                    .content_only()
+                    .render(area, buf, field);
             }
             ViewMode::Transition => self.render_main_without_frame(area, buf),
         }
@@ -1004,10 +1010,10 @@ impl<'a> BottomPaneView<'a> for JsReplSettingsView {
         match &self.mode {
             ViewMode::Main => self.render_main(area, buf),
             ViewMode::EditText { target, field } => {
-                let _ = Self::text_edit_page(*target).render(area, buf, field);
+                let _ = Self::text_edit_page(*target).framed().render(area, buf, field);
             }
             ViewMode::EditList { target, field } => {
-                let _ = Self::list_edit_page(*target).render(area, buf, field);
+                let _ = Self::list_edit_page(*target).framed().render(area, buf, field);
             }
             ViewMode::Transition => self.render_main(area, buf),
         }

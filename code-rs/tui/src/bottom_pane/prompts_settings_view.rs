@@ -347,7 +347,7 @@ impl PromptsSettingsView {
     fn render_form(&self, area: Rect, buf: &mut Buffer) {
         let page = self.edit_form_page();
         let buttons = self.edit_button_specs();
-        let Some(_layout) = page.render_with_standard_actions_end(
+        let Some(_layout) = page.framed().render_with_standard_actions_end(
             area,
             buf,
             &[&self.name_field, &self.body_field],
@@ -361,7 +361,7 @@ impl PromptsSettingsView {
     fn render_form_without_frame(&self, area: Rect, buf: &mut Buffer) {
         let page = self.edit_form_page();
         let buttons = self.edit_button_specs();
-        let _ = page.render_content_with_standard_actions_end(
+        let _ = page.content_only().render_with_standard_actions_end(
             area,
             buf,
             &[&self.name_field, &self.body_field],
@@ -445,7 +445,7 @@ impl PromptsSettingsView {
 
     fn handle_edit_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let page = self.edit_form_page();
-        let Some(layout) = page.layout(area)
+        let Some(layout) = page.framed().layout(area)
         else {
             return false;
         };
@@ -528,7 +528,7 @@ impl PromptsSettingsView {
 
     fn handle_edit_mouse_event_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let page = self.edit_form_page();
-        let Some(layout) = page.layout_content(area) else {
+        let Some(layout) = page.content_only().layout(area) else {
             return false;
         };
 

@@ -561,7 +561,10 @@ impl NetworkSettingsView {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) =
-                            Self::edit_page(target).layout_content(area).map(|layout| layout.field)
+                            Self::edit_page(target)
+                                .content_only()
+                                .layout(area)
+                                .map(|layout| layout.field)
                         else {
                             return false;
                         };
@@ -638,7 +641,10 @@ impl NetworkSettingsView {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) =
-                            Self::edit_page(target).layout(area).map(|layout| layout.field)
+                            Self::edit_page(target)
+                                .framed()
+                                .layout(area)
+                                .map(|layout| layout.field)
                         else {
                             return false;
                         };
@@ -922,7 +928,7 @@ impl NetworkSettingsView {
     }
 
     fn render_edit(&self, area: Rect, buf: &mut Buffer, target: EditTarget, field: &FormTextField) {
-        let _ = Self::edit_page(target).render(area, buf, field);
+        let _ = Self::edit_page(target).framed().render(area, buf, field);
     }
 
     fn render_edit_without_frame(
@@ -932,7 +938,9 @@ impl NetworkSettingsView {
         target: EditTarget,
         field: &FormTextField,
     ) {
-        let _ = Self::edit_page(target).render_content(area, buf, field);
+        let _ = Self::edit_page(target)
+            .content_only()
+            .render(area, buf, field);
     }
 
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {

@@ -143,7 +143,7 @@ impl ShellProfilesSettingsView {
         area: Rect,
         target: ListTarget,
     ) -> Option<SettingsFormPageLayout> {
-        self.editor_form_page(target).layout(area)
+        self.editor_form_page(target).framed().layout(area)
     }
 
     pub(super) fn compute_editor_layout_content(
@@ -151,7 +151,7 @@ impl ShellProfilesSettingsView {
         area: Rect,
         target: ListTarget,
     ) -> Option<SettingsFormPageLayout> {
-        self.editor_form_page(target).layout_content(area)
+        self.editor_form_page(target).content_only().layout(area)
     }
 
     pub(super) fn editor_append_picker_path(&mut self, target: ListTarget) {
@@ -213,7 +213,9 @@ impl ShellProfilesSettingsView {
             ListTarget::SkillRoots => &self.skill_roots_field,
         };
         let buttons = Self::editor_footer_button_specs(target, None);
-        let Some(_layout) = page.render_with_standard_actions_end(area, buf, &[field], &buttons)
+        let Some(_layout) = page
+            .framed()
+            .render_with_standard_actions_end(area, buf, &[field], &buttons)
         else {
             return;
         };
@@ -233,7 +235,8 @@ impl ShellProfilesSettingsView {
         };
         let buttons = Self::editor_footer_button_specs(target, None);
         let Some(_layout) =
-            page.render_content_with_standard_actions_end(area, buf, &[field], &buttons)
+            page.content_only()
+                .render_with_standard_actions_end(area, buf, &[field], &buttons)
         else {
             return;
         };

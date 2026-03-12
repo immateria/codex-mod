@@ -49,6 +49,14 @@ pub(crate) struct SettingsFormPage<'a> {
     section_gap_rows: usize,
 }
 
+pub(crate) struct SettingsFormPageFramed<'p, 'a> {
+    page: &'p SettingsFormPage<'a>,
+}
+
+pub(crate) struct SettingsFormPageContentOnly<'p, 'a> {
+    page: &'p SettingsFormPage<'a>,
+}
+
 impl<'a> SettingsFormPage<'a> {
     pub(crate) fn new(page: SettingsActionPage<'a>, sections: Vec<SettingsFormSection<'a>>) -> Self {
         Self {
@@ -61,6 +69,14 @@ impl<'a> SettingsFormPage<'a> {
     pub(crate) fn with_section_gap_rows(mut self, section_gap_rows: usize) -> Self {
         self.section_gap_rows = section_gap_rows;
         self
+    }
+
+    pub(crate) fn framed(&self) -> SettingsFormPageFramed<'_, 'a> {
+        SettingsFormPageFramed { page: self }
+    }
+
+    pub(crate) fn content_only(&self) -> SettingsFormPageContentOnly<'_, 'a> {
+        SettingsFormPageContentOnly { page: self }
     }
 
     fn section_rects(&self, body: Rect) -> Vec<Rect> {
@@ -108,17 +124,17 @@ impl<'a> SettingsFormPage<'a> {
         SettingsFormPageLayout { page, sections }
     }
 
-    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsFormPageLayout> {
+    fn layout_framed(&self, area: Rect) -> Option<SettingsFormPageLayout> {
         let page = self.page.framed().layout(area)?;
         Some(self.layout_from_page(page))
     }
 
-    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsFormPageLayout> {
+    fn layout_content_only(&self, area: Rect) -> Option<SettingsFormPageLayout> {
         let page = self.page.content_only().layout(area)?;
         Some(self.layout_from_page(page))
     }
 
-    pub(crate) fn render(
+    fn render_framed(
         &self,
         area: Rect,
         buf: &mut Buffer,
@@ -139,7 +155,7 @@ impl<'a> SettingsFormPage<'a> {
         Some(layout)
     }
 
-    pub(crate) fn render_content(
+    fn render_content_only(
         &self,
         area: Rect,
         buf: &mut Buffer,
@@ -184,52 +200,6 @@ impl<'a> SettingsFormPage<'a> {
             .render_standard_actions(&layout.page, buf, buttons, align);
     }
 
-    pub(crate) fn render_with_standard_actions<Id: Copy>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        fields: &[&FormTextField],
-        buttons: &[StandardButtonSpec<Id>],
-        align: TextButtonAlign,
-    ) -> Option<SettingsFormPageLayout> {
-        let layout = self.render(area, buf, fields)?;
-        self.render_standard_actions(&layout, buf, buttons, align);
-        Some(layout)
-    }
-
-    pub(crate) fn render_content_with_standard_actions<Id: Copy>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        fields: &[&FormTextField],
-        buttons: &[StandardButtonSpec<Id>],
-        align: TextButtonAlign,
-    ) -> Option<SettingsFormPageLayout> {
-        let layout = self.render_content(area, buf, fields)?;
-        self.render_standard_actions(&layout, buf, buttons, align);
-        Some(layout)
-    }
-
-    pub(crate) fn render_with_standard_actions_end<Id: Copy>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        fields: &[&FormTextField],
-        buttons: &[StandardButtonSpec<Id>],
-    ) -> Option<SettingsFormPageLayout> {
-        self.render_with_standard_actions(area, buf, fields, buttons, TextButtonAlign::End)
-    }
-
-    pub(crate) fn render_content_with_standard_actions_end<Id: Copy>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        fields: &[&FormTextField],
-        buttons: &[StandardButtonSpec<Id>],
-    ) -> Option<SettingsFormPageLayout> {
-        self.render_content_with_standard_actions(area, buf, fields, buttons, TextButtonAlign::End)
-    }
-
     pub(crate) fn standard_action_at<Id: Copy>(
         &self,
         layout: &SettingsFormPageLayout,
@@ -250,6 +220,82 @@ impl<'a> SettingsFormPage<'a> {
         buttons: &[StandardButtonSpec<Id>],
     ) -> Option<Id> {
         self.standard_action_at(layout, x, y, buttons, TextButtonAlign::End)
+    }
+}
+
+impl<'p, 'a> SettingsFormPageFramed<'p, 'a> {
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsFormPageLayout> {
+        self.page.layout_framed(area)
+    }
+
+    pub(crate) fn render(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+    ) -> Option<SettingsFormPageLayout> {
+        self.page.render_framed(area, buf, fields)
+    }
+
+    pub(crate) fn render_with_standard_actions<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+        buttons: &[StandardButtonSpec<Id>],
+        align: TextButtonAlign,
+    ) -> Option<SettingsFormPageLayout> {
+        let layout = self.render(area, buf, fields)?;
+        self.page.render_standard_actions(&layout, buf, buttons, align);
+        Some(layout)
+    }
+
+    pub(crate) fn render_with_standard_actions_end<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<SettingsFormPageLayout> {
+        self.render_with_standard_actions(area, buf, fields, buttons, TextButtonAlign::End)
+    }
+}
+
+impl<'p, 'a> SettingsFormPageContentOnly<'p, 'a> {
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsFormPageLayout> {
+        self.page.layout_content_only(area)
+    }
+
+    pub(crate) fn render(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+    ) -> Option<SettingsFormPageLayout> {
+        self.page.render_content_only(area, buf, fields)
+    }
+
+    pub(crate) fn render_with_standard_actions<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+        buttons: &[StandardButtonSpec<Id>],
+        align: TextButtonAlign,
+    ) -> Option<SettingsFormPageLayout> {
+        let layout = self.render(area, buf, fields)?;
+        self.page.render_standard_actions(&layout, buf, buttons, align);
+        Some(layout)
+    }
+
+    pub(crate) fn render_with_standard_actions_end<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<SettingsFormPageLayout> {
+        self.render_with_standard_actions(area, buf, fields, buttons, TextButtonAlign::End)
     }
 }
 
@@ -276,7 +322,7 @@ mod tests {
             ],
         )
         .with_section_gap_rows(1);
-        let layout = form.layout(Rect::new(0, 0, 24, 9)).expect("layout");
+        let layout = form.framed().layout(Rect::new(0, 0, 24, 9)).expect("layout");
         assert_eq!(layout.sections.len(), 2);
         assert_eq!(layout.sections[0].outer, Rect::new(1, 2, 22, 3));
         assert_eq!(layout.sections[1].outer, Rect::new(1, 6, 22, 1));
@@ -290,10 +336,29 @@ mod tests {
             vec![SettingsFormSection::new("Body", true, Constraint::Min(1))],
         );
         let area = Rect::new(0, 0, 24, 7);
-        let expected = form.layout(area).expect("layout");
+        let expected = form.framed().layout(area).expect("layout");
         let field = FormTextField::new_multi_line();
         let mut buf = Buffer::empty(area);
-        let rendered = form.render(area, &mut buf, &[&field]).expect("render");
+        let rendered = form.framed().render(area, &mut buf, &[&field]).expect("render");
+        assert_eq!(rendered.sections, expected.sections);
+        assert_eq!(rendered.page, expected.page);
+    }
+
+    #[test]
+    fn content_only_render_and_layout_agree_on_section_rects() {
+        let page = SettingsActionPage::new("Test", SettingsPanelStyle::bottom_pane(), vec![], vec![]);
+        let form = SettingsFormPage::new(
+            page,
+            vec![SettingsFormSection::new("Body", true, Constraint::Min(1))],
+        );
+        let area = Rect::new(0, 0, 24, 7);
+        let expected = form.content_only().layout(area).expect("layout");
+        let field = FormTextField::new_multi_line();
+        let mut buf = Buffer::empty(area);
+        let rendered = form
+            .content_only()
+            .render(area, &mut buf, &[&field])
+            .expect("render");
         assert_eq!(rendered.sections, expected.sections);
         assert_eq!(rendered.page, expected.page);
     }

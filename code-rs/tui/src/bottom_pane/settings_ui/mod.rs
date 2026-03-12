@@ -17,3 +17,9 @@ pub(crate) mod sectioned_panel;
 pub(crate) mod message_page;
 pub(crate) mod wrap;
 pub(crate) mod toggle;
+
+#[cfg(test)]
+mod test_helpers;
+
+#[cfg(test)]
+mod test_helpers;

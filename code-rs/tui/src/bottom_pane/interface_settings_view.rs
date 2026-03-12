@@ -1097,6 +1097,7 @@ impl InterfaceSettingsView {
             MouseEventKind::Down(MouseButton::Left) => {
                 if let ViewMode::EditWidth { field, error } = &mut self.mode {
                     let Some(field_area) = Self::edit_width_page(error.as_deref())
+                        .framed()
                         .layout(area)
                         .map(|layout| layout.field)
                     else {
@@ -1119,7 +1120,8 @@ impl InterfaceSettingsView {
             MouseEventKind::Down(MouseButton::Left) => {
                 if let ViewMode::EditWidth { field, error } = &mut self.mode {
                     let Some(field_area) = Self::edit_width_page(error.as_deref())
-                        .layout_content(area)
+                        .content_only()
+                        .layout(area)
                         .map(|layout| layout.field)
                     else {
                         return false;
@@ -1562,12 +1564,15 @@ impl InterfaceSettingsView {
         match &self.mode {
             ViewMode::Main => self.render_main_without_frame(area, buf),
             ViewMode::EditWidth { field, error } => {
-                let _ = Self::edit_width_page(error.as_deref()).render_content(area, buf, field);
+                let _ = Self::edit_width_page(error.as_deref())
+                    .content_only()
+                    .render(area, buf, field);
             }
             ViewMode::CaptureHotkey { row, error } => {
                 let _ = self
                     .capture_hotkey_page(*row, error.as_deref())
-                    .render_content(area, buf);
+                    .content_only()
+                    .render(area, buf);
             }
             ViewMode::Transition => self.render_main_without_frame(area, buf),
         }
@@ -1754,7 +1759,7 @@ impl InterfaceSettingsView {
         field: &FormTextField,
         error: Option<&str>,
     ) {
-        let _ = Self::edit_width_page(error).render(area, buf, field);
+        let _ = Self::edit_width_page(error).framed().render(area, buf, field);
     }
 
     fn render_capture_hotkey(
@@ -1764,7 +1769,10 @@ impl InterfaceSettingsView {
         row: RowKind,
         error: Option<&str>,
     ) {
-        let _ = self.capture_hotkey_page(row, error).render(area, buf);
+        let _ = self
+            .capture_hotkey_page(row, error)
+            .framed()
+            .render(area, buf);
     }
 }
 

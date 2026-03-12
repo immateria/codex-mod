@@ -1222,7 +1222,7 @@ impl LoginAccountsState {
     fn render_store_paths_editor(&self, area: Rect, buf: &mut Buffer, editor: &StorePathEditorState) {
         let page = self.store_paths_editor_form_page();
         let buttons = self.store_paths_editor_button_specs(editor.selected_row);
-        let Some(_layout) = page.render_with_standard_actions_end(
+        let Some(_layout) = page.framed().render_with_standard_actions_end(
             area,
             buf,
             &[&editor.read_paths_field, &editor.write_path_field],
@@ -1303,7 +1303,7 @@ impl LoginAccountsState {
         editor: &mut StorePathEditorState,
     ) -> (bool, bool) {
         let page = self.store_paths_editor_form_page();
-        let Some(layout) = page.layout(area) else {
+        let Some(layout) = page.framed().layout(area) else {
             return (true, false);
         };
         let buttons = self.store_paths_editor_button_specs(editor.selected_row);
@@ -1730,7 +1730,7 @@ impl LoginAddAccountState {
                     pre_lines,
                     post_lines,
                 );
-                let _ = page.render(area, buf, field);
+                let _ = page.framed().render(area, buf, field);
             }
             AddStep::Waiting { auth_url } => {
                 let footer_lines = self.footer_status_and_shortcuts(&[
@@ -1739,6 +1739,7 @@ impl LoginAddAccountState {
                 ]);
                 let content_width = self
                     .auth_progress_message_page(Vec::new(), footer_lines.clone())
+                    .framed()
                     .layout(area)
                     .map(|layout| layout.body.width.max(1))
                     .unwrap_or(area.width.max(1));
@@ -1761,7 +1762,7 @@ impl LoginAddAccountState {
                     }
                 }
                 let page = self.auth_progress_message_page(body_lines, footer_lines);
-                let _ = page.render(area, buf);
+                let _ = page.framed().render(area, buf);
             }
             AddStep::DeviceCode(state) => {
                 let footer_lines = self.footer_status_and_shortcuts(&[
@@ -1770,6 +1771,7 @@ impl LoginAddAccountState {
                 ]);
                 let content_width = self
                     .auth_progress_message_page(Vec::new(), footer_lines.clone())
+                    .framed()
                     .layout(area)
                     .map(|layout| layout.body.width.max(1))
                     .unwrap_or(area.width.max(1));
@@ -1801,7 +1803,7 @@ impl LoginAddAccountState {
                     }
                 }
                 let page = self.auth_progress_message_page(body_lines, footer_lines);
-                let _ = page.render(area, buf);
+                let _ = page.framed().render(area, buf);
             }
         }
     }

@@ -510,7 +510,8 @@ impl ExecLimitsSettingsView {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) =
                             Self::edit_page(target, error.as_deref())
-                                .layout_content(area)
+                                .content_only()
+                                .layout(area)
                                 .map(|layout| layout.field)
                         else {
                             return false;
@@ -588,6 +589,7 @@ impl ExecLimitsSettingsView {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) = Self::edit_page(target, error.as_deref())
+                            .framed()
                             .layout(area)
                             .map(|layout| layout.field)
                         else {
@@ -744,7 +746,7 @@ impl ExecLimitsSettingsView {
         field: &FormTextField,
         error: Option<&str>,
     ) {
-        let _ = Self::edit_page(target, error).render(area, buf, field);
+        let _ = Self::edit_page(target, error).framed().render(area, buf, field);
     }
 
     fn render_edit_without_frame(
@@ -755,7 +757,9 @@ impl ExecLimitsSettingsView {
         field: &FormTextField,
         error: Option<&str>,
     ) {
-        let _ = Self::edit_page(target, error).render_content(area, buf, field);
+        let _ = Self::edit_page(target, error)
+            .content_only()
+            .render(area, buf, field);
     }
 
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {

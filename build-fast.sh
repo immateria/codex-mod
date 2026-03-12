@@ -203,6 +203,13 @@ if [ "${BUILD_FAST_SKIP_CODEX_GUARD:-0}" != "1" ]; then
   )
 fi
 
+if [ "${BUILD_FAST_SKIP_SETTINGS_UI_CHROME_GUARD:-0}" != "1" ]; then
+  (
+    cd "$REPO_ROOT"
+    scripts/check-settings-ui-chrome-apis.sh
+  )
+fi
+
 if [ "$WORKSPACE_CHOICE" = "both" ]; then
   if [ "$RUN_AFTER_BUILD" -eq 1 ]; then
     echo "Error: --workspace both cannot be combined with 'run'." >&2
