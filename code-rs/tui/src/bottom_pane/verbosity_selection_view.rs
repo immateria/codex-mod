@@ -167,7 +167,7 @@ impl VerbositySelectionView {
             mouse_event,
             &mut selected_idx,
             rows.len(),
-            |x, y| super::settings_ui::rows::selection_index_at(layout.body, x, y, 0, rows.len()),
+            |x, y| SettingsMenuPage::selection_index_in_body(layout.body, x, y, 0, rows.len()),
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_select: false,
@@ -222,3 +222,33 @@ impl<'a> BottomPaneView<'a> for VerbositySelectionView {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{MouseButton, MouseEventKind};
+    use std::sync::mpsc::channel;
+
+    fn mouse_left_click(column: u16, row: u16) -> MouseEvent {
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        }
+    }
+
+    #[test]
+    fn mouse_click_selects_expected_verbosity_row() {
+        let (tx, _rx) = channel();
+        let mut view = VerbositySelectionView::new(TextVerbosity::Low, AppEventSender::new(tx));
+        let area = Rect::new(0, 0, 50, 9);
+        let layout = view.page().layout(area).expect("layout");
+
+        assert!(view.handle_mouse_event_direct(
+            mouse_left_click(layout.body.x + 1, layout.body.y + 1),
+            area,
+        ));
+        assert_eq!(view.selected_verbosity, TextVerbosity::Medium);
+        assert!(view.is_complete);
+    }
+}

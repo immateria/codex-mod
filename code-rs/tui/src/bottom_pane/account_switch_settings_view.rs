@@ -313,12 +313,12 @@ impl AccountSwitchSettingsView {
                 let page = self.main_page();
                 let runs = self.main_runs(Some(self.selected_index));
                 let mut rects = Vec::new();
-                let _ = page.render_runs(area, buf, 0, &runs, &mut rects);
+                let _ = page.render_content_runs(area, buf, 0, &runs, &mut rects);
             }
             ViewMode::ConfirmStoreChange { target, selected } => {
                 let page = self.confirm_page(target);
                 let rows = self.confirm_rows();
-                let _ = page.render_menu_rows(area, buf, 0, Some(selected), &rows);
+                let _ = page.render_content_menu_rows(area, buf, 0, Some(selected), &rows);
             }
         }
     }
@@ -394,7 +394,7 @@ impl AccountSwitchSettingsView {
             ViewMode::Main => {
                 let page = self.main_page();
                 let runs = self.main_runs(None);
-                let Some(layout) = page.layout(area) else {
+                let Some(layout) = page.layout_content(area) else {
                     return false;
                 };
                 let mut selected = self.selected_index;
@@ -419,7 +419,7 @@ impl AccountSwitchSettingsView {
             ViewMode::ConfirmStoreChange { target, .. } => {
                 let page = self.confirm_page(target);
                 let rows = self.confirm_rows();
-                let Some(layout) = page.layout(area) else {
+                let Some(layout) = page.layout_content(area) else {
                     return false;
                 };
                 let mut selected = self.confirm_selected_index();
@@ -484,5 +484,45 @@ impl<'a> BottomPaneView<'a> for AccountSwitchSettingsView {
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
         self.render_without_frame(area, buf);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use std::sync::mpsc::channel;
+
+    fn mouse_left_click(column: u16, row: u16) -> MouseEvent {
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        }
+    }
+
+    #[test]
+    fn mouse_click_on_main_row_toggles_auto_switch() {
+        let (tx, rx) = channel();
+        let mut view = AccountSwitchSettingsView::new(
+            AppEventSender::new(tx),
+            false,
+            false,
+            AuthCredentialsStoreMode::File,
+        );
+        let area = Rect::new(0, 0, 80, 18);
+        let layout = view.main_page().layout_content(area).expect("layout");
+
+        assert!(view.handle_mouse_event_direct(
+            mouse_left_click(layout.body.x + 1, layout.body.y),
+            area,
+        ));
+        assert_eq!(view.selected_index, 0);
+        assert!(view.auto_switch_enabled);
+        match rx.recv().expect("auto-switch event") {
+            AppEvent::SetAutoSwitchAccountsOnRateLimit(enabled) => assert!(enabled),
+            other => panic!("unexpected event: {other:?}"),
+        }
     }
 }

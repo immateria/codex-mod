@@ -6,6 +6,7 @@ use ratatui::style::Style;
 use ratatui::text::Line;
 
 use crate::colors;
+use crate::ui_interaction::split_header_body_footer;
 use crate::util::buffer::{fill_rect, write_line};
 
 use super::line_runs::{render_selectable_runs, SelectableLineRun};
@@ -15,6 +16,7 @@ use super::menu_rows::{
     SettingsMenuRow,
 };
 use super::panel::SettingsPanelStyle;
+use super::rows::selection_index_at as selection_row_index_at;
 use super::sectioned_panel::{SettingsSectionedPanel, SettingsSectionedPanelLayout};
 
 #[derive(Clone, Debug)]
@@ -50,6 +52,11 @@ impl<'a> SettingsMenuPage<'a> {
         self.panel.layout(area)
     }
 
+    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
+        split_header_body_footer(area, self.header_lines.len(), self.footer_lines.len(), 1)
+            .map(Into::into)
+    }
+
     pub(crate) fn render_shell(
         &self,
         area: Rect,
@@ -57,6 +64,19 @@ impl<'a> SettingsMenuPage<'a> {
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.panel.render(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
+        render_lines(layout.header, buf, &self.header_lines, base);
+        render_lines(layout.footer, buf, &self.footer_lines, base);
+        Some(layout)
+    }
+
+    pub(crate) fn render_content_shell(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsSectionedPanelLayout> {
+        let layout = self.layout_content(area)?;
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        fill_rect(buf, area, Some(' '), base);
         render_lines(layout.header, buf, &self.header_lines, base);
         render_lines(layout.footer, buf, &self.footer_lines, base);
         Some(layout)
@@ -70,6 +90,16 @@ impl<'a> SettingsMenuPage<'a> {
         rows: &[SettingsMenuRow<'_, Id>],
     ) -> Option<Id> {
         selection_menu_id_at(body, x, y, scroll_top, rows)
+    }
+
+    pub(crate) fn selection_index_in_body(
+        body: Rect,
+        x: u16,
+        y: u16,
+        scroll_top: usize,
+        total: usize,
+    ) -> Option<usize> {
+        selection_row_index_at(body, x, y, scroll_top, total)
     }
 
     pub(crate) fn render_menu_rows<Id: Copy + PartialEq>(
@@ -95,6 +125,29 @@ impl<'a> SettingsMenuPage<'a> {
         Some(layout)
     }
 
+    pub(crate) fn render_content_menu_rows<Id: Copy + PartialEq>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        scroll_top: usize,
+        selected_id: Option<Id>,
+        rows: &[SettingsMenuRow<'_, Id>],
+    ) -> Option<SettingsSectionedPanelLayout> {
+        let layout = self.render_content_shell(area, buf)?;
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        let mut rects = Vec::new();
+        render_menu_rows(
+            layout.body,
+            buf,
+            scroll_top,
+            selected_id,
+            rows,
+            base,
+            &mut rects,
+        );
+        Some(layout)
+    }
+
     pub(crate) fn render_runs<Id: Copy>(
         &self,
         area: Rect,
@@ -104,6 +157,20 @@ impl<'a> SettingsMenuPage<'a> {
         out_rects: &mut Vec<(Id, Rect)>,
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        render_selectable_runs(layout.body, buf, scroll_top, runs, base, out_rects);
+        Some(layout)
+    }
+
+    pub(crate) fn render_content_runs<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        scroll_top: usize,
+        runs: &[SelectableLineRun<'_, Id>],
+        out_rects: &mut Vec<(Id, Rect)>,
+    ) -> Option<SettingsSectionedPanelLayout> {
+        let layout = self.render_content_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
         render_selectable_runs(layout.body, buf, scroll_top, runs, base, out_rects);
         Some(layout)
@@ -174,5 +241,63 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn selection_index_in_body_uses_body_rect() {
+        let page = SettingsMenuPage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            vec![Line::from("header")],
+            vec![Line::from("footer")],
+        );
+        let area = Rect::new(0, 0, 30, 10);
+        let layout = page.layout(area).expect("layout");
+
+        assert_eq!(
+            SettingsMenuPage::selection_index_in_body(layout.body, layout.body.x, layout.body.y, 2, 4),
+            Some(2)
+        );
+        assert_eq!(
+            SettingsMenuPage::selection_index_in_body(layout.body, layout.header.x, layout.header.y, 2, 4),
+            None
+        );
+    }
+
+    #[test]
+    fn shell_less_layout_matches_header_body_footer_math() {
+        let page = SettingsMenuPage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            vec![Line::from("header")],
+            vec![Line::from("footer")],
+        );
+        let area = Rect::new(0, 0, 30, 8);
+        let layout = page.layout_content(area).expect("layout");
+
+        assert_eq!(layout.header, Rect::new(0, 0, 30, 1));
+        assert_eq!(layout.body, Rect::new(0, 1, 30, 6));
+        assert_eq!(layout.footer, Rect::new(0, 7, 30, 1));
+    }
+
+    #[test]
+    fn render_content_menu_rows_renders_without_outer_frame() {
+        let page = SettingsMenuPage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane(),
+            vec![Line::from("header")],
+            vec![Line::from("footer")],
+        );
+        let rows = vec![SettingsMenuRow::new(1usize, "row")];
+        let area = Rect::new(0, 0, 20, 4);
+        let mut buf = Buffer::empty(area);
+
+        let layout = page
+            .render_content_menu_rows(area, &mut buf, 0, Some(1usize), &rows)
+            .expect("render");
+
+        assert_eq!(layout.header, Rect::new(0, 0, 20, 1));
+        assert_eq!(buf[(0, 0)].symbol(), "h");
+        assert_eq!(buf[(0, 1)].symbol(), "›");
     }
 }

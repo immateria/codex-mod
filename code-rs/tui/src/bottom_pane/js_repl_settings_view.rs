@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders};
 
@@ -28,6 +28,7 @@ use super::settings_ui::editor_page::SettingsEditorPage;
 use super::settings_ui::panel::SettingsPanelStyle;
 use super::settings_ui::row_page::SettingsRowPage;
 use super::settings_ui::rows::{KeyValueRow, StyledText};
+use super::settings_ui::toggle;
 use super::BottomPane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -105,6 +106,12 @@ impl JsReplSettingsView {
             JsReplRuntimeKindToml::Node => "node",
             JsReplRuntimeKindToml::Deno => "deno",
         }
+    }
+
+    fn enabled_value(enabled: bool) -> StyledText<'static> {
+        let mut status = toggle::enabled_word_warning_off(enabled);
+        status.style = status.style.bold();
+        status
     }
 
     fn build_rows(&self) -> Vec<RowKind> {
@@ -692,12 +699,6 @@ impl JsReplSettingsView {
             .min(total.saturating_sub(1));
         let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
 
-        let enabled_label = if self.settings.enabled { "Enabled" } else { "Disabled" };
-        let enabled_color = if self.settings.enabled {
-            crate::colors::success()
-        } else {
-            crate::colors::warning()
-        };
         let runtime_label = Self::runtime_label(self.settings.runtime);
         let runtime_path = self
             .settings
@@ -721,12 +722,8 @@ impl JsReplSettingsView {
             .iter()
             .copied()
             .map(|kind| match kind {
-                RowKind::Enabled => KeyValueRow::new("Enabled").with_value(StyledText::new(
-                    enabled_label,
-                    Style::default()
-                        .fg(enabled_color)
-                        .add_modifier(Modifier::BOLD),
-                )),
+                RowKind::Enabled => KeyValueRow::new("Enabled")
+                    .with_value(Self::enabled_value(self.settings.enabled)),
                 RowKind::RuntimeKind => KeyValueRow::new("Runtime").with_value(StyledText::new(
                     runtime_label,
                     Style::default().fg(crate::colors::info()),
@@ -771,6 +768,23 @@ impl JsReplSettingsView {
         self.viewport_rows.set(layout.visible_rows());
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::colors;
+
+    #[test]
+    fn enabled_value_uses_shared_toggle_palette() {
+        let enabled = JsReplSettingsView::enabled_value(true);
+        assert_eq!(enabled.text.as_ref(), "enabled");
+        assert_eq!(enabled.style.fg, Some(colors::success()));
+
+        let disabled = JsReplSettingsView::enabled_value(false);
+        assert_eq!(disabled.text.as_ref(), "disabled");
+        assert_eq!(disabled.style.fg, Some(colors::warning()));
+    }
 }
 
 impl<'a> BottomPaneView<'a> for JsReplSettingsView {

@@ -202,7 +202,7 @@ impl NotificationsSettingsView {
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let mut selected = self.selected_row;
         let rows = self.menu_rows();
-        let Some(layout) = self.page().layout(area) else {
+        let Some(layout) = self.page().layout_content(area) else {
             return false;
         };
         let result = route_selectable_list_mouse_with_config(
@@ -233,6 +233,7 @@ impl NotificationsSettingsView {
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         self.process_key_event(key_event)
     }
+
 }
 
 impl<'a> BottomPaneView<'a> for NotificationsSettingsView {

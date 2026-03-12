@@ -7,11 +7,12 @@ use super::model_selection_state::{
     SelectionAction,
 };
 use super::settings_ui::line_runs::{
-    hit_test_selectable_runs,
-    render_selectable_runs,
+    selection_id_at,
     SelectableLineRun,
 };
-use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
+use super::settings_ui::hints::{shortcut_line, KeyHint};
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::panel::SettingsPanelStyle;
 use super::settings_ui::toggle;
 use super::BottomPane;
 use crate::app_event::AppEvent;
@@ -27,31 +28,21 @@ use code_common::model_presets::ModelPreset;
 use code_core::config_types::{ContextMode, ServiceTier};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
+use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
-use std::cell::RefCell;
+use std::cell::Cell;
 
 const SUMMARY_LINE_COUNT: usize = 3;
 const FOOTER_LINE_COUNT: usize = 2;
 // 2 summary rows + 1 summary spacer + 1 footer spacer + 1 footer hint row.
-const PANEL_CHROME_HEIGHT: usize = SUMMARY_LINE_COUNT + FOOTER_LINE_COUNT;
-// Before the first render, assume the minimum inner panel height implied by
-// `desired_height() == 9`: 7 content rows after the outer border is removed.
-const DEFAULT_INNER_PANEL_HEIGHT: u16 = 7;
-
 pub(crate) struct ModelSelectionView {
     data: ModelSelectionData,
     selected_index: usize,
-    hovered_index: Option<usize>,
     app_event_tx: AppEventSender,
     is_complete: bool,
-    /// Cached (entry_index, rect) pairs from last render for mouse hit testing.
-    item_rects: RefCell<Vec<(usize, Rect)>>,
-    /// Scroll offset for rendering when content exceeds available height.
     scroll_offset: usize,
-    /// Cached inner panel height from the last render, used by keyboard scrolling.
-    last_render_height: RefCell<u16>,
+    visible_body_rows: Cell<usize>,
 }
 
 impl ModelSelectionView {
@@ -61,19 +52,19 @@ impl ModelSelectionView {
         Self {
             data,
             selected_index,
-            hovered_index: None,
             app_event_tx,
             is_complete: false,
-            item_rects: RefCell::new(Vec::new()),
             scroll_offset: 0,
-            last_render_height: RefCell::new(DEFAULT_INNER_PANEL_HEIGHT),
+            visible_body_rows: Cell::new(0),
         }
     }
 
-    fn panel(&self) -> SettingsPanel<'_> {
-        SettingsPanel::new(
+    fn page(&self) -> SettingsMenuPage<'static> {
+        SettingsMenuPage::new(
             self.data.target.panel_title(),
-            SettingsPanelStyle::bottom_pane(),
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
+            self.header_lines(),
+            self.footer_lines(),
         )
     }
 
@@ -86,7 +77,9 @@ impl ModelSelectionView {
     }
 
     fn content_line_count(&self) -> u16 {
-        self.data.content_line_count()
+        self.data
+            .content_line_count()
+            .saturating_sub((SUMMARY_LINE_COUNT + FOOTER_LINE_COUNT) as u16)
     }
 
     fn move_selection_up(&mut self) {
@@ -99,7 +92,6 @@ impl ModelSelectionView {
         } else {
             self.selected_index.saturating_sub(1)
         };
-        self.hovered_index = None;
         self.ensure_selected_visible();
     }
 
@@ -109,27 +101,22 @@ impl ModelSelectionView {
             return;
         }
         self.selected_index = (self.selected_index + 1) % total;
-        self.hovered_index = None;
         self.ensure_selected_visible();
     }
 
     fn ensure_selected_visible(&mut self) {
-        let visible_height = *self.last_render_height.borrow() as usize;
-        if visible_height == 0 {
-            return;
-        }
-        let content_height = visible_height.saturating_sub(PANEL_CHROME_HEIGHT);
-        if content_height == 0 {
+        let body_height = self.visible_body_rows.get();
+        if body_height == 0 {
             return;
         }
 
-        let selected_line = self.data.entry_line(self.selected_index);
+        let selected_line = self.selected_body_line(self.selected_index);
         if selected_line < self.scroll_offset {
             self.scroll_offset = selected_line;
         }
-        let visible_end = self.scroll_offset + content_height;
+        let visible_end = self.scroll_offset + body_height;
         if selected_line >= visible_end {
-            self.scroll_offset = selected_line.saturating_sub(content_height) + 1;
+            self.scroll_offset = selected_line.saturating_sub(body_height) + 1;
         }
     }
 
@@ -139,9 +126,7 @@ impl ModelSelectionView {
 
     fn scroll_down(&mut self) {
         let total_lines = self.content_line_count() as usize;
-        let visible_height = *self.last_render_height.borrow() as usize;
-        let content_height = visible_height.saturating_sub(PANEL_CHROME_HEIGHT);
-        let max_scroll = total_lines.saturating_sub(content_height);
+        let max_scroll = total_lines.saturating_sub(self.visible_body_rows.get());
         if self.scroll_offset < max_scroll {
             self.scroll_offset += 1;
         }
@@ -156,8 +141,12 @@ impl ModelSelectionView {
         self.confirm_selection();
     }
 
-    fn hit_test(&self, x: u16, y: u16) -> Option<usize> {
-        hit_test_selectable_runs(&self.item_rects.borrow(), x, y)
+    fn selected_body_line(&self, entry_index: usize) -> usize {
+        self.data.entry_line(entry_index).saturating_sub(SUMMARY_LINE_COUNT)
+    }
+
+    fn hit_test_in_body(&self, body: Rect, x: u16, y: u16) -> Option<usize> {
+        selection_id_at(body, x, y, self.scroll_offset, &self.build_render_runs())
     }
 
     fn confirm_selection(&mut self) {
@@ -178,13 +167,17 @@ impl ModelSelectionView {
         }
     }
 
-    fn handle_mouse_event_shared(&mut self, mouse_event: MouseEvent) -> ConditionalUpdate {
+    fn handle_mouse_event_shared(
+        &mut self,
+        mouse_event: MouseEvent,
+        body: Rect,
+    ) -> ConditionalUpdate {
         let mut selected = self.selected_index;
         let result = route_selectable_list_mouse_with_config(
             mouse_event,
             &mut selected,
             self.entry_count(),
-            |x, y| self.hit_test(x, y),
+            |x, y| self.hit_test_in_body(body, x, y),
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_select: false,
@@ -199,13 +192,6 @@ impl ModelSelectionView {
         }
 
         match mouse_event.kind {
-            MouseEventKind::Moved => {
-                let new_hover = self.hit_test(mouse_event.column, mouse_event.row);
-                if new_hover != self.hovered_index {
-                    self.hovered_index = new_hover;
-                    return ConditionalUpdate::NeedsRedraw;
-                }
-            }
             MouseEventKind::ScrollUp => {
                 self.scroll_up();
                 return ConditionalUpdate::NeedsRedraw;
@@ -246,14 +232,17 @@ impl ModelSelectionView {
         }
     }
 
-    /// Used when embedded in settings overlay. Hit testing relies on `item_rects`
-    /// cached during the last render; `area` is accepted to match sibling view APIs.
+    /// Used when embedded in settings overlay. Mouse routing reuses the shared
+    /// menu-page body layout and line-run hit testing.
     pub(crate) fn handle_mouse_event_direct(
         &mut self,
         mouse_event: MouseEvent,
-        _area: Rect,
+        area: Rect,
     ) -> ConditionalUpdate {
-        self.handle_mouse_event_shared(mouse_event)
+        let Some(layout) = self.page().layout_content(area) else {
+            return ConditionalUpdate::NoRedraw;
+        };
+        self.handle_mouse_event_shared(mouse_event, layout.body)
     }
 
     fn send_closed(&mut self, accepted: bool) {
@@ -265,10 +254,6 @@ impl ModelSelectionView {
             accepted,
         });
         self.is_complete = true;
-    }
-
-    fn base_style() -> Style {
-        Style::new().bg(colors::background()).fg(colors::text())
     }
 
     fn dim_style() -> Style {
@@ -291,43 +276,9 @@ impl ModelSelectionView {
         lines.push(SelectableLineRun::plain(vec![Line::from("")]));
     }
 
-    fn push_summary_lines<'a>(&'a self, lines: &mut Vec<SelectableLineRun<'a, usize>>) {
-        lines.push(SelectableLineRun::plain(vec![Line::from(vec![
-            Span::styled(
-                format!("{}: ", self.data.target.current_label()),
-                Self::dim_style(),
-            ),
-            Span::styled(
-                if self.data.target.supports_follow_chat() && self.data.current.use_chat_model {
-                    "Follow Chat Mode".to_string()
-                } else {
-                    self.data.current_model_display_name()
-                },
-                Style::new().fg(colors::warning()).bold(),
-            ),
-        ])]));
-        lines.push(SelectableLineRun::plain(vec![Line::from(vec![
-            Span::styled(
-                format!("{}: ", self.data.target.reasoning_label()),
-                Self::dim_style(),
-            ),
-            Span::styled(
-                if self.data.target.supports_follow_chat() && self.data.current.use_chat_model {
-                    "From chat".to_string()
-                } else {
-                    reasoning_effort_label(self.data.current.current_effort).to_string()
-                },
-                Style::new().fg(colors::warning()).bold(),
-            ),
-        ])]));
-        Self::push_blank_line(lines);
-    }
-
     fn push_fast_mode_section<'a>(&self, lines: &mut Vec<SelectableLineRun<'a, usize>>) {
         let fast_index = 0;
         let is_selected = self.selected_index == fast_index;
-        let is_hovered = self.hovered_index == Some(fast_index);
-        let is_highlighted = is_selected || is_hovered;
         let fast_enabled = matches!(self.data.current.current_service_tier, Some(ServiceTier::Fast));
         let status = toggle::enabled_word(fast_enabled);
 
@@ -341,14 +292,14 @@ impl ModelSelectionView {
         )])]));
 
         let label_style = {
-            let base = Self::highlighted(Style::new().fg(colors::text()), is_highlighted);
+            let base = Self::highlighted(Style::new().fg(colors::text()), is_selected);
             if fast_enabled {
                 base.fg(colors::success())
             } else {
                 base
             }
         };
-        let arrow_style = if is_highlighted {
+        let arrow_style = if is_selected {
             Style::new().bg(colors::selection()).bold()
         } else {
             Style::new().fg(colors::text_dim())
@@ -375,8 +326,6 @@ impl ModelSelectionView {
             return;
         };
         let is_selected = self.selected_index == context_index;
-        let is_hovered = self.hovered_index == Some(context_index);
-        let is_highlighted = is_selected || is_hovered;
         let context_status = match self.data.current.current_context_mode {
             Some(ContextMode::OneM) => "enabled",
             Some(ContextMode::Auto) => "auto",
@@ -396,7 +345,7 @@ impl ModelSelectionView {
         }
 
         let label_style = {
-            let base = Self::highlighted(Style::new().fg(colors::text()), is_highlighted);
+            let base = Self::highlighted(Style::new().fg(colors::text()), is_selected);
             let with_mode = if self.data.current.current_context_mode.is_some() {
                 base.fg(colors::success())
             } else {
@@ -408,7 +357,7 @@ impl ModelSelectionView {
                 with_mode
             }
         };
-        let arrow_style = if is_highlighted {
+        let arrow_style = if is_selected {
             Style::new().bg(colors::selection()).bold()
         } else {
             Style::new().fg(colors::text_dim())
@@ -437,8 +386,6 @@ impl ModelSelectionView {
             return;
         };
         let is_selected = self.selected_index == follow_chat_index;
-        let is_hovered = self.hovered_index == Some(follow_chat_index);
-        let is_highlighted = is_selected || is_hovered;
 
         lines.push(SelectableLineRun::plain(vec![Line::from(vec![Span::styled(
             "Follow Chat Mode",
@@ -449,13 +396,13 @@ impl ModelSelectionView {
             Self::dim_style(),
         )])]));
 
-        let label_style = Self::highlighted(Style::new().fg(colors::text()), is_highlighted);
-        let arrow_style = if is_highlighted {
+        let label_style = Self::highlighted(Style::new().fg(colors::text()), is_selected);
+        let arrow_style = if is_selected {
             Style::new().bg(colors::selection()).bold()
         } else {
             Style::new().fg(colors::text_dim())
         };
-        let indent_style = if is_highlighted {
+        let indent_style = if is_selected {
             Style::new().bg(colors::selection()).bold()
         } else {
             Style::new()
@@ -513,8 +460,6 @@ impl ModelSelectionView {
             }
 
             let is_selected = entry_idx == self.selected_index;
-            let is_hovered = self.hovered_index == Some(entry_idx);
-            let is_highlighted = is_selected || is_hovered;
             let is_current = !self.data.current.use_chat_model
                 && flat_preset.model.eq_ignore_ascii_case(&self.data.current.current_model)
                 && flat_preset.effort == self.data.current.current_effort;
@@ -524,13 +469,13 @@ impl ModelSelectionView {
                 row_text.push_str(" (current)");
             }
 
-            let indent_style = if is_highlighted {
+            let indent_style = if is_selected {
                 Style::new().bg(colors::selection()).bold()
             } else {
                 Style::new()
             };
             let label_style = {
-                let base = Self::highlighted(Style::new().fg(colors::text()), is_highlighted);
+                let base = Self::highlighted(Style::new().fg(colors::text()), is_selected);
                 if is_current {
                     base.fg(colors::success())
                 } else {
@@ -538,9 +483,9 @@ impl ModelSelectionView {
                 }
             };
             let divider_style =
-                Self::highlighted(Style::new().fg(colors::text_dim()), is_highlighted);
+                Self::highlighted(Style::new().fg(colors::text_dim()), is_selected);
             let description_style =
-                Self::highlighted(Style::new().fg(colors::dim()), is_highlighted);
+                Self::highlighted(Style::new().fg(colors::dim()), is_selected);
 
             lines.push(SelectableLineRun::selectable(
                 entry_idx,
@@ -554,21 +499,8 @@ impl ModelSelectionView {
         }
     }
 
-    fn push_footer_lines<'a>(lines: &mut Vec<SelectableLineRun<'a, usize>>) {
-        Self::push_blank_line(lines);
-        lines.push(SelectableLineRun::plain(vec![Line::from(vec![
-            Span::styled("↑↓", Style::new().fg(colors::light_blue())),
-            Span::raw(" Navigate  "),
-            Span::styled("Enter", Style::new().fg(colors::success())),
-            Span::raw(" Select  "),
-            Span::styled("Esc", Style::new().fg(colors::error())),
-            Span::raw(" Cancel"),
-        ])]));
-    }
-
     fn build_render_runs<'a>(&'a self) -> Vec<SelectableLineRun<'a, usize>> {
         let mut runs = Vec::new();
-        self.push_summary_lines(&mut runs);
         if self.data.target.supports_fast_mode() {
             self.push_fast_mode_section(&mut runs);
         }
@@ -579,39 +511,78 @@ impl ModelSelectionView {
             self.push_follow_chat_section(&mut runs);
         }
         self.push_preset_lines(&mut runs);
-        Self::push_footer_lines(&mut runs);
         runs
     }
 
-    fn render_panel_body(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
-            return;
-        }
+    fn header_lines(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(vec![
+                Span::styled(
+                    format!("{}: ", self.data.target.current_label()),
+                    Self::dim_style(),
+                ),
+                Span::styled(
+                    if self.data.target.supports_follow_chat() && self.data.current.use_chat_model {
+                        "Follow Chat Mode".to_string()
+                    } else {
+                        self.data.current_model_display_name()
+                    },
+                    Style::new().fg(colors::warning()).bold(),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(
+                    format!("{}: ", self.data.target.reasoning_label()),
+                    Self::dim_style(),
+                ),
+                Span::styled(
+                    if self.data.target.supports_follow_chat() && self.data.current.use_chat_model {
+                        "From chat".to_string()
+                    } else {
+                        reasoning_effort_label(self.data.current.current_effort).to_string()
+                    },
+                    Style::new().fg(colors::warning()).bold(),
+                ),
+            ]),
+            Line::from(""),
+        ]
+    }
 
-        *self.last_render_height.borrow_mut() = area.height;
+    fn footer_lines(&self) -> Vec<Line<'static>> {
+        vec![
+            Line::from(""),
+            shortcut_line(&[
+                KeyHint::new("↑↓", " Navigate")
+                    .with_key_style(Style::new().fg(colors::light_blue())),
+                KeyHint::new("Enter", " Select")
+                    .with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Esc", " Cancel")
+                    .with_key_style(Style::new().fg(colors::error())),
+            ]),
+        ]
+    }
 
-        let mut item_rects = self.item_rects.borrow_mut();
-        item_rects.clear();
-
-        let padded = Rect {
-            x: area.x.saturating_add(1),
-            y: area.y,
-            width: area.width.saturating_sub(1),
-            height: area.height,
+    fn render_in_page(
+        &self,
+        page: &SettingsMenuPage<'_>,
+        area: Rect,
+        buf: &mut Buffer,
+        framed: bool,
+    ) {
+        let runs = self.build_render_runs();
+        let mut rects = Vec::new();
+        let layout = if framed {
+            page.render_runs(area, buf, self.scroll_offset, &runs, &mut rects)
+        } else {
+            page.render_content_runs(area, buf, self.scroll_offset, &runs, &mut rects)
         };
-
-        render_selectable_runs(
-            padded,
-            buf,
-            self.scroll_offset,
-            &self.build_render_runs(),
-            Self::base_style(),
-            &mut item_rects,
-        );
+        if let Some(layout) = layout {
+            self.visible_body_rows.set(layout.body.height as usize);
+        }
     }
 
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
-        self.render_panel_body(area, buf);
+        self.render_in_page(&self.page(), area, buf, false);
     }
 }
 
@@ -632,19 +603,17 @@ impl<'a> BottomPaneView<'a> for ModelSelectionView {
         &mut self,
         _pane: &mut BottomPane<'a>,
         mouse_event: MouseEvent,
-        _area: Rect,
+        area: Rect,
     ) -> ConditionalUpdate {
-        self.handle_mouse_event_shared(mouse_event)
+        let Some(layout) = self.page().layout(area) else {
+            return ConditionalUpdate::NoRedraw;
+        };
+        self.handle_mouse_event_shared(mouse_event, layout.body)
     }
 
     fn update_hover(&mut self, mouse_pos: (u16, u16), _area: Rect) -> bool {
-        let new_hover = self.hit_test(mouse_pos.0, mouse_pos.1);
-        if new_hover != self.hovered_index {
-            self.hovered_index = new_hover;
-            true
-        } else {
-            false
-        }
+        let _ = mouse_pos;
+        false
     }
 
     fn is_complete(&self) -> bool {
@@ -652,16 +621,14 @@ impl<'a> BottomPaneView<'a> for ModelSelectionView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        let content_lines = self.content_line_count();
-        let total = content_lines.saturating_add(2);
+        let total = self
+            .content_line_count()
+            .saturating_add((SUMMARY_LINE_COUNT + FOOTER_LINE_COUNT + 2) as u16);
         total.max(9)
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = self.panel().render(area, buf) else {
-            return;
-        };
-        self.render_panel_body(layout.content, buf);
+        self.render_in_page(&self.page(), area, buf, true);
     }
 }
 
@@ -860,14 +827,43 @@ mod tests {
             ModelSelectionTarget::Session,
             vec![preset("gpt-5.3-codex"), preset("gpt-5.4")],
         );
-        let area = Rect::new(0, 0, 60, 4);
+        let area = Rect::new(0, 0, 60, 7);
         let mut buf = Buffer::empty(area);
 
-        view.scroll_offset = view.data.entry_line(2);
+        view.scroll_offset = view.selected_body_line(2);
+        view.render_without_frame(area, &mut buf);
+        let layout = view.page().layout_content(area).expect("layout");
+
+        assert_eq!(view.hit_test_in_body(layout.body, 2, 0), Some(2));
+        assert_eq!(view.hit_test_in_body(layout.body, 2, 1), Some(3));
+        assert_eq!(view.hit_test_in_body(layout.body, 2, 2), None);
+    }
+
+    #[test]
+    fn ensure_selected_visible_uses_body_rows() {
+        let mut view = make_view(
+            ModelSelectionTarget::Session,
+            vec![preset("gpt-5.3-codex"), preset("gpt-5.4"), preset("gpt-5.5")],
+        );
+
+        view.visible_body_rows.set(2);
+        view.selected_index = 4;
+        view.ensure_selected_visible();
+
+        assert_eq!(view.scroll_offset, view.selected_body_line(4).saturating_sub(1));
+    }
+
+    #[test]
+    fn render_without_frame_draws_summary_in_header_area() {
+        let view = make_view(ModelSelectionTarget::Session, vec![preset("gpt-5.3-codex")]);
+        let area = Rect::new(0, 0, 60, 7);
+        let mut buf = Buffer::empty(area);
+
         view.render_without_frame(area, &mut buf);
 
-        assert_eq!(view.hit_test(2, 0), Some(2));
-        assert_eq!(view.hit_test(2, 1), Some(3));
-        assert_eq!(view.hit_test(2, 2), None);
+        let top_row: String = (0..area.width)
+            .map(|x| buf[(x, 0)].symbol())
+            .collect();
+        assert!(top_row.contains("Current model:"));
     }
 }

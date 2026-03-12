@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 
 use code_common::summarize_sandbox_policy;
@@ -27,6 +27,7 @@ use super::settings_ui::editor_page::SettingsEditorPage;
 use super::settings_ui::panel::SettingsPanelStyle;
 use super::settings_ui::row_page::SettingsRowPage;
 use super::settings_ui::rows::{KeyValueRow, StyledText};
+use super::settings_ui::toggle;
 use super::BottomPane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -624,12 +625,6 @@ impl NetworkSettingsView {
             .min(total.saturating_sub(1));
         let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
 
-        let enabled_label = if self.settings.enabled { "Enabled" } else { "Disabled" };
-        let enabled_color = if self.settings.enabled {
-            crate::colors::success()
-        } else {
-            crate::colors::warning()
-        };
         let mode = Self::mode_label(self.settings.mode);
 
         let allowed_count = self.settings.allowed_domains.len();
@@ -646,12 +641,7 @@ impl NetworkSettingsView {
             format!("{denied_count} entries")
         };
 
-        let local_label = if self.settings.allow_local_binding { "On" } else { "Off" };
         let advanced_label = if show_advanced { "shown" } else { "hidden" };
-
-        let socks_label = if self.settings.enable_socks5 { "On" } else { "Off" };
-        let socks_udp_label = if self.settings.enable_socks5_udp { "On" } else { "Off" };
-        let upstream_env_label = if self.settings.allow_upstream_proxy { "On" } else { "Off" };
 
         let unix_count = self.settings.allow_unix_sockets.len();
         let unix_summary = if unix_count == 0 {
@@ -661,17 +651,14 @@ impl NetworkSettingsView {
         };
 
         let apply_suffix = if self.dirty { " *" } else { "" };
+        let mut enabled_status = toggle::enabled_word_warning_off(self.settings.enabled);
+        enabled_status.style = enabled_status.style.bold();
 
         let row_specs: Vec<KeyValueRow<'_>> = rows
             .iter()
             .copied()
             .map(|kind| match kind {
-                RowKind::Enabled => KeyValueRow::new("Enabled").with_value(StyledText::new(
-                    enabled_label,
-                    Style::default()
-                        .fg(enabled_color)
-                        .add_modifier(Modifier::BOLD),
-                )),
+                RowKind::Enabled => KeyValueRow::new("Enabled").with_value(enabled_status.clone()),
                 RowKind::Mode => KeyValueRow::new("Mode").with_value(StyledText::new(
                     mode,
                     Style::default().fg(crate::colors::info()),
@@ -689,10 +676,7 @@ impl NetworkSettingsView {
                     ))
                 }
                 RowKind::AllowLocalBinding => KeyValueRow::new("Allow local binding")
-                    .with_value(StyledText::new(
-                        local_label,
-                        Style::default().fg(crate::colors::text_dim()),
-                    )),
+                    .with_value(toggle::on_off_word(self.settings.allow_local_binding)),
                 RowKind::AdvancedToggle => KeyValueRow::new("Advanced").with_value(
                     StyledText::new(
                         advanced_label,
@@ -700,22 +684,13 @@ impl NetworkSettingsView {
                     ),
                 ),
                 RowKind::Socks5Enabled => KeyValueRow::new("SOCKS5").with_value(
-                    StyledText::new(
-                        socks_label,
-                        Style::default().fg(crate::colors::text_dim()),
-                    ),
+                    toggle::on_off_word(self.settings.enable_socks5),
                 ),
                 RowKind::Socks5Udp => KeyValueRow::new("SOCKS5 UDP").with_value(
-                    StyledText::new(
-                        socks_udp_label,
-                        Style::default().fg(crate::colors::text_dim()),
-                    ),
+                    toggle::on_off_word(self.settings.enable_socks5_udp),
                 ),
                 RowKind::AllowUpstreamProxyEnv => KeyValueRow::new("Allow upstream proxy env")
-                    .with_value(StyledText::new(
-                        upstream_env_label,
-                        Style::default().fg(crate::colors::text_dim()),
-                    )),
+                    .with_value(toggle::on_off_word(self.settings.allow_upstream_proxy)),
                 RowKind::AllowUnixSockets => {
                     KeyValueRow::new("Allow unix sockets").with_value(StyledText::new(
                         unix_summary.clone(),

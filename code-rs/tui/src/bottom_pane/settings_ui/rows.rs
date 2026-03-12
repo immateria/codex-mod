@@ -5,8 +5,11 @@ use ratatui::layout::{Position, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
+use unicode_width::UnicodeWidthStr;
 
 use crate::colors;
+
+const SPACES: &str = "                                                                ";
 
 #[derive(Clone, Debug)]
 pub(crate) struct StyledText<'a> {
@@ -28,6 +31,7 @@ pub(crate) struct KeyValueRow<'a> {
     pub(crate) value: Option<StyledText<'a>>,
     pub(crate) detail: Option<StyledText<'a>>,
     pub(crate) selected_hint: Option<Cow<'a, str>>,
+    pub(crate) label_pad_cols: Option<u16>,
 }
 
 impl<'a> KeyValueRow<'a> {
@@ -37,6 +41,7 @@ impl<'a> KeyValueRow<'a> {
             value: None,
             detail: None,
             selected_hint: None,
+            label_pad_cols: None,
         }
     }
 
@@ -45,8 +50,20 @@ impl<'a> KeyValueRow<'a> {
         self
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn with_detail(mut self, detail: StyledText<'a>) -> Self {
+        self.detail = Some(detail);
+        self
+    }
+
     pub(crate) fn with_selected_hint(mut self, hint: impl Into<Cow<'a, str>>) -> Self {
         self.selected_hint = Some(hint.into());
+        self
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn with_label_pad_cols(mut self, cols: u16) -> Self {
+        self.label_pad_cols = Some(cols);
         self
     }
 }
@@ -94,12 +111,31 @@ pub(crate) fn row_area(body: Rect, rel_idx: usize) -> Rect {
     )
 }
 
-fn render_kv_row_parts(
-    row_area: Rect,
-    buf: &mut Buffer,
-    selected: bool,
-    row: &KeyValueRow<'_>,
-) {
+fn clamp_u16(value: usize) -> u16 {
+    u16::try_from(value).unwrap_or(u16::MAX)
+}
+
+fn push_spaces<'a>(spans: &mut Vec<Span<'a>>, mut cols: u16) {
+    while cols > 0 {
+        let chunk = cols.min(SPACES.len() as u16) as usize;
+        spans.push(Span::raw(&SPACES[..chunk]));
+        cols = cols.saturating_sub(chunk as u16);
+    }
+}
+
+fn label_width(row: &KeyValueRow<'_>) -> u16 {
+    clamp_u16(row.label.as_ref().width())
+}
+
+fn default_label_pad_cols(rows: &[KeyValueRow<'_>]) -> u16 {
+    rows.iter()
+        .filter(|row| row.value.is_some() || row.detail.is_some())
+        .map(label_width)
+        .max()
+        .unwrap_or(0)
+}
+
+fn kv_row_line<'a>(selected: bool, row: &'a KeyValueRow<'a>, default_pad_cols: u16) -> Line<'a> {
     let mut spans = vec![arrow_span(selected)];
     let label_style = if selected {
         Style::new().fg(colors::text()).bold()
@@ -107,6 +143,12 @@ fn render_kv_row_parts(
         Style::new().fg(colors::text())
     };
     spans.push(Span::styled(row.label.as_ref(), label_style));
+
+    let pad_cols = row.label_pad_cols.unwrap_or(default_pad_cols);
+    let label_cols = label_width(row);
+    if label_cols < pad_cols {
+        push_spaces(&mut spans, pad_cols.saturating_sub(label_cols));
+    }
     spans.push(Span::styled(": ", label_style));
 
     if let Some(value) = row.value.as_ref() {
@@ -116,12 +158,24 @@ fn render_kv_row_parts(
         spans.push(Span::raw("  "));
         spans.push(Span::styled(detail.text.as_ref(), detail.style));
     }
-    if selected && let Some(hint) = row.selected_hint.as_deref() {
+    if selected
+        && let Some(hint) = row.selected_hint.as_deref()
+    {
         spans.push(Span::raw("  "));
         spans.push(Span::styled(hint, Style::new().fg(colors::text_dim())));
     }
 
-    Paragraph::new(Line::from(spans))
+    Line::from(spans)
+}
+
+fn render_kv_row_parts(
+    row_area: Rect,
+    buf: &mut Buffer,
+    selected: bool,
+    row: &KeyValueRow<'_>,
+    default_pad_cols: u16,
+) {
+    Paragraph::new(kv_row_line(selected, row, default_pad_cols))
         .style(row_style(selected))
         .render(row_area, buf);
 }
@@ -134,6 +188,7 @@ pub(crate) fn render_kv_rows(
     rows: &[KeyValueRow<'_>],
 ) {
     let visible = body.height as usize;
+    let default_pad_cols = default_label_pad_cols(rows);
     for rel_idx in 0..visible {
         let abs_idx = scroll_top.saturating_add(rel_idx);
         let area = row_area(body, rel_idx);
@@ -143,13 +198,20 @@ pub(crate) fn render_kv_rows(
                 .render(area, buf);
             continue;
         };
-        render_kv_row_parts(area, buf, selected_idx == Some(abs_idx), row);
+        render_kv_row_parts(area, buf, selected_idx == Some(abs_idx), row, default_pad_cols);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn line_text(line: &Line<'_>) -> String {
+        line.spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect()
+    }
 
     #[test]
     fn selection_index_accounts_for_scroll_offset() {
@@ -164,5 +226,62 @@ mod tests {
         let body = Rect::new(4, 7, 30, 5);
         assert_eq!(row_area(body, 0), Rect::new(4, 7, 30, 1));
         assert_eq!(row_area(body, 3), Rect::new(4, 10, 30, 1));
+    }
+
+    #[test]
+    fn key_value_row_supports_detail_builder() {
+        let row = KeyValueRow::new("Label").with_detail(StyledText::new("detail", Style::new()));
+        assert_eq!(
+            row.detail.expect("detail").text.as_ref(),
+            "detail"
+        );
+    }
+
+    #[test]
+    fn kv_row_uses_page_level_label_padding() {
+        let rows = [
+            KeyValueRow::new("A").with_value(StyledText::new("one", Style::new())),
+            KeyValueRow::new("Long label").with_value(StyledText::new("two", Style::new())),
+        ];
+        let default_pad_cols = default_label_pad_cols(&rows);
+        let first = kv_row_line(false, &rows[0], default_pad_cols);
+
+        assert_eq!(line_text(&first), "  A         : one");
+    }
+
+    #[test]
+    fn kv_row_explicit_label_padding_overrides_page_default() {
+        let rows = [
+            KeyValueRow::new("A")
+                .with_label_pad_cols(4)
+                .with_value(StyledText::new("one", Style::new())),
+            KeyValueRow::new("Long label").with_value(StyledText::new("two", Style::new())),
+        ];
+        let default_pad_cols = default_label_pad_cols(&rows);
+        let first = kv_row_line(false, &rows[0], default_pad_cols);
+
+        assert_eq!(line_text(&first), "  A   : one");
+    }
+
+    #[test]
+    fn kv_row_padding_uses_unicode_display_width() {
+        let rows = [
+            KeyValueRow::new("Ａ").with_value(StyledText::new("one", Style::new())),
+            KeyValueRow::new("Wide").with_value(StyledText::new("two", Style::new())),
+        ];
+        let default_pad_cols = default_label_pad_cols(&rows);
+        let first = kv_row_line(false, &rows[0], default_pad_cols);
+
+        assert_eq!(line_text(&first), "  Ａ  : one");
+    }
+
+    #[test]
+    fn page_level_padding_ignores_rows_without_values() {
+        let rows = [
+            KeyValueRow::new("Enabled").with_value(StyledText::new("on", Style::new())),
+            KeyValueRow::new("Very long action row with no value"),
+        ];
+
+        assert_eq!(default_label_pad_cols(&rows), 7);
     }
 }

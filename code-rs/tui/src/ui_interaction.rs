@@ -5,31 +5,6 @@ use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 
 use crate::bottom_pane::ConditionalUpdate;
 
-/// A vertical hit region in a view, expressed as line offsets from an area.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct RelativeHitRegion {
-    /// Logical id returned when this region is hit.
-    pub id: usize,
-    /// Starting row offset from `area.y`.
-    pub start_row: u16,
-    /// Number of rows in this region.
-    pub row_count: u16,
-}
-
-impl RelativeHitRegion {
-    pub const fn new(id: usize, start_row: u16, row_count: u16) -> Self {
-        Self {
-            id,
-            start_row,
-            row_count,
-        }
-    }
-
-    fn contains_relative_row(self, rel_y: u16) -> bool {
-        rel_y >= self.start_row && rel_y < self.start_row.saturating_add(self.row_count)
-    }
-}
-
 pub(crate) fn contains_point(area: Rect, x: u16, y: u16) -> bool {
     x >= area.x
         && x < area.x.saturating_add(area.width)
@@ -407,22 +382,6 @@ pub(crate) fn vertical_scrollbar_position_for_thumb_drag(
     pos_f.round().clamp(0.0, metrics.max_position as f64) as usize
 }
 
-pub(crate) fn hit_test_relative_regions(
-    area: Rect,
-    x: u16,
-    y: u16,
-    regions: &[RelativeHitRegion],
-) -> Option<usize> {
-    if !contains_point(area, x, y) {
-        return None;
-    }
-    let rel_y = y.saturating_sub(area.y);
-    regions
-        .iter()
-        .find(|region| region.contains_relative_row(rel_y))
-        .map(|region| region.id)
-}
-
 /// Hit-test repeated vertical row groups.
 ///
 /// Example: `first_row=4`, `active_rows_per_group=2`, `group_stride=3`
@@ -632,23 +591,6 @@ pub(crate) fn route_selectable_list_mouse_with_config(
     route_selectable_list_mouse_impl(mouse_event, selected, item_count, row_at_position, config)
 }
 
-pub(crate) fn route_selectable_regions_mouse_with_config(
-    mouse_event: MouseEvent,
-    selected: &mut usize,
-    item_count: usize,
-    area: Rect,
-    regions: &[RelativeHitRegion],
-    config: SelectableListMouseConfig,
-) -> SelectableListMouseResult {
-    route_selectable_list_mouse_with_config(
-        mouse_event,
-        selected,
-        item_count,
-        |x, y| hit_test_relative_regions(area, x, y, regions),
-        config,
-    )
-}
-
 pub(crate) fn step_index_by_delta(
     current: usize,
     count: usize,
@@ -769,7 +711,6 @@ mod tests {
         HeaderBodyFooterLayout,
         ListWindow,
         PinnedFooterLayout,
-        RelativeHitRegion,
         ScrollSelectionBehavior,
         SelectableListMouseConfig,
         SelectableListMouseResult,
@@ -778,7 +719,6 @@ mod tests {
         clamp_index,
         clipped_vertical_rect_with_scroll,
         contains_point,
-        hit_test_relative_regions,
         hit_test_repeating_rows,
         inset_rect_right,
         next_scroll_top_with_delta,
@@ -786,7 +726,6 @@ mod tests {
         render_vertical_scrollbar,
         route_selectable_list_mouse,
         route_selectable_list_mouse_with_config,
-        route_selectable_regions_mouse_with_config,
         scroll_top_to_keep_visible,
         split_header_body_footer,
         split_pinned_footer_layout,
@@ -800,20 +739,6 @@ mod tests {
     };
     use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use ratatui::buffer::Buffer;
-
-    #[test]
-    fn relative_hit_regions_map_rows_to_ids() {
-        let area = Rect::new(10, 20, 40, 12);
-        let regions = [
-            RelativeHitRegion::new(0, 1, 2),
-            RelativeHitRegion::new(1, 4, 1),
-        ];
-
-        assert_eq!(hit_test_relative_regions(area, 15, 21, &regions), Some(0));
-        assert_eq!(hit_test_relative_regions(area, 15, 22, &regions), Some(0));
-        assert_eq!(hit_test_relative_regions(area, 15, 24, &regions), Some(1));
-        assert_eq!(hit_test_relative_regions(area, 15, 25, &regions), None);
-    }
 
     #[test]
     fn repeating_rows_skip_spacer_lines() {
@@ -1070,34 +995,6 @@ mod tests {
             SelectableListMouseResult::Ignored
         );
         assert_eq!(selected, 2);
-    }
-
-    #[test]
-    fn selectable_regions_router_uses_relative_hit_regions() {
-        let mut selected = 0usize;
-        let area = Rect::new(10, 20, 40, 12);
-        let regions = [
-            RelativeHitRegion::new(0, 1, 1),
-            RelativeHitRegion::new(1, 3, 1),
-        ];
-        let click = MouseEvent {
-            kind: MouseEventKind::Down(MouseButton::Left),
-            column: 12,
-            row: 23,
-            modifiers: KeyModifiers::empty(),
-        };
-
-        let result = route_selectable_regions_mouse_with_config(
-            click,
-            &mut selected,
-            2,
-            area,
-            &regions,
-            SelectableListMouseConfig::default(),
-        );
-
-        assert_eq!(result, SelectableListMouseResult::Activated);
-        assert_eq!(selected, 1);
     }
 
     #[test]

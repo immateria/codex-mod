@@ -1,31 +1,35 @@
 use std::sync::{Arc, Mutex};
 
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui::buffer::Buffer;
+use ratatui::layout::{Margin, Rect};
+use ratatui::style::{Style, Stylize};
+use ratatui::text::{Line, Span};
+
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
+use crate::chatwidget::BackgroundOrderTicket;
+use crate::colors;
 use crate::ui_interaction::{
-    RelativeHitRegion,
+    HeaderBodyFooterLayout,
     redraw_if,
-    route_selectable_regions_mouse_with_config,
+    route_selectable_list_mouse_with_config,
+    split_header_body_footer,
     SelectableListMouseConfig,
     SelectableListMouseResult,
     wrap_next,
     wrap_prev,
 };
-use crate::chatwidget::BackgroundOrderTicket;
-use crate::colors;
-use crate::util::buffer::fill_rect;
-use super::bottom_pane_view::BottomPaneView;
-use super::bottom_pane_view::ConditionalUpdate;
-use super::BottomPane;
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Margin, Rect};
-use ratatui::prelude::Widget;
-use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Wrap};
+use crate::util::buffer::{fill_rect, write_line};
 
-use super::settings_ui::panel::{SettingsPanel, SettingsPanelStyle};
+use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::settings_ui::hints::{shortcut_line, KeyHint};
+use super::settings_ui::menu_page::SettingsMenuPage;
+use super::settings_ui::menu_rows::{render_menu_rows, selection_id_at, SettingsMenuRow};
+use super::settings_ui::panel::SettingsPanelStyle;
+use super::settings_ui::rows::StyledText;
+use super::settings_ui::toggle;
+use super::BottomPane;
 
 #[derive(Debug, Clone, Default)]
 pub struct UpdateSharedState {
@@ -61,11 +65,6 @@ pub(crate) struct UpdateSettingsInit {
 impl UpdateSettingsView {
     const PANEL_TITLE: &'static str = "Upgrade";
     const FIELD_COUNT: usize = 3;
-    const HIT_REGIONS: [RelativeHitRegion; Self::FIELD_COUNT] = [
-        RelativeHitRegion::new(0, 1, 1),
-        RelativeHitRegion::new(1, 2, 1),
-        RelativeHitRegion::new(2, 3, 1),
-    ];
 
     pub fn new(init: UpdateSettingsInit) -> Self {
         let UpdateSettingsInit {
@@ -92,6 +91,158 @@ impl UpdateSettingsView {
         }
     }
 
+    fn current_state(&self) -> UpdateSharedState {
+        self.shared
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    fn footer_lines() -> Vec<Line<'static>> {
+        vec![shortcut_line(&[
+            KeyHint::new("Up/Down", " move"),
+            KeyHint::new("Enter", " activate"),
+            KeyHint::new("Space", " toggle"),
+            KeyHint::new("Esc", " close"),
+        ])]
+    }
+
+    fn header_lines(&self) -> Vec<Line<'static>> {
+        let guide_line = if self.command.is_some() {
+            format!("Guided command: {}", self.guided_command_label())
+        } else {
+            "Run Upgrade will post manual instructions in the transcript.".to_string()
+        };
+
+        vec![
+            Line::from(vec![
+                Span::styled("Current: ", Style::new().fg(colors::text_dim())),
+                Span::styled(
+                    self.current_version.clone(),
+                    Style::new().fg(colors::text()).bold(),
+                ),
+            ]),
+            Line::from(Span::styled(guide_line, Style::new().fg(colors::text_dim()))),
+        ]
+    }
+
+    fn version_summary(&self, state: &UpdateSharedState) -> String {
+        if state.checking {
+            "checking for updates".to_string()
+        } else if let Some(err) = state.error.as_deref() {
+            format!("check failed: {err}")
+        } else if let Some(latest) = state.latest_version.as_deref() {
+            format!("{} -> {latest}", self.current_version)
+        } else {
+            format!("{} (up to date)", self.current_version)
+        }
+    }
+
+    fn guided_command_label(&self) -> String {
+        self.command_display.clone().unwrap_or_else(|| {
+            self.command
+                .as_ref()
+                .map(|command| command.join(" "))
+                .unwrap_or_else(|| "manual instructions".to_string())
+        })
+    }
+
+    fn run_upgrade_value(&self, state: &UpdateSharedState) -> StyledText<'static> {
+        if state.checking {
+            StyledText::new("checking", Style::new().fg(colors::warning()))
+        } else if state.error.is_some() {
+            StyledText::new("blocked", Style::new().fg(colors::error()))
+        } else if state.latest_version.is_some() {
+            StyledText::new("available", Style::new().fg(colors::success()))
+        } else if self.command.is_some() {
+            StyledText::new("up to date", Style::new().fg(colors::text_dim()))
+        } else {
+            StyledText::new("manual", Style::new().fg(colors::info()))
+        }
+    }
+
+    fn auto_upgrade_row(auto_enabled: bool) -> SettingsMenuRow<'static, usize> {
+        SettingsMenuRow::new(1usize, "Automatic Upgrades")
+            .with_value(toggle::enabled_word(auto_enabled))
+            .with_detail(StyledText::new(
+                "checks on launch",
+                Style::new().fg(colors::text_dim()),
+            ))
+            .with_selected_hint("(press Enter/Space to toggle)")
+    }
+
+    fn rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
+        let state = self.current_state();
+        vec![
+            SettingsMenuRow::new(0usize, "Run Upgrade")
+                .with_value(self.run_upgrade_value(&state))
+                .with_detail(StyledText::new(
+                    self.version_summary(&state),
+                    Style::new().fg(colors::text_dim()),
+                ))
+                .with_selected_hint(if self.command.is_some() {
+                    "(press Enter to start)"
+                } else {
+                    "(press Enter for instructions)"
+                }),
+            Self::auto_upgrade_row(self.auto_enabled),
+            SettingsMenuRow::new(2usize, "Close"),
+        ]
+    }
+
+    fn page(&self) -> SettingsMenuPage<'static> {
+        SettingsMenuPage::new(
+            Self::PANEL_TITLE,
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            self.header_lines(),
+            Self::footer_lines(),
+        )
+    }
+
+    fn content_layout(&self, area: Rect) -> Option<HeaderBodyFooterLayout> {
+        split_header_body_footer(area, self.header_lines().len(), Self::footer_lines().len(), 1)
+    }
+
+    fn render_body_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        fill_rect(buf, area, Some(' '), base);
+
+        let Some(layout) = self.content_layout(area) else {
+            let rows = self.rows();
+            let mut rects = Vec::new();
+            render_menu_rows(area, buf, 0, Some(self.field), &rows, base, &mut rects);
+            return;
+        };
+
+        let header_lines = self.header_lines();
+        for (idx, line) in header_lines
+            .iter()
+            .enumerate()
+            .take(layout.header.height as usize)
+        {
+            let y = layout.header.y.saturating_add(idx as u16);
+            write_line(buf, layout.header.x, y, layout.header.width, line, base);
+        }
+
+        let rows = self.rows();
+        let mut rects = Vec::new();
+        render_menu_rows(layout.body, buf, 0, Some(self.field), &rows, base, &mut rects);
+
+        let footer_lines = Self::footer_lines();
+        for (idx, line) in footer_lines
+            .iter()
+            .enumerate()
+            .take(layout.footer.height as usize)
+        {
+            let y = layout.footer.y.saturating_add(idx as u16);
+            write_line(buf, layout.footer.x, y, layout.footer.width, line, base);
+        }
+    }
+
     fn toggle_auto(&mut self) {
         self.auto_enabled = !self.auto_enabled;
         self.app_event_tx
@@ -99,11 +250,7 @@ impl UpdateSettingsView {
     }
 
     fn invoke_run_upgrade(&mut self) {
-        let state = self
-            .shared
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
+        let state = self.current_state();
 
         if self.command.is_none() {
             if let Some(instructions) = &self.manual_instructions {
@@ -116,7 +263,7 @@ impl UpdateSettingsView {
         if state.checking {
             self.app_event_tx.send_background_event_with_ticket(
                 &self.ticket,
-                "Still checking for updates…".to_string(),
+                "Still checking for updates...".to_string(),
             );
             return;
         }
@@ -146,8 +293,8 @@ impl UpdateSettingsView {
         self.app_event_tx.send_background_event_with_ticket(
             &self.ticket,
             format!(
-                "Update available: {} → {}. Opening guided upgrade with `{}`…",
-                self.current_version, latest, display
+                "Update available: {} -> {}. Opening guided upgrade with `{display}`...",
+                self.current_version, latest
             ),
         );
         self.app_event_tx.send(AppEvent::RunUpdateCommand {
@@ -158,106 +305,10 @@ impl UpdateSettingsView {
         self.app_event_tx.send_background_event_with_ticket(
             &self.ticket,
             format!(
-                "↻ Complete the guided terminal steps for `{display}` then restart Code to finish upgrading to {latest}."
+                "Complete the guided terminal steps for `{display}` then restart Code to finish upgrading to {latest}."
             ),
         );
         self.is_complete = true;
-    }
-
-    fn build_lines(&self) -> Vec<Line<'static>> {
-        let state = self
-            .shared
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
-
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from(vec![Span::styled(
-            "Upgrade",
-            Style::default().add_modifier(Modifier::BOLD),
-        )]));
-
-        let run_selected = self.field == 0;
-        let run_style = if run_selected {
-            Style::default().fg(colors::primary())
-        } else {
-            Style::default()
-        };
-        let version_summary = if state.checking {
-            "checking…".to_string()
-        } else if let Some(err) = &state.error {
-            err.clone()
-        } else if let Some(latest) = &state.latest_version {
-            format!("{} → {}", self.current_version, latest)
-        } else {
-            self.current_version.to_string()
-        };
-
-        let run_prefix = if run_selected { "› " } else { "  " };
-        lines.push(Line::from(vec![
-            Span::styled(run_prefix, run_style),
-            Span::styled("Run Upgrade", run_style),
-            Span::raw("  "),
-            Span::styled(version_summary, Style::default().fg(colors::text_dim())),
-        ]));
-
-        let toggle_selected = self.field == 1;
-        let toggle_prefix = if toggle_selected { "› " } else { "  " };
-        let toggle_label_style = if toggle_selected {
-            Style::default().fg(colors::primary())
-        } else {
-            Style::default()
-        };
-        let enabled_box_style = if self.auto_enabled {
-            Style::default().fg(colors::success())
-        } else {
-            Style::default().fg(colors::text_dim())
-        };
-        let disabled_box_style = if self.auto_enabled {
-            Style::default().fg(colors::text_dim())
-        } else {
-            Style::default().fg(colors::error())
-        };
-        lines.push(Line::from(vec![
-            Span::styled(toggle_prefix, toggle_label_style),
-            Span::styled("Automatic Upgrades", toggle_label_style),
-            Span::raw("  "),
-            Span::styled(
-                format!("[{}] Enabled", if self.auto_enabled { "x" } else { " " }),
-                enabled_box_style,
-            ),
-            Span::raw("  "),
-            Span::styled(
-                format!("[{}] Disabled", if self.auto_enabled { " " } else { "x" }),
-                disabled_box_style,
-            ),
-        ]));
-
-        let close_selected = self.field == 2;
-        let close_prefix = if close_selected { "› " } else { "  " };
-        let close_style = if close_selected {
-            Style::default().fg(colors::primary())
-        } else {
-            Style::default()
-        };
-        lines.push(Line::from(vec![
-            Span::styled(close_prefix, close_style),
-            Span::styled("Close", close_style),
-        ]));
-
-        lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(" ↑↓", Style::default().fg(colors::function())),
-            Span::styled(" Navigate  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Enter", Style::default().fg(colors::success())),
-            Span::styled(" Configure  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Esc", Style::default().fg(colors::error())),
-            Span::styled(" Close", Style::default().fg(colors::text_dim())),
-        ]));
-
-        // Colors for the enabled/disabled boxes already set; no extra lines needed.
-
-        lines
     }
 
     fn activate_selected(&mut self) {
@@ -268,11 +319,28 @@ impl UpdateSettingsView {
         }
     }
 
-    fn panel() -> SettingsPanel<'static> {
-        SettingsPanel::new(
-            Self::PANEL_TITLE,
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
-        )
+    fn handle_mouse_event_in_body(&mut self, mouse_event: MouseEvent, body: Rect) -> bool {
+        let rows = self.rows();
+        let mut selected = self.field;
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            rows.len(),
+            |x, y| selection_id_at(body, x, y, 0, &rows),
+            SelectableListMouseConfig {
+                hover_select: false,
+                scroll_select: false,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.field = selected;
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            self.activate_selected();
+            self.app_event_tx.send(AppEvent::RequestRedraw);
+        }
+
+        result.handled()
     }
 
     pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
@@ -293,20 +361,10 @@ impl UpdateSettingsView {
                 self.toggle_auto();
                 true
             }
-            KeyCode::Enter => match self.field {
-                0 => {
-                    self.invoke_run_upgrade();
-                    true
-                }
-                1 => {
-                    self.toggle_auto();
-                    true
-                }
-                _ => {
-                    self.is_complete = true;
-                    true
-                }
-            },
+            KeyCode::Enter => {
+                self.activate_selected();
+                true
+            }
             _ => false,
         };
         if handled {
@@ -316,56 +374,19 @@ impl UpdateSettingsView {
     }
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let Some(content) = Self::panel().layout(area).map(|layout| layout.content) else {
+        let Some(layout) = self.content_layout(area) else {
             return false;
         };
-        let mut selected = self.field;
-        let result = route_selectable_regions_mouse_with_config(
-            mouse_event,
-            &mut selected,
-            Self::FIELD_COUNT,
-            content,
-            &Self::HIT_REGIONS,
-            SelectableListMouseConfig {
-                hover_select: false,
-                scroll_select: false,
-                ..SelectableListMouseConfig::default()
-            },
-        );
-        self.field = selected;
-
-        if matches!(result, SelectableListMouseResult::Activated) {
-            self.activate_selected();
-            self.app_event_tx.send(AppEvent::RequestRedraw);
-        }
-
-        result.handled()
+        self.handle_mouse_event_in_body(mouse_event, layout.body)
     }
 
     pub fn is_view_complete(&self) -> bool {
         self.is_complete
     }
 
-    fn render_panel_body(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
-            return;
-        }
-
-        let lines = self.build_lines();
-        let bg_style = Style::default().bg(colors::background()).fg(colors::text());
-        fill_rect(buf, area, Some(' '), bg_style);
-
-        Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .style(bg_style)
-            .wrap(Wrap { trim: false })
-            .render(area, buf);
-    }
-
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
-        self.render_panel_body(area, buf);
+        self.render_body_without_frame(area, buf);
     }
-
 }
 
 impl<'a> BottomPaneView<'a> for UpdateSettingsView {
@@ -387,7 +408,12 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        let handled = self
+            .page()
+            .layout(area)
+            .map(|layout| self.handle_mouse_event_in_body(mouse_event, layout.body))
+            .unwrap_or(false);
+        redraw_if(handled)
     }
 
     fn is_complete(&self) -> bool {
@@ -395,13 +421,18 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        self.build_lines().len().saturating_add(2) as u16
+        self.header_lines()
+            .len()
+            .saturating_add(Self::FIELD_COUNT)
+            .saturating_add(Self::footer_lines().len())
+            .saturating_add(2) as u16
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        if let Some(layout) = Self::panel().render(area, buf) {
-            self.render_panel_body(layout.content, buf);
-        }
+        let rows = self.rows();
+        let _ = self
+            .page()
+            .render_menu_rows(area, buf, 0, Some(self.field), &rows);
     }
 
     fn handle_paste(&mut self, _text: String) -> ConditionalUpdate {
@@ -414,42 +445,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn render_without_frame_writes_body_content() {
-        let area = Rect::new(0, 0, 30, 8);
-        let mut buf = Buffer::empty(area);
-        let shared = Arc::new(Mutex::new(UpdateSharedState::default()));
-        let lines = {
-            let state = shared
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone();
-            let mut lines: Vec<Line<'static>> = Vec::new();
-            lines.push(Line::from(vec![Span::styled(
-                "Upgrade",
-                Style::default().add_modifier(Modifier::BOLD),
-            )]));
-            let version_summary = if state.checking {
-                "checking…".to_string()
-            } else if let Some(err) = &state.error {
-                err.clone()
-            } else if let Some(latest) = &state.latest_version {
-                format!("1.0.0 → {latest}")
-            } else {
-                "1.0.0".to_string()
-            };
-            lines.push(Line::from(vec![
-                Span::styled("› ", Style::default().fg(colors::primary())),
-                Span::styled("Run Upgrade", Style::default().fg(colors::primary())),
-                Span::raw("  "),
-                Span::styled(version_summary, Style::default().fg(colors::text_dim())),
-            ]));
-            lines
-        };
-        Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(colors::background()).fg(colors::text()))
-            .wrap(Wrap { trim: false })
-            .render(area, &mut buf);
-        assert_eq!(buf[(area.x, area.y)].symbol(), "U");
+    fn automatic_upgrades_row_uses_shared_toggle_word() {
+        let row = UpdateSettingsView::auto_upgrade_row(false);
+        let value = row.value.expect("toggle value");
+        assert_eq!(value.text.as_ref(), "disabled");
+        assert_eq!(value.style.fg, Some(colors::text_dim()));
     }
 }

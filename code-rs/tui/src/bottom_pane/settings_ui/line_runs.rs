@@ -36,16 +36,6 @@ impl<'a, Id> SelectableLineRun<'a, Id> {
     }
 }
 
-pub(crate) fn hit_test_selectable_runs<Id: Copy>(
-    rects: &[(Id, Rect)],
-    x: u16,
-    y: u16,
-) -> Option<Id> {
-    rects.iter()
-        .find(|(_, rect)| rect.contains(Position { x, y }))
-        .map(|(id, _)| *id)
-}
-
 pub(crate) fn render_selectable_runs<Id: Copy>(
     area: Rect,
     buf: &mut Buffer,
@@ -216,14 +206,6 @@ mod tests {
 
         render_selectable_runs(area, &mut buf, 1, &runs, Style::new(), &mut rects);
         assert_eq!(rects, vec![(1, Rect::new(0, 0, 20, 2))]);
-    }
-
-    #[test]
-    fn hit_test_selectable_runs_finds_matching_rect() {
-        let rects = vec![(1usize, Rect::new(2, 3, 10, 2)), (2usize, Rect::new(2, 5, 10, 1))];
-        assert_eq!(hit_test_selectable_runs(&rects, 4, 3), Some(1));
-        assert_eq!(hit_test_selectable_runs(&rects, 4, 5), Some(2));
-        assert_eq!(hit_test_selectable_runs(&rects, 1, 3), None);
     }
 
     #[test]
