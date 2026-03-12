@@ -1711,7 +1711,9 @@ impl LoginAddAccountState {
                     SettingsMenuRow::new(0usize, "ChatGPT sign-in"),
                     SettingsMenuRow::new(1usize, "API key"),
                 ];
-                let _ = page.render_menu_rows(area, buf, 0, Some(*selected), &rows);
+                let _ = page
+                    .framed()
+                    .render_menu_rows(area, buf, 0, Some(*selected), &rows);
             }
             AddStep::ApiKey { field } => {
                 let pre_lines = vec![Line::from("Paste your OpenAI API key:")];

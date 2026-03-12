@@ -109,12 +109,12 @@ impl<'a> SettingsFormPage<'a> {
     }
 
     pub(crate) fn layout(&self, area: Rect) -> Option<SettingsFormPageLayout> {
-        let page = self.page.layout(area)?;
+        let page = self.page.framed().layout(area)?;
         Some(self.layout_from_page(page))
     }
 
     pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsFormPageLayout> {
-        let page = self.page.layout_content(area)?;
+        let page = self.page.content_only().layout(area)?;
         Some(self.layout_from_page(page))
     }
 
@@ -124,7 +124,7 @@ impl<'a> SettingsFormPage<'a> {
         buf: &mut Buffer,
         fields: &[&FormTextField],
     ) -> Option<SettingsFormPageLayout> {
-        let page = self.page.render(area, buf)?;
+        let page = self.page.framed().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         debug_assert_eq!(fields.len(), self.sections.len());
         for ((section, field), section_layout) in self
@@ -145,7 +145,7 @@ impl<'a> SettingsFormPage<'a> {
         buf: &mut Buffer,
         fields: &[&FormTextField],
     ) -> Option<SettingsFormPageLayout> {
-        let page = self.page.render_content_shell(area, buf)?;
+        let page = self.page.content_only().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         debug_assert_eq!(fields.len(), self.sections.len());
         for ((section, field), section_layout) in self

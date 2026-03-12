@@ -999,7 +999,7 @@ impl InterfaceSettingsView {
             return false;
         }
 
-        let Some(layout) = self.main_page().layout(area) else {
+        let Some(layout) = self.main_page().framed().layout(area) else {
             return false;
         };
         let visible = layout.body.height.max(1) as usize;
@@ -1049,7 +1049,7 @@ impl InterfaceSettingsView {
             return false;
         }
 
-        let Some(layout) = self.main_page().layout_content(area) else {
+        let Some(layout) = self.main_page().content_only().layout(area) else {
             return false;
         };
         let visible = layout.body.height.max(1) as usize;
@@ -1714,6 +1714,7 @@ impl InterfaceSettingsView {
 
         let Some(layout) = self
             .main_page()
+            .framed()
             .render_menu_rows(area, buf, scroll_top, selected_id, &menu_rows)
         else {
             return;
@@ -1735,13 +1736,11 @@ impl InterfaceSettingsView {
         let menu_rows = self.main_menu_rows(&rows);
         let selected_id = (total > 0).then_some(selected_idx);
 
-        let Some(layout) = self.main_page().render_content_menu_rows(
-            area,
-            buf,
-            scroll_top,
-            selected_id,
-            &menu_rows,
-        ) else {
+        let Some(layout) = self
+            .main_page()
+            .content_only()
+            .render_menu_rows(area, buf, scroll_top, selected_id, &menu_rows)
+        else {
             return;
         };
 

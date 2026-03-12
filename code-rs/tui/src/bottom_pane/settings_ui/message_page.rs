@@ -57,7 +57,7 @@ impl<'a> SettingsMessagePage<'a> {
     }
 
     pub(crate) fn layout(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
-        let page = self.page.layout(area)?;
+        let page = self.page.framed().layout(area)?;
         Some(self.layout_from_page(page))
     }
 
@@ -66,7 +66,7 @@ impl<'a> SettingsMessagePage<'a> {
         area: Rect,
         buf: &mut Buffer,
     ) -> Option<SettingsMessagePageLayout> {
-        let page = self.page.render(area, buf)?;
+        let page = self.page.framed().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
             let mut paragraph = Paragraph::new(self.body_lines.clone())
@@ -85,7 +85,7 @@ impl<'a> SettingsMessagePage<'a> {
         area: Rect,
         buf: &mut Buffer,
     ) -> Option<SettingsMessagePageLayout> {
-        let page = self.page.render_content_shell(area, buf)?;
+        let page = self.page.content_only().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
             let mut paragraph = Paragraph::new(self.body_lines.clone())

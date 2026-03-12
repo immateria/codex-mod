@@ -11,7 +11,6 @@ use crate::util::buffer::{fill_rect, write_line};
 
 use super::line_runs::{
     render_selectable_runs,
-    render_selectable_runs_with_rects,
     SelectableLineRun,
 };
 use super::menu_rows::{
@@ -28,6 +27,14 @@ pub(crate) struct SettingsMenuPage<'a> {
     panel: SettingsSectionedPanel<'a>,
     header_lines: Vec<Line<'static>>,
     footer_lines: Vec<Line<'static>>,
+}
+
+pub(crate) struct SettingsMenuPageFramed<'p, 'a> {
+    page: &'p SettingsMenuPage<'a>,
+}
+
+pub(crate) struct SettingsMenuPageContentOnly<'p, 'a> {
+    page: &'p SettingsMenuPage<'a>,
 }
 
 impl<'a> SettingsMenuPage<'a> {
@@ -52,16 +59,24 @@ impl<'a> SettingsMenuPage<'a> {
         }
     }
 
-    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
+    pub(crate) fn framed(&self) -> SettingsMenuPageFramed<'_, 'a> {
+        SettingsMenuPageFramed { page: self }
+    }
+
+    pub(crate) fn content_only(&self) -> SettingsMenuPageContentOnly<'_, 'a> {
+        SettingsMenuPageContentOnly { page: self }
+    }
+
+    fn layout_framed(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
         self.panel.layout(area)
     }
 
-    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
+    fn layout_content(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
         split_header_body_footer(area, self.header_lines.len(), self.footer_lines.len(), 1)
             .map(Into::into)
     }
 
-    pub(crate) fn render_shell(
+    fn render_shell_framed(
         &self,
         area: Rect,
         buf: &mut Buffer,
@@ -73,7 +88,7 @@ impl<'a> SettingsMenuPage<'a> {
         Some(layout)
     }
 
-    pub(crate) fn render_content_shell(
+    fn render_shell_content_only(
         &self,
         area: Rect,
         buf: &mut Buffer,
@@ -105,6 +120,20 @@ impl<'a> SettingsMenuPage<'a> {
     ) -> Option<usize> {
         selection_row_index_at(body, x, y, scroll_top, total)
     }
+}
+
+impl<'p, 'a> SettingsMenuPageFramed<'p, 'a> {
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
+        self.page.layout_framed(area)
+    }
+
+    pub(crate) fn render_shell(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsSectionedPanelLayout> {
+        self.page.render_shell_framed(area, buf)
+    }
 
     pub(crate) fn render_menu_rows<Id: Copy + PartialEq>(
         &self,
@@ -115,27 +144,6 @@ impl<'a> SettingsMenuPage<'a> {
         rows: &[SettingsMenuRow<'_, Id>],
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
-        render_menu_rows(
-            layout.body,
-            buf,
-            scroll_top,
-            selected_id,
-            rows,
-            base,
-        );
-        Some(layout)
-    }
-
-    pub(crate) fn render_content_menu_rows<Id: Copy + PartialEq>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        scroll_top: usize,
-        selected_id: Option<Id>,
-        rows: &[SettingsMenuRow<'_, Id>],
-    ) -> Option<SettingsSectionedPanelLayout> {
-        let layout = self.render_content_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
         render_menu_rows(
             layout.body,
@@ -160,47 +168,52 @@ impl<'a> SettingsMenuPage<'a> {
         render_selectable_runs(layout.body, buf, scroll_top, runs, base);
         Some(layout)
     }
+}
 
-    #[allow(dead_code)]
-    pub(crate) fn render_runs_with_rects<Id: Copy>(
+impl<'p, 'a> SettingsMenuPageContentOnly<'p, 'a> {
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
+        self.page.layout_content(area)
+    }
+
+    pub(crate) fn render_shell(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsSectionedPanelLayout> {
+        self.page.render_shell_content_only(area, buf)
+    }
+
+    pub(crate) fn render_menu_rows<Id: Copy + PartialEq>(
         &self,
         area: Rect,
         buf: &mut Buffer,
         scroll_top: usize,
-        runs: &[SelectableLineRun<'_, Id>],
-        out_rects: &mut Vec<(Id, Rect)>,
+        selected_id: Option<Id>,
+        rows: &[SettingsMenuRow<'_, Id>],
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        render_selectable_runs_with_rects(layout.body, buf, scroll_top, runs, base, out_rects);
+        render_menu_rows(
+            layout.body,
+            buf,
+            scroll_top,
+            selected_id,
+            rows,
+            base,
+        );
         Some(layout)
     }
 
-    pub(crate) fn render_content_runs<Id: Copy>(
+    pub(crate) fn render_runs<Id: Copy>(
         &self,
         area: Rect,
         buf: &mut Buffer,
         scroll_top: usize,
         runs: &[SelectableLineRun<'_, Id>],
     ) -> Option<SettingsSectionedPanelLayout> {
-        let layout = self.render_content_shell(area, buf)?;
+        let layout = self.render_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
         render_selectable_runs(layout.body, buf, scroll_top, runs, base);
-        Some(layout)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn render_content_runs_with_rects<Id: Copy>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        scroll_top: usize,
-        runs: &[SelectableLineRun<'_, Id>],
-        out_rects: &mut Vec<(Id, Rect)>,
-    ) -> Option<SettingsSectionedPanelLayout> {
-        let layout = self.render_content_shell(area, buf)?;
-        let base = Style::new().bg(colors::background()).fg(colors::text());
-        render_selectable_runs_with_rects(layout.body, buf, scroll_top, runs, base, out_rects);
         Some(layout)
     }
 }
@@ -231,9 +244,10 @@ mod tests {
             vec![Line::from("footer")],
         );
         let area = Rect::new(0, 0, 30, 10);
-        let layout = page.layout(area).expect("layout");
+        let framed = page.framed();
+        let layout = framed.layout(area).expect("layout");
         let mut buf = Buffer::empty(area);
-        let rendered = page.render_shell(area, &mut buf).expect("render");
+        let rendered = framed.render_shell(area, &mut buf).expect("render");
         assert_eq!(layout, rendered);
     }
 
@@ -246,7 +260,7 @@ mod tests {
             vec![Line::from("footer")],
         );
         let area = Rect::new(0, 0, 30, 10);
-        let layout = page.layout(area).expect("layout");
+        let layout = page.framed().layout(area).expect("layout");
         let rows = vec![SettingsMenuRow::new(7usize, "row")];
 
         assert_eq!(
@@ -280,7 +294,7 @@ mod tests {
             vec![Line::from("footer")],
         );
         let area = Rect::new(0, 0, 30, 10);
-        let layout = page.layout(area).expect("layout");
+        let layout = page.framed().layout(area).expect("layout");
 
         assert_eq!(
             SettingsMenuPage::selection_index_in_body(layout.body, layout.body.x, layout.body.y, 2, 4),
@@ -301,7 +315,7 @@ mod tests {
             vec![Line::from("footer")],
         );
         let area = Rect::new(0, 0, 30, 8);
-        let layout = page.layout_content(area).expect("layout");
+        let layout = page.content_only().layout(area).expect("layout");
 
         assert_eq!(layout.header, Rect::new(0, 0, 30, 1));
         assert_eq!(layout.body, Rect::new(0, 1, 30, 6));
@@ -321,7 +335,8 @@ mod tests {
         let mut buf = Buffer::empty(area);
 
         let layout = page
-            .render_content_menu_rows(area, &mut buf, 0, Some(1usize), &rows)
+            .content_only()
+            .render_menu_rows(area, &mut buf, 0, Some(1usize), &rows)
             .expect("render");
 
         assert_eq!(layout.header, Rect::new(0, 0, 20, 1));

@@ -975,13 +975,27 @@ impl MemoriesSettingsView {
         }
     }
 
-    fn selection_index_at(&self, x: u16, y: u16, area: Rect) -> Option<usize> {
-        let page = SettingsRowPage::new(
+    fn main_page(&self) -> SettingsRowPage<'_> {
+        SettingsRowPage::new(
             " Memories ",
             self.render_header_lines(),
             self.main_footer_lines(),
-        );
-        let layout = page.layout(area)?;
+        )
+    }
+
+    fn selection_index_at_framed(&self, x: u16, y: u16, area: Rect) -> Option<usize> {
+        let layout = self.main_page().framed().layout(area)?;
+        SettingsRowPage::selection_index_at(
+            layout.body,
+            x,
+            y,
+            self.state.get().scroll_top,
+            Self::rows().len(),
+        )
+    }
+
+    fn selection_index_at_content_only(&self, x: u16, y: u16, area: Rect) -> Option<usize> {
+        let layout = self.main_page().content_only().layout(area)?;
         SettingsRowPage::selection_index_at(
             layout.body,
             x,
@@ -999,7 +1013,57 @@ impl MemoriesSettingsView {
                 mouse_event,
                 &mut selected,
                 rows.len(),
-                |x, y| self.selection_index_at(x, y, area),
+                |x, y| self.selection_index_at_content_only(x, y, area),
+                SelectableListMouseConfig {
+                    hover_select: false,
+                    activate_on_left_click: true,
+                    scroll_select: true,
+                    require_pointer_hit_for_scroll: false,
+                    scroll_behavior: ScrollSelectionBehavior::Wrap,
+                },
+            );
+            let mut state = self.state.get();
+            state.selected_idx = Some(selected);
+            state.ensure_visible(rows.len(), self.viewport_rows.get().max(1));
+            self.state.set(state);
+            if matches!(result, SelectableListMouseResult::Activated) {
+                self.activate_selected();
+            }
+            return result.handled();
+        }
+
+        match &mut self.mode {
+            ViewMode::Edit { target, field, error } => match mouse_event.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    let Some(field_area) = Self::edit_page(self.scope, *target, error.as_deref())
+                        .layout_content(area)
+                        .map(|layout| layout.field)
+                    else {
+                        return false;
+                    };
+                    field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                }
+                MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
+                MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
+                _ => false,
+            },
+            ViewMode::Main | ViewMode::Transition => false,
+        }
+    }
+
+    pub(crate) fn handle_mouse_event_direct_framed(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        if matches!(self.mode, ViewMode::Main) {
+            let rows = Self::rows();
+            let mut selected = self.state.get().selected_idx.unwrap_or(0);
+            let result = route_selectable_list_mouse_with_config(
+                mouse_event,
+                &mut selected,
+                rows.len(),
+                |x, y| self.selection_index_at_framed(x, y, area),
                 SelectableListMouseConfig {
                     hover_select: false,
                     activate_on_left_click: true,
@@ -1037,7 +1101,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    fn render_main(&self, area: Rect, buf: &mut Buffer) {
+    fn render_main_with(&self, area: Rect, buf: &mut Buffer, content_only: bool) {
         let rows = Self::rows();
         let total = rows.len();
         let mut state = self.state.get();
@@ -1065,13 +1129,14 @@ impl MemoriesSettingsView {
                 spec
             })
             .collect();
-        let Some(layout) = SettingsRowPage::new(
-            " Memories ",
-            self.render_header_lines(),
-            self.main_footer_lines(),
-        )
-        .render(area, buf, scroll_top, Some(selected), &row_specs)
-        else {
+        let page = self.main_page();
+        let Some(layout) = (if content_only {
+            page.content_only()
+                .render(area, buf, scroll_top, Some(selected), &row_specs)
+        } else {
+            page.framed()
+                .render(area, buf, scroll_top, Some(selected), &row_specs)
+        }) else {
             return;
         };
         state.ensure_visible(total, layout.visible_rows());
@@ -1079,22 +1144,37 @@ impl MemoriesSettingsView {
         self.state.set(state);
     }
 
-    fn render_edit(
+    fn render_edit_with(
         &self,
         area: Rect,
         buf: &mut Buffer,
         target: EditTarget,
         field: &FormTextField,
         error: Option<&str>,
+        content_only: bool,
     ) {
-        let _ = Self::edit_page(self.scope, target, error).render(area, buf, field);
+        let page = Self::edit_page(self.scope, target, error);
+        if content_only {
+            let _ = page.render_content(area, buf, field);
+        } else {
+            let _ = page.render(area, buf, field);
+        }
     }
 
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main | ViewMode::Transition => self.render_main(area, buf),
+            ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, true),
             ViewMode::Edit { target, field, error } => {
-                self.render_edit(area, buf, *target, field, error.as_deref())
+                self.render_edit_with(area, buf, *target, field, error.as_deref(), true)
+            }
+        }
+    }
+
+    pub(crate) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, false),
+            ViewMode::Edit { target, field, error } => {
+                self.render_edit_with(area, buf, *target, field, error.as_deref(), false)
             }
         }
     }
@@ -1119,7 +1199,7 @@ impl<'a> BottomPaneView<'a> for MemoriesSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(self.handle_mouse_event_direct_framed(mouse_event, area))
     }
 
     fn is_complete(&self) -> bool {
@@ -1131,7 +1211,7 @@ impl<'a> BottomPaneView<'a> for MemoriesSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.render_without_frame(area, buf);
+        self.render_framed(area, buf);
     }
 }
 

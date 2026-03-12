@@ -312,12 +312,14 @@ impl AccountSwitchSettingsView {
             ViewMode::Main => {
                 let page = self.main_page();
                 let runs = self.main_runs(Some(self.selected_index));
-                let _ = page.render_content_runs(area, buf, 0, &runs);
+                let _ = page.content_only().render_runs(area, buf, 0, &runs);
             }
             ViewMode::ConfirmStoreChange { target, selected } => {
                 let page = self.confirm_page(target);
                 let rows = self.confirm_rows();
-                let _ = page.render_content_menu_rows(area, buf, 0, Some(selected), &rows);
+                let _ = page
+                    .content_only()
+                    .render_menu_rows(area, buf, 0, Some(selected), &rows);
             }
         }
     }
@@ -393,7 +395,7 @@ impl AccountSwitchSettingsView {
             ViewMode::Main => {
                 let page = self.main_page();
                 let runs = self.main_runs(None);
-                let Some(layout) = page.layout_content(area) else {
+                let Some(layout) = page.content_only().layout(area) else {
                     return false;
                 };
                 let mut selected = self.selected_index;
@@ -418,7 +420,7 @@ impl AccountSwitchSettingsView {
             ViewMode::ConfirmStoreChange { target, .. } => {
                 let page = self.confirm_page(target);
                 let rows = self.confirm_rows();
-                let Some(layout) = page.layout_content(area) else {
+                let Some(layout) = page.content_only().layout(area) else {
                     return false;
                 };
                 let mut selected = self.confirm_selected_index();
@@ -511,7 +513,7 @@ mod tests {
             AuthCredentialsStoreMode::File,
         );
         let area = Rect::new(0, 0, 80, 18);
-        let layout = view.main_page().layout_content(area).expect("layout");
+        let layout = view.main_page().content_only().layout(area).expect("layout");
 
         assert!(view.handle_mouse_event_direct(
             mouse_left_click(layout.body.x + 1, layout.body.y),

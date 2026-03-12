@@ -648,7 +648,7 @@ impl<'a> BottomPaneView<'a> for SubagentEditorView {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let buttons = self.action_button_specs();
-        let Some(layout) = page.render(area, buf) else {
+        let Some(layout) = page.framed().render_shell(area, buf) else {
             return;
         };
 

@@ -144,7 +144,7 @@ impl SettingsOverviewView {
 
     fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let page = self.page();
-        let Some(layout) = page.layout(area) else {
+        let Some(layout) = page.framed().layout(area) else {
             return false;
         };
 
@@ -252,7 +252,7 @@ impl<'a> BottomPaneView<'a> for SettingsOverviewView {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         if self.rows.is_empty() {
             let page = self.page();
-            let Some(layout) = page.render_shell(area, buf) else {
+            let Some(layout) = page.framed().render_shell(area, buf) else {
                 return;
             };
             Paragraph::new(Line::from(vec![Span::styled(
@@ -265,6 +265,8 @@ impl<'a> BottomPaneView<'a> for SettingsOverviewView {
         let scroll_top = self.scroll.scroll_top.min(self.rows.len().saturating_sub(1));
         let page = self.page();
         let rows = self.menu_rows();
-        let _ = page.render_menu_rows(area, buf, scroll_top, self.selected_section(), &rows);
+        let _ = page
+            .framed()
+            .render_menu_rows(area, buf, scroll_top, self.selected_section(), &rows);
     }
 }

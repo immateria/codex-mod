@@ -457,7 +457,10 @@ impl ValidationSettingsView {
         let page = self.page();
         let selected_idx = self.state.selected_idx.unwrap_or(usize::MAX);
         let runs = self.build_runs(selected_idx);
-        let Some(layout) = page.render_content_runs(area, buf, self.state.scroll_top, &runs) else {
+        let Some(layout) = page
+            .content_only()
+            .render_runs(area, buf, self.state.scroll_top, &runs)
+        else {
             return;
         };
         self.viewport_rows.set(layout.body.height as usize);
@@ -470,7 +473,7 @@ impl ValidationSettingsView {
         area: Rect,
     ) -> bool {
         let page = self.page();
-        let Some(layout) = page.layout(area) else {
+        let Some(layout) = page.framed().layout(area) else {
             return false;
         };
         self.handle_mouse_event_in_body(pane, mouse_event, layout.body)
@@ -483,7 +486,7 @@ impl ValidationSettingsView {
         area: Rect,
     ) -> bool {
         let page = self.page();
-        let Some(layout) = page.layout_content(area) else {
+        let Some(layout) = page.content_only().layout(area) else {
             return false;
         };
         self.handle_mouse_event_in_body(pane, mouse_event, layout.body)
@@ -631,8 +634,9 @@ impl<'a> BottomPaneView<'a> for ValidationSettingsView {
         let page = self.page();
         let selected_idx = self.state.selected_idx.unwrap_or(usize::MAX);
         let runs = self.build_runs(selected_idx);
-        let Some(layout) =
-            page.render_runs(area, buf, self.state.scroll_top, &runs)
+        let Some(layout) = page
+            .framed()
+            .render_runs(area, buf, self.state.scroll_top, &runs)
         else {
             return;
         };

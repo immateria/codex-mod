@@ -300,14 +300,14 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = self.main_page().layout(area)?;
+        let layout = self.main_page().framed().layout(area)?;
         let rows = Self::rows();
         let scroll_top = self.scroll.scroll_top.min(rows.len().saturating_sub(1));
         SettingsRowPage::selection_index_at(layout.body, x, y, scroll_top, rows.len())
     }
 
     pub(super) fn selection_index_at_content(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = self.main_page().layout_content(area)?;
+        let layout = self.main_page().content_only().layout(area)?;
         let rows = Self::rows();
         let scroll_top = self.scroll.scroll_top.min(rows.len().saturating_sub(1));
         SettingsRowPage::selection_index_at(layout.body, x, y, scroll_top, rows.len())
@@ -411,6 +411,7 @@ impl ShellProfilesSettingsView {
         let selected = Some(self.scroll.selected_idx.unwrap_or(0).min(total.saturating_sub(1)));
         let Some(layout) = self
             .main_page()
+            .framed()
             .render(area, buf, scroll_top, selected, &row_specs)
         else {
             return;
@@ -426,7 +427,8 @@ impl ShellProfilesSettingsView {
         let selected = Some(self.scroll.selected_idx.unwrap_or(0).min(total.saturating_sub(1)));
         let Some(layout) = self
             .main_page()
-            .render_content(area, buf, scroll_top, selected, &row_specs)
+            .content_only()
+            .render(area, buf, scroll_top, selected, &row_specs)
         else {
             return;
         };
@@ -465,7 +467,7 @@ mod tests {
         );
 
         let area = Rect::new(0, 0, 40, 12);
-        let layout = view.main_page().layout_content(area).expect("layout");
+        let layout = view.main_page().content_only().layout(area).expect("layout");
 
         assert_eq!(
             view.selection_index_at_content(area, layout.body.x, layout.body.y),

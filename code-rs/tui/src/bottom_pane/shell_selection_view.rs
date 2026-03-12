@@ -615,7 +615,7 @@ impl ShellSelectionView {
         }
 
         let page = self.edit_page();
-        let Some(layout) = page.layout(area) else {
+        let Some(layout) = page.framed().layout(area) else {
             return false;
         };
         let buttons = self.edit_buttons();
@@ -742,7 +742,7 @@ impl ShellSelectionView {
     ) -> bool {
         if self.custom_input_mode {
             let page = self.edit_page();
-            let Some(layout) = page.layout_content(area) else {
+            let Some(layout) = page.content_only().layout(area) else {
                 return false;
             };
             let buttons = self.edit_buttons();
@@ -801,7 +801,7 @@ impl ShellSelectionView {
         }
 
         let page = self.list_page();
-        let Some(layout) = page.layout_content(area) else {
+        let Some(layout) = page.content_only().layout(area) else {
             return false;
         };
         let runs = self.list_runs();
@@ -840,7 +840,7 @@ impl ShellSelectionView {
     ) -> bool {
         if self.custom_input_mode {
             let page = self.edit_page();
-            let Some(layout) = page.layout(area) else {
+            let Some(layout) = page.framed().layout(area) else {
                 return false;
             };
             let buttons = self.edit_buttons();
@@ -900,7 +900,7 @@ impl ShellSelectionView {
         }
 
         let page = self.list_page();
-        let Some(layout) = page.layout(area) else {
+        let Some(layout) = page.framed().layout(area) else {
             return false;
         };
         let runs = self.list_runs();
@@ -1117,19 +1117,22 @@ impl ShellSelectionView {
     fn render_list_mode(&self, area: Rect, buf: &mut Buffer) {
         let page = self.list_page();
         let runs = self.list_runs();
-        let _ = page.render_runs(area, buf, 0, &runs);
+        let _ = page.framed().render_runs(area, buf, 0, &runs);
     }
 
     fn render_list_mode_without_frame(&self, area: Rect, buf: &mut Buffer) {
         let page = self.list_page();
         let runs = self.list_runs();
-        let _ = page.render_content_runs(area, buf, 0, &runs);
+        let _ = page.content_only().render_runs(area, buf, 0, &runs);
     }
 
     fn render_custom_mode(&self, area: Rect, buf: &mut Buffer) {
         let page = self.edit_page();
         let buttons = self.edit_buttons();
-        let Some(layout) = page.render_with_standard_actions_end(area, buf, &buttons) else {
+        let Some(layout) = page
+            .framed()
+            .render_with_standard_actions_end(area, buf, &buttons)
+        else {
             return;
         };
 
@@ -1173,7 +1176,10 @@ impl ShellSelectionView {
     fn render_custom_mode_without_frame(&self, area: Rect, buf: &mut Buffer) {
         let page = self.edit_page();
         let buttons = self.edit_buttons();
-        let Some(layout) = page.render_content_with_standard_actions_end(area, buf, &buttons) else {
+        let Some(layout) = page
+            .content_only()
+            .render_with_standard_actions_end(area, buf, &buttons)
+        else {
             return;
         };
 

@@ -670,7 +670,7 @@ impl NetworkSettingsView {
         show_advanced: bool,
     ) -> Option<usize> {
         let page = SettingsRowPage::new(" Network ", self.render_header_lines(), vec![]);
-        let layout = page.layout(area)?;
+        let layout = page.framed().layout(area)?;
         SettingsRowPage::selection_index_at(
             layout.body,
             x,
@@ -688,7 +688,7 @@ impl NetworkSettingsView {
         show_advanced: bool,
     ) -> Option<usize> {
         let page = SettingsRowPage::new(" Network ", self.render_header_lines(), vec![]);
-        let layout = page.layout_content(area)?;
+        let layout = page.content_only().layout(area)?;
         SettingsRowPage::selection_index_at(
             layout.body,
             x,
@@ -809,7 +809,9 @@ impl NetworkSettingsView {
                 RowKind::Close => KeyValueRow::new("Close"),
             })
             .collect();
-        let Some(layout) = SettingsRowPage::new(" Network ", self.render_header_lines(), vec![]).render(
+        let Some(layout) = SettingsRowPage::new(" Network ", self.render_header_lines(), vec![])
+            .framed()
+            .render(
             area,
             buf,
             scroll_top,
@@ -911,7 +913,8 @@ impl NetworkSettingsView {
             })
             .collect();
         let Some(layout) = SettingsRowPage::new(" Network ", self.render_header_lines(), vec![])
-            .render_content(area, buf, scroll_top, Some(selected_idx), &row_specs)
+            .content_only()
+            .render(area, buf, scroll_top, Some(selected_idx), &row_specs)
         else {
             return;
         };

@@ -239,7 +239,7 @@ impl ModelSelectionView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        let Some(layout) = self.page().layout_content(area) else {
+        let Some(layout) = self.page().content_only().layout(area) else {
             return ConditionalUpdate::NoRedraw;
         };
         self.handle_mouse_event_shared(mouse_event, layout.body)
@@ -571,9 +571,10 @@ impl ModelSelectionView {
     ) {
         let runs = self.build_render_runs();
         let layout = if framed {
-            page.render_runs(area, buf, self.scroll_offset, &runs)
+            page.framed().render_runs(area, buf, self.scroll_offset, &runs)
         } else {
-            page.render_content_runs(area, buf, self.scroll_offset, &runs)
+            page.content_only()
+                .render_runs(area, buf, self.scroll_offset, &runs)
         };
         if let Some(layout) = layout {
             self.visible_body_rows.set(layout.body.height as usize);
@@ -604,7 +605,7 @@ impl<'a> BottomPaneView<'a> for ModelSelectionView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        let Some(layout) = self.page().layout(area) else {
+        let Some(layout) = self.page().framed().layout(area) else {
             return ConditionalUpdate::NoRedraw;
         };
         self.handle_mouse_event_shared(mouse_event, layout.body)
@@ -831,7 +832,7 @@ mod tests {
 
         view.scroll_offset = view.selected_body_line(2);
         view.render_without_frame(area, &mut buf);
-        let layout = view.page().layout_content(area).expect("layout");
+        let layout = view.page().content_only().layout(area).expect("layout");
 
         assert_eq!(view.hit_test_in_body(layout.body, 2, 0), Some(2));
         assert_eq!(view.hit_test_in_body(layout.body, 2, 1), Some(3));

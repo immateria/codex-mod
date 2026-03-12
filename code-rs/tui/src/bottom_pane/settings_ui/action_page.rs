@@ -38,6 +38,14 @@ pub(crate) struct SettingsActionPage<'a> {
     wrap_lines: bool,
 }
 
+pub(crate) struct SettingsActionPageFramed<'p, 'a> {
+    page: &'p SettingsActionPage<'a>,
+}
+
+pub(crate) struct SettingsActionPageContentOnly<'p, 'a> {
+    page: &'p SettingsActionPage<'a>,
+}
+
 impl<'a> SettingsActionPage<'a> {
     pub(crate) fn new(
         title: impl Into<Cow<'a, str>>,
@@ -55,6 +63,14 @@ impl<'a> SettingsActionPage<'a> {
             min_body_rows: 1,
             wrap_lines: false,
         }
+    }
+
+    pub(crate) fn framed(&self) -> SettingsActionPageFramed<'_, 'a> {
+        SettingsActionPageFramed { page: self }
+    }
+
+    pub(crate) fn content_only(&self) -> SettingsActionPageContentOnly<'_, 'a> {
+        SettingsActionPageContentOnly { page: self }
     }
 
     pub(crate) fn with_status_lines(mut self, status_lines: Vec<Line<'static>>) -> Self {
@@ -138,12 +154,12 @@ impl<'a> SettingsActionPage<'a> {
         paragraph.render(area, buf);
     }
 
-    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsActionPageLayout> {
+    fn layout_framed(&self, area: Rect) -> Option<SettingsActionPageLayout> {
         let layout = self.sectioned_panel().layout(area)?;
         Some(self.layout_from_sectioned(layout))
     }
 
-    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsActionPageLayout> {
+    fn layout_content_only(&self, area: Rect) -> Option<SettingsActionPageLayout> {
         split_header_body_footer(
             area,
             self.header_lines.len(),
@@ -157,7 +173,7 @@ impl<'a> SettingsActionPage<'a> {
         .map(|layout| self.layout_from_sectioned(layout))
     }
 
-    pub(crate) fn render(
+    fn render_shell_framed(
         &self,
         area: Rect,
         buf: &mut Buffer,
@@ -170,12 +186,12 @@ impl<'a> SettingsActionPage<'a> {
         Some(layout)
     }
 
-    pub(crate) fn render_content_shell(
+    fn render_shell_content_only(
         &self,
         area: Rect,
         buf: &mut Buffer,
     ) -> Option<SettingsActionPageLayout> {
-        let layout = self.layout_content(area)?;
+        let layout = self.layout_content_only(area)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
         fill_rect(buf, area, Some(' '), base);
         self.render_lines(layout.header, buf, &self.header_lines);
@@ -195,27 +211,6 @@ impl<'a> SettingsActionPage<'a> {
             return;
         }
         render_standard_button_strip_aligned(layout.actions, buf, buttons, align);
-    }
-
-    pub(crate) fn render_with_standard_actions<Id: Copy>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        buttons: &[StandardButtonSpec<Id>],
-        align: TextButtonAlign,
-    ) -> Option<SettingsActionPageLayout> {
-        let layout = self.render(area, buf)?;
-        self.render_standard_actions(&layout, buf, buttons, align);
-        Some(layout)
-    }
-
-    pub(crate) fn render_with_standard_actions_end<Id: Copy>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        buttons: &[StandardButtonSpec<Id>],
-    ) -> Option<SettingsActionPageLayout> {
-        self.render_with_standard_actions(area, buf, buttons, TextButtonAlign::End)
     }
 
     pub(crate) fn standard_action_at<Id: Copy>(
@@ -241,28 +236,76 @@ impl<'a> SettingsActionPage<'a> {
     ) -> Option<Id> {
         self.standard_action_at(layout, x, y, buttons, TextButtonAlign::End)
     }
+}
 
-    pub(crate) fn render_content_with_standard_actions<Id: Copy>(
+impl<'p, 'a> SettingsActionPageFramed<'p, 'a> {
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsActionPageLayout> {
+        self.page.layout_framed(area)
+    }
+
+    pub(crate) fn render_shell(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsActionPageLayout> {
+        self.page.render_shell_framed(area, buf)
+    }
+
+    pub(crate) fn render_with_standard_actions<Id: Copy>(
         &self,
         area: Rect,
         buf: &mut Buffer,
         buttons: &[StandardButtonSpec<Id>],
         align: TextButtonAlign,
     ) -> Option<SettingsActionPageLayout> {
-        let layout = self.render_content_shell(area, buf)?;
-        self.render_standard_actions(&layout, buf, buttons, align);
+        let layout = self.render_shell(area, buf)?;
+        self.page.render_standard_actions(&layout, buf, buttons, align);
         Some(layout)
     }
 
-    pub(crate) fn render_content_with_standard_actions_end<Id: Copy>(
+    pub(crate) fn render_with_standard_actions_end<Id: Copy>(
         &self,
         area: Rect,
         buf: &mut Buffer,
         buttons: &[StandardButtonSpec<Id>],
     ) -> Option<SettingsActionPageLayout> {
-        self.render_content_with_standard_actions(area, buf, buttons, TextButtonAlign::End)
+        self.render_with_standard_actions(area, buf, buttons, TextButtonAlign::End)
+    }
+}
+
+impl<'p, 'a> SettingsActionPageContentOnly<'p, 'a> {
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsActionPageLayout> {
+        self.page.layout_content_only(area)
     }
 
+    pub(crate) fn render_shell(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsActionPageLayout> {
+        self.page.render_shell_content_only(area, buf)
+    }
+
+    pub(crate) fn render_with_standard_actions<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        buttons: &[StandardButtonSpec<Id>],
+        align: TextButtonAlign,
+    ) -> Option<SettingsActionPageLayout> {
+        let layout = self.render_shell(area, buf)?;
+        self.page.render_standard_actions(&layout, buf, buttons, align);
+        Some(layout)
+    }
+
+    pub(crate) fn render_with_standard_actions_end<Id: Copy>(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<SettingsActionPageLayout> {
+        self.render_with_standard_actions(area, buf, buttons, TextButtonAlign::End)
+    }
 }
 
 #[cfg(test)]
@@ -280,9 +323,10 @@ mod tests {
             vec![Line::from("footer")],
         );
         let area = Rect::new(0, 0, 30, 10);
-        let layout = page.layout(area).expect("layout");
+        let framed = page.framed();
+        let layout = framed.layout(area).expect("layout");
         let mut buf = Buffer::empty(area);
-        let rendered = page.render(area, &mut buf).expect("render");
+        let rendered = framed.render_shell(area, &mut buf).expect("render");
         assert_eq!(layout, rendered);
         assert_eq!(layout.status, Rect::new(2, 6, 26, 0));
         assert_eq!(layout.actions, Rect::new(2, 6, 26, 1));
@@ -299,7 +343,7 @@ mod tests {
         )
         .with_status_lines(vec![Line::from("status")]);
 
-        let layout = page.layout(Rect::new(0, 0, 30, 7)).expect("layout");
+        let layout = page.framed().layout(Rect::new(0, 0, 30, 7)).expect("layout");
         assert_eq!(layout.status, Rect::new(2, 3, 26, 1));
         assert_eq!(layout.actions, Rect::new(2, 4, 26, 1));
         assert_eq!(layout.footer, Rect::new(2, 5, 26, 1));
@@ -316,9 +360,10 @@ mod tests {
         .with_status_lines(vec![Line::from("status")]);
 
         let area = Rect::new(0, 0, 30, 8);
-        let layout = page.layout_content(area).expect("layout");
+        let content = page.content_only();
+        let layout = content.layout(area).expect("layout");
         let mut buf = Buffer::empty(area);
-        let rendered = page.render_content_shell(area, &mut buf).expect("render");
+        let rendered = content.render_shell(area, &mut buf).expect("render");
 
         assert_eq!(layout, rendered);
         assert_eq!(layout.header, Rect::new(0, 0, 30, 1));
@@ -357,7 +402,7 @@ mod tests {
             vec![],
             vec![],
         );
-        let layout = page.layout(Rect::new(0, 0, 30, 7)).expect("layout");
+        let layout = page.framed().layout(Rect::new(0, 0, 30, 7)).expect("layout");
         let buttons = [StandardButtonSpec::new(
             7usize,
             super::super::buttons::SettingsButtonKind::Save,

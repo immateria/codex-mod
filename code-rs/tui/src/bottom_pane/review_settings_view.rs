@@ -664,8 +664,9 @@ impl ReviewSettingsView {
         }
         let page = self.page();
         let runs = self.build_runs(self.state.selected_idx.unwrap_or(usize::MAX));
-        let Some(layout) =
-            page.render_content_runs(area, buf, self.state.scroll_top, &runs)
+        let Some(layout) = page
+            .content_only()
+            .render_runs(area, buf, self.state.scroll_top, &runs)
         else {
             return;
         };
@@ -725,7 +726,7 @@ impl ReviewSettingsView {
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let page = self.page();
-        let Some(layout) = page.layout_content(area) else {
+        let Some(layout) = page.content_only().layout(area) else {
             return false;
         };
         self.handle_mouse_event_in_body(mouse_event, layout.body)
@@ -737,7 +738,7 @@ impl ReviewSettingsView {
         area: Rect,
     ) -> bool {
         let page = self.page();
-        let Some(layout) = page.layout(area) else {
+        let Some(layout) = page.framed().layout(area) else {
             return false;
         };
         self.handle_mouse_event_in_body(mouse_event, layout.body)
@@ -905,8 +906,9 @@ impl<'a> BottomPaneView<'a> for ReviewSettingsView {
         }
         let page = self.page();
         let runs = self.build_runs(self.state.selected_idx.unwrap_or(usize::MAX));
-        let Some(layout) =
-            page.render_runs(area, buf, self.state.scroll_top, &runs)
+        let Some(layout) = page
+            .framed()
+            .render_runs(area, buf, self.state.scroll_top, &runs)
         else {
             return;
         };

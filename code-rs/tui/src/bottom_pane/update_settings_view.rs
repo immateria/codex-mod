@@ -408,6 +408,7 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
     ) -> ConditionalUpdate {
         let handled = self
             .page()
+            .framed()
             .layout(area)
             .map(|layout| self.handle_mouse_event_in_body(mouse_event, layout.body))
             .unwrap_or(false);
@@ -430,6 +431,7 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
         let rows = self.rows();
         let _ = self
             .page()
+            .framed()
             .render_menu_rows(area, buf, 0, Some(self.field), &rows);
     }
 

@@ -213,7 +213,7 @@ impl AgentsOverviewView {
 
         let page = self.page();
         let runs = self.runs(None);
-        let Some(layout) = page.layout(area) else {
+        let Some(layout) = page.framed().layout(area) else {
             return false;
         };
 
@@ -285,7 +285,7 @@ impl<'a> BottomPaneView<'a> for AgentsOverviewView {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let runs = self.runs(Some(self.selected));
-        let _ = page.render_runs(area, buf, 0, &runs);
+        let _ = page.framed().render_runs(area, buf, 0, &runs);
     }
 }
 

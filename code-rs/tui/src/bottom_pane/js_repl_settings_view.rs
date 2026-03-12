@@ -596,7 +596,7 @@ impl JsReplSettingsView {
                 }
 
                 let page = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]);
-                let Some(layout) = page.layout_content(area) else {
+                let Some(layout) = page.content_only().layout(area) else {
                     self.mode = ViewMode::Main;
                     return false;
                 };
@@ -688,7 +688,7 @@ impl JsReplSettingsView {
                 }
 
                 let page = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]);
-                let Some(layout) = page.layout(area) else {
+                let Some(layout) = page.framed().layout(area) else {
                     self.mode = ViewMode::Main;
                     return false;
                 };
@@ -835,7 +835,9 @@ impl JsReplSettingsView {
                 RowKind::Close => KeyValueRow::new("Close"),
             })
             .collect();
-        let Some(layout) = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]).render(
+        let Some(layout) = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![])
+            .framed()
+            .render(
             area,
             buf,
             scroll_top,
@@ -915,7 +917,8 @@ impl JsReplSettingsView {
             })
             .collect();
         let Some(layout) = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![])
-            .render_content(area, buf, scroll_top, Some(selected_idx), &row_specs)
+            .content_only()
+            .render(area, buf, scroll_top, Some(selected_idx), &row_specs)
         else {
             return;
         };

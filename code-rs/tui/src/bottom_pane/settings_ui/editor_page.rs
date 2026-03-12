@@ -89,13 +89,13 @@ impl<'a> SettingsEditorPage<'a> {
 
     pub(crate) fn layout(&self, area: Rect) -> Option<SettingsEditorPageLayout> {
         let page = self.page.clone().with_min_body_rows(self.min_body_rows());
-        let layout = page.layout(area)?;
+        let layout = page.framed().layout(area)?;
         self.layout_from_page(layout)
     }
 
     pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsEditorPageLayout> {
         let page = self.page.clone().with_min_body_rows(self.min_body_rows());
-        let layout = page.layout_content(area)?;
+        let layout = page.content_only().layout(area)?;
         self.layout_from_page(layout)
     }
 
@@ -106,7 +106,7 @@ impl<'a> SettingsEditorPage<'a> {
         field: &FormTextField,
     ) -> Option<SettingsEditorPageLayout> {
         let page = self.page.clone().with_min_body_rows(self.min_body_rows());
-        let layout = page.render(area, buf)?;
+        let layout = page.framed().render_shell(area, buf)?;
         let layout = self.layout_from_page(layout)?;
         let _ = BorderedField::new(self.field_title.clone(), self.field_focused)
             .render(layout.field_outer, buf, field);
@@ -121,7 +121,7 @@ impl<'a> SettingsEditorPage<'a> {
         field: &FormTextField,
     ) -> Option<SettingsEditorPageLayout> {
         let page = self.page.clone().with_min_body_rows(self.min_body_rows());
-        let layout = page.render_content_shell(area, buf)?;
+        let layout = page.content_only().render_shell(area, buf)?;
         let layout = self.layout_from_page(layout)?;
         let _ = BorderedField::new(self.field_title.clone(), self.field_focused)
             .render(layout.field_outer, buf, field);

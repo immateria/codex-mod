@@ -1184,14 +1184,14 @@ impl AutoDriveSettingsView {
         match &self.mode {
             AutoDriveSettingsMode::Main => {
                 let rows = self.main_menu_rows();
-                let body = self.page().layout(area).map(|layout| layout.body).unwrap_or(area);
+                let body = self.page().framed().layout(area).map(|layout| layout.body).unwrap_or(area);
                 let hovered = selection_menu_id_at(body, mouse_pos.0, mouse_pos.1, 0, &rows)
                     .map(HoverTarget::MainOption);
                 self.set_hovered(hovered)
             }
             AutoDriveSettingsMode::RoutingList => {
                 let rows = self.routing_list_menu_rows();
-                let body = self.page().layout(area).map(|layout| layout.body).unwrap_or(area);
+                let body = self.page().framed().layout(area).map(|layout| layout.body).unwrap_or(area);
                 let hovered = selection_menu_id_at(body, mouse_pos.0, mouse_pos.1, 0, &rows)
                     .map(HoverTarget::RoutingRow);
                 self.set_hovered(hovered)
@@ -1199,7 +1199,7 @@ impl AutoDriveSettingsView {
             AutoDriveSettingsMode::RoutingEditor(editor) => {
                 let editor = editor.clone();
                 let page = self.routing_editor_page(&editor);
-                let Some(layout) = page.layout(area) else {
+                let Some(layout) = page.framed().layout(area) else {
                     return self.set_hovered(None);
                 };
                 let buttons = self.routing_editor_action_buttons(editor.selected_field);
@@ -1232,7 +1232,7 @@ impl AutoDriveSettingsView {
         match &self.mode {
             AutoDriveSettingsMode::Main => {
                 let rows = self.main_menu_rows();
-                let body = self.page().layout(area).map(|layout| layout.body).unwrap_or(area);
+                let body = self.page().framed().layout(area).map(|layout| layout.body).unwrap_or(area);
                 let config = SelectableListMouseConfig {
                     hover_select: false,
                     require_pointer_hit_for_scroll: true,
@@ -1258,7 +1258,7 @@ impl AutoDriveSettingsView {
             AutoDriveSettingsMode::RoutingList => {
                 let total = self.routing_row_count();
                 let rows = self.routing_list_menu_rows();
-                let body = self.page().layout(area).map(|layout| layout.body).unwrap_or(area);
+                let body = self.page().framed().layout(area).map(|layout| layout.body).unwrap_or(area);
                 let config = SelectableListMouseConfig {
                     hover_select: false,
                     require_pointer_hit_for_scroll: true,
@@ -1299,7 +1299,7 @@ impl AutoDriveSettingsView {
                 }
                 let editor = editor.clone();
                 let page = self.routing_editor_page(&editor);
-                let Some(layout) = page.layout(area) else {
+                let Some(layout) = page.framed().layout(area) else {
                     return false;
                 };
                 let buttons = self.routing_editor_action_buttons(editor.selected_field);
@@ -1465,18 +1465,23 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
                 let rows = self.main_menu_rows();
                 let _ = self
                     .page()
+                    .framed()
                     .render_menu_rows(area, buf, 0, Some(self.selected_index), &rows);
             }
             AutoDriveSettingsMode::RoutingList => {
                 let rows = self.routing_list_menu_rows();
                 let _ = self
                     .page()
+                    .framed()
                     .render_menu_rows(area, buf, 0, Some(self.routing_selected_index), &rows);
             }
             AutoDriveSettingsMode::RoutingEditor(editor) => {
                 let page = self.routing_editor_page(editor);
                 let buttons = self.routing_editor_action_buttons(editor.selected_field);
-                let Some(layout) = page.render_with_standard_actions_end(area, buf, &buttons) else {
+                let Some(layout) = page
+                    .framed()
+                    .render_with_standard_actions_end(area, buf, &buttons)
+                else {
                     return;
                 };
                 let rows = self.routing_editor_menu_rows(editor);

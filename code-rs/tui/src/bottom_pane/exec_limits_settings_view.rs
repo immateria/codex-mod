@@ -466,7 +466,7 @@ impl ExecLimitsSettingsView {
                     self.render_header_lines(),
                     self.render_footer_lines(),
                 );
-                let Some(layout) = page.layout_content(area) else {
+                let Some(layout) = page.content_only().layout(area) else {
                     self.mode = ViewMode::Main;
                     return false;
                 };
@@ -545,7 +545,7 @@ impl ExecLimitsSettingsView {
                     self.render_header_lines(),
                     self.render_footer_lines(),
                 );
-                let Some(layout) = page.layout(area) else {
+                let Some(layout) = page.framed().layout(area) else {
                     self.mode = ViewMode::Main;
                     return false;
                 };
@@ -645,6 +645,7 @@ impl ExecLimitsSettingsView {
             self.render_header_lines(),
             self.render_footer_lines(),
         )
+        .framed()
         .render(area, buf, state.scroll_top, Some(selected_idx), &row_specs)
         else {
             return;
@@ -693,7 +694,8 @@ impl ExecLimitsSettingsView {
             self.render_header_lines(),
             self.render_footer_lines(),
         )
-        .render_content(area, buf, state.scroll_top, Some(selected_idx), &row_specs)
+        .content_only()
+        .render(area, buf, state.scroll_top, Some(selected_idx), &row_specs)
         else {
             return;
         };

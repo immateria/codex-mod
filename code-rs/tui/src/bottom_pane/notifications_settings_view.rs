@@ -202,7 +202,7 @@ impl NotificationsSettingsView {
     pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let mut selected = self.selected_row;
         let rows = self.menu_rows();
-        let Some(layout) = self.page().layout_content(area) else {
+        let Some(layout) = self.page().content_only().layout(area) else {
             return false;
         };
         let result = route_selectable_list_mouse_with_config(
@@ -237,7 +237,9 @@ impl NotificationsSettingsView {
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let rows = self.menu_rows();
-        let _ = page.render_content_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
+        let _ = page
+            .content_only()
+            .render_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
     }
 
 }
@@ -266,6 +268,8 @@ impl<'a> BottomPaneView<'a> for NotificationsSettingsView {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let rows = self.menu_rows();
-        let _ = page.render_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
+        let _ = page
+            .framed()
+            .render_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
     }
 }

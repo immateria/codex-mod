@@ -159,7 +159,7 @@ impl GithubSettingsView {
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let page = self.page();
-        let Some(layout) = page.layout(area) else {
+        let Some(layout) = page.framed().layout(area) else {
             return false;
         };
         let rows = self.menu_rows();
@@ -215,6 +215,7 @@ impl<'a> BottomPaneView<'a> for GithubSettingsView {
         let rows = self.menu_rows();
         let _ = self
             .page()
+            .framed()
             .render_menu_rows(area, buf, 0, Some(self.selected_row), &rows);
     }
 }
@@ -240,7 +241,7 @@ mod tests {
         let mut view = GithubSettingsView::new(false, "token missing".to_string(), false, AppEventSender::new(tx));
         let area = Rect::new(0, 0, 40, 9);
         let page = view.page();
-        let layout = page.layout(area).expect("layout");
+        let layout = page.framed().layout(area).expect("layout");
         let rows = view.menu_rows();
         assert_eq!(
             SettingsMenuPage::selection_menu_id_in_body(

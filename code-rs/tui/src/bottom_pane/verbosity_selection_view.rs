@@ -158,7 +158,7 @@ impl VerbositySelectionView {
 
     fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let rows = self.menu_rows();
-        let Some(layout) = self.page().layout(area) else {
+        let Some(layout) = self.page().framed().layout(area) else {
             return false;
         };
 
@@ -218,7 +218,9 @@ impl<'a> BottomPaneView<'a> for VerbositySelectionView {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let rows = self.menu_rows();
-        let _ = page.render_menu_rows(area, buf, 0, Some(self.selected_verbosity), &rows);
+        let _ = page
+            .framed()
+            .render_menu_rows(area, buf, 0, Some(self.selected_verbosity), &rows);
     }
 }
 
@@ -242,7 +244,7 @@ mod tests {
         let (tx, _rx) = channel();
         let mut view = VerbositySelectionView::new(TextVerbosity::Low, AppEventSender::new(tx));
         let area = Rect::new(0, 0, 50, 9);
-        let layout = view.page().layout(area).expect("layout");
+        let layout = view.page().framed().layout(area).expect("layout");
 
         assert!(view.handle_mouse_event_direct(
             mouse_left_click(layout.body.x + 1, layout.body.y + 1),

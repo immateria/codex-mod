@@ -12,6 +12,14 @@ pub(crate) struct SettingsRowPage<'a> {
     frame: SettingsFrame<'a>,
 }
 
+pub(crate) struct SettingsRowPageFramed<'p, 'a> {
+    page: &'p SettingsRowPage<'a>,
+}
+
+pub(crate) struct SettingsRowPageContentOnly<'p, 'a> {
+    page: &'p SettingsRowPage<'a>,
+}
+
 impl<'a> SettingsRowPage<'a> {
     pub(crate) fn new(
         title: impl Into<Cow<'a, str>>,
@@ -23,12 +31,12 @@ impl<'a> SettingsRowPage<'a> {
         }
     }
 
-    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsFrameLayout> {
-        self.frame.layout(area)
+    pub(crate) fn framed(&self) -> SettingsRowPageFramed<'_, 'a> {
+        SettingsRowPageFramed { page: self }
     }
 
-    pub(crate) fn layout_content(&self, area: Rect) -> Option<SettingsFrameLayout> {
-        self.frame.layout_content(area)
+    pub(crate) fn content_only(&self) -> SettingsRowPageContentOnly<'_, 'a> {
+        SettingsRowPageContentOnly { page: self }
     }
 
     pub(crate) fn selection_index_at(
@@ -40,6 +48,12 @@ impl<'a> SettingsRowPage<'a> {
     ) -> Option<usize> {
         row_selection_index_at(body, x, y, scroll_top, total)
     }
+}
+
+impl<'p, 'a> SettingsRowPageFramed<'p, 'a> {
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsFrameLayout> {
+        self.page.frame.layout(area)
+    }
 
     pub(crate) fn render(
         &self,
@@ -49,12 +63,18 @@ impl<'a> SettingsRowPage<'a> {
         selected_idx: Option<usize>,
         rows: &[KeyValueRow<'_>],
     ) -> Option<SettingsFrameLayout> {
-        let layout = self.frame.render(area, buf)?;
+        let layout = self.page.frame.render(area, buf)?;
         render_kv_rows(layout.body, buf, scroll_top, selected_idx, rows);
         Some(layout)
     }
+}
 
-    pub(crate) fn render_content(
+impl<'p, 'a> SettingsRowPageContentOnly<'p, 'a> {
+    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsFrameLayout> {
+        self.page.frame.layout_content(area)
+    }
+
+    pub(crate) fn render(
         &self,
         area: Rect,
         buf: &mut Buffer,
@@ -62,7 +82,7 @@ impl<'a> SettingsRowPage<'a> {
         selected_idx: Option<usize>,
         rows: &[KeyValueRow<'_>],
     ) -> Option<SettingsFrameLayout> {
-        let layout = self.frame.render_content_shell(area, buf)?;
+        let layout = self.page.frame.render_content_shell(area, buf)?;
         render_kv_rows(layout.body, buf, scroll_top, selected_idx, rows);
         Some(layout)
     }
@@ -80,7 +100,7 @@ mod tests {
             vec![Line::from("footer")],
         );
         let area = Rect::new(0, 0, 30, 10);
-        let layout = page.layout(area).expect("layout");
+        let layout = page.framed().layout(area).expect("layout");
 
         assert_eq!(
             SettingsRowPage::selection_index_at(layout.body, layout.body.x, layout.body.y, 3, 10),
@@ -109,6 +129,7 @@ mod tests {
         let rows = vec![KeyValueRow::new("Row")];
         let mut buf = Buffer::empty(area);
         let rendered = page
+            .framed()
             .render(area, &mut buf, 0, Some(0), &rows)
             .expect("render");
 

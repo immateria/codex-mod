@@ -214,7 +214,7 @@ impl PlanningSettingsView {
     }
 
     pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let Some(layout) = self.page().layout_content(area) else {
+        let Some(layout) = self.page().content_only().layout(area) else {
             return false;
         };
         let Some(row) = self.row_at_position(layout.body, mouse_event.column, mouse_event.row) else {
@@ -232,7 +232,7 @@ impl PlanningSettingsView {
     }
 
     fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let Some(layout) = self.page().layout(area) else {
+        let Some(layout) = self.page().framed().layout(area) else {
             return false;
         };
         let Some(row) = self.row_at_position(layout.body, mouse_event.column, mouse_event.row) else {
@@ -250,7 +250,7 @@ impl PlanningSettingsView {
     }
 
     pub(crate) fn render_without_frame(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = self.page().render_content_shell(area, buf) else {
+        let Some(layout) = self.page().content_only().render_shell(area, buf) else {
             return;
         };
         self.render_rows(layout.body, buf);
@@ -294,7 +294,7 @@ impl<'a> BottomPaneView<'a> for PlanningSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = self.page().render_shell(area, buf) else {
+        let Some(layout) = self.page().framed().render_shell(area, buf) else {
             return;
         };
         self.render_rows(layout.body, buf);
@@ -327,7 +327,7 @@ mod tests {
         );
         let area = Rect::new(0, 0, 40, 8);
         let page = view.page();
-        let layout = page.layout_content(area).expect("layout");
+        let layout = page.content_only().layout(area).expect("layout");
         assert_eq!(
             view.row_at_position(layout.body, layout.body.x, layout.body.y),
             Some(PlanningRow::CustomModel)

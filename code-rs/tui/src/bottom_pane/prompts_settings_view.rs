@@ -329,6 +329,7 @@ impl PromptsSettingsView {
         let rows = self.list_rows();
         let Some(_layout) = self
             .list_page()
+            .framed()
             .render_menu_rows(area, buf, 0, Some(self.selected), &rows)
         else {
             return;
@@ -339,7 +340,8 @@ impl PromptsSettingsView {
         let rows = self.list_rows();
         let _ = self
             .list_page()
-            .render_content_menu_rows(area, buf, 0, Some(self.selected), &rows);
+            .content_only()
+            .render_menu_rows(area, buf, 0, Some(self.selected), &rows);
     }
 
     fn render_form(&self, area: Rect, buf: &mut Buffer) {
@@ -368,13 +370,13 @@ impl PromptsSettingsView {
     }
 
     fn list_selection_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = self.list_page().layout(area)?;
+        let layout = self.list_page().framed().layout(area)?;
         let rows = self.list_rows();
         SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, 0, &rows)
     }
 
     fn list_selection_at_content(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = self.list_page().layout_content(area)?;
+        let layout = self.list_page().content_only().layout(area)?;
         let rows = self.list_rows();
         SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, 0, &rows)
     }
