@@ -1,3 +1,63 @@
+macro_rules! impl_settings_content {
+    ($ty:ty) => {
+        impl super::super::SettingsContent for $ty {
+            fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+                self.view.content_only().render(area, buf);
+            }
+
+            fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> bool {
+                self.view.handle_key_event_direct(key)
+            }
+
+            fn is_complete(&self) -> bool {
+                self.view.is_complete()
+            }
+
+            fn handle_mouse(
+                &mut self,
+                mouse_event: crossterm::event::MouseEvent,
+                area: ratatui::layout::Rect,
+            ) -> bool {
+                self.view
+                    .content_only_mut()
+                    .handle_mouse_event_direct(mouse_event, area)
+            }
+        }
+    };
+}
+
+macro_rules! impl_settings_content_with_paste {
+    ($ty:ty) => {
+        impl super::super::SettingsContent for $ty {
+            fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+                self.view.content_only().render(area, buf);
+            }
+
+            fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> bool {
+                self.view.handle_key_event_direct(key)
+            }
+
+            fn is_complete(&self) -> bool {
+                self.view.is_complete()
+            }
+
+            fn handle_paste(&mut self, text: String) -> bool {
+                self.view.handle_paste_direct(text)
+            }
+
+            fn handle_mouse(
+                &mut self,
+                mouse_event: crossterm::event::MouseEvent,
+                area: ratatui::layout::Rect,
+            ) -> bool {
+                self.view
+                    .content_only_mut()
+                    .handle_mouse_event_direct(mouse_event, area)
+            }
+        }
+    };
+}
+
 mod accounts;
 mod auto_drive;
 mod exec_limits;
