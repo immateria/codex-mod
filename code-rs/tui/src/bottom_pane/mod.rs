@@ -24,6 +24,7 @@ use ratatui::widgets::WidgetRef;
 use std::time::Duration;
 
 mod chrome;
+mod chrome_view;
 mod approval_modal_view;
 #[cfg(feature = "code-fork")]
 mod approval_ui;

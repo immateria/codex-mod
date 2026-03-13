@@ -136,22 +136,6 @@ pub(crate) struct McpSettingsView {
     last_render: LastRenderContext,
 }
 
-pub(crate) struct McpSettingsViewFramed<'v> {
-    view: &'v McpSettingsView,
-}
-
-pub(crate) struct McpSettingsViewContentOnly<'v> {
-    view: &'v McpSettingsView,
-}
-
-pub(crate) struct McpSettingsViewFramedMut<'v> {
-    view: &'v mut McpSettingsView,
-}
-
-pub(crate) struct McpSettingsViewContentOnlyMut<'v> {
-    view: &'v mut McpSettingsView,
-}
-
 impl McpSettingsView {
     pub fn new(rows: McpServerRows, app_event_tx: AppEventSender) -> Self {
         Self {
@@ -183,52 +167,58 @@ impl McpSettingsView {
     }
 
     pub(crate) fn framed(&self) -> McpSettingsViewFramed<'_> {
-        McpSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> McpSettingsViewContentOnly<'_> {
-        McpSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> McpSettingsViewFramedMut<'_> {
-        McpSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> McpSettingsViewContentOnlyMut<'_> {
-        McpSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 }
 
-impl<'v> McpSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
-        self.view.render_framed(area, buf);
+pub(crate) type McpSettingsViewFramed<'v> = super::chrome_view::Framed<'v, McpSettingsView>;
+pub(crate) type McpSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, McpSettingsView>;
+pub(crate) type McpSettingsViewFramedMut<'v> = super::chrome_view::FramedMut<'v, McpSettingsView>;
+pub(crate) type McpSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, McpSettingsView>;
+
+impl super::chrome_view::ChromeRenderable for McpSettingsView {
+    fn render_in_framed_chrome(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(
+        &self,
+        area: ratatui::layout::Rect,
+        buf: &mut ratatui::buffer::Buffer,
+    ) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> McpSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
-        self.view.render_content_only(area, buf);
-    }
-}
-
-impl<'v> McpSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(
+impl super::chrome_view::ChromeMouseHandler for McpSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
         &mut self,
         mouse_event: crossterm::event::MouseEvent,
         area: ratatui::layout::Rect,
     ) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> McpSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(
+    fn handle_mouse_event_direct_in_content_only_chrome(
         &mut self,
         mouse_event: crossterm::event::MouseEvent,
         area: ratatui::layout::Rect,
     ) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

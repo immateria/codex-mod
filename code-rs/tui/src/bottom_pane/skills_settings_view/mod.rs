@@ -64,22 +64,6 @@ pub(crate) struct SkillsSettingsView {
     editor: SkillEditorState,
 }
 
-pub(crate) struct SkillsSettingsViewFramed<'v> {
-    view: &'v SkillsSettingsView,
-}
-
-pub(crate) struct SkillsSettingsViewContentOnly<'v> {
-    view: &'v SkillsSettingsView,
-}
-
-pub(crate) struct SkillsSettingsViewFramedMut<'v> {
-    view: &'v mut SkillsSettingsView,
-}
-
-pub(crate) struct SkillsSettingsViewContentOnlyMut<'v> {
-    view: &'v mut SkillsSettingsView,
-}
-
 impl SkillsSettingsView {
     pub fn new(
         skills: Vec<Skill>,
@@ -104,48 +88,55 @@ impl SkillsSettingsView {
     }
 
     pub(crate) fn framed(&self) -> SkillsSettingsViewFramed<'_> {
-        SkillsSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> SkillsSettingsViewContentOnly<'_> {
-        SkillsSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> SkillsSettingsViewFramedMut<'_> {
-        SkillsSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> SkillsSettingsViewContentOnlyMut<'_> {
-        SkillsSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 }
 
-impl<'v> SkillsSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render(area, buf);
+pub(crate) type SkillsSettingsViewFramed<'v> = super::chrome_view::Framed<'v, SkillsSettingsView>;
+pub(crate) type SkillsSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, SkillsSettingsView>;
+pub(crate) type SkillsSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, SkillsSettingsView>;
+pub(crate) type SkillsSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, SkillsSettingsView>;
+
+impl super::chrome_view::ChromeRenderable for SkillsSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> SkillsSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
-    }
-}
-
-impl<'v> SkillsSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> SkillsSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(
+impl super::chrome_view::ChromeMouseHandler for SkillsSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+        self.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 
