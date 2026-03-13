@@ -42,7 +42,10 @@ checks_regex=(
 )
 
 for pat in "${checks_fixed[@]}"; do
-  matches="$(cd "$ROOT_DIR" && rg -n -F "$pat" "$OVERLAY_CONTENTS_DIR" --glob '*.rs' || true)"
+  raw_matches="$(cd "$ROOT_DIR" && rg -n -F "$pat" "$OVERLAY_CONTENTS_DIR" --glob '*.rs' || true)"
+  # Avoid false positives for reminders in comments like:
+  #   // Don't use BottomPaneView here.
+  matches="$(printf '%s' "$raw_matches" | rg -v ":[0-9]+:\\s*(//|/\\*|\\*)" || true)"
   if [[ -n "$matches" ]]; then
     echo "ERROR: Forbidden token in settings overlay contents: $pat" >&2
     echo "$matches" >&2
@@ -67,4 +70,3 @@ if [[ $violations -ne 0 ]]; then
 fi
 
 echo "OK: No forbidden overlay chrome patterns found."
-
