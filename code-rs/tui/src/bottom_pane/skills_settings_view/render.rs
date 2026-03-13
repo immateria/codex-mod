@@ -13,8 +13,7 @@ impl SkillsSettingsView {
         if area.width == 0 || area.height == 0 {
             return;
         }
-        self.last_render_area.set(Some(area));
-        self.last_render_chrome.set(SkillsRenderChrome::Framed);
+        self.last_render.set(area, ChromeMode::Framed);
         self.render_body(area, buf);
     }
 
@@ -23,8 +22,7 @@ impl SkillsSettingsView {
             return;
         }
 
-        self.last_render_area.set(Some(area));
-        self.last_render_chrome.set(SkillsRenderChrome::ContentOnly);
+        self.last_render.set(area, ChromeMode::ContentOnly);
         crate::util::buffer::fill_rect(
             buf,
             area,

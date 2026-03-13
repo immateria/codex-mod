@@ -2,7 +2,7 @@ use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-use crate::bottom_pane::{BottomPaneView, ConditionalUpdate, ModelSelectionView};
+use crate::bottom_pane::{ConditionalUpdate, ModelSelectionView};
 
 use super::super::SettingsContent;
 

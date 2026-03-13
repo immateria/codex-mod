@@ -9,6 +9,7 @@ use crate::user_approval_widget::{ApprovalRequest, UserApprovalWidget};
 use crate::thread_spawner;
 pub(crate) use bottom_pane_view::BottomPaneView;
 pub(crate) use bottom_pane_view::ConditionalUpdate;
+pub(crate) use chrome::{ChromeMode, LastRenderContext};
 use crate::util::buffer::fill_rect;
 use code_common::shell_presets::ShellPreset;
 use code_protocol::custom_prompts::CustomPrompt;
@@ -22,6 +23,7 @@ use ratatui::layout::Rect;
 use ratatui::widgets::WidgetRef;
 use std::time::Duration;
 
+mod chrome;
 mod approval_modal_view;
 #[cfg(feature = "code-fork")]
 mod approval_ui;

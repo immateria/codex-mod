@@ -7,6 +7,8 @@ use code_core::config_types::McpServerSchedulingToml;
 use code_core::config_types::McpToolSchedulingOverrideToml;
 use code_core::protocol::McpAuthStatus;
 
+use super::{ChromeMode, LastRenderContext};
+
 mod input;
 mod layout;
 mod pane_impl;
@@ -111,12 +113,6 @@ struct SummaryMetrics {
     visible_lines: usize,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum McpRenderChrome {
-    Framed,
-    ContentOnly,
-}
-
 pub(crate) struct McpSettingsView {
     rows: McpServerRows,
     selected: usize,
@@ -137,8 +133,7 @@ pub(crate) struct McpSettingsView {
     scrollbar_drag: Option<McpScrollbarDragState>,
     is_complete: bool,
     app_event_tx: AppEventSender,
-    last_render_area: Cell<Option<ratatui::layout::Rect>>,
-    last_render_chrome: Cell<McpRenderChrome>,
+    last_render: LastRenderContext,
 }
 
 pub(crate) struct McpSettingsViewFramed<'v> {
@@ -179,8 +174,7 @@ impl McpSettingsView {
             scrollbar_drag: None,
             is_complete: false,
             app_event_tx,
-            last_render_area: Cell::new(None),
-            last_render_chrome: Cell::new(McpRenderChrome::Framed),
+            last_render: LastRenderContext::new(ChromeMode::Framed),
         }
     }
 
@@ -249,7 +243,6 @@ mod tests {
 
     use super::{
         McpPaneHit,
-        McpRenderChrome,
         McpServerRow,
         McpSettingsFocus,
         McpSettingsView,
@@ -258,6 +251,7 @@ mod tests {
     };
     use crate::app_event::AppEvent;
     use crate::app_event_sender::AppEventSender;
+    use crate::bottom_pane::ChromeMode;
     use code_core::config_types::McpDispatchMode;
 
     fn make_server_row(name: &str) -> McpServerRow {
@@ -398,7 +392,7 @@ mod tests {
     fn stacked_layout_scrolls_focused_pane_into_view() {
         let mut view = make_view(vec![make_server_row("server_a")]);
         let area = Rect::new(0, 0, 60, 14);
-        view.last_render_area.set(Some(area));
+        view.last_render.set(area, ChromeMode::Framed);
 
         assert_eq!(view.focus, McpSettingsFocus::Servers);
         assert_eq!(view.stacked_scroll_top, 0);
@@ -473,8 +467,7 @@ mod tests {
         let mut view = make_view(vec![make_server_row("server_a")]);
         let area = Rect::new(0, 0, 3, 10);
 
-        view.last_render_area.set(Some(area));
-        view.last_render_chrome.set(McpRenderChrome::ContentOnly);
+        view.last_render.set(area, ChromeMode::ContentOnly);
 
         assert_eq!(view.focus, McpSettingsFocus::Servers);
         assert_eq!(view.stacked_scroll_top, 0);

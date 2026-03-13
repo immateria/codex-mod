@@ -2,7 +2,7 @@ use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-use crate::bottom_pane::{BottomPaneView, ReviewSettingsView};
+use crate::bottom_pane::ReviewSettingsView;
 use code_core::config_types::ReasoningEffort;
 
 use super::super::SettingsContent;

@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
@@ -38,6 +37,7 @@ use crate::ui_interaction::{
 };
 
 use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
+use super::{ChromeMode, LastRenderContext};
 use super::BottomPane;
 
 mod document;
@@ -60,15 +60,8 @@ pub(crate) struct SkillsSettingsView {
     complete: bool,
     // SIDE EFFECT: `render` caches the most recent area so edit-mode focus
     // scrolling can stay aligned with the last rendered layout.
-    last_render_area: Cell<Option<Rect>>,
-    last_render_chrome: Cell<SkillsRenderChrome>,
+    last_render: LastRenderContext,
     editor: SkillEditorState,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum SkillsRenderChrome {
-    Framed,
-    ContentOnly,
 }
 
 pub(crate) struct SkillsSettingsViewFramed<'v> {
@@ -101,8 +94,7 @@ impl SkillsSettingsView {
             status: None,
             app_event_tx,
             complete: false,
-            last_render_area: Cell::new(None),
-            last_render_chrome: Cell::new(SkillsRenderChrome::Framed),
+            last_render: LastRenderContext::new(ChromeMode::Framed),
             editor: SkillEditorState::new(),
         }
     }
@@ -461,7 +453,7 @@ mod tests {
         let mut view = make_view(HashMap::new());
         view.start_new_skill();
         let area = Rect::new(0, 0, 80, 14);
-        view.last_render_area.set(Some(area));
+        view.last_render.set(area, ChromeMode::Framed);
         assert_eq!(view.editor.edit_scroll_top, 0);
 
         for _ in 0..9 {
@@ -482,8 +474,7 @@ mod tests {
         view.editor.focus = Focus::Body;
 
         let area = Rect::new(0, 0, 2, 10);
-        view.last_render_area.set(Some(area));
-        view.last_render_chrome.set(SkillsRenderChrome::ContentOnly);
+        view.last_render.set(area, ChromeMode::ContentOnly);
 
         assert_eq!(view.editor.edit_scroll_top, 0);
         assert!(view.handle_key_event_direct(KeyEvent::new(

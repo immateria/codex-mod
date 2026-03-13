@@ -92,6 +92,10 @@ impl ModelSelectionView {
         ModelSelectionViewContentOnlyMut { view: self }
     }
 
+    pub(crate) fn is_complete(&self) -> bool {
+        self.is_complete
+    }
+
     pub(crate) fn update_presets(&mut self, presets: Vec<ModelPreset>) {
         self.selected_index = self.data.update_presets(presets, self.selected_index);
     }

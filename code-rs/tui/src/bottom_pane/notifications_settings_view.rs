@@ -223,6 +223,10 @@ impl NotificationsSettingsView {
         NotificationsSettingsViewContentOnlyMut { view: self }
     }
 
+    pub(crate) fn is_complete(&self) -> bool {
+        self.is_complete
+    }
+
     fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let mut selected = self.selected_row;
         let rows = self.menu_rows();

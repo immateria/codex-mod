@@ -16,8 +16,9 @@ use crate::ui_interaction::{inset_rect_right, redraw_if, render_vertical_scrollb
 
 use super::super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::super::BottomPane;
+use super::super::ChromeMode;
 use super::layout::{McpPaneHit, McpViewLayout};
-use super::{McpRenderChrome, McpSettingsFocus, McpSettingsMode, McpSettingsView};
+use super::{McpSettingsFocus, McpSettingsMode, McpSettingsView};
 
 const MCP_SETTINGS_DESIRED_HEIGHT: u16 = 16;
 
@@ -34,8 +35,7 @@ impl McpSettingsView {
 
     pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
         Clear.render(area, buf);
-        self.last_render_area.set(Some(area));
-        self.last_render_chrome.set(McpRenderChrome::Framed);
+        self.last_render.set(area, ChromeMode::Framed);
 
         let Some(layout) = McpViewLayout::from_area_with_scroll(area, self.stacked_scroll_top) else {
             return;
@@ -69,8 +69,7 @@ impl McpSettingsView {
         }
 
         Clear.render(area, buf);
-        self.last_render_area.set(Some(area));
-        self.last_render_chrome.set(McpRenderChrome::ContentOnly);
+        self.last_render.set(area, ChromeMode::ContentOnly);
         crate::util::buffer::fill_rect(
             buf,
             area,

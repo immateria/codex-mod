@@ -124,6 +124,10 @@ impl PlanningSettingsView {
         PlanningSettingsViewContentOnlyMut { view: self }
     }
 
+    pub(crate) fn is_complete(&self) -> bool {
+        self.is_complete
+    }
+
     fn rows(&self) -> Vec<PlanningRow> {
         vec![PlanningRow::CustomModel]
     }

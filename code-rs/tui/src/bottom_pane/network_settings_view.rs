@@ -530,6 +530,10 @@ impl NetworkSettingsView {
         NetworkSettingsViewContentOnlyMut { view: self }
     }
 
+    pub(crate) fn is_complete(&self) -> bool {
+        self.is_complete
+    }
+
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
         match &mut self.mode {
             ViewMode::EditList { field, .. } => {

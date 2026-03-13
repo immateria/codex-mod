@@ -278,12 +278,12 @@ impl SkillsSettingsView {
     }
 
     fn ensure_edit_focus_visible_from_last_render(&mut self) -> bool {
-        let Some(area) = self.last_render_area.get() else {
+        let Some((area, chrome)) = self.last_render.get() else {
             return false;
         };
-        let Some(layout) = (match self.last_render_chrome.get() {
-            SkillsRenderChrome::Framed => self.compute_form_layout_framed(area),
-            SkillsRenderChrome::ContentOnly => self.compute_form_layout_content_only(area),
+        let Some(layout) = (match chrome {
+            ChromeMode::Framed => self.compute_form_layout_framed(area),
+            ChromeMode::ContentOnly => self.compute_form_layout_content_only(area),
         }) else {
             return false;
         };
@@ -295,7 +295,7 @@ impl SkillsSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        self.handle_mouse_event_direct_impl(mouse_event, area, SkillsRenderChrome::Framed)
+        self.handle_mouse_event_direct_impl(mouse_event, area, ChromeMode::Framed)
     }
 
     pub(super) fn handle_mouse_event_direct_content_only(
@@ -303,19 +303,19 @@ impl SkillsSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        self.handle_mouse_event_direct_impl(mouse_event, area, SkillsRenderChrome::ContentOnly)
+        self.handle_mouse_event_direct_impl(mouse_event, area, ChromeMode::ContentOnly)
     }
 
     fn handle_mouse_event_direct_impl(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
-        chrome: SkillsRenderChrome,
+        chrome: ChromeMode,
     ) -> bool {
         if self.mode == Mode::List {
             return match chrome {
-                SkillsRenderChrome::Framed => self.handle_list_mouse_event_framed(mouse_event, area),
-                SkillsRenderChrome::ContentOnly => {
+                ChromeMode::Framed => self.handle_list_mouse_event_framed(mouse_event, area),
+                ChromeMode::ContentOnly => {
                     self.handle_list_mouse_event_content_only(mouse_event, area)
                 }
             };
@@ -365,11 +365,11 @@ impl SkillsSettingsView {
     fn compute_form_layout_for_chrome(
         &self,
         area: Rect,
-        chrome: SkillsRenderChrome,
+        chrome: ChromeMode,
     ) -> Option<SkillsFormLayout> {
         match chrome {
-            SkillsRenderChrome::Framed => self.compute_form_layout_framed(area),
-            SkillsRenderChrome::ContentOnly => self.compute_form_layout_content_only(area),
+            ChromeMode::Framed => self.compute_form_layout_framed(area),
+            ChromeMode::ContentOnly => self.compute_form_layout_content_only(area),
         }
     }
 
@@ -377,7 +377,7 @@ impl SkillsSettingsView {
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
-        chrome: SkillsRenderChrome,
+        chrome: ChromeMode,
     ) -> bool {
         let Some(layout) = self.compute_form_layout_for_chrome(area, chrome) else {
             return false;
@@ -532,7 +532,7 @@ impl SkillsSettingsView {
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
-        chrome: SkillsRenderChrome,
+        chrome: ChromeMode,
     ) -> bool {
         let Some(layout) = self.compute_form_layout_for_chrome(area, chrome) else {
             return self.set_hovered_button(None);
@@ -548,7 +548,7 @@ impl SkillsSettingsView {
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
-        chrome: SkillsRenderChrome,
+        chrome: ChromeMode,
         scroll_down: bool,
     ) -> bool {
         let Some(layout) = self.compute_form_layout_for_chrome(area, chrome) else {

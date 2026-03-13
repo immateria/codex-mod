@@ -240,6 +240,10 @@ impl ReviewSettingsView {
         }
     }
 
+    pub(crate) fn is_complete(&self) -> bool {
+        self.is_complete
+    }
+
     fn toggle_review_auto_resolve(&mut self) {
         self.review_auto_resolve_enabled = !self.review_auto_resolve_enabled;
         self.app_event_tx
