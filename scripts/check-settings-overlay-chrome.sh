@@ -36,6 +36,8 @@ checks_fixed=(
 checks_regex=(
   # Ban calling framed render directly on overlay content views.
   "\\.view\\.render\\s*\\("
+  "\\.render_framed\\s*\\("
+  "\\.handle_mouse_event_direct_framed\\s*\\("
   # Ban framed wrappers in overlay content.
   "\\.framed_mut\\s*\\("
   "\\.framed\\s*\\("
@@ -54,7 +56,8 @@ for pat in "${checks_fixed[@]}"; do
 done
 
 for pat in "${checks_regex[@]}"; do
-  matches="$(cd "$ROOT_DIR" && rg -n -e "$pat" "$OVERLAY_CONTENTS_DIR" --glob '*.rs' || true)"
+  raw_matches="$(cd "$ROOT_DIR" && rg -n -e "$pat" "$OVERLAY_CONTENTS_DIR" --glob '*.rs' || true)"
+  matches="$(printf '%s' "$raw_matches" | rg -v ":[0-9]+:\\s*(//|/\\*|\\*)" || true)"
   if [[ -n "$matches" ]]; then
     echo "ERROR: Forbidden pattern in settings overlay contents: $pat" >&2
     echo "$matches" >&2
