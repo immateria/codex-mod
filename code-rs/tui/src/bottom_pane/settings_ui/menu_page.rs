@@ -19,7 +19,6 @@ use super::menu_rows::{
     SettingsMenuRow,
 };
 use super::panel::SettingsPanelStyle;
-use super::rows::selection_index_at as selection_row_index_at;
 use super::sectioned_panel::{SettingsSectionedPanel, SettingsSectionedPanelLayout};
 
 #[derive(Clone, Debug)]
@@ -109,16 +108,6 @@ impl<'a> SettingsMenuPage<'a> {
         rows: &[SettingsMenuRow<'_, Id>],
     ) -> Option<Id> {
         selection_menu_id_at(body, x, y, scroll_top, rows)
-    }
-
-    pub(crate) fn selection_index_in_body(
-        body: Rect,
-        x: u16,
-        y: u16,
-        scroll_top: usize,
-        total: usize,
-    ) -> Option<usize> {
-        selection_row_index_at(body, x, y, scroll_top, total)
     }
 }
 
@@ -281,27 +270,6 @@ mod tests {
                 0,
                 &rows,
             ),
-            None
-        );
-    }
-
-    #[test]
-    fn selection_index_in_body_uses_body_rect() {
-        let page = SettingsMenuPage::new(
-            "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
-            vec![Line::from("header")],
-            vec![Line::from("footer")],
-        );
-        let area = Rect::new(0, 0, 30, 10);
-        let layout = page.framed().layout(area).expect("layout");
-
-        assert_eq!(
-            SettingsMenuPage::selection_index_in_body(layout.body, layout.body.x, layout.body.y, 2, 4),
-            Some(2)
-        );
-        assert_eq!(
-            SettingsMenuPage::selection_index_in_body(layout.body, layout.header.x, layout.header.y, 2, 4),
             None
         );
     }

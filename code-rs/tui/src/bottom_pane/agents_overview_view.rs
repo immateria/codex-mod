@@ -24,6 +24,7 @@ use super::settings_ui::menu_page::SettingsMenuPage;
 use super::settings_ui::menu_rows::SettingsMenuRow;
 use super::settings_ui::panel::SettingsPanelStyle;
 use super::settings_ui::rows::StyledText;
+use super::settings_ui::toggle;
 use super::BottomPane;
 
 #[derive(Clone, Debug)]
@@ -96,12 +97,12 @@ impl AgentsOverviewView {
         ))]));
 
         for (idx, (name, enabled, installed, _cmd)) in self.agents.iter().enumerate() {
-            let (status_text, status_color) = if !*enabled {
-                ("disabled", colors::error())
+            let status = if !*enabled {
+                toggle::enabled_word(false)
             } else if !*installed {
-                ("not installed", colors::warning())
+                StyledText::new("not installed", Style::new().fg(colors::warning()).bold())
             } else {
-                ("enabled", colors::success())
+                toggle::enabled_word(true)
             };
             let hint = if !*installed {
                 "Enter to install"
@@ -110,10 +111,7 @@ impl AgentsOverviewView {
             };
             runs.push(
                 SettingsMenuRow::new(idx, name.clone())
-                    .with_value(StyledText::new(
-                        status_text,
-                        Style::new().fg(status_color).bold(),
-                    ))
+                    .with_value(status)
                     .with_selected_hint(hint)
                     .into_run(selected_id),
             );
@@ -317,5 +315,35 @@ mod tests {
             "expected status text to show 'enabled', got: {combined}"
         );
         assert!(!combined.contains("not installed"));
+    }
+
+    #[test]
+    fn hit_testing_skips_headers_and_selects_first_agent_row() {
+        let (app_event_tx_raw, _app_event_rx) = std::sync::mpsc::channel();
+        let app_event_tx = AppEventSender::new(app_event_tx_raw);
+        let view = AgentsOverviewView::new(
+            vec![("code".to_string(), true, true, "coder".to_string())],
+            Vec::new(),
+            0,
+            app_event_tx,
+        );
+        let area = Rect::new(0, 0, 40, 10);
+        let layout = view.page().framed().layout(area).expect("layout");
+        let runs = view.runs(None);
+
+        assert_eq!(
+            selection_run_id_at(layout.body, layout.body.x, layout.body.y, 0, &runs),
+            None
+        );
+        assert_eq!(
+            selection_run_id_at(
+                layout.body,
+                layout.body.x,
+                layout.body.y.saturating_add(1),
+                0,
+                &runs
+            ),
+            Some(0)
+        );
     }
 }

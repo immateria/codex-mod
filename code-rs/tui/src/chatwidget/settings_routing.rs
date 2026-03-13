@@ -8,7 +8,6 @@ use crate::bottom_pane::{
     NetworkSettingsView,
     ShellProfilesSettingsView,
     ShellSelectionView,
-    SettingsMenuRow,
     SettingsOverviewView,
 };
 use crate::chatwidget::settings_overlay::{
@@ -176,10 +175,7 @@ impl ChatWidget<'_> {
         let rows = self
             .build_settings_overview_rows()
             .into_iter()
-            .map(|row| SettingsMenuRow {
-                section: row.section,
-                summary: row.summary,
-            })
+            .map(|row| (row.section, row.summary))
             .collect();
         let view = SettingsOverviewView::new(rows, initial_section, self.app_event_tx.clone());
         self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_overview(view));

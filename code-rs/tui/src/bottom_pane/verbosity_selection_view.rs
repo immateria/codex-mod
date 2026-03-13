@@ -34,46 +34,50 @@ const VERBOSITY_OPTIONS: [(TextVerbosity, &str, &str); 3] = [
 /// Interactive UI for selecting text verbosity level.
 pub(crate) struct VerbositySelectionView {
     current_verbosity: TextVerbosity,
-    selected_verbosity: TextVerbosity,
+    selected_idx: usize,
     app_event_tx: AppEventSender,
     is_complete: bool,
 }
 
 impl VerbositySelectionView {
     pub fn new(current_verbosity: TextVerbosity, app_event_tx: AppEventSender) -> Self {
+        let selected_idx = VERBOSITY_OPTIONS
+            .iter()
+            .position(|(verbosity, _, _)| *verbosity == current_verbosity)
+            .unwrap_or(0);
         Self {
             current_verbosity,
-            selected_verbosity: current_verbosity,
+            selected_idx,
             app_event_tx,
             is_complete: false,
         }
     }
 
-    fn selected_index(&self) -> usize {
+    fn selected_verbosity(&self) -> TextVerbosity {
         VERBOSITY_OPTIONS
-            .iter()
-            .position(|(verbosity, _, _)| *verbosity == self.selected_verbosity)
-            .unwrap_or(0)
+            .get(self.selected_idx)
+            .map(|(verbosity, _, _)| *verbosity)
+            .unwrap_or(self.current_verbosity)
     }
 
     fn set_selected_index(&mut self, idx: usize) {
         let idx = idx.min(VERBOSITY_OPTIONS.len().saturating_sub(1));
-        self.selected_verbosity = VERBOSITY_OPTIONS[idx].0;
+        self.selected_idx = idx;
     }
 
     fn move_selection_up(&mut self) {
-        let idx = wrap_prev(self.selected_index(), VERBOSITY_OPTIONS.len());
+        let idx = wrap_prev(self.selected_idx, VERBOSITY_OPTIONS.len());
         self.set_selected_index(idx);
     }
 
     fn move_selection_down(&mut self) {
-        let idx = wrap_next(self.selected_index(), VERBOSITY_OPTIONS.len());
+        let idx = wrap_next(self.selected_idx, VERBOSITY_OPTIONS.len());
         self.set_selected_index(idx);
     }
 
     fn confirm_selection(&mut self) {
         self.app_event_tx
-            .send(AppEvent::UpdateTextVerbosity(self.selected_verbosity));
+            .send(AppEvent::UpdateTextVerbosity(self.selected_verbosity()));
         self.is_complete = true;
     }
 
@@ -99,11 +103,12 @@ impl VerbositySelectionView {
         )
     }
 
-    fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, TextVerbosity>> {
+    fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
         VERBOSITY_OPTIONS
             .iter()
-            .map(|(verbosity, name, description)| {
-                let mut row = SettingsMenuRow::new(*verbosity, *name).with_detail(StyledText::new(
+            .enumerate()
+            .map(|(idx, (verbosity, name, description))| {
+                let mut row = SettingsMenuRow::new(idx, *name).with_detail(StyledText::new(
                     *description,
                     Style::new().fg(colors::text_dim()),
                 ));
@@ -162,12 +167,14 @@ impl VerbositySelectionView {
             return false;
         };
 
-        let mut selected_idx = self.selected_index();
+        let mut selected_idx = self.selected_idx;
         let result = route_selectable_list_mouse_with_config(
             mouse_event,
             &mut selected_idx,
             rows.len(),
-            |x, y| SettingsMenuPage::selection_index_in_body(layout.body, x, y, 0, rows.len()),
+            |x, y| {
+                SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, 0, &rows)
+            },
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_select: false,
@@ -220,7 +227,7 @@ impl<'a> BottomPaneView<'a> for VerbositySelectionView {
         let rows = self.menu_rows();
         let _ = page
             .framed()
-            .render_menu_rows(area, buf, 0, Some(self.selected_verbosity), &rows);
+            .render_menu_rows(area, buf, 0, Some(self.selected_idx), &rows);
     }
 }
 
@@ -250,7 +257,7 @@ mod tests {
             mouse_left_click(layout.body.x + 1, layout.body.y + 1),
             area,
         ));
-        assert_eq!(view.selected_verbosity, TextVerbosity::Medium);
+        assert_eq!(view.selected_verbosity(), TextVerbosity::Medium);
         assert!(view.is_complete);
     }
 }

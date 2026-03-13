@@ -18,7 +18,7 @@ pub(crate) struct SettingsFrame<'a> {
     pub(crate) footer_lines: Vec<Line<'static>>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SettingsFrameLayout {
     pub(crate) header: Rect,
     pub(crate) body: Rect,

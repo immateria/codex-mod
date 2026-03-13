@@ -107,7 +107,7 @@ pub(crate) use exec_limits_settings_view::ExecLimitsSettingsView;
 pub(crate) use js_repl_settings_view::JsReplSettingsView;
 pub(crate) use interface_settings_view::InterfaceSettingsView;
 pub(crate) use shell_profiles_settings_view::ShellProfilesSettingsView;
-pub(crate) use settings_overview_view::{SettingsMenuRow, SettingsOverviewView};
+pub(crate) use settings_overview_view::SettingsOverviewView;
 pub(crate) use validation_settings_view::ValidationSettingsView;
 pub(crate) use review_settings_view::ReviewSettingsView;
 pub(crate) use planning_settings_view::PlanningSettingsView;

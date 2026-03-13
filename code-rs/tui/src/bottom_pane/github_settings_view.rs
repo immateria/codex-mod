@@ -12,6 +12,9 @@ use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::settings_ui::hints::{shortcut_line, KeyHint};
 use crate::ui_interaction::{
     redraw_if,
+    route_selectable_list_mouse_with_config,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
     wrap_next,
     wrap_prev,
 };
@@ -163,21 +166,26 @@ impl GithubSettingsView {
             return false;
         };
         let rows = self.menu_rows();
-        let Some(selected) = SettingsMenuPage::selection_menu_id_in_body(
-            layout.body,
-            mouse_event.column,
-            mouse_event.row,
-            0,
-            &rows,
-        ) else {
-            return false;
-        };
-        self.selected_row = selected;
-        if matches!(mouse_event.kind, crossterm::event::MouseEventKind::Down(_)) {
+        let mut selected_row = self.selected_row;
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected_row,
+            Self::ROW_COUNT,
+            |x, y| SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, 0, &rows),
+            SelectableListMouseConfig {
+                hover_select: false,
+                scroll_select: false,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.selected_row = selected_row;
+
+        if matches!(result, SelectableListMouseResult::Activated) {
             self.activate_selected_row();
             return true;
         }
-        true
+
+        result.handled()
     }
 
     pub fn is_view_complete(&self) -> bool {

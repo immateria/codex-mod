@@ -19,16 +19,12 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use super::settings_ui::rows::StyledText;
-
-#[derive(Debug, Clone)]
-pub(crate) struct SettingsMenuRow {
-    pub(crate) section: SettingsSection,
-    pub(crate) summary: Option<String>,
-}
+use std::cell::Cell;
 
 pub(crate) struct SettingsOverviewView {
-    rows: Vec<SettingsMenuRow>,
+    rows: Vec<(SettingsSection, Option<String>)>,
     scroll: ScrollState,
+    viewport_rows: Cell<usize>,
     app_event_tx: AppEventSender,
     is_complete: bool,
 }
@@ -56,7 +52,7 @@ impl SettingsOverviewView {
     }
 
     pub(crate) fn new(
-        rows: Vec<SettingsMenuRow>,
+        rows: Vec<(SettingsSection, Option<String>)>,
         initial_section: SettingsSection,
         app_event_tx: AppEventSender,
     ) -> Self {
@@ -64,13 +60,14 @@ impl SettingsOverviewView {
         if !rows.is_empty() {
             let selected = rows
                 .iter()
-                .position(|row| row.section == initial_section)
+                .position(|(section, _)| *section == initial_section)
                 .unwrap_or(0);
             scroll.selected_idx = Some(selected);
         }
         Self {
             rows,
             scroll,
+            viewport_rows: Cell::new(12),
             app_event_tx,
             is_complete: false,
         }
@@ -81,7 +78,9 @@ impl SettingsOverviewView {
     }
 
     fn selected_section(&self) -> Option<SettingsSection> {
-        self.rows.get(self.selected_index()).map(|row| row.section)
+        self.rows
+            .get(self.selected_index())
+            .map(|(section, _)| *section)
     }
 
     fn move_up(&mut self, visible_rows: usize) {
@@ -153,6 +152,7 @@ impl SettingsOverviewView {
         }
 
         let visible_rows = layout.body.height as usize;
+        self.viewport_rows.set(visible_rows.max(1));
         let mut selected = self.selected_index();
         let scroll_top = self.scroll.scroll_top.min(self.rows.len().saturating_sub(1));
         let rows = self.menu_rows();
@@ -169,7 +169,6 @@ impl SettingsOverviewView {
                     scroll_top,
                     &rows,
                 )
-                    .and_then(|section| self.rows.iter().position(|row| row.section == section))
             },
             SelectableListMouseConfig {
                 hover_select: false,
@@ -194,13 +193,17 @@ impl SettingsOverviewView {
         }
     }
 
-    fn menu_rows(&self) -> Vec<SharedSettingsMenuRow<'_, SettingsSection>> {
+    fn menu_rows(&self) -> Vec<SharedSettingsMenuRow<'_, usize>> {
         self.rows
             .iter()
-            .map(|row| {
-                let mut item = SharedSettingsMenuRow::new(row.section, row.section.label());
-                if let Some(summary) = row.summary.as_deref() {
-                    item = item.with_detail(StyledText::new(summary, Style::new().fg(colors::text_dim())));
+            .enumerate()
+            .map(|(idx, (section, summary))| {
+                let mut item = SharedSettingsMenuRow::new(idx, section.label());
+                if let Some(summary) = summary.as_deref() {
+                    item = item.with_detail(StyledText::new(
+                        summary,
+                        Style::new().fg(colors::text_dim()),
+                    ));
                 }
                 item
             })
@@ -214,7 +217,7 @@ impl<'a> BottomPaneView<'a> for SettingsOverviewView {
         _pane: &mut BottomPane<'a>,
         key_event: KeyEvent,
     ) -> ConditionalUpdate {
-        let visible_rows = 12usize;
+        let visible_rows = self.viewport_rows.get().max(1);
         if self.process_key_event(key_event, visible_rows) {
             ConditionalUpdate::NeedsRedraw
         } else {
@@ -260,13 +263,64 @@ impl<'a> BottomPaneView<'a> for SettingsOverviewView {
                 Style::new().fg(colors::text_dim()),
             )]))
             .render(layout.body, buf);
+            self.viewport_rows.set(layout.body.height as usize);
             return;
         }
         let scroll_top = self.scroll.scroll_top.min(self.rows.len().saturating_sub(1));
         let page = self.page();
         let rows = self.menu_rows();
-        let _ = page
-            .framed()
-            .render_menu_rows(area, buf, scroll_top, self.selected_section(), &rows);
+        let Some(layout) = page.framed().render_menu_rows(
+            area,
+            buf,
+            scroll_top,
+            Some(self.selected_index()),
+            &rows,
+        ) else {
+            return;
+        };
+        self.viewport_rows.set(layout.body.height as usize);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
+    use std::sync::mpsc::channel;
+
+    fn left_click(x: u16, y: u16) -> MouseEvent {
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: x,
+            row: y,
+            modifiers: KeyModifiers::NONE,
+        }
+    }
+
+    #[test]
+    fn mouse_activation_opens_expected_section() {
+        let (tx, rx) = channel();
+        let mut view = SettingsOverviewView::new(
+            vec![
+                (SettingsSection::Model, None),
+                (SettingsSection::Theme, Some("dark".to_string())),
+                (SettingsSection::Interface, None),
+            ],
+            SettingsSection::Model,
+            AppEventSender::new(tx),
+        );
+        let area = Rect::new(0, 0, 50, 12);
+        let layout = view.page().framed().layout(area).expect("layout");
+
+        assert!(view.handle_mouse_event_direct(
+            left_click(layout.body.x, layout.body.y.saturating_add(1)),
+            area,
+        ));
+
+        match rx.recv().expect("open settings") {
+            AppEvent::OpenSettings { section } => assert_eq!(section, Some(SettingsSection::Theme)),
+            other => panic!("unexpected event: {other:?}"),
+        }
+        assert!(view.is_complete);
     }
 }
