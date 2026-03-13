@@ -2,6 +2,12 @@ use crossterm::event::MouseEvent;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
+/// Shared wrapper types for views that can render in two chrome modes:
+/// - `Framed`: the view draws its own outer frame/chrome (bottom pane).
+/// - `ContentOnly`: the view renders into a content rect that already has outer chrome (overlay).
+///
+/// The intent is to make "pick chrome once" a one-liner at call sites:
+/// `view.framed().render(...)` vs `view.content_only().render(...)`.
 pub(crate) trait ChromeRenderable {
     fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer);
     fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer);
@@ -25,6 +31,7 @@ pub(crate) struct Framed<'v, V> {
     view: &'v V,
 }
 
+/// Content-only (shell-less) chrome wrapper.
 pub(crate) struct ContentOnly<'v, V> {
     view: &'v V,
 }
@@ -33,6 +40,7 @@ pub(crate) struct FramedMut<'v, V> {
     view: &'v mut V,
 }
 
+/// Mutable content-only (shell-less) chrome wrapper.
 pub(crate) struct ContentOnlyMut<'v, V> {
     view: &'v mut V,
 }
@@ -86,4 +94,3 @@ impl<'v, V: ChromeMouseHandler> ContentOnlyMut<'v, V> {
             .handle_mouse_event_direct_in_content_only_chrome(mouse_event, area)
     }
 }
-
