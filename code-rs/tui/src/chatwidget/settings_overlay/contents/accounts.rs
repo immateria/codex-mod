@@ -16,8 +16,6 @@ use crate::bottom_pane::{
 };
 use crate::{app_event_sender::AppEventSender, colors};
 
-use super::super::SettingsContent;
-
 enum AccountsSubmenuMode {
     Switch(AccountSwitchSettingsView),
     Manage(Rc<RefCell<LoginAccountsState>>),
@@ -114,7 +112,7 @@ impl AccountsSettingsContent {
     }
 }
 
-impl SettingsContent for AccountsSettingsContent {
+impl_settings_content_custom!(AccountsSettingsContent {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
             AccountsSubmenuMode::Switch(view) => view.content_only().render(area, buf),
@@ -196,4 +194,4 @@ impl SettingsContent for AccountsSettingsContent {
             ),
         }
     }
-}
+});

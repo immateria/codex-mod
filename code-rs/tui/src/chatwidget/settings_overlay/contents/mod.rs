@@ -146,6 +146,14 @@ macro_rules! impl_settings_content_view_complete_key_always_true {
     };
 }
 
+macro_rules! impl_settings_content_custom {
+    ($ty:ty { $($body:tt)* }) => {
+        impl super::super::SettingsContent for $ty {
+            $($body)*
+        }
+    };
+}
+
 mod accounts;
 mod auto_drive;
 mod exec_limits;

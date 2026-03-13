@@ -65,20 +65,11 @@ for pat in "${checks_regex[@]}"; do
   fi
 done
 
-allowed_impl_settings_content_files=(
-  # This one has multiple embedded flows and doesn't map cleanly to the common
-  # macros yet.
-  "accounts.rs"
-)
-
-raw_impl_matches="$(cd "$ROOT_DIR" && rg -n -e "impl\\s+SettingsContent\\s+for" "$OVERLAY_CONTENTS_DIR" --glob '*.rs' || true)"
+raw_impl_matches="$(cd "$ROOT_DIR" && rg -n -e "impl\\s+.*SettingsContent\\s+for" "$OVERLAY_CONTENTS_DIR" --glob '*.rs' --glob '!mod.rs' || true)"
 impl_matches="$(printf '%s' "$raw_impl_matches" | rg -v ":[0-9]+:\\s*(//|/\\*|\\*)" || true)"
-for file in "${allowed_impl_settings_content_files[@]}"; do
-  impl_matches="$(printf '%s' "$impl_matches" | rg -v "/contents/${file}:" || true)"
-done
 if [[ -n "$impl_matches" ]]; then
   echo "ERROR: Overlay contents should use the shared content impl macros." >&2
-  echo "Found view-local \`impl SettingsContent for ...\` blocks:" >&2
+  echo "Found view-local \`SettingsContent\` impl blocks:" >&2
   echo "$impl_matches" >&2
   violations=1
 fi
