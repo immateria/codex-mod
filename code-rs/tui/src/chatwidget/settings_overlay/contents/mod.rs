@@ -58,6 +58,94 @@ macro_rules! impl_settings_content_with_paste {
     };
 }
 
+macro_rules! impl_settings_content_view_complete {
+    ($ty:ty) => {
+        impl super::super::SettingsContent for $ty {
+            fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+                self.view.content_only().render(area, buf);
+            }
+
+            fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> bool {
+                self.view.handle_key_event_direct(key)
+            }
+
+            fn is_complete(&self) -> bool {
+                self.view.is_view_complete()
+            }
+
+            fn handle_mouse(
+                &mut self,
+                mouse_event: crossterm::event::MouseEvent,
+                area: ratatui::layout::Rect,
+            ) -> bool {
+                self.view
+                    .content_only_mut()
+                    .handle_mouse_event_direct(mouse_event, area)
+            }
+        }
+    };
+}
+
+macro_rules! impl_settings_content_conditional_mouse {
+    ($ty:ty) => {
+        impl super::super::SettingsContent for $ty {
+            fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+                self.view.content_only().render(area, buf);
+            }
+
+            fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> bool {
+                self.view.handle_key_event_direct(key)
+            }
+
+            fn is_complete(&self) -> bool {
+                self.view.is_complete()
+            }
+
+            fn handle_mouse(
+                &mut self,
+                mouse_event: crossterm::event::MouseEvent,
+                area: ratatui::layout::Rect,
+            ) -> bool {
+                matches!(
+                    self.view
+                        .content_only_mut()
+                        .handle_mouse_event_direct(mouse_event, area),
+                    crate::bottom_pane::ConditionalUpdate::NeedsRedraw
+                )
+            }
+        }
+    };
+}
+
+macro_rules! impl_settings_content_view_complete_key_always_true {
+    ($ty:ty) => {
+        impl super::super::SettingsContent for $ty {
+            fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+                self.view.content_only().render(area, buf);
+            }
+
+            fn handle_key(&mut self, key: crossterm::event::KeyEvent) -> bool {
+                self.view.handle_key_event_direct(key);
+                true
+            }
+
+            fn is_complete(&self) -> bool {
+                self.view.is_view_complete()
+            }
+
+            fn handle_mouse(
+                &mut self,
+                mouse_event: crossterm::event::MouseEvent,
+                area: ratatui::layout::Rect,
+            ) -> bool {
+                self.view
+                    .content_only_mut()
+                    .handle_mouse_event_direct(mouse_event, area)
+            }
+        }
+    };
+}
+
 mod accounts;
 mod auto_drive;
 mod exec_limits;
