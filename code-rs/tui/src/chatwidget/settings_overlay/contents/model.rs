@@ -10,4 +10,4 @@ impl ModelSettingsContent {
     }
 }
 
-impl_settings_content_conditional_mouse!(ModelSettingsContent);
+impl_settings_content!(ModelSettingsContent);

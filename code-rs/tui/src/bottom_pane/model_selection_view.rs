@@ -45,17 +45,12 @@ pub(crate) struct ModelSelectionView {
     visible_body_rows: Cell<usize>,
 }
 
-pub(crate) struct ModelSelectionViewFramed<'v> {
-    view: &'v ModelSelectionView,
-}
-
-pub(crate) struct ModelSelectionViewContentOnly<'v> {
-    view: &'v ModelSelectionView,
-}
-
-pub(crate) struct ModelSelectionViewContentOnlyMut<'v> {
-    view: &'v mut ModelSelectionView,
-}
+pub(crate) type ModelSelectionViewFramed<'v> =
+    super::chrome_view::Framed<'v, ModelSelectionView>;
+pub(crate) type ModelSelectionViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, ModelSelectionView>;
+pub(crate) type ModelSelectionViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, ModelSelectionView>;
 
 impl ModelSelectionView {
     pub fn new(params: ModelSelectionViewParams, app_event_tx: AppEventSender) -> Self {
@@ -81,15 +76,15 @@ impl ModelSelectionView {
     }
 
     pub(crate) fn framed(&self) -> ModelSelectionViewFramed<'_> {
-        ModelSelectionViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> ModelSelectionViewContentOnly<'_> {
-        ModelSelectionViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ModelSelectionViewContentOnlyMut<'_> {
-        ModelSelectionViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {
@@ -258,19 +253,6 @@ impl ModelSelectionView {
             }
             _ => false,
         }
-    }
-
-    /// Used when embedded in settings overlay. Mouse routing reuses the shared
-    /// menu-page body layout and line-run hit testing.
-    fn handle_mouse_event_direct_content_only(
-        &mut self,
-        mouse_event: MouseEvent,
-        area: Rect,
-    ) -> ConditionalUpdate {
-        let Some(layout) = self.page().content_only().layout(area) else {
-            return ConditionalUpdate::NoRedraw;
-        };
-        self.handle_mouse_event_shared(mouse_event, layout.body)
     }
 
     fn send_closed(&mut self, accepted: bool) {
@@ -618,22 +600,43 @@ impl ModelSelectionView {
     }
 }
 
-impl<'v> ModelSelectionViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for ModelSelectionView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> ModelSelectionViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for ModelSelectionView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        let Some(layout) = self.page().framed().layout(area) else {
+            return false;
+        };
+        matches!(
+            self.handle_mouse_event_shared(mouse_event, layout.body),
+            ConditionalUpdate::NeedsRedraw
+        )
     }
-}
 
-impl<'v> ModelSelectionViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> ConditionalUpdate {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        let Some(layout) = self.page().content_only().layout(area) else {
+            return false;
+        };
+        matches!(
+            self.handle_mouse_event_shared(mouse_event, layout.body),
+            ConditionalUpdate::NeedsRedraw
+        )
     }
 }
 
@@ -916,5 +919,23 @@ mod tests {
             .map(|x| buf[(x, 0)].symbol())
             .collect();
         assert!(top_row.contains("Current model:"));
+    }
+
+    #[test]
+    fn content_only_hit_testing_uses_content_geometry_not_framed_geometry() {
+        let view = make_view(ModelSelectionTarget::Session, vec![preset("gpt-5.3-codex")]);
+        let area = Rect::new(0, 0, 40, 12);
+
+        let content_layout = view.page().content_only().layout(area).expect("layout");
+        let framed_layout = view.page().framed().layout(area).expect("layout");
+
+        let x = content_layout.body.x;
+        let y = content_layout.body.y.saturating_add(2); // Fast Mode selectable row
+
+        assert_eq!(
+            view.hit_test_in_body(content_layout.body, x, y),
+            Some(0)
+        );
+        assert_eq!(view.hit_test_in_body(framed_layout.body, x, y), None);
     }
 }
