@@ -17,7 +17,7 @@ use crate::ui_interaction::{inset_rect_right, redraw_if, render_vertical_scrollb
 use super::super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::super::BottomPane;
 use super::layout::{McpPaneHit, McpViewLayout};
-use super::{McpSettingsFocus, McpSettingsMode, McpSettingsView};
+use super::{McpRenderChrome, McpSettingsFocus, McpSettingsMode, McpSettingsView};
 
 const MCP_SETTINGS_DESIRED_HEIGHT: u16 = 16;
 
@@ -31,42 +31,12 @@ impl McpSettingsView {
             Style::default().fg(crate::colors::border())
         }
     }
-}
 
-impl<'a> BottomPaneView<'a> for McpSettingsView {
-    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        let _ = self.process_key_event(key_event);
-    }
-
-    fn handle_key_event_with_result(
-        &mut self,
-        _pane: &mut BottomPane<'a>,
-        key_event: KeyEvent,
-    ) -> ConditionalUpdate {
-        redraw_if(self.process_key_event(key_event))
-    }
-
-    fn handle_mouse_event(
-        &mut self,
-        _pane: &mut BottomPane<'a>,
-        mouse_event: MouseEvent,
-        area: Rect,
-    ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
-    }
-
-    fn is_complete(&self) -> bool {
-        self.is_complete
-    }
-
-    fn desired_height(&self, _width: u16) -> u16 {
-        // Keep MCP settings stable; the view can scroll in stacked mode when content grows.
-        MCP_SETTINGS_DESIRED_HEIGHT
-    }
-
-    fn render(&self, area: Rect, buf: &mut Buffer) {
+    pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
         Clear.render(area, buf);
         self.last_render_area.set(Some(area));
+        self.last_render_chrome.set(McpRenderChrome::Framed);
+
         let Some(layout) = McpViewLayout::from_area_with_scroll(area, self.stacked_scroll_top) else {
             return;
         };
@@ -83,6 +53,50 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
             .title_alignment(Alignment::Center);
         block.render(area, buf);
 
+        self.render_main_panes(layout, buf);
+        if let Some(hint_area) = layout.hint_area {
+            self.render_hints(hint_area, buf);
+        }
+
+        if !matches!(self.mode, McpSettingsMode::Main) {
+            self.render_policy_editor_framed(area, buf);
+        }
+    }
+
+    pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+
+        Clear.render(area, buf);
+        self.last_render_area.set(Some(area));
+        self.last_render_chrome.set(McpRenderChrome::ContentOnly);
+        crate::util::buffer::fill_rect(
+            buf,
+            area,
+            Some(' '),
+            Style::default()
+                .bg(crate::colors::background())
+                .fg(crate::colors::text()),
+        );
+
+        let Some(layout) =
+            McpViewLayout::from_content_area_with_scroll(area, self.stacked_scroll_top)
+        else {
+            return;
+        };
+
+        self.render_main_panes(layout, buf);
+        if let Some(hint_area) = layout.hint_area {
+            self.render_hints(hint_area, buf);
+        }
+
+        if !matches!(self.mode, McpSettingsMode::Main) {
+            self.render_policy_editor_content_only(area, buf);
+        }
+    }
+
+    fn render_main_panes(&self, layout: McpViewLayout, buf: &mut Buffer) {
         let list_block = Block::default()
             .borders(Borders::ALL)
             .border_style(self.pane_border_style(McpSettingsFocus::Servers, McpPaneHit::Servers))
@@ -204,54 +218,86 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
                 viewport_len,
             );
         }
+    }
 
-        if let Some(hint_area) = layout.hint_area {
-            match self.mode {
-                McpSettingsMode::Main => Paragraph::new(Line::from(vec![
+    fn render_hints(&self, hint_area: Rect, buf: &mut Buffer) {
+        match self.mode {
+            McpSettingsMode::Main => Paragraph::new(Line::from(vec![
+                Span::styled("↑↓", Style::default().fg(crate::colors::function())),
+                Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("Space", Style::default().fg(crate::colors::success())),
+                Span::styled(" toggle tool  ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                Span::styled(" expand tool  ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("Tab", Style::default().fg(crate::colors::function())),
+                Span::styled(" /Click", Style::default().fg(crate::colors::function())),
+                Span::styled(" focus pane  ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("E", Style::default().fg(crate::colors::function())),
+                Span::styled(
+                    " edit scheduling  ",
+                    Style::default().fg(crate::colors::text_dim()),
+                ),
+                Span::styled("W", Style::default().fg(crate::colors::function())),
+                Span::styled(" wrap  ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("Esc", Style::default().fg(crate::colors::error())),
+                Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
+            ]))
+            .render(hint_area, buf),
+            McpSettingsMode::EditServerScheduling(_) | McpSettingsMode::EditToolScheduling(_) => {
+                Paragraph::new(Line::from(vec![
                     Span::styled("↑↓", Style::default().fg(crate::colors::function())),
                     Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("Space", Style::default().fg(crate::colors::success())),
-                    Span::styled(" toggle tool  ", Style::default().fg(crate::colors::text_dim())),
                     Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                    Span::styled(" expand tool  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("Tab", Style::default().fg(crate::colors::function())),
-                    Span::styled(" /Click", Style::default().fg(crate::colors::function())),
-                    Span::styled(" focus pane  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("E", Style::default().fg(crate::colors::function())),
-                    Span::styled(" edit scheduling  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("PgUp/PgDn", Style::default().fg(crate::colors::function())),
-                    Span::styled(" scroll details  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("Shift+Wheel", Style::default().fg(crate::colors::function())),
-                    Span::styled(" h-scroll  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("R", Style::default().fg(crate::colors::function())),
-                    Span::styled(" refresh  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("S", Style::default().fg(crate::colors::function())),
-                    Span::styled(" /mcp status  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("W", Style::default().fg(crate::colors::function())),
                     Span::styled(
-                        if self.summary_wrap { " wrap:on  " } else { " wrap:off  " },
+                        " edit/toggle  ",
                         Style::default().fg(crate::colors::text_dim()),
                     ),
-                    Span::styled("Esc", Style::default().fg(crate::colors::error())),
-                    Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
-                ]))
-                .render(hint_area, buf),
-                _ => Paragraph::new(Line::from(vec![
-                    Span::styled("↑↓", Style::default().fg(crate::colors::function())),
-                    Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                    Span::styled(" edit/toggle  ", Style::default().fg(crate::colors::text_dim())),
                     Span::styled("Ctrl+S", Style::default().fg(crate::colors::function())),
                     Span::styled(" save  ", Style::default().fg(crate::colors::text_dim())),
                     Span::styled("Esc", Style::default().fg(crate::colors::error())),
                     Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
                 ]))
-                .render(hint_area, buf),
-            };
-        }
+                .render(hint_area, buf)
+            }
+        };
+    }
+}
 
-        if !matches!(self.mode, McpSettingsMode::Main) {
-            self.render_policy_editor(area, buf);
-        }
+impl<'a> BottomPaneView<'a> for McpSettingsView {
+    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+        let _ = self.process_key_event(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.process_key_event(key_event))
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
+    }
+
+    fn is_complete(&self) -> bool {
+        self.is_complete
+    }
+
+    fn desired_height(&self, _width: u16) -> u16 {
+        // Keep MCP settings stable; the view can scroll in stacked mode when content grows.
+        MCP_SETTINGS_DESIRED_HEIGHT
+    }
+
+    fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.framed().render(area, buf);
     }
 }

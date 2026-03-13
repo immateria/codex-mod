@@ -281,15 +281,44 @@ impl SkillsSettingsView {
         let Some(area) = self.last_render_area.get() else {
             return false;
         };
-        let Some(layout) = self.compute_form_layout(area) else {
+        let Some(layout) = (match self.last_render_chrome.get() {
+            SkillsRenderChrome::Framed => self.compute_form_layout_framed(area),
+            SkillsRenderChrome::ContentOnly => self.compute_form_layout_content_only(area),
+        }) else {
             return false;
         };
         self.ensure_edit_focus_visible(&layout)
     }
 
-    pub fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    pub(super) fn handle_mouse_event_direct_framed(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_impl(mouse_event, area, SkillsRenderChrome::Framed)
+    }
+
+    pub(super) fn handle_mouse_event_direct_content_only(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_impl(mouse_event, area, SkillsRenderChrome::ContentOnly)
+    }
+
+    fn handle_mouse_event_direct_impl(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+        chrome: SkillsRenderChrome,
+    ) -> bool {
         if self.mode == Mode::List {
-            return self.handle_list_mouse_event(mouse_event, area);
+            return match chrome {
+                SkillsRenderChrome::Framed => self.handle_list_mouse_event_framed(mouse_event, area),
+                SkillsRenderChrome::ContentOnly => {
+                    self.handle_list_mouse_event_content_only(mouse_event, area)
+                }
+            };
         }
 
         match mouse_event.kind {
@@ -300,7 +329,7 @@ impl SkillsSettingsView {
                 }) {
                     return false;
                 }
-                self.handle_edit_click(mouse_event, area)
+                self.handle_edit_click(mouse_event, area, chrome)
             }
             MouseEventKind::Moved => {
                 if !area.contains(Position {
@@ -309,7 +338,7 @@ impl SkillsSettingsView {
                 }) {
                     return self.set_hovered_button(None);
                 }
-                self.handle_edit_mouse_move(mouse_event, area)
+                self.handle_edit_mouse_move(mouse_event, area, chrome)
             }
             MouseEventKind::ScrollUp => {
                 if !area.contains(Position {
@@ -318,7 +347,7 @@ impl SkillsSettingsView {
                 }) {
                     return false;
                 }
-                self.handle_edit_scroll(mouse_event, area, false)
+                self.handle_edit_scroll(mouse_event, area, chrome, false)
             }
             MouseEventKind::ScrollDown => {
                 if !area.contains(Position {
@@ -327,14 +356,30 @@ impl SkillsSettingsView {
                 }) {
                     return false;
                 }
-                self.handle_edit_scroll(mouse_event, area, true)
+                self.handle_edit_scroll(mouse_event, area, chrome, true)
             }
             _ => false,
         }
     }
 
-    fn handle_edit_click(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let Some(layout) = self.compute_form_layout(area) else {
+    fn compute_form_layout_for_chrome(
+        &self,
+        area: Rect,
+        chrome: SkillsRenderChrome,
+    ) -> Option<SkillsFormLayout> {
+        match chrome {
+            SkillsRenderChrome::Framed => self.compute_form_layout_framed(area),
+            SkillsRenderChrome::ContentOnly => self.compute_form_layout_content_only(area),
+        }
+    }
+
+    fn handle_edit_click(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+        chrome: SkillsRenderChrome,
+    ) -> bool {
+        let Some(layout) = self.compute_form_layout_for_chrome(area, chrome) else {
             return false;
         };
         self.set_hovered_button(None);
@@ -483,8 +528,13 @@ impl SkillsSettingsView {
         self.handle_edit_button_click(mouse_event, layout.buttons_row)
     }
 
-    fn handle_edit_mouse_move(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let Some(layout) = self.compute_form_layout(area) else {
+    fn handle_edit_mouse_move(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+        chrome: SkillsRenderChrome,
+    ) -> bool {
+        let Some(layout) = self.compute_form_layout_for_chrome(area, chrome) else {
             return self.set_hovered_button(None);
         };
         self.set_hovered_button(self.edit_button_at(
@@ -494,8 +544,14 @@ impl SkillsSettingsView {
         ))
     }
 
-    fn handle_edit_scroll(&mut self, mouse_event: MouseEvent, area: Rect, scroll_down: bool) -> bool {
-        let Some(layout) = self.compute_form_layout(area) else {
+    fn handle_edit_scroll(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+        chrome: SkillsRenderChrome,
+        scroll_down: bool,
+    ) -> bool {
+        let Some(layout) = self.compute_form_layout_for_chrome(area, chrome) else {
             return false;
         };
         let container_delta = if scroll_down { 3 } else { -3 };

@@ -81,7 +81,10 @@ impl<'a> BottomPaneView<'a> for ThemeSelectionView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn is_complete(&self) -> bool {
@@ -89,6 +92,6 @@ impl<'a> BottomPaneView<'a> for ThemeSelectionView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.render_content(area, buf);
+        self.framed().render(area, buf);
     }
 }

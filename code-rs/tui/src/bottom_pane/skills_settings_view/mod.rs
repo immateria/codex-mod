@@ -61,7 +61,30 @@ pub(crate) struct SkillsSettingsView {
     // SIDE EFFECT: `render` caches the most recent area so edit-mode focus
     // scrolling can stay aligned with the last rendered layout.
     last_render_area: Cell<Option<Rect>>,
+    last_render_chrome: Cell<SkillsRenderChrome>,
     editor: SkillEditorState,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SkillsRenderChrome {
+    Framed,
+    ContentOnly,
+}
+
+pub(crate) struct SkillsSettingsViewFramed<'v> {
+    view: &'v SkillsSettingsView,
+}
+
+pub(crate) struct SkillsSettingsViewContentOnly<'v> {
+    view: &'v SkillsSettingsView,
+}
+
+pub(crate) struct SkillsSettingsViewFramedMut<'v> {
+    view: &'v mut SkillsSettingsView,
+}
+
+pub(crate) struct SkillsSettingsViewContentOnlyMut<'v> {
+    view: &'v mut SkillsSettingsView,
 }
 
 impl SkillsSettingsView {
@@ -79,12 +102,58 @@ impl SkillsSettingsView {
             app_event_tx,
             complete: false,
             last_render_area: Cell::new(None),
+            last_render_chrome: Cell::new(SkillsRenderChrome::Framed),
             editor: SkillEditorState::new(),
         }
     }
 
     pub fn is_complete(&self) -> bool {
         self.complete
+    }
+
+    pub(crate) fn framed(&self) -> SkillsSettingsViewFramed<'_> {
+        SkillsSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> SkillsSettingsViewContentOnly<'_> {
+        SkillsSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> SkillsSettingsViewFramedMut<'_> {
+        SkillsSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> SkillsSettingsViewContentOnlyMut<'_> {
+        SkillsSettingsViewContentOnlyMut { view: self }
+    }
+}
+
+impl<'v> SkillsSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render(area, buf);
+    }
+}
+
+impl<'v> SkillsSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> SkillsSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> SkillsSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 
@@ -112,7 +181,10 @@ impl<'a> BottomPaneView<'a> for SkillsSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        redraw_if(self.handle_mouse_event_direct(mouse_event, area))
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
     }
 
     fn is_complete(&self) -> bool {
@@ -124,7 +196,7 @@ impl<'a> BottomPaneView<'a> for SkillsSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        SkillsSettingsView::render(self, area, buf);
+        self.framed().render(area, buf);
     }
 }
 #[cfg(test)]
@@ -271,11 +343,27 @@ mod tests {
         let mut view = make_view(HashMap::new());
         let area = Rect::new(0, 0, 120, 40);
 
-        let list_area = SkillsSettingsView::list_area(area);
+        let list_area = SkillsSettingsView::list_area_framed(area);
         let click = mouse_left_click(list_area.x.saturating_add(1), list_area.y);
-        assert!(view.handle_mouse_event_direct(click, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(click, area));
         assert!(matches!(view.mode, Mode::Edit));
         assert!(matches!(view.editor.focus, Focus::Name));
+    }
+
+    #[test]
+    fn content_only_list_mouse_geometry_differs_from_framed() {
+        let area = Rect::new(0, 0, 40, 10);
+        let click = mouse_left_click(area.x.saturating_add(1), area.y.saturating_add(3));
+
+        let mut framed_view = make_view(HashMap::new());
+        assert!(!framed_view.framed_mut().handle_mouse_event_direct(click, area));
+        assert!(matches!(framed_view.mode, Mode::List));
+
+        let mut content_view = make_view(HashMap::new());
+        assert!(content_view
+            .content_only_mut()
+            .handle_mouse_event_direct(click, area));
+        assert!(matches!(content_view.mode, Mode::Edit));
     }
 
     #[test]
@@ -298,12 +386,12 @@ mod tests {
         view.set_style_resource_fields_from_profile(Some(ShellScriptStyle::Zsh));
 
         let area = Rect::new(0, 0, 140, 48);
-        let layout = view.compute_form_layout(area).expect("layout should exist");
+        let layout = view.compute_form_layout_framed(area).expect("layout should exist");
         let click = mouse_left_click(
             layout.style_mcp_include_inner.x.saturating_add(1),
             layout.style_mcp_include_inner.y.saturating_add(1),
         );
-        assert!(view.handle_mouse_event_direct(click, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(click, area));
         assert!(matches!(view.editor.focus, Focus::StyleMcpInclude));
     }
 
@@ -318,13 +406,13 @@ mod tests {
         view.editor.body_field.set_text(&long_body);
 
         let area = Rect::new(0, 0, 140, 48);
-        let layout = view.compute_form_layout(area).expect("layout should exist");
+        let layout = view.compute_form_layout_framed(area).expect("layout should exist");
 
         let click = mouse_left_click(
             layout.body_inner.x.saturating_add(1),
             layout.body_inner.y.saturating_add(1),
         );
-        assert!(view.handle_mouse_event_direct(click, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(click, area));
         assert!(matches!(view.editor.focus, Focus::Body));
 
         let before = view.editor.body_field.cursor();
@@ -332,7 +420,7 @@ mod tests {
             layout.body_inner.x.saturating_add(1),
             layout.body_inner.y.saturating_add(1),
         );
-        assert!(view.handle_mouse_event_direct(scroll_down, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(scroll_down, area));
         let after = view.editor.body_field.cursor();
         assert!(after > before);
     }
@@ -342,7 +430,7 @@ mod tests {
         let mut view = make_view(HashMap::new());
         view.start_new_skill();
         let area = Rect::new(0, 0, 140, 48);
-        let layout = view.compute_form_layout(area).expect("layout should exist");
+        let layout = view.compute_form_layout_framed(area).expect("layout should exist");
 
         use unicode_width::UnicodeWidthStr;
         let save_x = layout
@@ -357,14 +445,14 @@ mod tests {
             )
             .saturating_add(1);
         let hover_save = mouse_move(save_x, layout.buttons_row.y);
-        assert!(view.handle_mouse_event_direct(hover_save, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(hover_save, area));
         assert_eq!(view.editor.hovered_button, Some(ActionButton::Save));
 
         let hover_body = mouse_move(
             layout.body_inner.x.saturating_add(1),
             layout.body_inner.y.saturating_add(1),
         );
-        assert!(view.handle_mouse_event_direct(hover_body, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(hover_body, area));
         assert_eq!(view.editor.hovered_button, None);
     }
 
@@ -383,7 +471,25 @@ mod tests {
         assert!(matches!(view.editor.focus, Focus::Body));
         assert!(view.editor.edit_scroll_top > 0);
 
-        let layout = view.compute_form_layout(area).expect("layout should exist");
+        let layout = view.compute_form_layout_framed(area).expect("layout should exist");
         assert!(layout.body_outer.height > 0);
+    }
+
+    #[test]
+    fn edit_focus_scroll_uses_last_render_chrome_mode() {
+        let mut view = make_view(HashMap::new());
+        view.start_new_skill();
+        view.editor.focus = Focus::Body;
+
+        let area = Rect::new(0, 0, 2, 10);
+        view.last_render_area.set(Some(area));
+        view.last_render_chrome.set(SkillsRenderChrome::ContentOnly);
+
+        assert_eq!(view.editor.edit_scroll_top, 0);
+        assert!(view.handle_key_event_direct(KeyEvent::new(
+            KeyCode::Char('a'),
+            KeyModifiers::NONE
+        )));
+        assert!(view.editor.edit_scroll_top > 0);
     }
 }

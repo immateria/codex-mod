@@ -533,13 +533,78 @@ impl ThemeSelectionView {
         handled
     }
 
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    pub(super) fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         if area.width == 0 || area.height == 0 {
             return false;
         }
 
         let inner = Block::default().borders(Borders::ALL).inner(area);
         let body_area = inner.inner(Margin::new(1, 1));
+        if body_area.width == 0 || body_area.height == 0 {
+            return false;
+        }
+
+        let in_body = mouse_event.column >= body_area.x
+            && mouse_event.column < body_area.x.saturating_add(body_area.width)
+            && mouse_event.row >= body_area.y
+            && mouse_event.row < body_area.y.saturating_add(body_area.height);
+
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                if !in_body {
+                    if matches!(self.mode, Mode::Themes) {
+                        return self.clear_hovered_theme_preview();
+                    }
+                    return false;
+                }
+                match self.mode {
+                    Mode::Themes => self.handle_mouse_hover(mouse_event, body_area),
+                    // Keep spinner list scrolling on wheel/click only.
+                    Mode::Spinner => false,
+                    Mode::Overview | Mode::CreateSpinner(_) | Mode::CreateTheme(_) => {
+                        self.handle_mouse_hover(mouse_event, body_area)
+                    }
+                }
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                if !in_body {
+                    return false;
+                }
+                self.handle_mouse_click(mouse_event, body_area)
+            }
+            MouseEventKind::ScrollUp => {
+                if !in_body {
+                    return false;
+                }
+                self.process_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+                true
+            }
+            MouseEventKind::ScrollDown => {
+                if !in_body {
+                    return false;
+                }
+                self.process_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+                true
+            }
+            _ => false,
+        }
+    }
+
+    pub(super) fn handle_mouse_event_direct_content_only(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        if area.width == 0 || area.height == 0 {
+            return false;
+        }
+
+        let body_area = Rect {
+            x: area.x,
+            y: area.y.saturating_add(1),
+            width: area.width,
+            height: area.height.saturating_sub(1),
+        };
         if body_area.width == 0 || body_area.height == 0 {
             return false;
         }

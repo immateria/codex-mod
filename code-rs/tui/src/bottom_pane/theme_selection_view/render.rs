@@ -20,6 +20,24 @@ impl ThemeSelectionView {
         }
     }
 
+    pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
+        let options = Self::get_theme_options();
+        let theme = crate::theme::current_theme();
+        let body_area = self.render_content_only_shell(area, buf);
+        if body_area.width == 0 || body_area.height == 0 {
+            return;
+        }
+
+        let available_height = body_area.height as usize;
+        match self.mode {
+            Mode::Overview => self.render_overview_mode(body_area, &theme, buf),
+            Mode::Themes => self.render_themes_mode(body_area, &theme, &options, buf),
+            Mode::Spinner => self.render_spinner_mode(body_area, available_height, &theme, buf),
+            Mode::CreateSpinner(_) => self.render_create_spinner_mode(body_area, &theme, buf),
+            Mode::CreateTheme(_) => self.render_create_theme_mode(body_area, &theme, buf),
+        }
+    }
+
     fn render_shell(&self, area: Rect, buf: &mut Buffer) -> Rect {
         // Use full width and draw an outer window styled like the Diff overlay.
         let render_area = Rect {
@@ -85,5 +103,56 @@ impl ThemeSelectionView {
 
         // Add one cell padding around the inside; body occupies full padded area.
         inner.inner(ratatui::layout::Margin::new(1, 1))
+    }
+
+    fn render_content_only_shell(&self, area: Rect, buf: &mut Buffer) -> Rect {
+        if area.width == 0 || area.height == 0 {
+            return Rect::default();
+        }
+
+        crate::util::buffer::fill_rect(
+            buf,
+            area,
+            Some(' '),
+            Style::new().bg(crate::colors::background()),
+        );
+
+        let header_rect = Rect {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: 1,
+        };
+
+        let t_dim = Style::new().fg(crate::colors::text_dim());
+        let t_fg = Style::new().fg(crate::colors::text());
+
+        let mut spans = vec![Span::styled(" ", t_dim), Span::styled("/theme", t_fg)];
+        spans.extend_from_slice(&[
+            Span::styled(" ——— ", t_dim),
+            Span::styled("▲ ▼ ◀ ▶", t_fg),
+            Span::styled(" select ", t_dim),
+            Span::styled("——— ", t_dim),
+            Span::styled("Enter", t_fg),
+            Span::styled(" choose ", t_dim),
+            Span::styled("——— ", t_dim),
+            Span::styled("Esc", t_fg),
+        ]);
+        if matches!(self.mode, Mode::Overview) {
+            spans.push(Span::styled(" close ", t_dim));
+        } else {
+            spans.push(Span::styled(" back ", t_dim));
+        }
+
+        Paragraph::new(Line::from(spans))
+            .style(Style::new().bg(crate::colors::background()))
+            .render(header_rect, buf);
+
+        Rect {
+            x: area.x,
+            y: area.y.saturating_add(1),
+            width: area.width,
+            height: area.height.saturating_sub(1),
+        }
     }
 }

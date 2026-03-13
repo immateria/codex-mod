@@ -120,8 +120,14 @@ fn parse_optional_u32_field(label: &str, text: &str) -> Result<Option<u32>, Stri
 }
 
 fn centered_overlay_rect(area: Rect, max_w: u16, max_h: u16) -> Rect {
-    let w = max_w.min(area.width.saturating_sub(2)).max(24);
-    let h = max_h.min(area.height.saturating_sub(2)).max(8);
+    let w = max_w
+        .min(area.width.saturating_sub(2))
+        .max(24)
+        .min(area.width);
+    let h = max_h
+        .min(area.height.saturating_sub(2))
+        .max(8)
+        .min(area.height);
     let x = area.x.saturating_add((area.width.saturating_sub(w)) / 2);
     let y = area.y.saturating_add((area.height.saturating_sub(h)) / 2);
     Rect { x, y, width: w, height: h }
@@ -815,13 +821,33 @@ impl McpSettingsView {
         }
     }
 
-    pub(super) fn handle_policy_editor_mouse(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    pub(super) fn handle_policy_editor_mouse_framed(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        let outer = Block::default().borders(Borders::ALL).inner(area);
+        self.handle_policy_editor_mouse_in_outer(mouse_event, outer)
+    }
+
+    pub(super) fn handle_policy_editor_mouse_content_only(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_policy_editor_mouse_in_outer(mouse_event, area)
+    }
+
+    fn handle_policy_editor_mouse_in_outer(
+        &mut self,
+        mouse_event: MouseEvent,
+        outer: Rect,
+    ) -> bool {
         match mouse_event.kind {
             MouseEventKind::Down(MouseButton::Left) => {}
             _ => return false,
         }
 
-        let outer = Block::default().borders(Borders::ALL).inner(area);
         let overlay = centered_overlay_rect(outer, 76, 14);
         let inner = Block::default().borders(Borders::ALL).inner(overlay);
         let (row_start_y, row_count) = match &self.mode {
@@ -866,8 +892,16 @@ impl McpSettingsView {
         handled
     }
 
-    pub(super) fn render_policy_editor(&self, area: Rect, buf: &mut Buffer) {
+    pub(super) fn render_policy_editor_framed(&self, area: Rect, buf: &mut Buffer) {
         let outer = Block::default().borders(Borders::ALL).inner(area);
+        self.render_policy_editor_in_outer(outer, buf);
+    }
+
+    pub(super) fn render_policy_editor_content_only(&self, area: Rect, buf: &mut Buffer) {
+        self.render_policy_editor_in_outer(area, buf);
+    }
+
+    fn render_policy_editor_in_outer(&self, outer: Rect, buf: &mut Buffer) {
         let overlay = centered_overlay_rect(outer, 76, 14);
 
         Clear.render(overlay, buf);

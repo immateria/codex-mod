@@ -36,6 +36,13 @@ pub(super) enum McpPaneHit {
 impl McpViewLayout {
     pub(super) fn from_area_with_scroll(area: Rect, stacked_scroll_top: usize) -> Option<Self> {
         let content = McpSettingsView::content_rect(area);
+        Self::from_content_area_with_scroll(content, stacked_scroll_top)
+    }
+
+    pub(super) fn from_content_area_with_scroll(
+        content: Rect,
+        stacked_scroll_top: usize,
+    ) -> Option<Self> {
         if content.width == 0 || content.height == 0 {
             return None;
         }
@@ -50,7 +57,7 @@ impl McpViewLayout {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Min(1)])
-                .split(content)
+            .split(content)
         };
 
         let main_area = vertical[0];

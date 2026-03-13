@@ -111,6 +111,11 @@ struct SummaryMetrics {
     visible_lines: usize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum McpRenderChrome {
+    Framed,
+    ContentOnly,
+}
 
 pub(crate) struct McpSettingsView {
     rows: McpServerRows,
@@ -133,6 +138,23 @@ pub(crate) struct McpSettingsView {
     is_complete: bool,
     app_event_tx: AppEventSender,
     last_render_area: Cell<Option<ratatui::layout::Rect>>,
+    last_render_chrome: Cell<McpRenderChrome>,
+}
+
+pub(crate) struct McpSettingsViewFramed<'v> {
+    view: &'v McpSettingsView,
+}
+
+pub(crate) struct McpSettingsViewContentOnly<'v> {
+    view: &'v McpSettingsView,
+}
+
+pub(crate) struct McpSettingsViewFramedMut<'v> {
+    view: &'v mut McpSettingsView,
+}
+
+pub(crate) struct McpSettingsViewContentOnlyMut<'v> {
+    view: &'v mut McpSettingsView,
 }
 
 impl McpSettingsView {
@@ -158,9 +180,62 @@ impl McpSettingsView {
             is_complete: false,
             app_event_tx,
             last_render_area: Cell::new(None),
+            last_render_chrome: Cell::new(McpRenderChrome::Framed),
         }
     }
 
+    pub(crate) fn is_complete(&self) -> bool {
+        self.is_complete
+    }
+
+    pub(crate) fn framed(&self) -> McpSettingsViewFramed<'_> {
+        McpSettingsViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> McpSettingsViewContentOnly<'_> {
+        McpSettingsViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> McpSettingsViewFramedMut<'_> {
+        McpSettingsViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> McpSettingsViewContentOnlyMut<'_> {
+        McpSettingsViewContentOnlyMut { view: self }
+    }
+}
+
+impl<'v> McpSettingsViewFramed<'v> {
+    pub(crate) fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        self.view.render_framed(area, buf);
+    }
+}
+
+impl<'v> McpSettingsViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> McpSettingsViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(
+        &mut self,
+        mouse_event: crossterm::event::MouseEvent,
+        area: ratatui::layout::Rect,
+    ) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> McpSettingsViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(
+        &mut self,
+        mouse_event: crossterm::event::MouseEvent,
+        area: ratatui::layout::Rect,
+    ) -> bool {
+        self.view
+            .handle_mouse_event_direct_content_only(mouse_event, area)
+    }
 }
 
 #[cfg(test)]
@@ -174,6 +249,7 @@ mod tests {
 
     use super::{
         McpPaneHit,
+        McpRenderChrome,
         McpServerRow,
         McpSettingsFocus,
         McpSettingsView,
@@ -313,7 +389,7 @@ mod tests {
             layout.summary_inner.y.saturating_add(1),
         );
 
-        assert!(view.handle_mouse_event_direct(event, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(event, area));
         assert_eq!(view.focus, McpSettingsFocus::Summary);
         assert!(view.summary_scroll_top > 0);
     }
@@ -370,10 +446,45 @@ mod tests {
             layout.summary_inner.y.saturating_add(1),
         );
 
-        assert!(view.handle_mouse_event_direct(event, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(event, area));
         assert_eq!(view.focus, initial_focus);
         assert_eq!(view.selected, initial_selected);
         assert_eq!(view.hovered_pane, McpPaneHit::Summary);
+    }
+
+    #[test]
+    fn content_only_mouse_geometry_differs_from_framed() {
+        let area = Rect::new(0, 0, 100, 24);
+        let event = mouse_event(MouseEventKind::Moved, area.x, area.y);
+
+        let mut framed_view = make_view(vec![make_server_row("server_a")]);
+        assert!(!framed_view.framed_mut().handle_mouse_event_direct(event, area));
+        assert_eq!(framed_view.hovered_pane, McpPaneHit::Outside);
+
+        let mut content_view = make_view(vec![make_server_row("server_a")]);
+        assert!(content_view
+            .content_only_mut()
+            .handle_mouse_event_direct(event, area));
+        assert_eq!(content_view.hovered_pane, McpPaneHit::Servers);
+    }
+
+    #[test]
+    fn stacked_focus_scroll_uses_last_render_chrome_mode() {
+        let mut view = make_view(vec![make_server_row("server_a")]);
+        let area = Rect::new(0, 0, 3, 10);
+
+        view.last_render_area.set(Some(area));
+        view.last_render_chrome.set(McpRenderChrome::ContentOnly);
+
+        assert_eq!(view.focus, McpSettingsFocus::Servers);
+        assert_eq!(view.stacked_scroll_top, 0);
+
+        assert!(view.handle_key_event_direct(KeyEvent::new(
+            KeyCode::Tab,
+            KeyModifiers::NONE
+        )));
+        assert_eq!(view.focus, McpSettingsFocus::Summary);
+        assert!(view.stacked_scroll_top > 0);
     }
 
     #[test]
@@ -394,7 +505,7 @@ mod tests {
             hover_y,
         );
 
-        assert!(view.handle_mouse_event_direct(event, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(event, area));
         assert_eq!(view.focus, initial_focus);
         assert_eq!(view.selected, initial_selected);
         assert_eq!(view.hovered_pane, McpPaneHit::Servers);
@@ -431,9 +542,9 @@ mod tests {
         );
 
         assert!(view.rows[0].enabled);
-        assert!(view.handle_mouse_event_direct(click_event, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(click_event, area));
         assert!(view.rows[0].enabled);
-        assert!(view.handle_mouse_event_direct(click_event, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(click_event, area));
         assert!(!view.rows[0].enabled);
     }
 
@@ -454,7 +565,7 @@ mod tests {
             layout.tools_inner.x.saturating_add(2),
             tool_row_y,
         );
-        assert!(view.handle_mouse_event_direct(toggle_hover, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(toggle_hover, area));
         assert_eq!(view.hovered_pane, McpPaneHit::Tools);
         assert_eq!(view.hovered_tool_index, Some(0));
         assert_eq!(view.hovered_tool_part, Some(McpToolHoverPart::Toggle));
@@ -464,7 +575,7 @@ mod tests {
             layout.tools_inner.x.saturating_add(6),
             tool_row_y,
         );
-        assert!(view.handle_mouse_event_direct(expand_hover, area));
+        assert!(view.framed_mut().handle_mouse_event_direct(expand_hover, area));
         assert_eq!(view.hovered_tool_index, Some(0));
         assert_eq!(view.hovered_tool_part, Some(McpToolHoverPart::Expand));
     }
@@ -481,7 +592,7 @@ mod tests {
             area.x.saturating_add(area.width).saturating_add(1),
             area.y,
         );
-        assert!(!view.handle_mouse_event_direct(event, area));
+        assert!(!view.framed_mut().handle_mouse_event_direct(event, area));
         assert_eq!(view.selected, initial_selected);
         assert_eq!(view.summary_scroll_top, initial_scroll);
     }

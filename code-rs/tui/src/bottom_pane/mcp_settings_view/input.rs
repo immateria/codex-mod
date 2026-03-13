@@ -15,6 +15,7 @@ use crate::ui_interaction::{
 
 use super::{
     McpPaneHit,
+    McpRenderChrome,
     McpScrollbarDragState,
     McpScrollbarTarget,
     McpSettingsFocus,
@@ -31,7 +32,14 @@ impl McpSettingsView {
         let Some(area) = self.last_render_area.get() else {
             return false;
         };
-        let Some(layout) = McpViewLayout::from_area_with_scroll(area, self.stacked_scroll_top) else {
+        let Some(layout) = (match self.last_render_chrome.get() {
+            McpRenderChrome::Framed => {
+                McpViewLayout::from_area_with_scroll(area, self.stacked_scroll_top)
+            }
+            McpRenderChrome::ContentOnly => {
+                McpViewLayout::from_content_area_with_scroll(area, self.stacked_scroll_top)
+            }
+        }) else {
             return false;
         };
         self.stacked_scroll_top = layout.stack_scroll_top;
@@ -846,12 +854,45 @@ impl McpSettingsView {
         self.process_key_event(key_event)
     }
 
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    pub(super) fn handle_mouse_event_direct_framed(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_impl(mouse_event, area, McpRenderChrome::Framed)
+    }
+
+    pub(super) fn handle_mouse_event_direct_content_only(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_impl(mouse_event, area, McpRenderChrome::ContentOnly)
+    }
+
+    fn handle_mouse_event_direct_impl(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+        chrome: McpRenderChrome,
+    ) -> bool {
         if !matches!(self.mode, McpSettingsMode::Main) {
-            return self.handle_policy_editor_mouse(mouse_event, area);
+            return match chrome {
+                McpRenderChrome::Framed => self.handle_policy_editor_mouse_framed(mouse_event, area),
+                McpRenderChrome::ContentOnly => {
+                    self.handle_policy_editor_mouse_content_only(mouse_event, area)
+                }
+            };
         }
 
-        let Some(layout) = McpViewLayout::from_area_with_scroll(area, self.stacked_scroll_top) else {
+        let Some(layout) = (match chrome {
+            McpRenderChrome::Framed => {
+                McpViewLayout::from_area_with_scroll(area, self.stacked_scroll_top)
+            }
+            McpRenderChrome::ContentOnly => {
+                McpViewLayout::from_content_area_with_scroll(area, self.stacked_scroll_top)
+            }
+        }) else {
             return false;
         };
         self.stacked_scroll_top = layout.stack_scroll_top;
@@ -871,18 +912,10 @@ impl McpSettingsView {
                     self.handle_mouse_left_click_routed(layout, mouse_event)
                 }
             }
-            MouseEventKind::Drag(MouseButton::Left) => {
-                self.handle_scrollbar_mouse_drag(layout, mouse_event)
-            }
-            MouseEventKind::Up(MouseButton::Left) => {
-                self.clear_scrollbar_drag()
-            }
-            MouseEventKind::ScrollUp => {
-                self.handle_mouse_wheel_vertical_routed(layout, mouse_event, -1)
-            }
-            MouseEventKind::ScrollDown => {
-                self.handle_mouse_wheel_vertical_routed(layout, mouse_event, 1)
-            }
+            MouseEventKind::Drag(MouseButton::Left) => self.handle_scrollbar_mouse_drag(layout, mouse_event),
+            MouseEventKind::Up(MouseButton::Left) => self.clear_scrollbar_drag(),
+            MouseEventKind::ScrollUp => self.handle_mouse_wheel_vertical_routed(layout, mouse_event, -1),
+            MouseEventKind::ScrollDown => self.handle_mouse_wheel_vertical_routed(layout, mouse_event, 1),
             MouseEventKind::ScrollLeft => {
                 let hit = self.pane_hit_at(layout, mouse_event.column, mouse_event.row);
                 let hover_changed = self.set_hovered_pane(hit);

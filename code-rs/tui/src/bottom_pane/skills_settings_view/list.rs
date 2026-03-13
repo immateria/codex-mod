@@ -1,14 +1,22 @@
 use super::*;
 
 impl SkillsSettingsView {
-    pub(super) fn list_area(area: Rect) -> Rect {
-        let outer = Block::default().borders(Borders::ALL);
-        let inner = outer.inner(area);
+    fn list_area_from_inner(inner: Rect) -> Rect {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Length(3), Constraint::Min(1)])
             .split(inner);
         chunks[1]
+    }
+
+    pub(super) fn list_area_framed(area: Rect) -> Rect {
+        let outer = Block::default().borders(Borders::ALL);
+        let inner = outer.inner(area);
+        Self::list_area_from_inner(inner)
+    }
+
+    pub(super) fn list_area_content_only(area: Rect) -> Rect {
+        Self::list_area_from_inner(area)
     }
 
     fn list_selection_at(&self, list_area: Rect, x: u16, y: u16) -> Option<usize> {
@@ -25,8 +33,29 @@ impl SkillsSettingsView {
         }
     }
 
-    pub(super) fn handle_list_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let list_area = Self::list_area(area);
+    pub(super) fn handle_list_mouse_event_framed(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        let list_area = Self::list_area_framed(area);
+        self.handle_list_mouse_event_with_area(mouse_event, list_area)
+    }
+
+    pub(super) fn handle_list_mouse_event_content_only(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        let list_area = Self::list_area_content_only(area);
+        self.handle_list_mouse_event_with_area(mouse_event, list_area)
+    }
+
+    fn handle_list_mouse_event_with_area(
+        &mut self,
+        mouse_event: MouseEvent,
+        list_area: Rect,
+    ) -> bool {
         let mut selected = self.selected;
         let result = route_selectable_list_mouse_with_config(
             mouse_event,

@@ -1050,6 +1050,16 @@ impl BackgroundOrderTicket {
     }
 }
 
+#[cfg(test)]
+impl BackgroundOrderTicket {
+    pub(crate) fn test_ticket(request_ordinal: u64) -> Self {
+        Self {
+            request_ordinal,
+            seq_counter: Arc::new(AtomicU64::new(0)),
+        }
+    }
+}
+
 #[derive(Clone)]
 struct GhostSnapshot {
     commit: GhostCommit,

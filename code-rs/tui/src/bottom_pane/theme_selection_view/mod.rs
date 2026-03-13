@@ -142,6 +142,22 @@ pub(crate) struct ThemeSelectionView {
     is_complete: bool,
 }
 
+pub(crate) struct ThemeSelectionViewFramed<'v> {
+    view: &'v ThemeSelectionView,
+}
+
+pub(crate) struct ThemeSelectionViewContentOnly<'v> {
+    view: &'v ThemeSelectionView,
+}
+
+pub(crate) struct ThemeSelectionViewFramedMut<'v> {
+    view: &'v mut ThemeSelectionView,
+}
+
+pub(crate) struct ThemeSelectionViewContentOnlyMut<'v> {
+    view: &'v mut ThemeSelectionView,
+}
+
 
 mod core;
 mod input;
@@ -197,6 +213,28 @@ struct CreateThemeState {
     proposed_is_dark: std::cell::Cell<Option<bool>>,
 }
 
+impl ThemeSelectionView {
+    pub(crate) fn is_complete(&self) -> bool {
+        self.is_complete
+    }
+
+    pub(crate) fn framed(&self) -> ThemeSelectionViewFramed<'_> {
+        ThemeSelectionViewFramed { view: self }
+    }
+
+    pub(crate) fn content_only(&self) -> ThemeSelectionViewContentOnly<'_> {
+        ThemeSelectionViewContentOnly { view: self }
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> ThemeSelectionViewFramedMut<'_> {
+        ThemeSelectionViewFramedMut { view: self }
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> ThemeSelectionViewContentOnlyMut<'_> {
+        ThemeSelectionViewContentOnlyMut { view: self }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq)]
 enum CreateStep {
     Prompt,
@@ -226,4 +264,78 @@ struct ThemeGenerationResult {
     name: String,
     colors: code_core::config_types::ThemeColors,
     is_dark: Option<bool>,
+}
+
+impl<'v> ThemeSelectionViewFramed<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content(area, buf);
+    }
+}
+
+impl<'v> ThemeSelectionViewContentOnly<'v> {
+    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.view.render_content_only(area, buf);
+    }
+}
+
+impl<'v> ThemeSelectionViewFramedMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+}
+
+impl<'v> ThemeSelectionViewContentOnlyMut<'v> {
+    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.view.handle_mouse_event_direct_content_only(mouse_event, area)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use std::sync::mpsc;
+
+    use crossterm::event::{KeyModifiers, MouseEventKind};
+    use ratatui::layout::Rect;
+
+    use super::{Mode, ThemeSelectionView};
+    use crate::app_event_sender::AppEventSender;
+    use crate::chatwidget::BackgroundOrderTicket;
+
+    #[test]
+    fn content_only_mouse_uses_content_geometry_not_framed_geometry() {
+        let area = Rect::new(0, 0, 40, 12);
+        let event = crossterm::event::MouseEvent {
+            kind: MouseEventKind::Moved,
+            column: area.x,
+            row: area.y.saturating_add(1),
+            modifiers: KeyModifiers::NONE,
+        };
+
+        let make_view = || {
+            let (tx, _rx) = mpsc::channel();
+            let mut view = ThemeSelectionView::new(
+                code_core::config_types::ThemeName::LightPhoton,
+                AppEventSender::new(tx),
+                BackgroundOrderTicket::test_ticket(1),
+                BackgroundOrderTicket::test_ticket(1),
+            );
+            view.mode = Mode::Overview;
+            view.overview_selected_index = 1;
+            view
+        };
+
+        let mut content_view = make_view();
+        assert!(content_view
+            .content_only_mut()
+            .handle_mouse_event_direct(event, area));
+        assert_eq!(content_view.overview_selected_index, 0);
+
+        let mut framed_view = make_view();
+        assert!(!framed_view
+            .framed_mut()
+            .handle_mouse_event_direct(event, area));
+        assert_eq!(framed_view.overview_selected_index, 1);
+    }
 }
