@@ -76,21 +76,13 @@ pub(crate) struct NetworkSettingsView {
     viewport_rows: Cell<usize>,
 }
 
-pub(crate) struct NetworkSettingsViewFramed<'v> {
-    view: &'v NetworkSettingsView,
-}
-
-pub(crate) struct NetworkSettingsViewContentOnly<'v> {
-    view: &'v NetworkSettingsView,
-}
-
-pub(crate) struct NetworkSettingsViewFramedMut<'v> {
-    view: &'v mut NetworkSettingsView,
-}
-
-pub(crate) struct NetworkSettingsViewContentOnlyMut<'v> {
-    view: &'v mut NetworkSettingsView,
-}
+pub(crate) type NetworkSettingsViewFramed<'v> = super::chrome_view::Framed<'v, NetworkSettingsView>;
+pub(crate) type NetworkSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, NetworkSettingsView>;
+pub(crate) type NetworkSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, NetworkSettingsView>;
+pub(crate) type NetworkSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, NetworkSettingsView>;
 
 impl NetworkSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -515,19 +507,19 @@ impl NetworkSettingsView {
     }
 
     pub(crate) fn framed(&self) -> NetworkSettingsViewFramed<'_> {
-        NetworkSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> NetworkSettingsViewContentOnly<'_> {
-        NetworkSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> NetworkSettingsViewFramedMut<'_> {
-        NetworkSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> NetworkSettingsViewContentOnlyMut<'_> {
-        NetworkSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {
@@ -996,27 +988,31 @@ impl NetworkSettingsView {
     }
 }
 
-impl<'v> NetworkSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for NetworkSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> NetworkSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for NetworkSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> NetworkSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> NetworkSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_content(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content(mouse_event, area)
     }
 }
 

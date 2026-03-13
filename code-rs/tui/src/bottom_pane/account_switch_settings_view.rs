@@ -46,21 +46,14 @@ pub(crate) struct AccountSwitchSettingsView {
     is_complete: bool,
 }
 
-pub(crate) struct AccountSwitchSettingsViewFramed<'v> {
-    view: &'v AccountSwitchSettingsView,
-}
-
-pub(crate) struct AccountSwitchSettingsViewContentOnly<'v> {
-    view: &'v AccountSwitchSettingsView,
-}
-
-pub(crate) struct AccountSwitchSettingsViewFramedMut<'v> {
-    view: &'v mut AccountSwitchSettingsView,
-}
-
-pub(crate) struct AccountSwitchSettingsViewContentOnlyMut<'v> {
-    view: &'v mut AccountSwitchSettingsView,
-}
+pub(crate) type AccountSwitchSettingsViewFramed<'v> =
+    super::chrome_view::Framed<'v, AccountSwitchSettingsView>;
+pub(crate) type AccountSwitchSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, AccountSwitchSettingsView>;
+pub(crate) type AccountSwitchSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, AccountSwitchSettingsView>;
+pub(crate) type AccountSwitchSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, AccountSwitchSettingsView>;
 
 impl AccountSwitchSettingsView {
     const MAIN_OPTION_COUNT: usize = 6;
@@ -85,19 +78,19 @@ impl AccountSwitchSettingsView {
     }
 
     pub(crate) fn framed(&self) -> AccountSwitchSettingsViewFramed<'_> {
-        AccountSwitchSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> AccountSwitchSettingsViewContentOnly<'_> {
-        AccountSwitchSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> AccountSwitchSettingsViewFramedMut<'_> {
-        AccountSwitchSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> AccountSwitchSettingsViewContentOnlyMut<'_> {
-        AccountSwitchSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     fn auth_store_mode_label(mode: AuthCredentialsStoreMode) -> &'static str {
@@ -530,28 +523,31 @@ impl AccountSwitchSettingsView {
     }
 }
 
-impl<'v> AccountSwitchSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for AccountSwitchSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> AccountSwitchSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for AccountSwitchSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> AccountSwitchSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> AccountSwitchSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

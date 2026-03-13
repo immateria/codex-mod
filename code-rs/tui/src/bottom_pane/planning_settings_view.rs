@@ -37,21 +37,13 @@ pub(crate) struct PlanningSettingsView {
     is_complete: bool,
 }
 
-pub(crate) struct PlanningSettingsViewFramed<'v> {
-    view: &'v PlanningSettingsView,
-}
-
-pub(crate) struct PlanningSettingsViewContentOnly<'v> {
-    view: &'v PlanningSettingsView,
-}
-
-pub(crate) struct PlanningSettingsViewFramedMut<'v> {
-    view: &'v mut PlanningSettingsView,
-}
-
-pub(crate) struct PlanningSettingsViewContentOnlyMut<'v> {
-    view: &'v mut PlanningSettingsView,
-}
+pub(crate) type PlanningSettingsViewFramed<'v> = super::chrome_view::Framed<'v, PlanningSettingsView>;
+pub(crate) type PlanningSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, PlanningSettingsView>;
+pub(crate) type PlanningSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, PlanningSettingsView>;
+pub(crate) type PlanningSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, PlanningSettingsView>;
 
 impl PlanningSettingsView {
     fn page(&self) -> SettingsMenuPage<'static> {
@@ -109,19 +101,19 @@ impl PlanningSettingsView {
     }
 
     pub(crate) fn framed(&self) -> PlanningSettingsViewFramed<'_> {
-        PlanningSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> PlanningSettingsViewContentOnly<'_> {
-        PlanningSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> PlanningSettingsViewFramedMut<'_> {
-        PlanningSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> PlanningSettingsViewContentOnlyMut<'_> {
-        PlanningSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {
@@ -304,28 +296,31 @@ impl PlanningSettingsView {
     }
 }
 
-impl<'v> PlanningSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for PlanningSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> PlanningSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for PlanningSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> PlanningSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> PlanningSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

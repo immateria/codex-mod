@@ -69,21 +69,14 @@ pub(crate) struct ExecLimitsSettingsView {
     app_event_tx: AppEventSender,
 }
 
-pub(crate) struct ExecLimitsSettingsViewFramed<'v> {
-    view: &'v ExecLimitsSettingsView,
-}
-
-pub(crate) struct ExecLimitsSettingsViewContentOnly<'v> {
-    view: &'v ExecLimitsSettingsView,
-}
-
-pub(crate) struct ExecLimitsSettingsViewFramedMut<'v> {
-    view: &'v mut ExecLimitsSettingsView,
-}
-
-pub(crate) struct ExecLimitsSettingsViewContentOnlyMut<'v> {
-    view: &'v mut ExecLimitsSettingsView,
-}
+pub(crate) type ExecLimitsSettingsViewFramed<'v> =
+    super::chrome_view::Framed<'v, ExecLimitsSettingsView>;
+pub(crate) type ExecLimitsSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, ExecLimitsSettingsView>;
+pub(crate) type ExecLimitsSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, ExecLimitsSettingsView>;
+pub(crate) type ExecLimitsSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, ExecLimitsSettingsView>;
 
 impl ExecLimitsSettingsView {
     pub(crate) fn new(
@@ -453,19 +446,19 @@ impl ExecLimitsSettingsView {
     }
 
     pub(crate) fn framed(&self) -> ExecLimitsSettingsViewFramed<'_> {
-        ExecLimitsSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> ExecLimitsSettingsViewContentOnly<'_> {
-        ExecLimitsSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> ExecLimitsSettingsViewFramedMut<'_> {
-        ExecLimitsSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ExecLimitsSettingsViewContentOnlyMut<'_> {
-        ExecLimitsSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {
@@ -819,27 +812,31 @@ impl ExecLimitsSettingsView {
     }
 }
 
-impl<'v> ExecLimitsSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for ExecLimitsSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> ExecLimitsSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for ExecLimitsSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> ExecLimitsSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> ExecLimitsSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_content(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content(mouse_event, area)
     }
 }
 

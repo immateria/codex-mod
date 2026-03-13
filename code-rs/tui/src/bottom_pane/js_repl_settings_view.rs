@@ -75,21 +75,13 @@ pub(crate) struct JsReplSettingsView {
     viewport_rows: Cell<usize>,
 }
 
-pub(crate) struct JsReplSettingsViewFramed<'v> {
-    view: &'v JsReplSettingsView,
-}
-
-pub(crate) struct JsReplSettingsViewContentOnly<'v> {
-    view: &'v JsReplSettingsView,
-}
-
-pub(crate) struct JsReplSettingsViewFramedMut<'v> {
-    view: &'v mut JsReplSettingsView,
-}
-
-pub(crate) struct JsReplSettingsViewContentOnlyMut<'v> {
-    view: &'v mut JsReplSettingsView,
-}
+pub(crate) type JsReplSettingsViewFramed<'v> = super::chrome_view::Framed<'v, JsReplSettingsView>;
+pub(crate) type JsReplSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, JsReplSettingsView>;
+pub(crate) type JsReplSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, JsReplSettingsView>;
+pub(crate) type JsReplSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, JsReplSettingsView>;
 
 impl JsReplSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -587,19 +579,19 @@ impl JsReplSettingsView {
     }
 
     pub(crate) fn framed(&self) -> JsReplSettingsViewFramed<'_> {
-        JsReplSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> JsReplSettingsViewContentOnly<'_> {
-        JsReplSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> JsReplSettingsViewFramedMut<'_> {
-        JsReplSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> JsReplSettingsViewContentOnlyMut<'_> {
-        JsReplSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
@@ -987,27 +979,31 @@ impl JsReplSettingsView {
 
 }
 
-impl<'v> JsReplSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for JsReplSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> JsReplSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for JsReplSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> JsReplSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> JsReplSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_content(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content(mouse_event, area)
     }
 }
 

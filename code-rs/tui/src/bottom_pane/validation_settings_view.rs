@@ -82,17 +82,12 @@ pub(crate) struct ValidationSettingsView {
     pending_notice: Option<String>,
 }
 
-pub(crate) struct ValidationSettingsViewFramed<'v> {
-    view: &'v ValidationSettingsView,
-}
-
-pub(crate) struct ValidationSettingsViewContentOnly<'v> {
-    view: &'v ValidationSettingsView,
-}
-
-pub(crate) struct ValidationSettingsViewContentOnlyMut<'v> {
-    view: &'v mut ValidationSettingsView,
-}
+pub(crate) type ValidationSettingsViewFramed<'v> =
+    super::chrome_view::Framed<'v, ValidationSettingsView>;
+pub(crate) type ValidationSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, ValidationSettingsView>;
+pub(crate) type ValidationSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, ValidationSettingsView>;
 
 impl ValidationSettingsView {
     pub fn new(
@@ -462,15 +457,15 @@ impl ValidationSettingsView {
     }
 
     pub(crate) fn framed(&self) -> ValidationSettingsViewFramed<'_> {
-        ValidationSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> ValidationSettingsViewContentOnly<'_> {
-        ValidationSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ValidationSettingsViewContentOnlyMut<'_> {
-        ValidationSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
@@ -636,22 +631,31 @@ impl ValidationSettingsView {
     }
 }
 
-impl<'v> ValidationSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for ValidationSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> ValidationSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for ValidationSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_internal(None, mouse_event, area)
     }
-}
 
-impl<'v> ValidationSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

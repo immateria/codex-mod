@@ -63,21 +63,13 @@ pub(crate) struct PromptsSettingsView {
     mode: Mode,
 }
 
-pub(crate) struct PromptsSettingsViewFramed<'v> {
-    view: &'v PromptsSettingsView,
-}
-
-pub(crate) struct PromptsSettingsViewContentOnly<'v> {
-    view: &'v PromptsSettingsView,
-}
-
-pub(crate) struct PromptsSettingsViewFramedMut<'v> {
-    view: &'v mut PromptsSettingsView,
-}
-
-pub(crate) struct PromptsSettingsViewContentOnlyMut<'v> {
-    view: &'v mut PromptsSettingsView,
-}
+pub(crate) type PromptsSettingsViewFramed<'v> = super::chrome_view::Framed<'v, PromptsSettingsView>;
+pub(crate) type PromptsSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, PromptsSettingsView>;
+pub(crate) type PromptsSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, PromptsSettingsView>;
+pub(crate) type PromptsSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, PromptsSettingsView>;
 
 impl PromptsSettingsView {
     const DEFAULT_HEIGHT: u16 = 20;
@@ -297,19 +289,19 @@ impl PromptsSettingsView {
     }
 
     pub(crate) fn framed(&self) -> PromptsSettingsViewFramed<'_> {
-        PromptsSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> PromptsSettingsViewContentOnly<'_> {
-        PromptsSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> PromptsSettingsViewFramedMut<'_> {
-        PromptsSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> PromptsSettingsViewContentOnlyMut<'_> {
-        PromptsSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -802,28 +794,31 @@ impl PromptsSettingsView {
     }
 }
 
-impl<'v> PromptsSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for PromptsSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> PromptsSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for PromptsSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> PromptsSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> PromptsSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

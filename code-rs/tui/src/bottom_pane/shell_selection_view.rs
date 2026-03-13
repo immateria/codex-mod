@@ -88,21 +88,13 @@ pub(crate) struct ShellSelectionView {
     hovered_action: Option<EditAction>,
 }
 
-pub(crate) struct ShellSelectionViewFramed<'v> {
-    view: &'v ShellSelectionView,
-}
-
-pub(crate) struct ShellSelectionViewContentOnly<'v> {
-    view: &'v ShellSelectionView,
-}
-
-pub(crate) struct ShellSelectionViewFramedMut<'v> {
-    view: &'v mut ShellSelectionView,
-}
-
-pub(crate) struct ShellSelectionViewContentOnlyMut<'v> {
-    view: &'v mut ShellSelectionView,
-}
+pub(crate) type ShellSelectionViewFramed<'v> = super::chrome_view::Framed<'v, ShellSelectionView>;
+pub(crate) type ShellSelectionViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, ShellSelectionView>;
+pub(crate) type ShellSelectionViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, ShellSelectionView>;
+pub(crate) type ShellSelectionViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, ShellSelectionView>;
 
 impl ShellSelectionView {
     pub fn new(
@@ -156,19 +148,19 @@ impl ShellSelectionView {
     }
 
     pub(crate) fn framed(&self) -> ShellSelectionViewFramed<'_> {
-        ShellSelectionViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> ShellSelectionViewContentOnly<'_> {
-        ShellSelectionViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> ShellSelectionViewFramedMut<'_> {
-        ShellSelectionViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ShellSelectionViewContentOnlyMut<'_> {
-        ShellSelectionViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     fn pick_shell_binary_from_dialog(&mut self) -> bool {
@@ -965,6 +957,34 @@ impl ShellSelectionView {
     }
 }
 
+impl super::chrome_view::ChromeRenderable for ShellSelectionView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
+    }
+}
+
+impl super::chrome_view::ChromeMouseHandler for ShellSelectionView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
+    }
+}
+
 impl<'a> BottomPaneView<'a> for ShellSelectionView {
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
         let _ = self.handle_key_event_direct(key_event);
@@ -1257,31 +1277,6 @@ impl ShellSelectionView {
         };
         Paragraph::new(Line::from(Span::styled(style_text, style_style)))
             .render(style_inner, buf);
-    }
-}
-
-impl<'v> ShellSelectionViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
-    }
-}
-
-impl<'v> ShellSelectionViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
-    }
-}
-
-impl<'v> ShellSelectionViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> ShellSelectionViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

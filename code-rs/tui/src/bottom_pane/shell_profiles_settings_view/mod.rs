@@ -66,21 +66,14 @@ pub(crate) struct ShellProfilesSettingsView {
     pick_viewport_rows: Cell<usize>,
 }
 
-pub(crate) struct ShellProfilesSettingsViewFramed<'v> {
-    view: &'v ShellProfilesSettingsView,
-}
-
-pub(crate) struct ShellProfilesSettingsViewContentOnly<'v> {
-    view: &'v ShellProfilesSettingsView,
-}
-
-pub(crate) struct ShellProfilesSettingsViewFramedMut<'v> {
-    view: &'v mut ShellProfilesSettingsView,
-}
-
-pub(crate) struct ShellProfilesSettingsViewContentOnlyMut<'v> {
-    view: &'v mut ShellProfilesSettingsView,
-}
+pub(crate) type ShellProfilesSettingsViewFramed<'v> =
+    super::chrome_view::Framed<'v, ShellProfilesSettingsView>;
+pub(crate) type ShellProfilesSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, ShellProfilesSettingsView>;
+pub(crate) type ShellProfilesSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, ShellProfilesSettingsView>;
+pub(crate) type ShellProfilesSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, ShellProfilesSettingsView>;
 
 impl ShellProfilesSettingsView {
     pub(crate) fn new(
@@ -337,19 +330,19 @@ impl ShellProfilesSettingsView {
     }
 
     pub(crate) fn framed(&self) -> ShellProfilesSettingsViewFramed<'_> {
-        ShellProfilesSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> ShellProfilesSettingsViewContentOnly<'_> {
-        ShellProfilesSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> ShellProfilesSettingsViewFramedMut<'_> {
-        ShellProfilesSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ShellProfilesSettingsViewContentOnlyMut<'_> {
-        ShellProfilesSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
@@ -586,28 +579,31 @@ impl ShellProfilesSettingsView {
     }
 }
 
-impl<'v> ShellProfilesSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for ShellProfilesSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> ShellProfilesSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for ShellProfilesSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> ShellProfilesSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> ShellProfilesSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

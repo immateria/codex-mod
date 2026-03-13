@@ -40,17 +40,12 @@ pub(crate) struct NotificationsSettingsView {
     is_complete: bool,
 }
 
-pub(crate) struct NotificationsSettingsViewFramed<'v> {
-    view: &'v NotificationsSettingsView,
-}
-
-pub(crate) struct NotificationsSettingsViewContentOnly<'v> {
-    view: &'v NotificationsSettingsView,
-}
-
-pub(crate) struct NotificationsSettingsViewContentOnlyMut<'v> {
-    view: &'v mut NotificationsSettingsView,
-}
+pub(crate) type NotificationsSettingsViewFramed<'v> =
+    super::chrome_view::Framed<'v, NotificationsSettingsView>;
+pub(crate) type NotificationsSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, NotificationsSettingsView>;
+pub(crate) type NotificationsSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, NotificationsSettingsView>;
 
 impl NotificationsSettingsView {
     const SELECTABLE_ROWS: usize = 2;
@@ -212,15 +207,15 @@ impl NotificationsSettingsView {
     }
 
     pub(crate) fn framed(&self) -> NotificationsSettingsViewFramed<'_> {
-        NotificationsSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> NotificationsSettingsViewContentOnly<'_> {
-        NotificationsSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> NotificationsSettingsViewContentOnlyMut<'_> {
-        NotificationsSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {
@@ -240,6 +235,35 @@ impl NotificationsSettingsView {
             |x, y| {
                 selection_menu_id_at(layout.body, x, y, 0, &rows)
             },
+            SelectableListMouseConfig {
+                hover_select: false,
+                scroll_select: false,
+                ..SelectableListMouseConfig::default()
+            },
+        );
+        self.selected_row = selected;
+
+        if matches!(result, SelectableListMouseResult::Activated) {
+            if self.selected_row == 0 {
+                self.toggle();
+            } else {
+                self.is_complete = true;
+            }
+        }
+        result.handled()
+    }
+
+    fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let mut selected = self.selected_row;
+        let rows = self.menu_rows();
+        let Some(layout) = self.page().framed().layout(area) else {
+            return false;
+        };
+        let result = route_selectable_list_mouse_with_config(
+            mouse_event,
+            &mut selected,
+            rows.len(),
+            |x, y| selection_menu_id_at(layout.body, x, y, 0, &rows),
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_select: false,
@@ -280,22 +304,31 @@ impl NotificationsSettingsView {
 
 }
 
-impl<'v> NotificationsSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for NotificationsSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> NotificationsSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for NotificationsSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> NotificationsSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

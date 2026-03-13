@@ -210,21 +210,14 @@ pub(crate) struct AutoDriveSettingsView {
     closing: bool,
 }
 
-pub(crate) struct AutoDriveSettingsViewFramed<'v> {
-    view: &'v AutoDriveSettingsView,
-}
-
-pub(crate) struct AutoDriveSettingsViewContentOnly<'v> {
-    view: &'v AutoDriveSettingsView,
-}
-
-pub(crate) struct AutoDriveSettingsViewFramedMut<'v> {
-    view: &'v mut AutoDriveSettingsView,
-}
-
-pub(crate) struct AutoDriveSettingsViewContentOnlyMut<'v> {
-    view: &'v mut AutoDriveSettingsView,
-}
+pub(crate) type AutoDriveSettingsViewFramed<'v> =
+    super::chrome_view::Framed<'v, AutoDriveSettingsView>;
+pub(crate) type AutoDriveSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, AutoDriveSettingsView>;
+pub(crate) type AutoDriveSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, AutoDriveSettingsView>;
+pub(crate) type AutoDriveSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, AutoDriveSettingsView>;
 
 impl AutoDriveSettingsView {
     const PANEL_TITLE: &'static str = "Auto Drive Settings";
@@ -1571,19 +1564,19 @@ impl AutoDriveSettingsView {
     }
 
     pub(crate) fn framed(&self) -> AutoDriveSettingsViewFramed<'_> {
-        AutoDriveSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> AutoDriveSettingsViewContentOnly<'_> {
-        AutoDriveSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> AutoDriveSettingsViewFramedMut<'_> {
-        AutoDriveSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> AutoDriveSettingsViewContentOnlyMut<'_> {
-        AutoDriveSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
@@ -1631,33 +1624,36 @@ impl AutoDriveSettingsView {
         handled
     }
 
-    pub fn is_view_complete(&self) -> bool {
+pub fn is_view_complete(&self) -> bool {
         self.closing
     }
 }
 
-impl<'v> AutoDriveSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for AutoDriveSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> AutoDriveSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for AutoDriveSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_internal(mouse_event, area)
     }
-}
 
-impl<'v> AutoDriveSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_internal(mouse_event, area)
-    }
-}
-
-impl<'v> AutoDriveSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

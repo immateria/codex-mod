@@ -82,21 +82,13 @@ pub(crate) struct ReviewSettingsView {
     pending_notice: Option<String>,
 }
 
-pub(crate) struct ReviewSettingsViewFramed<'v> {
-    view: &'v ReviewSettingsView,
-}
-
-pub(crate) struct ReviewSettingsViewContentOnly<'v> {
-    view: &'v ReviewSettingsView,
-}
-
-pub(crate) struct ReviewSettingsViewFramedMut<'v> {
-    view: &'v mut ReviewSettingsView,
-}
-
-pub(crate) struct ReviewSettingsViewContentOnlyMut<'v> {
-    view: &'v mut ReviewSettingsView,
-}
+pub(crate) type ReviewSettingsViewFramed<'v> = super::chrome_view::Framed<'v, ReviewSettingsView>;
+pub(crate) type ReviewSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, ReviewSettingsView>;
+pub(crate) type ReviewSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, ReviewSettingsView>;
+pub(crate) type ReviewSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, ReviewSettingsView>;
 
 pub(crate) struct ReviewSettingsInit {
     pub review_use_chat_model: bool,
@@ -676,19 +668,19 @@ impl ReviewSettingsView {
     }
 
     pub(crate) fn framed(&self) -> ReviewSettingsViewFramed<'_> {
-        ReviewSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> ReviewSettingsViewContentOnly<'_> {
-        ReviewSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> ReviewSettingsViewFramedMut<'_> {
-        ReviewSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ReviewSettingsViewContentOnlyMut<'_> {
-        ReviewSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
@@ -919,28 +911,31 @@ impl ReviewSettingsView {
     }
 }
 
-impl<'v> ReviewSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for ReviewSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> ReviewSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for ReviewSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> ReviewSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> ReviewSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

@@ -218,21 +218,14 @@ pub(crate) struct InterfaceSettingsView {
     viewport_rows: Cell<usize>,
 }
 
-pub(crate) struct InterfaceSettingsViewFramed<'v> {
-    view: &'v InterfaceSettingsView,
-}
-
-pub(crate) struct InterfaceSettingsViewContentOnly<'v> {
-    view: &'v InterfaceSettingsView,
-}
-
-pub(crate) struct InterfaceSettingsViewFramedMut<'v> {
-    view: &'v mut InterfaceSettingsView,
-}
-
-pub(crate) struct InterfaceSettingsViewContentOnlyMut<'v> {
-    view: &'v mut InterfaceSettingsView,
-}
+pub(crate) type InterfaceSettingsViewFramed<'v> =
+    super::chrome_view::Framed<'v, InterfaceSettingsView>;
+pub(crate) type InterfaceSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, InterfaceSettingsView>;
+pub(crate) type InterfaceSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, InterfaceSettingsView>;
+pub(crate) type InterfaceSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, InterfaceSettingsView>;
 
 impl InterfaceSettingsView {
     fn panel_style() -> SettingsPanelStyle {
@@ -1547,19 +1540,19 @@ impl InterfaceSettingsView {
     }
 
     pub(crate) fn framed(&self) -> InterfaceSettingsViewFramed<'_> {
-        InterfaceSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> InterfaceSettingsViewContentOnly<'_> {
-        InterfaceSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> InterfaceSettingsViewFramedMut<'_> {
-        InterfaceSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> InterfaceSettingsViewContentOnlyMut<'_> {
-        InterfaceSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
@@ -1821,28 +1814,31 @@ impl InterfaceSettingsView {
     }
 }
 
-impl<'v> InterfaceSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for InterfaceSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> InterfaceSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for InterfaceSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> InterfaceSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> InterfaceSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

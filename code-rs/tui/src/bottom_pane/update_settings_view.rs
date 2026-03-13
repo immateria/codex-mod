@@ -51,21 +51,13 @@ pub(crate) struct UpdateSettingsView {
     manual_instructions: Option<String>,
 }
 
-pub(crate) struct UpdateSettingsViewFramed<'v> {
-    view: &'v UpdateSettingsView,
-}
-
-pub(crate) struct UpdateSettingsViewContentOnly<'v> {
-    view: &'v UpdateSettingsView,
-}
-
-pub(crate) struct UpdateSettingsViewFramedMut<'v> {
-    view: &'v mut UpdateSettingsView,
-}
-
-pub(crate) struct UpdateSettingsViewContentOnlyMut<'v> {
-    view: &'v mut UpdateSettingsView,
-}
+pub(crate) type UpdateSettingsViewFramed<'v> = super::chrome_view::Framed<'v, UpdateSettingsView>;
+pub(crate) type UpdateSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, UpdateSettingsView>;
+pub(crate) type UpdateSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, UpdateSettingsView>;
+pub(crate) type UpdateSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, UpdateSettingsView>;
 
 pub(crate) struct UpdateSettingsInit {
     pub(crate) app_event_tx: AppEventSender,
@@ -388,19 +380,19 @@ impl UpdateSettingsView {
     }
 
     pub(crate) fn framed(&self) -> UpdateSettingsViewFramed<'_> {
-        UpdateSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> UpdateSettingsViewContentOnly<'_> {
-        UpdateSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> UpdateSettingsViewFramedMut<'_> {
-        UpdateSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> UpdateSettingsViewContentOnlyMut<'_> {
-        UpdateSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -435,28 +427,31 @@ impl UpdateSettingsView {
     }
 }
 
-impl<'v> UpdateSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for UpdateSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> UpdateSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for UpdateSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> UpdateSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> UpdateSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 

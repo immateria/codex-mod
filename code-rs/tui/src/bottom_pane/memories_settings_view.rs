@@ -93,21 +93,14 @@ pub(crate) struct MemoriesSettingsView {
     app_event_tx: AppEventSender,
 }
 
-pub(crate) struct MemoriesSettingsViewFramed<'v> {
-    view: &'v MemoriesSettingsView,
-}
-
-pub(crate) struct MemoriesSettingsViewContentOnly<'v> {
-    view: &'v MemoriesSettingsView,
-}
-
-pub(crate) struct MemoriesSettingsViewFramedMut<'v> {
-    view: &'v mut MemoriesSettingsView,
-}
-
-pub(crate) struct MemoriesSettingsViewContentOnlyMut<'v> {
-    view: &'v mut MemoriesSettingsView,
-}
+pub(crate) type MemoriesSettingsViewFramed<'v> =
+    super::chrome_view::Framed<'v, MemoriesSettingsView>;
+pub(crate) type MemoriesSettingsViewContentOnly<'v> =
+    super::chrome_view::ContentOnly<'v, MemoriesSettingsView>;
+pub(crate) type MemoriesSettingsViewFramedMut<'v> =
+    super::chrome_view::FramedMut<'v, MemoriesSettingsView>;
+pub(crate) type MemoriesSettingsViewContentOnlyMut<'v> =
+    super::chrome_view::ContentOnlyMut<'v, MemoriesSettingsView>;
 
 impl MemoriesSettingsView {
     pub(crate) fn new(
@@ -992,19 +985,19 @@ impl MemoriesSettingsView {
     }
 
     pub(crate) fn framed(&self) -> MemoriesSettingsViewFramed<'_> {
-        MemoriesSettingsViewFramed { view: self }
+        super::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> MemoriesSettingsViewContentOnly<'_> {
-        MemoriesSettingsViewContentOnly { view: self }
+        super::chrome_view::ContentOnly::new(self)
     }
 
     pub(crate) fn framed_mut(&mut self) -> MemoriesSettingsViewFramedMut<'_> {
-        MemoriesSettingsViewFramedMut { view: self }
+        super::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> MemoriesSettingsViewContentOnlyMut<'_> {
-        MemoriesSettingsViewContentOnlyMut { view: self }
+        super::chrome_view::ContentOnlyMut::new(self)
     }
 
     fn main_page(&self) -> SettingsRowPage<'_> {
@@ -1218,28 +1211,31 @@ impl MemoriesSettingsView {
     }
 }
 
-impl<'v> MemoriesSettingsViewFramed<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_framed(area, buf);
+impl super::chrome_view::ChromeRenderable for MemoriesSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
     }
 }
 
-impl<'v> MemoriesSettingsViewContentOnly<'v> {
-    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.view.render_content_only(area, buf);
+impl super::chrome_view::ChromeMouseHandler for MemoriesSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
     }
-}
 
-impl<'v> MemoriesSettingsViewFramedMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-}
-
-impl<'v> MemoriesSettingsViewContentOnlyMut<'v> {
-    pub(crate) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.view
-            .handle_mouse_event_direct_content_only(mouse_event, area)
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
     }
 }
 
