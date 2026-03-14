@@ -691,11 +691,15 @@ impl ThemeSelectionView {
                     })
                     .unwrap_or_default();
 
-                // Enforce frame width limit (truncate to first 20 characters)
-                const MAX_CHARS: usize = 20;
+                // Enforce frame width limit (truncate to first 20 terminal columns).
+                const MAX_COLS: usize = 20;
                 frames = frames
                     .into_iter()
-                    .map(|f| f.chars().take(MAX_CHARS).collect::<String>())
+                    .map(|frame| {
+                        let (prefix, _suffix, _width) =
+                            crate::live_wrap::take_prefix_by_width(&frame, MAX_COLS);
+                        prefix
+                    })
                     .filter(|f| !f.is_empty())
                     .collect();
 
@@ -703,13 +707,22 @@ impl ThemeSelectionView {
                 if frames.len() > 50 { frames.truncate(50); }
                 if frames.len() < 2 { let _ = progress_tx.send(ProgressMsg::CompletedErr { error: "too few frames after validation".to_string(), _raw_snippet: out.chars().take(200).collect::<String>() }); return; }
 
-                // Normalize: left-pad frames to equal length if needed
-                let max_len = frames.iter().map(|f| f.chars().count()).max().unwrap_or(0);
+                // Normalize: left-pad frames to equal display width so previews align.
+                let max_len = frames
+                    .iter()
+                    .map(|frame| unicode_width::UnicodeWidthStr::width(frame.as_str()))
+                    .max()
+                    .unwrap_or(0);
                 let norm_frames: Vec<String> = frames
                     .into_iter()
-                    .map(|f| {
-                        let cur = f.chars().count();
-                        if cur >= max_len { f } else { format!("{}{}", " ".repeat(max_len - cur), f) }
+                    .map(|frame| {
+                        let cur = unicode_width::UnicodeWidthStr::width(frame.as_str());
+                        if cur >= max_len {
+                            frame
+                        } else {
+                            let pad = " ".repeat(max_len.saturating_sub(cur));
+                            format!("{pad}{frame}")
+                        }
                     })
                     .collect();
 

@@ -8,6 +8,7 @@ impl ThemeSelectionView {
         theme: &crate::theme::Theme,
         buf: &mut Buffer,
     ) {
+        use unicode_width::UnicodeWidthStr;
         use std::time::SystemTime;
         use std::time::UNIX_EPOCH;
 
@@ -30,7 +31,7 @@ impl ThemeSelectionView {
         let end = (start + visible).min(count);
 
         // Compute fixed column width globally so rows never jump when scrolling.
-        let max_frame_len: u16 = crate::spinner::global_max_frame_len() as u16;
+        let max_frame_len = u16::try_from(crate::spinner::global_max_frame_len()).unwrap_or(u16::MAX);
 
         // Render header (left-aligned) and spacer row.
         let header_rect = Rect {
@@ -77,7 +78,7 @@ impl ThemeSelectionView {
                 let mut spans = Vec::new();
                 let is_selected = index == self.selected_spinner_index;
                 spans.push(Span::styled(
-                    if is_selected { "› " } else { "  " }.to_string(),
+                    if is_selected { "› " } else { "  " },
                     Style::default().fg(if is_selected {
                         theme.keyword
                     } else {
@@ -120,15 +121,18 @@ impl ThemeSelectionView {
             };
             let label = crate::spinner::spinner_label_for(name);
 
-            let spinner_len = frame.chars().count() as u16;
-            let text_len = (label.chars().count() as u16).saturating_add(3); // label + "..."
+            let spinner_len = u16::try_from(frame.as_str().width()).unwrap_or(u16::MAX);
+            let label_width = label.as_str().width();
+            let suffix_width = "... ".width();
+            let text_len =
+                u16::try_from(label_width.saturating_add(suffix_width)).unwrap_or(u16::MAX);
             let x: u16 = max_frame_len.saturating_add(8);
             let left_rule = x.saturating_sub(spinner_len);
             let right_rule = x.saturating_sub(text_len);
 
             let mut spans: Vec<Span> = Vec::new();
             spans.push(Span::styled(
-                if is_selected { "› " } else { "  " }.to_string(),
+                if is_selected { "› " } else { "  " },
                 Style::default().fg(if is_selected {
                     theme.keyword
                 } else {

@@ -6,6 +6,7 @@ use std::sync::LockResult;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug, Clone)]
 pub struct Spinner {
@@ -198,8 +199,16 @@ fn vpush(out: &mut Vec<Spinner>, name: &str, sj: SpinnerJson) {
 
 pub fn global_max_frame_len() -> usize {
     let mut maxlen = 0usize;
-    for s in ALL_SPINNERS.iter() { for f in &s.frames { maxlen = maxlen.max(f.chars().count()); } }
-    for s in read_lock(&CUSTOM_SPINNERS).iter() { for f in &s.frames { maxlen = maxlen.max(f.chars().count()); } }
+    for spinner in ALL_SPINNERS.iter() {
+        for frame in &spinner.frames {
+            maxlen = maxlen.max(frame.as_str().width());
+        }
+    }
+    for spinner in read_lock(&CUSTOM_SPINNERS).iter() {
+        for frame in &spinner.frames {
+            maxlen = maxlen.max(frame.as_str().width());
+        }
+    }
     maxlen
 }
 

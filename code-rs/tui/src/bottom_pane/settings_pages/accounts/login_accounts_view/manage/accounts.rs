@@ -4,6 +4,7 @@ use chrono::Utc;
 use code_core::auth;
 use code_core::auth_accounts;
 use code_login::AuthMode;
+use tracing::warn;
 
 use crate::account_label::account_mode_priority;
 use crate::app_event::AppEvent;
@@ -40,7 +41,13 @@ impl LoginAccountsState {
 
         match auth_accounts::list_accounts(&self.code_home) {
             Ok(raw_accounts) => {
-                let active_id = auth_accounts::get_active_account_id(&self.code_home).ok().flatten();
+                let active_id = match auth_accounts::get_active_account_id(&self.code_home) {
+                    Ok(active_id) => active_id,
+                    Err(err) => {
+                        warn!("login accounts: failed to read active account id: {err}");
+                        None
+                    }
+                };
                 self.active_account_id = active_id.clone();
                 self.accounts = raw_accounts
                     .into_iter()
@@ -171,10 +178,14 @@ impl LoginAccountsState {
                     .as_ref()
                     .is_some_and(|id| id == &account_id);
                 if removed_active {
-                    let _ = auth::logout_with_store_mode(
+                    if let Err(err) = auth::logout_with_store_mode(
                         &self.code_home,
                         self.auth_credentials_store_mode,
-                    );
+                    ) {
+                        warn!(
+                            "login accounts: failed to logout after removing active account: {err}"
+                        );
+                    }
                 }
                 self.feedback = Some(Feedback {
                     message: "Account disconnected".to_string(),
@@ -185,8 +196,14 @@ impl LoginAccountsState {
                 let using_chatgpt = self
                     .active_account_id
                     .as_ref()
-                    .and_then(|id| auth_accounts::find_account(&self.code_home, id).ok().flatten())
-                    .map(|acc| acc.mode.is_chatgpt())
+                    .and_then(|id| match auth_accounts::find_account(&self.code_home, id) {
+                        Ok(Some(acc)) => Some(acc.mode.is_chatgpt()),
+                        Ok(None) => None,
+                        Err(err) => {
+                            warn!("login accounts: failed to read active account {id}: {err}");
+                            None
+                        }
+                    })
                     .unwrap_or(false);
                 self.app_event_tx.send(AppEvent::LoginUsingChatGptChanged {
                     using_chatgpt_auth: using_chatgpt,

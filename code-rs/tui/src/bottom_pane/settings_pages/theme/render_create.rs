@@ -167,6 +167,7 @@ impl ThemeSelectionView {
             if let (Some(interval), Some(frames)) =
                 (s.proposed_interval.get(), s.proposed_frames.borrow().as_ref())
             {
+                use unicode_width::UnicodeWidthStr;
                 use std::time::SystemTime;
                 use std::time::UNIX_EPOCH;
                 let now_ms = SystemTime::now()
@@ -180,7 +181,7 @@ impl ThemeSelectionView {
                 };
                 let preview = frames.get(idx).cloned().unwrap_or_default();
 
-                let max_frame_len: u16 = preview.chars().count() as u16;
+                let max_frame_len = u16::try_from(preview.as_str().width()).unwrap_or(u16::MAX);
                 let border = Style::default().fg(crate::colors::border());
                 let fg = Style::default().fg(crate::colors::info());
                 let x: u16 = max_frame_len.saturating_add(8);
