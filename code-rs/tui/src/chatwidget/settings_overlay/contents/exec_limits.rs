@@ -1,4 +1,4 @@
-use crate::bottom_pane::ExecLimitsSettingsView;
+use crate::bottom_pane::settings_pages::exec_limits::ExecLimitsSettingsView;
 
 pub(crate) struct ExecLimitsSettingsContent {
     view: ExecLimitsSettingsView,

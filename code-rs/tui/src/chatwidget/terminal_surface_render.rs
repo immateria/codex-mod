@@ -6,6 +6,7 @@ use super::terminal_surface_header::centered_clickable_regions_from_char_ranges;
 use super::terminal_surface_header::render_plain_header_template;
 use super::terminal_surface_header::render_dynamic_header_line;
 use super::terminal_surface_header::render_styled_header_template;
+use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
 
 type TrackedClickableLine = (
     usize,
@@ -481,7 +482,7 @@ impl ChatWidget<'_> {
 
     fn render_selected_status_line(
         &self,
-        items: &[crate::bottom_pane::StatusLineItem],
+        items: &[StatusLineItem],
         hovered_action: Option<ClickableAction>,
         hover_style: code_core::config_types::HeaderHoverStyle,
     ) -> super::terminal_surface_header::HeaderTemplateRender {
@@ -508,24 +509,22 @@ impl ChatWidget<'_> {
             added_any = true;
 
             let click_action = match item {
-                crate::bottom_pane::StatusLineItem::ModelName => {
+                StatusLineItem::ModelName => {
                     Some(ClickableAction::ShowModelSelector)
                 }
-                crate::bottom_pane::StatusLineItem::ModelWithReasoning => {
+                StatusLineItem::ModelWithReasoning => {
                     Some(ClickableAction::ShowReasoningSelector)
                 }
-                crate::bottom_pane::StatusLineItem::ServiceTier => {
+                StatusLineItem::ServiceTier => {
                     Some(ClickableAction::ToggleServiceTier)
                 }
-                crate::bottom_pane::StatusLineItem::Shell
-                | crate::bottom_pane::StatusLineItem::ShellStyle => {
+                StatusLineItem::Shell | StatusLineItem::ShellStyle => {
                     Some(ClickableAction::ShowShellSelector)
                 }
-                crate::bottom_pane::StatusLineItem::CurrentDir
-                | crate::bottom_pane::StatusLineItem::ProjectRoot => {
+                StatusLineItem::CurrentDir | StatusLineItem::ProjectRoot => {
                     Some(ClickableAction::ShowDirectoryPicker)
                 }
-                crate::bottom_pane::StatusLineItem::NetworkMediation => {
+                StatusLineItem::NetworkMediation => {
                     Some(ClickableAction::ShowNetworkSettings)
                 }
                 _ => None,

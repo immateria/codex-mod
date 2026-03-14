@@ -9,8 +9,10 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 
 use crate::bottom_pane::{
-    AccountSwitchSettingsView,
     ConditionalUpdate,
+};
+use crate::bottom_pane::settings_pages::accounts::{
+    AccountSwitchSettingsView,
     LoginAccountsState,
     LoginAddAccountState,
 };

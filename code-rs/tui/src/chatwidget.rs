@@ -236,28 +236,28 @@ use crate::bottom_pane::{
     AutoCoordinatorViewModel,
     CountdownState,
     AgentHintLabel, AutoReviewFooterStatus, AutoReviewPhase,
-    prompts_settings_view::PromptsSettingsView,
-    skills_settings_view::SkillsSettingsView,
-    McpSettingsView,
-    ModelSelectionView,
-    NotificationsMode,
-    NotificationsSettingsView,
-    StatusLineItem,
-    StatusLineSetupView,
     SettingsSection,
-    ThemeSelectionView,
-    agent_editor_view::{AgentEditorInit, AgentEditorView},
-    AutoDriveSettingsInit,
-    AutoDriveSettingsView,
-    PlanningSettingsView,
-    UpdateSettingsInit,
-    UpdateSettingsView,
-    ReviewSettingsView,
-    ValidationSettingsView,
     prompt_args,
 };
-use crate::bottom_pane::agents_settings_view::SubagentEditorView;
-use crate::bottom_pane::mcp_settings_view::{McpServerRow, McpServerRows};
+use crate::bottom_pane::settings_pages::accounts::{
+    LoginAccountsState,
+    LoginAccountsView,
+    LoginAddAccountState,
+    LoginAddAccountView,
+};
+use crate::bottom_pane::settings_pages::agents::{AgentEditorInit, AgentEditorView, SubagentEditorView};
+use crate::bottom_pane::settings_pages::auto_drive::{AutoDriveSettingsInit, AutoDriveSettingsView};
+use crate::bottom_pane::settings_pages::mcp::{McpServerRow, McpServerRows, McpSettingsView};
+use crate::bottom_pane::settings_pages::model::ModelSelectionView;
+use crate::bottom_pane::settings_pages::notifications::{NotificationsMode, NotificationsSettingsView};
+use crate::bottom_pane::settings_pages::planning::PlanningSettingsView;
+use crate::bottom_pane::settings_pages::prompts::PromptsSettingsView;
+use crate::bottom_pane::settings_pages::review::{ReviewSettingsInit, ReviewSettingsView};
+use crate::bottom_pane::settings_pages::skills::SkillsSettingsView;
+use crate::bottom_pane::settings_pages::status_line::{StatusLineItem, StatusLineSetupView};
+use crate::bottom_pane::settings_pages::theme::ThemeSelectionView;
+use crate::bottom_pane::settings_pages::updates::{UpdateSettingsInit, UpdateSettingsView, UpdateSharedState};
+use crate::bottom_pane::settings_pages::validation::ValidationSettingsView;
 use crate::exec_command::strip_bash_lc_and_escape;
 #[cfg(feature = "code-fork")]
 use crate::tui_event_extensions::handle_browser_screenshot;
@@ -2720,7 +2720,9 @@ impl ChatWidget<'_> {
 
     pub(crate) fn notify_login_device_code_pending(&mut self) {
         let _ =
-            self.with_login_add_view(crate::bottom_pane::LoginAddAccountState::begin_device_code_flow);
+            self.with_login_add_view(
+                crate::bottom_pane::settings_pages::accounts::LoginAddAccountState::begin_device_code_flow,
+            );
     }
 
     pub(crate) fn notify_login_device_code_ready(&mut self, authorize_url: String, user_code: String) {
@@ -2738,7 +2740,9 @@ impl ChatWidget<'_> {
 
     pub(crate) fn notify_login_flow_cancelled(&mut self) {
         let _ =
-            self.with_login_add_view(crate::bottom_pane::LoginAddAccountState::cancel_active_flow);
+            self.with_login_add_view(
+                crate::bottom_pane::settings_pages::accounts::LoginAddAccountState::cancel_active_flow,
+            );
     }
 
     pub(crate) fn login_add_view_active(&self) -> bool {
@@ -2848,7 +2852,7 @@ impl ChatWidget<'_> {
             ),
         ];
 
-        let tool_rows: Vec<ToolRow> = validation_settings_view::detect_tools()
+        let tool_rows: Vec<ToolRow> = crate::bottom_pane::settings_pages::validation::detect_tools()
             .into_iter()
             .map(|status| {
                 let group = match status.category {
@@ -2876,7 +2880,7 @@ impl ChatWidget<'_> {
         let auto_resolve_enabled = self.config.tui.review_auto_resolve;
         let auto_review_enabled = self.config.tui.auto_review_enabled;
         let attempts = self.configured_auto_resolve_re_reviews();
-        ReviewSettingsView::new(crate::bottom_pane::review_settings_view::ReviewSettingsInit {
+        ReviewSettingsView::new(ReviewSettingsInit {
             review_use_chat_model: self.config.review_use_chat_model,
             review_model: self.config.review_model.clone(),
             review_reasoning: self.config.review_model_reasoning_effort,
@@ -7400,7 +7404,7 @@ fi\n\
         }
         lines.push("".to_string());
         lines.push("Tools:".to_string());
-        for status in validation_settings_view::detect_tools() {
+        for status in crate::bottom_pane::settings_pages::validation::detect_tools() {
             let requested = self.validation_tool_requested(status.name);
             let effective = self.validation_tool_enabled(status.name);
             let mut state = if requested {

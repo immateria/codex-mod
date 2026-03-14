@@ -7,12 +7,8 @@ use ratatui::widgets::Widget;
 use unicode_width::UnicodeWidthStr;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
-use crate::bottom_pane::{
-    BottomPaneView,
-    ConditionalUpdate,
-    agent_editor_view::AgentEditorView,
-    agents_settings_view::SubagentEditorView,
-};
+use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
+use crate::bottom_pane::settings_pages::agents::{AgentEditorView, SubagentEditorView};
 
 use super::SettingsContent;
 

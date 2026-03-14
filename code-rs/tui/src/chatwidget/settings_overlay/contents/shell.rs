@@ -1,4 +1,4 @@
-use crate::bottom_pane::ShellSelectionView;
+use crate::bottom_pane::settings_pages::shell::ShellSelectionView;
 
 pub(crate) struct ShellSettingsContent {
     view: ShellSelectionView,

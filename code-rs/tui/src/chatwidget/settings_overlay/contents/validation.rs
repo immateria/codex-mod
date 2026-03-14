@@ -1,4 +1,4 @@
-use crate::bottom_pane::ValidationSettingsView;
+use crate::bottom_pane::settings_pages::validation::ValidationSettingsView;
 
 pub(crate) struct ValidationSettingsContent {
     view: ValidationSettingsView,

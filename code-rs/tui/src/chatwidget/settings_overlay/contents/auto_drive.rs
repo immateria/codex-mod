@@ -1,4 +1,4 @@
-use crate::bottom_pane::AutoDriveSettingsView;
+use crate::bottom_pane::settings_pages::auto_drive::AutoDriveSettingsView;
 use code_core::config_types::ReasoningEffort;
 
 pub(crate) struct AutoDriveSettingsContent {

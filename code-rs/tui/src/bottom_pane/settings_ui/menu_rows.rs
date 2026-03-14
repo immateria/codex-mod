@@ -16,6 +16,7 @@ use super::line_runs::{
 use super::rows::StyledText;
 
 const SPACES: &str = "                                                                ";
+const _: () = assert!(SPACES.len() == 64);
 
 #[derive(Clone, Debug)]
 pub(crate) struct SettingsMenuRow<'a, Id> {

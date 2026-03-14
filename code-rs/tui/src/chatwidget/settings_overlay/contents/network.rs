@@ -1,4 +1,4 @@
-use crate::bottom_pane::NetworkSettingsView;
+use crate::bottom_pane::settings_pages::network::NetworkSettingsView;
 
 pub(crate) struct NetworkSettingsContent {
     view: NetworkSettingsView,

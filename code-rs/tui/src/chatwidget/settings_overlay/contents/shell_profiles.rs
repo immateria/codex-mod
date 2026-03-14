@@ -1,4 +1,4 @@
-use crate::bottom_pane::ShellProfilesSettingsView;
+use crate::bottom_pane::settings_pages::shell_profiles::ShellProfilesSettingsView;
 
 pub(crate) struct ShellProfilesSettingsContent {
     view: ShellProfilesSettingsView,

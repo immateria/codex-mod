@@ -1,4 +1,4 @@
-use crate::bottom_pane::skills_settings_view::SkillsSettingsView;
+use crate::bottom_pane::settings_pages::skills::SkillsSettingsView;
 
 pub(crate) struct SkillsSettingsContent {
     view: SkillsSettingsView,

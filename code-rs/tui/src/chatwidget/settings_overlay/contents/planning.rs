@@ -1,4 +1,4 @@
-use crate::bottom_pane::PlanningSettingsView;
+use crate::bottom_pane::settings_pages::planning::PlanningSettingsView;
 use code_core::config_types::ReasoningEffort;
 
 pub(crate) struct PlanningSettingsContent {

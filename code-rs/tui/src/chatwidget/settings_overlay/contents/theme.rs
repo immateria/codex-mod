@@ -1,4 +1,4 @@
-use crate::bottom_pane::ThemeSelectionView;
+use crate::bottom_pane::settings_pages::theme::ThemeSelectionView;
 
 pub(crate) struct ThemeSettingsContent {
     view: ThemeSelectionView,

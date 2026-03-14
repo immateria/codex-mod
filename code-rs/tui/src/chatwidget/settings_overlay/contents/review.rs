@@ -1,4 +1,4 @@
-use crate::bottom_pane::ReviewSettingsView;
+use crate::bottom_pane::settings_pages::review::ReviewSettingsView;
 use code_core::config_types::ReasoningEffort;
 
 pub(crate) struct ReviewSettingsContent {

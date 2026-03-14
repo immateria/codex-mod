@@ -1,4 +1,4 @@
-use crate::bottom_pane::InterfaceSettingsView;
+use crate::bottom_pane::settings_pages::interface::InterfaceSettingsView;
 
 pub(crate) struct InterfaceSettingsContent {
     view: InterfaceSettingsView,

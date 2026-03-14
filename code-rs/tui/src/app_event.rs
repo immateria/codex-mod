@@ -70,7 +70,7 @@ use code_cloud_tasks_client::{ApplyOutcome, CloudTaskError, CreatedTask, TaskSum
 
 use crate::app::ChatWidgetArgs;
 use crate::chrome_launch::ChromeLaunchOption;
-use crate::bottom_pane::StatusLineItem;
+use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
 use crate::slash_command::SlashCommand;
 use code_protocol::models::ResponseItem;
 use code_protocol::request_user_input::RequestUserInputResponse;

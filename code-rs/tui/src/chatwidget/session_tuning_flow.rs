@@ -1,5 +1,5 @@
 use super::*;
-use crate::bottom_pane::ModelSelectionViewParams;
+use crate::bottom_pane::settings_pages::model::ModelSelectionViewParams;
 
 impl ChatWidget<'_> {
     pub(super) fn available_model_presets(&self) -> Vec<ModelPreset> {

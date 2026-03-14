@@ -10,6 +10,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::colors;
 
 const SPACES: &str = "                                                                ";
+const _: () = assert!(SPACES.len() == 64);
 
 #[derive(Clone, Debug)]
 pub(crate) struct StyledText<'a> {
@@ -105,7 +106,7 @@ pub(crate) fn arrow_span(selected: bool) -> Span<'static> {
 pub(crate) fn row_area(body: Rect, rel_idx: usize) -> Rect {
     Rect::new(
         body.x,
-        body.y.saturating_add(rel_idx as u16),
+        body.y.saturating_add(clamp_u16(rel_idx)),
         body.width,
         1,
     )
@@ -135,7 +136,11 @@ fn default_label_pad_cols(rows: &[KeyValueRow<'_>]) -> u16 {
         .unwrap_or(0)
 }
 
-fn kv_row_line<'a>(selected: bool, row: &'a KeyValueRow<'a>, default_pad_cols: u16) -> Line<'a> {
+fn kv_row_line<'a, 'r>(
+    selected: bool,
+    row: &'r KeyValueRow<'a>,
+    default_pad_cols: u16,
+) -> Line<'r> {
     let mut spans = vec![arrow_span(selected)];
     let label_style = if selected {
         Style::new().fg(colors::text()).bold()
@@ -144,19 +149,21 @@ fn kv_row_line<'a>(selected: bool, row: &'a KeyValueRow<'a>, default_pad_cols: u
     };
     spans.push(Span::styled(row.label.as_ref(), label_style));
 
-    let pad_cols = row.label_pad_cols.unwrap_or(default_pad_cols);
-    let label_cols = label_width(row);
-    if label_cols < pad_cols {
-        push_spaces(&mut spans, pad_cols.saturating_sub(label_cols));
-    }
-    spans.push(Span::styled(": ", label_style));
+    if row.value.is_some() || row.detail.is_some() {
+        let pad_cols = row.label_pad_cols.unwrap_or(default_pad_cols);
+        let label_cols = label_width(row);
+        if label_cols < pad_cols {
+            push_spaces(&mut spans, pad_cols.saturating_sub(label_cols));
+        }
+        spans.push(Span::styled(": ", label_style));
 
-    if let Some(value) = row.value.as_ref() {
-        spans.push(Span::styled(value.text.as_ref(), value.style));
-    }
-    if let Some(detail) = row.detail.as_ref() {
-        spans.push(Span::raw("  "));
-        spans.push(Span::styled(detail.text.as_ref(), detail.style));
+        if let Some(value) = row.value.as_ref() {
+            spans.push(Span::styled(value.text.as_ref(), value.style));
+        }
+        if let Some(detail) = row.detail.as_ref() {
+            spans.push(Span::raw("  "));
+            spans.push(Span::styled(detail.text.as_ref(), detail.style));
+        }
     }
     if selected
         && let Some(hint) = row.selected_hint.as_deref()
@@ -283,5 +290,14 @@ mod tests {
         ];
 
         assert_eq!(default_label_pad_cols(&rows), 7);
+    }
+
+    #[test]
+    fn kv_row_omits_colon_when_no_value_or_detail() {
+        let rows = [KeyValueRow::new("Close")];
+        let default_pad_cols = default_label_pad_cols(&rows);
+        let first = kv_row_line(false, &rows[0], default_pad_cols);
+
+        assert_eq!(line_text(&first), "  Close");
     }
 }

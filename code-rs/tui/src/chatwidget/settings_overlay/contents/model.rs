@@ -1,4 +1,4 @@
-use crate::bottom_pane::ModelSelectionView;
+use crate::bottom_pane::settings_pages::model::ModelSelectionView;
 
 pub(crate) struct ModelSettingsContent {
     view: ModelSelectionView,

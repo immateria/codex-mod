@@ -1,0 +1,1076 @@
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::style::{Modifier, Style, Stylize};
+use ratatui::text::{Line, Span};
+
+use code_core::config::{JsReplRuntimeKindToml, JsReplSettingsToml};
+
+use crate::app_event::AppEvent;
+use crate::app_event_sender::AppEventSender;
+use crate::chatwidget::BackgroundOrderTicket;
+use crate::components::form_text_field::FormTextField;
+use crate::components::scroll_state::ScrollState;
+use crate::native_picker::{pick_path, NativePickerKind};
+use crate::ui_interaction::{
+    redraw_if,
+    route_selectable_list_mouse_with_config,
+    ScrollSelectionBehavior,
+    SelectableListMouseConfig,
+    SelectableListMouseResult,
+};
+use std::cell::Cell;
+use std::path::PathBuf;
+
+use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
+use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
+use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
+use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
+use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
+use crate::bottom_pane::settings_ui::toggle;
+use crate::bottom_pane::BottomPane;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TextTarget {
+    RuntimePath,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ListTarget {
+    RuntimeArgs,
+    NodeModuleDirs,
+}
+
+#[derive(Debug)]
+enum ViewMode {
+    Transition,
+    Main,
+    EditText { target: TextTarget, field: FormTextField },
+    EditList { target: ListTarget, field: FormTextField },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RowKind {
+    Enabled,
+    RuntimeKind,
+    RuntimePath,
+    PickRuntimePath,
+    ClearRuntimePath,
+    RuntimeArgs,
+    NodeModuleDirs,
+    AddNodeModuleDir,
+    Apply,
+    Close,
+}
+
+pub(crate) struct JsReplSettingsView {
+    settings: JsReplSettingsToml,
+    network_enabled: bool,
+    app_event_tx: AppEventSender,
+    ticket: BackgroundOrderTicket,
+    is_complete: bool,
+    dirty: bool,
+    mode: ViewMode,
+    state: ScrollState,
+    viewport_rows: Cell<usize>,
+}
+
+pub(crate) type JsReplSettingsViewFramed<'v> = crate::bottom_pane::chrome_view::Framed<'v, JsReplSettingsView>;
+pub(crate) type JsReplSettingsViewContentOnly<'v> =
+    crate::bottom_pane::chrome_view::ContentOnly<'v, JsReplSettingsView>;
+pub(crate) type JsReplSettingsViewFramedMut<'v> =
+    crate::bottom_pane::chrome_view::FramedMut<'v, JsReplSettingsView>;
+pub(crate) type JsReplSettingsViewContentOnlyMut<'v> =
+    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, JsReplSettingsView>;
+
+impl JsReplSettingsView {
+    const DEFAULT_VISIBLE_ROWS: usize = 8;
+
+    pub(crate) fn new(
+        settings: JsReplSettingsToml,
+        network_enabled: bool,
+        app_event_tx: AppEventSender,
+        ticket: BackgroundOrderTicket,
+    ) -> Self {
+        let mut state = ScrollState::new();
+        state.selected_idx = Some(0);
+        Self {
+            settings,
+            network_enabled,
+            app_event_tx,
+            ticket,
+            is_complete: false,
+            dirty: false,
+            mode: ViewMode::Main,
+            state,
+            viewport_rows: Cell::new(0),
+        }
+    }
+
+    fn runtime_label(kind: JsReplRuntimeKindToml) -> &'static str {
+        match kind {
+            JsReplRuntimeKindToml::Node => "node",
+            JsReplRuntimeKindToml::Deno => "deno",
+        }
+    }
+
+    fn enabled_value(enabled: bool) -> StyledText<'static> {
+        let mut status = toggle::enabled_word_warning_off(enabled);
+        status.style = status.style.bold();
+        status
+    }
+
+    fn build_rows(&self) -> Vec<RowKind> {
+        let mut rows = vec![
+            RowKind::Enabled,
+            RowKind::RuntimeKind,
+            RowKind::RuntimePath,
+            RowKind::PickRuntimePath,
+        ];
+        if self.settings.runtime_path.is_some() {
+            rows.push(RowKind::ClearRuntimePath);
+        }
+
+        rows.push(RowKind::RuntimeArgs);
+        if matches!(self.settings.runtime, JsReplRuntimeKindToml::Node) {
+            rows.push(RowKind::NodeModuleDirs);
+            rows.push(RowKind::AddNodeModuleDir);
+        }
+
+        rows.push(RowKind::Apply);
+        rows.push(RowKind::Close);
+        rows
+    }
+
+    fn render_header_lines(&self) -> Vec<Line<'static>> {
+        let enabled = self.settings.enabled;
+        let status_style = if enabled {
+            Style::default()
+                .fg(crate::colors::success())
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(crate::colors::warning())
+                .add_modifier(Modifier::BOLD)
+        };
+
+        let runtime = Self::runtime_label(self.settings.runtime);
+        let runtime_style = Style::default()
+            .fg(crate::colors::info())
+            .add_modifier(Modifier::BOLD);
+
+        let mediation = if self.network_enabled { "ON" } else { "OFF" };
+        let mediation_style = if self.network_enabled {
+            Style::default()
+                .fg(crate::colors::success())
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(crate::colors::text_dim())
+        };
+
+        let mut lines = vec![
+            Line::from(vec![
+                Span::styled(
+                    format!("{} ", if enabled { "ON" } else { "OFF" }),
+                    status_style,
+                ),
+                Span::styled("js_repl", Style::default().fg(crate::colors::text_mid())),
+                Span::styled("  |  runtime: ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled(runtime.to_string(), runtime_style),
+                Span::styled("  |  mediation: ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled(mediation.to_string(), mediation_style),
+            ]),
+        ];
+
+        let node_blocked = self.network_enabled
+            && matches!(self.settings.runtime, JsReplRuntimeKindToml::Node)
+            && !cfg!(target_os = "macos");
+        if node_blocked {
+            lines.push(Line::from(vec![Span::styled(
+                "Note: Node is not enforceable with mediation on this platform; prefer Deno.",
+                Style::default().fg(crate::colors::warning()),
+            )]));
+        } else {
+            lines.push(Line::from(vec![Span::styled(
+                "Enter edits. Ctrl+S saves in editors. Esc closes.",
+                Style::default().fg(crate::colors::text_dim()),
+            )]));
+        }
+
+        lines.push(Line::from(""));
+        lines
+    }
+
+    fn visible_budget(&self, total: usize) -> usize {
+        if total == 0 {
+            return 0;
+        }
+        let raw = self.viewport_rows.get();
+        let effective = if raw == 0 {
+            Self::DEFAULT_VISIBLE_ROWS
+        } else {
+            raw
+        };
+        effective.max(1).min(total)
+    }
+
+    fn reconcile_selection_state(&mut self, total: usize) {
+        if total == 0 {
+            self.state.selected_idx = None;
+            self.state.scroll_top = 0;
+            return;
+        }
+        if self.state.selected_idx.is_none() {
+            self.state.selected_idx = Some(0);
+        }
+        self.state.clamp_selection(total);
+        self.state.scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+        let visible_budget = self.visible_budget(total);
+        self.state.ensure_visible(total, visible_budget);
+    }
+
+    fn toggle_enabled(&mut self) {
+        self.settings.enabled = !self.settings.enabled;
+        self.dirty = true;
+    }
+
+    fn cycle_runtime(&mut self) {
+        self.settings.runtime = match self.settings.runtime {
+            JsReplRuntimeKindToml::Node => JsReplRuntimeKindToml::Deno,
+            JsReplRuntimeKindToml::Deno => JsReplRuntimeKindToml::Node,
+        };
+        self.dirty = true;
+    }
+
+    fn open_text_editor(&mut self, target: TextTarget) {
+        let mut field = FormTextField::new_single_line();
+        match target {
+            TextTarget::RuntimePath => {
+                field.set_placeholder("node (or /path/to/node)");
+                field.set_text(
+                    self.settings
+                        .runtime_path
+                        .as_ref()
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_default()
+                        .as_str(),
+                );
+            }
+        }
+        self.mode = ViewMode::EditText { target, field };
+    }
+
+    fn open_list_editor(&mut self, target: ListTarget) {
+        let mut field = FormTextField::new_multi_line();
+        match target {
+            ListTarget::RuntimeArgs => {
+                field.set_placeholder("--flag (one per line)");
+                field.set_text(&self.settings.runtime_args.join("\n"));
+            }
+            ListTarget::NodeModuleDirs => {
+                field.set_placeholder("/path/to/node_modules (one per line)");
+                let lines = self
+                    .settings
+                    .node_module_dirs
+                    .iter()
+                    .map(|path| path.to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                field.set_text(&lines);
+            }
+        }
+        self.mode = ViewMode::EditList { target, field };
+    }
+
+    fn save_text_editor(&mut self, target: TextTarget, field: &FormTextField) -> Result<(), String> {
+        match target {
+            TextTarget::RuntimePath => {
+                let raw = field.text().trim();
+                if raw.is_empty() {
+                    self.settings.runtime_path = None;
+                } else {
+                    self.settings.runtime_path = Some(PathBuf::from(raw));
+                }
+            }
+        }
+        self.dirty = true;
+        Ok(())
+    }
+
+    fn save_list_editor(&mut self, target: ListTarget, field: &FormTextField) -> Result<(), String> {
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut lines: Vec<String> = Vec::new();
+        for line in field.text().lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if seen.insert(trimmed.to_string()) {
+                lines.push(trimmed.to_string());
+            }
+        }
+
+        match target {
+            ListTarget::RuntimeArgs => {
+                self.settings.runtime_args = lines;
+            }
+            ListTarget::NodeModuleDirs => {
+                self.settings.node_module_dirs = lines.into_iter().map(PathBuf::from).collect();
+            }
+        }
+        self.dirty = true;
+        Ok(())
+    }
+
+    fn pick_runtime_path(&mut self) {
+        let result = pick_path(NativePickerKind::File, "Select js_repl runtime executable");
+        match result {
+            Ok(Some(path)) => {
+                self.settings.runtime_path = Some(path);
+                self.dirty = true;
+            }
+            Ok(None) => {}
+            Err(err) => {
+                self.app_event_tx.send_background_event_with_ticket(
+                    &self.ticket,
+                    format!("JS REPL picker failed: {err:#}"),
+                );
+            }
+        }
+    }
+
+    fn clear_runtime_path(&mut self) {
+        self.settings.runtime_path = None;
+        self.dirty = true;
+    }
+
+    fn add_node_module_dir(&mut self) {
+        let result = pick_path(NativePickerKind::Folder, "Select node_modules folder");
+        match result {
+            Ok(Some(path)) => {
+                let rendered = path.to_string_lossy().to_string();
+                if !self
+                    .settings
+                    .node_module_dirs
+                    .iter()
+                    .any(|existing| existing.to_string_lossy() == rendered)
+                {
+                    self.settings.node_module_dirs.push(path);
+                    self.dirty = true;
+                }
+            }
+            Ok(None) => {}
+            Err(err) => {
+                self.app_event_tx.send_background_event_with_ticket(
+                    &self.ticket,
+                    format!("JS REPL picker failed: {err:#}"),
+                );
+            }
+        }
+    }
+
+    fn apply_settings(&mut self) {
+        self.app_event_tx
+            .send(AppEvent::SetJsReplSettings(self.settings.clone()));
+        self.app_event_tx.send_background_event_with_ticket(
+            &self.ticket,
+            "JS REPL: applying…".to_string(),
+        );
+        self.dirty = false;
+    }
+
+    fn activate_row(&mut self, kind: RowKind) {
+        match kind {
+            RowKind::Enabled => self.toggle_enabled(),
+            RowKind::RuntimeKind => self.cycle_runtime(),
+            RowKind::RuntimePath => self.open_text_editor(TextTarget::RuntimePath),
+            RowKind::PickRuntimePath => self.pick_runtime_path(),
+            RowKind::ClearRuntimePath => self.clear_runtime_path(),
+            RowKind::RuntimeArgs => self.open_list_editor(ListTarget::RuntimeArgs),
+            RowKind::NodeModuleDirs => self.open_list_editor(ListTarget::NodeModuleDirs),
+            RowKind::AddNodeModuleDir => self.add_node_module_dir(),
+            RowKind::Apply => self.apply_settings(),
+            RowKind::Close => self.is_complete = true,
+        }
+    }
+
+    fn text_edit_title(target: TextTarget) -> &'static str {
+        match target {
+            TextTarget::RuntimePath => " JS REPL: Runtime Path ",
+        }
+    }
+
+    fn list_edit_title(target: ListTarget) -> &'static str {
+        match target {
+            ListTarget::RuntimeArgs => " JS REPL: Runtime Args ",
+            ListTarget::NodeModuleDirs => " JS REPL: Node Module Dirs ",
+        }
+    }
+
+    fn text_edit_page(target: TextTarget) -> SettingsEditorPage<'static> {
+        SettingsEditorPage::new(
+            Self::text_edit_title(target),
+            SettingsPanelStyle::bottom_pane(),
+            "Runtime path",
+            vec![
+                Line::from(vec![Span::styled(
+                    "Ctrl+S to save. Esc to cancel.",
+                    Style::default().fg(crate::colors::text_dim()),
+                )]),
+                Line::from(""),
+            ],
+            vec![],
+        )
+    }
+
+    fn list_edit_page(target: ListTarget) -> SettingsEditorPage<'static> {
+        let field_title = match target {
+            ListTarget::RuntimeArgs => "Runtime args",
+            ListTarget::NodeModuleDirs => "Node module dirs",
+        };
+        SettingsEditorPage::new(
+            Self::list_edit_title(target),
+            SettingsPanelStyle::bottom_pane(),
+            field_title,
+            vec![
+                Line::from(vec![Span::styled(
+                    "One entry per line. Ctrl+S to save. Esc to cancel.",
+                    Style::default().fg(crate::colors::text_dim()),
+                )]),
+                Line::from(""),
+            ],
+            vec![],
+        )
+    }
+
+    fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+        match mode {
+            ViewMode::Main => {
+                let rows = self.build_rows();
+                let total = rows.len();
+                if total == 0 {
+                    if matches!(key_event.code, KeyCode::Esc) {
+                        self.is_complete = true;
+                        self.mode = ViewMode::Main;
+                        return true;
+                    }
+                    self.mode = ViewMode::Main;
+                    return false;
+                }
+
+                self.reconcile_selection_state(total);
+                let selected = self.state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+
+                let handled = match key_event.code {
+                    KeyCode::Esc => {
+                        self.is_complete = true;
+                        true
+                    }
+                    KeyCode::Enter => {
+                        if let Some(kind) = rows.get(selected).copied() {
+                            self.activate_row(kind);
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        self.state.move_up_wrap_visible(total, self.visible_budget(total));
+                        true
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        self.state.move_down_wrap_visible(total, self.visible_budget(total));
+                        true
+                    }
+                    KeyCode::Home => {
+                        self.state.selected_idx = Some(0);
+                        self.state.scroll_top = 0;
+                        true
+                    }
+                    KeyCode::End => {
+                        if total > 0 {
+                            self.state.selected_idx = Some(total - 1);
+                            self.state.ensure_visible(total, self.visible_budget(total));
+                        }
+                        true
+                    }
+                    _ => false,
+                };
+
+                self.mode = ViewMode::Main;
+                handled
+            }
+            ViewMode::EditText { target, mut field } => {
+                match key_event {
+                    KeyEvent {
+                        code: KeyCode::Char('s'),
+                        modifiers,
+                        ..
+                    } if modifiers.contains(KeyModifiers::CONTROL) => {
+                        match self.save_text_editor(target, &field) {
+                            Ok(()) => {
+                                self.mode = ViewMode::Main;
+                                true
+                            }
+                            Err(err) => {
+                                self.app_event_tx.send_background_event_with_ticket(
+                                    &self.ticket,
+                                    format!("JS REPL: {err}"),
+                                );
+                                self.mode = ViewMode::EditText { target, field };
+                                true
+                            }
+                        }
+                    }
+                    KeyEvent { code: KeyCode::Esc, .. } => {
+                        self.mode = ViewMode::Main;
+                        true
+                    }
+                    _ => {
+                        let handled = field.handle_key(key_event);
+                        self.mode = ViewMode::EditText { target, field };
+                        handled
+                    }
+                }
+            }
+            ViewMode::EditList { target, mut field } => {
+                match key_event {
+                    KeyEvent {
+                        code: KeyCode::Char('s'),
+                        modifiers,
+                        ..
+                    } if modifiers.contains(KeyModifiers::CONTROL) => {
+                        match self.save_list_editor(target, &field) {
+                            Ok(()) => {
+                                self.mode = ViewMode::Main;
+                                true
+                            }
+                            Err(err) => {
+                                self.app_event_tx.send_background_event_with_ticket(
+                                    &self.ticket,
+                                    format!("JS REPL: {err}"),
+                                );
+                                self.mode = ViewMode::EditList { target, field };
+                                true
+                            }
+                        }
+                    }
+                    KeyEvent { code: KeyCode::Esc, .. } => {
+                        self.mode = ViewMode::Main;
+                        true
+                    }
+                    _ => {
+                        let handled = field.handle_key(key_event);
+                        self.mode = ViewMode::EditList { target, field };
+                        handled
+                    }
+                }
+            }
+            ViewMode::Transition => {
+                self.mode = ViewMode::Main;
+                false
+            }
+        }
+    }
+
+    pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        self.process_key_event(key_event)
+    }
+
+    pub(crate) fn framed(&self) -> JsReplSettingsViewFramed<'_> {
+        crate::bottom_pane::chrome_view::Framed::new(self)
+    }
+
+    pub(crate) fn content_only(&self) -> JsReplSettingsViewContentOnly<'_> {
+        crate::bottom_pane::chrome_view::ContentOnly::new(self)
+    }
+
+    pub(crate) fn framed_mut(&mut self) -> JsReplSettingsViewFramedMut<'_> {
+        crate::bottom_pane::chrome_view::FramedMut::new(self)
+    }
+
+    pub(crate) fn content_only_mut(&mut self) -> JsReplSettingsViewContentOnlyMut<'_> {
+        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
+    }
+
+    pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
+        match &mut self.mode {
+            ViewMode::EditText { field, .. } | ViewMode::EditList { field, .. } => {
+                field.handle_paste(text);
+                true
+            }
+            ViewMode::Main | ViewMode::Transition => false,
+        }
+    }
+
+    fn handle_mouse_event_direct_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+        match mode {
+            ViewMode::Main => {
+                let rows = self.build_rows();
+                let total = rows.len();
+                if total == 0 {
+                    self.mode = ViewMode::Main;
+                    return false;
+                }
+
+                let page = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]);
+                let Some(layout) = page.content_only().layout(area) else {
+                    self.mode = ViewMode::Main;
+                    return false;
+                };
+                let visible_slots = layout.visible_rows().max(1);
+                self.viewport_rows.set(visible_slots);
+
+                self.reconcile_selection_state(total);
+                let scroll_top = self.state.scroll_top;
+                let body = layout.body;
+                let mut selected = self.state.selected_idx.unwrap_or(0);
+                let result = route_selectable_list_mouse_with_config(
+                    mouse_event,
+                    &mut selected,
+                    total,
+                    |x, y| SettingsRowPage::selection_index_at(body, x, y, scroll_top, total),
+                    SelectableListMouseConfig {
+                        hover_select: false,
+                        require_pointer_hit_for_scroll: true,
+                        scroll_behavior: ScrollSelectionBehavior::Clamp,
+                        ..SelectableListMouseConfig::default()
+                    },
+                );
+                self.state.selected_idx = Some(selected);
+                self.state.ensure_visible(total, visible_slots.min(total));
+
+                if matches!(result, SelectableListMouseResult::Activated)
+                    && let Some(kind) = rows.get(selected).copied()
+                {
+                    self.activate_row(kind);
+                }
+
+                self.mode = ViewMode::Main;
+                result.handled()
+            }
+            ViewMode::EditText { target, mut field } => {
+                let handled = match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        let Some(field_area) =
+                            Self::text_edit_page(target)
+                                .content_only()
+                                .layout(area)
+                                .map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                    }
+                    MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
+                    MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
+                    _ => false,
+                };
+                self.mode = ViewMode::EditText { target, field };
+                handled
+            }
+            ViewMode::EditList { target, mut field } => {
+                let handled = match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        let Some(field_area) =
+                            Self::list_edit_page(target)
+                                .content_only()
+                                .layout(area)
+                                .map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                    }
+                    MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
+                    MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
+                    _ => false,
+                };
+                self.mode = ViewMode::EditList { target, field };
+                handled
+            }
+            ViewMode::Transition => {
+                self.mode = ViewMode::Main;
+                false
+            }
+        }
+    }
+
+    fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+        match mode {
+            ViewMode::Main => {
+                let rows = self.build_rows();
+                let total = rows.len();
+                if total == 0 {
+                    self.mode = ViewMode::Main;
+                    return false;
+                }
+
+                let page = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![]);
+                let Some(layout) = page.framed().layout(area) else {
+                    self.mode = ViewMode::Main;
+                    return false;
+                };
+                let visible_slots = layout.visible_rows().max(1);
+                self.viewport_rows.set(visible_slots);
+
+                self.reconcile_selection_state(total);
+                let scroll_top = self.state.scroll_top;
+                let body = layout.body;
+                let mut selected = self.state.selected_idx.unwrap_or(0);
+                let result = route_selectable_list_mouse_with_config(
+                    mouse_event,
+                    &mut selected,
+                    total,
+                    |x, y| SettingsRowPage::selection_index_at(body, x, y, scroll_top, total),
+                    SelectableListMouseConfig {
+                        hover_select: false,
+                        require_pointer_hit_for_scroll: true,
+                        scroll_behavior: ScrollSelectionBehavior::Clamp,
+                        ..SelectableListMouseConfig::default()
+                    },
+                );
+                self.state.selected_idx = Some(selected);
+                self.state.ensure_visible(total, visible_slots.min(total));
+
+                if matches!(result, SelectableListMouseResult::Activated)
+                    && let Some(kind) = rows.get(selected).copied()
+                {
+                    self.activate_row(kind);
+                }
+
+                self.mode = ViewMode::Main;
+                result.handled()
+            }
+            ViewMode::EditText { target, mut field } => {
+                let handled = match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        let Some(field_area) =
+                            Self::text_edit_page(target).framed().layout(area).map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                    }
+                    MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
+                    MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
+                    _ => false,
+                };
+                self.mode = ViewMode::EditText { target, field };
+                handled
+            }
+            ViewMode::EditList { target, mut field } => {
+                let handled = match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        let Some(field_area) =
+                            Self::list_edit_page(target).framed().layout(area).map(|layout| layout.field)
+                        else {
+                            return false;
+                        };
+                        field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                    }
+                    MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
+                    MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
+                    _ => false,
+                };
+                self.mode = ViewMode::EditList { target, field };
+                handled
+            }
+            ViewMode::Transition => {
+                self.mode = ViewMode::Main;
+                false
+            }
+        }
+    }
+
+    pub(crate) fn is_complete(&self) -> bool {
+        self.is_complete
+    }
+
+    fn render_main(&self, area: Rect, buf: &mut Buffer) {
+        let rows = self.build_rows();
+        let total = rows.len();
+        let selected_idx = self
+            .state
+            .selected_idx
+            .unwrap_or(0)
+            .min(total.saturating_sub(1));
+        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+
+        let runtime_label = Self::runtime_label(self.settings.runtime);
+        let runtime_path = self
+            .settings
+            .runtime_path
+            .as_ref()
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|| "auto (PATH)".to_string());
+        let runtime_args = if self.settings.runtime_args.is_empty() {
+            "(none)".to_string()
+        } else {
+            format!("{} entries", self.settings.runtime_args.len())
+        };
+        let module_dirs = if self.settings.node_module_dirs.is_empty() {
+            "(none)".to_string()
+        } else {
+            format!("{} entries", self.settings.node_module_dirs.len())
+        };
+        let apply_suffix = if self.dirty { " *" } else { "" };
+
+        let row_specs: Vec<KeyValueRow<'_>> = rows
+            .iter()
+            .copied()
+            .map(|kind| match kind {
+                RowKind::Enabled => KeyValueRow::new("Enabled")
+                    .with_value(Self::enabled_value(self.settings.enabled)),
+                RowKind::RuntimeKind => KeyValueRow::new("Runtime").with_value(StyledText::new(
+                    runtime_label,
+                    Style::default().fg(crate::colors::info()),
+                )),
+                RowKind::RuntimePath => KeyValueRow::new("Runtime path").with_value(
+                    StyledText::new(
+                        runtime_path.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                ),
+                RowKind::PickRuntimePath => KeyValueRow::new("Pick runtime path (file picker)"),
+                RowKind::ClearRuntimePath => KeyValueRow::new("Clear runtime path (use PATH)"),
+                RowKind::RuntimeArgs => KeyValueRow::new("Runtime args").with_value(
+                    StyledText::new(
+                        runtime_args.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                ),
+                RowKind::NodeModuleDirs => KeyValueRow::new("Node module dirs").with_value(
+                    StyledText::new(
+                        module_dirs.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                ),
+                RowKind::AddNodeModuleDir => KeyValueRow::new("Add node module dir (folder picker)"),
+                RowKind::Apply => KeyValueRow::new("Apply changes").with_value(StyledText::new(
+                    apply_suffix,
+                    Style::default().fg(crate::colors::warning()),
+                )),
+                RowKind::Close => KeyValueRow::new("Close"),
+            })
+            .collect();
+        let Some(layout) = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![])
+            .framed()
+            .render(
+            area,
+            buf,
+            scroll_top,
+            Some(selected_idx),
+            &row_specs,
+        ) else {
+            return;
+        };
+        self.viewport_rows.set(layout.visible_rows());
+    }
+
+    fn render_main_without_frame(&self, area: Rect, buf: &mut Buffer) {
+        let rows = self.build_rows();
+        let total = rows.len();
+        let selected_idx = self
+            .state
+            .selected_idx
+            .unwrap_or(0)
+            .min(total.saturating_sub(1));
+        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+
+        let runtime_label = Self::runtime_label(self.settings.runtime);
+        let runtime_path = self
+            .settings
+            .runtime_path
+            .as_ref()
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|| "auto (PATH)".to_string());
+        let runtime_args = if self.settings.runtime_args.is_empty() {
+            "(none)".to_string()
+        } else {
+            format!("{} entries", self.settings.runtime_args.len())
+        };
+        let module_dirs = if self.settings.node_module_dirs.is_empty() {
+            "(none)".to_string()
+        } else {
+            format!("{} entries", self.settings.node_module_dirs.len())
+        };
+        let apply_suffix = if self.dirty { " *" } else { "" };
+
+        let row_specs: Vec<KeyValueRow<'_>> = rows
+            .iter()
+            .copied()
+            .map(|kind| match kind {
+                RowKind::Enabled => KeyValueRow::new("Enabled")
+                    .with_value(Self::enabled_value(self.settings.enabled)),
+                RowKind::RuntimeKind => KeyValueRow::new("Runtime").with_value(StyledText::new(
+                    runtime_label,
+                    Style::default().fg(crate::colors::info()),
+                )),
+                RowKind::RuntimePath => KeyValueRow::new("Runtime path").with_value(
+                    StyledText::new(
+                        runtime_path.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                ),
+                RowKind::PickRuntimePath => KeyValueRow::new("Pick runtime path (file picker)"),
+                RowKind::ClearRuntimePath => KeyValueRow::new("Clear runtime path (use PATH)"),
+                RowKind::RuntimeArgs => KeyValueRow::new("Runtime args").with_value(
+                    StyledText::new(
+                        runtime_args.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                ),
+                RowKind::NodeModuleDirs => KeyValueRow::new("Node module dirs").with_value(
+                    StyledText::new(
+                        module_dirs.clone(),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ),
+                ),
+                RowKind::AddNodeModuleDir => KeyValueRow::new("Add node module dir (folder picker)"),
+                RowKind::Apply => KeyValueRow::new("Apply changes").with_value(StyledText::new(
+                    apply_suffix,
+                    Style::default().fg(crate::colors::warning()),
+                )),
+                RowKind::Close => KeyValueRow::new("Close"),
+            })
+            .collect();
+        let Some(layout) = SettingsRowPage::new(" JS REPL ", self.render_header_lines(), vec![])
+            .content_only()
+            .render(area, buf, scroll_top, Some(selected_idx), &row_specs)
+        else {
+            return;
+        };
+        self.viewport_rows.set(layout.visible_rows());
+    }
+
+    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main_without_frame(area, buf),
+            ViewMode::EditText { target, field } => {
+                let _ = Self::text_edit_page(*target)
+                    .content_only()
+                    .render(area, buf, field);
+            }
+            ViewMode::EditList { target, field } => {
+                let _ = Self::list_edit_page(*target)
+                    .content_only()
+                    .render(area, buf, field);
+            }
+            ViewMode::Transition => self.render_main_without_frame(area, buf),
+        }
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main(area, buf),
+            ViewMode::EditText { target, field } => {
+                let _ = Self::text_edit_page(*target).framed().render(area, buf, field);
+            }
+            ViewMode::EditList { target, field } => {
+                let _ = Self::list_edit_page(*target).framed().render(area, buf, field);
+            }
+            ViewMode::Transition => self.render_main(area, buf),
+        }
+    }
+
+}
+
+impl crate::bottom_pane::chrome_view::ChromeRenderable for JsReplSettingsView {
+    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
+        self.render_content_only(area, buf);
+    }
+}
+
+impl crate::bottom_pane::chrome_view::ChromeMouseHandler for JsReplSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content(mouse_event, area)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::colors;
+
+    #[test]
+    fn enabled_value_uses_shared_toggle_palette() {
+        let enabled = JsReplSettingsView::enabled_value(true);
+        assert_eq!(enabled.text.as_ref(), "enabled");
+        assert_eq!(enabled.style.fg, Some(colors::success()));
+
+        let disabled = JsReplSettingsView::enabled_value(false);
+        assert_eq!(disabled.text.as_ref(), "disabled");
+        assert_eq!(disabled.style.fg, Some(colors::warning()));
+    }
+}
+
+impl<'a> BottomPaneView<'a> for JsReplSettingsView {
+    fn handle_key_event(&mut self, _pane: &mut BottomPane<'a>, key_event: KeyEvent) {
+        let _ = self.process_key_event(key_event);
+    }
+
+    fn handle_key_event_with_result(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        key_event: KeyEvent,
+    ) -> ConditionalUpdate {
+        redraw_if(self.process_key_event(key_event))
+    }
+
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        redraw_if(
+            self.framed_mut()
+                .handle_mouse_event_direct(mouse_event, area),
+        )
+    }
+
+    fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
+        redraw_if(self.handle_paste_direct(text))
+    }
+
+    fn is_complete(&self) -> bool {
+        self.is_complete()
+    }
+
+    fn desired_height(&self, _width: u16) -> u16 {
+        match &self.mode {
+            ViewMode::Main => {
+                let header = self.render_header_lines().len() as u16;
+                let total_rows = self.build_rows().len();
+                let visible = total_rows.clamp(1, 12) as u16;
+                2 + header + visible
+            }
+            ViewMode::EditText { .. } | ViewMode::EditList { .. } => 18,
+            ViewMode::Transition => 2 + self.render_header_lines().len() as u16 + 8,
+        }
+    }
+
+    fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.framed().render(area, buf);
+    }
+}

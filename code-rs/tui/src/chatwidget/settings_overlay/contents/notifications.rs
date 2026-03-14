@@ -1,4 +1,4 @@
-use crate::bottom_pane::NotificationsSettingsView;
+use crate::bottom_pane::settings_pages::notifications::NotificationsSettingsView;
 
 pub(crate) struct NotificationsSettingsContent {
     view: NotificationsSettingsView,

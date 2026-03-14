@@ -1,4 +1,4 @@
-use crate::bottom_pane::{McpSettingsView, mcp_settings_view::McpSettingsViewState};
+use crate::bottom_pane::settings_pages::mcp::{McpSettingsView, McpSettingsViewState};
 
 pub(crate) struct McpSettingsContent {
     view: McpSettingsView,

@@ -1,4 +1,4 @@
-use crate::bottom_pane::JsReplSettingsView;
+use crate::bottom_pane::settings_pages::js_repl::JsReplSettingsView;
 
 pub(crate) struct JsReplSettingsContent {
     view: JsReplSettingsView,

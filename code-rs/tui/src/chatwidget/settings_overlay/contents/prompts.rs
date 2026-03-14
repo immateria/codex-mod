@@ -1,4 +1,4 @@
-use crate::bottom_pane::prompts_settings_view::PromptsSettingsView;
+use crate::bottom_pane::settings_pages::prompts::PromptsSettingsView;
 
 pub(crate) struct PromptsSettingsContent {
     view: PromptsSettingsView,

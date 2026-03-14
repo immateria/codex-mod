@@ -1,4 +1,4 @@
-use crate::bottom_pane::MemoriesSettingsView;
+use crate::bottom_pane::settings_pages::memories::MemoriesSettingsView;
 
 pub(crate) struct MemoriesSettingsContent {
     view: MemoriesSettingsView,

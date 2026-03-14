@@ -25,57 +25,31 @@ use std::time::Duration;
 
 mod chrome;
 mod chrome_view;
+pub(crate) mod settings_pages;
 mod approval_modal_view;
 #[cfg(feature = "code-fork")]
 mod approval_ui;
 mod auto_coordinator_view;
-mod auto_drive_settings_view;
-mod account_switch_settings_view;
-mod memories_settings_view;
 mod bottom_pane_view;
 mod chat_composer;
 mod chat_composer_history;
 mod custom_prompt_view;
-mod model_selection_state;
 pub(crate) mod prompt_args;
 mod command_popup;
 mod file_search_popup;
 mod paste_burst;
 mod popup_consts;
-pub(crate) mod agent_editor_view;
-pub(crate) mod model_selection_view;
-pub(crate) mod shell_selection_view;
 pub mod list_selection_view;
 pub(crate) use list_selection_view::SelectionAction;
 pub(crate) use custom_prompt_view::CustomPromptView;
 mod cloud_tasks_view;
 pub(crate) use cloud_tasks_view::CloudTasksView;
 pub mod resume_selection_view;
-pub mod agents_settings_view;
-pub mod mcp_settings_view;
-mod login_accounts_view;
-// no direct use of list_selection_view or its items here
-pub mod prompts_settings_view;
-pub mod skills_settings_view;
-mod theme_selection_view;
-mod planning_settings_view;
-mod verbosity_selection_view;
-pub(crate) mod validation_settings_view;
-mod update_settings_view;
 mod undo_timeline_view;
-mod notifications_settings_view;
-mod network_settings_view;
-mod exec_limits_settings_view;
-mod js_repl_settings_view;
-mod interface_settings_view;
-mod shell_profiles_settings_view;
-mod settings_overview_view;
 mod settings_overlay;
-mod status_line_setup;
 mod request_user_input_view;
 pub(crate) mod settings_ui;
 pub(crate) use settings_overlay::SettingsSection;
-pub(crate) mod review_settings_view;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CancellationEvent {
@@ -92,29 +66,6 @@ pub(crate) use auto_coordinator_view::{
     AutoCoordinatorViewModel,
     CountdownState,
 };
-pub(crate) use auto_drive_settings_view::{AutoDriveSettingsInit, AutoDriveSettingsView};
-pub(crate) use account_switch_settings_view::AccountSwitchSettingsView;
-pub(crate) use memories_settings_view::MemoriesSettingsView;
-pub(crate) use model_selection_state::{ModelSelectionTarget, ModelSelectionViewParams};
-pub(crate) use login_accounts_view::{
-    LoginAccountsState,
-    LoginAccountsView,
-    LoginAddAccountState,
-    LoginAddAccountView,
-};
-
-pub(crate) use update_settings_view::{UpdateSettingsInit, UpdateSettingsView, UpdateSharedState};
-pub(crate) use notifications_settings_view::{NotificationsMode, NotificationsSettingsView};
-pub(crate) use network_settings_view::NetworkSettingsView;
-pub(crate) use exec_limits_settings_view::ExecLimitsSettingsView;
-pub(crate) use js_repl_settings_view::JsReplSettingsView;
-pub(crate) use interface_settings_view::InterfaceSettingsView;
-pub(crate) use shell_profiles_settings_view::ShellProfilesSettingsView;
-pub(crate) use settings_overview_view::SettingsOverviewView;
-pub(crate) use validation_settings_view::ValidationSettingsView;
-pub(crate) use review_settings_view::ReviewSettingsView;
-pub(crate) use planning_settings_view::PlanningSettingsView;
-pub(crate) use status_line_setup::{StatusLineItem, StatusLineSetupView};
 use approval_modal_view::ApprovalModalView;
 #[cfg(feature = "code-fork")]
 use approval_ui::ApprovalUi;
@@ -123,11 +74,6 @@ use code_core::config_types::ContextMode;
 use code_core::protocol::AutoContextPhase;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
-pub(crate) use model_selection_view::ModelSelectionView;
-pub(crate) use shell_selection_view::ShellSelectionView;
-pub(crate) use mcp_settings_view::McpSettingsView;
-pub(crate) use theme_selection_view::ThemeSelectionView;
-use verbosity_selection_view::VerbositySelectionView;
 pub(crate) use undo_timeline_view::{UndoTimelineEntry, UndoTimelineEntryKind, UndoTimelineView};
 pub(crate) use request_user_input_view::RequestUserInputView;
 
@@ -404,27 +350,39 @@ impl<'a> BottomPane<'a> {
         }
     }
 
-    pub fn show_notifications_settings(&mut self, view: NotificationsSettingsView) {
+    pub fn show_notifications_settings(
+        &mut self,
+        view: settings_pages::notifications::NotificationsSettingsView,
+    ) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_network_settings(&mut self, view: NetworkSettingsView) {
+    pub fn show_network_settings(&mut self, view: settings_pages::network::NetworkSettingsView) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_exec_limits_settings(&mut self, view: ExecLimitsSettingsView) {
+    pub fn show_exec_limits_settings(
+        &mut self,
+        view: settings_pages::exec_limits::ExecLimitsSettingsView,
+    ) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_js_repl_settings(&mut self, view: JsReplSettingsView) {
+    pub fn show_js_repl_settings(&mut self, view: settings_pages::js_repl::JsReplSettingsView) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_interface_settings(&mut self, view: InterfaceSettingsView) {
+    pub fn show_interface_settings(
+        &mut self,
+        view: settings_pages::interface::InterfaceSettingsView,
+    ) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_shell_profiles_settings(&mut self, view: ShellProfilesSettingsView) {
+    pub fn show_shell_profiles_settings(
+        &mut self,
+        view: settings_pages::shell_profiles::ShellProfilesSettingsView,
+    ) {
         self.set_other_view(view, true);
     }
 
@@ -433,7 +391,9 @@ impl<'a> BottomPane<'a> {
         style: code_core::config_types::ShellScriptStyle,
         summary: String,
     ) -> bool {
-        let Some(shell_profiles) = self.active_view_as::<ShellProfilesSettingsView>() else {
+        let Some(shell_profiles) =
+            self.active_view_as::<settings_pages::shell_profiles::ShellProfilesSettingsView>()
+        else {
             return false;
         };
 
@@ -447,7 +407,9 @@ impl<'a> BottomPane<'a> {
         style: code_core::config_types::ShellScriptStyle,
         error: String,
     ) -> bool {
-        let Some(shell_profiles) = self.active_view_as::<ShellProfilesSettingsView>() else {
+        let Some(shell_profiles) =
+            self.active_view_as::<settings_pages::shell_profiles::ShellProfilesSettingsView>()
+        else {
             return false;
         };
 
@@ -456,51 +418,60 @@ impl<'a> BottomPane<'a> {
         true
     }
 
-    pub fn show_settings_overview(&mut self, view: SettingsOverviewView) {
+    pub fn show_settings_overview(&mut self, view: settings_pages::overview::SettingsOverviewView) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_update_settings(&mut self, view: UpdateSettingsView) {
+    pub fn show_update_settings(&mut self, view: settings_pages::updates::UpdateSettingsView) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_status_line_setup(&mut self, view: StatusLineSetupView) {
+    pub fn show_status_line_setup(
+        &mut self,
+        view: settings_pages::status_line::StatusLineSetupView,
+    ) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_planning_settings(&mut self, view: PlanningSettingsView) {
+    pub fn show_planning_settings(&mut self, view: settings_pages::planning::PlanningSettingsView) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_review_settings(&mut self, view: ReviewSettingsView) {
+    pub fn show_review_settings(&mut self, view: settings_pages::review::ReviewSettingsView) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_validation_settings(&mut self, view: ValidationSettingsView) {
+    pub fn show_validation_settings(
+        &mut self,
+        view: settings_pages::validation::ValidationSettingsView,
+    ) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_prompts_settings(&mut self, view: prompts_settings_view::PromptsSettingsView) {
+    pub fn show_prompts_settings(&mut self, view: settings_pages::prompts::PromptsSettingsView) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_skills_settings(&mut self, view: skills_settings_view::SkillsSettingsView) {
+    pub fn show_skills_settings(&mut self, view: settings_pages::skills::SkillsSettingsView) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_memories_settings(&mut self, view: MemoriesSettingsView) {
+    pub fn show_memories_settings(&mut self, view: settings_pages::memories::MemoriesSettingsView) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_auto_drive_settings_panel(&mut self, view: AutoDriveSettingsView) {
+    pub fn show_auto_drive_settings_panel(
+        &mut self,
+        view: settings_pages::auto_drive::AutoDriveSettingsView,
+    ) {
         self.set_other_view(view, true);
     }
 
-    pub fn show_login_accounts(&mut self, view: LoginAccountsView) {
+    pub fn show_login_accounts(&mut self, view: settings_pages::accounts::LoginAccountsView) {
         self.set_other_view(view, false);
     }
 
-    pub fn show_login_add_account(&mut self, view: LoginAddAccountView) {
+    pub fn show_login_add_account(&mut self, view: settings_pages::accounts::LoginAddAccountView) {
         self.set_other_view(view, false);
     }
 
@@ -1037,8 +1008,8 @@ impl<'a> BottomPane<'a> {
     }
 
     /// Show the model selection UI
-    pub fn show_model_selection(&mut self, params: ModelSelectionViewParams) {
-        let view = ModelSelectionView::new(params, self.app_event_tx.clone());
+    pub fn show_model_selection(&mut self, params: settings_pages::model::ModelSelectionViewParams) {
+        let view = settings_pages::model::ModelSelectionView::new(params, self.app_event_tx.clone());
         self.set_view(Box::new(view), ActiveViewKind::ModelSelection, true)
     }
 
@@ -1048,7 +1019,11 @@ impl<'a> BottomPane<'a> {
         current_shell: Option<ShellConfig>,
         shell_presets: Vec<ShellPreset>,
     ) {
-        let view = ShellSelectionView::new(current_shell, shell_presets, self.app_event_tx.clone());
+        let view = settings_pages::shell::ShellSelectionView::new(
+            current_shell,
+            shell_presets,
+            self.app_event_tx.clone(),
+        );
         self.set_view(Box::new(view), ActiveViewKind::ShellSelection, true)
     }
 
@@ -1059,7 +1034,7 @@ impl<'a> BottomPane<'a> {
         tail_ticket: BackgroundOrderTicket,
         before_ticket: BackgroundOrderTicket,
     ) {
-        let view = ThemeSelectionView::new(
+        let view = settings_pages::theme::ThemeSelectionView::new(
             current_theme,
             self.app_event_tx.clone(),
             tail_ticket,
@@ -1070,7 +1045,10 @@ impl<'a> BottomPane<'a> {
 
     /// Show the verbosity selection UI
     pub fn show_verbosity_selection(&mut self, current_verbosity: TextVerbosity) {
-        let view = VerbositySelectionView::new(current_verbosity, self.app_event_tx.clone());
+        let view = settings_pages::verbosity::VerbositySelectionView::new(
+            current_verbosity,
+            self.app_event_tx.clone(),
+        );
         self.set_other_view(view, true)
     }
 
@@ -1132,9 +1110,8 @@ impl<'a> BottomPane<'a> {
     }
 
     /// Show MCP servers status/toggle UI
-    pub fn show_mcp_settings(&mut self, rows: crate::bottom_pane::mcp_settings_view::McpServerRows) {
-        use mcp_settings_view::McpSettingsView;
-        let view = McpSettingsView::new(rows, self.app_event_tx.clone());
+    pub fn show_mcp_settings(&mut self, rows: settings_pages::mcp::McpServerRows) {
+        let view = settings_pages::mcp::McpSettingsView::new(rows, self.app_event_tx.clone());
         self.set_other_view(view, true);
     }
 
@@ -1229,7 +1206,9 @@ impl<'a> BottomPane<'a> {
     }
 
     pub(crate) fn update_model_selection_presets(&mut self, presets: Vec<ModelPreset>) {
-        let Some(model_view) = self.active_view_as::<ModelSelectionView>() else {
+        let Some(model_view) =
+            self.active_view_as::<settings_pages::model::ModelSelectionView>()
+        else {
             return;
         };
 

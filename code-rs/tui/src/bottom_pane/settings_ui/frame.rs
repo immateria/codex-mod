@@ -65,16 +65,28 @@ impl<'a> SettingsFrame<'a> {
     fn layout_from_inner(&self, inner: Rect) -> SettingsFrameLayout {
         let available_height = inner.height as usize;
         let header_height = self.header_lines.len().min(available_height);
-        let footer_reserved = if self.footer_lines.is_empty() || available_height <= header_height {
-            0
+        let remaining_after_header = available_height.saturating_sub(header_height);
+
+        // We only show the footer when there is room for the footer gap plus at least one
+        // footer line. Otherwise, a tiny viewport would yield an out-of-bounds footer rect.
+        let (footer_gap_height, footer_height) = if self.footer_lines.is_empty() {
+            (0, 0)
+        } else if remaining_after_header <= DEFAULT_FOOTER_GAP_LINES {
+            (0, 0)
         } else {
-            DEFAULT_FOOTER_GAP_LINES + self.footer_lines.len()
+            let footer_height = self
+                .footer_lines
+                .len()
+                .min(remaining_after_header.saturating_sub(DEFAULT_FOOTER_GAP_LINES));
+            (DEFAULT_FOOTER_GAP_LINES, footer_height)
         };
-        let body_height = available_height.saturating_sub(header_height + footer_reserved);
+
+        let footer_reserved = footer_gap_height.saturating_add(footer_height);
+        let body_height = remaining_after_header.saturating_sub(footer_reserved);
         let header_y = inner.y;
         let body_y = inner.y.saturating_add(clamp_u16(header_height));
         let footer_y = body_y.saturating_add(clamp_u16(body_height));
-        let footer_content_y = footer_y.saturating_add(clamp_u16(DEFAULT_FOOTER_GAP_LINES));
+        let footer_content_y = footer_y.saturating_add(clamp_u16(footer_gap_height));
 
         SettingsFrameLayout {
             header: Rect::new(
@@ -93,7 +105,7 @@ impl<'a> SettingsFrame<'a> {
                 inner.x,
                 footer_content_y,
                 inner.width,
-                clamp_u16(self.footer_lines.len()),
+                clamp_u16(footer_height),
             ),
         }
     }
@@ -118,6 +130,7 @@ impl<'a> SettingsFrame<'a> {
         Clear.render(area, buf);
         block.render(area, buf);
         let base = Style::new().bg(colors::background()).fg(colors::text());
+        fill_rect(buf, inner, Some(' '), base);
 
         if layout.header.height > 0 {
             Paragraph::new(self.header_lines.clone())
@@ -231,5 +244,22 @@ mod tests {
 
         assert_eq!(layout.body.height, 0);
         assert_eq!(layout.visible_rows(), 0);
+    }
+
+    #[test]
+    fn render_does_not_panic_when_header_consumes_inner_height() {
+        let frame = SettingsFrame::new(
+            " Test ",
+            vec![Line::from("a"), Line::from("b")],
+            vec![Line::from("footer")],
+        );
+        // Small enough that the bordered block's inner height is entirely consumed by the header.
+        let area = Rect::new(0, 0, 20, 4);
+        let layout = frame.layout(area).expect("layout");
+        assert_eq!(layout.body.height, 0);
+        assert_eq!(layout.footer.height, 0);
+
+        let mut buf = Buffer::empty(area);
+        assert!(frame.render(area, &mut buf).is_some());
     }
 }
