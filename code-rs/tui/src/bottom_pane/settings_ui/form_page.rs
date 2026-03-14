@@ -89,7 +89,8 @@ impl<'a> SettingsFormPage<'a> {
         for (idx, section) in self.sections.iter().enumerate() {
             constraints.push(section.constraint);
             if idx + 1 < self.sections.len() && self.section_gap_rows > 0 {
-                constraints.push(Constraint::Length(self.section_gap_rows as u16));
+                let gap_rows = u16::try_from(self.section_gap_rows).unwrap_or(u16::MAX);
+                constraints.push(Constraint::Length(gap_rows));
             }
         }
 
@@ -142,7 +143,10 @@ impl<'a> SettingsFormPage<'a> {
     ) -> Option<SettingsFormPageLayout> {
         let page = self.page.framed().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
-        debug_assert_eq!(fields.len(), self.sections.len());
+        if fields.len() != self.sections.len() {
+            debug_assert_eq!(fields.len(), self.sections.len());
+            return None;
+        }
         for ((section, field), section_layout) in self
             .sections
             .iter()
@@ -163,7 +167,10 @@ impl<'a> SettingsFormPage<'a> {
     ) -> Option<SettingsFormPageLayout> {
         let page = self.page.content_only().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
-        debug_assert_eq!(fields.len(), self.sections.len());
+        if fields.len() != self.sections.len() {
+            debug_assert_eq!(fields.len(), self.sections.len());
+            return None;
+        }
         for ((section, field), section_layout) in self
             .sections
             .iter()

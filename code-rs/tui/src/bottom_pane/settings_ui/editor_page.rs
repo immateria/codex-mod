@@ -51,7 +51,7 @@ impl<'a> SettingsEditorPage<'a> {
             field_title: field_title.into(),
             field_min_rows: 1,
             field_margin: Margin::new(0, 0),
-            field_focused: true,
+            field_focused: false,
         }
         .with_field_focused(true)
     }
