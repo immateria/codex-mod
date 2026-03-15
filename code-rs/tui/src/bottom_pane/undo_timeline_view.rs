@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
@@ -47,9 +45,6 @@ impl UndoTimelineEntry {
             rows += 1;
         }
         if self.stats_line.is_some() {
-            rows += 1;
-        }
-        if self.commit_line.is_some() {
             rows += 1;
         }
         rows + 1
@@ -158,10 +153,13 @@ impl UndoTimelineView {
     }
 
     fn align_toggles_to_selection(&mut self) {
-        let Some(entry) = self.entries.get(self.selected).cloned() else {
+        let Some(entry) = self.entries.get(self.selected) else {
             return;
         };
-        if entry.files_available {
+        let files_available = entry.files_available;
+        let conversation_available = entry.conversation_available;
+
+        if files_available {
             if self.restore_files_forced_off {
                 self.restore_files = true;
             }
@@ -171,7 +169,7 @@ impl UndoTimelineView {
             self.restore_files_forced_off = true;
         }
 
-        if entry.conversation_available {
+        if conversation_available {
             if self.restore_conversation_forced_off {
                 self.restore_conversation = true;
             }
@@ -211,20 +209,28 @@ impl UndoTimelineView {
         }
     }
 
-    fn toggle_files(&mut self) {
-        if let Some(entry) = self.selected_entry()
-            && entry.files_available {
-                self.restore_files = !self.restore_files;
-                self.restore_files_forced_off = false;
-            }
+    fn toggle_files(&mut self) -> bool {
+        let Some(entry) = self.selected_entry() else {
+            return false;
+        };
+        if !entry.files_available {
+            return false;
+        }
+        self.restore_files = !self.restore_files;
+        self.restore_files_forced_off = false;
+        true
     }
 
-    fn toggle_conversation(&mut self) {
-        if let Some(entry) = self.selected_entry()
-            && entry.conversation_available {
-                self.restore_conversation = !self.restore_conversation;
-                self.restore_conversation_forced_off = false;
-            }
+    fn toggle_conversation(&mut self) -> bool {
+        let Some(entry) = self.selected_entry() else {
+            return false;
+        };
+        if !entry.conversation_available {
+            return false;
+        }
+        self.restore_conversation = !self.restore_conversation;
+        self.restore_conversation_forced_off = false;
+        true
     }
 
     fn confirm(&mut self) {
@@ -266,14 +272,12 @@ impl UndoTimelineView {
             start_entry = self.selected;
         }
 
-        while start_entry < self.selected {
-            let span: usize = self.entries[start_entry..=self.selected]
-                .iter()
-                .map(UndoTimelineEntry::list_line_count)
-                .sum();
-            if span <= MAX_VISIBLE_LIST_ROWS {
-                break;
-            }
+        let mut span: usize = self.entries[start_entry..=self.selected]
+            .iter()
+            .map(UndoTimelineEntry::list_line_count)
+            .sum();
+        while start_entry < self.selected && span > MAX_VISIBLE_LIST_ROWS {
+            span = span.saturating_sub(self.entries[start_entry].list_line_count());
             start_entry += 1;
         }
 
@@ -391,7 +395,7 @@ impl UndoTimelineView {
         let paragraph = Paragraph::new(lines)
             .alignment(Alignment::Left)
             .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .wrap(ratatui::widgets::Wrap { trim: true });
+            .wrap(ratatui::widgets::Wrap { trim: false });
         paragraph.render(area, buf);
     }
 
@@ -521,38 +525,41 @@ impl UndoTimelineView {
                 true
             }
             KeyCode::Char(' ') => {
-                self.toggle_files();
-                true
+                self.toggle_files()
             }
-            KeyCode::Char('c') | KeyCode::Char('C') => {
-                self.toggle_conversation();
-                true
+            KeyCode::Char('c') | KeyCode::Char('C')
+                if !key_event.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                self.toggle_conversation()
             }
-            KeyCode::Char('f') | KeyCode::Char('F') => {
-                self.toggle_files();
-                true
+            KeyCode::Char('f') | KeyCode::Char('F')
+                if !key_event.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                self.toggle_files()
             }
             KeyCode::Tab => {
-                if let Some(entry) = self.selected_entry() {
-                    if entry.conversation_available && !entry.files_available {
-                        self.toggle_conversation();
-                    } else if entry.files_available && !entry.conversation_available {
-                        self.toggle_files();
-                    } else if self.restore_files {
-                        self.toggle_conversation();
+                let Some(entry) = self.selected_entry() else {
+                    return false;
+                };
+                if entry.conversation_available && !entry.files_available {
+                    self.toggle_conversation()
+                } else if entry.files_available && !entry.conversation_available {
+                    self.toggle_files()
+                } else if entry.files_available || entry.conversation_available {
+                    if self.restore_files {
+                        self.toggle_conversation()
                     } else {
-                        self.toggle_files();
+                        self.toggle_files()
                     }
+                } else {
+                    false
                 }
-                true
             }
             KeyCode::Right if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.toggle_conversation();
-                true
+                self.toggle_conversation()
             }
             KeyCode::Left if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.toggle_files();
-                true
+                self.toggle_files()
             }
             _ => false,
         }
@@ -582,11 +589,11 @@ impl<'a> BottomPaneView<'a> for UndoTimelineView {
     }
 
     fn update_status_text(&mut self, _text: String) -> ConditionalUpdate {
-        ConditionalUpdate::NeedsRedraw
+        ConditionalUpdate::NoRedraw
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        max(MAX_VISIBLE_LIST_ROWS as u16 + 6, 24)
+        24
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {

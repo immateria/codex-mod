@@ -485,11 +485,13 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        self.header_lines()
+        let rows = self
+            .header_lines()
             .len()
             .saturating_add(Self::FIELD_COUNT)
             .saturating_add(Self::footer_lines().len())
-            .saturating_add(2) as u16
+            .saturating_add(2);
+        u16::try_from(rows).unwrap_or(u16::MAX)
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {

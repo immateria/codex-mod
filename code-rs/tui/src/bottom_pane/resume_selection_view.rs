@@ -15,6 +15,11 @@ use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
 use super::{BottomPane, popup_consts::MAX_POPUP_ROWS};
 
 const RESUME_POPUP_ROWS: usize = 14;
+const EFFECTIVE_MAX_ROWS: usize = if RESUME_POPUP_ROWS < MAX_POPUP_ROWS {
+    RESUME_POPUP_ROWS
+} else {
+    MAX_POPUP_ROWS
+};
 
 pub struct ResumeRow {
     pub modified: String,
@@ -52,7 +57,7 @@ impl ResumeSelectionView {
             rows,
             selected: 0,
             top: 0,
-            viewport_rows: Cell::new(RESUME_POPUP_ROWS),
+            viewport_rows: Cell::new(EFFECTIVE_MAX_ROWS),
             complete: false,
             action,
             app_event_tx,
@@ -100,8 +105,7 @@ impl ResumeSelectionView {
 
     fn visible_rows(&self) -> usize {
         let viewport = self.viewport_rows.get().max(1);
-        let limit = RESUME_POPUP_ROWS.max(MAX_POPUP_ROWS);
-        viewport.min(self.rows.len().max(1)).min(limit)
+        viewport.min(self.rows.len().max(1)).min(EFFECTIVE_MAX_ROWS)
     }
 
     fn ensure_selected_visible(&mut self) {
@@ -147,12 +151,12 @@ impl BottomPaneView<'_> for ResumeSelectionView {
         self.complete = true; super::CancellationEvent::Handled
     }
 
-    fn update_status_text(&mut self, _text: String) -> ConditionalUpdate { ConditionalUpdate::NeedsRedraw }
+    fn update_status_text(&mut self, _text: String) -> ConditionalUpdate { ConditionalUpdate::NoRedraw }
 
     fn desired_height(&self, _width: u16) -> u16 {
         // Include block borders (+2), optional subtitle (+1), table header (+1),
         // clamped rows, spacer (+1), footer (+1)
-        let rows = self.rows.len().clamp(1, RESUME_POPUP_ROWS) as u16;
+        let rows = self.rows.len().clamp(1, EFFECTIVE_MAX_ROWS) as u16;
         let subtitle = if self.subtitle.is_empty() { 0 } else { 1 };
         2 + subtitle + 1 + rows + 1 + 2
     }
@@ -192,7 +196,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
             width: inner.width.saturating_sub(1),
             height: inner
                 .height
-                .saturating_sub(footer_reserved + (next_y - inner.y)),
+                .saturating_sub(footer_reserved.saturating_add(next_y.saturating_sub(inner.y))),
         };
 
         let header_rows = 1;
@@ -208,12 +212,12 @@ impl BottomPaneView<'_> for ResumeSelectionView {
         let end = (start + page).min(self.rows.len());
         let rows_iter = self.rows[start..end].iter().enumerate().map(|(idx, r)| {
             let i = start + idx; // absolute index
-            let cells = vec![
-                r.modified.clone(),
-                r.created.clone(),
-                r.user_msgs.clone(),
-                r.branch.clone(),
-                r.last_user_message.clone(),
+            let cells = [
+                r.modified.as_str(),
+                r.created.as_str(),
+                r.user_msgs.as_str(),
+                r.branch.as_str(),
+                r.last_user_message.as_str(),
             ]
             .into_iter()
             .map(ratatui::widgets::Cell::from);
@@ -244,7 +248,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
 
         // Footer hints
         // Draw a spacer line above footer (implicit by not drawing into that row)
-        let footer = Rect { x: inner.x.saturating_add(1), y: inner.y + inner.height.saturating_sub(1), width: inner.width.saturating_sub(1), height: 1 };
+        let footer = Rect { x: inner.x.saturating_add(1), y: inner.y.saturating_add(inner.height.saturating_sub(1)), width: inner.width.saturating_sub(1), height: 1 };
         let footer_line = Line::from(vec![
             Span::styled("↑↓ PgUp PgDn", Style::default().fg(crate::colors::light_blue())),
             Span::raw(" Navigate  "),
@@ -301,7 +305,7 @@ mod tests {
         view.render(Rect { x: 0, y: 0, width, height }, &mut buf);
 
         let inner_width = width.saturating_sub(2);
-        let mut row_lines = 0;
+        let mut row_lines: usize = 0;
         for y in 1..height.saturating_sub(1) {
             let line: String = (0..inner_width)
                 .map(|x| {
@@ -316,6 +320,6 @@ mod tests {
             }
         }
 
-        assert_eq!(row_lines, 14);
+        assert_eq!(row_lines, EFFECTIVE_MAX_ROWS);
     }
 }

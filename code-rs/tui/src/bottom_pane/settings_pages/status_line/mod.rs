@@ -409,7 +409,9 @@ impl StatusLineSetupView {
     }
 
     fn active_item_row_bounds(area: Rect, row_index: usize) -> Option<Rect> {
-        let y = area.y.saturating_add(5).saturating_add(row_index as u16);
+        let y = area.y.saturating_add(5).saturating_add(
+            u16::try_from(row_index).unwrap_or(u16::MAX),
+        );
         if y >= area.y.saturating_add(area.height) {
             return None;
         }
@@ -513,7 +515,9 @@ impl<'a> BottomPaneView<'a> for StatusLineSetupView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        (self.choices_for_active_lane().len() as u16).saturating_add(12)
+        u16::try_from(self.choices_for_active_lane().len())
+            .unwrap_or(u16::MAX)
+            .saturating_add(12)
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {

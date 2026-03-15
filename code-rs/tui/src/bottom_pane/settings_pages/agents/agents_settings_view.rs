@@ -353,7 +353,8 @@ impl SubagentEditorView {
         let id_box_h = 3u16;
         let mode_box_h = 3u16;
         let agent_inner_w = body.width.saturating_sub(4).max(1);
-        let agent_inner_lines = self.agent_lines(agent_inner_w).len() as u16;
+        let agent_inner_lines =
+            u16::try_from(self.agent_lines(agent_inner_w).len()).unwrap_or(u16::MAX);
         let agent_box_h = agent_inner_lines.saturating_add(2).max(3);
 
         let orch_inner_w = body.width.saturating_sub(2).max(1);
@@ -618,7 +619,7 @@ impl<'a> BottomPaneView<'a> for SubagentEditorView {
             .saturating_sub(Self::panel_style().content_margin.horizontal * 2)
             .max(10);
 
-        let header_rows = self.header_lines().len() as u16;
+        let header_rows = u16::try_from(self.header_lines().len()).unwrap_or(u16::MAX);
         let status_rows = u16::from(self.confirm_delete);
         let footer_rows = 1u16;
         let action_rows = 1u16;
@@ -627,7 +628,8 @@ impl<'a> BottomPaneView<'a> for SubagentEditorView {
         let id_box_h = 3u16;
         let mode_box_h = 3u16;
         let agent_inner_w = content_w.saturating_sub(4).max(1);
-        let agent_inner_lines = self.agent_lines(agent_inner_w).len() as u16;
+        let agent_inner_lines =
+            u16::try_from(self.agent_lines(agent_inner_w).len()).unwrap_or(u16::MAX);
         let agent_box_h = agent_inner_lines.saturating_add(2).max(3);
 
         let orch_inner_w = content_w.saturating_sub(2).max(1);

@@ -114,7 +114,7 @@ impl McpSettingsView {
                     .bg(crate::colors::background())
                     .fg(crate::colors::text()),
             )
-            .scroll((list_scroll_top as u16, 0))
+            .scroll((u16::try_from(list_scroll_top).unwrap_or(u16::MAX), 0))
             .render(layout.list_inner, buf);
 
         let summary_block = Block::default()
@@ -155,7 +155,10 @@ impl McpSettingsView {
         };
 
         summary_paragraph
-            .scroll((summary_scroll_top as u16, summary_hscroll as u16))
+            .scroll((
+                u16::try_from(summary_scroll_top).unwrap_or(u16::MAX),
+                u16::try_from(summary_hscroll).unwrap_or(u16::MAX),
+            ))
             .render(layout.summary_inner, buf);
 
         if summary_total > summary_metrics.visible_lines {
@@ -192,7 +195,7 @@ impl McpSettingsView {
                     .bg(crate::colors::background())
                     .fg(crate::colors::text()),
             )
-            .scroll((tools_scroll_top as u16, 0))
+            .scroll((u16::try_from(tools_scroll_top).unwrap_or(u16::MAX), 0))
             .render(layout.tools_inner, buf);
 
         if tool_entries.len() > layout.tools_inner.height as usize {

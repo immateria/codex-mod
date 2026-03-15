@@ -111,9 +111,13 @@ impl<'a> SettingsActionPage<'a> {
         layout: SettingsSectionedPanelLayout,
     ) -> SettingsActionPageLayout {
         let total_h = layout.footer.height;
-        let action_height = (self.action_rows.min(total_h as usize)) as u16;
+        let action_height = u16::try_from(self.action_rows)
+            .unwrap_or(u16::MAX)
+            .min(total_h);
         let remaining = total_h.saturating_sub(action_height);
-        let status_height = (self.status_lines.len().min(remaining as usize)) as u16;
+        let status_height = u16::try_from(self.status_lines.len())
+            .unwrap_or(u16::MAX)
+            .min(remaining);
         let footer_height = remaining.saturating_sub(status_height);
 
         let status = Rect::new(layout.footer.x, layout.footer.y, layout.footer.width, status_height);
@@ -167,7 +171,7 @@ impl<'a> SettingsActionPage<'a> {
                 .len()
                 .saturating_add(self.action_rows)
                 .saturating_add(self.footer_lines.len()),
-            self.min_body_rows.min(u16::MAX as usize) as u16,
+            u16::try_from(self.min_body_rows).unwrap_or(u16::MAX),
         )
         .map(Into::into)
         .map(|layout| self.layout_from_sectioned(layout))

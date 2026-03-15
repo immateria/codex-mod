@@ -691,7 +691,7 @@ mod tests {
     use super::*;
     use crate::app_event::AppEvent;
     use crate::app_event_sender::AppEventSender;
-    use crate::bottom_pane::ModelSelectionTarget;
+    use crate::bottom_pane::settings_pages::model::ModelSelectionTarget;
     use code_common::model_presets::ReasoningEffortPreset;
     use code_core::config_types::ReasoningEffort;
     use std::sync::mpsc;

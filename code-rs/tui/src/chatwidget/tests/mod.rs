@@ -5,7 +5,7 @@
     };
     use crate::app_event::AppEvent;
     use crate::bottom_pane::AutoCoordinatorViewModel;
-    use crate::bottom_pane::mcp_settings_view::McpServerRow;
+    use crate::bottom_pane::settings_pages::mcp::McpServerRow;
     use crate::chatwidget::message::UserMessage;
     use crate::chatwidget::smoke_helpers::{enter_test_runtime_guard, ChatWidgetHarness};
     use crate::history_cell::{self, ExploreAggregationCell, HistoryCellType};
@@ -4199,7 +4199,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
 
     harness.with_chat(|chat| {
         use code_core::config_types::StatusLineLane;
-        use crate::bottom_pane::StatusLineItem;
+        use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
 
         chat.setup_status_line(
             vec![StatusLineItem::ModelName, StatusLineItem::NetworkMediation],
@@ -4258,7 +4258,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
 
     harness.with_chat(|chat| {
         use code_core::config_types::StatusLineLane;
-        use crate::bottom_pane::StatusLineItem;
+        use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
 
         chat.config.service_tier = None;
         chat.setup_status_line(
@@ -4401,7 +4401,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
 
     harness.with_chat(|chat| {
         use code_core::config_types::StatusLineLane;
-        use crate::bottom_pane::StatusLineItem;
+        use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
 
         chat.setup_status_line(
             vec![StatusLineItem::CurrentDir],
@@ -5256,7 +5256,7 @@ fn reset_history(chat: &mut ChatWidget<'_>) {
 
     harness.with_chat(|chat| {
         use code_core::config_types::StatusLineLane;
-        use crate::bottom_pane::StatusLineItem;
+        use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
 
         chat.setup_status_line(
             Vec::new(),

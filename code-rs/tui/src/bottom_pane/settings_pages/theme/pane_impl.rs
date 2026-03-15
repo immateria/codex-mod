@@ -46,13 +46,17 @@ impl<'a> BottomPaneView<'a> for ThemeSelectionView {
                 } else {
                     0
                 };
-                let n = (Self::theme_option_count() as u16) + extra;
+                let n = u16::try_from(Self::theme_option_count())
+                    .unwrap_or(u16::MAX)
+                    .saturating_add(extra);
                 // Border(2) + padding(2) + title(1)+space(1) + list
                 6 + n.min(9)
             }
             Mode::Spinner => {
                 // +1 for the "Generate your own…" pseudo-row
-                let n = (crate::spinner::spinner_names().len() as u16) + 1;
+                let n = u16::try_from(crate::spinner::spinner_names().len())
+                    .unwrap_or(u16::MAX)
+                    .saturating_add(1);
                 // Border(2) + padding(2) + title(1)+space(1) + list
                 6 + n.min(9)
             }

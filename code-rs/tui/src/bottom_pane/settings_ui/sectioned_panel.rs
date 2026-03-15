@@ -58,7 +58,7 @@ impl<'a> SettingsSectionedPanel<'a> {
             content,
             self.header_rows,
             self.footer_rows,
-            self.min_body_rows.min(u16::MAX as usize) as u16,
+            u16::try_from(self.min_body_rows).unwrap_or(u16::MAX),
         )
         .map(Into::into)
     }

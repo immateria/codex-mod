@@ -4,6 +4,7 @@ use ratatui::layout::Rect;
 use ratatui::layout::Margin;
 use ratatui::widgets::WidgetRef;
 use ratatui::prelude::Stylize;
+use unicode_width::UnicodeWidthStr;
 
 use super::popup_consts::MAX_POPUP_ROWS;
 use crate::components::scroll_state::ScrollState;
@@ -166,8 +167,10 @@ impl WidgetRef for &FileSearchPopup {
             let x = indented_area.x;
             let y = indented_area.y;
             let w = indented_area.width;
-            let start = x.saturating_add(w.saturating_sub(msg.len() as u16) / 2);
-            for xi in x..x + w {
+            let msg_w = u16::try_from(msg.width()).unwrap_or(u16::MAX);
+            let start = x.saturating_add(w.saturating_sub(msg_w) / 2);
+            let end = x.saturating_add(w);
+            for xi in x..end {
                 buf[(xi, y)].set_char(' ');
             }
             buf.set_string(start, y, msg, ratatui::style::Style::default().dim());

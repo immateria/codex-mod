@@ -1020,8 +1020,8 @@ impl<'a> BottomPaneView<'a> for ShellSelectionView {
 
     fn desired_height(&self, _width: u16) -> u16 {
         // Options + current display + padding (description lines are handled by min height).
-        let lines = self.item_count() + 6;
-        (lines as u16).max(12)
+        let lines = self.item_count().saturating_add(6);
+        u16::try_from(lines).unwrap_or(u16::MAX).max(12)
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {

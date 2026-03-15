@@ -872,13 +872,16 @@ impl<'a> BottomPaneView<'a> for ExecLimitsSettingsView {
     fn desired_height(&self, _width: u16) -> u16 {
         match &self.mode {
             ViewMode::Main => {
-                let header = self.render_header_lines().len() as u16;
+                let header = u16::try_from(self.render_header_lines().len()).unwrap_or(u16::MAX);
                 let total_rows = Self::build_rows().len();
-                let visible = total_rows.clamp(1, 10) as u16;
-                2 + header + visible
+                let visible = u16::try_from(total_rows.clamp(1, 10)).unwrap_or(u16::MAX);
+                2u16.saturating_add(header).saturating_add(visible)
             }
             ViewMode::Edit { .. } => 10,
-            ViewMode::Transition => 2 + self.render_header_lines().len() as u16 + 6,
+            ViewMode::Transition => {
+                let header = u16::try_from(self.render_header_lines().len()).unwrap_or(u16::MAX);
+                2u16.saturating_add(header).saturating_add(6)
+            }
         }
     }
 
@@ -907,10 +910,11 @@ mod tests {
         let settings = code_core::config::ExecLimitsToml::default();
         let mut view = ExecLimitsSettingsView::new(settings, app_event_tx);
 
-        let header_height = view.render_header_lines().len() as u16;
-        let footer_height = 1 + view.render_footer_lines().len() as u16;
-        let rows_len = ExecLimitsSettingsView::build_rows().len() as u16;
-        let required_inner_height = header_height + footer_height + rows_len;
+        let header_height = u16::try_from(view.render_header_lines().len()).unwrap_or(u16::MAX);
+        let footer_height =
+            1u16.saturating_add(u16::try_from(view.render_footer_lines().len()).unwrap_or(u16::MAX));
+        let rows_len = u16::try_from(ExecLimitsSettingsView::build_rows().len()).unwrap_or(u16::MAX);
+        let required_inner_height = header_height.saturating_add(footer_height).saturating_add(rows_len);
 
         let area = Rect {
             x: 0,
@@ -925,11 +929,12 @@ mod tests {
             .iter()
             .position(|row| *row == RowKind::Apply)
             .expect("apply row");
+        let apply_idx = u16::try_from(apply_idx).unwrap_or(u16::MAX);
 
         let mouse_event = MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
             column: inner.x.saturating_add(2),
-            row: inner.y.saturating_add(header_height).saturating_add(apply_idx as u16),
+            row: inner.y.saturating_add(header_height).saturating_add(apply_idx),
             modifiers: KeyModifiers::NONE,
         };
 
