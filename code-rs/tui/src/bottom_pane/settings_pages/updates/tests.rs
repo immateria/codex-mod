@@ -1,4 +1,5 @@
 use super::*;
+use crate::colors;
 
 #[test]
 fn automatic_upgrades_row_uses_shared_toggle_word() {
@@ -7,4 +8,3 @@ fn automatic_upgrades_row_uses_shared_toggle_word() {
     assert_eq!(value.text.as_ref(), "disabled");
     assert_eq!(value.style.fg, Some(colors::text_dim()));
 }
-
