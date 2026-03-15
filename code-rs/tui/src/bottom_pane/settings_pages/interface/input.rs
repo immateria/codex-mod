@@ -1,0 +1,334 @@
+use super::*;
+
+use code_core::config_types::{FunctionKeyHotkey, SettingsMenuOpenMode, TuiHotkey};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+
+impl InterfaceSettingsView {
+    fn open_hotkey_capture(&mut self, row: RowKind) {
+        self.mode = ViewMode::CaptureHotkey { row, error: None };
+    }
+
+    pub(super) fn activate_selected_row(&mut self) {
+        match self.selected_row() {
+            RowKind::OpenMode => self.cycle_open_mode_next(),
+            RowKind::OverlayMinWidth => self.open_width_editor(),
+            RowKind::HotkeyScope => self.cycle_hotkey_scope_next(),
+            RowKind::ModelSelectorHotkey
+            | RowKind::ReasoningEffortHotkey
+            | RowKind::ShellSelectorHotkey
+            | RowKind::NetworkSettingsHotkey
+            | RowKind::ExecOutputFoldHotkey
+            | RowKind::JsReplCodeFoldHotkey
+            | RowKind::JumpToParentCallHotkey
+            | RowKind::JumpToLatestChildCallHotkey => {
+                let row = self.selected_row();
+                self.open_hotkey_capture(row);
+            }
+            RowKind::ShowConfigToml => self.show_config_toml(),
+            RowKind::ShowCodeHome => self.show_code_home(),
+            RowKind::Apply => self.apply_settings(),
+            RowKind::Close => self.is_complete = true,
+        }
+    }
+
+    fn process_key_event_main(&mut self, key_event: KeyEvent) -> bool {
+        let rows = self.build_rows();
+        let total = rows.len();
+        if total == 0 {
+            if matches!(key_event.code, KeyCode::Esc) {
+                self.is_complete = true;
+                return true;
+            }
+            return false;
+        }
+
+        if self.state.selected_idx.is_none() {
+            self.state.selected_idx = Some(0);
+        }
+        self.state.clamp_selection(total);
+        self.state.scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+        let selected = self.state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+        let current_row = rows.get(selected).copied();
+
+        let visible = self.main_viewport_rows.get().max(1);
+
+        match key_event {
+            KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
+                self.state.move_up_wrap_visible(total, visible);
+                true
+            }
+            KeyEvent { code: KeyCode::Down, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
+                self.state.move_down_wrap_visible(total, visible);
+                true
+            }
+            KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
+                match current_row {
+                    Some(RowKind::OpenMode) => {
+                        // Reverse cycle.
+                        self.settings.open_mode = match self.settings.open_mode {
+                            SettingsMenuOpenMode::Auto => SettingsMenuOpenMode::Bottom,
+                            SettingsMenuOpenMode::Overlay => SettingsMenuOpenMode::Auto,
+                            SettingsMenuOpenMode::Bottom => SettingsMenuOpenMode::Overlay,
+                        };
+                        self.dirty_settings = true;
+                    }
+                    Some(RowKind::OverlayMinWidth) => self.adjust_min_width(-5),
+                    Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_prev(),
+                    Some(row @ RowKind::ModelSelectorHotkey)
+                    | Some(row @ RowKind::ReasoningEffortHotkey)
+                    | Some(row @ RowKind::ShellSelectorHotkey)
+                    | Some(row @ RowKind::NetworkSettingsHotkey)
+                    | Some(row @ RowKind::ExecOutputFoldHotkey)
+                    | Some(row @ RowKind::JsReplCodeFoldHotkey)
+                    | Some(row @ RowKind::JumpToParentCallHotkey)
+                    | Some(row @ RowKind::JumpToLatestChildCallHotkey) => {
+                        self.adjust_hotkey_for_row(row, false);
+                    }
+                    _ => {}
+                }
+                true
+            }
+            KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE, .. } => {
+                self.status = None;
+                match current_row {
+                    Some(RowKind::OpenMode) => self.cycle_open_mode_next(),
+                    Some(RowKind::OverlayMinWidth) => self.adjust_min_width(5),
+                    Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_next(),
+                    Some(row @ RowKind::ModelSelectorHotkey)
+                    | Some(row @ RowKind::ReasoningEffortHotkey)
+                    | Some(row @ RowKind::ShellSelectorHotkey)
+                    | Some(row @ RowKind::NetworkSettingsHotkey)
+                    | Some(row @ RowKind::ExecOutputFoldHotkey)
+                    | Some(row @ RowKind::JsReplCodeFoldHotkey)
+                    | Some(row @ RowKind::JumpToParentCallHotkey)
+                    | Some(row @ RowKind::JumpToLatestChildCallHotkey) => {
+                        self.adjust_hotkey_for_row(row, true);
+                    }
+                    _ => {}
+                }
+                true
+            }
+            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. }
+            | KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. } => {
+                if current_row.is_some() {
+                    self.activate_selected_row();
+                    self.state.ensure_visible(total, visible);
+                    true
+                } else {
+                    false
+                }
+            }
+            KeyEvent { code: KeyCode::Esc, .. } => {
+                self.is_complete = true;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn process_key_event_edit(&mut self, key_event: KeyEvent) -> bool {
+        match key_event {
+            KeyEvent { code: KeyCode::Esc, .. } => {
+                self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
+                let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+                if let ViewMode::EditWidth { field, .. } = mode {
+                    match self.save_width_editor(&field) {
+                        Ok(()) => self.mode = ViewMode::Main,
+                        Err(err) => self.mode = ViewMode::EditWidth {
+                            field,
+                            error: Some(err),
+                        },
+                    }
+                } else {
+                    self.mode = ViewMode::Main;
+                }
+                true
+            }
+            KeyEvent { code: KeyCode::Char('s'), modifiers, .. }
+                if modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+                if let ViewMode::EditWidth { field, .. } = mode {
+                    match self.save_width_editor(&field) {
+                        Ok(()) => self.mode = ViewMode::Main,
+                        Err(err) => self.mode = ViewMode::EditWidth {
+                            field,
+                            error: Some(err),
+                        },
+                    }
+                } else {
+                    self.mode = ViewMode::Main;
+                }
+                true
+            }
+            _ => match &mut self.mode {
+                ViewMode::EditWidth { field, .. } => field.handle_key(key_event),
+                ViewMode::Main | ViewMode::Transition | ViewMode::CaptureHotkey { .. } => false,
+            },
+        }
+    }
+
+    fn process_key_event_capture_hotkey(&mut self, row: RowKind, key_event: KeyEvent) -> bool {
+        match key_event {
+            KeyEvent { code: KeyCode::Esc, .. } => {
+                self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent { code: KeyCode::Char('d'), modifiers, .. }
+                if modifiers.is_empty() || modifiers == KeyModifiers::SHIFT =>
+            {
+                self.set_hotkey_for_row(row, TuiHotkey::disabled());
+                self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent { code: KeyCode::Char('l'), modifiers, .. }
+                if modifiers.is_empty() || modifiers == KeyModifiers::SHIFT =>
+            {
+                match row {
+                    RowKind::ExecOutputFoldHotkey
+                    | RowKind::JsReplCodeFoldHotkey
+                    | RowKind::JumpToParentCallHotkey
+                    | RowKind::JumpToLatestChildCallHotkey => {
+                        self.set_hotkey_for_row(row, TuiHotkey::legacy());
+                        self.mode = ViewMode::Main;
+                    }
+                    _ => {
+                        self.mode = ViewMode::CaptureHotkey {
+                            row,
+                            error: Some("Legacy is only available for history shortcuts.".to_owned()),
+                        };
+                    }
+                }
+                true
+            }
+            KeyEvent { code: KeyCode::Char('i'), modifiers, .. }
+                if (modifiers.is_empty() || modifiers == KeyModifiers::SHIFT)
+                    && !matches!(self.hotkey_scope, HotkeyScope::Global) =>
+            {
+                self.clear_hotkey_override_for_row(row);
+                self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent {
+                code: KeyCode::F(n),
+                modifiers,
+                kind: KeyEventKind::Press | KeyEventKind::Repeat,
+                ..
+            } if modifiers.is_empty() || modifiers == KeyModifiers::SHIFT => {
+                if n == 1 {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("F1 is reserved for the Help overlay.".to_owned()),
+                    };
+                    return true;
+                }
+                let max_key = self.hotkey_scope.max_function_key();
+                if n > max_key {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some(format!("This scope supports up to F{max_key}.")),
+                    };
+                    return true;
+                }
+                let Some(fk) = FunctionKeyHotkey::from_u8(n) else {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("Unsupported function key.".to_owned()),
+                    };
+                    return true;
+                };
+                let hk = TuiHotkey::Function(fk);
+                self.set_hotkey_for_row(row, hk);
+                self.mode = ViewMode::Main;
+                true
+            }
+            KeyEvent {
+                code: KeyCode::Char(c),
+                modifiers,
+                kind: KeyEventKind::Press | KeyEventKind::Repeat,
+                ..
+            } => {
+                let mods = modifiers.difference(KeyModifiers::SHIFT);
+                if mods.intersects(KeyModifiers::SUPER) {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("Super modifier is not supported for hotkeys.".to_owned()),
+                    };
+                    return true;
+                }
+                let ctrl = mods.contains(KeyModifiers::CONTROL);
+                let alt = mods.contains(KeyModifiers::ALT);
+                if !ctrl && !alt {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("Use Ctrl/Alt+letter or a function key.".to_owned()),
+                    };
+                    return true;
+                }
+                if !c.is_ascii_alphabetic() {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("Hotkey chords currently support ASCII letters only.".to_owned()),
+                    };
+                    return true;
+                }
+
+                let hk = TuiHotkey::Chord(code_core::config_types::TuiHotkeyChord {
+                    ctrl,
+                    alt,
+                    key: c.to_ascii_lowercase(),
+                });
+                if hk.is_reserved_for_statusline_shortcuts() {
+                    let label = hk.display_name();
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some(format!(
+                            "{label} is reserved and cannot be remapped.",
+                            label = label.as_ref()
+                        )),
+                    };
+                    return true;
+                }
+                self.set_hotkey_for_row(row, hk);
+                self.mode = ViewMode::Main;
+                true
+            }
+            _ => {
+                self.mode = ViewMode::CaptureHotkey { row, error: None };
+                true
+            }
+        }
+    }
+
+    fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
+        match mode {
+            ViewMode::Main => {
+                self.mode = ViewMode::Main;
+                self.process_key_event_main(key_event)
+            }
+            ViewMode::EditWidth { field, error } => {
+                self.mode = ViewMode::EditWidth { field, error };
+                self.process_key_event_edit(key_event)
+            }
+            ViewMode::CaptureHotkey { row, error } => {
+                self.mode = ViewMode::CaptureHotkey { row, error };
+                self.process_key_event_capture_hotkey(row, key_event)
+            }
+            ViewMode::Transition => {
+                self.mode = ViewMode::Main;
+                false
+            }
+        }
+    }
+
+    pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        self.process_key_event(key_event)
+    }
+}
