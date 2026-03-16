@@ -245,28 +245,6 @@ impl SlashCommand {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::parse_slash_name;
-
-    #[test]
-    fn parse_slash_name_parses_name_and_rest() {
-        assert_eq!(parse_slash_name("/name"), Some(("name", "")));
-        assert_eq!(parse_slash_name("/name rest"), Some(("name", "rest")));
-    }
-
-    #[test]
-    fn parse_slash_name_ignores_leading_whitespace() {
-        assert_eq!(parse_slash_name("   /name rest"), Some(("name", "rest")));
-    }
-
-    #[test]
-    fn parse_slash_name_rejects_empty_name() {
-        assert_eq!(parse_slash_name("/"), None);
-        assert_eq!(parse_slash_name("/    "), None);
-    }
-}
-
 /// Return all built-in commands in a Vec paired with their command string.
 pub fn built_in_slash_commands() -> Vec<(&'static str, SlashCommand)> {
     SlashCommand::iter()
@@ -367,6 +345,23 @@ pub enum ProcessedCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_slash_name_parses_name_and_rest() {
+        assert_eq!(parse_slash_name("/name"), Some(("name", "")));
+        assert_eq!(parse_slash_name("/name rest"), Some(("name", "rest")));
+    }
+
+    #[test]
+    fn parse_slash_name_ignores_leading_whitespace() {
+        assert_eq!(parse_slash_name("   /name rest"), Some(("name", "rest")));
+    }
+
+    #[test]
+    fn parse_slash_name_rejects_empty_name() {
+        assert_eq!(parse_slash_name("/"), None);
+        assert_eq!(parse_slash_name("/    "), None);
+    }
 
     #[test]
     fn plan_command_with_newline_arguments_is_recognized() {
