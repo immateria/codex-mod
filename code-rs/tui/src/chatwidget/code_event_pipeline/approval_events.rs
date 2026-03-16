@@ -109,7 +109,8 @@ impl ChatWidget<'_> {
             self.bottom_pane.set_task_running(true);
             self.bottom_pane.ensure_input_focus();
             self.bottom_pane
-                .show_request_user_input(crate::bottom_pane::RequestUserInputView::new(
+                .show_request_user_input(
+                    crate::bottom_pane::panes::request_user_input::RequestUserInputView::new(
                     ev.turn_id.clone(),
                     ev.call_id.clone(),
                     ev.questions,

@@ -8,8 +8,7 @@ use crossterm::event::{
 };
 use ratatui::layout::Rect;
 
-use crate::bottom_pane::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use crate::bottom_pane::{BottomPane, CancellationEvent};
+use crate::bottom_pane::{BottomPane, BottomPaneView, CancellationEvent, ConditionalUpdate};
 
 use super::RequestUserInputView;
 
@@ -186,4 +185,3 @@ impl BottomPaneView<'_> for RequestUserInputView {
         self.render_direct(area, buf);
     }
 }
-

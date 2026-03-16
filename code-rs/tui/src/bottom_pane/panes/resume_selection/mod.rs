@@ -1,9 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Constraint, Rect};
+use ratatui::layout::{Constraint, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Row, Table};
+use ratatui::widgets::{Paragraph, Row, Table};
 use ratatui::widgets::Widget;
 use std::cell::Cell;
 
@@ -11,8 +11,9 @@ use crate::app_event::AppEvent;
 use crate::app_event::SessionPickerAction;
 use crate::app_event_sender::AppEventSender;
 
-use super::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use super::{BottomPane, popup_consts::MAX_POPUP_ROWS};
+use crate::bottom_pane::{BottomPane, BottomPaneView, CancellationEvent, ConditionalUpdate};
+use crate::bottom_pane::popup_consts::MAX_POPUP_ROWS;
+use crate::components::popup_frame::render_popup_frame;
 
 const RESUME_POPUP_ROWS: usize = 14;
 const EFFECTIVE_MAX_ROWS: usize = if RESUME_POPUP_ROWS < MAX_POPUP_ROWS {
@@ -147,8 +148,9 @@ impl BottomPaneView<'_> for ResumeSelectionView {
 
     fn is_complete(&self) -> bool { self.complete }
 
-    fn on_ctrl_c(&mut self, _pane: &mut BottomPane<'_>) -> super::CancellationEvent {
-        self.complete = true; super::CancellationEvent::Handled
+    fn on_ctrl_c(&mut self, _pane: &mut BottomPane<'_>) -> CancellationEvent {
+        self.complete = true;
+        CancellationEvent::Handled
     }
 
     fn update_status_text(&mut self, _text: String) -> ConditionalUpdate { ConditionalUpdate::NoRedraw }
@@ -162,20 +164,9 @@ impl BottomPaneView<'_> for ResumeSelectionView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 || area.width == 0 { return; }
-
-        // Clear and draw a bordered block that uses the active theme colors.
-        // Other popups (e.g., list_selection_view) already do this; mirroring
-        // that treatment ensures dialogs respect dark/light themes.
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(self.title.clone())
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
+        let Some(inner) = render_popup_frame(area, buf, &self.title) else {
+            return;
+        };
 
         // Optional subtitle (path, etc.)
         let mut next_y = inner.y;

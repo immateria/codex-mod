@@ -110,14 +110,14 @@ use crate::app_event::{
     TerminalRunController,
 };
 use crate::app_event_sender::AppEventSender;
-use crate::bottom_pane::CustomPromptView;
-use crate::bottom_pane::list_selection_view::{ListSelectionView, SelectionItem};
-use crate::bottom_pane::CloudTasksView;
+use crate::bottom_pane::panes::cloud_tasks::CloudTasksView;
+use crate::bottom_pane::panes::custom_prompt::CustomPromptView;
+use crate::bottom_pane::panes::undo_timeline::{UndoTimelineEntry, UndoTimelineEntryKind, UndoTimelineView};
+use crate::components::list_selection_view::{ListSelectionView, SelectionItem};
 use crate::bottom_pane::settings_pages::validation::{GroupStatus, ToolRow};
 use crate::bottom_pane::settings_pages::model::ModelSelectionTarget;
 use crate::bottom_pane::BottomPane;
 use crate::bottom_pane::BottomPaneParams;
-use crate::bottom_pane::{UndoTimelineEntry, UndoTimelineEntryKind, UndoTimelineView};
 use crate::bottom_pane::CancellationEvent;
 use crate::bottom_pane::InputResult;
 use crate::height_manager::HeightEvent;

@@ -5,15 +5,16 @@ use code_cloud_tasks_client::TaskSummary;
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
-use crate::bottom_pane::bottom_pane_view::BottomPaneView;
+use crate::bottom_pane::{BottomPane, BottomPaneView, CancellationEvent};
 use crate::components::scroll_state::ScrollState;
+use crate::components::popup_frame::render_popup_frame;
 use crate::components::selection_popup_common::{render_rows, GenericDisplayRow};
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 
 const MAX_VISIBLE_ROWS: usize = 8;
 
@@ -67,7 +68,7 @@ impl CloudTasksView {
 }
 
 impl BottomPaneView<'_> for CloudTasksView {
-    fn handle_key_event(&mut self, _pane: &mut super::BottomPane<'_>, key: crossterm::event::KeyEvent) {
+    fn handle_key_event(&mut self, _pane: &mut BottomPane<'_>, key: crossterm::event::KeyEvent) {
         use crossterm::event::KeyCode;
         match key.code {
             KeyCode::Up => {
@@ -106,9 +107,9 @@ impl BottomPaneView<'_> for CloudTasksView {
         self.complete
     }
 
-    fn on_ctrl_c(&mut self, _pane: &mut super::BottomPane<'_>) -> super::CancellationEvent {
+    fn on_ctrl_c(&mut self, _pane: &mut BottomPane<'_>) -> CancellationEvent {
         self.complete = true;
-        super::CancellationEvent::Handled
+        CancellationEvent::Handled
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
@@ -118,17 +119,10 @@ impl BottomPaneView<'_> for CloudTasksView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 || area.width == 0 {
-            return;
-        }
-
         let title = format!(" Cloud tasks — {} ", self.env_label);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .title(title);
-        let inner = block.inner(area);
-        block.render(area, buf);
+        let Some(inner) = render_popup_frame(area, buf, &title) else {
+            return;
+        };
 
         if inner.height == 0 { return; }
 

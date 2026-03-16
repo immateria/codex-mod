@@ -4,7 +4,7 @@
         GIT_DIFF_NAME_ONLY_BETWEEN_STUB,
     };
     use crate::app_event::AppEvent;
-    use crate::bottom_pane::AutoCoordinatorViewModel;
+    use crate::bottom_pane::panes::auto_coordinator::AutoCoordinatorViewModel;
     use crate::bottom_pane::settings_pages::mcp::McpServerRow;
     use crate::chatwidget::message::UserMessage;
     use crate::chatwidget::smoke_helpers::{enter_test_runtime_guard, ChatWidgetHarness};

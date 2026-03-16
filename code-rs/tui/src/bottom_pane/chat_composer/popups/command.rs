@@ -3,7 +3,7 @@ use ratatui::layout::Rect;
 use ratatui::layout::Margin;
 use ratatui::widgets::WidgetRef;
 
-use super::popup_consts::MAX_POPUP_ROWS;
+use crate::bottom_pane::popup_consts::MAX_POPUP_ROWS;
 use crate::components::scroll_state::ScrollState;
 use crate::components::selection_popup_common::GenericDisplayRow;
 use crate::components::selection_popup_common::render_rows;

@@ -9,12 +9,14 @@ use crate::chatwidget::BackgroundOrderTicket;
 use crate::user_approval_widget::ApprovalRequest;
 use crate::user_approval_widget::UserApprovalWidget;
 
-use super::BottomPane;
-use super::BottomPaneView;
-use super::CancellationEvent;
-use super::bottom_pane_view::ConditionalUpdate;
+use crate::bottom_pane::{BottomPane, BottomPaneView, CancellationEvent, ConditionalUpdate};
 use crate::ui_interaction::redraw_if;
 use std::collections::VecDeque;
+
+#[cfg(feature = "code-fork")]
+mod approval_ui;
+#[cfg(feature = "code-fork")]
+pub(crate) use approval_ui::ApprovalUi;
 
 /// Modal overlay asking the user to approve/deny a sequence of requests.
 pub(crate) struct ApprovalModalView<'a> {
@@ -30,7 +32,11 @@ impl ApprovalModalView<'_> {
         app_event_tx: AppEventSender,
     ) -> Self {
         Self {
-            current: super::build_user_approval_widget(request, ticket, app_event_tx.clone()),
+            current: crate::bottom_pane::build_user_approval_widget(
+                request,
+                ticket,
+                app_event_tx.clone(),
+            ),
             queue: VecDeque::new(),
             app_event_tx,
         }
@@ -49,7 +55,11 @@ impl ApprovalModalView<'_> {
         if self.current.is_complete()
             && let Some((req, ticket)) = self.queue.pop_front() {
                 self.current =
-                    super::build_user_approval_widget(req, ticket, self.app_event_tx.clone());
+                    crate::bottom_pane::build_user_approval_widget(
+                        req,
+                        ticket,
+                        self.app_event_tx.clone(),
+                    );
             }
     }
 }

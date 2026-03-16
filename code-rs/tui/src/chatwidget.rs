@@ -230,15 +230,14 @@ use code_core::protocol::TurnDiffEvent;
 use code_core::protocol::ViewImageToolCallEvent;
 use code_core::review_coord::{bump_snapshot_epoch_for, try_acquire_lock, ReviewGuard};
 use code_core::codex::compact::COMPACTION_CHECKPOINT_MESSAGE;
-use crate::bottom_pane::{
+use crate::bottom_pane::{AgentHintLabel, AutoReviewFooterStatus, AutoReviewPhase, SettingsSection};
+use crate::bottom_pane::panes::auto_coordinator::{
     AutoActiveViewModel,
     AutoCoordinatorButton,
     AutoCoordinatorViewModel,
     CountdownState,
-    AgentHintLabel, AutoReviewFooterStatus, AutoReviewPhase,
-    SettingsSection,
-    prompt_args,
 };
+use crate::prompt_args;
 use crate::bottom_pane::settings_pages::accounts::{
     LoginAccountsState,
     LoginAccountsView,

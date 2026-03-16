@@ -6,14 +6,14 @@ use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::text::Span;
-use ratatui::widgets::{Paragraph, Block, Borders, Clear};
-use ratatui::layout::Alignment;
+use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
 
 use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::BottomPane;
 use crate::bottom_pane::BottomPaneView;
 use crate::bottom_pane::CancellationEvent;
+use crate::components::popup_frame::render_popup_frame;
 use crate::components::scroll_state::ScrollState;
 use crate::components::selection_popup_common::GenericDisplayRow;
 use crate::components::selection_popup_common::render_rows;
@@ -190,20 +190,9 @@ impl BottomPaneView<'_> for ListSelectionView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 || area.width == 0 {
+        let Some(inner) = render_popup_frame(area, buf, &self.title) else {
             return;
-        }
-
-        // Clear and draw a bordered block matching other slash popups
-        Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(crate::colors::border()))
-            .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))
-            .title(self.title.clone())
-            .title_alignment(Alignment::Center);
-        let inner = block.inner(area);
-        block.render(area, buf);
+        };
 
         // Layout inside the block: optional subtitle header, spacer, rows, footer
         let (content_width, subtitle_rows, spacer_top, bottom_spacer_rows, footer_rows, rows_visible, _total) =

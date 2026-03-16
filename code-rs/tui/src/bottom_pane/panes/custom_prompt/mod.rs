@@ -15,13 +15,10 @@ use ratatui::widgets::StatefulWidgetRef;
 use ratatui::widgets::Widget;
 use std::cell::RefCell;
 
-use super::popup_consts::_STANDARD_POPUP_HINT_LINE as STANDARD_POPUP_HINT_LINE;
 use crate::app_event_sender::AppEventSender;
-use crate::bottom_pane::SelectionAction;
-
-use super::CancellationEvent;
-use super::bottom_pane_view::BottomPaneView;
-use super::bottom_pane_view::ConditionalUpdate;
+use crate::bottom_pane::{BottomPane, BottomPaneView, CancellationEvent, ConditionalUpdate};
+use crate::bottom_pane::popup_consts::_STANDARD_POPUP_HINT_LINE as STANDARD_POPUP_HINT_LINE;
+use crate::components::list_selection_view::SelectionAction;
 use crate::components::textarea::TextArea;
 use crate::components::textarea::TextAreaState;
 
@@ -70,7 +67,7 @@ impl CustomPromptView {
 }
 
 impl BottomPaneView<'_> for CustomPromptView {
-    fn handle_key_event(&mut self, pane: &mut super::BottomPane<'_>, key_event: KeyEvent) {
+    fn handle_key_event(&mut self, pane: &mut BottomPane<'_>, key_event: KeyEvent) {
         match key_event {
             KeyEvent {
                 code: KeyCode::Esc, ..
@@ -100,7 +97,12 @@ impl BottomPaneView<'_> for CustomPromptView {
         }
     }
 
-    fn handle_mouse_event(&mut self, _pane: &mut super::BottomPane<'_>, mouse_event: MouseEvent, _area: Rect) -> ConditionalUpdate {
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'_>,
+        mouse_event: MouseEvent,
+        _area: Rect,
+    ) -> ConditionalUpdate {
         match mouse_event.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 // Check if we have a cached textarea rect from the last render
@@ -112,11 +114,11 @@ impl BottomPaneView<'_> for CustomPromptView {
                 }
                 ConditionalUpdate::NoRedraw
             }
-            _ => ConditionalUpdate::NoRedraw
+            _ => ConditionalUpdate::NoRedraw,
         }
     }
 
-    fn on_ctrl_c(&mut self, _pane: &mut super::BottomPane<'_>) -> CancellationEvent {
+    fn on_ctrl_c(&mut self, _pane: &mut BottomPane<'_>) -> CancellationEvent {
         self.complete = true;
         if let Some(cb) = &self.on_escape {
             cb(&self.app_event_tx);
@@ -237,12 +239,12 @@ impl BottomPaneView<'_> for CustomPromptView {
         }
     }
 
-    fn handle_paste(&mut self, pasted: String) -> super::bottom_pane_view::ConditionalUpdate {
+    fn handle_paste(&mut self, pasted: String) -> ConditionalUpdate {
         if pasted.is_empty() {
-            return super::bottom_pane_view::ConditionalUpdate::NoRedraw;
+            return ConditionalUpdate::NoRedraw;
         }
         self.textarea.insert_str(&pasted);
-        super::bottom_pane_view::ConditionalUpdate::NeedsRedraw
+        ConditionalUpdate::NeedsRedraw
     }
 }
 

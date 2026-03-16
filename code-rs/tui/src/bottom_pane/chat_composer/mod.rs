@@ -14,12 +14,10 @@ use crossterm::event::MouseButton;
 use crossterm::event::MouseEvent;
 use crossterm::event::MouseEventKind;
 
-use super::chat_composer_history::ChatComposerHistory;
-use super::command_popup::CommandItem;
-use super::command_popup::CommandPopup;
-use super::file_search_popup::FileSearchPopup;
-use super::paste_burst::PasteBurst;
-use crate::slash_command::SlashCommand;
+use self::history::ChatComposerHistory;
+use self::paste_burst::PasteBurst;
+use self::popups::{CommandItem, CommandPopup, FileSearchPopup};
+use crate::slash_command::{parse_slash_name, SlashCommand};
 use code_protocol::custom_prompts::CustomPrompt;
 use code_protocol::custom_prompts::PROMPTS_CMD_PREFIX;
 use code_core::model_family::EXTENDED_CONTEXT_WINDOW_1M;
@@ -44,7 +42,10 @@ use std::time::Duration;
 use std::time::Instant;
 
 mod footer;
+mod history;
 mod input;
+mod paste_burst;
+mod popups;
 mod render;
 
 // Dynamic placeholder rendered when the composer is empty.
@@ -75,17 +76,6 @@ struct TokenCursorContext<'a> {
     after_cursor: &'a str,
     start_idx: usize,
     end_idx: usize,
-}
-
-fn parse_slash_name(line: &str) -> Option<(&str, &str)> {
-    let stripped = line.strip_prefix('/')?;
-    let (name, rest) = stripped
-        .split_once(char::is_whitespace)
-        .unwrap_or((stripped, ""));
-    if name.is_empty() {
-        return None;
-    }
-    Some((name, rest.trim_start()))
 }
 
 /// Result returned when the user interacts with the text area.

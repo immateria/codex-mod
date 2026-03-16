@@ -37,6 +37,22 @@ fn demo_command_enabled() -> bool {
     })
 }
 
+/// Parse a first-line slash command of the form `/name <rest>`.
+///
+/// Returns `(name, rest_after_name)` if the line contains a non-empty `name`;
+/// otherwise returns `None`.
+pub(crate) fn parse_slash_name(line: &str) -> Option<(&str, &str)> {
+    let trimmed = line.trim_start();
+    let stripped = trimmed.strip_prefix('/')?;
+    let (name, rest) = stripped
+        .split_once(char::is_whitespace)
+        .unwrap_or((stripped, ""));
+    if name.is_empty() {
+        return None;
+    }
+    Some((name, rest.trim_start()))
+}
+
 /// Commands that can be invoked by starting a message with a leading slash.
 ///
 /// IMPORTANT: When adding or changing slash commands, also update
@@ -226,6 +242,28 @@ impl SlashCommand {
             )),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_slash_name;
+
+    #[test]
+    fn parse_slash_name_parses_name_and_rest() {
+        assert_eq!(parse_slash_name("/name"), Some(("name", "")));
+        assert_eq!(parse_slash_name("/name rest"), Some(("name", "rest")));
+    }
+
+    #[test]
+    fn parse_slash_name_ignores_leading_whitespace() {
+        assert_eq!(parse_slash_name("   /name rest"), Some(("name", "rest")));
+    }
+
+    #[test]
+    fn parse_slash_name_rejects_empty_name() {
+        assert_eq!(parse_slash_name("/"), None);
+        assert_eq!(parse_slash_name("/    "), None);
     }
 }
 

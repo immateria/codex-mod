@@ -2,8 +2,7 @@ use crossterm::event::KeyEvent;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-use crate::bottom_pane::bottom_pane_view::{BottomPaneView, ConditionalUpdate};
-use crate::bottom_pane::{BottomPane, CancellationEvent};
+use crate::bottom_pane::{BottomPane, BottomPaneView, CancellationEvent, ConditionalUpdate};
 use crate::ui_interaction::redraw_if;
 
 use super::UndoTimelineView;
@@ -42,4 +41,3 @@ impl<'a> BottomPaneView<'a> for UndoTimelineView {
         self.render_direct(area, buf);
     }
 }
-

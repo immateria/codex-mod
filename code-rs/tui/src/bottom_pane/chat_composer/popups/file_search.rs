@@ -6,7 +6,7 @@ use ratatui::widgets::WidgetRef;
 use ratatui::prelude::Stylize;
 use unicode_width::UnicodeWidthStr;
 
-use super::popup_consts::MAX_POPUP_ROWS;
+use crate::bottom_pane::popup_consts::MAX_POPUP_ROWS;
 use crate::components::scroll_state::ScrollState;
 use crate::components::selection_popup_common::GenericDisplayRow;
 use crate::components::selection_popup_common::render_rows;

@@ -61,7 +61,7 @@ impl ChatWidget<'_> {
 
     pub(in super::super) fn resume_rows_from_candidates(
         candidates: Vec<crate::resume::discovery::ResumeCandidate>,
-    ) -> Vec<crate::bottom_pane::resume_selection_view::ResumeRow> {
+    ) -> Vec<crate::bottom_pane::panes::resume_selection::ResumeRow> {
         fn human_ago(ts: &str) -> String {
             use chrono::{DateTime, Local};
             if let Ok(dt) = DateTime::parse_from_rfc3339(ts) {
@@ -114,7 +114,7 @@ impl ChatWidget<'_> {
                 if summary.chars().count() > SNIPPET_MAX {
                     summary = summary.chars().take(SNIPPET_MAX).collect::<String>() + "…";
                 }
-                crate::bottom_pane::resume_selection_view::ResumeRow {
+                crate::bottom_pane::panes::resume_selection::ResumeRow {
                     modified,
                     created,
                     user_msgs,

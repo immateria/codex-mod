@@ -25,29 +25,12 @@ use std::time::Duration;
 
 mod chrome;
 mod chrome_view;
-pub(crate) mod settings_pages;
-mod approval_modal_view;
-#[cfg(feature = "code-fork")]
-mod approval_ui;
-mod auto_coordinator_view;
 mod bottom_pane_view;
 mod chat_composer;
-mod chat_composer_history;
-mod custom_prompt_view;
-pub(crate) mod prompt_args;
-mod command_popup;
-mod file_search_popup;
-mod paste_burst;
 mod popup_consts;
-pub mod list_selection_view;
-pub(crate) use list_selection_view::SelectionAction;
-pub(crate) use custom_prompt_view::CustomPromptView;
-mod cloud_tasks_view;
-pub(crate) use cloud_tasks_view::CloudTasksView;
-pub mod resume_selection_view;
-mod undo_timeline_view;
+pub(crate) mod panes;
+pub(crate) mod settings_pages;
 mod settings_overlay;
-mod request_user_input_view;
 pub(crate) mod settings_ui;
 pub(crate) use settings_overlay::SettingsSection;
 
@@ -59,23 +42,23 @@ pub(crate) enum CancellationEvent {
 
 pub(crate) use chat_composer::{AgentHintLabel, AutoReviewFooterStatus, AutoReviewPhase, ChatComposer};
 pub(crate) use chat_composer::InputResult;
-pub(crate) use auto_coordinator_view::{
-    AutoActiveViewModel,
-    AutoCoordinatorButton,
-    AutoCoordinatorView,
-    AutoCoordinatorViewModel,
-    CountdownState,
-};
-use approval_modal_view::ApprovalModalView;
 #[cfg(feature = "code-fork")]
-use approval_ui::ApprovalUi;
+use panes::approval_modal::ApprovalUi;
 use code_common::model_presets::ModelPreset;
 use code_core::config_types::ContextMode;
 use code_core::protocol::AutoContextPhase;
 use code_core::config_types::TextVerbosity;
 use code_core::config_types::ThemeName;
-pub(crate) use undo_timeline_view::{UndoTimelineEntry, UndoTimelineEntryKind, UndoTimelineView};
-pub(crate) use request_user_input_view::RequestUserInputView;
+use panes::approval_modal::ApprovalModalView;
+use panes::auto_coordinator::{
+    AutoCoordinatorView,
+    AutoCoordinatorViewModel,
+};
+use panes::cloud_tasks::CloudTasksView;
+use panes::custom_prompt::CustomPromptView;
+use panes::request_user_input::RequestUserInputView;
+use panes::resume_selection::{ResumeRow, ResumeSelectionView};
+use panes::undo_timeline::UndoTimelineView;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ActiveViewKind {
@@ -246,7 +229,7 @@ impl<'a> BottomPane<'a> {
             let composer_visible = view
                 .as_any()
                 .and_then(|any| any.downcast_ref::<AutoCoordinatorView>())
-                .map(auto_coordinator_view::AutoCoordinatorView::composer_visible)
+                .map(AutoCoordinatorView::composer_visible)
                 .unwrap_or(true);
             let composer_height = if composer_visible {
                 self.composer.desired_height(area.width)
@@ -506,7 +489,7 @@ impl<'a> BottomPane<'a> {
                     .as_ref()
                     .as_any()
                     .and_then(|any| any.downcast_ref::<AutoCoordinatorView>())
-                    .map(auto_coordinator_view::AutoCoordinatorView::composer_visible)
+                    .map(AutoCoordinatorView::composer_visible)
                     .unwrap_or(true);
                 if composer_visible {
                     self.composer.desired_height(width)
@@ -1077,7 +1060,7 @@ impl<'a> BottomPane<'a> {
     /// Show a generic list selection popup with items and actions.
     pub fn show_list_selection(
         &mut self,
-        items: crate::bottom_pane::list_selection_view::ListSelectionView,
+        items: crate::components::list_selection_view::ListSelectionView,
     ) {
         self.set_other_view(items, true);
     }
@@ -1091,10 +1074,9 @@ impl<'a> BottomPane<'a> {
         &mut self,
         title: String,
         subtitle: Option<String>,
-        rows: Vec<resume_selection_view::ResumeRow>,
+        rows: Vec<ResumeRow>,
         action: crate::app_event::SessionPickerAction,
     ) {
-        use resume_selection_view::ResumeSelectionView;
         let view = ResumeSelectionView::new(
             title,
             subtitle.unwrap_or_default(),
