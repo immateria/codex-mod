@@ -119,11 +119,17 @@ mod tests {
         let layout = page.framed().layout(area).expect("layout");
 
         assert_eq!(
-            super::rows::selection_index_at(layout.body, layout.body.x, layout.body.y, 3, 10),
+            crate::bottom_pane::settings_ui::rows::selection_index_at(
+                layout.body,
+                layout.body.x,
+                layout.body.y,
+                3,
+                10,
+            ),
             Some(3)
         );
         assert_eq!(
-            super::rows::selection_index_at(
+            crate::bottom_pane::settings_ui::rows::selection_index_at(
                 layout.body,
                 layout.body.x,
                 layout.body.y.saturating_add(2),
@@ -133,7 +139,13 @@ mod tests {
             Some(5)
         );
         assert_eq!(
-            super::rows::selection_index_at(layout.body, layout.header.x, layout.header.y, 3, 10),
+            crate::bottom_pane::settings_ui::rows::selection_index_at(
+                layout.body,
+                layout.header.x,
+                layout.header.y,
+                3,
+                10,
+            ),
             None
         );
     }
