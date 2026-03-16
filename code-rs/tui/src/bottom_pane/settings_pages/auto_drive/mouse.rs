@@ -4,11 +4,20 @@ use crate::app_event::AppEvent;
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test_no_ensure_visible;
 use crate::ui_interaction::{SelectableListMouseConfig, SelectableListMouseResult};
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 impl AutoDriveSettingsView {
+    fn routing_checkbox_hit_test(body: Rect, x: u16) -> bool {
+        // Kept consistent with pre-refactor behavior: clicking the "checkbox column" at the
+        // start of a routing row toggles enabled, while the rest of the row opens the editor.
+        let start = body.x.saturating_add(2);
+        let end = body.x.saturating_add(5);
+        x >= start && x < end
+    }
+
     fn update_hover_in_chrome(
         &mut self,
         chrome: ChromeMode,
@@ -117,11 +126,10 @@ impl AutoDriveSettingsView {
                     require_pointer_hit_for_scroll: true,
                     ..SelectableListMouseConfig::default()
                 };
-                let outcome = route_scroll_state_mouse_with_hit_test(
+                let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
                     mouse_event,
                     &mut self.main_state,
                     rows.len(),
-                    rows.len().max(1),
                     |x, y, scroll_top| {
                         SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, scroll_top, &rows)
                     },
@@ -171,10 +179,7 @@ impl AutoDriveSettingsView {
                     if idx >= self.model_routing_entries.len() {
                         self.open_routing_editor(None);
                     } else {
-                        let checkbox_start = layout.body.x.saturating_add(2);
-                        let checkbox_end = layout.body.x.saturating_add(5);
-                        if mouse_event.column >= checkbox_start && mouse_event.column < checkbox_end
-                        {
+                        if Self::routing_checkbox_hit_test(layout.body, mouse_event.column) {
                             self.try_toggle_routing_entry_enabled(idx);
                         } else {
                             self.open_routing_editor(Some(idx));
@@ -289,4 +294,3 @@ impl AutoDriveSettingsView {
         handled
     }
 }
-

@@ -77,7 +77,7 @@ impl AutoDriveSettingsView {
     }
 
     pub(super) fn default_routing_model() -> String {
-        "gpt-5.3-codex".to_string()
+        "gpt-5.3-codex".to_owned()
     }
 
     fn normalize_routing_model(model: &str) -> Option<String> {
@@ -121,7 +121,7 @@ impl AutoDriveSettingsView {
                 model,
                 enabled: entry.enabled,
                 reasoning_levels,
-                description: entry.description.trim().to_string(),
+                description: entry.description.trim().to_owned(),
             });
         }
         normalized_entries
@@ -162,9 +162,9 @@ impl AutoDriveSettingsView {
             .collect::<Vec<_>>()
             .join("/");
         let mut description = if entry.description.trim().is_empty() {
-            "(no description)".to_string()
+            "(no description)".to_owned()
         } else {
-            entry.description.trim().to_string()
+            entry.description.trim().to_owned()
         };
         const DESCRIPTION_MAX_CHARS: usize = 64;
         if description.chars().count() > DESCRIPTION_MAX_CHARS {

@@ -136,7 +136,7 @@ impl AutoDriveSettingsView {
             model,
             enabled: editor.enabled,
             reasoning_levels,
-            description: editor.description.trim().to_string(),
+            description: editor.description.trim().to_owned(),
         };
 
         let mut updated_entries = self.model_routing_entries.clone();
@@ -322,14 +322,26 @@ impl AutoDriveSettingsView {
             return true;
         }
 
-        let mode = self.mode.clone();
+        #[derive(Clone, Copy)]
+        enum ModeKind {
+            Main,
+            RoutingList,
+            RoutingEditor,
+        }
+
+        // Avoid cloning the editor state just to dispatch on the current mode.
+        let mode = match &self.mode {
+            AutoDriveSettingsMode::Main => ModeKind::Main,
+            AutoDriveSettingsMode::RoutingList => ModeKind::RoutingList,
+            AutoDriveSettingsMode::RoutingEditor(_) => ModeKind::RoutingEditor,
+        };
+
         match mode {
-            AutoDriveSettingsMode::Main => self.handle_main_key(key_event),
-            AutoDriveSettingsMode::RoutingList => self.handle_routing_list_key(key_event),
-            AutoDriveSettingsMode::RoutingEditor(_) => self.handle_routing_editor_key(key_event),
+            ModeKind::Main => self.handle_main_key(key_event),
+            ModeKind::RoutingList => self.handle_routing_list_key(key_event),
+            ModeKind::RoutingEditor => self.handle_routing_editor_key(key_event),
         }
     }
-
 
     pub fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
         if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {

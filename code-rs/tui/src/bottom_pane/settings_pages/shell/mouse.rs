@@ -19,7 +19,8 @@ impl ShellSelectionView {
         }
 
         let page = self.edit_page();
-        let Some(layout) = page.framed().layout(area) else {
+        // Bottom-pane chrome is framed; overlay hover updates flow through the MouseMoved handler.
+        let Some(layout) = page.layout_in_chrome(ChromeMode::Framed, area) else {
             return false;
         };
         let buttons = self.edit_buttons();
