@@ -10,9 +10,12 @@ impl PromptsSettingsView {
         name_field.set_filter(InputFilter::Id);
         let body_field = FormTextField::new_multi_line();
 
+        let mut list_state = ScrollState::new();
+        list_state.selected_idx = Some(0);
         Self {
             prompts,
-            selected: 0,
+            list_state,
+            list_viewport_rows: Cell::new(DEFAULT_LIST_VIEWPORT_ROWS),
             focus: Focus::List,
             name_field,
             body_field,
@@ -43,4 +46,3 @@ impl PromptsSettingsView {
         self.is_complete
     }
 }
-

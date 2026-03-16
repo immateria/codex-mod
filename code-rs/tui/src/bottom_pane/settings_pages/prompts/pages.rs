@@ -57,7 +57,7 @@ impl PromptsSettingsView {
         SettingsActionPage::new(
             "Custom Prompt",
             SettingsPanelStyle::bottom_pane(),
-            vec![title_line(if self.selected >= self.prompts.len() {
+            vec![title_line(if self.selected_prompt_index().is_none() {
                 "New prompt"
             } else {
                 "Edit prompt"
@@ -122,7 +122,8 @@ impl PromptsSettingsView {
                     .unwrap_or("")
                     .trim()
                     .to_string();
-                let mut row = SettingsMenuRow::new(idx, format!("/{}", prompt.name));
+                let name = prompt.name.as_str();
+                let mut row = SettingsMenuRow::new(idx, format!("/{name}"));
                 if !preview.is_empty() {
                     row = row.with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
                         preview,
@@ -159,4 +160,3 @@ impl PromptsSettingsView {
         )
     }
 }
-

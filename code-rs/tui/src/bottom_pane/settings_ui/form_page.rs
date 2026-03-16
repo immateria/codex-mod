@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Position, Rect};
 
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::components::form_text_field::FormTextField;
 
 use super::action_page::{SettingsActionPage, SettingsActionPageLayout};
@@ -36,7 +37,7 @@ pub(crate) struct SettingsFormSectionLayout {
     pub(crate) inner: Rect,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct SettingsFormPageLayout {
     pub(crate) page: SettingsActionPageLayout,
     pub(crate) sections: Vec<SettingsFormSectionLayout>,
@@ -77,6 +78,39 @@ impl<'a> SettingsFormPage<'a> {
 
     pub(crate) fn content_only(&self) -> SettingsFormPageContentOnly<'_, 'a> {
         SettingsFormPageContentOnly { page: self }
+    }
+
+    pub(crate) fn layout_in_chrome(&self, chrome: ChromeMode, area: Rect) -> Option<SettingsFormPageLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().layout(area),
+            ChromeMode::ContentOnly => self.content_only().layout(area),
+        }
+    }
+
+    pub(crate) fn render_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+    ) -> Option<SettingsFormPageLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().render(area, buf, fields),
+            ChromeMode::ContentOnly => self.content_only().render(area, buf, fields),
+        }
+    }
+
+    pub(crate) fn render_with_standard_actions_end_in_chrome<Id: Copy>(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        fields: &[&FormTextField],
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<SettingsFormPageLayout> {
+        let layout = self.render_in_chrome(chrome, area, buf, fields)?;
+        self.render_standard_actions(&layout, buf, buttons, TextButtonAlign::End);
+        Some(layout)
     }
 
     fn section_rects(&self, body: Rect) -> Vec<Rect> {
@@ -311,6 +345,7 @@ mod tests {
     use super::*;
     use ratatui::text::Line;
 
+    use crate::bottom_pane::chrome::ChromeMode;
     use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 
     #[test]
@@ -368,5 +403,24 @@ mod tests {
             .expect("render");
         assert_eq!(rendered.sections, expected.sections);
         assert_eq!(rendered.page, expected.page);
+    }
+
+    #[test]
+    fn layout_in_chrome_matches_concrete_layout() {
+        let page = SettingsActionPage::new("Test", SettingsPanelStyle::bottom_pane(), vec![], vec![]);
+        let form = SettingsFormPage::new(
+            page,
+            vec![SettingsFormSection::new("Body", true, Constraint::Min(1))],
+        );
+        let area = Rect::new(0, 0, 24, 7);
+
+        assert_eq!(
+            form.layout_in_chrome(ChromeMode::Framed, area),
+            form.framed().layout(area)
+        );
+        assert_eq!(
+            form.layout_in_chrome(ChromeMode::ContentOnly, area),
+            form.content_only().layout(area)
+        );
     }
 }

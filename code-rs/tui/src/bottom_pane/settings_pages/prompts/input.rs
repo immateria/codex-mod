@@ -88,15 +88,21 @@ impl PromptsSettingsView {
     fn handle_list_key(&mut self, key: KeyEvent) -> bool {
         match key.code {
             KeyCode::Up => {
-                if self.selected > 0 {
-                    self.selected -= 1;
+                self.list_state.clamp_selection(self.list_row_count());
+                let selected = self.selected_list_idx();
+                if selected > 0 {
+                    self.list_state.selected_idx = Some(selected.saturating_sub(1));
+                    self.clamp_list_state();
                 }
                 true
             }
             KeyCode::Down => {
-                let max = self.prompts.len();
-                if self.selected < max {
-                    self.selected += 1;
+                self.list_state.clamp_selection(self.list_row_count());
+                let selected = self.selected_list_idx();
+                let max_idx = self.prompts.len();
+                if selected < max_idx {
+                    self.list_state.selected_idx = Some(selected.saturating_add(1));
+                    self.clamp_list_state();
                 }
                 true
             }
@@ -105,7 +111,8 @@ impl PromptsSettingsView {
     }
 
     fn start_new_prompt(&mut self) {
-        self.selected = self.prompts.len();
+        self.list_state.selected_idx = Some(self.prompts.len());
+        self.clamp_list_state();
         self.name_field.set_text("");
         self.body_field.set_text("");
         self.focus = Focus::Name;
@@ -117,7 +124,10 @@ impl PromptsSettingsView {
     }
 
     fn load_selected_into_form(&mut self) {
-        if let Some(p) = self.prompts.get(self.selected) {
+        let Some(selected) = self.selected_prompt_index() else {
+            return;
+        };
+        if let Some(p) = self.prompts.get(selected) {
             self.name_field.set_text(&p.name);
             self.body_field.set_text(&p.content);
             self.focus = Focus::Name;
@@ -126,7 +136,7 @@ impl PromptsSettingsView {
     }
 
     pub(super) fn enter_editor(&mut self) {
-        if self.selected >= self.prompts.len() {
+        if self.selected_prompt_index().is_none() {
             self.start_new_prompt();
         } else {
             self.load_selected_into_form();
@@ -177,7 +187,7 @@ impl PromptsSettingsView {
             .prompts
             .iter()
             .enumerate()
-            .any(|(idx, p)| idx != self.selected && p.name.eq_ignore_ascii_case(slug));
+            .any(|(idx, p)| Some(idx) != self.selected_prompt_index() && p.name.eq_ignore_ascii_case(slug));
         if dup {
             return Err("A prompt with this name already exists".to_string());
         }
@@ -232,12 +242,17 @@ impl PromptsSettingsView {
             description: None,
             argument_hint: None,
         };
-        if self.selected < self.prompts.len() {
-            self.prompts[self.selected] = new_entry;
+        if let Some(selected) = self.selected_prompt_index() {
+            if selected < self.prompts.len() {
+                self.prompts[selected] = new_entry;
+                self.list_state.selected_idx = Some(selected);
+            }
         } else {
+            let new_idx = self.prompts.len();
             self.prompts.push(new_entry);
-            self.selected = self.prompts.len() - 1;
+            self.list_state.selected_idx = Some(new_idx);
         }
+        self.clamp_list_state();
         self.status = Some((
             "Saved.".to_string(),
             Style::default().fg(colors::success()),
@@ -249,7 +264,7 @@ impl PromptsSettingsView {
     }
 
     pub(super) fn delete_current(&mut self) {
-        if self.selected >= self.prompts.len() {
+        let Some(selected) = self.selected_prompt_index() else {
             self.status = Some((
                 "Nothing to delete".to_string(),
                 Style::default().fg(colors::warning()),
@@ -257,8 +272,8 @@ impl PromptsSettingsView {
             self.mode = Mode::List;
             self.focus = Focus::List;
             return;
-        }
-        let prompt = self.prompts[self.selected].clone();
+        };
+        let prompt = self.prompts[selected].clone();
         if let Err(e) = fs::remove_file(&prompt.path) {
             // Ignore missing file but surface other errors
             if e.kind() != std::io::ErrorKind::NotFound {
@@ -269,10 +284,13 @@ impl PromptsSettingsView {
                 return;
             }
         }
-        self.prompts.remove(self.selected);
-        if self.selected > 0 && self.selected >= self.prompts.len() {
-            self.selected -= 1;
+        self.prompts.remove(selected);
+        let mut next_selected = selected;
+        if next_selected > 0 && next_selected >= self.prompts.len() {
+            next_selected = next_selected.saturating_sub(1);
         }
+        self.list_state.selected_idx = Some(next_selected);
+        self.clamp_list_state();
         self.mode = Mode::List;
         self.focus = Focus::List;
         self.status = Some((
@@ -283,4 +301,3 @@ impl PromptsSettingsView {
             .send(AppEvent::codex_op(Op::ListCustomPrompts));
     }
 }
-
