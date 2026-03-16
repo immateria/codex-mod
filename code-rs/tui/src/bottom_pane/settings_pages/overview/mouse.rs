@@ -1,8 +1,8 @@
 use crossterm::event::MouseEvent;
 use ratatui::layout::Rect;
 
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 use crate::ui_interaction::{
-    route_selectable_list_mouse_with_config,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
@@ -23,15 +23,14 @@ impl SettingsOverviewView {
 
         let visible_rows = layout.body.height as usize;
         self.viewport_rows.set(visible_rows.max(1));
-        let mut selected = self.selected_index();
-        let scroll_top = self.scroll.scroll_top.min(self.rows.len().saturating_sub(1));
         let rows = self.menu_rows();
-
-        let result = route_selectable_list_mouse_with_config(
+        let mut scroll = self.scroll;
+        let outcome = route_scroll_state_mouse_with_hit_test(
             mouse_event,
-            &mut selected,
+            &mut scroll,
             self.rows.len(),
-            |x, y| {
+            visible_rows.max(1),
+            |x, y, scroll_top| {
                 crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage::selection_menu_id_in_body(
                     layout.body,
                     x,
@@ -47,20 +46,11 @@ impl SettingsOverviewView {
                 ..SelectableListMouseConfig::default()
             },
         );
+        self.scroll = scroll;
 
-        match result {
-            SelectableListMouseResult::Ignored => false,
-            SelectableListMouseResult::SelectionChanged => {
-                self.scroll.selected_idx = Some(selected);
-                self.scroll.ensure_visible(self.rows.len(), visible_rows.max(1));
-                true
-            }
-            SelectableListMouseResult::Activated => {
-                self.scroll.selected_idx = Some(selected);
-                self.open_selected();
-                true
-            }
+        if matches!(outcome.result, SelectableListMouseResult::Activated) {
+            self.open_selected();
         }
+        outcome.changed
     }
 }
-

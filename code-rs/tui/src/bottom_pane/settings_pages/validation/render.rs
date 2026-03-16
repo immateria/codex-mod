@@ -3,8 +3,10 @@ use super::*;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
+use crate::bottom_pane::chrome::ChromeMode;
+
 impl ValidationSettingsView {
-    pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
+    fn render_in_chrome(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
         if area.height == 0 || area.width == 0 {
             return;
         }
@@ -12,31 +14,17 @@ impl ValidationSettingsView {
         let page = self.page();
         let selected_idx = self.state.selected_idx.unwrap_or(usize::MAX);
         let runs = self.build_runs(selected_idx);
-        let Some(layout) = page
-            .content_only()
-            .render_runs(area, buf, self.state.scroll_top, &runs)
-        else {
+        let Some(layout) = page.render_runs_in_chrome(chrome, area, buf, self.state.scroll_top, &runs) else {
             return;
         };
         self.viewport_rows.set(layout.body.height as usize);
     }
 
-    pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 || area.width == 0 {
-            return;
-        }
+    pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
+        self.render_in_chrome(area, buf, ChromeMode::ContentOnly);
+    }
 
-        let page = self.page();
-        let selected_idx = self.state.selected_idx.unwrap_or(usize::MAX);
-        let runs = self.build_runs(selected_idx);
-        let Some(layout) = page
-            .framed()
-            .render_runs(area, buf, self.state.scroll_top, &runs)
-        else {
-            return;
-        };
-        let visible_slots = layout.body.height as usize;
-        self.viewport_rows.set(visible_slots);
+    pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
+        self.render_in_chrome(area, buf, ChromeMode::Framed);
     }
 }
-

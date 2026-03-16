@@ -62,6 +62,48 @@ pub(crate) fn route_scroll_state_mouse_with_hit_test(
     }
 }
 
+pub(crate) fn route_scroll_state_mouse_with_hit_test_no_ensure_visible(
+    mouse_event: MouseEvent,
+    state: &mut ScrollState,
+    item_count: usize,
+    row_at_position: impl Fn(u16, u16, usize) -> Option<usize>,
+    config: SelectableListMouseConfig,
+) -> ScrollStateMouseOutcome {
+    let before_selected = state.selected_idx;
+    let before_scroll_top = state.scroll_top;
+
+    state.clamp_selection(item_count);
+
+    if item_count == 0 {
+        return ScrollStateMouseOutcome {
+            result: SelectableListMouseResult::Ignored,
+            changed: state.selected_idx != before_selected || state.scroll_top != before_scroll_top,
+        };
+    }
+
+    state.scroll_top = state.scroll_top.min(item_count.saturating_sub(1));
+    let scroll_top = state.scroll_top;
+
+    let mut selected = state
+        .selected_idx
+        .expect("selected_idx must be Some for non-empty lists");
+    let result = route_selectable_list_mouse_with_config(
+        mouse_event,
+        &mut selected,
+        item_count,
+        |x, y| row_at_position(x, y, scroll_top),
+        config,
+    );
+
+    state.selected_idx = Some(selected);
+
+    let state_changed = state.selected_idx != before_selected || state.scroll_top != before_scroll_top;
+    ScrollStateMouseOutcome {
+        result,
+        changed: result.handled() || state_changed,
+    }
+}
+
 pub(crate) fn route_scroll_state_mouse_in_body(
     mouse_event: MouseEvent,
     body: Rect,
@@ -78,4 +120,3 @@ pub(crate) fn route_scroll_state_mouse_in_body(
         config,
     )
 }
-

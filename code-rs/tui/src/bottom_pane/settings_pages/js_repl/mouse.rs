@@ -3,20 +3,20 @@ use super::*;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
+use crate::bottom_pane::chrome::ChromeMode;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
 use crate::ui_interaction::{
-    route_selectable_list_mouse_with_config,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
 };
-use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 
 impl JsReplSettingsView {
     fn handle_mouse_event_direct_impl(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
-        chrome: UiChrome,
+        chrome: ChromeMode,
     ) -> bool {
         let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
         match mode {
@@ -29,10 +29,7 @@ impl JsReplSettingsView {
                 }
 
                 let page = self.main_page();
-                let layout = match chrome {
-                    UiChrome::Framed => page.framed().layout(area),
-                    UiChrome::ContentOnly => page.content_only().layout(area),
-                };
+                let layout = page.layout_in_chrome(chrome, area);
                 let Some(layout) = layout else {
                     self.mode = ViewMode::Main;
                     return false;
@@ -41,14 +38,11 @@ impl JsReplSettingsView {
                 self.viewport_rows.set(visible_slots);
 
                 self.reconcile_selection_state(total);
-                let scroll_top = self.state.scroll_top;
-                let body = layout.body;
-                let mut selected = self.state.selected_idx.unwrap_or(0);
-                let result = route_selectable_list_mouse_with_config(
+                let outcome = route_scroll_state_mouse_in_body(
                     mouse_event,
-                    &mut selected,
+                    layout.body,
+                    &mut self.state,
                     total,
-                    |x, y| SettingsRowPage::selection_index_at(body, x, y, scroll_top, total),
                     SelectableListMouseConfig {
                         hover_select: false,
                         require_pointer_hit_for_scroll: true,
@@ -56,10 +50,9 @@ impl JsReplSettingsView {
                         ..SelectableListMouseConfig::default()
                     },
                 );
-                self.state.selected_idx = Some(selected);
-                self.state.ensure_visible(total, visible_slots.min(total));
 
-                if matches!(result, SelectableListMouseResult::Activated)
+                if matches!(outcome.result, SelectableListMouseResult::Activated)
+                    && let Some(selected) = self.state.selected_idx
                     && let Some(kind) = rows.get(selected).copied()
                 {
                     self.activate_row(kind);
@@ -70,19 +63,13 @@ impl JsReplSettingsView {
                     self.reconcile_selection_state(self.row_count());
                     self.mode = ViewMode::Main;
                 }
-                result.handled()
+                outcome.changed
             }
             ViewMode::EditText { target, mut field } => {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let page = Self::text_edit_page(target);
-                        let field_area = match chrome {
-                            UiChrome::Framed => page.framed().layout(area).map(|layout| layout.field),
-                            UiChrome::ContentOnly => page
-                                .content_only()
-                                .layout(area)
-                                .map(|layout| layout.field),
-                        };
+                        let field_area = page.layout_in_chrome(chrome, area).map(|layout| layout.field);
                         if let Some(field_area) = field_area {
                             field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
                         } else {
@@ -100,13 +87,7 @@ impl JsReplSettingsView {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let page = Self::list_edit_page(target);
-                        let field_area = match chrome {
-                            UiChrome::Framed => page.framed().layout(area).map(|layout| layout.field),
-                            UiChrome::ContentOnly => page
-                                .content_only()
-                                .layout(area)
-                                .map(|layout| layout.field),
-                        };
+                        let field_area = page.layout_in_chrome(chrome, area).map(|layout| layout.field);
                         if let Some(field_area) = field_area {
                             field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
                         } else {
@@ -132,7 +113,7 @@ impl JsReplSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        self.handle_mouse_event_direct_impl(mouse_event, area, UiChrome::ContentOnly)
+        self.handle_mouse_event_direct_impl(mouse_event, area, ChromeMode::ContentOnly)
     }
 
     pub(super) fn handle_mouse_event_direct_framed(
@@ -140,6 +121,6 @@ impl JsReplSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        self.handle_mouse_event_direct_impl(mouse_event, area, UiChrome::Framed)
+        self.handle_mouse_event_direct_impl(mouse_event, area, ChromeMode::Framed)
     }
 }

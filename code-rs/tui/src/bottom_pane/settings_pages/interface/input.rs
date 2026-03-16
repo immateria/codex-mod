@@ -9,25 +9,21 @@ impl InterfaceSettingsView {
     }
 
     pub(super) fn activate_selected_row(&mut self) {
-        match self.selected_row() {
+        let row = self.selected_row();
+        if row.is_hotkey_row() {
+            self.open_hotkey_capture(row);
+            return;
+        }
+
+        match row {
             RowKind::OpenMode => self.cycle_open_mode_next(),
             RowKind::OverlayMinWidth => self.open_width_editor(),
             RowKind::HotkeyScope => self.cycle_hotkey_scope_next(),
-            RowKind::ModelSelectorHotkey
-            | RowKind::ReasoningEffortHotkey
-            | RowKind::ShellSelectorHotkey
-            | RowKind::NetworkSettingsHotkey
-            | RowKind::ExecOutputFoldHotkey
-            | RowKind::JsReplCodeFoldHotkey
-            | RowKind::JumpToParentCallHotkey
-            | RowKind::JumpToLatestChildCallHotkey => {
-                let row = self.selected_row();
-                self.open_hotkey_capture(row);
-            }
             RowKind::ShowConfigToml => self.show_config_toml(),
             RowKind::ShowCodeHome => self.show_code_home(),
             RowKind::Apply => self.apply_settings(),
             RowKind::Close => self.is_complete = true,
+            other => unreachable!("activate_selected_row missing handler for row: {other:?}"),
         }
     }
 
@@ -77,14 +73,7 @@ impl InterfaceSettingsView {
                     }
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(-5),
                     Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_prev(),
-                    Some(row @ RowKind::ModelSelectorHotkey)
-                    | Some(row @ RowKind::ReasoningEffortHotkey)
-                    | Some(row @ RowKind::ShellSelectorHotkey)
-                    | Some(row @ RowKind::NetworkSettingsHotkey)
-                    | Some(row @ RowKind::ExecOutputFoldHotkey)
-                    | Some(row @ RowKind::JsReplCodeFoldHotkey)
-                    | Some(row @ RowKind::JumpToParentCallHotkey)
-                    | Some(row @ RowKind::JumpToLatestChildCallHotkey) => {
+                    Some(row) if row.is_hotkey_row() => {
                         self.adjust_hotkey_for_row(row, false);
                     }
                     _ => {}
@@ -97,14 +86,7 @@ impl InterfaceSettingsView {
                     Some(RowKind::OpenMode) => self.cycle_open_mode_next(),
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(5),
                     Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_next(),
-                    Some(row @ RowKind::ModelSelectorHotkey)
-                    | Some(row @ RowKind::ReasoningEffortHotkey)
-                    | Some(row @ RowKind::ShellSelectorHotkey)
-                    | Some(row @ RowKind::NetworkSettingsHotkey)
-                    | Some(row @ RowKind::ExecOutputFoldHotkey)
-                    | Some(row @ RowKind::JsReplCodeFoldHotkey)
-                    | Some(row @ RowKind::JumpToParentCallHotkey)
-                    | Some(row @ RowKind::JumpToLatestChildCallHotkey) => {
+                    Some(row) if row.is_hotkey_row() => {
                         self.adjust_hotkey_for_row(row, true);
                     }
                     _ => {}
@@ -190,20 +172,14 @@ impl InterfaceSettingsView {
             KeyEvent { code: KeyCode::Char('l'), modifiers, .. }
                 if modifiers.is_empty() || modifiers == KeyModifiers::SHIFT =>
             {
-                match row {
-                    RowKind::ExecOutputFoldHotkey
-                    | RowKind::JsReplCodeFoldHotkey
-                    | RowKind::JumpToParentCallHotkey
-                    | RowKind::JumpToLatestChildCallHotkey => {
-                        self.set_hotkey_for_row(row, TuiHotkey::legacy());
-                        self.mode = ViewMode::Main;
-                    }
-                    _ => {
-                        self.mode = ViewMode::CaptureHotkey {
-                            row,
-                            error: Some("Legacy is only available for history shortcuts.".to_owned()),
-                        };
-                    }
+                if row.supports_legacy_hotkey() {
+                    self.set_hotkey_for_row(row, TuiHotkey::legacy());
+                    self.mode = ViewMode::Main;
+                } else {
+                    self.mode = ViewMode::CaptureHotkey {
+                        row,
+                        error: Some("Legacy is only available for history shortcuts.".to_owned()),
+                    };
                 }
                 true
             }

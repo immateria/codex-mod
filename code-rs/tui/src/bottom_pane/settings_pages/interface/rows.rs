@@ -55,22 +55,27 @@ impl InterfaceSettingsView {
 
     pub(super) fn main_menu_rows(&self, kinds: &[RowKind]) -> Vec<SettingsMenuRow<'static, usize>> {
         fn label_for_row(kind: RowKind) -> &'static str {
+            if let Some(label) = kind.hotkey_capture_label() {
+                return label;
+            }
             match kind {
                 RowKind::OpenMode => "Settings menu",
                 RowKind::OverlayMinWidth => "Overlay min width",
                 RowKind::HotkeyScope => "Hotkey scope",
-                RowKind::ModelSelectorHotkey => "Hotkey: model selector",
-                RowKind::ReasoningEffortHotkey => "Hotkey: reasoning effort",
-                RowKind::ShellSelectorHotkey => "Hotkey: shell selector",
-                RowKind::NetworkSettingsHotkey => "Hotkey: network settings",
-                RowKind::ExecOutputFoldHotkey => "Hotkey: fold output/details",
-                RowKind::JsReplCodeFoldHotkey => "Hotkey: fold JS REPL code",
-                RowKind::JumpToParentCallHotkey => "Hotkey: jump to parent call",
-                RowKind::JumpToLatestChildCallHotkey => "Hotkey: jump to child call",
                 RowKind::ShowConfigToml => "Show config.toml",
                 RowKind::ShowCodeHome => "Show CODE_HOME",
                 RowKind::Apply => "Apply",
                 RowKind::Close => "Close",
+                RowKind::ModelSelectorHotkey
+                | RowKind::ReasoningEffortHotkey
+                | RowKind::ShellSelectorHotkey
+                | RowKind::NetworkSettingsHotkey
+                | RowKind::ExecOutputFoldHotkey
+                | RowKind::JsReplCodeFoldHotkey
+                | RowKind::JumpToParentCallHotkey
+                | RowKind::JumpToLatestChildCallHotkey => unreachable!(
+                    "hotkey label handled above for row {kind:?}"
+                ),
             }
         }
 
@@ -88,48 +93,54 @@ impl InterfaceSettingsView {
                 let label = label_for_row(*kind);
                 let mut row = SettingsMenuRow::new(idx, label).with_label_pad_cols(label_pad_cols);
 
-                let value = match kind {
-                    RowKind::OpenMode => {
-                        let mode = Self::open_mode_label(self.settings.open_mode);
-                        let desc = Self::open_mode_description(
-                            self.settings.open_mode,
-                            self.settings.overlay_min_width,
-                        );
-                        Some(StyledText::new(
-                            format!("{mode} ({desc})"),
-                            Style::new().fg(crate::colors::function()),
-                        ))
-                    }
-                    RowKind::OverlayMinWidth => Some(StyledText::new(
-                        self.settings.overlay_min_width.to_string(),
-                        Style::new().fg(crate::colors::function()),
-                    )),
-                    RowKind::HotkeyScope => Some(StyledText::new(
-                        self.hotkey_scope.label(),
-                        Style::new().fg(crate::colors::function()),
-                    )),
-                    RowKind::ModelSelectorHotkey
-                    | RowKind::ReasoningEffortHotkey
-                    | RowKind::ShellSelectorHotkey
-                    | RowKind::NetworkSettingsHotkey
-                    | RowKind::ExecOutputFoldHotkey
-                    | RowKind::JsReplCodeFoldHotkey
-                    | RowKind::JumpToParentCallHotkey
-                    | RowKind::JumpToLatestChildCallHotkey => Some(StyledText::new(
+                let value = if (*kind).is_hotkey_row() {
+                    Some(StyledText::new(
                         self.hotkey_value_label_for_row(*kind),
                         Style::new().fg(crate::colors::function()),
-                    )),
-                    RowKind::ShowConfigToml | RowKind::ShowCodeHome | RowKind::Close => None,
-                    RowKind::Apply => {
-                        let is_dirty = self.dirty_settings || self.dirty_hotkeys;
-                        Some(StyledText::new(
-                            if is_dirty { "Pending" } else { "Saved" },
-                            if is_dirty {
-                                Style::new().fg(crate::colors::warning()).bold()
-                            } else {
-                                Style::new().fg(crate::colors::success())
-                            },
-                        ))
+                    ))
+                } else {
+                    match kind {
+                        RowKind::OpenMode => {
+                            let mode = Self::open_mode_label(self.settings.open_mode);
+                            let desc = Self::open_mode_description(
+                                self.settings.open_mode,
+                                self.settings.overlay_min_width,
+                            );
+                            Some(StyledText::new(
+                                format!("{mode} ({desc})"),
+                                Style::new().fg(crate::colors::function()),
+                            ))
+                        }
+                        RowKind::OverlayMinWidth => Some(StyledText::new(
+                            self.settings.overlay_min_width.to_string(),
+                            Style::new().fg(crate::colors::function()),
+                        )),
+                        RowKind::HotkeyScope => Some(StyledText::new(
+                            self.hotkey_scope.label(),
+                            Style::new().fg(crate::colors::function()),
+                        )),
+                        RowKind::ShowConfigToml | RowKind::ShowCodeHome | RowKind::Close => None,
+                        RowKind::Apply => {
+                            let is_dirty = self.dirty_settings || self.dirty_hotkeys;
+                            Some(StyledText::new(
+                                if is_dirty { "Pending" } else { "Saved" },
+                                if is_dirty {
+                                    Style::new().fg(crate::colors::warning()).bold()
+                                } else {
+                                    Style::new().fg(crate::colors::success())
+                                },
+                            ))
+                        }
+                        RowKind::ModelSelectorHotkey
+                        | RowKind::ReasoningEffortHotkey
+                        | RowKind::ShellSelectorHotkey
+                        | RowKind::NetworkSettingsHotkey
+                        | RowKind::ExecOutputFoldHotkey
+                        | RowKind::JsReplCodeFoldHotkey
+                        | RowKind::JumpToParentCallHotkey
+                        | RowKind::JumpToLatestChildCallHotkey => {
+                            unreachable!("hotkey rows handled above for row {kind:?}")
+                        }
                     }
                 };
 

@@ -137,6 +137,40 @@ impl RowKind {
             _ => None,
         }
     }
+
+    pub(super) fn is_hotkey_row(self) -> bool {
+        self.as_hotkey_row().is_some()
+    }
+
+    pub(super) fn supports_legacy_hotkey(self) -> bool {
+        self.as_hotkey_row()
+            .map(HotkeyRow::allows_legacy)
+            .unwrap_or(false)
+    }
+
+    pub(super) fn hotkey_capture_label(self) -> Option<&'static str> {
+        match self {
+            Self::ModelSelectorHotkey => Some("Hotkey: model selector"),
+            Self::ReasoningEffortHotkey => Some("Hotkey: reasoning effort"),
+            Self::ShellSelectorHotkey => Some("Hotkey: shell selector"),
+            Self::NetworkSettingsHotkey => Some("Hotkey: network settings"),
+            Self::ExecOutputFoldHotkey => Some("Hotkey: fold output/details"),
+            Self::JsReplCodeFoldHotkey => Some("Hotkey: fold JS REPL code"),
+            Self::JumpToParentCallHotkey => Some("Hotkey: jump to parent call"),
+            Self::JumpToLatestChildCallHotkey => Some("Hotkey: jump to child call"),
+            _ => None,
+        }
+    }
+
+    pub(super) fn legacy_hotkey_label(self) -> Option<&'static str> {
+        match self.as_hotkey_row()? {
+            HotkeyRow::ExecOutputFold => Some("["),
+            HotkeyRow::JsReplCodeFold => Some("\\"),
+            HotkeyRow::JumpToParentCall => Some("]"),
+            HotkeyRow::JumpToLatestChildCall => Some("}"),
+            _ => None,
+        }
+    }
 }
 
 impl InterfaceSettingsView {
@@ -517,19 +551,9 @@ impl InterfaceSettingsView {
             return "disabled".to_owned();
         };
 
-        fn legacy_label_for_row(row: RowKind) -> Option<&'static str> {
-            match row {
-                RowKind::ExecOutputFoldHotkey => Some("["),
-                RowKind::JsReplCodeFoldHotkey => Some("\\"),
-                RowKind::JumpToParentCallHotkey => Some("]"),
-                RowKind::JumpToLatestChildCallHotkey => Some("}"),
-                _ => None,
-            }
-        }
-
         let format_hotkey = |hk: TuiHotkey| -> String {
             if hk.is_legacy() {
-                if let Some(label) = legacy_label_for_row(row_kind) {
+                if let Some(label) = row_kind.legacy_hotkey_label() {
                     format!("legacy ({label})")
                 } else {
                     "legacy".to_owned()

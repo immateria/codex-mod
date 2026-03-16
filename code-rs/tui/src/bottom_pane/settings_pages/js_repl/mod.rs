@@ -52,12 +52,6 @@ enum RowKind {
     Close,
 }
 
-#[derive(Clone, Copy, Debug)]
-enum UiChrome {
-    Framed,
-    ContentOnly,
-}
-
 pub(crate) struct JsReplSettingsView {
     settings: JsReplSettingsToml,
     network_enabled: bool,

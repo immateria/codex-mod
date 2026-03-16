@@ -1,7 +1,10 @@
 use super::*;
+use super::persistence::{parse_path_list, style_profile_is_empty};
+
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
-use super::persistence::{parse_path_list, style_profile_is_empty};
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
 
 impl ShellProfilesSettingsView {
     pub(super) fn rows() -> [RowKind; 11] {
@@ -297,67 +300,11 @@ impl ShellProfilesSettingsView {
             .collect()
     }
 
-    pub(super) fn selection_index_at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = self.main_page().framed().layout(area)?;
-        let rows = Self::rows();
-        let scroll_top = self.scroll.scroll_top.min(rows.len().saturating_sub(1));
-        SettingsRowPage::selection_index_at(layout.body, x, y, scroll_top, rows.len())
-    }
-
-    pub(super) fn selection_index_at_content(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
-        let layout = self.main_page().content_only().layout(area)?;
-        let rows = Self::rows();
-        let scroll_top = self.scroll.scroll_top.min(rows.len().saturating_sub(1));
-        SettingsRowPage::selection_index_at(layout.body, x, y, scroll_top, rows.len())
-    }
-
-    pub(super) fn handle_mouse_event_main(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let rows = Self::rows();
-        let total = rows.len();
-        if total == 0 {
-            return false;
-        }
-
-        if self.scroll.selected_idx.is_none() {
-            self.scroll.selected_idx = Some(0);
-        }
-        self.scroll.clamp_selection(total);
-        let mut selected = self.scroll.selected_idx.unwrap_or(0);
-        let result = route_selectable_list_mouse_with_config(
-            mouse_event,
-            &mut selected,
-            total,
-            |x, y| self.selection_index_at(area, x, y),
-            SelectableListMouseConfig {
-                hover_select: false,
-                require_pointer_hit_for_scroll: true,
-                scroll_behavior: ScrollSelectionBehavior::Clamp,
-                ..SelectableListMouseConfig::default()
-            },
-        );
-
-        match result {
-            SelectableListMouseResult::Ignored => false,
-            SelectableListMouseResult::SelectionChanged => {
-                self.scroll.selected_idx = Some(selected);
-                let visible = self.viewport_rows.get().max(1);
-                self.scroll.ensure_visible(total, visible);
-                true
-            }
-            SelectableListMouseResult::Activated => {
-                self.scroll.selected_idx = Some(selected);
-                let visible = self.viewport_rows.get().max(1);
-                self.scroll.ensure_visible(total, visible);
-                self.activate_selected_row();
-                true
-            }
-        }
-    }
-
-    pub(super) fn handle_mouse_event_main_content(
+    fn handle_mouse_event_main_in_chrome(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
+        chrome: ChromeMode,
     ) -> bool {
         let rows = Self::rows();
         let total = rows.len();
@@ -365,16 +312,16 @@ impl ShellProfilesSettingsView {
             return false;
         }
 
-        if self.scroll.selected_idx.is_none() {
-            self.scroll.selected_idx = Some(0);
-        }
-        self.scroll.clamp_selection(total);
-        let mut selected = self.scroll.selected_idx.unwrap_or(0);
-        let result = route_selectable_list_mouse_with_config(
+        let Some(layout) = self.main_page().layout_in_chrome(chrome, area) else {
+            return false;
+        };
+        self.viewport_rows.set(layout.visible_rows().max(1));
+
+        let outcome = route_scroll_state_mouse_in_body(
             mouse_event,
-            &mut selected,
+            layout.body,
+            &mut self.scroll,
             total,
-            |x, y| self.selection_index_at_content(area, x, y),
             SelectableListMouseConfig {
                 hover_select: false,
                 require_pointer_hit_for_scroll: true,
@@ -383,54 +330,45 @@ impl ShellProfilesSettingsView {
             },
         );
 
-        match result {
-            SelectableListMouseResult::Ignored => false,
-            SelectableListMouseResult::SelectionChanged => {
-                self.scroll.selected_idx = Some(selected);
-                let visible = self.viewport_rows.get().max(1);
-                self.scroll.ensure_visible(total, visible);
-                true
-            }
-            SelectableListMouseResult::Activated => {
-                self.scroll.selected_idx = Some(selected);
-                let visible = self.viewport_rows.get().max(1);
-                self.scroll.ensure_visible(total, visible);
-                self.activate_selected_row();
-                true
-            }
+        if matches!(outcome.result, SelectableListMouseResult::Activated) {
+            self.activate_selected_row();
         }
+        outcome.changed
+    }
+
+    pub(super) fn handle_mouse_event_main(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+        self.handle_mouse_event_main_in_chrome(mouse_event, area, ChromeMode::Framed)
+    }
+
+    pub(super) fn handle_mouse_event_main_content(
+        &mut self,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        self.handle_mouse_event_main_in_chrome(mouse_event, area, ChromeMode::ContentOnly)
+    }
+
+    fn render_main_in_chrome(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
+        let row_specs = self.main_row_specs();
+        let rows = Self::rows();
+        let total = rows.len();
+        let scroll_top = self.scroll.scroll_top.min(total.saturating_sub(1));
+        let selected = Some(self.scroll.selected_idx.unwrap_or(0).min(total.saturating_sub(1)));
+        let Some(layout) = self
+            .main_page()
+            .render_in_chrome(chrome, area, buf, scroll_top, selected, &row_specs)
+        else {
+            return;
+        };
+        self.viewport_rows.set(layout.visible_rows().max(1));
     }
 
     pub(super) fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        let row_specs = self.main_row_specs();
-        let rows = Self::rows();
-        let total = rows.len();
-        let scroll_top = self.scroll.scroll_top.min(total.saturating_sub(1));
-        let selected = Some(self.scroll.selected_idx.unwrap_or(0).min(total.saturating_sub(1)));
-        let Some(layout) = self
-            .main_page()
-            .framed()
-            .render(area, buf, scroll_top, selected, &row_specs)
-        else {
-            return;
-        };
-        self.viewport_rows.set(layout.visible_rows().max(1));
+        self.render_main_in_chrome(area, buf, ChromeMode::Framed);
     }
 
     pub(super) fn render_main_without_frame(&self, area: Rect, buf: &mut Buffer) {
-        let row_specs = self.main_row_specs();
-        let rows = Self::rows();
-        let total = rows.len();
-        let scroll_top = self.scroll.scroll_top.min(total.saturating_sub(1));
-        let selected = Some(self.scroll.selected_idx.unwrap_or(0).min(total.saturating_sub(1)));
-        let Some(layout) = self
-            .main_page()
-            .content_only()
-            .render(area, buf, scroll_top, selected, &row_specs)
-        else {
-            return;
-        };
-        self.viewport_rows.set(layout.visible_rows().max(1));
+        self.render_main_in_chrome(area, buf, ChromeMode::ContentOnly);
     }
 
     fn selected_hint(row: RowKind) -> Option<&'static str> {
@@ -465,14 +403,29 @@ mod tests {
         );
 
         let area = Rect::new(0, 0, 40, 12);
-        let layout = view.main_page().content_only().layout(area).expect("layout");
+        let content_layout = view.main_page().content_only().layout(area).expect("layout");
+        let framed_layout = view.main_page().framed().layout(area).expect("layout");
+        let total = ShellProfilesSettingsView::rows().len();
+        let scroll_top = view.scroll.scroll_top.min(total.saturating_sub(1));
 
         assert_eq!(
-            view.selection_index_at_content(area, layout.body.x, layout.body.y),
+            crate::bottom_pane::settings_ui::rows::selection_index_at(
+                content_layout.body,
+                content_layout.body.x,
+                content_layout.body.y,
+                scroll_top,
+                total,
+            ),
             Some(0)
         );
         assert_eq!(
-            view.selection_index_at(area, layout.body.x, layout.body.y),
+            crate::bottom_pane::settings_ui::rows::selection_index_at(
+                framed_layout.body,
+                content_layout.body.x,
+                content_layout.body.y,
+                scroll_top,
+                total,
+            ),
             None
         );
     }

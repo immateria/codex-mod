@@ -5,6 +5,7 @@ use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::Line;
 
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::colors;
 use crate::ui_interaction::split_header_body_footer;
 use crate::util::buffer::{fill_rect, write_line};
@@ -108,6 +109,53 @@ impl<'a> SettingsMenuPage<'a> {
         rows: &[SettingsMenuRow<'_, Id>],
     ) -> Option<Id> {
         selection_menu_id_at(body, x, y, scroll_top, rows)
+    }
+
+    pub(crate) fn layout_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+    ) -> Option<SettingsSectionedPanelLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().layout(area),
+            ChromeMode::ContentOnly => self.content_only().layout(area),
+        }
+    }
+
+    pub(crate) fn render_menu_rows_in_chrome<Id: Copy + PartialEq>(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        scroll_top: usize,
+        selected_id: Option<Id>,
+        rows: &[SettingsMenuRow<'_, Id>],
+    ) -> Option<SettingsSectionedPanelLayout> {
+        match chrome {
+            ChromeMode::Framed => {
+                self.framed()
+                    .render_menu_rows(area, buf, scroll_top, selected_id, rows)
+            }
+            ChromeMode::ContentOnly => self
+                .content_only()
+                .render_menu_rows(area, buf, scroll_top, selected_id, rows),
+        }
+    }
+
+    pub(crate) fn render_runs_in_chrome<Id: Copy>(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        scroll_top: usize,
+        runs: &[SelectableLineRun<'_, Id>],
+    ) -> Option<SettingsSectionedPanelLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().render_runs(area, buf, scroll_top, runs),
+            ChromeMode::ContentOnly => self
+                .content_only()
+                .render_runs(area, buf, scroll_top, runs),
+        }
     }
 }
 

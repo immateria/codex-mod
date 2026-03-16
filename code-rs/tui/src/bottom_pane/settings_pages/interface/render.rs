@@ -3,8 +3,10 @@ use super::*;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
+use crate::bottom_pane::chrome::ChromeMode;
+
 impl InterfaceSettingsView {
-    fn render_main_impl(&self, area: Rect, buf: &mut Buffer, chrome: UiChrome) {
+    fn render_main_impl(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
         let rows = self.build_rows();
         let total = rows.len();
         if total == 0 {
@@ -27,16 +29,9 @@ impl InterfaceSettingsView {
         let selected_id = Some(selected_idx);
 
         let page = self.main_page_for_selected_row(selected_row);
-        let layout = match chrome {
-            UiChrome::Framed => {
-                page.framed()
-                    .render_menu_rows(area, buf, scroll_top, selected_id, &menu_rows)
-            }
-            UiChrome::ContentOnly => page
-                .content_only()
-                .render_menu_rows(area, buf, scroll_top, selected_id, &menu_rows),
-        };
-        let Some(layout) = layout else {
+        let Some(layout) =
+            page.render_menu_rows_in_chrome(chrome, area, buf, scroll_top, selected_id, &menu_rows)
+        else {
             return;
         };
 
@@ -65,11 +60,11 @@ impl InterfaceSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        self.render_main_impl(area, buf, UiChrome::Framed);
+        self.render_main_impl(area, buf, ChromeMode::Framed);
     }
 
     fn render_main_without_frame(&self, area: Rect, buf: &mut Buffer) {
-        self.render_main_impl(area, buf, UiChrome::ContentOnly);
+        self.render_main_impl(area, buf, ChromeMode::ContentOnly);
     }
 
     fn render_edit_width(

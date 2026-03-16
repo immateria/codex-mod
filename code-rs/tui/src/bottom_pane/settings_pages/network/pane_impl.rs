@@ -68,14 +68,14 @@ impl<'a> BottomPaneView<'a> for NetworkSettingsView {
     fn desired_height(&self, _width: u16) -> u16 {
         match &self.mode {
             ViewMode::Main { show_advanced } => {
-                let header = u16::try_from(self.render_header_lines().len()).unwrap_or(u16::MAX);
-                let total_rows = self.build_rows(*show_advanced).len();
-                let visible = u16::try_from(total_rows.clamp(1, 12)).unwrap_or(u16::MAX);
+                let header = u16::try_from(Self::HEADER_LINE_COUNT).unwrap_or(u16::MAX);
+                let visible = u16::try_from(self.row_count(*show_advanced).clamp(1, 12))
+                    .unwrap_or(u16::MAX);
                 2u16.saturating_add(header).saturating_add(visible)
             }
             ViewMode::EditList { .. } => 18,
             ViewMode::Transition => {
-                let header = u16::try_from(self.render_header_lines().len()).unwrap_or(u16::MAX);
+                let header = u16::try_from(Self::HEADER_LINE_COUNT).unwrap_or(u16::MAX);
                 2u16.saturating_add(header).saturating_add(8)
             }
         }
@@ -85,4 +85,3 @@ impl<'a> BottomPaneView<'a> for NetworkSettingsView {
         self.framed().render(area, buf);
     }
 }
-

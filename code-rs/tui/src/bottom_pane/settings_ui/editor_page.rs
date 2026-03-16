@@ -4,6 +4,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Margin, Rect};
 use ratatui::text::Line;
 
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::components::form_text_field::FormTextField;
 
 use super::action_page::{SettingsActionPage, SettingsActionPageLayout};
@@ -77,6 +78,30 @@ impl<'a> SettingsEditorPage<'a> {
 
     pub(crate) fn content_only(&self) -> SettingsEditorPageContentOnly<'_, 'a> {
         SettingsEditorPageContentOnly { page: self }
+    }
+
+    pub(crate) fn layout_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+    ) -> Option<SettingsEditorPageLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().layout(area),
+            ChromeMode::ContentOnly => self.content_only().layout(area),
+        }
+    }
+
+    pub(crate) fn render_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        field: &FormTextField,
+    ) -> Option<SettingsEditorPageLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().render(area, buf, field),
+            ChromeMode::ContentOnly => self.content_only().render(area, buf, field),
+        }
     }
 
     fn min_body_rows(&self) -> usize {

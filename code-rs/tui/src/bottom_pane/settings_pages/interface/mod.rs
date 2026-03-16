@@ -175,12 +175,6 @@ enum ViewMode {
     CaptureHotkey { row: RowKind, error: Option<String> },
 }
 
-#[derive(Clone, Copy, Debug)]
-enum UiChrome {
-    Framed,
-    ContentOnly,
-}
-
 pub(crate) struct InterfaceSettingsView {
     settings: SettingsMenuConfig,
     hotkeys: TuiHotkeysConfig,

@@ -61,22 +61,8 @@ impl InterfaceSettingsView {
         row: RowKind,
         error: Option<&str>,
     ) -> SettingsMessagePage<'static> {
-        let label = match row {
-            RowKind::ModelSelectorHotkey => "Hotkey: model selector",
-            RowKind::ReasoningEffortHotkey => "Hotkey: reasoning effort",
-            RowKind::ShellSelectorHotkey => "Hotkey: shell selector",
-            RowKind::NetworkSettingsHotkey => "Hotkey: network settings",
-            RowKind::ExecOutputFoldHotkey => "Hotkey: fold output/details",
-            RowKind::JsReplCodeFoldHotkey => "Hotkey: fold JS REPL code",
-            RowKind::JumpToParentCallHotkey => "Hotkey: jump to parent call",
-            RowKind::JumpToLatestChildCallHotkey => "Hotkey: jump to child call",
-            RowKind::OpenMode
-            | RowKind::OverlayMinWidth
-            | RowKind::HotkeyScope
-            | RowKind::ShowConfigToml
-            | RowKind::ShowCodeHome
-            | RowKind::Apply
-            | RowKind::Close => unreachable!("capture_hotkey_page called with non-hotkey row: {row:?}"),
+        let Some(label) = row.hotkey_capture_label() else {
+            unreachable!("capture_hotkey_page called with non-hotkey row: {row:?}");
         };
         let current = self.hotkey_value_label_for_row(row);
         let header_lines = vec![Line::from(Span::styled(
@@ -108,16 +94,10 @@ impl InterfaceSettingsView {
                     .with_key_style(Style::new().fg(crate::colors::function())),
             ),
         };
-        let legacy_hint = match row {
-            RowKind::ExecOutputFoldHotkey
-            | RowKind::JsReplCodeFoldHotkey
-            | RowKind::JumpToParentCallHotkey
-            | RowKind::JumpToLatestChildCallHotkey => Some(
-                KeyHint::new("l", " legacy")
-                    .with_key_style(Style::new().fg(crate::colors::function())),
-            ),
-            _ => None,
-        };
+        let legacy_hint = row.supports_legacy_hotkey().then(|| {
+            KeyHint::new("l", " legacy")
+                .with_key_style(Style::new().fg(crate::colors::function()))
+        });
 
         let max_key = self.hotkey_scope.max_function_key();
         body_lines.push(Line::from(Span::styled(

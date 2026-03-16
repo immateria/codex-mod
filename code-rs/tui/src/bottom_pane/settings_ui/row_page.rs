@@ -4,8 +4,10 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::text::Line;
 
+use crate::bottom_pane::chrome::ChromeMode;
+
 use super::frame::{SettingsFrame, SettingsFrameLayout};
-use super::rows::{selection_index_at as row_selection_index_at, render_kv_rows, KeyValueRow};
+use super::rows::{render_kv_rows, KeyValueRow};
 
 #[derive(Clone, Debug)]
 pub(crate) struct SettingsRowPage<'a> {
@@ -39,14 +41,28 @@ impl<'a> SettingsRowPage<'a> {
         SettingsRowPageContentOnly { page: self }
     }
 
-    pub(crate) fn selection_index_at(
-        body: Rect,
-        x: u16,
-        y: u16,
+    pub(crate) fn layout_in_chrome(&self, chrome: ChromeMode, area: Rect) -> Option<SettingsFrameLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().layout(area),
+            ChromeMode::ContentOnly => self.content_only().layout(area),
+        }
+    }
+
+    pub(crate) fn render_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
         scroll_top: usize,
-        total: usize,
-    ) -> Option<usize> {
-        row_selection_index_at(body, x, y, scroll_top, total)
+        selected_idx: Option<usize>,
+        rows: &[KeyValueRow<'_>],
+    ) -> Option<SettingsFrameLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().render(area, buf, scroll_top, selected_idx, rows),
+            ChromeMode::ContentOnly => self
+                .content_only()
+                .render(area, buf, scroll_top, selected_idx, rows),
+        }
     }
 }
 
@@ -103,11 +119,11 @@ mod tests {
         let layout = page.framed().layout(area).expect("layout");
 
         assert_eq!(
-            SettingsRowPage::selection_index_at(layout.body, layout.body.x, layout.body.y, 3, 10),
+            super::rows::selection_index_at(layout.body, layout.body.x, layout.body.y, 3, 10),
             Some(3)
         );
         assert_eq!(
-            SettingsRowPage::selection_index_at(
+            super::rows::selection_index_at(
                 layout.body,
                 layout.body.x,
                 layout.body.y.saturating_add(2),
@@ -117,7 +133,7 @@ mod tests {
             Some(5)
         );
         assert_eq!(
-            SettingsRowPage::selection_index_at(layout.body, layout.header.x, layout.header.y, 3, 10),
+            super::rows::selection_index_at(layout.body, layout.header.x, layout.header.y, 3, 10),
             None
         );
     }

@@ -3,6 +3,7 @@ use super::*;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
 use crate::ui_interaction::{
     ScrollSelectionBehavior,
@@ -15,18 +16,15 @@ impl InterfaceSettingsView {
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
-        chrome: UiChrome,
+        chrome: ChromeMode,
     ) -> bool {
         let total = self.build_rows().len();
         if total == 0 {
             return false;
         }
 
-        let layout = match chrome {
-            UiChrome::Framed => self.main_page().framed().layout(area),
-            UiChrome::ContentOnly => self.main_page().content_only().layout(area),
-        };
-        let Some(layout) = layout else {
+        let page = self.main_page();
+        let Some(layout) = page.layout_in_chrome(chrome, area) else {
             return false;
         };
 
@@ -56,7 +54,7 @@ impl InterfaceSettingsView {
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
-        chrome: UiChrome,
+        chrome: ChromeMode,
     ) -> bool {
         let MouseEventKind::Down(MouseButton::Left) = mouse_event.kind else {
             return false;
@@ -67,10 +65,7 @@ impl InterfaceSettingsView {
         };
 
         let page = Self::edit_width_page(error.as_deref());
-        let field_area = match chrome {
-            UiChrome::Framed => page.framed().layout(area).map(|layout| layout.field),
-            UiChrome::ContentOnly => page.content_only().layout(area).map(|layout| layout.field),
-        };
+        let field_area = page.layout_in_chrome(chrome, area).map(|layout| layout.field);
         let Some(field_area) = field_area else {
             return false;
         };
@@ -84,9 +79,9 @@ impl InterfaceSettingsView {
         area: Rect,
     ) -> bool {
         match &self.mode {
-            ViewMode::Main => self.handle_mouse_event_main_impl(mouse_event, area, UiChrome::ContentOnly),
+            ViewMode::Main => self.handle_mouse_event_main_impl(mouse_event, area, ChromeMode::ContentOnly),
             ViewMode::EditWidth { .. } => {
-                self.handle_mouse_event_edit_impl(mouse_event, area, UiChrome::ContentOnly)
+                self.handle_mouse_event_edit_impl(mouse_event, area, ChromeMode::ContentOnly)
             }
             ViewMode::CaptureHotkey { .. } | ViewMode::Transition => false,
         }
@@ -98,9 +93,9 @@ impl InterfaceSettingsView {
         area: Rect,
     ) -> bool {
         match &self.mode {
-            ViewMode::Main => self.handle_mouse_event_main_impl(mouse_event, area, UiChrome::Framed),
+            ViewMode::Main => self.handle_mouse_event_main_impl(mouse_event, area, ChromeMode::Framed),
             ViewMode::EditWidth { .. } => {
-                self.handle_mouse_event_edit_impl(mouse_event, area, UiChrome::Framed)
+                self.handle_mouse_event_edit_impl(mouse_event, area, ChromeMode::Framed)
             }
             ViewMode::CaptureHotkey { .. } | ViewMode::Transition => false,
         }

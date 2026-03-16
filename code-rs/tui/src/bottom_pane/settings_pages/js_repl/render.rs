@@ -3,8 +3,10 @@ use super::*;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
+use crate::bottom_pane::chrome::ChromeMode;
+
 impl JsReplSettingsView {
-    fn render_main_impl(&self, area: Rect, buf: &mut Buffer, chrome: UiChrome) {
+    fn render_main_impl(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
         let rows = self.build_rows();
         let total = rows.len();
         let selected_idx = self
@@ -16,14 +18,7 @@ impl JsReplSettingsView {
 
         let row_specs = self.main_row_specs(&rows);
         let page = self.main_page();
-        let layout = match chrome {
-            UiChrome::Framed => page
-                .framed()
-                .render(area, buf, scroll_top, Some(selected_idx), &row_specs),
-            UiChrome::ContentOnly => page
-                .content_only()
-                .render(area, buf, scroll_top, Some(selected_idx), &row_specs),
-        };
+        let layout = page.render_in_chrome(chrome, area, buf, scroll_top, Some(selected_idx), &row_specs);
         let Some(layout) = layout else {
             return;
         };
@@ -31,11 +26,11 @@ impl JsReplSettingsView {
     }
 
     fn render_main(&self, area: Rect, buf: &mut Buffer) {
-        self.render_main_impl(area, buf, UiChrome::Framed);
+        self.render_main_impl(area, buf, ChromeMode::Framed);
     }
 
     fn render_main_without_frame(&self, area: Rect, buf: &mut Buffer) {
-        self.render_main_impl(area, buf, UiChrome::ContentOnly);
+        self.render_main_impl(area, buf, ChromeMode::ContentOnly);
     }
 
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
@@ -44,14 +39,12 @@ impl JsReplSettingsView {
             ViewMode::EditText { target, field } => {
                 // Layout is intentionally unused; `viewport_rows` is only relevant in main mode.
                 let _layout = Self::text_edit_page(*target)
-                    .content_only()
-                    .render(area, buf, field);
+                    .render_in_chrome(ChromeMode::ContentOnly, area, buf, field);
             }
             ViewMode::EditList { target, field } => {
                 // Layout is intentionally unused; `viewport_rows` is only relevant in main mode.
                 let _layout = Self::list_edit_page(*target)
-                    .content_only()
-                    .render(area, buf, field);
+                    .render_in_chrome(ChromeMode::ContentOnly, area, buf, field);
             }
             ViewMode::Transition => self.render_main_without_frame(area, buf),
         }
@@ -62,14 +55,15 @@ impl JsReplSettingsView {
             ViewMode::Main => self.render_main(area, buf),
             ViewMode::EditText { target, field } => {
                 // Layout is intentionally unused; `viewport_rows` is only relevant in main mode.
-                let _layout = Self::text_edit_page(*target).framed().render(area, buf, field);
+                let _layout =
+                    Self::text_edit_page(*target).render_in_chrome(ChromeMode::Framed, area, buf, field);
             }
             ViewMode::EditList { target, field } => {
                 // Layout is intentionally unused; `viewport_rows` is only relevant in main mode.
-                let _layout = Self::list_edit_page(*target).framed().render(area, buf, field);
+                let _layout =
+                    Self::list_edit_page(*target).render_in_chrome(ChromeMode::Framed, area, buf, field);
             }
             ViewMode::Transition => self.render_main(area, buf),
         }
     }
 }
-

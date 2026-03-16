@@ -8,8 +8,11 @@ use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
+use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 
 impl NetworkSettingsView {
+    pub(super) const HEADER_LINE_COUNT: usize = 6;
+
     pub(super) fn mode_label(mode: NetworkModeToml) -> &'static str {
         match mode {
             NetworkModeToml::Limited => "limited",
@@ -17,15 +20,31 @@ impl NetworkSettingsView {
         }
     }
 
+    pub(super) fn row_count(&self, show_advanced: bool) -> usize {
+        let mut count = 8;
+        if show_advanced {
+            count += 2;
+            if self.settings.enable_socks5 {
+                count += 1;
+            }
+            #[cfg(target_os = "macos")]
+            {
+                count += 1;
+            }
+        }
+        count
+    }
+
     pub(super) fn build_rows(&self, show_advanced: bool) -> Vec<RowKind> {
-        let mut rows = vec![
+        let mut rows = Vec::with_capacity(self.row_count(show_advanced));
+        rows.extend([
             RowKind::Enabled,
             RowKind::Mode,
             RowKind::AllowedDomains,
             RowKind::DeniedDomains,
             RowKind::AllowLocalBinding,
             RowKind::AdvancedToggle,
-        ];
+        ]);
 
         if show_advanced {
             rows.push(RowKind::Socks5Enabled);
@@ -39,6 +58,7 @@ impl NetworkSettingsView {
 
         rows.push(RowKind::Apply);
         rows.push(RowKind::Close);
+        debug_assert_eq!(rows.len(), self.row_count(show_advanced));
         rows
     }
 
@@ -98,6 +118,10 @@ impl NetworkSettingsView {
         ]
     }
 
+    pub(super) fn main_page(&self) -> SettingsRowPage<'static> {
+        SettingsRowPage::new(" Network ", self.render_header_lines(), vec![])
+    }
+
     fn sandbox_policy_compact(policy: &SandboxPolicy) -> String {
         let summary = summarize_sandbox_policy(policy);
         let base = summary.split_whitespace().next().unwrap_or("unknown");
@@ -122,7 +146,7 @@ impl NetworkSettingsView {
     }
 
     pub(super) fn reconcile_selection_state(&mut self, show_advanced: bool) {
-        let total = self.build_rows(show_advanced).len();
+        let total = self.row_count(show_advanced);
         if total == 0 {
             self.state.reset();
             return;
@@ -158,4 +182,3 @@ impl NetworkSettingsView {
         .with_wrap_lines(true)
     }
 }
-
