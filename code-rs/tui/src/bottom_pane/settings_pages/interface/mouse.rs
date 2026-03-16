@@ -3,9 +3,8 @@ use super::*;
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
-use crate::bottom_pane::settings_ui::rows::selection_index_at;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
 use crate::ui_interaction::{
-    route_selectable_list_mouse_with_config,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
@@ -34,22 +33,11 @@ impl InterfaceSettingsView {
         let visible = layout.body.height.max(1) as usize;
         self.main_viewport_rows.set(visible);
 
-        if self.state.selected_idx.is_none() {
-            self.state.selected_idx = Some(0);
-        }
-        self.state.clamp_selection(total);
-        self.state.scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
-        let scroll_top = self.state.scroll_top;
-
-        let mut selected = self
-            .state
-            .selected_idx
-            .expect("selected_idx should be Some after clamp_selection");
-        let result = route_selectable_list_mouse_with_config(
+        let outcome = route_scroll_state_mouse_in_body(
             mouse_event,
-            &mut selected,
+            layout.body,
+            &mut self.state,
             total,
-            |x, y| selection_index_at(layout.body, x, y, scroll_top, total),
             SelectableListMouseConfig {
                 hover_select: false,
                 require_pointer_hit_for_scroll: true,
@@ -58,18 +46,10 @@ impl InterfaceSettingsView {
             },
         );
 
-        match result {
-            SelectableListMouseResult::Ignored => false,
-            SelectableListMouseResult::SelectionChanged | SelectableListMouseResult::Activated => {
-                self.state.selected_idx = Some(selected);
-                let visible = self.main_viewport_rows.get().max(1);
-                self.state.ensure_visible(total, visible);
-                if matches!(result, SelectableListMouseResult::Activated) {
-                    self.activate_selected_row();
-                }
-                true
-            }
+        if matches!(outcome.result, SelectableListMouseResult::Activated) {
+            self.activate_selected_row();
         }
+        outcome.changed
     }
 
     fn handle_mouse_event_edit_impl(

@@ -13,6 +13,7 @@ pub(crate) mod menu_page;
 pub(crate) mod panel;
 pub(crate) mod row_page;
 pub(crate) mod rows;
+pub(crate) mod selectable_list_mouse;
 pub(crate) mod sectioned_panel;
 pub(crate) mod message_page;
 pub(crate) mod wrap;

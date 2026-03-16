@@ -4,8 +4,8 @@ use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
 use crate::ui_interaction::{
-    route_selectable_list_mouse_with_config,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
@@ -36,15 +36,11 @@ impl ExecLimitsSettingsView {
                 self.viewport_rows.set(visible_slots);
 
                 let mut state = self.state.get();
-                state.clamp_selection(total);
-                let scroll_top = state.scroll_top;
-                let body = layout.body;
-                let mut selected = state.selected_idx.unwrap_or(0);
-                let result = route_selectable_list_mouse_with_config(
+                let outcome = route_scroll_state_mouse_in_body(
                     mouse_event,
-                    &mut selected,
+                    layout.body,
+                    &mut state,
                     total,
-                    |x, y| SettingsRowPage::selection_index_at(body, x, y, scroll_top, total),
                     SelectableListMouseConfig {
                         hover_select: false,
                         require_pointer_hit_for_scroll: true,
@@ -52,11 +48,10 @@ impl ExecLimitsSettingsView {
                         ..SelectableListMouseConfig::default()
                     },
                 );
-                state.selected_idx = Some(selected);
-                state.ensure_visible(total, visible_slots);
+                let selected = state.selected_idx.unwrap_or(0);
                 self.state.set(state);
 
-                if matches!(result, SelectableListMouseResult::Activated)
+                if matches!(outcome.result, SelectableListMouseResult::Activated)
                     && let Some(kind) = rows.get(selected).copied()
                 {
                     self.activate_row(kind);
@@ -65,7 +60,7 @@ impl ExecLimitsSettingsView {
                 if matches!(self.mode, ViewMode::Transition) {
                     self.mode = ViewMode::Main;
                 }
-                result.handled()
+                outcome.changed
             }
             ViewMode::Edit { target, mut field, error } => {
                 let handled = match mouse_event.kind {
@@ -115,15 +110,11 @@ impl ExecLimitsSettingsView {
                 self.viewport_rows.set(visible_slots);
 
                 let mut state = self.state.get();
-                state.clamp_selection(total);
-                let scroll_top = state.scroll_top;
-                let body = layout.body;
-                let mut selected = state.selected_idx.unwrap_or(0);
-                let result = route_selectable_list_mouse_with_config(
+                let outcome = route_scroll_state_mouse_in_body(
                     mouse_event,
-                    &mut selected,
+                    layout.body,
+                    &mut state,
                     total,
-                    |x, y| SettingsRowPage::selection_index_at(body, x, y, scroll_top, total),
                     SelectableListMouseConfig {
                         hover_select: false,
                         require_pointer_hit_for_scroll: true,
@@ -131,11 +122,10 @@ impl ExecLimitsSettingsView {
                         ..SelectableListMouseConfig::default()
                     },
                 );
-                state.selected_idx = Some(selected);
-                state.ensure_visible(total, visible_slots);
+                let selected = state.selected_idx.unwrap_or(0);
                 self.state.set(state);
 
-                if matches!(result, SelectableListMouseResult::Activated)
+                if matches!(outcome.result, SelectableListMouseResult::Activated)
                     && let Some(kind) = rows.get(selected).copied()
                 {
                     self.activate_row(kind);
@@ -144,7 +134,7 @@ impl ExecLimitsSettingsView {
                 if matches!(self.mode, ViewMode::Transition) {
                     self.mode = ViewMode::Main;
                 }
-                result.handled()
+                outcome.changed
             }
             ViewMode::Edit { target, mut field, error } => {
                 let handled = match mouse_event.kind {
@@ -170,4 +160,3 @@ impl ExecLimitsSettingsView {
         }
     }
 }
-
