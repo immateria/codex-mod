@@ -1,5 +1,6 @@
 use ratatui::style::Style;
 
+use crate::components::scroll_state::ScrollState;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::rows::StyledText;
 use crate::bottom_pane::settings_ui::toggle;
@@ -17,7 +18,9 @@ use super::{
 
 impl UpdateSettingsView {
     pub(super) const PANEL_TITLE: &'static str = "Upgrade";
-    pub(super) const FIELD_COUNT: usize = 3;
+    pub(super) const ROW_COUNT: usize = 3;
+    pub(super) const HEADER_LINE_COUNT: usize = 2;
+    pub(super) const FOOTER_LINE_COUNT: usize = 1;
 
     pub fn new(init: UpdateSettingsInit) -> Self {
         let UpdateSettingsInit {
@@ -30,10 +33,12 @@ impl UpdateSettingsView {
             manual_instructions,
             shared,
         } = init;
+        let mut state = ScrollState::new();
+        state.clamp_selection(Self::ROW_COUNT);
         Self {
             app_event_tx,
             ticket,
-            field: 0,
+            state,
             is_complete: false,
             auto_enabled,
             shared,
@@ -52,14 +57,15 @@ impl UpdateSettingsView {
     }
 
     fn version_summary(&self, state: &UpdateSharedState) -> String {
+        let current_version = &self.current_version;
         if state.checking {
             "checking for updates".to_string()
         } else if let Some(err) = state.error.as_deref() {
             format!("check failed: {err}")
         } else if let Some(latest) = state.latest_version.as_deref() {
-            format!("{} -> {latest}", self.current_version)
+            format!("{current_version} -> {latest}")
         } else {
-            format!("{} (up to date)", self.current_version)
+            format!("{current_version} (up to date)")
         }
     }
 
@@ -104,6 +110,13 @@ impl UpdateSettingsView {
             Self::auto_upgrade_row(self.auto_enabled),
             SettingsMenuRow::new(2usize, "Close"),
         ]
+    }
+
+    pub(super) fn selected_row(&self) -> usize {
+        self.state
+            .selected_idx
+            .unwrap_or(0)
+            .min(Self::ROW_COUNT.saturating_sub(1))
     }
 
     pub(crate) fn framed(&self) -> UpdateSettingsViewFramed<'_> {

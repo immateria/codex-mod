@@ -8,6 +8,8 @@ use crate::colors;
 use super::{NotificationsMode, NotificationsSettingsView};
 
 impl NotificationsSettingsView {
+    pub(super) const ROW_COUNT: usize = 2;
+
     pub(super) fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
         let notifications_row = match &self.mode {
             NotificationsMode::Toggle { enabled } => {
@@ -32,5 +34,11 @@ impl NotificationsSettingsView {
 
         vec![notifications_row, SettingsMenuRow::new(1usize, "Close")]
     }
-}
 
+    pub(super) fn selected_row(&self) -> usize {
+        self.state
+            .selected_idx
+            .unwrap_or(0)
+            .min(Self::ROW_COUNT.saturating_sub(1))
+    }
+}

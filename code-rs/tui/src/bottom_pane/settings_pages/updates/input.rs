@@ -1,7 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app_event::AppEvent;
-use crate::ui_interaction::{wrap_next, wrap_prev};
 
 use super::UpdateSettingsView;
 
@@ -52,12 +51,12 @@ impl UpdateSettingsView {
             .command_display
             .clone()
             .unwrap_or_else(|| command.join(" "));
+        let current_version = &self.current_version;
 
         self.app_event_tx.send_background_event_with_ticket(
             &self.ticket,
             format!(
-                "Update available: {} -> {}. Opening guided upgrade with `{display}`...",
-                self.current_version, latest
+                "Update available: {current_version} -> {latest}. Opening guided upgrade with `{display}`..."
             ),
         );
         self.app_event_tx.send(AppEvent::RunUpdateCommand {
@@ -75,7 +74,7 @@ impl UpdateSettingsView {
     }
 
     pub(super) fn activate_selected(&mut self) {
-        match self.field {
+        match self.selected_row() {
             0 => self.invoke_run_upgrade(),
             1 => self.toggle_auto(),
             _ => self.is_complete = true,
@@ -89,14 +88,14 @@ impl UpdateSettingsView {
                 true
             }
             KeyCode::Tab | KeyCode::Down => {
-                self.field = wrap_next(self.field, Self::FIELD_COUNT);
+                self.state.move_down_wrap(Self::ROW_COUNT);
                 true
             }
             KeyCode::BackTab | KeyCode::Up => {
-                self.field = wrap_prev(self.field, Self::FIELD_COUNT);
+                self.state.move_up_wrap(Self::ROW_COUNT);
                 true
             }
-            KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if self.field == 1 => {
+            KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if self.selected_row() == 1 => {
                 self.toggle_auto();
                 true
             }
@@ -112,4 +111,3 @@ impl UpdateSettingsView {
         handled
     }
 }
-

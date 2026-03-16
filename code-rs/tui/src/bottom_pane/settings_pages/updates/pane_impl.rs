@@ -67,11 +67,9 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
-        let rows = self
-            .header_lines()
-            .len()
-            .saturating_add(Self::FIELD_COUNT)
-            .saturating_add(Self::footer_lines().len())
+        let rows = Self::HEADER_LINE_COUNT
+            .saturating_add(Self::ROW_COUNT)
+            .saturating_add(Self::FOOTER_LINE_COUNT)
             .saturating_add(2);
         u16::try_from(rows).unwrap_or(u16::MAX)
     }
@@ -85,4 +83,3 @@ impl<'a> BottomPaneView<'a> for UpdateSettingsView {
         ConditionalUpdate::NoRedraw
     }
 }
-

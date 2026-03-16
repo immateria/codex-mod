@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::app_event_sender::AppEventSender;
 use crate::chatwidget::BackgroundOrderTicket;
+use crate::components::scroll_state::ScrollState;
 
 mod input;
 mod model;
@@ -22,7 +23,7 @@ pub struct UpdateSharedState {
 pub(crate) struct UpdateSettingsView {
     app_event_tx: AppEventSender,
     ticket: BackgroundOrderTicket,
-    field: usize,
+    state: ScrollState,
     is_complete: bool,
     auto_enabled: bool,
     shared: Arc<Mutex<UpdateSharedState>>,

@@ -49,6 +49,19 @@ impl<'a> BottomPaneView<'a> for NotificationsSettingsView {
         redraw_if(self.handle_key_event_direct(key_event))
     }
 
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        // Bottom-pane chrome is always framed; overlay code uses `content_only()` wrappers directly.
+        redraw_if(
+            crate::bottom_pane::chrome_view::FramedMut::new(self)
+                .handle_mouse_event_direct(mouse_event, area),
+        )
+    }
+
     fn is_complete(&self) -> bool {
         self.is_complete
     }
@@ -58,7 +71,7 @@ impl<'a> BottomPaneView<'a> for NotificationsSettingsView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
+        // Bottom-pane chrome is framed; overlay rendering goes through `ChromeRenderable`.
         self.framed().render(area, buf);
     }
 }
-

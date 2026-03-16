@@ -2,9 +2,9 @@ use crossterm::event::MouseEvent;
 use ratatui::layout::Rect;
 
 use crate::app_event::AppEvent;
-use crate::bottom_pane::settings_ui::menu_rows::selection_id_at;
+use crate::bottom_pane::chrome::ChromeMode;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
 use crate::ui_interaction::{
-    route_selectable_list_mouse_with_config,
     SelectableListMouseConfig,
     SelectableListMouseResult,
 };
@@ -12,28 +12,34 @@ use crate::ui_interaction::{
 use super::UpdateSettingsView;
 
 impl UpdateSettingsView {
-    fn handle_mouse_event_in_body(&mut self, mouse_event: MouseEvent, body: Rect) -> bool {
-        let rows = self.rows();
-        let mut selected = self.field;
-        let result = route_selectable_list_mouse_with_config(
+    fn handle_mouse_event_direct_in_chrome(
+        &mut self,
+        chrome: ChromeMode,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> bool {
+        let Some(layout) = self.page().layout_in_chrome(chrome, area) else {
+            return false;
+        };
+
+        let outcome = route_scroll_state_mouse_in_body(
             mouse_event,
-            &mut selected,
-            rows.len(),
-            |x, y| selection_id_at(body, x, y, 0, &rows),
+            layout.body,
+            &mut self.state,
+            Self::ROW_COUNT,
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_select: false,
                 ..SelectableListMouseConfig::default()
             },
         );
-        self.field = selected;
 
-        if matches!(result, SelectableListMouseResult::Activated) {
+        if matches!(outcome.result, SelectableListMouseResult::Activated) {
             self.activate_selected();
             self.app_event_tx.send(AppEvent::RequestRedraw);
         }
 
-        result.handled()
+        outcome.changed
     }
 
     pub(super) fn handle_mouse_event_direct_content_only(
@@ -41,10 +47,7 @@ impl UpdateSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        let Some(layout) = self.content_layout(area) else {
-            return false;
-        };
-        self.handle_mouse_event_in_body(mouse_event, layout.body)
+        self.handle_mouse_event_direct_in_chrome(ChromeMode::ContentOnly, mouse_event, area)
     }
 
     pub(super) fn handle_mouse_event_direct_framed(
@@ -52,11 +55,6 @@ impl UpdateSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        self.page()
-            .framed()
-            .layout(area)
-            .map(|layout| self.handle_mouse_event_in_body(mouse_event, layout.body))
-            .unwrap_or(false)
+        self.handle_mouse_event_direct_in_chrome(ChromeMode::Framed, mouse_event, area)
     }
 }
-

@@ -1,4 +1,4 @@
-use ratatui::layout::{Margin, Rect};
+use ratatui::layout::Margin;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
@@ -6,7 +6,6 @@ use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::colors;
-use crate::ui_interaction::{split_header_body_footer, HeaderBodyFooterLayout};
 
 use super::UpdateSettingsView;
 
@@ -22,7 +21,8 @@ impl UpdateSettingsView {
 
     pub(super) fn header_lines(&self) -> Vec<Line<'static>> {
         let guide_line = if self.command.is_some() {
-            format!("Guided command: {}", self.guided_command_label())
+            let guided_command_label = self.guided_command_label();
+            format!("Guided command: {guided_command_label}")
         } else {
             "Run Upgrade will post manual instructions in the transcript.".to_string()
         };
@@ -55,9 +55,5 @@ impl UpdateSettingsView {
             self.header_lines(),
             Self::footer_lines(),
         )
-    }
-
-    pub(super) fn content_layout(&self, area: Rect) -> Option<HeaderBodyFooterLayout> {
-        split_header_body_footer(area, self.header_lines().len(), Self::footer_lines().len(), 1)
     }
 }

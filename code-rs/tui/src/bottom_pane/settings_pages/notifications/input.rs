@@ -1,13 +1,10 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app_event::AppEvent;
-use crate::ui_interaction::{wrap_next, wrap_prev};
 
 use super::{NotificationsMode, NotificationsSettingsView};
 
 impl NotificationsSettingsView {
-    const SELECTABLE_ROWS: usize = 2;
-
     pub(super) fn toggle(&mut self) {
         match &mut self.mode {
             NotificationsMode::Toggle { enabled } => {
@@ -40,7 +37,7 @@ impl NotificationsSettingsView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                self.selected_row = wrap_prev(self.selected_row, Self::SELECTABLE_ROWS);
+                self.state.move_up_wrap(Self::ROW_COUNT);
                 true
             }
             KeyEvent {
@@ -48,7 +45,7 @@ impl NotificationsSettingsView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                self.selected_row = wrap_next(self.selected_row, Self::SELECTABLE_ROWS);
+                self.state.move_down_wrap(Self::ROW_COUNT);
                 true
             }
             KeyEvent {
@@ -56,7 +53,7 @@ impl NotificationsSettingsView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                if self.selected_row == 0 {
+                if self.selected_row() == 0 {
                     self.toggle();
                 }
                 true
@@ -66,7 +63,7 @@ impl NotificationsSettingsView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                if self.selected_row == 0 {
+                if self.selected_row() == 0 {
                     self.toggle();
                 } else {
                     self.is_complete = true;
@@ -78,7 +75,7 @@ impl NotificationsSettingsView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                if self.selected_row == 0 {
+                if self.selected_row() == 0 {
                     self.toggle();
                 }
                 true
@@ -95,4 +92,3 @@ impl NotificationsSettingsView {
         self.process_key_event(key_event)
     }
 }
-

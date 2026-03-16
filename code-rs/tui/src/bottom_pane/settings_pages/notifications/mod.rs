@@ -1,5 +1,6 @@
 use crate::app_event_sender::AppEventSender;
 use crate::chatwidget::BackgroundOrderTicket;
+use crate::components::scroll_state::ScrollState;
 
 mod input;
 mod model;
@@ -7,6 +8,8 @@ mod mouse;
 mod pane_impl;
 mod pages;
 mod render;
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone)]
 pub(crate) enum NotificationsMode {
@@ -18,7 +21,7 @@ pub(crate) struct NotificationsSettingsView {
     mode: NotificationsMode,
     app_event_tx: AppEventSender,
     ticket: BackgroundOrderTicket,
-    selected_row: usize,
+    state: ScrollState,
     is_complete: bool,
 }
 
@@ -35,11 +38,13 @@ impl NotificationsSettingsView {
         app_event_tx: AppEventSender,
         ticket: BackgroundOrderTicket,
     ) -> Self {
+        let mut state = ScrollState::new();
+        state.clamp_selection(Self::ROW_COUNT);
         Self {
             mode,
             app_event_tx,
             ticket,
-            selected_row: 0,
+            state,
             is_complete: false,
         }
     }
