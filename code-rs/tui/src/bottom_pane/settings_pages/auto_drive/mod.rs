@@ -1,6 +1,8 @@
 use crate::app_event::AutoContinueMode;
 use crate::app_event_sender::AppEventSender;
+use crate::components::scroll_state::ScrollState;
 use code_core::config_types::{AutoDriveModelRoutingEntry, ReasoningEffort};
+use std::cell::Cell;
 
 mod input;
 mod model;
@@ -167,7 +169,7 @@ impl RoutingEditorState {
 
 pub(crate) struct AutoDriveSettingsView {
     app_event_tx: AppEventSender,
-    selected_index: usize,
+    main_state: ScrollState,
     mode: AutoDriveSettingsMode,
     hovered: Option<HoverTarget>,
     model: String,
@@ -181,7 +183,8 @@ pub(crate) struct AutoDriveSettingsView {
     model_routing_enabled: bool,
     model_routing_entries: Vec<AutoDriveModelRoutingEntry>,
     routing_model_options: Vec<String>,
-    routing_selected_index: usize,
+    routing_state: ScrollState,
+    routing_viewport_rows: Cell<usize>,
     continue_mode: AutoContinueMode,
     status_message: Option<String>,
     closing: bool,
@@ -217,4 +220,3 @@ impl AutoDriveSettingsView {
         self.closing
     }
 }
-

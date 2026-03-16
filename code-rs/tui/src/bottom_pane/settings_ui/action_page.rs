@@ -6,6 +6,7 @@ use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::colors;
 use crate::ui_interaction::split_header_body_footer;
 use crate::util::buffer::fill_rect;
@@ -71,6 +72,34 @@ impl<'a> SettingsActionPage<'a> {
 
     pub(crate) fn content_only(&self) -> SettingsActionPageContentOnly<'_, 'a> {
         SettingsActionPageContentOnly { page: self }
+    }
+
+    pub(crate) fn layout_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+    ) -> Option<SettingsActionPageLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().layout(area),
+            ChromeMode::ContentOnly => self.content_only().layout(area),
+        }
+    }
+
+    pub(crate) fn render_with_standard_actions_end_in_chrome<Id: Copy>(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        buttons: &[StandardButtonSpec<Id>],
+    ) -> Option<SettingsActionPageLayout> {
+        match chrome {
+            ChromeMode::Framed => self
+                .framed()
+                .render_with_standard_actions_end(area, buf, buttons),
+            ChromeMode::ContentOnly => self
+                .content_only()
+                .render_with_standard_actions_end(area, buf, buttons),
+        }
     }
 
     pub(crate) fn with_status_lines(mut self, status_lines: Vec<Line<'static>>) -> Self {
@@ -422,6 +451,27 @@ mod tests {
                 TextButtonAlign::End,
             ),
             Some(7)
+        );
+    }
+
+    #[test]
+    fn layout_in_chrome_matches_concrete_layout() {
+        let page = SettingsActionPage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane(),
+            vec![Line::from("header")],
+            vec![Line::from("footer")],
+        )
+        .with_status_lines(vec![Line::from("status")]);
+        let area = Rect::new(0, 0, 30, 8);
+
+        assert_eq!(
+            page.layout_in_chrome(ChromeMode::Framed, area),
+            page.framed().layout(area)
+        );
+        assert_eq!(
+            page.layout_in_chrome(ChromeMode::ContentOnly, area),
+            page.content_only().layout(area)
         );
     }
 }

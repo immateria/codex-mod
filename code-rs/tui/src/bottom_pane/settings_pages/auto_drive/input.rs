@@ -11,19 +11,19 @@ impl AutoDriveSettingsView {
                 true
             }
             KeyCode::Up => {
-                if self.selected_index == 0 {
-                    self.selected_index = Self::option_count() - 1;
-                } else {
-                    self.selected_index -= 1;
-                }
+                self.main_state.move_up_wrap(Self::option_count());
+                // The main list is never scroll-rendered; keep scroll pinned.
+                self.main_state.scroll_top = 0;
                 true
             }
             KeyCode::Down => {
-                self.selected_index = (self.selected_index + 1) % Self::option_count();
+                self.main_state.move_down_wrap(Self::option_count());
+                // The main list is never scroll-rendered; keep scroll pinned.
+                self.main_state.scroll_top = 0;
                 true
             }
             KeyCode::Left => {
-                if self.selected_index == 5 {
+                if self.main_state.selected_idx == Some(5) {
                     self.cycle_continue_mode(false);
                     true
                 } else {
@@ -31,7 +31,7 @@ impl AutoDriveSettingsView {
                 }
             }
             KeyCode::Right => {
-                if self.selected_index == 5 {
+                if self.main_state.selected_idx == Some(5) {
                     self.cycle_continue_mode(true);
                     true
                 } else {
@@ -56,23 +56,28 @@ impl AutoDriveSettingsView {
             }
             KeyCode::Up => {
                 let total = self.routing_row_count();
-                if self.routing_selected_index == 0 {
-                    self.routing_selected_index = total.saturating_sub(1);
-                } else {
-                    self.routing_selected_index -= 1;
-                }
+                self.routing_state.move_up_wrap(total);
+                let visible = self.routing_viewport_rows.get().max(1);
+                self.routing_state.ensure_visible(total, visible);
                 true
             }
             KeyCode::Down => {
                 let total = self.routing_row_count();
-                self.routing_selected_index = (self.routing_selected_index + 1) % total;
+                self.routing_state.move_down_wrap(total);
+                let visible = self.routing_viewport_rows.get().max(1);
+                self.routing_state.ensure_visible(total, visible);
                 true
             }
             KeyCode::Enter => {
-                if self.routing_selected_index >= self.model_routing_entries.len() {
+                let idx = self
+                    .routing_state
+                    .selected_idx
+                    .unwrap_or(0)
+                    .min(self.routing_row_count().saturating_sub(1));
+                if idx >= self.model_routing_entries.len() {
                     self.open_routing_editor(None);
                 } else {
-                    self.open_routing_editor(Some(self.routing_selected_index));
+                    self.open_routing_editor(Some(idx));
                 }
                 true
             }
@@ -81,16 +86,26 @@ impl AutoDriveSettingsView {
                 true
             }
             KeyCode::Char(' ') => {
-                if self.routing_selected_index < self.model_routing_entries.len() {
-                    self.try_toggle_routing_entry_enabled(self.routing_selected_index);
+                let idx = self
+                    .routing_state
+                    .selected_idx
+                    .unwrap_or(0)
+                    .min(self.routing_row_count().saturating_sub(1));
+                if idx < self.model_routing_entries.len() {
+                    self.try_toggle_routing_entry_enabled(idx);
                     true
                 } else {
                     false
                 }
             }
             KeyCode::Delete | KeyCode::Backspace | KeyCode::Char('d') | KeyCode::Char('D') => {
-                if self.routing_selected_index < self.model_routing_entries.len() {
-                    self.try_remove_routing_entry(self.routing_selected_index);
+                let idx = self
+                    .routing_state
+                    .selected_idx
+                    .unwrap_or(0)
+                    .min(self.routing_row_count().saturating_sub(1));
+                if idx < self.model_routing_entries.len() {
+                    self.try_remove_routing_entry(idx);
                     true
                 } else {
                     false
@@ -147,10 +162,14 @@ impl AutoDriveSettingsView {
 
         self.model_routing_entries = sanitized;
         let row_count = self.routing_row_count();
-        self.routing_selected_index = editor
-            .index
-            .unwrap_or_else(|| self.model_routing_entries.len().saturating_sub(1))
-            .min(row_count.saturating_sub(1));
+        self.routing_state.selected_idx = Some(
+            editor
+                .index
+                .unwrap_or_else(|| self.model_routing_entries.len().saturating_sub(1))
+                .min(row_count.saturating_sub(1)),
+        );
+        let visible = self.routing_viewport_rows.get().max(1);
+        self.routing_state.ensure_visible(row_count, visible);
         self.mode = AutoDriveSettingsMode::RoutingList;
         self.send_update();
         self.clear_status_message();

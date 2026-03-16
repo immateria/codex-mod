@@ -33,7 +33,10 @@ impl AutoDriveSettingsView {
 
         Self {
             app_event_tx,
-            selected_index: 0,
+            main_state: ScrollState {
+                selected_idx: Some(0),
+                scroll_top: 0,
+            },
             mode: AutoDriveSettingsMode::Main,
             hovered: None,
             model,
@@ -47,7 +50,11 @@ impl AutoDriveSettingsView {
             model_routing_enabled,
             model_routing_entries,
             routing_model_options,
-            routing_selected_index: 0,
+            routing_state: ScrollState {
+                selected_idx: Some(0),
+                scroll_top: 0,
+            },
+            routing_viewport_rows: Cell::new(8),
             continue_mode,
             status_message: None,
             closing: false,
@@ -274,9 +281,9 @@ impl AutoDriveSettingsView {
     fn open_routing_list(&mut self) {
         self.mode = AutoDriveSettingsMode::RoutingList;
         let rows = self.routing_row_count();
-        if self.routing_selected_index >= rows {
-            self.routing_selected_index = rows.saturating_sub(1);
-        }
+        self.routing_state.clamp_selection(rows);
+        let visible = self.routing_viewport_rows.get().max(1);
+        self.routing_state.ensure_visible(rows, visible);
         self.clear_status_message();
         self.clear_hovered();
     }
@@ -326,8 +333,10 @@ impl AutoDriveSettingsView {
         if self.model_routing_entries.is_empty() {
             self.model_routing_entries = default_auto_drive_model_routing_entries();
         }
-        let max_row = self.routing_row_count().saturating_sub(1);
-        self.routing_selected_index = self.routing_selected_index.min(max_row);
+        let row_count = self.routing_row_count();
+        self.routing_state.clamp_selection(row_count);
+        let visible = self.routing_viewport_rows.get().max(1);
+        self.routing_state.ensure_visible(row_count, visible);
         self.send_update();
         self.clear_status_message();
     }
@@ -343,7 +352,12 @@ impl AutoDriveSettingsView {
     }
 
     pub(super) fn toggle_selected(&mut self) {
-        match self.selected_index {
+        let selected = self
+            .main_state
+            .selected_idx
+            .unwrap_or(0)
+            .min(Self::option_count().saturating_sub(1));
+        match selected {
             0 => {
                 self.app_event_tx.send(AppEvent::ShowAutoDriveModelSelector);
             }

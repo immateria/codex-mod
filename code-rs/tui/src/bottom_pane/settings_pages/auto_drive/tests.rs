@@ -1,6 +1,7 @@
 use super::*;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use ratatui::layout::Rect;
 use std::sync::mpsc::channel;
 
 fn key(code: KeyCode) -> KeyEvent {
@@ -174,4 +175,76 @@ fn routing_editor_cannot_disable_last_enabled_entry_when_routing_on() {
         view.status_message.as_deref(),
         Some("At least one routing entry must stay enabled.")
     );
+}
+
+#[test]
+fn routing_list_scrolls_to_keep_selection_visible() {
+    let entries = (0..10)
+        .map(|idx| AutoDriveModelRoutingEntry {
+            model: format!("gpt-5.3-codex-{idx}"),
+            enabled: true,
+            reasoning_levels: vec![ReasoningEffort::High],
+            description: String::new(),
+        })
+        .collect::<Vec<_>>();
+    let mut view = build_view(true, entries);
+
+    for _ in 0..4 {
+        view.handle_key_event_direct(key(KeyCode::Down));
+    }
+    view.handle_key_event_direct(key(KeyCode::Enter));
+    assert!(matches!(view.mode, AutoDriveSettingsMode::RoutingList));
+
+    view.routing_state.selected_idx = Some(0);
+    view.routing_state.scroll_top = 0;
+    view.routing_viewport_rows.set(3);
+
+    for _ in 0..3 {
+        view.handle_key_event_direct(key(KeyCode::Down));
+    }
+
+    assert_eq!(view.routing_state.selected_idx, Some(3));
+    assert_eq!(view.routing_state.scroll_top, 1);
+}
+
+#[test]
+fn content_only_routing_list_mouse_geometry_differs_from_framed() {
+    let entries = (0..3)
+        .map(|idx| AutoDriveModelRoutingEntry {
+            model: format!("gpt-5.3-codex-{idx}"),
+            enabled: true,
+            reasoning_levels: vec![ReasoningEffort::High],
+            description: String::new(),
+        })
+        .collect::<Vec<_>>();
+    let mut view = build_view(true, entries);
+
+    for _ in 0..4 {
+        view.handle_key_event_direct(key(KeyCode::Down));
+    }
+    view.handle_key_event_direct(key(KeyCode::Enter));
+    assert!(matches!(view.mode, AutoDriveSettingsMode::RoutingList));
+
+    view.routing_state.selected_idx = Some(0);
+    view.routing_state.scroll_top = 0;
+
+    let area = Rect::new(0, 0, 50, 20);
+    let content_layout = view
+        .page()
+        .layout_in_chrome(crate::bottom_pane::chrome::ChromeMode::ContentOnly, area)
+        .expect("layout");
+
+    let mouse_event = MouseEvent {
+        kind: MouseEventKind::ScrollDown,
+        column: content_layout.body.x,
+        row: content_layout.body.y,
+        modifiers: KeyModifiers::NONE,
+    };
+
+    let before = view.routing_state.selected_idx;
+    assert!(!view.handle_mouse_event_internal(mouse_event, area));
+    assert_eq!(view.routing_state.selected_idx, before);
+
+    assert!(view.handle_mouse_event_direct_content_only(mouse_event, area));
+    assert_eq!(view.routing_state.selected_idx, Some(1));
 }
