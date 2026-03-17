@@ -122,6 +122,18 @@ impl<'a> SettingsMenuPage<'a> {
         }
     }
 
+    pub(crate) fn render_shell_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsSectionedPanelLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().render_shell(area, buf),
+            ChromeMode::ContentOnly => self.content_only().render_shell(area, buf),
+        }
+    }
+
     pub(crate) fn render_menu_rows_in_chrome<Id: Copy + PartialEq>(
         &self,
         chrome: ChromeMode,
@@ -358,5 +370,31 @@ mod tests {
         assert_eq!(layout.header, Rect::new(0, 0, 20, 1));
         assert_eq!(buf[(0, 0)].symbol(), "h");
         assert_eq!(buf[(0, 1)].symbol(), "›");
+    }
+
+    #[test]
+    fn render_shell_in_chrome_matches_concrete_impls() {
+        let page = SettingsMenuPage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            vec![Line::from("header")],
+            vec![Line::from("footer")],
+        );
+        let area = Rect::new(0, 0, 30, 10);
+
+        let mut framed_buf = Buffer::empty(area);
+        let mut framed_expected_buf = Buffer::empty(area);
+        assert_eq!(
+            page.render_shell_in_chrome(ChromeMode::Framed, area, &mut framed_buf),
+            page.framed().render_shell(area, &mut framed_expected_buf)
+        );
+
+        let mut content_buf = Buffer::empty(area);
+        let mut content_expected_buf = Buffer::empty(area);
+        assert_eq!(
+            page.render_shell_in_chrome(ChromeMode::ContentOnly, area, &mut content_buf),
+            page.content_only()
+                .render_shell(area, &mut content_expected_buf)
+        );
     }
 }

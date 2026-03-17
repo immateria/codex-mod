@@ -315,29 +315,6 @@ impl<'p, 'a> SettingsFormPageContentOnly<'p, 'a> {
     ) -> Option<SettingsFormPageLayout> {
         self.page.render_content_only(area, buf, fields)
     }
-
-    pub(crate) fn render_with_standard_actions<Id: Copy>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        fields: &[&FormTextField],
-        buttons: &[StandardButtonSpec<Id>],
-        align: TextButtonAlign,
-    ) -> Option<SettingsFormPageLayout> {
-        let layout = self.render(area, buf, fields)?;
-        self.page.render_standard_actions(&layout, buf, buttons, align);
-        Some(layout)
-    }
-
-    pub(crate) fn render_with_standard_actions_end<Id: Copy>(
-        &self,
-        area: Rect,
-        buf: &mut Buffer,
-        fields: &[&FormTextField],
-        buttons: &[StandardButtonSpec<Id>],
-    ) -> Option<SettingsFormPageLayout> {
-        self.render_with_standard_actions(area, buf, fields, buttons, TextButtonAlign::End)
-    }
 }
 
 #[cfg(test)]
