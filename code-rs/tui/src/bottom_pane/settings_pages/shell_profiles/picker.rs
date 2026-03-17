@@ -1,4 +1,5 @@
 use super::*;
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::sectioned_panel::SettingsSectionedPanelLayout;
@@ -348,31 +349,17 @@ impl ShellProfilesSettingsView {
         )
     }
 
-    pub(super) fn compute_picker_layout(
+    pub(super) fn compute_picker_layout_in_chrome(
         &self,
         area: Rect,
         state: &PickListState,
+        chrome: ChromeMode,
     ) -> Option<SettingsSectionedPanelLayout> {
-        self.picker_page(state).framed().layout(area)
-    }
-
-    pub(super) fn compute_picker_layout_content(
-        &self,
-        area: Rect,
-        state: &PickListState,
-    ) -> Option<SettingsSectionedPanelLayout> {
-        self.picker_page(state).content_only().layout(area)
+        self.picker_page(state).layout_in_chrome(chrome, area)
     }
 
     pub(super) fn render_picker(&self, area: Rect, buf: &mut Buffer, state: &PickListState) {
-        let Some(layout) = self.picker_page(state).framed().render_shell(area, buf)
-        else {
-            return;
-        };
-
-        self.pick_viewport_rows
-            .set((layout.body.height as usize).max(1));
-        self.render_pick_list(layout.body, buf, state);
+        self.render_picker_in_chrome(area, buf, state, ChromeMode::Framed);
     }
 
     pub(super) fn render_picker_without_frame(
@@ -381,8 +368,17 @@ impl ShellProfilesSettingsView {
         buf: &mut Buffer,
         state: &PickListState,
     ) {
-        let Some(layout) = self.picker_page(state).content_only().render_shell(area, buf)
-        else {
+        self.render_picker_in_chrome(area, buf, state, ChromeMode::ContentOnly);
+    }
+
+    fn render_picker_in_chrome(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        state: &PickListState,
+        chrome: ChromeMode,
+    ) {
+        let Some(layout) = self.picker_page(state).render_shell_in_chrome(chrome, area, buf) else {
             return;
         };
 

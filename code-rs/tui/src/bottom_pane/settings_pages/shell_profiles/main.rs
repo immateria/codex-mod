@@ -403,8 +403,14 @@ mod tests {
         );
 
         let area = Rect::new(0, 0, 40, 12);
-        let content_layout = view.main_page().content_only().layout(area).expect("layout");
-        let framed_layout = view.main_page().framed().layout(area).expect("layout");
+        let content_layout = view
+            .main_page()
+            .layout_in_chrome(ChromeMode::ContentOnly, area)
+            .expect("layout");
+        let framed_layout = view
+            .main_page()
+            .layout_in_chrome(ChromeMode::Framed, area)
+            .expect("layout");
         let total = ShellProfilesSettingsView::rows().len();
         let scroll_top = view.scroll.scroll_top.min(total.saturating_sub(1));
 

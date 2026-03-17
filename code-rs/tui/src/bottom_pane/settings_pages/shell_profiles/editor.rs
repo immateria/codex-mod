@@ -1,4 +1,5 @@
 use super::*;
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
 use crate::bottom_pane::settings_ui::buttons::{
     standard_button_specs, SettingsButtonKind, StandardButtonSpec,
@@ -137,20 +138,13 @@ impl ShellProfilesSettingsView {
         page.standard_action_at_end(layout, x, y, &actions)
     }
 
-    pub(super) fn compute_editor_layout(
+    pub(super) fn compute_editor_layout_in_chrome(
         &self,
         area: Rect,
         target: ListTarget,
+        chrome: ChromeMode,
     ) -> Option<SettingsFormPageLayout> {
-        self.editor_form_page(target).framed().layout(area)
-    }
-
-    pub(super) fn compute_editor_layout_content(
-        &self,
-        area: Rect,
-        target: ListTarget,
-    ) -> Option<SettingsFormPageLayout> {
-        self.editor_form_page(target).content_only().layout(area)
+        self.editor_form_page(target).layout_in_chrome(chrome, area)
     }
 
     pub(super) fn editor_append_picker_path(&mut self, target: ListTarget) {
@@ -205,19 +199,7 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn render_editor(&self, area: Rect, buf: &mut Buffer, target: ListTarget) {
-        let page = self.editor_form_page(target);
-        let field = match target {
-            ListTarget::Summary => &self.summary_field,
-            ListTarget::References => &self.references_field,
-            ListTarget::SkillRoots => &self.skill_roots_field,
-        };
-        let buttons = Self::editor_footer_button_specs(target, None);
-        let Some(_layout) = page
-            .framed()
-            .render_with_standard_actions_end(area, buf, &[field], &buttons)
-        else {
-            return;
-        };
+        self.render_editor_in_chrome(area, buf, target, ChromeMode::Framed);
     }
 
     pub(super) fn render_editor_without_frame(
@@ -226,6 +208,16 @@ impl ShellProfilesSettingsView {
         buf: &mut Buffer,
         target: ListTarget,
     ) {
+        self.render_editor_in_chrome(area, buf, target, ChromeMode::ContentOnly);
+    }
+
+    fn render_editor_in_chrome(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        target: ListTarget,
+        chrome: ChromeMode,
+    ) {
         let page = self.editor_form_page(target);
         let field = match target {
             ListTarget::Summary => &self.summary_field,
@@ -233,10 +225,13 @@ impl ShellProfilesSettingsView {
             ListTarget::SkillRoots => &self.skill_roots_field,
         };
         let buttons = Self::editor_footer_button_specs(target, None);
-        let Some(_layout) =
-            page.content_only()
-                .render_with_standard_actions_end(area, buf, &[field], &buttons)
-        else {
+        let Some(_layout) = page.render_with_standard_actions_end_in_chrome(
+            chrome,
+            area,
+            buf,
+            &[field],
+            &buttons,
+        ) else {
             return;
         };
     }

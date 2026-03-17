@@ -23,7 +23,6 @@ use crate::components::scroll_state::ScrollState;
 use crate::native_picker::{pick_path, NativePickerKind};
 use crate::ui_interaction::{
     redraw_if,
-    route_selectable_list_mouse_with_config,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
@@ -32,7 +31,9 @@ use crate::util::buffer::{fill_rect, write_line};
 
 use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
 use crate::bottom_pane::BottomPane;
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::SettingsSection;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
 
 mod editor;
 mod main;
@@ -376,14 +377,14 @@ impl ShellProfilesSettingsView {
     }
 
     fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        self.handle_mouse_event_direct_inner(mouse_event, area, false)
+        self.handle_mouse_event_direct_in_chrome(mouse_event, area, ChromeMode::ContentOnly)
     }
 
-    fn handle_mouse_event_direct_inner(
+    fn handle_mouse_event_direct_in_chrome(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,
-        framed: bool,
+        chrome: ChromeMode,
     ) -> bool {
         if self.is_complete {
             return false;
@@ -392,18 +393,13 @@ impl ShellProfilesSettingsView {
         let mode = std::mem::replace(&mut self.mode, ViewMode::Main);
         match mode {
             ViewMode::Main => {
-                if framed {
-                    self.handle_mouse_event_main(mouse_event, area)
-                } else {
-                    self.handle_mouse_event_main_content(mouse_event, area)
+                match chrome {
+                    ChromeMode::Framed => self.handle_mouse_event_main(mouse_event, area),
+                    ChromeMode::ContentOnly => self.handle_mouse_event_main_content(mouse_event, area),
                 }
             }
             ViewMode::EditList { target, before } => {
-                let layout = if framed {
-                    self.compute_editor_layout(area, target)
-                } else {
-                    self.compute_editor_layout_content(area, target)
-                };
+                let layout = self.compute_editor_layout_in_chrome(area, target, chrome);
                 let Some(layout) = layout else {
                     self.mode = ViewMode::EditList { target, before };
                     return false;
@@ -502,39 +498,18 @@ impl ShellProfilesSettingsView {
                     return false;
                 }
 
-                if state.scroll.selected_idx.is_none() {
-                    state.scroll.selected_idx = Some(0);
-                }
-                state.scroll.clamp_selection(total);
-                let mut selected = state.scroll.selected_idx.unwrap_or(0);
-                let scroll_top = state.scroll.scroll_top.min(total.saturating_sub(1));
-
-                let layout = if framed {
-                    self.compute_picker_layout(area, &state)
-                } else {
-                    self.compute_picker_layout_content(area, &state)
-                };
-                let Some(layout) = layout else {
+                let Some(layout) = self.compute_picker_layout_in_chrome(area, &state, chrome) else {
                     self.mode = ViewMode::PickList(state);
                     return false;
                 };
-                let body = layout.body;
+                self.pick_viewport_rows
+                    .set((layout.body.height as usize).max(1));
 
-                let row_at_position = |x: u16, y: u16| -> Option<usize> {
-                    crate::bottom_pane::settings_ui::rows::selection_index_at(
-                        body,
-                        x,
-                        y,
-                        scroll_top,
-                        total,
-                    )
-                };
-
-                let result = route_selectable_list_mouse_with_config(
+                let outcome = route_scroll_state_mouse_in_body(
                     mouse_event,
-                    &mut selected,
+                    layout.body,
+                    &mut state.scroll,
                     total,
-                    row_at_position,
                     SelectableListMouseConfig {
                         hover_select: false,
                         require_pointer_hit_for_scroll: true,
@@ -543,25 +518,13 @@ impl ShellProfilesSettingsView {
                     },
                 );
 
-                let handled = match result {
-                    SelectableListMouseResult::Ignored => false,
-                    SelectableListMouseResult::SelectionChanged => {
-                        state.scroll.selected_idx = Some(selected);
-                        let visible = self.pick_viewport_rows.get().max(1);
-                        state.scroll.ensure_visible(total, visible);
-                        true
-                    }
-                    SelectableListMouseResult::Activated => {
-                        state.scroll.selected_idx = Some(selected);
-                        let visible = self.pick_viewport_rows.get().max(1);
-                        state.scroll.ensure_visible(total, visible);
-                        let _ = Self::toggle_picker_selection(&mut state);
-                        true
-                    }
-                };
+                let mut changed = outcome.changed;
+                if matches!(outcome.result, SelectableListMouseResult::Activated) {
+                    changed |= Self::toggle_picker_selection(&mut state);
+                }
 
                 self.mode = ViewMode::PickList(state);
-                handled
+                changed
             }
         }
     }
@@ -571,7 +534,7 @@ impl ShellProfilesSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        self.handle_mouse_event_direct_inner(mouse_event, area, true)
+        self.handle_mouse_event_direct_in_chrome(mouse_event, area, ChromeMode::Framed)
     }
 
     pub(crate) fn is_complete(&self) -> bool {
