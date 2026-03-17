@@ -28,7 +28,6 @@ use crate::ui_interaction::{
     next_scroll_top_with_delta,
     redraw_if,
     render_vertical_scrollbar,
-    route_selectable_list_mouse_with_config,
     scroll_top_to_keep_visible,
     split_pinned_footer_layout,
     ScrollSelectionBehavior,

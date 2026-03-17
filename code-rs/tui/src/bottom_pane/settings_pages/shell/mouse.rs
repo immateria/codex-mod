@@ -3,8 +3,9 @@ use super::*;
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::fields::BorderedField;
 use crate::bottom_pane::settings_ui::line_runs::selection_id_at as selection_run_id_at;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test_no_ensure_visible;
+use crate::components::scroll_state::ScrollState;
 use crate::ui_interaction::{
-    route_selectable_list_mouse_with_config,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
@@ -103,31 +104,26 @@ impl ShellSelectionView {
         };
         let runs = self.list_runs();
 
-        let mut selected = self.selected_index;
-        let result = route_selectable_list_mouse_with_config(
+        let mut state = ScrollState {
+            selected_idx: Some(self.selected_index),
+            scroll_top: 0,
+        };
+        let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
             mouse_event,
-            &mut selected,
+            &mut state,
             self.item_count(),
-            |x, y| selection_run_id_at(layout.body, x, y, 0, &runs),
+            |x, y, _scroll_top| selection_run_id_at(layout.body, x, y, 0, &runs),
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_behavior: ScrollSelectionBehavior::Wrap,
                 ..SelectableListMouseConfig::default()
             },
         );
-
-        let mut handled = false;
-        if selected != self.selected_index {
-            self.selected_index = selected;
-            handled = true;
-        }
-
-        if matches!(result, SelectableListMouseResult::Activated) {
+        self.selected_index = state.selected_idx.unwrap_or(0);
+        if matches!(outcome.result, SelectableListMouseResult::Activated) {
             self.select_item(self.selected_index);
-            handled = true;
         }
-
-        handled || result.handled()
+        outcome.changed
     }
 
     pub(super) fn handle_mouse_event_direct_content_only(

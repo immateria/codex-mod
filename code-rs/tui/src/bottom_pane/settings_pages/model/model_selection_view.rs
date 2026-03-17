@@ -14,14 +14,15 @@ use crate::bottom_pane::settings_ui::line_runs::{
 use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test_no_ensure_visible;
 use crate::bottom_pane::settings_ui::toggle;
 use crate::bottom_pane::BottomPane;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
+use crate::components::scroll_state::ScrollState;
 use crate::ui_interaction::{
     redraw_if,
-    route_selectable_list_mouse_with_config,
     SelectableListMouseConfig,
     SelectableListMouseResult,
 };
@@ -196,21 +197,24 @@ impl ModelSelectionView {
         mouse_event: MouseEvent,
         body: Rect,
     ) -> ConditionalUpdate {
-        let mut selected = self.selected_index;
-        let result = route_selectable_list_mouse_with_config(
+        let mut state = ScrollState {
+            selected_idx: Some(self.selected_index),
+            scroll_top: 0,
+        };
+        let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
             mouse_event,
-            &mut selected,
+            &mut state,
             self.entry_count(),
-            |x, y| self.hit_test_in_body(body, x, y),
+            |x, y, _scroll_top| self.hit_test_in_body(body, x, y),
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_select: false,
                 ..SelectableListMouseConfig::default()
             },
         );
-        self.selected_index = selected;
+        self.selected_index = state.selected_idx.unwrap_or(0);
 
-        if matches!(result, SelectableListMouseResult::Activated) {
+        if matches!(outcome.result, SelectableListMouseResult::Activated) {
             self.select_item(self.selected_index);
             return ConditionalUpdate::NeedsRedraw;
         }
@@ -227,7 +231,7 @@ impl ModelSelectionView {
             _ => {}
         }
 
-        if result.handled() {
+        if outcome.changed {
             ConditionalUpdate::NeedsRedraw
         } else {
             ConditionalUpdate::NoRedraw

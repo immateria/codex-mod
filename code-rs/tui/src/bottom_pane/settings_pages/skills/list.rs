@@ -1,5 +1,8 @@
 use super::*;
 
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test_no_ensure_visible;
+use crate::components::scroll_state::ScrollState;
+
 impl SkillsSettingsView {
     fn list_area_from_inner(inner: Rect) -> Rect {
         let chunks = Layout::default()
@@ -56,27 +59,30 @@ impl SkillsSettingsView {
         mouse_event: MouseEvent,
         list_area: Rect,
     ) -> bool {
-        let mut selected = self.selected;
-        let result = route_selectable_list_mouse_with_config(
+        let mut state = ScrollState {
+            selected_idx: Some(self.selected),
+            scroll_top: 0,
+        };
+        let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
             mouse_event,
-            &mut selected,
+            &mut state,
             self.skills.len().saturating_add(1),
-            |x, y| self.list_selection_at(list_area, x, y),
+            |x, y, _scroll_top| self.list_selection_at(list_area, x, y),
             SelectableListMouseConfig {
                 require_pointer_hit_for_scroll: true,
                 scroll_behavior: ScrollSelectionBehavior::Clamp,
                 ..SelectableListMouseConfig::default()
             },
         );
-        self.selected = selected;
-        if matches!(result, SelectableListMouseResult::Activated) {
+        self.selected = state.selected_idx.unwrap_or(0);
+        if matches!(outcome.result, SelectableListMouseResult::Activated) {
             if self.selected < self.skills.len() {
                 self.enter_editor();
             } else {
                 self.start_new_skill();
             }
         }
-        result.handled()
+        outcome.changed
     }
 
     pub(super) fn handle_list_key(&mut self, key: KeyEvent) -> bool {
