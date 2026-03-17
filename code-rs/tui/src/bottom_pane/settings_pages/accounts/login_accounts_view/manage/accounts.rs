@@ -48,10 +48,11 @@ impl LoginAccountsState {
                         None
                     }
                 };
-                self.active_account_id = active_id.clone();
+                self.active_account_id = active_id;
+                let active_id = self.active_account_id.as_deref();
                 self.accounts = raw_accounts
                     .into_iter()
-                    .map(|account| AccountRow::from_stored(account, active_id.as_deref()))
+                    .map(|account| AccountRow::from_stored(account, active_id))
                     .collect();
 
                 self.accounts.sort_by(|a, b| {
@@ -69,9 +70,7 @@ impl LoginAccountsState {
                     .as_deref()
                     .and_then(|id| self.accounts.iter().position(|row| row.id == id))
                     .or_else(|| {
-                        active_id.as_deref().and_then(|id| {
-                            self.accounts.iter().position(|row| row.id == id)
-                        })
+                        active_id.and_then(|id| self.accounts.iter().position(|row| row.id == id))
                     });
 
                 if self.accounts.is_empty() {

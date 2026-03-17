@@ -124,5 +124,37 @@ fn jwt_expiry(token: &str) -> Option<DateTime<Utc>> {
         .ok()?;
     let payload_json = serde_json::from_slice::<JsonValue>(&payload_bytes).ok()?;
     let exp = payload_json.get("exp")?.as_i64()?;
-    DateTime::from_timestamp(exp, 0)
+    DateTime::<Utc>::from_timestamp_secs(exp)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::jwt_expiry;
+    use base64::Engine;
+    use chrono::{DateTime, Utc};
+
+    fn make_token(payload_json: &str) -> String {
+        let header = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b"{}");
+        let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload_json.as_bytes());
+        format!("{header}.{payload}.sig")
+    }
+
+    #[test]
+    fn jwt_expiry_accepts_valid_three_part_token() {
+        let token = make_token(r#"{"exp":0}"#);
+        let expected = DateTime::<Utc>::from_timestamp_secs(0).expect("timestamp");
+        assert_eq!(jwt_expiry(&token), Some(expected));
+    }
+
+    #[test]
+    fn jwt_expiry_rejects_four_part_token() {
+        let token = format!("{}.extra", make_token(r#"{"exp":0}"#));
+        assert_eq!(jwt_expiry(&token), None);
+    }
+
+    #[test]
+    fn jwt_expiry_rejects_out_of_range_exp() {
+        let token = make_token(&format!(r#"{{"exp":{}}}"#, i64::MAX));
+        assert_eq!(jwt_expiry(&token), None);
+    }
 }

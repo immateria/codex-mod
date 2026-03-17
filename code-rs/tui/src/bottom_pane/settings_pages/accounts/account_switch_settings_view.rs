@@ -1,12 +1,10 @@
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
+use crate::components::scroll_state::ScrollState;
 use crate::ui_interaction::{
     redraw_if,
-    route_selectable_list_mouse_with_config,
     SelectableListMouseConfig,
     SelectableListMouseResult,
-    wrap_next,
-    wrap_prev,
 };
 use crate::colors;
 use code_core::config_types::AuthCredentialsStoreMode;
@@ -16,6 +14,7 @@ use ratatui::layout::{Margin, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
 use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::line_runs::selection_id_at as selection_run_id_at;
@@ -24,6 +23,7 @@ use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::{selection_id_at as selection_menu_id_at, SettingsMenuRow};
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::rows::StyledText;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test_no_ensure_visible;
 use crate::bottom_pane::settings_ui::toggle;
 use crate::bottom_pane::BottomPane;
 
@@ -32,13 +32,13 @@ enum ViewMode {
     Main,
     ConfirmStoreChange {
         target: AuthCredentialsStoreMode,
-        selected: usize,
     },
 }
 
 pub(crate) struct AccountSwitchSettingsView {
     app_event_tx: AppEventSender,
-    selected_index: usize,
+    main_state: ScrollState,
+    confirm_state: ScrollState,
     auto_switch_enabled: bool,
     api_key_fallback_enabled: bool,
     auth_credentials_store_mode: AuthCredentialsStoreMode,
@@ -68,7 +68,11 @@ impl AccountSwitchSettingsView {
     ) -> Self {
         Self {
             app_event_tx,
-            selected_index: 0,
+            main_state: ScrollState {
+                selected_idx: Some(0),
+                scroll_top: 0,
+            },
+            confirm_state: ScrollState::default(),
             auto_switch_enabled,
             api_key_fallback_enabled,
             auth_credentials_store_mode,
@@ -148,11 +152,18 @@ impl AccountSwitchSettingsView {
 
     fn open_store_mode_confirm(&mut self) {
         let target = Self::next_auth_store_mode(self.auth_credentials_store_mode);
-        self.view_mode = ViewMode::ConfirmStoreChange { target, selected: 0 };
+        self.view_mode = ViewMode::ConfirmStoreChange { target };
+        self.confirm_state.selected_idx = Some(0);
+        self.confirm_state.scroll_top = 0;
     }
 
     fn activate_selected_main(&mut self) {
-        match self.selected_index {
+        let selected = self
+            .main_state
+            .selected_idx
+            .unwrap_or(0)
+            .min(Self::MAIN_OPTION_COUNT.saturating_sub(1));
+        match selected {
             0 => self.toggle_auto_switch(),
             1 => self.toggle_api_key_fallback(),
             2 => self.open_store_mode_confirm(),
@@ -164,22 +175,17 @@ impl AccountSwitchSettingsView {
     }
 
     fn confirm_selected_index(&self) -> usize {
-        match self.view_mode {
-            ViewMode::ConfirmStoreChange { selected, .. } => selected,
-            ViewMode::Main => 0,
-        }
-    }
-
-    fn set_confirm_selected_index(&mut self, selected: usize) {
-        if let ViewMode::ConfirmStoreChange { target, .. } = self.view_mode {
-            self.view_mode = ViewMode::ConfirmStoreChange { target, selected };
-        }
+        self.confirm_state
+            .selected_idx
+            .unwrap_or(0)
+            .min(Self::CONFIRM_OPTION_COUNT.saturating_sub(1))
     }
 
     fn activate_selected_confirm(&mut self) {
-        let ViewMode::ConfirmStoreChange { target, selected } = self.view_mode else {
+        let ViewMode::ConfirmStoreChange { target } = self.view_mode else {
             return;
         };
+        let selected = self.confirm_selected_index();
 
         match selected {
             0 => {
@@ -332,36 +338,24 @@ impl AccountSwitchSettingsView {
         ]
     }
 
-    fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
+    fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
         match self.view_mode {
             ViewMode::Main => {
                 let page = self.main_page();
-                let runs = self.main_runs(Some(self.selected_index));
-                let _ = page.content_only().render_runs(area, buf, 0, &runs);
+                let selected = self
+                    .main_state
+                    .selected_idx
+                    .unwrap_or(0)
+                    .min(Self::MAIN_OPTION_COUNT.saturating_sub(1));
+                let runs = self.main_runs(Some(selected));
+                let _layout = page.render_runs_in_chrome(chrome, area, buf, 0, &runs);
             }
-            ViewMode::ConfirmStoreChange { target, selected } => {
+            ViewMode::ConfirmStoreChange { target } => {
                 let page = self.confirm_page(target);
                 let rows = self.confirm_rows();
-                let _ = page
-                    .content_only()
-                    .render_menu_rows(area, buf, 0, Some(selected), &rows);
-            }
-        }
-    }
-
-    fn render_framed(&self, area: Rect, buf: &mut Buffer) {
-        match self.view_mode {
-            ViewMode::Main => {
-                let page = self.main_page();
-                let runs = self.main_runs(Some(self.selected_index));
-                let _ = page.framed().render_runs(area, buf, 0, &runs);
-            }
-            ViewMode::ConfirmStoreChange { target, selected } => {
-                let page = self.confirm_page(target);
-                let rows = self.confirm_rows();
-                let _ = page
-                    .framed()
-                    .render_menu_rows(area, buf, 0, Some(selected), &rows);
+                let selected = self.confirm_selected_index();
+                let _layout =
+                    page.render_menu_rows_in_chrome(chrome, area, buf, 0, Some(selected), &rows);
             }
         }
     }
@@ -374,18 +368,15 @@ impl AccountSwitchSettingsView {
                     true
                 }
                 KeyCode::Up => {
-                    self.selected_index =
-                        wrap_prev(self.selected_index, Self::MAIN_OPTION_COUNT);
+                    self.main_state.move_up_wrap(Self::MAIN_OPTION_COUNT);
                     true
                 }
                 KeyCode::Down | KeyCode::Tab => {
-                    self.selected_index =
-                        wrap_next(self.selected_index, Self::MAIN_OPTION_COUNT);
+                    self.main_state.move_down_wrap(Self::MAIN_OPTION_COUNT);
                     true
                 }
                 KeyCode::BackTab => {
-                    self.selected_index =
-                        wrap_prev(self.selected_index, Self::MAIN_OPTION_COUNT);
+                    self.main_state.move_up_wrap(Self::MAIN_OPTION_COUNT);
                     true
                 }
                 KeyCode::Enter | KeyCode::Char(' ') => {
@@ -400,27 +391,15 @@ impl AccountSwitchSettingsView {
                     true
                 }
                 KeyCode::Up => {
-                    let next = wrap_prev(
-                        self.confirm_selected_index(),
-                        Self::CONFIRM_OPTION_COUNT,
-                    );
-                    self.set_confirm_selected_index(next);
+                    self.confirm_state.move_up_wrap(Self::CONFIRM_OPTION_COUNT);
                     true
                 }
                 KeyCode::Down | KeyCode::Tab => {
-                    let next = wrap_next(
-                        self.confirm_selected_index(),
-                        Self::CONFIRM_OPTION_COUNT,
-                    );
-                    self.set_confirm_selected_index(next);
+                    self.confirm_state.move_down_wrap(Self::CONFIRM_OPTION_COUNT);
                     true
                 }
                 KeyCode::BackTab => {
-                    let next = wrap_prev(
-                        self.confirm_selected_index(),
-                        Self::CONFIRM_OPTION_COUNT,
-                    );
-                    self.set_confirm_selected_index(next);
+                    self.confirm_state.move_up_wrap(Self::CONFIRM_OPTION_COUNT);
                     true
                 }
                 KeyCode::Enter | KeyCode::Char(' ') => {
@@ -432,41 +411,23 @@ impl AccountSwitchSettingsView {
         }
     }
 
-    fn handle_mouse_event_direct_content_only(
+    fn handle_mouse_event_direct_in_chrome(
         &mut self,
+        chrome: ChromeMode,
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
         match self.view_mode {
             ViewMode::Main => {
                 let page = self.main_page();
-                let Some(layout) = page.content_only().layout(area) else {
+                let Some(layout) = page.layout_in_chrome(chrome, area) else {
                     return false;
                 };
                 self.handle_mouse_event_main_in_body(mouse_event, layout.body)
             }
-            ViewMode::ConfirmStoreChange { target, .. } => {
+            ViewMode::ConfirmStoreChange { target } => {
                 let page = self.confirm_page(target);
-                let Some(layout) = page.content_only().layout(area) else {
-                    return false;
-                };
-                self.handle_mouse_event_confirm_in_body(mouse_event, layout.body)
-            }
-        }
-    }
-
-    fn handle_mouse_event_direct_framed(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        match self.view_mode {
-            ViewMode::Main => {
-                let page = self.main_page();
-                let Some(layout) = page.framed().layout(area) else {
-                    return false;
-                };
-                self.handle_mouse_event_main_in_body(mouse_event, layout.body)
-            }
-            ViewMode::ConfirmStoreChange { target, .. } => {
-                let page = self.confirm_page(target);
-                let Some(layout) = page.framed().layout(area) else {
+                let Some(layout) = page.layout_in_chrome(chrome, area) else {
                     return false;
                 };
                 self.handle_mouse_event_confirm_in_body(mouse_event, layout.body)
@@ -476,46 +437,46 @@ impl AccountSwitchSettingsView {
 
     fn handle_mouse_event_main_in_body(&mut self, mouse_event: MouseEvent, body: Rect) -> bool {
         let runs = self.main_runs(None);
-        let mut selected = self.selected_index;
-        let result = route_selectable_list_mouse_with_config(
+        let mut state = self.main_state;
+        let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
             mouse_event,
-            &mut selected,
+            &mut state,
             Self::MAIN_OPTION_COUNT,
-            |x, y| selection_run_id_at(body, x, y, 0, &runs),
+            |x, y, _scroll_top| selection_run_id_at(body, x, y, 0, &runs),
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_select: false,
                 ..SelectableListMouseConfig::default()
             },
         );
-        self.selected_index = selected;
+        self.main_state = state;
 
-        if matches!(result, SelectableListMouseResult::Activated) {
+        if matches!(outcome.result, SelectableListMouseResult::Activated) {
             self.activate_selected_main();
         }
-        result.handled()
+        outcome.changed
     }
 
     fn handle_mouse_event_confirm_in_body(&mut self, mouse_event: MouseEvent, body: Rect) -> bool {
         let rows = self.confirm_rows();
-        let mut selected = self.confirm_selected_index();
-        let result = route_selectable_list_mouse_with_config(
+        let mut state = self.confirm_state;
+        let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
             mouse_event,
-            &mut selected,
+            &mut state,
             Self::CONFIRM_OPTION_COUNT,
-            |x, y| selection_menu_id_at(body, x, y, 0, &rows),
+            |x, y, _scroll_top| selection_menu_id_at(body, x, y, 0, &rows),
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_select: false,
                 ..SelectableListMouseConfig::default()
             },
         );
-        self.set_confirm_selected_index(selected);
+        self.confirm_state = state;
 
-        if matches!(result, SelectableListMouseResult::Activated) {
+        if matches!(outcome.result, SelectableListMouseResult::Activated) {
             self.activate_selected_confirm();
         }
-        result.handled()
+        outcome.changed
     }
 
     pub(crate) fn is_view_complete(&self) -> bool {
@@ -525,11 +486,11 @@ impl AccountSwitchSettingsView {
 
 impl crate::bottom_pane::chrome_view::ChromeRenderable for AccountSwitchSettingsView {
     fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
-        self.render_framed(area, buf);
+        self.render_in_chrome(ChromeMode::Framed, area, buf);
     }
 
     fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
-        self.render_content_only(area, buf);
+        self.render_in_chrome(ChromeMode::ContentOnly, area, buf);
     }
 }
 
@@ -539,7 +500,7 @@ impl crate::bottom_pane::chrome_view::ChromeMouseHandler for AccountSwitchSettin
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        self.handle_mouse_event_direct_framed(mouse_event, area)
+        self.handle_mouse_event_direct_in_chrome(ChromeMode::Framed, mouse_event, area)
     }
 
     fn handle_mouse_event_direct_in_content_only_chrome(
@@ -547,7 +508,7 @@ impl crate::bottom_pane::chrome_view::ChromeMouseHandler for AccountSwitchSettin
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        self.handle_mouse_event_direct_content_only(mouse_event, area)
+        self.handle_mouse_event_direct_in_chrome(ChromeMode::ContentOnly, mouse_event, area)
     }
 }
 
@@ -614,13 +575,51 @@ mod tests {
             AuthCredentialsStoreMode::File,
         );
         let area = Rect::new(0, 0, 80, 18);
-        let layout = view.main_page().content_only().layout(area).expect("layout");
+        let layout = view
+            .main_page()
+            .layout_in_chrome(ChromeMode::ContentOnly, area)
+            .expect("layout");
 
         assert!(view.content_only_mut().handle_mouse_event_direct(
             mouse_left_click(layout.body.x + 1, layout.body.y),
             area,
         ));
-        assert_eq!(view.selected_index, 0);
+        assert_eq!(view.main_state.selected_idx, Some(0));
+        assert!(view.auto_switch_enabled);
+        match rx.recv().expect("auto-switch event") {
+            AppEvent::SetAutoSwitchAccountsOnRateLimit(enabled) => assert!(enabled),
+            other => panic!("unexpected event: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn content_only_body_geometry_differs_from_framed_for_mouse_routing() {
+        let (tx, rx) = channel();
+        let mut view = AccountSwitchSettingsView::new(
+            AppEventSender::new(tx),
+            false,
+            false,
+            AuthCredentialsStoreMode::File,
+        );
+        // Force a non-default selection so selection changes are observable.
+        view.main_state.selected_idx = Some(1);
+
+        let area = Rect::new(0, 0, 80, 18);
+        let layout = view
+            .main_page()
+            .layout_in_chrome(ChromeMode::ContentOnly, area)
+            .expect("layout");
+        let click = mouse_left_click(layout.body.x + 1, layout.body.y);
+
+        // Same coordinates should be outside the framed body, so nothing happens.
+        assert!(!view.framed_mut().handle_mouse_event_direct(click, area));
+        assert_eq!(view.main_state.selected_idx, Some(1));
+        assert!(!view.auto_switch_enabled);
+        assert!(rx.try_recv().is_err());
+
+        // Content-only routing should handle and toggle row 0.
+        assert!(view.content_only_mut().handle_mouse_event_direct(click, area));
+        assert_eq!(view.main_state.selected_idx, Some(0));
         assert!(view.auto_switch_enabled);
         match rx.recv().expect("auto-switch event") {
             AppEvent::SetAutoSwitchAccountsOnRateLimit(enabled) => assert!(enabled),
