@@ -6,6 +6,7 @@ use super::model_selection_state::{
     ModelSelectionViewParams,
     SelectionAction,
 };
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::line_runs::{
     selection_id_at,
     SelectableLineRun,
@@ -231,6 +232,18 @@ impl ModelSelectionView {
         } else {
             ConditionalUpdate::NoRedraw
         }
+    }
+
+    fn handle_mouse_event_direct_in_chrome(
+        &mut self,
+        chrome: ChromeMode,
+        mouse_event: MouseEvent,
+        area: Rect,
+    ) -> ConditionalUpdate {
+        let Some(layout) = self.page().layout_in_chrome(chrome, area) else {
+            return ConditionalUpdate::NoRedraw;
+        };
+        self.handle_mouse_event_shared(mouse_event, layout.body)
     }
 
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
@@ -572,31 +585,22 @@ impl ModelSelectionView {
         ]
     }
 
-    fn render_in_page(
-        &self,
-        page: &SettingsMenuPage<'_>,
-        area: Rect,
-        buf: &mut Buffer,
-        framed: bool,
-    ) {
+    fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
         let runs = self.build_render_runs();
-        let layout = if framed {
-            page.framed().render_runs(area, buf, self.scroll_offset, &runs)
-        } else {
-            page.content_only()
-                .render_runs(area, buf, self.scroll_offset, &runs)
-        };
+        let layout = self
+            .page()
+            .render_runs_in_chrome(chrome, area, buf, self.scroll_offset, &runs);
         if let Some(layout) = layout {
             self.visible_body_rows.set(layout.body.height as usize);
         }
     }
 
     fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
-        self.render_in_page(&self.page(), area, buf, false);
+        self.render_in_chrome(ChromeMode::ContentOnly, area, buf);
     }
 
     fn render_framed(&self, area: Rect, buf: &mut Buffer) {
-        self.render_in_page(&self.page(), area, buf, true);
+        self.render_in_chrome(ChromeMode::Framed, area, buf);
     }
 }
 
@@ -616,11 +620,8 @@ impl crate::bottom_pane::chrome_view::ChromeMouseHandler for ModelSelectionView 
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        let Some(layout) = self.page().framed().layout(area) else {
-            return false;
-        };
         matches!(
-            self.handle_mouse_event_shared(mouse_event, layout.body),
+            self.handle_mouse_event_direct_in_chrome(ChromeMode::Framed, mouse_event, area),
             ConditionalUpdate::NeedsRedraw
         )
     }
@@ -630,11 +631,8 @@ impl crate::bottom_pane::chrome_view::ChromeMouseHandler for ModelSelectionView 
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        let Some(layout) = self.page().content_only().layout(area) else {
-            return false;
-        };
         matches!(
-            self.handle_mouse_event_shared(mouse_event, layout.body),
+            self.handle_mouse_event_direct_in_chrome(ChromeMode::ContentOnly, mouse_event, area),
             ConditionalUpdate::NeedsRedraw
         )
     }
@@ -659,10 +657,7 @@ impl<'a> BottomPaneView<'a> for ModelSelectionView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        let Some(layout) = self.page().framed().layout(area) else {
-            return ConditionalUpdate::NoRedraw;
-        };
-        self.handle_mouse_event_shared(mouse_event, layout.body)
+        self.handle_mouse_event_direct_in_chrome(ChromeMode::Framed, mouse_event, area)
     }
 
     fn update_hover(&mut self, mouse_pos: (u16, u16), _area: Rect) -> bool {
@@ -886,7 +881,10 @@ mod tests {
 
         view.scroll_offset = view.selected_body_line(2);
         view.content_only().render(area, &mut buf);
-        let layout = view.page().content_only().layout(area).expect("layout");
+        let layout = view
+            .page()
+            .layout_in_chrome(crate::bottom_pane::chrome::ChromeMode::ContentOnly, area)
+            .expect("layout");
 
         assert_eq!(view.hit_test_in_body(layout.body, 2, 0), Some(2));
         assert_eq!(view.hit_test_in_body(layout.body, 2, 1), Some(3));
@@ -926,8 +924,14 @@ mod tests {
         let view = make_view(ModelSelectionTarget::Session, vec![preset("gpt-5.3-codex")]);
         let area = Rect::new(0, 0, 40, 12);
 
-        let content_layout = view.page().content_only().layout(area).expect("layout");
-        let framed_layout = view.page().framed().layout(area).expect("layout");
+        let content_layout = view
+            .page()
+            .layout_in_chrome(crate::bottom_pane::chrome::ChromeMode::ContentOnly, area)
+            .expect("layout");
+        let framed_layout = view
+            .page()
+            .layout_in_chrome(crate::bottom_pane::chrome::ChromeMode::Framed, area)
+            .expect("layout");
 
         let x = content_layout.body.x;
         let y = content_layout.body.y.saturating_add(2); // Fast Mode selectable row

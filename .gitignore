@@ -31,6 +31,9 @@ result
 *~
 *.code-workspace
 
+# macOS AppleDouble sidecars (e.g., `._Foo.rs`).
+._*
+
 # cli tools
 .claude/
 
@@ -38,6 +41,8 @@ result
 codex-cli/bin/*-darwin
 codex-cli/bin/*-linux-*
 codex-cli/bin/*-windows-*
+codex-cli/bin/code-*
+codex-cli/bin/coder-*
 code-rs/code-cli/bin/
 codex-rs/codex-cli/bin/
 code-rs/bin/
