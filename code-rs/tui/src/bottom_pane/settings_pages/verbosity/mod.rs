@@ -1,6 +1,7 @@
 use code_core::config_types::TextVerbosity;
 
 use crate::app_event_sender::AppEventSender;
+use crate::components::scroll_state::ScrollState;
 
 mod input;
 mod model;
@@ -20,7 +21,7 @@ const VERBOSITY_OPTIONS: [(TextVerbosity, &str, &str); 3] = [
 /// Interactive UI for selecting text verbosity level.
 pub(crate) struct VerbositySelectionView {
     current_verbosity: TextVerbosity,
-    selected_idx: usize,
+    state: ScrollState,
     app_event_tx: AppEventSender,
     is_complete: bool,
 }
@@ -33,10 +34,12 @@ impl VerbositySelectionView {
             .unwrap_or(0);
         Self {
             current_verbosity,
-            selected_idx,
+            state: ScrollState {
+                selected_idx: Some(selected_idx),
+                scroll_top: 0,
+            },
             app_event_tx,
             is_complete: false,
         }
     }
 }
-

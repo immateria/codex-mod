@@ -1,37 +1,29 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
 
-use crate::bottom_pane::settings_ui::menu_rows::render_menu_rows;
-use crate::colors;
+use crate::bottom_pane::chrome::ChromeMode;
 
 use super::PlanningSettingsView;
 
 impl PlanningSettingsView {
-    fn render_rows(&self, area: Rect, buf: &mut Buffer) {
+    fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
+        let page = self.page();
         let rows = self.menu_rows();
-        render_menu_rows(
+        let _layout = page.render_menu_rows_in_chrome(
+            chrome,
             area,
             buf,
-            0,
+            self.state.scroll_top,
             self.selected_row(),
             &rows,
-            Style::new().bg(colors::background()).fg(colors::text()),
         );
     }
 
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = self.page().content_only().render_shell(area, buf) else {
-            return;
-        };
-        self.render_rows(layout.body, buf);
+        self.render_in_chrome(ChromeMode::ContentOnly, area, buf);
     }
 
     pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = self.page().framed().render_shell(area, buf) else {
-            return;
-        };
-        self.render_rows(layout.body, buf);
+        self.render_in_chrome(ChromeMode::Framed, area, buf);
     }
 }
-

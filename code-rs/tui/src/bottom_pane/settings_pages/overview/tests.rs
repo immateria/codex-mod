@@ -28,7 +28,10 @@ fn mouse_activation_opens_expected_section() {
         AppEventSender::new(tx),
     );
     let area = Rect::new(0, 0, 50, 12);
-    let layout = view.page().framed().layout(area).expect("layout");
+    let layout = view
+        .page()
+        .layout_in_chrome(crate::bottom_pane::chrome::ChromeMode::Framed, area)
+        .expect("layout");
 
     assert!(view.handle_mouse_event_direct(
         left_click(layout.body.x, layout.body.y.saturating_add(1)),
@@ -43,4 +46,3 @@ fn mouse_activation_opens_expected_section() {
     }
     assert!(view.is_complete);
 }
-

@@ -1,6 +1,7 @@
 use crossterm::event::MouseEvent;
 use ratatui::layout::Rect;
 
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 use crate::ui_interaction::{
     ScrollSelectionBehavior,
@@ -13,7 +14,7 @@ use super::SettingsOverviewView;
 impl SettingsOverviewView {
     pub(super) fn handle_mouse_event_direct(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         let page = self.page();
-        let Some(layout) = page.framed().layout(area) else {
+        let Some(layout) = page.layout_in_chrome(ChromeMode::Framed, area) else {
             return false;
         };
 

@@ -23,13 +23,21 @@ fn planning_mouse_hit_targets_content_row() {
     );
     let area = Rect::new(0, 0, 40, 8);
     let page = view.page();
-    let layout = page.content_only().layout(area).expect("layout");
+    let layout = page
+        .layout_in_chrome(crate::bottom_pane::chrome::ChromeMode::ContentOnly, area)
+        .expect("layout");
+    let rows = view.menu_rows();
     assert_eq!(
-        view.row_at_position(layout.body, layout.body.x, layout.body.y),
+        crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage::selection_menu_id_in_body(
+            layout.body,
+            layout.body.x,
+            layout.body.y,
+            0,
+            &rows,
+        ),
         Some(PlanningRow::CustomModel)
     );
     assert!(view
         .content_only_mut()
         .handle_mouse_event_direct(left_click(layout.body.x, layout.body.y), area));
 }
-

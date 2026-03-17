@@ -1,15 +1,15 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
+use crate::bottom_pane::chrome::ChromeMode;
+
 use super::VerbositySelectionView;
 
 impl VerbositySelectionView {
     pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let rows = self.menu_rows();
-        let _ = page
-            .framed()
-            .render_menu_rows(area, buf, 0, Some(self.selected_idx), &rows);
+        let _layout =
+            page.render_menu_rows_in_chrome(ChromeMode::Framed, area, buf, 0, self.state.selected_idx, &rows);
     }
 }
-

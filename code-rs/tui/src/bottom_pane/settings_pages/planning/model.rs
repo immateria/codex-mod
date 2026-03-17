@@ -1,7 +1,5 @@
-use ratatui::layout::Rect;
 use ratatui::style::Style;
 
-use crate::bottom_pane::settings_ui::menu_rows::selection_id_at as selection_menu_id_at;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::rows::StyledText;
 use crate::colors;
@@ -30,11 +28,6 @@ impl PlanningSettingsView {
 
     pub(super) fn selected_row(&self) -> Option<PlanningRow> {
         self.rows().get(self.state.selected_idx.unwrap_or(0)).copied()
-    }
-
-    pub(super) fn row_at_position(&self, body: Rect, x: u16, y: u16) -> Option<PlanningRow> {
-        let rows = self.menu_rows();
-        selection_menu_id_at(body, x, y, 0, &rows)
     }
 
     fn reasoning_label(effort: code_core::config_types::ReasoningEffort) -> &'static str {
@@ -76,4 +69,3 @@ impl PlanningSettingsView {
         parts.join("-")
     }
 }
-

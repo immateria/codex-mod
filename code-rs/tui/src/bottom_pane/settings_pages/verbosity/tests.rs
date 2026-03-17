@@ -17,7 +17,10 @@ fn mouse_click_selects_expected_verbosity_row() {
     let (tx, _rx) = channel();
     let mut view = VerbositySelectionView::new(TextVerbosity::Low, AppEventSender::new(tx));
     let area = Rect::new(0, 0, 50, 9);
-    let layout = view.page().framed().layout(area).expect("layout");
+    let layout = view
+        .page()
+        .layout_in_chrome(crate::bottom_pane::chrome::ChromeMode::Framed, area)
+        .expect("layout");
 
     assert!(view.handle_mouse_event_direct(
         mouse_left_click(layout.body.x + 1, layout.body.y + 1),
@@ -26,4 +29,3 @@ fn mouse_click_selects_expected_verbosity_row() {
     assert_eq!(view.selected_verbosity(), TextVerbosity::Medium);
     assert!(view.is_complete);
 }
-

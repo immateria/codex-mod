@@ -3,31 +3,31 @@ use ratatui::style::{Style, Stylize};
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::rows::StyledText;
 use crate::colors;
-use crate::ui_interaction::{wrap_next, wrap_prev};
 
 use super::{TextVerbosity, VerbositySelectionView, VERBOSITY_OPTIONS};
 
 impl VerbositySelectionView {
+    pub(super) fn selected_idx(&self) -> usize {
+        // `VERBOSITY_OPTIONS` should always be non-empty, but keep this safe.
+        let len = VERBOSITY_OPTIONS.len().max(1);
+        self.state.selected_idx.unwrap_or(0).min(len.saturating_sub(1))
+    }
+
     pub(super) fn selected_verbosity(&self) -> TextVerbosity {
         VERBOSITY_OPTIONS
-            .get(self.selected_idx)
+            .get(self.selected_idx())
             .map(|(verbosity, _, _)| *verbosity)
             .unwrap_or(self.current_verbosity)
     }
 
-    pub(super) fn set_selected_index(&mut self, idx: usize) {
-        let idx = idx.min(VERBOSITY_OPTIONS.len().saturating_sub(1));
-        self.selected_idx = idx;
-    }
-
     pub(super) fn move_selection_up(&mut self) {
-        let idx = wrap_prev(self.selected_idx, VERBOSITY_OPTIONS.len());
-        self.set_selected_index(idx);
+        self.state.move_up_wrap(VERBOSITY_OPTIONS.len());
+        self.state.scroll_top = 0;
     }
 
     pub(super) fn move_selection_down(&mut self) {
-        let idx = wrap_next(self.selected_idx, VERBOSITY_OPTIONS.len());
-        self.set_selected_index(idx);
+        self.state.move_down_wrap(VERBOSITY_OPTIONS.len());
+        self.state.scroll_top = 0;
     }
 
     pub(super) fn menu_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
@@ -50,4 +50,3 @@ impl VerbositySelectionView {
             .collect()
     }
 }
-
