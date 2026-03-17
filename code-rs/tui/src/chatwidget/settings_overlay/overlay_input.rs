@@ -2,10 +2,11 @@ use crossterm::event::{MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::SettingsSection;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test_no_ensure_visible;
+use crate::components::scroll_state::ScrollState;
 use crate::ui_interaction::{
     contains_point,
     ListWindow,
-    route_selectable_list_mouse_with_config,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
@@ -39,20 +40,24 @@ impl SettingsOverlayView {
             return false;
         }
 
-        let mut selected_idx = self.sidebar_selected_index().unwrap_or(0);
-        let result = route_selectable_list_mouse_with_config(
+        let mut state = ScrollState {
+            selected_idx: self.sidebar_selected_index(),
+            scroll_top: 0,
+        };
+        let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
             mouse_event,
-            &mut selected_idx,
+            &mut state,
             item_count,
-            |x, y| self.hit_test_menu_index(x, y),
+            |x, y, _scroll_top| self.hit_test_menu_index(x, y),
             SelectableListMouseConfig {
                 require_pointer_hit_for_scroll: true,
                 scroll_behavior: ScrollSelectionBehavior::Clamp,
                 ..SelectableListMouseConfig::default()
             },
         );
+        let selected_idx = state.selected_idx.unwrap_or(0);
 
-        match result {
+        match outcome.result {
             SelectableListMouseResult::Ignored => false,
             SelectableListMouseResult::SelectionChanged => {
                 let Some(section) = self.sidebar_section_at(selected_idx) else {
@@ -96,12 +101,15 @@ impl SettingsOverlayView {
             }
             MouseEventKind::Down(_) | MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {
                 let item_count = self.sidebar_section_count();
-                let mut selected_idx = self.sidebar_selected_index().unwrap_or(0);
-                let result = route_selectable_list_mouse_with_config(
+                let mut state = ScrollState {
+                    selected_idx: self.sidebar_selected_index(),
+                    scroll_top: 0,
+                };
+                let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
                     mouse_event,
-                    &mut selected_idx,
+                    &mut state,
                     item_count,
-                    |x, y| self.hit_test_sidebar_index(x, y),
+                    |x, y, _scroll_top| self.hit_test_sidebar_index(x, y),
                     SelectableListMouseConfig {
                         hover_select: false,
                         require_pointer_hit_for_scroll: true,
@@ -109,8 +117,9 @@ impl SettingsOverlayView {
                         ..SelectableListMouseConfig::default()
                     },
                 );
+                let selected_idx = state.selected_idx.unwrap_or(0);
 
-                match result {
+                match outcome.result {
                     SelectableListMouseResult::Ignored => {
                         let handled = self.forward_mouse_to_content(mouse_event);
                         if handled {
@@ -128,7 +137,8 @@ impl SettingsOverlayView {
                             self.set_focus_sidebar();
                             true
                         } else {
-                            let activated = matches!(result, SelectableListMouseResult::Activated);
+                            let activated =
+                                matches!(outcome.result, SelectableListMouseResult::Activated);
                             if activated {
                                 self.set_focus_sidebar();
                             }
