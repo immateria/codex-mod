@@ -27,7 +27,7 @@ impl ChatWidget<'_> {
             start_y,
             scroll_pos,
             visible_slice,
-            visible_requests_slice,
+            visible_requests_slice: _visible_requests_slice,
             rendered_cells_from_subset,
             ps,
             buf,
@@ -90,7 +90,7 @@ impl ChatWidget<'_> {
             let item_height = visible.height;
             #[cfg(debug_assertions)]
             if content_area.width > 0
-                && let Some(req) = visible_requests_slice.get(offset)
+                && let Some(req) = _visible_requests_slice.get(offset)
                 && req.history_id != HistoryId::ZERO
                 && matches!(item_kind, history_cell::HistoryCellType::Reasoning)
             {
