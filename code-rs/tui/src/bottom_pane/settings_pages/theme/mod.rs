@@ -160,6 +160,12 @@ enum Mode {
     CreateTheme(Box<CreateThemeState>),
 }
 
+impl Default for Mode {
+    fn default() -> Self {
+        Mode::Overview
+    }
+}
+
 struct CreateState {
     step: std::cell::Cell<CreateStep>,
     /// Freeform prompt describing the desired spinner

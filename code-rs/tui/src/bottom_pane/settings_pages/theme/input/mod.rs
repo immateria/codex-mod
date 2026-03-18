@@ -47,7 +47,7 @@ impl ThemeSelectionView {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
-                let current_mode = std::mem::replace(&mut self.mode, Mode::Overview);
+                let current_mode = std::mem::take(&mut self.mode);
                 match current_mode {
                     Mode::Overview => self.overview_handle_enter(),
                     Mode::Themes => self.themes_handle_enter(),
@@ -142,4 +142,3 @@ impl Drop for ThemeSelectionView {
         self.clear_theme_split_preview();
     }
 }
-
