@@ -102,6 +102,18 @@ impl<'a> SettingsActionPage<'a> {
         }
     }
 
+    pub(crate) fn render_shell_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsActionPageLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().render_shell(area, buf),
+            ChromeMode::ContentOnly => self.content_only().render_shell(area, buf),
+        }
+    }
+
     pub(crate) fn with_status_lines(mut self, status_lines: Vec<Line<'static>>) -> Self {
         self.status_lines = status_lines;
         self
@@ -472,6 +484,32 @@ mod tests {
         assert_eq!(
             page.layout_in_chrome(ChromeMode::ContentOnly, area),
             page.content_only().layout(area)
+        );
+    }
+
+    #[test]
+    fn render_shell_in_chrome_matches_concrete_render_shell() {
+        let page = SettingsActionPage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane(),
+            vec![Line::from("header")],
+            vec![Line::from("footer")],
+        )
+        .with_status_lines(vec![Line::from("status")]);
+        let area = Rect::new(0, 0, 30, 8);
+
+        let mut chrome_buf = Buffer::empty(area);
+        let mut concrete_buf = Buffer::empty(area);
+        assert_eq!(
+            page.render_shell_in_chrome(ChromeMode::Framed, area, &mut chrome_buf),
+            page.framed().render_shell(area, &mut concrete_buf),
+        );
+
+        let mut chrome_buf = Buffer::empty(area);
+        let mut concrete_buf = Buffer::empty(area);
+        assert_eq!(
+            page.render_shell_in_chrome(ChromeMode::ContentOnly, area, &mut chrome_buf),
+            page.content_only().render_shell(area, &mut concrete_buf),
         );
     }
 }

@@ -9,6 +9,7 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::colors;
 
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
 use crate::bottom_pane::BottomPane;
 use crate::components::form_text_field::FormTextField;
@@ -650,7 +651,7 @@ impl<'a> BottomPaneView<'a> for SubagentEditorView {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         let page = self.page();
         let buttons = self.action_button_specs();
-        let Some(layout) = page.framed().render_shell(area, buf) else {
+        let Some(layout) = page.render_shell_in_chrome(ChromeMode::Framed, area, buf) else {
             return;
         };
 

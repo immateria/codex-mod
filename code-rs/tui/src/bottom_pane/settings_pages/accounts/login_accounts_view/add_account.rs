@@ -13,6 +13,7 @@ use textwrap::Options as TwOptions;
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::{BottomPane, BottomPaneView, ConditionalUpdate};
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::chatwidget::BackgroundOrderTicket;
 use crate::components::form_text_field::FormTextField;
 use crate::ui_interaction::redraw_if;
@@ -346,9 +347,14 @@ impl LoginAddAccountState {
                     SettingsMenuRow::new(0usize, "ChatGPT sign-in"),
                     SettingsMenuRow::new(1usize, "API key"),
                 ];
-                let _ = page
-                    .framed()
-                    .render_menu_rows(area, buf, 0, Some(*selected), &rows);
+                let _ = page.render_menu_rows_in_chrome(
+                    ChromeMode::Framed,
+                    area,
+                    buf,
+                    0,
+                    Some(*selected),
+                    &rows,
+                );
             }
             AddStep::ApiKey { field } => {
                 let pre_lines = vec![Line::from("Paste your OpenAI API key:")];
@@ -365,7 +371,7 @@ impl LoginAddAccountState {
                     pre_lines,
                     post_lines,
                 );
-                let _ = page.framed().render(area, buf, field);
+                let _ = page.render_in_chrome(ChromeMode::Framed, area, buf, field);
             }
             AddStep::Waiting { auth_url } => {
                 let footer_lines = self.footer_status_and_shortcuts(&[
@@ -392,7 +398,7 @@ impl LoginAddAccountState {
                     }
                 }
                 let page = self.auth_progress_message_page(body_lines, footer_lines);
-                let _ = page.framed().render(area, buf);
+                let _ = page.render_in_chrome(ChromeMode::Framed, area, buf);
             }
             AddStep::DeviceCode(state) => {
                 let footer_lines = self.footer_status_and_shortcuts(&[
@@ -427,7 +433,7 @@ impl LoginAddAccountState {
                     }
                 }
                 let page = self.auth_progress_message_page(body_lines, footer_lines);
-                let _ = page.framed().render(area, buf);
+                let _ = page.render_in_chrome(ChromeMode::Framed, area, buf);
             }
         }
     }

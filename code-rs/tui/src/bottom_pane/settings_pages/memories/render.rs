@@ -5,10 +5,11 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 
 use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::colors;
 
 impl MemoriesSettingsView {
-    fn render_main_with(&self, area: Rect, buf: &mut Buffer, content_only: bool) {
+    fn render_main_with(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
         let rows = Self::rows();
         let total = rows.len();
         let mut state = self.state.get();
@@ -39,13 +40,9 @@ impl MemoriesSettingsView {
             })
             .collect();
         let page = self.main_page();
-        let Some(layout) = (if content_only {
-            page.content_only()
-                .render(area, buf, scroll_top, Some(selected), &row_specs)
-        } else {
-            page.framed()
-                .render(area, buf, scroll_top, Some(selected), &row_specs)
-        }) else {
+        let Some(layout) =
+            page.render_in_chrome(chrome, area, buf, scroll_top, Some(selected), &row_specs)
+        else {
             return;
         };
         state.ensure_visible(total, layout.visible_rows());
@@ -60,32 +57,36 @@ impl MemoriesSettingsView {
         target: EditTarget,
         field: &FormTextField,
         error: Option<&str>,
-        content_only: bool,
+        chrome: ChromeMode,
     ) {
         let page = Self::edit_page(self.scope, target, error);
-        if content_only {
-            let _ = page.content_only().render(area, buf, field);
-        } else {
-            let _ = page.framed().render(area, buf, field);
-        }
+        let _ = page.render_in_chrome(chrome, area, buf, field);
     }
 
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, true),
+            ViewMode::Main | ViewMode::Transition => {
+                self.render_main_with(area, buf, ChromeMode::ContentOnly)
+            }
             ViewMode::Edit { target, field, error } => {
-                self.render_edit_with(area, buf, *target, field, error.as_deref(), true)
+                self.render_edit_with(
+                    area,
+                    buf,
+                    *target,
+                    field,
+                    error.as_deref(),
+                    ChromeMode::ContentOnly,
+                )
             }
         }
     }
 
     pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
         match &self.mode {
-            ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, false),
+            ViewMode::Main | ViewMode::Transition => self.render_main_with(area, buf, ChromeMode::Framed),
             ViewMode::Edit { target, field, error } => {
-                self.render_edit_with(area, buf, *target, field, error.as_deref(), false)
+                self.render_edit_with(area, buf, *target, field, error.as_deref(), ChromeMode::Framed)
             }
         }
     }
 }
-

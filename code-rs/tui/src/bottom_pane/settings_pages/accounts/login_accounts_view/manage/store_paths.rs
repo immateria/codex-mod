@@ -5,6 +5,7 @@ use ratatui::layout::{Constraint, Rect};
 use ratatui::style::{Style, Stylize};
 use ratatui::text::Line;
 
+use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
 use crate::bottom_pane::settings_ui::buttons::{
     standard_button_specs, SettingsButtonKind, StandardButtonSpec,
@@ -190,7 +191,8 @@ impl LoginAccountsState {
     ) {
         let page = self.store_paths_editor_form_page();
         let buttons = self.store_paths_editor_button_specs(editor.selected_row);
-        let Some(_layout) = page.framed().render_with_standard_actions_end(
+        let Some(_layout) = page.render_with_standard_actions_end_in_chrome(
+            ChromeMode::Framed,
             area,
             buf,
             &[&editor.read_paths_field, &editor.write_path_field],
@@ -276,7 +278,7 @@ impl LoginAccountsState {
         editor: &mut StorePathEditorState,
     ) -> (bool, bool) {
         let page = self.store_paths_editor_form_page();
-        let Some(layout) = page.framed().layout(area) else {
+        let Some(layout) = page.layout_in_chrome(ChromeMode::Framed, area) else {
             return (true, false);
         };
         let buttons = self.store_paths_editor_button_specs(editor.selected_row);

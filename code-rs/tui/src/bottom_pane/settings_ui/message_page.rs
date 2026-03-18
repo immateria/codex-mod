@@ -7,6 +7,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 
 use crate::colors;
+use crate::bottom_pane::chrome::ChromeMode;
 
 use super::action_page::{SettingsActionPage, SettingsActionPageLayout};
 use super::panel::SettingsPanelStyle;
@@ -62,6 +63,26 @@ impl<'a> SettingsMessagePage<'a> {
 
     pub(crate) fn content_only(&self) -> SettingsMessagePageContentOnly<'_, 'a> {
         SettingsMessagePageContentOnly { page: self }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn layout_in_chrome(&self, chrome: ChromeMode, area: Rect) -> Option<SettingsMessagePageLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().layout(area),
+            ChromeMode::ContentOnly => self.content_only().layout(area),
+        }
+    }
+
+    pub(crate) fn render_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+    ) -> Option<SettingsMessagePageLayout> {
+        match chrome {
+            ChromeMode::Framed => self.framed().render(area, buf),
+            ChromeMode::ContentOnly => self.content_only().render(area, buf),
+        }
     }
 
     fn layout_from_page(&self, page: SettingsActionPageLayout) -> SettingsMessagePageLayout {
@@ -189,5 +210,40 @@ mod tests {
         let mut buf = Buffer::empty(area);
         let rendered = page.content_only().render(area, &mut buf).expect("render");
         assert_eq!(layout, rendered);
+    }
+
+    #[test]
+    fn chrome_helpers_match_concrete_helpers() {
+        let page = SettingsMessagePage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane(),
+            vec![Line::from("header")],
+            vec![Line::from("body")],
+            vec![Line::from("footer")],
+        );
+        let area = Rect::new(0, 0, 30, 10);
+
+        assert_eq!(
+            page.layout_in_chrome(ChromeMode::Framed, area),
+            page.framed().layout(area)
+        );
+        assert_eq!(
+            page.layout_in_chrome(ChromeMode::ContentOnly, area),
+            page.content_only().layout(area)
+        );
+
+        let mut chrome_buf = Buffer::empty(area);
+        let mut concrete_buf = Buffer::empty(area);
+        assert_eq!(
+            page.render_in_chrome(ChromeMode::Framed, area, &mut chrome_buf),
+            page.framed().render(area, &mut concrete_buf)
+        );
+
+        let mut chrome_buf = Buffer::empty(area);
+        let mut concrete_buf = Buffer::empty(area);
+        assert_eq!(
+            page.render_in_chrome(ChromeMode::ContentOnly, area, &mut chrome_buf),
+            page.content_only().render(area, &mut concrete_buf)
+        );
     }
 }
