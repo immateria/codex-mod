@@ -1,321 +1,20 @@
-use std::time::Duration;
-
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 
 use code_core::protocol::McpAuthStatus;
 
-use super::{McpPaneHit, McpSettingsFocus, McpSettingsView, McpToolEntry, McpToolHoverPart};
+use super::super::{McpSettingsView, McpToolEntry};
 
 impl McpSettingsView {
-    pub(super) fn selected_tool_entry(&self) -> Option<McpToolEntry<'_>> {
+    pub(in crate::bottom_pane::settings_pages::mcp) fn selected_tool_entry(
+        &self,
+    ) -> Option<McpToolEntry<'_>> {
         self.tool_entries().get(self.tools_selected).copied()
     }
 
-    fn format_tool_annotations(annotations: &mcp_types::ToolAnnotations) -> Option<String> {
-        let mut hints = Vec::new();
-        if annotations.read_only_hint == Some(true) {
-            hints.push("read-only");
-        }
-        if annotations.idempotent_hint == Some(true) {
-            hints.push("idempotent");
-        }
-        if annotations.destructive_hint == Some(true) {
-            hints.push("destructive");
-        }
-        if annotations.open_world_hint == Some(true) {
-            hints.push("open-world");
-        }
-        if hints.is_empty() {
-            None
-        } else {
-            Some(hints.join(", "))
-        }
-    }
-
-    fn schema_property_names(properties: Option<&serde_json::Value>) -> Vec<String> {
-        let Some(properties) = properties else {
-            return Vec::new();
-        };
-        let Some(object) = properties.as_object() else {
-            return Vec::new();
-        };
-        let mut names: Vec<String> = object.keys().cloned().collect();
-        names.sort();
-        names
-    }
-
-    fn format_duration(duration: Duration) -> String {
-        let secs = duration.as_secs_f64();
-        if secs.fract() == 0.0 {
-            let whole = duration.as_secs();
-            if whole == 1 {
-                "1 second".to_string()
-            } else {
-                format!("{whole} seconds")
-            }
-        } else {
-            format!("{secs:.2} seconds")
-        }
-    }
-
-    fn join_names_limited(names: &[String], max_items: usize) -> String {
-        if names.is_empty() {
-            return "(none)".to_string();
-        }
-        if names.len() <= max_items {
-            return names.join(", ");
-        }
-        let shown = names[..max_items].join(", ");
-        let remaining = names.len().saturating_sub(max_items);
-        format!("{shown} (+{remaining} more)")
-    }
-
-    fn format_resource_line(resource: &code_protocol::mcp::Resource) -> String {
-        let name = resource.name.as_str();
-        let uri = resource.uri.as_str();
-        let mut line = if resource.uri.trim().is_empty() {
-            name.to_string()
-        } else {
-            format!("{name} ({uri})")
-        };
-        if let Some(mime_type) = resource.mime_type.as_deref()
-            && !mime_type.trim().is_empty()
-        {
-            line.push_str(&format!(" · {mime_type}"));
-        }
-        if let Some(size) = resource.size
-            && size > 0
-        {
-            line.push_str(&format!(" · {size} bytes"));
-        }
-        line
-    }
-
-    fn format_resource_template_line(
-        template: &code_protocol::mcp::ResourceTemplate,
-    ) -> String {
-        let name = template.name.as_str();
-        let uri_template = template.uri_template.as_str();
-        let mut line = if template.uri_template.trim().is_empty() {
-            name.to_string()
-        } else {
-            format!("{name} ({uri_template})")
-        };
-        if let Some(mime_type) = template.mime_type.as_deref()
-            && !mime_type.trim().is_empty()
-        {
-            line.push_str(&format!(" · {mime_type}"));
-        }
-        line
-    }
-
-    fn push_resource_sections(
-        lines: &mut Vec<Line<'static>>,
-        row: &super::McpServerRow,
-        heading_style: Style,
-        key_style: Style,
-        value_style: Style,
-        dim_style: Style,
-    ) {
-        let max_rows = 6;
-
-        lines.push(Line::from(""));
-        lines.push(Line::from(vec![Span::styled(
-            format!("Resources ({})", row.resources.len()),
-            heading_style,
-        )]));
-        if row.resources.is_empty() {
-            lines.push(Line::from(vec![Span::styled("none reported", dim_style)]));
-        } else {
-            for resource in row.resources.iter().take(max_rows) {
-                Self::push_key_value_line(
-                    lines,
-                    "- ",
-                    Self::format_resource_line(resource),
-                    key_style,
-                    value_style,
-                );
-            }
-            if row.resources.len() > max_rows {
-                lines.push(Line::from(vec![Span::styled(
-                    format!("... +{} more resources", row.resources.len() - max_rows),
-                    dim_style,
-                )]));
-            }
-        }
-
-        lines.push(Line::from(""));
-        lines.push(Line::from(vec![Span::styled(
-            format!("Resource Templates ({})", row.resource_templates.len()),
-            heading_style,
-        )]));
-        if row.resource_templates.is_empty() {
-            lines.push(Line::from(vec![Span::styled("none reported", dim_style)]));
-        } else {
-            for template in row.resource_templates.iter().take(max_rows) {
-                Self::push_key_value_line(
-                    lines,
-                    "- ",
-                    Self::format_resource_template_line(template),
-                    key_style,
-                    value_style,
-                );
-            }
-            if row.resource_templates.len() > max_rows {
-                lines.push(Line::from(vec![Span::styled(
-                    format!(
-                        "... +{} more templates",
-                        row.resource_templates.len() - max_rows
-                    ),
-                    dim_style,
-                )]));
-            }
-        }
-    }
-
-    fn list_row_prefix(is_selected: bool, is_hovered: bool) -> &'static str {
-        if is_selected {
-            "› "
-        } else if is_hovered {
-            "> "
-        } else {
-            "  "
-        }
-    }
-
-    fn push_list_row(
-        lines: &mut Vec<Line<'static>>,
-        is_selected: bool,
-        is_hovered: bool,
-        prefix_style: Style,
-        label: String,
-        label_style: Style,
-    ) {
-        lines.push(Line::from(vec![
-            Span::styled(Self::list_row_prefix(is_selected, is_hovered), prefix_style),
-            Span::styled(label, label_style),
-        ]));
-    }
-
-    fn push_key_value_line(
-        lines: &mut Vec<Line<'static>>,
-        key: &str,
-        value: impl Into<String>,
-        key_style: Style,
-        value_style: Style,
-    ) {
-        lines.push(Line::from(vec![
-            Span::styled(key.to_string(), key_style),
-            Span::styled(value.into(), value_style),
-        ]));
-    }
-
-    pub(super) fn list_lines(&self, width: usize) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
-        let selected_style = Style::default()
-            .bg(crate::colors::selection())
-            .add_modifier(Modifier::BOLD);
-        let dim_style = Style::default().fg(crate::colors::text_dim());
-        let accent_style = Style::default().fg(crate::colors::primary());
-
-        let content_width = width.saturating_sub(2);
-        let label_width = content_width.saturating_sub(3);
-        let hovered_style = Style::default().fg(crate::colors::function());
-
-        if self.rows.is_empty() {
-            lines.push(Line::from(vec![Span::styled(
-                crate::text_formatting::truncate_chars_with_ellipsis(
-                    "No MCP servers configured.",
-                    content_width,
-                ),
-                dim_style,
-            )]));
-            lines.push(Line::from(""));
-        }
-
-        for (i, row) in self.rows.iter().enumerate() {
-            let is_selected = i == self.selected;
-            let is_hovered = self.hovered_pane == McpPaneHit::Servers
-                && self.hovered_list_index == Some(i);
-            let style = if is_selected {
-                selected_style
-            } else if is_hovered {
-                hovered_style
-            } else {
-                Style::default()
-            };
-
-            let check = if row.enabled { "[on ]" } else { "[off]" };
-            let label = crate::text_formatting::truncate_chars_with_ellipsis(
-                &format!("{check} {}", row.name),
-                label_width,
-            );
-            Self::push_list_row(&mut lines, is_selected, is_hovered, style, label, style);
-        }
-
-        lines.push(Line::from(""));
-        let refresh_sel = self.selected == self.refresh_index();
-        let refresh_hover = self.hovered_pane == McpPaneHit::Servers
-            && self.hovered_list_index == Some(self.refresh_index());
-        let refresh_style = if refresh_sel {
-            selected_style
-        } else if refresh_hover {
-            hovered_style
-        } else {
-            accent_style
-        };
-        Self::push_list_row(
-            &mut lines,
-            refresh_sel,
-            refresh_hover,
-            Style::default(),
-            crate::text_formatting::truncate_chars_with_ellipsis("Refresh tools/status", label_width),
-            refresh_style,
-        );
-
-        let add_sel = self.selected == self.add_index();
-        let add_hover = self.hovered_pane == McpPaneHit::Servers
-            && self.hovered_list_index == Some(self.add_index());
-        let add_style = if add_sel {
-            selected_style
-        } else if add_hover {
-            hovered_style
-        } else {
-            accent_style
-        };
-        Self::push_list_row(
-            &mut lines,
-            add_sel,
-            add_hover,
-            Style::default(),
-            crate::text_formatting::truncate_chars_with_ellipsis("Add new server…", label_width),
-            add_style,
-        );
-
-        let close_sel = self.selected == self.close_index();
-        let close_hover = self.hovered_pane == McpPaneHit::Servers
-            && self.hovered_list_index == Some(self.close_index());
-        let close_style = if close_sel {
-            selected_style
-        } else if close_hover {
-            hovered_style
-        } else {
-            Style::default()
-        };
-        Self::push_list_row(
-            &mut lines,
-            close_sel,
-            close_hover,
-            Style::default(),
-            crate::text_formatting::truncate_chars_with_ellipsis("Close", label_width),
-            close_style,
-        );
-
-        lines
-    }
-
-    pub(super) fn summary_lines(&self) -> Vec<Line<'static>> {
+    pub(in crate::bottom_pane::settings_pages::mcp) fn summary_lines(
+        &self,
+    ) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
         let heading_style = Style::default()
             .fg(crate::colors::text())
@@ -568,7 +267,11 @@ impl McpSettingsView {
                                     );
                                 }
 
-                                let required = tool.input_schema.required.clone().unwrap_or_default();
+                                let required = tool
+                                    .input_schema
+                                    .required
+                                    .clone()
+                                    .unwrap_or_default();
                                 Self::push_key_value_line(
                                     &mut lines,
                                     "Required args: ",
@@ -577,8 +280,9 @@ impl McpSettingsView {
                                     value_style,
                                 );
 
-                                let input_properties =
-                                    Self::schema_property_names(tool.input_schema.properties.as_ref());
+                                let input_properties = Self::schema_property_names(
+                                    tool.input_schema.properties.as_ref(),
+                                );
                                 Self::push_key_value_line(
                                     &mut lines,
                                     "Input fields: ",
@@ -592,19 +296,27 @@ impl McpSettingsView {
                                         let output_properties = Self::schema_property_names(
                                             output_schema.properties.as_ref(),
                                         );
-                                        let output_required =
-                                            output_schema.required.clone().unwrap_or_default();
+                                        let output_required = output_schema
+                                            .required
+                                            .clone()
+                                            .unwrap_or_default();
                                         Self::push_key_value_line(
                                             &mut lines,
                                             "Output fields: ",
-                                            Self::join_names_limited(&output_properties, 10),
+                                            Self::join_names_limited(
+                                                &output_properties,
+                                                10,
+                                            ),
                                             key_style,
                                             value_style,
                                         );
                                         Self::push_key_value_line(
                                             &mut lines,
                                             "Output required: ",
-                                            Self::join_names_limited(&output_required, 8),
+                                            Self::join_names_limited(
+                                                &output_required,
+                                                8,
+                                            ),
                                             key_style,
                                             value_style,
                                         );
@@ -646,88 +358,5 @@ impl McpSettingsView {
 
         lines
     }
-
-    pub(super) fn tools_lines_for_entries(
-        &self,
-        width: usize,
-        entries: &[McpToolEntry<'_>],
-    ) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
-        let selected_style = Style::default()
-            .bg(crate::colors::selection())
-            .add_modifier(Modifier::BOLD);
-        let dim_style = Style::default().fg(crate::colors::text_dim());
-        let overrides = self.selected_server().map(|row| &row.tool_scheduling);
-
-        if entries.is_empty() {
-            lines.push(Line::from(vec![Span::styled(
-                "No tools discovered yet.",
-                dim_style,
-            )]));
-            lines.push(Line::from(vec![Span::styled(
-                "Press R to refresh or S for /mcp status.",
-                dim_style,
-            )]));
-            return lines;
-        }
-
-        for (idx, entry) in entries.iter().enumerate() {
-            let focused = self.focus == McpSettingsFocus::Tools && idx == self.tools_selected;
-            let hovered_row = self.hovered_pane == McpPaneHit::Tools
-                && self.hovered_tool_index == Some(idx);
-            let hover_part = if hovered_row {
-                self.hovered_tool_part
-            } else {
-                None
-            };
-            let row_style = if focused {
-                selected_style
-            } else if hovered_row {
-                Style::default().fg(crate::colors::function())
-            } else {
-                Style::default()
-            };
-            let marker = if entry.enabled { "[x]" } else { "[ ]" };
-            let expansion = if self.is_tool_expanded(entry.name) { "▼" } else { "▶" };
-            let has_override = overrides.is_some_and(|map| {
-                map.get(entry.name).is_some_and(|cfg| {
-                    cfg.max_concurrent.is_some() || cfg.min_interval_sec.is_some()
-                })
-            });
-            let label_width = width.saturating_sub(if has_override { 12 } else { 10 });
-            let label =
-                crate::text_formatting::truncate_chars_with_ellipsis(entry.name, label_width);
-            let marker_style = if hover_part == Some(McpToolHoverPart::Toggle) {
-                row_style.fg(crate::colors::primary()).add_modifier(Modifier::BOLD)
-            } else if entry.enabled {
-                row_style.fg(crate::colors::success())
-            } else {
-                row_style
-            };
-            let expansion_style = if hover_part == Some(McpToolHoverPart::Expand) {
-                row_style.fg(crate::colors::function()).add_modifier(Modifier::BOLD)
-            } else {
-                row_style.fg(crate::colors::primary())
-            };
-            let label_style = if hover_part == Some(McpToolHoverPart::Label) && !focused {
-                row_style.add_modifier(Modifier::UNDERLINED)
-            } else {
-                row_style
-            };
-            let mut spans = vec![
-                Span::styled(if focused { "› " } else if hovered_row { "> " } else { "  " }, row_style),
-                Span::styled(marker, marker_style),
-                Span::raw(" "),
-                Span::styled(expansion.to_string(), expansion_style),
-                Span::raw(" "),
-                Span::styled(label, label_style),
-            ];
-            if has_override {
-                spans.push(Span::styled(" *", row_style.fg(crate::colors::primary())));
-            }
-            lines.push(Line::from(spans));
-        }
-
-        lines
-    }
 }
+
