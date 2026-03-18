@@ -10,6 +10,7 @@ use ratatui::layout::Rect;
 use crate::app_event_sender::AppEventSender;
 use crate::chatwidget::BackgroundOrderTicket;
 use crate::components::form_text_field::FormTextField;
+use crate::components::mode_guard::ModeGuard;
 use crate::bottom_pane::ConditionalUpdate;
 
 use super::super::shared::Feedback;
@@ -90,23 +91,27 @@ impl LoginAccountsState {
     }
 
     pub(crate) fn handle_key_event(&mut self, key_event: KeyEvent) -> bool {
-        let mode = std::mem::replace(&mut self.mode, ViewMode::List);
-        match mode {
-            ViewMode::List => {
-                self.mode = ViewMode::List;
-                self.handle_list_key(key_event)
-            }
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::List, |mode| {
+            matches!(mode, ViewMode::List)
+        });
+        match mode_guard.mode_mut() {
+            ViewMode::List => self.handle_list_key(key_event),
             ViewMode::ConfirmRemove { account_id } => {
-                self.mode = ViewMode::ConfirmRemove { account_id };
-                self.handle_confirm_remove_key(key_event)
+                self.mode = ViewMode::ConfirmRemove {
+                    account_id: account_id.clone(),
+                };
+                let handled = self.handle_confirm_remove_key(key_event);
+                if matches!(self.mode, ViewMode::List) {
+                    // Keep `List` instead of restoring `ConfirmRemove`.
+                    mode_guard.disarm();
+                }
+                handled
             }
-            ViewMode::EditStorePaths(mut editor) => {
-                let (keep_open, handled) =
-                    self.handle_store_paths_editor_key(key_event, &mut editor);
-                if keep_open {
-                    self.mode = ViewMode::EditStorePaths(editor);
-                } else {
-                    self.mode = ViewMode::List;
+            ViewMode::EditStorePaths(editor) => {
+                let (keep_open, handled) = self.handle_store_paths_editor_key(key_event, editor);
+                if !keep_open {
+                    // Keep `List` instead of restoring `EditStorePaths`.
+                    mode_guard.disarm();
                 }
                 handled
             }
@@ -114,23 +119,28 @@ impl LoginAccountsState {
     }
 
     pub(crate) fn handle_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
-        let mode = std::mem::replace(&mut self.mode, ViewMode::List);
-        match mode {
-            ViewMode::List => {
-                self.mode = ViewMode::List;
-                self.handle_list_mouse(mouse_event, area)
-            }
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::List, |mode| {
+            matches!(mode, ViewMode::List)
+        });
+        match mode_guard.mode_mut() {
+            ViewMode::List => self.handle_list_mouse(mouse_event, area),
             ViewMode::ConfirmRemove { account_id } => {
-                self.mode = ViewMode::ConfirmRemove { account_id };
-                self.handle_confirm_remove_mouse(mouse_event, area)
+                self.mode = ViewMode::ConfirmRemove {
+                    account_id: account_id.clone(),
+                };
+                let handled = self.handle_confirm_remove_mouse(mouse_event, area);
+                if matches!(self.mode, ViewMode::List) {
+                    // Keep `List` instead of restoring `ConfirmRemove`.
+                    mode_guard.disarm();
+                }
+                handled
             }
-            ViewMode::EditStorePaths(mut editor) => {
+            ViewMode::EditStorePaths(editor) => {
                 let (keep_open, handled) =
-                    self.handle_store_paths_editor_mouse(mouse_event, area, &mut editor);
-                if keep_open {
-                    self.mode = ViewMode::EditStorePaths(editor);
-                } else {
-                    self.mode = ViewMode::List;
+                    self.handle_store_paths_editor_mouse(mouse_event, area, editor);
+                if !keep_open {
+                    // Keep `List` instead of restoring `EditStorePaths`.
+                    mode_guard.disarm();
                 }
                 handled
             }
@@ -138,21 +148,19 @@ impl LoginAccountsState {
     }
 
     pub(crate) fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
-        let mode = std::mem::replace(&mut self.mode, ViewMode::List);
-        match mode {
-            ViewMode::EditStorePaths(mut editor) => {
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::List, |mode| {
+            matches!(mode, ViewMode::List)
+        });
+        match mode_guard.mode_mut() {
+            ViewMode::EditStorePaths(editor) => {
                 match editor.selected_row {
                     0 => editor.read_paths_field.handle_paste(text),
                     1 => editor.write_path_field.handle_paste(text),
                     _ => {}
                 }
-                self.mode = ViewMode::EditStorePaths(editor);
                 ConditionalUpdate::NeedsRedraw
             }
-            other => {
-                self.mode = other;
-                ConditionalUpdate::NoRedraw
-            }
+            _ => ConditionalUpdate::NoRedraw,
         }
     }
 

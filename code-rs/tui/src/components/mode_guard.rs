@@ -24,6 +24,11 @@ impl<M> ModeGuard<M> {
         }
     }
 
+    /// Disable restoration on drop, leaving whatever is currently in the slot.
+    pub(crate) fn disarm(&mut self) {
+        let _ = self.restore.take();
+    }
+
     pub(crate) fn mode_mut(&mut self) -> &mut M {
         self.restore
             .as_mut()
@@ -77,5 +82,15 @@ mod tests {
             mode = Mode::Other;
         }
         assert_eq!(mode, Mode::Other);
+    }
+
+    #[test]
+    fn disarm_keeps_sentinel_when_slot_stays_sentinel() {
+        let mut mode = Mode::Main;
+        {
+            let mut guard = ModeGuard::replace(&mut mode, Mode::Transition, |m| matches!(m, Mode::Transition));
+            guard.disarm();
+        }
+        assert_eq!(mode, Mode::Transition);
     }
 }

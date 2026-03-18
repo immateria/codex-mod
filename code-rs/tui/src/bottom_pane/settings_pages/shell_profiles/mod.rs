@@ -19,6 +19,7 @@ use ratatui::text::{Line, Span};
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::components::form_text_field::FormTextField;
+use crate::components::mode_guard::ModeGuard;
 use crate::components::scroll_state::ScrollState;
 use crate::native_picker::{pick_path, NativePickerKind};
 use crate::ui_interaction::{
@@ -192,8 +193,10 @@ impl ShellProfilesSettingsView {
             return true;
         }
 
-        let mode = std::mem::replace(&mut self.mode, ViewMode::Main);
-        match mode {
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Main, |mode| {
+            matches!(mode, ViewMode::Main)
+        });
+        match mode_guard.mode_mut() {
             ViewMode::Main => match key {
                 KeyEvent { code: KeyCode::Esc, .. } => {
                     self.is_complete = true;
@@ -241,91 +244,76 @@ impl ShellProfilesSettingsView {
             },
             ViewMode::EditList { target, before } => match (key.code, key.modifiers) {
                 (KeyCode::Esc, _) => {
-                    match target {
-                        ListTarget::Summary => self.summary_field.set_text(&before),
-                        ListTarget::References => self.references_field.set_text(&before),
-                        ListTarget::SkillRoots => self.skill_roots_field.set_text(&before),
+                    match *target {
+                        ListTarget::Summary => self.summary_field.set_text(before.as_str()),
+                        ListTarget::References => self.references_field.set_text(before.as_str()),
+                        ListTarget::SkillRoots => self.skill_roots_field.set_text(before.as_str()),
                     }
-                    self.mode = ViewMode::Main;
+                    mode_guard.disarm();
                     true
                 }
                 (KeyCode::Char('p'), mods) if mods.contains(KeyModifiers::CONTROL) => {
                     self.open_shell_selection();
+                    mode_guard.disarm();
                     true
                 }
                 (KeyCode::Char('s'), mods) if mods.contains(KeyModifiers::CONTROL) => {
                     self.stage_pending_profile_from_fields();
                     self.dirty = true;
                     self.status = Some("Changes staged. Select Apply to persist.".to_string());
-                    self.mode = ViewMode::Main;
+                    mode_guard.disarm();
                     true
                 }
                 (KeyCode::Char('g'), mods)
                     if mods.contains(KeyModifiers::CONTROL)
-                        && matches!(target, ListTarget::Summary) =>
+                        && matches!(*target, ListTarget::Summary) =>
                 {
                     self.request_summary_generation();
-                    self.mode = ViewMode::EditList { target, before };
                     true
                 }
                 (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    if matches!(target, ListTarget::References | ListTarget::SkillRoots) {
-                        self.editor_append_picker_path(target);
-                        self.mode = ViewMode::EditList { target, before };
+                    if matches!(*target, ListTarget::References | ListTarget::SkillRoots) {
+                        self.editor_append_picker_path(*target);
                         true
                     } else {
-                        self.mode = ViewMode::EditList { target, before };
                         false
                     }
                 }
                 (KeyCode::Char('v'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    if matches!(target, ListTarget::References | ListTarget::SkillRoots) {
-                        self.editor_show_last_path(target);
-                        self.mode = ViewMode::EditList { target, before };
+                    if matches!(*target, ListTarget::References | ListTarget::SkillRoots) {
+                        self.editor_show_last_path(*target);
                         true
                     } else {
-                        self.mode = ViewMode::EditList { target, before };
                         false
                     }
                 }
-                _ => {
-                    let handled = self.editor_field_mut(target).handle_key(key);
-                    self.mode = ViewMode::EditList { target, before };
-                    handled
-                }
+                _ => self.editor_field_mut(*target).handle_key(key),
             },
-            ViewMode::PickList(mut state) => match (key.code, key.modifiers) {
+            ViewMode::PickList(state) => match (key.code, key.modifiers) {
                 (KeyCode::Esc, _) => {
-                    self.mode = ViewMode::Main;
+                    mode_guard.disarm();
                     true
                 }
                 (KeyCode::Char('s'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    self.save_picker(&state);
-                    self.mode = ViewMode::Main;
+                    self.save_picker(state);
+                    mode_guard.disarm();
                     true
                 }
                 (KeyCode::Up, KeyModifiers::NONE) => {
                     let visible = self.pick_viewport_rows.get().max(1);
                     state.scroll.move_up_wrap_visible(state.items.len(), visible);
-                    self.mode = ViewMode::PickList(state);
                     true
                 }
                 (KeyCode::Down, KeyModifiers::NONE) => {
                     let visible = self.pick_viewport_rows.get().max(1);
                     state.scroll.move_down_wrap_visible(state.items.len(), visible);
-                    self.mode = ViewMode::PickList(state);
                     true
                 }
                 (KeyCode::Char(' '), KeyModifiers::NONE)
                 | (KeyCode::Enter, KeyModifiers::NONE) => {
-                    let handled = Self::toggle_picker_selection(&mut state);
-                    self.mode = ViewMode::PickList(state);
-                    handled
+                    Self::toggle_picker_selection(state)
                 }
-                _ => {
-                    self.mode = ViewMode::PickList(state);
-                    false
-                }
+                _ => false,
             },
         }
     }
@@ -390,25 +378,24 @@ impl ShellProfilesSettingsView {
             return false;
         }
 
-        let mode = std::mem::replace(&mut self.mode, ViewMode::Main);
-        match mode {
-            ViewMode::Main => {
-                match chrome {
-                    ChromeMode::Framed => self.handle_mouse_event_main(mouse_event, area),
-                    ChromeMode::ContentOnly => self.handle_mouse_event_main_content(mouse_event, area),
-                }
-            }
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Main, |mode| {
+            matches!(mode, ViewMode::Main)
+        });
+        match mode_guard.mode_mut() {
+            ViewMode::Main => match chrome {
+                ChromeMode::Framed => self.handle_mouse_event_main(mouse_event, area),
+                ChromeMode::ContentOnly => self.handle_mouse_event_main_content(mouse_event, area),
+            },
             ViewMode::EditList { target, before } => {
-                let layout = self.compute_editor_layout_in_chrome(area, target, chrome);
+                let layout = self.compute_editor_layout_in_chrome(area, *target, chrome);
                 let Some(layout) = layout else {
-                    self.mode = ViewMode::EditList { target, before };
                     return false;
                 };
 
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         if let Some(action) = self.editor_footer_action_at(
-                            target,
+                            *target,
                             mouse_event.column,
                             mouse_event.row,
                             &layout,
@@ -419,35 +406,34 @@ impl ShellProfilesSettingsView {
                                     self.dirty = true;
                                     self.status =
                                         Some("Changes staged. Select Apply to persist.".to_string());
-                                    self.mode = ViewMode::Main;
+                                    mode_guard.disarm();
                                     return true;
                                 }
                                 EditorFooterAction::Generate => {
                                     self.request_summary_generation();
-                                    self.mode = ViewMode::EditList { target, before };
                                     return true;
                                 }
                                 EditorFooterAction::Pick => {
-                                    self.editor_append_picker_path(target);
-                                    self.mode = ViewMode::EditList { target, before };
+                                    self.editor_append_picker_path(*target);
                                     return true;
                                 }
                                 EditorFooterAction::Show => {
-                                    self.editor_show_last_path(target);
-                                    self.mode = ViewMode::EditList { target, before };
+                                    self.editor_show_last_path(*target);
                                     return true;
                                 }
                                 EditorFooterAction::Cancel => {
-                                    match target {
-                                        ListTarget::Summary => self.summary_field.set_text(&before),
+                                    match *target {
+                                        ListTarget::Summary => {
+                                            self.summary_field.set_text(before.as_str());
+                                        }
                                         ListTarget::References => {
-                                            self.references_field.set_text(&before);
+                                            self.references_field.set_text(before.as_str());
                                         }
                                         ListTarget::SkillRoots => {
-                                            self.skill_roots_field.set_text(&before);
+                                            self.skill_roots_field.set_text(before.as_str());
                                         }
                                     }
-                                    self.mode = ViewMode::Main;
+                                    mode_guard.disarm();
                                     return true;
                                 }
                             }
@@ -457,7 +443,7 @@ impl ShellProfilesSettingsView {
                             x: mouse_event.column,
                             y: mouse_event.row,
                         }) {
-                            self.editor_field_mut(target).handle_mouse_click(
+                            self.editor_field_mut(*target).handle_mouse_click(
                                 mouse_event.column,
                                 mouse_event.row,
                                 layout.sections[0].inner,
@@ -471,7 +457,7 @@ impl ShellProfilesSettingsView {
                             x: mouse_event.column,
                             y: mouse_event.row,
                         }) {
-                            self.editor_field_mut(target).handle_mouse_scroll(true)
+                            self.editor_field_mut(*target).handle_mouse_scroll(true)
                         } else {
                             false
                         }
@@ -481,25 +467,22 @@ impl ShellProfilesSettingsView {
                             x: mouse_event.column,
                             y: mouse_event.row,
                         }) {
-                            self.editor_field_mut(target).handle_mouse_scroll(false)
+                            self.editor_field_mut(*target).handle_mouse_scroll(false)
                         } else {
                             false
                         }
                     }
                     _ => false,
                 };
-                self.mode = ViewMode::EditList { target, before };
                 handled
             }
-            ViewMode::PickList(mut state) => {
+            ViewMode::PickList(state) => {
                 let total = state.items.len();
                 if total == 0 {
-                    self.mode = ViewMode::PickList(state);
                     return false;
                 }
 
-                let Some(layout) = self.compute_picker_layout_in_chrome(area, &state, chrome) else {
-                    self.mode = ViewMode::PickList(state);
+                let Some(layout) = self.compute_picker_layout_in_chrome(area, state, chrome) else {
                     return false;
                 };
                 self.pick_viewport_rows
@@ -520,10 +503,9 @@ impl ShellProfilesSettingsView {
 
                 let mut changed = outcome.changed;
                 if matches!(outcome.result, SelectableListMouseResult::Activated) {
-                    changed |= Self::toggle_picker_selection(&mut state);
+                    changed |= Self::toggle_picker_selection(state);
                 }
 
-                self.mode = ViewMode::PickList(state);
                 changed
             }
         }

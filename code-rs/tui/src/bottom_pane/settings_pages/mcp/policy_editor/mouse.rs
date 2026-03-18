@@ -2,6 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 use ratatui::layout::Rect;
 use ratatui::widgets::{Block, Borders};
 
+use crate::components::mode_guard::ModeGuard;
+
 use super::super::{McpSettingsMode, McpSettingsView};
 
 use super::model::{centered_overlay_rect, SERVER_ROWS, TOOL_ROWS};
@@ -47,23 +49,26 @@ impl McpSettingsView {
         }
 
         let mut activate = false;
-        let mode = std::mem::replace(&mut self.mode, McpSettingsMode::Main);
-        let (handled, next_mode) = match mode {
-            McpSettingsMode::EditServerScheduling(mut editor) => {
-                let was_selected = editor.selected_row == idx;
-                editor.set_selected_row(idx);
-                activate = was_selected;
-                (true, McpSettingsMode::EditServerScheduling(editor))
+        let handled = {
+            let mut mode_guard = ModeGuard::replace(&mut self.mode, McpSettingsMode::Main, |mode| {
+                matches!(mode, McpSettingsMode::Main)
+            });
+            match mode_guard.mode_mut() {
+                McpSettingsMode::EditServerScheduling(editor) => {
+                    let was_selected = editor.selected_row == idx;
+                    editor.set_selected_row(idx);
+                    activate = was_selected;
+                    true
+                }
+                McpSettingsMode::EditToolScheduling(editor) => {
+                    let was_selected = editor.selected_row == idx;
+                    editor.set_selected_row(idx);
+                    activate = was_selected;
+                    true
+                }
+                McpSettingsMode::Main => false,
             }
-            McpSettingsMode::EditToolScheduling(mut editor) => {
-                let was_selected = editor.selected_row == idx;
-                editor.set_selected_row(idx);
-                activate = was_selected;
-                (true, McpSettingsMode::EditToolScheduling(editor))
-            }
-            McpSettingsMode::Main => (false, McpSettingsMode::Main),
         };
-        self.mode = next_mode;
 
         if activate {
             return self.handle_policy_editor_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -72,4 +77,3 @@ impl McpSettingsView {
         handled
     }
 }
-

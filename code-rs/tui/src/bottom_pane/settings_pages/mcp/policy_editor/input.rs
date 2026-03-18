@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app_event::AppEvent;
+use crate::components::mode_guard::ModeGuard;
 
 use super::super::{McpSettingsFocus, McpSettingsMode, McpSettingsView};
 
@@ -39,30 +40,27 @@ impl McpSettingsView {
         &mut self,
         key_event: KeyEvent,
     ) -> bool {
-        let mode = std::mem::replace(&mut self.mode, McpSettingsMode::Main);
-        match mode {
-            McpSettingsMode::EditServerScheduling(mut editor) => {
-                let (handled, exit) = self.step_server_editor_key(&mut editor, key_event);
-                self.mode = if exit {
-                    McpSettingsMode::Main
-                } else {
-                    McpSettingsMode::EditServerScheduling(editor)
-                };
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, McpSettingsMode::Main, |mode| {
+            matches!(mode, McpSettingsMode::Main)
+        });
+        match mode_guard.mode_mut() {
+            McpSettingsMode::EditServerScheduling(editor) => {
+                let (handled, exit) = self.step_server_editor_key(editor, key_event);
+                if exit {
+                    // Keep `Main` instead of restoring the editor mode.
+                    mode_guard.disarm();
+                }
                 handled
             }
-            McpSettingsMode::EditToolScheduling(mut editor) => {
-                let (handled, exit) = self.step_tool_editor_key(&mut editor, key_event);
-                self.mode = if exit {
-                    McpSettingsMode::Main
-                } else {
-                    McpSettingsMode::EditToolScheduling(editor)
-                };
+            McpSettingsMode::EditToolScheduling(editor) => {
+                let (handled, exit) = self.step_tool_editor_key(editor, key_event);
+                if exit {
+                    // Keep `Main` instead of restoring the editor mode.
+                    mode_guard.disarm();
+                }
                 handled
             }
-            McpSettingsMode::Main => {
-                self.mode = McpSettingsMode::Main;
-                false
-            }
+            McpSettingsMode::Main => false,
         }
     }
 
@@ -366,4 +364,3 @@ impl McpSettingsView {
         }
     }
 }
-
