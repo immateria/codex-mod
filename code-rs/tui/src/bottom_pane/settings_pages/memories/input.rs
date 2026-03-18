@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::app_event::{AppEvent, MemoriesArtifactsAction};
+use crate::components::mode_guard::ModeGuard;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 impl MemoriesSettingsView {
@@ -369,62 +370,53 @@ impl MemoriesSettingsView {
     }
 
     fn process_edit_key_event(&mut self, key_event: KeyEvent) -> bool {
-        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
-        let ViewMode::Edit {
-            target,
-            mut field,
-            mut error,
-        } = mode
-        else {
-            self.mode = mode;
-            return false;
-        };
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Transition, |mode| {
+            matches!(mode, ViewMode::Transition)
+        });
 
-        let handled = match key_event.code {
-            KeyCode::Esc => {
-                self.mode = ViewMode::Main;
-                true
-            }
-            KeyCode::Enter => {
-                let text = field.text().to_string();
-                match self.apply_numeric_edit(target, &text) {
-                    Ok(()) => {
-                        self.mode = ViewMode::Main;
-                        self.clear_status();
-                    }
-                    Err(err) => {
-                        error = Some(err);
-                    }
-                }
-                true
-            }
-            KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                let text = field.text().to_string();
-                match self.apply_numeric_edit(target, &text) {
-                    Ok(()) => {
-                        self.mode = ViewMode::Main;
-                        self.clear_status();
-                    }
-                    Err(err) => {
-                        error = Some(err);
-                    }
-                }
-                true
-            }
-            _ => {
-                error = None;
-                field.handle_key(key_event)
-            }
-        };
-
-        if matches!(self.mode, ViewMode::Transition) {
-            self.mode = ViewMode::Edit {
+        match mode_guard.mode_mut() {
+            ViewMode::Edit {
                 target,
                 field,
                 error,
-            };
+            } => match key_event.code {
+                KeyCode::Esc => {
+                    self.mode = ViewMode::Main;
+                    true
+                }
+                KeyCode::Enter => {
+                    let text = field.text().to_string();
+                    match self.apply_numeric_edit(*target, &text) {
+                        Ok(()) => {
+                            self.mode = ViewMode::Main;
+                            self.clear_status();
+                        }
+                        Err(err) => {
+                            *error = Some(err);
+                        }
+                    }
+                    true
+                }
+                KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                    let text = field.text().to_string();
+                    match self.apply_numeric_edit(*target, &text) {
+                        Ok(()) => {
+                            self.mode = ViewMode::Main;
+                            self.clear_status();
+                        }
+                        Err(err) => {
+                            *error = Some(err);
+                        }
+                    }
+                    true
+                }
+                _ => {
+                    *error = None;
+                    field.handle_key(key_event)
+                }
+            },
+            _ => false,
         }
-        handled
     }
 
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
@@ -438,4 +430,3 @@ impl MemoriesSettingsView {
         }
     }
 }
-

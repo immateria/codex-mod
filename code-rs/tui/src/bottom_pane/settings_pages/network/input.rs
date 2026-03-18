@@ -4,6 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use code_core::config::NetworkModeToml;
 
 use crate::app_event::AppEvent;
+use crate::components::mode_guard::ModeGuard;
 
 impl NetworkSettingsView {
     fn toggle_enabled(&mut self) {
@@ -222,49 +223,40 @@ impl NetworkSettingsView {
         handled
     }
 
-    fn process_key_event_edit(&mut self, key_event: KeyEvent, show_advanced: bool) -> bool {
-        match key_event {
-            KeyEvent { code: KeyCode::Esc, .. } => {
-                self.mode = ViewMode::Main { show_advanced };
-                true
-            }
-            KeyEvent { code: KeyCode::Char('s'), modifiers, .. }
-                if modifiers.contains(KeyModifiers::CONTROL) =>
-            {
-                let mode = std::mem::replace(&mut self.mode, ViewMode::Main { show_advanced });
-                if let ViewMode::EditList { target, field, .. } = mode {
-                    self.save_list_editor(target, &field);
-                }
-                self.mode = ViewMode::Main { show_advanced };
-                true
-            }
-            _ => match &mut self.mode {
-                ViewMode::EditList { field, .. } => field.handle_key(key_event),
-                ViewMode::Main { .. } | ViewMode::Transition => false,
-            },
-        }
-    }
-
     fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
-        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
-        match mode {
-            ViewMode::Main { mut show_advanced } => {
-                let handled = self.process_key_event_main(key_event, &mut show_advanced);
-                if matches!(self.mode, ViewMode::Transition) {
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Transition, |mode| {
+            matches!(mode, ViewMode::Transition)
+        });
+
+        match mode_guard.mode_mut() {
+            ViewMode::Main { show_advanced } => self.process_key_event_main(key_event, show_advanced),
+            ViewMode::EditList {
+                target,
+                field,
+                show_advanced,
+            } => match key_event {
+                KeyEvent { code: KeyCode::Esc, .. } => {
+                    let show_advanced = *show_advanced;
                     self.mode = ViewMode::Main { show_advanced };
+                    true
                 }
-                handled
-            }
-            ViewMode::EditList { target, field, show_advanced } => {
-                self.mode = ViewMode::EditList {
-                    target,
-                    field,
-                    show_advanced,
-                };
-                self.process_key_event_edit(key_event, show_advanced)
-            }
+                KeyEvent {
+                    code: KeyCode::Char('s'),
+                    modifiers,
+                    ..
+                } if modifiers.contains(KeyModifiers::CONTROL) => {
+                    let show_advanced = *show_advanced;
+                    let target = *target;
+                    self.save_list_editor(target, field);
+                    self.mode = ViewMode::Main { show_advanced };
+                    true
+                }
+                _ => field.handle_key(key_event),
+            },
             ViewMode::Transition => {
-                self.mode = ViewMode::Main { show_advanced: false };
+                self.mode = ViewMode::Main {
+                    show_advanced: false,
+                };
                 false
             }
         }

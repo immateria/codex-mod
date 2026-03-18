@@ -3,6 +3,8 @@ use super::*;
 use code_core::config_types::{FunctionKeyHotkey, SettingsMenuOpenMode, TuiHotkey};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
+use crate::components::mode_guard::ModeGuard;
+
 impl InterfaceSettingsView {
     fn open_hotkey_capture(&mut self, row: RowKind) {
         self.mode = ViewMode::CaptureHotkey { row, error: None };
@@ -108,51 +110,6 @@ impl InterfaceSettingsView {
                 true
             }
             _ => false,
-        }
-    }
-
-    fn process_key_event_edit(&mut self, key_event: KeyEvent) -> bool {
-        match key_event {
-            KeyEvent { code: KeyCode::Esc, .. } => {
-                self.mode = ViewMode::Main;
-                true
-            }
-            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
-                let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
-                if let ViewMode::EditWidth { field, .. } = mode {
-                    match self.save_width_editor(&field) {
-                        Ok(()) => self.mode = ViewMode::Main,
-                        Err(err) => self.mode = ViewMode::EditWidth {
-                            field,
-                            error: Some(err),
-                        },
-                    }
-                } else {
-                    self.mode = ViewMode::Main;
-                }
-                true
-            }
-            KeyEvent { code: KeyCode::Char('s'), modifiers, .. }
-                if modifiers.contains(KeyModifiers::CONTROL) =>
-            {
-                let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
-                if let ViewMode::EditWidth { field, .. } = mode {
-                    match self.save_width_editor(&field) {
-                        Ok(()) => self.mode = ViewMode::Main,
-                        Err(err) => self.mode = ViewMode::EditWidth {
-                            field,
-                            error: Some(err),
-                        },
-                    }
-                } else {
-                    self.mode = ViewMode::Main;
-                }
-                true
-            }
-            _ => match &mut self.mode {
-                ViewMode::EditWidth { field, .. } => field.handle_key(key_event),
-                ViewMode::Main | ViewMode::Transition | ViewMode::CaptureHotkey { .. } => false,
-            },
         }
     }
 
@@ -283,18 +240,53 @@ impl InterfaceSettingsView {
     }
 
     fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
-        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
-        match mode {
-            ViewMode::Main => {
-                self.mode = ViewMode::Main;
-                self.process_key_event_main(key_event)
-            }
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Transition, |mode| {
+            matches!(mode, ViewMode::Transition)
+        });
+
+        match mode_guard.mode_mut() {
+            ViewMode::Main => self.process_key_event_main(key_event),
             ViewMode::EditWidth { field, error } => {
-                self.mode = ViewMode::EditWidth { field, error };
-                self.process_key_event_edit(key_event)
+                let handled = match key_event {
+                    KeyEvent { code: KeyCode::Esc, .. } => {
+                        self.mode = ViewMode::Main;
+                        true
+                    }
+                    KeyEvent {
+                        code: KeyCode::Enter,
+                        modifiers: KeyModifiers::NONE,
+                        ..
+                    } => match self.save_width_editor(field) {
+                        Ok(()) => {
+                            self.mode = ViewMode::Main;
+                            true
+                        }
+                        Err(err) => {
+                            *error = Some(err);
+                            true
+                        }
+                    },
+                    KeyEvent {
+                        code: KeyCode::Char('s'),
+                        modifiers,
+                        ..
+                    } if modifiers.contains(KeyModifiers::CONTROL) => match self.save_width_editor(field)
+                    {
+                        Ok(()) => {
+                            self.mode = ViewMode::Main;
+                            true
+                        }
+                        Err(err) => {
+                            *error = Some(err);
+                            true
+                        }
+                    },
+                    _ => field.handle_key(key_event),
+                };
+                handled
             }
-            ViewMode::CaptureHotkey { row, error } => {
-                self.mode = ViewMode::CaptureHotkey { row, error };
+            ViewMode::CaptureHotkey { row, .. } => {
+                let row = *row;
                 self.process_key_event_capture_hotkey(row, key_event)
             }
             ViewMode::Transition => {

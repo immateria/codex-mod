@@ -2,6 +2,8 @@ use super::*;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use crate::components::mode_guard::ModeGuard;
+
 impl JsReplSettingsView {
     fn visible_budget(&self, total: usize) -> usize {
         if total == 0 {
@@ -32,18 +34,18 @@ impl JsReplSettingsView {
     }
 
     pub(super) fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
-        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
-        match mode {
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Transition, |mode| {
+            matches!(mode, ViewMode::Transition)
+        });
+        match mode_guard.mode_mut() {
             ViewMode::Main => {
                 let rows = self.build_rows();
                 let total = rows.len();
                 if total == 0 {
                     if matches!(key_event.code, KeyCode::Esc) {
                         self.is_complete = true;
-                        self.mode = ViewMode::Main;
                         return true;
                     }
-                    self.mode = ViewMode::Main;
                     return false;
                 }
 
@@ -93,17 +95,16 @@ impl JsReplSettingsView {
                 if matches!(self.mode, ViewMode::Transition) {
                     // Activation can add/remove optional rows; keep selection + scroll valid.
                     self.reconcile_selection_state(self.row_count());
-                    self.mode = ViewMode::Main;
                 }
                 handled
             }
-            ViewMode::EditText { target, mut field } => match key_event {
+            ViewMode::EditText { target, field } => match key_event {
                 KeyEvent {
                     code: KeyCode::Char('s'),
                     modifiers,
                     ..
                 } if modifiers.contains(KeyModifiers::CONTROL) => {
-                    match self.save_text_editor(target, &field) {
+                    match self.save_text_editor(*target, field) {
                         Ok(()) => {
                             self.mode = ViewMode::Main;
                             true
@@ -113,7 +114,6 @@ impl JsReplSettingsView {
                                 &self.ticket,
                                 format!("JS REPL: {err}"),
                             );
-                            self.mode = ViewMode::EditText { target, field };
                             true
                         }
                     }
@@ -123,18 +123,16 @@ impl JsReplSettingsView {
                     true
                 }
                 _ => {
-                    let handled = field.handle_key(key_event);
-                    self.mode = ViewMode::EditText { target, field };
-                    handled
+                    field.handle_key(key_event)
                 }
             },
-            ViewMode::EditList { target, mut field } => match key_event {
+            ViewMode::EditList { target, field } => match key_event {
                 KeyEvent {
                     code: KeyCode::Char('s'),
                     modifiers,
                     ..
                 } if modifiers.contains(KeyModifiers::CONTROL) => {
-                    match self.save_list_editor(target, &field) {
+                    match self.save_list_editor(*target, field) {
                         Ok(()) => {
                             self.mode = ViewMode::Main;
                             true
@@ -144,7 +142,6 @@ impl JsReplSettingsView {
                                 &self.ticket,
                                 format!("JS REPL: {err}"),
                             );
-                            self.mode = ViewMode::EditList { target, field };
                             true
                         }
                     }
@@ -154,9 +151,7 @@ impl JsReplSettingsView {
                     true
                 }
                 _ => {
-                    let handled = field.handle_key(key_event);
-                    self.mode = ViewMode::EditList { target, field };
-                    handled
+                    field.handle_key(key_event)
                 }
             },
             ViewMode::Transition => {

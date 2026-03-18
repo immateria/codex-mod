@@ -6,6 +6,7 @@ use ratatui::layout::Rect;
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
+use crate::components::mode_guard::ModeGuard;
 use crate::ui_interaction::{
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
@@ -19,13 +20,14 @@ impl ExecLimitsSettingsView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> bool {
-        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
-        match mode {
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Transition, |mode| {
+            matches!(mode, ViewMode::Transition)
+        });
+        match mode_guard.mode_mut() {
             ViewMode::Main => {
                 let rows = Self::build_rows();
                 let total = rows.len();
                 if total == 0 {
-                    self.mode = ViewMode::Main;
                     return false;
                 }
 
@@ -35,7 +37,6 @@ impl ExecLimitsSettingsView {
                     self.render_footer_lines(),
                 );
                 let Some(layout) = page.layout_in_chrome(chrome, area) else {
-                    self.mode = ViewMode::Main;
                     return false;
                 };
                 let visible_slots = layout.visible_rows().max(1);
@@ -63,15 +64,12 @@ impl ExecLimitsSettingsView {
                     self.activate_row(kind);
                 }
 
-                if matches!(self.mode, ViewMode::Transition) {
-                    self.mode = ViewMode::Main;
-                }
                 outcome.changed
             }
-            ViewMode::Edit { target, mut field, error } => {
+            ViewMode::Edit { target, field, error } => {
                 let handled = match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
-                        let Some(field_area) = Self::edit_page(target, error.as_deref())
+                        let Some(field_area) = Self::edit_page(*target, error.as_deref())
                             .layout_in_chrome(chrome, area)
                             .map(|layout| layout.field)
                         else {
@@ -81,7 +79,6 @@ impl ExecLimitsSettingsView {
                     }
                     _ => false,
                 };
-                self.mode = ViewMode::Edit { target, field, error };
                 handled
             }
             ViewMode::Transition => {

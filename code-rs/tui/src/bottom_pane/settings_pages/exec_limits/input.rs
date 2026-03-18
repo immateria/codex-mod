@@ -3,6 +3,7 @@ use super::*;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app_event::AppEvent;
+use crate::components::mode_guard::ModeGuard;
 
 impl ExecLimitsSettingsView {
     fn open_edit_for(&mut self, target: EditTarget) {
@@ -166,19 +167,16 @@ impl ExecLimitsSettingsView {
     }
 
     pub(super) fn process_key_event(&mut self, key_event: KeyEvent) -> bool {
-        let mode = std::mem::replace(&mut self.mode, ViewMode::Transition);
-        match mode {
-            ViewMode::Main => {
-                let handled = self.process_key_event_main(key_event);
-                if matches!(self.mode, ViewMode::Transition) {
-                    self.mode = ViewMode::Main;
-                }
-                handled
-            }
+        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Transition, |mode| {
+            matches!(mode, ViewMode::Transition)
+        });
+
+        match mode_guard.mode_mut() {
+            ViewMode::Main => self.process_key_event_main(key_event),
             ViewMode::Edit {
                 target,
-                mut field,
-                mut error,
+                field,
+                error,
             } => {
                 let handled = match (key_event.code, key_event.modifiers) {
                     (KeyCode::Esc, _) => {
@@ -188,15 +186,14 @@ impl ExecLimitsSettingsView {
                     (KeyCode::Char('s'), KeyModifiers::CONTROL) | (KeyCode::Enter, _) => {
                         let text = field.text().trim();
                         if text.is_empty() {
-                            error = Some("Enter a number, or \"auto\"/\"disabled\"".to_string());
-                            self.mode = ViewMode::Edit { target, field, error };
+                            *error = Some("Enter a number, or \"auto\"/\"disabled\"".to_string());
                             return true;
                         }
 
                         let lowered = text.to_ascii_lowercase();
                         if lowered == "auto" {
                             self.set_limit(
-                                target,
+                                *target,
                                 code_core::config::ExecLimitToml::Mode(
                                     code_core::config::ExecLimitModeToml::Auto,
                                 ),
@@ -206,7 +203,7 @@ impl ExecLimitsSettingsView {
                         }
                         if lowered == "disabled" || lowered == "disable" {
                             self.set_limit(
-                                target,
+                                *target,
                                 code_core::config::ExecLimitToml::Mode(
                                     code_core::config::ExecLimitModeToml::Disabled,
                                 ),
@@ -218,27 +215,26 @@ impl ExecLimitsSettingsView {
                         let parsed: u64 = match text.parse() {
                             Ok(v) if v >= 1 => v,
                             Ok(_) => {
-                                error = Some("Value must be >= 1 (or \"disabled\")".to_string());
-                                self.mode = ViewMode::Edit { target, field, error };
+                                *error = Some("Value must be >= 1 (or \"disabled\")".to_string());
                                 return true;
                             }
                             Err(_) => {
-                                error = Some(
+                                *error = Some(
                                     "Value must be an integer (or \"auto\"/\"disabled\")".to_string(),
                                 );
-                                self.mode = ViewMode::Edit { target, field, error };
                                 return true;
                             }
                         };
 
-                        self.set_limit(target, code_core::config::ExecLimitToml::Value(parsed));
+                        self.set_limit(*target, code_core::config::ExecLimitToml::Value(parsed));
                         self.mode = ViewMode::Main;
                         return true;
                     }
-                    _ => field.handle_key(key_event),
+                    _ => {
+                        field.handle_key(key_event)
+                    }
                 };
 
-                self.mode = ViewMode::Edit { target, field, error };
                 handled
             }
             ViewMode::Transition => {
@@ -252,4 +248,3 @@ impl ExecLimitsSettingsView {
         self.process_key_event(key_event)
     }
 }
-
