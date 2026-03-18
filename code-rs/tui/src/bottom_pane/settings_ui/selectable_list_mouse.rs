@@ -38,7 +38,6 @@ pub(crate) fn route_scroll_state_mouse_with_hit_test(
         };
     }
 
-    state.scroll_top = state.scroll_top.min(item_count.saturating_sub(1));
     let scroll_top = state.scroll_top;
 
     let mut selected = state
@@ -81,7 +80,6 @@ pub(crate) fn route_scroll_state_mouse_with_hit_test_no_ensure_visible(
         };
     }
 
-    state.scroll_top = state.scroll_top.min(item_count.saturating_sub(1));
     let scroll_top = state.scroll_top;
 
     let mut selected = state

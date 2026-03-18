@@ -30,9 +30,7 @@ impl ScrollState {
             0 => None,
             _ => Some(self.selected_idx.unwrap_or(0).min(len - 1)),
         };
-        if len == 0 {
-            self.scroll_top = 0;
-        }
+        self.scroll_top = self.scroll_top.min(len.saturating_sub(1));
     }
 
     /// Move selection up by one, wrapping to the bottom when necessary.
@@ -154,5 +152,16 @@ mod tests {
         state.move_down_wrap_visible(5, 3);
         assert_eq!(state.selected_idx, Some(0));
         assert_eq!(state.scroll_top, 0);
+    }
+
+    #[test]
+    fn clamp_selection_clamps_scroll_top_for_non_empty_lists() {
+        let mut state = ScrollState {
+            selected_idx: Some(0),
+            scroll_top: 999,
+        };
+        state.clamp_selection(3);
+        assert_eq!(state.selected_idx, Some(0));
+        assert_eq!(state.scroll_top, 2);
     }
 }

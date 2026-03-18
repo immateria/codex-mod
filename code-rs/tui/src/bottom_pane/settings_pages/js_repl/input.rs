@@ -24,11 +24,7 @@ impl JsReplSettingsView {
             self.state.scroll_top = 0;
             return;
         }
-        if self.state.selected_idx.is_none() {
-            self.state.selected_idx = Some(0);
-        }
         self.state.clamp_selection(total);
-        self.state.scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
         let visible_budget = self.visible_budget(total);
         self.state.ensure_visible(total, visible_budget);
     }
