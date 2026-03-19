@@ -721,6 +721,7 @@ impl SkillsSettingsView {
         self.editor.focus = Focus::List;
         self.editor.hovered_button = None;
         self.status = None;
+        self.ensure_list_selection_visible();
     }
 
     fn sync_style_profile_fields_if_needed(&mut self, previous_style: Option<ShellScriptStyle>) {

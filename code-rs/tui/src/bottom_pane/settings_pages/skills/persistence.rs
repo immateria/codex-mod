@@ -166,11 +166,12 @@ impl SkillsSettingsView {
             return Err("Name must use letters, numbers, '-', '_' or '.'".to_string());
         }
 
+        let selected = self.selected_list_index();
         let dup = self
             .skills
             .iter()
             .enumerate()
-            .any(|(idx, skill)| idx != self.selected && skill_slug(skill).eq_ignore_ascii_case(slug));
+            .any(|(idx, skill)| idx != selected && skill_slug(skill).eq_ignore_ascii_case(slug));
         if dup {
             return Err("A skill with this name already exists".to_string());
         }
@@ -241,7 +242,8 @@ impl SkillsSettingsView {
     }
 
     pub(super) fn save_current(&mut self) {
-        if let Some(skill) = self.skills.get(self.selected)
+        let selected = self.selected_list_index();
+        if let Some(skill) = self.skills.get(selected)
             && skill.scope != SkillScope::User {
                 self.status = Some((
                     "Only user skills can be saved".to_string(),
@@ -250,7 +252,7 @@ impl SkillsSettingsView {
                 return;
             }
 
-        let existing_skill = self.skills.get(self.selected).cloned();
+        let existing_skill = self.skills.get(selected).cloned();
 
         let name = self.editor.name_field.text().trim().to_string();
         let description = self.editor.description_field.text().trim().to_string();
@@ -465,12 +467,13 @@ impl SkillsSettingsView {
             scope: SkillScope::User,
             content: body,
         };
-        if self.selected < self.skills.len() {
-            self.skills[self.selected] = new_entry;
+        if selected < self.skills.len() {
+            self.skills[selected] = new_entry;
         } else {
             self.skills.push(new_entry);
-            self.selected = self.skills.len() - 1;
+            self.list_state.selected_idx = Some(self.skills.len().saturating_sub(1));
         }
+        self.clamp_list_state();
         self.status = Some(match profile_warning {
             Some(msg) => (format!("Saved skill with warnings: {msg}"), Style::default().fg(colors::warning())),
             None => ("Saved.".to_string(), Style::default().fg(colors::success())),
@@ -485,13 +488,15 @@ impl SkillsSettingsView {
     }
 
     pub(super) fn delete_current(&mut self) {
-        if self.selected >= self.skills.len() {
+        let selected = self.selected_list_index();
+        if selected >= self.skills.len() {
             self.status = Some(("Nothing to delete".to_string(), Style::default().fg(colors::warning())));
             self.mode = Mode::List;
             self.editor.focus = Focus::List;
+            self.ensure_list_selection_visible();
             return;
         }
-        let skill = self.skills[self.selected].clone();
+        let skill = self.skills[selected].clone();
         if skill.scope != SkillScope::User {
             self.status = Some((
                 "Only user skills can be deleted".to_string(),
@@ -513,10 +518,13 @@ impl SkillsSettingsView {
             let _ = fs::remove_dir(parent);
         }
 
-        self.skills.remove(self.selected);
-        if self.selected >= self.skills.len() && !self.skills.is_empty() {
-            self.selected = self.skills.len() - 1;
+        self.skills.remove(selected);
+        if selected >= self.skills.len() && !self.skills.is_empty() {
+            self.list_state.selected_idx = Some(self.skills.len().saturating_sub(1));
+        } else {
+            self.list_state.selected_idx = Some(selected.min(self.skills.len()));
         }
+        self.clamp_list_state();
 
         let mut profiles_changed = false;
 
@@ -553,6 +561,7 @@ impl SkillsSettingsView {
 
         self.mode = Mode::List;
         self.editor.focus = Focus::List;
+        self.ensure_list_selection_visible();
         self.status = Some(match delete_warning {
             Some(msg) => (
                 format!("Deleted skill with warnings: {msg}"),

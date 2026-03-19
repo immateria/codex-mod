@@ -10,49 +10,47 @@ const LOW_HEIGHT_THRESHOLD: usize = 24;
 
 impl SkillsSettingsView {
     pub fn render(&self, area: Rect, buf: &mut Buffer) {
-        if area.width == 0 || area.height == 0 {
-            return;
-        }
-        self.last_render.set(area, ChromeMode::Framed);
-        self.render_body(area, buf);
+        self.render_in_chrome(ChromeMode::Framed, area, buf);
     }
 
     pub(super) fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
+        self.render_in_chrome(ChromeMode::ContentOnly, area, buf);
+    }
+
+    fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
         if area.width == 0 || area.height == 0 {
             return;
         }
 
-        self.last_render.set(area, ChromeMode::ContentOnly);
-        crate::util::buffer::fill_rect(
-            buf,
-            area,
-            Some(' '),
-            Style::default()
-                .bg(colors::background())
-                .fg(colors::text()),
-        );
-        self.render_body_content_only(area, buf);
+        self.last_render.set(area, chrome);
+
+        if matches!(chrome, ChromeMode::ContentOnly) {
+            crate::util::buffer::fill_rect(
+                buf,
+                area,
+                Some(' '),
+                Style::default()
+                    .bg(colors::background())
+                    .fg(colors::text()),
+            );
+        }
+
+        self.render_body_in_chrome(chrome, area, buf);
     }
 
-    fn render_body(&self, area: Rect, buf: &mut Buffer) {
+    fn render_body_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
         match self.mode {
-            Mode::List => self.render_list(area, buf),
-            Mode::Edit => self.render_form(area, buf),
+            Mode::List => self.render_list_in_chrome(chrome, area, buf),
+            Mode::Edit => self.render_form_in_chrome(chrome, area, buf),
         }
     }
 
-    fn render_body_content_only(&self, area: Rect, buf: &mut Buffer) {
-        match self.mode {
-            Mode::List => self.render_list_content_only(area, buf),
-            Mode::Edit => self.render_form_content_only(area, buf),
-        }
-    }
-
-    fn render_list(&self, area: Rect, buf: &mut Buffer) {
+    fn render_list_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
+        let selected = self.selected_list_index();
         let mut lines: Vec<Line> = Vec::new();
         for (idx, skill) in self.skills.iter().enumerate() {
-            let arrow = if idx == self.selected { ">" } else { " " };
-            let name_style = if idx == self.selected {
+            let arrow = if idx == selected { ">" } else { " " };
+            let name_style = if idx == selected {
                 Style::default().fg(colors::primary()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(colors::text())
@@ -74,8 +72,8 @@ impl SkillsSettingsView {
             lines.push(Line::from("No skills yet. Press Enter or Ctrl+N to create one."));
         }
 
-        let add_arrow = if self.selected == self.skills.len() { ">" } else { " " };
-        let add_style = if self.selected == self.skills.len() {
+        let add_arrow = if selected == self.skills.len() { ">" } else { " " };
+        let add_style = if selected == self.skills.len() {
             Style::default().fg(colors::primary()).add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(colors::success()).add_modifier(Modifier::BOLD)
@@ -93,95 +91,47 @@ impl SkillsSettingsView {
         .wrap(Wrap { trim: true })
         .style(Style::default().bg(colors::background()));
 
+        let scroll_top = u16::try_from(self.list_state.scroll_top).unwrap_or(u16::MAX);
         let list = Paragraph::new(lines)
             .alignment(Alignment::Left)
-            .style(Style::default().bg(colors::background()));
+            .style(Style::default().bg(colors::background()))
+            .scroll((scroll_top, 0));
 
-        let outer = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().bg(colors::background()));
-        let inner = outer.inner(area);
-        outer.render(area, buf);
+        let inner = match chrome {
+            ChromeMode::Framed => {
+                let outer = Block::default()
+                    .borders(Borders::ALL)
+                    .style(Style::default().bg(colors::background()));
+                let inner = outer.inner(area);
+                outer.render(area, buf);
+                inner
+            }
+            ChromeMode::ContentOnly => area,
+        };
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Length(3), Constraint::Min(1)])
             .split(inner);
 
         title.render(chunks[0], buf);
+        self.list_viewport_rows
+            .set(chunks[1].height.max(1) as usize);
         list.render(chunks[1], buf);
     }
 
-    fn render_list_content_only(&self, area: Rect, buf: &mut Buffer) {
-        let mut lines: Vec<Line> = Vec::new();
-        for (idx, skill) in self.skills.iter().enumerate() {
-            let arrow = if idx == self.selected { ">" } else { " " };
-            let name_style = if idx == self.selected {
-                Style::default()
-                    .fg(colors::primary())
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(colors::text())
-            };
-            let scope_text = match skill.scope {
-                SkillScope::Repo => " [repo]",
-                SkillScope::User => " [user]",
-                SkillScope::System => " [system]",
-            };
-            let name_span = Span::styled(format!("{arrow} {name}", name = skill.name), name_style);
-            let scope_span = Span::styled(scope_text, Style::default().fg(colors::text_dim()));
-            let desc_span = Span::styled(
-                format!("  {desc}", desc = skill.description),
-                Style::default().fg(colors::text_dim()),
-            );
-            lines.push(Line::from(vec![name_span, scope_span, desc_span]));
-        }
-        if lines.is_empty() {
-            lines.push(Line::from("No skills yet. Press Enter or Ctrl+N to create one."));
-        }
-
-        let add_arrow = if self.selected == self.skills.len() { ">" } else { " " };
-        let add_style = if self.selected == self.skills.len() {
-            Style::default()
-                .fg(colors::primary())
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-                .fg(colors::success())
-                .add_modifier(Modifier::BOLD)
+    fn render_form_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
+        let layout = match chrome {
+            ChromeMode::Framed => {
+                let outer = Block::default()
+                    .borders(Borders::ALL)
+                    .title("Skill Creator / Editor")
+                    .style(Style::default().bg(colors::background()));
+                outer.render(area, buf);
+                self.compute_form_layout_framed(area)
+            }
+            ChromeMode::ContentOnly => self.compute_form_layout_content_only(area),
         };
-        lines.push(Line::from(vec![Span::styled(
-            format!("{add_arrow} Add new..."),
-            add_style,
-        )]));
-
-        let title = Paragraph::new(vec![Line::from(Span::styled(
-            "Skills are reusable instruction bundles stored as SKILL.md files. Use Enter to edit, Ctrl+N for guided create, and Ctrl+G in editor to generate a draft with per-style skill and resource overrides.",
-            Style::default().fg(colors::text_dim()),
-        ))])
-        .alignment(Alignment::Left)
-        .wrap(Wrap { trim: true })
-        .style(Style::default().bg(colors::background()));
-
-        let list = Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .style(Style::default().bg(colors::background()));
-
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Min(1)])
-            .split(area);
-
-        title.render(chunks[0], buf);
-        list.render(chunks[1], buf);
-    }
-
-    fn render_form(&self, area: Rect, buf: &mut Buffer) {
-        let outer = Block::default()
-            .borders(Borders::ALL)
-            .title("Skill Creator / Editor")
-            .style(Style::default().bg(colors::background()));
-        outer.render(area, buf);
-        let Some(layout) = self.compute_form_layout_framed(area) else {
+        let Some(layout) = layout else {
             return;
         };
 
@@ -324,149 +274,7 @@ impl SkillsSettingsView {
         }
     }
 
-    fn render_form_content_only(&self, area: Rect, buf: &mut Buffer) {
-        let Some(layout) = self.compute_form_layout_content_only(area) else {
-            return;
-        };
 
-        let label_style = Style::default().fg(colors::text_dim());
-
-        render_labeled_row(
-            buf,
-            layout.viewport_inner,
-            label_style,
-            "Name (slug)",
-            layout.name_field,
-        );
-        self.editor.name_field
-            .render(layout.name_field, buf, matches!(self.editor.focus, Focus::Name));
-
-        render_labeled_row(
-            buf,
-            layout.viewport_inner,
-            label_style,
-            "Description",
-            layout.description_field,
-        );
-        self.editor.description_field.render(
-            layout.description_field,
-            buf,
-            matches!(self.editor.focus, Focus::Description),
-        );
-
-        render_labeled_row(
-            buf,
-            layout.viewport_inner,
-            label_style,
-            "Shell style (optional)",
-            layout.style_field,
-        );
-        self.editor.style_field
-            .render(layout.style_field, buf, matches!(self.editor.focus, Focus::Style));
-
-        render_labeled_row(
-            buf,
-            layout.viewport_inner,
-            label_style,
-            "Style profile behavior",
-            layout.style_profile_row,
-        );
-        if layout.style_profile_row.height > 0 {
-            let focused = matches!(self.editor.focus, Focus::StyleProfile);
-            let mode_style = if focused {
-                Style::default()
-                    .fg(colors::background())
-                    .bg(colors::primary())
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-                    .fg(colors::text())
-                    .add_modifier(Modifier::BOLD)
-            };
-            let hint_style = Style::default().fg(colors::text_dim());
-            let mode_text = self.editor.style_profile_mode.label().to_string();
-            let hint_text = if self.editor.style_field.text().trim().is_empty() {
-                "Set shell style first".to_string()
-            } else {
-                self.editor.style_profile_mode.hint().to_string()
-            };
-            Paragraph::new(Line::from(vec![
-                Span::styled(mode_text, mode_style),
-                Span::raw("  "),
-                Span::styled(hint_text, hint_style),
-            ]))
-            .render(layout.style_profile_row, buf);
-        }
-
-        let _ = style_references_block(
-            self.editor.style_references_dirty,
-            matches!(self.editor.focus, Focus::StyleReferences),
-        )
-        .render(layout.style_references_outer, buf, &self.editor.style_references_field);
-        let _ = style_skill_roots_block(
-            self.editor.style_skill_roots_dirty,
-            matches!(self.editor.focus, Focus::StyleSkillRoots),
-        )
-        .render(layout.style_skill_roots_outer, buf, &self.editor.style_skill_roots_field);
-        let _ = style_mcp_include_block(
-            self.editor.style_mcp_include_dirty,
-            matches!(self.editor.focus, Focus::StyleMcpInclude),
-        )
-        .render(layout.style_mcp_include_outer, buf, &self.editor.style_mcp_include_field);
-        let _ = style_mcp_exclude_block(
-            self.editor.style_mcp_exclude_dirty,
-            matches!(self.editor.focus, Focus::StyleMcpExclude),
-        )
-        .render(layout.style_mcp_exclude_outer, buf, &self.editor.style_mcp_exclude_field);
-
-        let _ = examples_block(matches!(self.editor.focus, Focus::Examples))
-            .render(layout.examples_outer, buf, &self.editor.examples_field);
-
-        let _ = body_block(matches!(self.editor.focus, Focus::Body))
-            .render(layout.body_outer, buf, &self.editor.body_field);
-
-        let buttons = self.action_button_specs();
-        render_standard_button_strip(layout.buttons_row, buf, &buttons);
-        let hint_x = layout
-            .buttons_row
-            .x
-            .saturating_add(standard_button_strip_width(&buttons))
-            .saturating_add(4);
-        Paragraph::new(Line::from(Span::raw(
-            "Tab cycle - Enter activates - <-/-> mode - Ctrl+G generate",
-        )))
-        .render(
-            Rect::new(
-                hint_x,
-                layout.buttons_row.y,
-                layout
-                    .buttons_row
-                    .width
-                    .saturating_sub(hint_x.saturating_sub(layout.buttons_row.x)),
-                layout.buttons_row.height,
-            ),
-            buf,
-        );
-
-        if layout.status_row.height > 0
-            && let Some((msg, style)) = &self.status
-        {
-            Paragraph::new(Line::from(Span::styled(msg.clone(), *style)))
-                .alignment(Alignment::Left)
-                .render(layout.status_row, buf);
-        }
-
-        if layout.max_scroll > 0 {
-            let viewport_len = layout.viewport_inner.height as usize;
-            render_vertical_scrollbar(
-                buf,
-                layout.viewport_inner,
-                layout.scroll_top,
-                layout.max_scroll,
-                viewport_len,
-            );
-        }
-    }
 
     pub(super) fn compute_form_layout_framed(&self, area: Rect) -> Option<SkillsFormLayout> {
         let inner = Block::default().borders(Borders::ALL).inner(area);

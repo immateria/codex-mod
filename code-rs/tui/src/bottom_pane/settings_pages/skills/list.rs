@@ -1,7 +1,6 @@
 use super::*;
 
-use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test_no_ensure_visible;
-use crate::components::scroll_state::ScrollState;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 
 impl SkillsSettingsView {
     fn list_area_from_inner(inner: Rect) -> Rect {
@@ -22,14 +21,26 @@ impl SkillsSettingsView {
         Self::list_area_from_inner(area)
     }
 
-    fn list_selection_at(&self, list_area: Rect, x: u16, y: u16) -> Option<usize> {
+    fn list_selection_at(
+        list_area: Rect,
+        x: u16,
+        y: u16,
+        scroll_top: usize,
+        skills_len: usize,
+    ) -> Option<usize> {
         if !list_area.contains(Position { x, y }) {
             return None;
         }
 
         debug_assert!(y >= list_area.y, "y={y} is above list_area.y={}", list_area.y);
-        let row = (y - list_area.y) as usize;
-        if row <= self.skills.len() {
+        let visible_row = (y - list_area.y) as usize;
+        if skills_len == 0 {
+            // Empty lists render an informational line above the "Add new..." row, so treat either
+            // of the first two visible lines as selecting the sole "Add new..." item.
+            return (visible_row <= 1).then_some(0);
+        }
+        let row = scroll_top.saturating_add(visible_row);
+        if row <= skills_len {
             Some(row)
         } else {
             None
@@ -59,45 +70,53 @@ impl SkillsSettingsView {
         mouse_event: MouseEvent,
         list_area: Rect,
     ) -> bool {
-        let mut state = ScrollState {
-            selected_idx: Some(self.selected),
-            scroll_top: 0,
-        };
-        let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
+        let item_count = self.list_item_count();
+        let skills_len = self.skills.len();
+        let outcome = route_scroll_state_mouse_with_hit_test(
             mouse_event,
-            &mut state,
-            self.skills.len().saturating_add(1),
-            |x, y, _scroll_top| self.list_selection_at(list_area, x, y),
+            &mut self.list_state,
+            item_count,
+            list_area.height.max(1) as usize,
+            |x, y, scroll_top| Self::list_selection_at(list_area, x, y, scroll_top, skills_len),
             SelectableListMouseConfig {
                 require_pointer_hit_for_scroll: true,
                 scroll_behavior: ScrollSelectionBehavior::Clamp,
                 ..SelectableListMouseConfig::default()
             },
         );
-        self.selected = state.selected_idx.unwrap_or(0);
         if matches!(outcome.result, SelectableListMouseResult::Activated) {
-            if self.selected < self.skills.len() {
-                self.enter_editor();
-            } else {
-                self.start_new_skill();
-            }
+            self.enter_editor();
         }
         outcome.changed
     }
 
     pub(super) fn handle_list_key(&mut self, key: KeyEvent) -> bool {
+        let item_count = self.list_item_count();
+        self.list_state.clamp_selection(item_count);
+
         match key.code {
             KeyCode::Up => {
-                if self.selected > 0 {
-                    self.selected -= 1;
+                if let Some(selected) = self.list_state.selected_idx
+                    && selected > 0
+                {
+                    self.list_state.selected_idx = Some(selected.saturating_sub(1));
                 }
+                self.list_state.ensure_visible(
+                    item_count,
+                    self.list_viewport_rows.get().max(1),
+                );
                 true
             }
             KeyCode::Down => {
-                let max = self.skills.len();
-                if self.selected < max {
-                    self.selected += 1;
+                if let Some(selected) = self.list_state.selected_idx
+                    && selected.saturating_add(1) < item_count
+                {
+                    self.list_state.selected_idx = Some(selected.saturating_add(1));
                 }
+                self.list_state.ensure_visible(
+                    item_count,
+                    self.list_viewport_rows.get().max(1),
+                );
                 true
             }
             _ => false,
@@ -105,7 +124,7 @@ impl SkillsSettingsView {
     }
 
     pub(super) fn start_new_skill(&mut self) {
-        self.selected = self.skills.len();
+        self.list_state.selected_idx = Some(self.skills.len());
         self.editor.name_field.set_text("");
         self.editor.description_field.set_text("");
         self.editor.style_field.set_text("");
@@ -124,7 +143,8 @@ impl SkillsSettingsView {
     }
 
     fn load_selected_into_form(&mut self) {
-        if let Some(skill) = self.skills.get(self.selected).cloned() {
+        let selected = self.selected_list_index();
+        if let Some(skill) = self.skills.get(selected).cloned() {
             let slug = skill_slug(&skill);
             self.status = None;
             self.editor.name_field.set_text(&slug);
@@ -150,7 +170,8 @@ impl SkillsSettingsView {
     }
 
     pub(super) fn enter_editor(&mut self) {
-        if self.selected >= self.skills.len() {
+        let selected = self.selected_list_index();
+        if selected >= self.skills.len() {
             self.start_new_skill();
         } else {
             self.load_selected_into_form();
