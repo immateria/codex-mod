@@ -1,12 +1,12 @@
-use crate::app_event::{AppEvent, ModelSelectionKind};
-use crate::app_event_sender::AppEventSender;
-use code_common::model_picker_order::picker_rank_for_model;
+use std::sync::OnceLock;
+
 use code_common::model_presets::ModelPreset;
 use code_core::config_types::{ContextMode, ReasoningEffort, ServiceTier};
 use code_core::model_family::{supports_extended_context, STANDARD_CONTEXT_WINDOW_272K};
 use code_protocol::num_format::format_with_separators_u64;
-use std::cmp::Ordering;
-use std::sync::OnceLock;
+
+use super::presets::{compare_presets, FlatPreset};
+use super::target::ModelSelectionTarget;
 
 const SUMMARY_HEADER_LINES: u16 = 3;
 const FAST_MODE_SECTION_HEIGHT: u16 = 5;
@@ -17,217 +17,6 @@ const FOOTER_HEIGHT: u16 = 2;
 const FAST_MODE_ROW_OFFSET: usize = 2;
 const CONTEXT_MODE_ROW_OFFSET: usize = 3;
 const FOLLOW_CHAT_ROW_OFFSET: usize = 2;
-
-/// Flattened preset entry combining a model with a specific reasoning effort.
-#[derive(Clone, Debug)]
-pub(crate) struct FlatPreset {
-    pub(crate) model: String,
-    pub(crate) display_name: String,
-    pub(crate) effort: ReasoningEffort,
-    pub(crate) label: String,
-    pub(crate) description: String,
-    pub(crate) model_description: String,
-    pub(crate) picker_rank: u16,
-}
-
-impl FlatPreset {
-    pub(crate) fn from_model_preset(preset: &ModelPreset) -> Vec<Self> {
-        preset
-            .supported_reasoning_efforts
-            .iter()
-            .map(|effort_preset| {
-                let effort_label = reasoning_effort_label(effort_preset.effort.into());
-                FlatPreset {
-                    model: preset.model.to_string(),
-                    display_name: preset.display_name.to_string(),
-                    effort: effort_preset.effort.into(),
-                    label: format!(
-                        "{} {}",
-                        preset.display_name,
-                        effort_label.to_lowercase()
-                    ),
-                    description: effort_preset.description.to_string(),
-                    model_description: preset.description.to_string(),
-                    picker_rank: picker_rank_for_model(&preset.model),
-                }
-            })
-            .collect()
-    }
-}
-
-pub(crate) fn reasoning_effort_label(effort: ReasoningEffort) -> &'static str {
-    match effort {
-        ReasoningEffort::XHigh => "XHigh",
-        ReasoningEffort::High => "High",
-        ReasoningEffort::Medium => "Medium",
-        ReasoningEffort::Low => "Low",
-        ReasoningEffort::Minimal => "Minimal",
-        ReasoningEffort::None => "None",
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) enum ModelSelectionTarget {
-    Session,
-    Review,
-    Planning,
-    AutoDrive,
-    ReviewResolve,
-    AutoReview,
-    AutoReviewResolve,
-}
-
-impl From<ModelSelectionTarget> for ModelSelectionKind {
-    fn from(target: ModelSelectionTarget) -> Self {
-        match target {
-            ModelSelectionTarget::Session => ModelSelectionKind::Session,
-            ModelSelectionTarget::Review => ModelSelectionKind::Review,
-            ModelSelectionTarget::Planning => ModelSelectionKind::Planning,
-            ModelSelectionTarget::AutoDrive => ModelSelectionKind::AutoDrive,
-            ModelSelectionTarget::ReviewResolve => ModelSelectionKind::ReviewResolve,
-            ModelSelectionTarget::AutoReview => ModelSelectionKind::AutoReview,
-            ModelSelectionTarget::AutoReviewResolve => ModelSelectionKind::AutoReviewResolve,
-        }
-    }
-}
-
-impl ModelSelectionTarget {
-    pub(crate) fn panel_title(self) -> &'static str {
-        match self {
-            ModelSelectionTarget::Session => "Select Model & Reasoning",
-            ModelSelectionTarget::Review => "Select Review Model & Reasoning",
-            ModelSelectionTarget::Planning => "Select Planning Model & Reasoning",
-            ModelSelectionTarget::AutoDrive => "Select Auto Drive Model & Reasoning",
-            ModelSelectionTarget::ReviewResolve => "Select Resolve Model & Reasoning",
-            ModelSelectionTarget::AutoReview => "Select Auto Review Model & Reasoning",
-            ModelSelectionTarget::AutoReviewResolve => {
-                "Select Auto Review Resolve Model & Reasoning"
-            }
-        }
-    }
-
-    pub(crate) fn current_label(self) -> &'static str {
-        match self {
-            ModelSelectionTarget::Session => "Current model",
-            ModelSelectionTarget::Review => "Review model",
-            ModelSelectionTarget::Planning => "Planning model",
-            ModelSelectionTarget::AutoDrive => "Auto Drive model",
-            ModelSelectionTarget::ReviewResolve => "Resolve model",
-            ModelSelectionTarget::AutoReview => "Auto Review model",
-            ModelSelectionTarget::AutoReviewResolve => "Auto Review resolve model",
-        }
-    }
-
-    pub(crate) fn reasoning_label(self) -> &'static str {
-        match self {
-            ModelSelectionTarget::Session => "Reasoning effort",
-            ModelSelectionTarget::Review => "Review reasoning",
-            ModelSelectionTarget::Planning => "Planning reasoning",
-            ModelSelectionTarget::AutoDrive => "Auto Drive reasoning",
-            ModelSelectionTarget::ReviewResolve => "Resolve reasoning",
-            ModelSelectionTarget::AutoReview => "Auto Review reasoning",
-            ModelSelectionTarget::AutoReviewResolve => "Auto Review resolve reasoning",
-        }
-    }
-
-    pub(crate) fn supports_follow_chat(self) -> bool {
-        !matches!(self, ModelSelectionTarget::Session)
-    }
-
-    pub(crate) fn supports_fast_mode(self) -> bool {
-        matches!(self, ModelSelectionTarget::Session)
-    }
-
-    pub(crate) fn supports_context_mode(self) -> bool {
-        matches!(self, ModelSelectionTarget::Session)
-    }
-
-    pub(crate) fn dispatch_selection_action(
-        self,
-        app_event_tx: &AppEventSender,
-        action: &SelectionAction,
-    ) {
-        match action {
-            SelectionAction::ToggleFastMode(service_tier) => {
-                // Fast mode is session-global, not target-specific.
-                app_event_tx.send(AppEvent::UpdateServiceTierSelection {
-                    service_tier: *service_tier,
-                });
-            }
-            SelectionAction::SetContextMode(context_mode) => {
-                // Context mode is session-global, not target-specific.
-                app_event_tx.send(AppEvent::UpdateSessionContextModeSelection {
-                    context_mode: *context_mode,
-                });
-            }
-            SelectionAction::UseChatModel => match self {
-                ModelSelectionTarget::Session => {}
-                ModelSelectionTarget::Review => {
-                    app_event_tx.send(AppEvent::UpdateReviewUseChatModel(true));
-                }
-                ModelSelectionTarget::Planning => {
-                    app_event_tx.send(AppEvent::UpdatePlanningUseChatModel(true));
-                }
-                ModelSelectionTarget::AutoDrive => {
-                    app_event_tx.send(AppEvent::UpdateAutoDriveUseChatModel(true));
-                }
-                ModelSelectionTarget::ReviewResolve => {
-                    app_event_tx.send(AppEvent::UpdateReviewResolveUseChatModel(true));
-                }
-                ModelSelectionTarget::AutoReview => {
-                    app_event_tx.send(AppEvent::UpdateAutoReviewUseChatModel(true));
-                }
-                ModelSelectionTarget::AutoReviewResolve => {
-                    app_event_tx.send(AppEvent::UpdateAutoReviewResolveUseChatModel(true));
-                }
-            },
-            SelectionAction::SetPreset { model, effort } => match self {
-                ModelSelectionTarget::Session => {
-                    app_event_tx.send(AppEvent::UpdateModelSelection {
-                        model: model.clone(),
-                        effort: Some(*effort),
-                    });
-                }
-                ModelSelectionTarget::Review => {
-                    app_event_tx.send(AppEvent::UpdateReviewModelSelection {
-                        model: model.clone(),
-                        effort: *effort,
-                    });
-                }
-                ModelSelectionTarget::Planning => {
-                    app_event_tx.send(AppEvent::UpdatePlanningModelSelection {
-                        model: model.clone(),
-                        effort: *effort,
-                    });
-                }
-                ModelSelectionTarget::AutoDrive => {
-                    app_event_tx.send(AppEvent::UpdateAutoDriveModelSelection {
-                        model: model.clone(),
-                        effort: *effort,
-                    });
-                }
-                ModelSelectionTarget::ReviewResolve => {
-                    app_event_tx.send(AppEvent::UpdateReviewResolveModelSelection {
-                        model: model.clone(),
-                        effort: *effort,
-                    });
-                }
-                ModelSelectionTarget::AutoReview => {
-                    app_event_tx.send(AppEvent::UpdateAutoReviewModelSelection {
-                        model: model.clone(),
-                        effort: *effort,
-                    });
-                }
-                ModelSelectionTarget::AutoReviewResolve => {
-                    app_event_tx.send(AppEvent::UpdateAutoReviewResolveModelSelection {
-                        model: model.clone(),
-                        effort: *effort,
-                    });
-                }
-            },
-        }
-    }
-}
 
 pub(crate) struct ModelSelectionViewParams {
     pub(crate) presets: Vec<ModelPreset>,
@@ -278,26 +67,6 @@ pub(crate) enum SelectionAction {
 impl SelectionAction {
     pub(crate) fn closes_view(&self) -> bool {
         matches!(self, SelectionAction::UseChatModel | SelectionAction::SetPreset { .. })
-    }
-}
-
-pub(crate) fn compare_presets(a: &FlatPreset, b: &FlatPreset) -> Ordering {
-    a.picker_rank
-        .cmp(&b.picker_rank)
-        .then_with(|| a.display_name.cmp(&b.display_name))
-        .then_with(|| a.model.cmp(&b.model))
-        .then_with(|| effort_rank(a.effort).cmp(&effort_rank(b.effort)))
-        .then_with(|| a.label.cmp(&b.label))
-}
-
-fn effort_rank(effort: ReasoningEffort) -> u8 {
-    match effort {
-        ReasoningEffort::XHigh => 0,
-        ReasoningEffort::High => 1,
-        ReasoningEffort::Medium => 2,
-        ReasoningEffort::Low => 3,
-        ReasoningEffort::Minimal => 4,
-        ReasoningEffort::None => 5,
     }
 }
 
@@ -700,3 +469,4 @@ impl ModelSelectionData {
         }
     }
 }
+
