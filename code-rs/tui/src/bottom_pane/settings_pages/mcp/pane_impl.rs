@@ -303,3 +303,35 @@ impl<'a> BottomPaneView<'a> for McpSettingsView {
         self.framed().render(area, buf);
     }
 }
+
+impl crate::bottom_pane::chrome_view::ChromeRenderable for McpSettingsView {
+    fn render_in_framed_chrome(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        self.render_framed(area, buf);
+    }
+
+    fn render_in_content_only_chrome(
+        &self,
+        area: ratatui::layout::Rect,
+        buf: &mut ratatui::buffer::Buffer,
+    ) {
+        self.render_content_only(area, buf);
+    }
+}
+
+impl crate::bottom_pane::chrome_view::ChromeMouseHandler for McpSettingsView {
+    fn handle_mouse_event_direct_in_framed_chrome(
+        &mut self,
+        mouse_event: crossterm::event::MouseEvent,
+        area: ratatui::layout::Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_framed(mouse_event, area)
+    }
+
+    fn handle_mouse_event_direct_in_content_only_chrome(
+        &mut self,
+        mouse_event: crossterm::event::MouseEvent,
+        area: ratatui::layout::Rect,
+    ) -> bool {
+        self.handle_mouse_event_direct_content_only(mouse_event, area)
+    }
+}
