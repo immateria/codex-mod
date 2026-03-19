@@ -96,6 +96,8 @@ mod layout_scroll;
 mod message;
 mod notifications;
 mod ordering;
+mod system_ordering;
+mod background_review;
 mod overlay_rendering;
 mod perf;
 mod rate_limit_refresh;
@@ -525,74 +527,6 @@ impl ChatWidget<'_> {
         }
     }
 
-    /// Compute an OrderKey for system (non‑LLM) notices in a way that avoids
-    /// creating multiple synthetic request buckets before the first provider turn.
-    fn system_order_key(
-        &mut self,
-        placement: SystemPlacement,
-        order: Option<&code_core::protocol::OrderMeta>,
-    ) -> OrderKey {
-        // If the provider supplied OrderMeta, honor it strictly.
-        if let Some(om) = order {
-            return self.provider_order_key_from_order_meta(om);
-        }
-
-        // Derive a stable request bucket for system notices when OrderMeta is absent.
-        // Default to the current provider request if known; else use a sticky
-        // pre-turn synthetic req=1 to group UI confirmations before the first turn.
-        // If a user prompt for the next turn is already queued, attach new
-        // system notices to the upcoming request to avoid retroactive inserts.
-        let mut req = if self.last_seen_request_index > 0 {
-            self.last_seen_request_index
-        } else {
-            if self.synthetic_system_req.is_none() {
-                self.synthetic_system_req = Some(1);
-            }
-            self.synthetic_system_req.unwrap_or(1)
-        };
-        if order.is_none() && self.pending_user_prompts_for_next_turn > 0 {
-            req = req.saturating_add(1);
-        }
-
-        self.internal_seq = self.internal_seq.saturating_add(1);
-        let mut out = match placement {
-            SystemPlacement::Early => i32::MIN + 2,
-            SystemPlacement::Tail => i32::MAX,
-            SystemPlacement::PrePrompt => i32::MIN,
-        };
-
-        if order.is_none()
-            && self.pending_user_prompts_for_next_turn > 0
-            && matches!(placement, SystemPlacement::Early)
-        {
-            out = i32::MIN;
-        }
-
-        let mut key = OrderKey {
-            req,
-            out,
-            seq: self.internal_seq,
-        };
-
-        if matches!(placement, SystemPlacement::Tail) {
-            let reference = self
-                .last_assigned_order
-                .or_else(|| self.cell_order_seq.iter().copied().max());
-            if let Some(max_key) = reference
-                && key <= max_key {
-                    key = Self::order_key_successor(max_key);
-                }
-        }
-
-        self.internal_seq = self.internal_seq.max(key.seq);
-        self.last_assigned_order = Some(match self.last_assigned_order {
-            Some(prev) => prev.max(key),
-            None => key,
-        });
-
-        key
-    }
-
     pub(super) fn is_startup_mcp_error(&self, message: &str) -> bool {
         if self.last_seen_request_index != 0 || self.pending_user_prompts_for_next_turn > 0 {
             return false;
@@ -626,49 +560,6 @@ impl ChatWidget<'_> {
             );
         }
         "MCP server failed to initialize. Run /mcp status for diagnostics.".to_string()
-    }
-
-    fn background_tail_request_ordinal(&mut self) -> u64 {
-        let mut req = if self.last_seen_request_index > 0 {
-            self.last_seen_request_index
-        } else {
-            *self.synthetic_system_req.get_or_insert(1)
-        };
-        if self.pending_user_prompts_for_next_turn > 0 {
-            req = req.saturating_add(1);
-        }
-        if let Some(last) = self.last_assigned_order {
-            req = req.max(last.req);
-        }
-        if let Some(max_req) = self.ui_background_seq_counters.keys().copied().max() {
-            req = req.max(max_req);
-        }
-        req
-    }
-
-    fn background_order_ticket_for_req(&mut self, req: u64) -> BackgroundOrderTicket {
-        let seed = self
-            .last_assigned_order
-            .filter(|key| key.req == req)
-            .map(|key| key.seq.saturating_add(1))
-            .unwrap_or(0);
-
-        let counter = self
-            .ui_background_seq_counters
-            .entry(req)
-            .or_insert_with(|| Arc::new(AtomicU64::new(seed)))
-            .clone();
-
-        if seed > 0 {
-            let current = counter.load(Ordering::SeqCst);
-            if current < seed {
-                counter.store(seed, Ordering::SeqCst);
-            }
-        }
-        BackgroundOrderTicket {
-            request_ordinal: req,
-            seq_counter: counter,
-        }
     }
 
     fn background_tail_order_ticket_internal(&mut self) -> BackgroundOrderTicket {
@@ -800,69 +691,6 @@ impl ChatWidget<'_> {
         }
     }
 
-    fn background_tail_order_meta(&mut self) -> code_core::protocol::OrderMeta {
-        self.background_tail_order_ticket_internal().next_order()
-    }
-
-    fn send_background_tail_ordered(&mut self, message: impl Into<String>) {
-        let order = self.background_tail_order_meta();
-        self.app_event_tx
-            .send_background_event_with_order(message.into(), order);
-    }
-
-    fn rebuild_ui_background_seq_counters(&mut self) {
-        self.ui_background_seq_counters.clear();
-        let mut next_per_req: HashMap<u64, u64> = HashMap::new();
-        for key in &self.cell_order_seq {
-            if key.out == i32::MAX {
-                let next = key.seq.saturating_add(1);
-                let entry = next_per_req.entry(key.req).or_insert(0);
-                *entry = (*entry).max(next);
-            }
-        }
-        for (req, next) in next_per_req {
-            self.ui_background_seq_counters
-                .insert(req, Arc::new(AtomicU64::new(next)));
-        }
-    }
-
-    /// Insert or replace a system notice cell with consistent ordering.
-    /// If `id_for_replace` is provided and we have a prior index for it, replace in place.
-    fn push_system_cell(
-        &mut self,
-        cell: Box<dyn HistoryCell>,
-        placement: SystemPlacement,
-        id_for_replace: Option<String>,
-        order: Option<&code_core::protocol::OrderMeta>,
-        tag: &'static str,
-        record: Option<HistoryDomainRecord>,
-    ) {
-        if let Some(id) = id_for_replace.as_ref()
-            && let Some(&idx) = self.system_cell_by_id.get(id) {
-                if let Some(record) = record {
-                    self.history_replace_with_record(idx, cell, record);
-                } else {
-                    self.history_replace_at(idx, cell);
-                }
-                return;
-            }
-        let key = self.system_order_key(placement, order);
-        let pos = self.history_insert_with_key_global_tagged(cell, key, tag, record);
-        if let Some(id) = id_for_replace {
-            self.system_cell_by_id.insert(id, pos);
-        }
-    }
-
-    /// Decide where to place a UI confirmation right now.
-    /// If we're truly pre-turn (no provider traffic yet, and no queued prompt),
-    /// place before the first user prompt. Otherwise, append to end of current.
-    fn ui_placement_for_now(&self) -> SystemPlacement {
-        if self.last_seen_request_index == 0 && self.pending_user_prompts_for_next_turn == 0 {
-            SystemPlacement::PrePrompt
-        } else {
-            SystemPlacement::Tail
-        }
-    }
     pub(crate) fn enable_perf(&mut self, enable: bool) {
         self.perf_state.enabled = enable;
     }
@@ -904,42 +732,6 @@ impl ChatWidget<'_> {
         self.perf_state.pending_scroll_rows.set(pending);
     }
 
-    // Synthetic key for internal content that should appear at the TOP of the NEXT request
-    // (e.g., the user’s prompt preceding the model’s output for that turn).
-    fn next_req_key_top(&mut self) -> OrderKey {
-        let req = self.last_seen_request_index.saturating_add(1);
-        self.internal_seq = self.internal_seq.saturating_add(1);
-        OrderKey {
-            req,
-            out: i32::MIN,
-            seq: self.internal_seq,
-        }
-    }
-
-    // Synthetic key for a user prompt that should appear just after banners but
-    // still before any model output within the next request.
-    fn next_req_key_prompt(&mut self) -> OrderKey {
-        let req = self.last_seen_request_index.saturating_add(1);
-        self.internal_seq = self.internal_seq.saturating_add(1);
-        OrderKey {
-            req,
-            out: i32::MIN + 1,
-            seq: self.internal_seq,
-        }
-    }
-
-    // Synthetic key for internal notices tied to the upcoming turn that
-    // should appear immediately after the user prompt but still before any
-    // model output for that turn.
-    fn next_req_key_after_prompt(&mut self) -> OrderKey {
-        let req = self.last_seen_request_index.saturating_add(1);
-        self.internal_seq = self.internal_seq.saturating_add(1);
-        OrderKey {
-            req,
-            out: i32::MIN + 2,
-            seq: self.internal_seq,
-        }
-    }
     /// Returns true if any agents are actively running (Pending or Running), or we're about to start them.
     /// Agents in terminal states (Completed/Failed) do not keep the spinner visible.
     fn agents_are_actively_running(&self) -> bool {
@@ -8068,187 +7860,22 @@ async fn run_background_review(
     turn_context: Option<String>,
     prefer_fallback: bool,
 ) {
-    // Best-effort: clean up any stale lock left by a cancelled review process.
-    let _ = code_core::review_coord::clear_stale_lock_if_dead(Some(&config.cwd));
-
-    // Prevent duplicate auto-reviews within this process: if any AutoReview agent
-    // is already pending/running, bail early with a benign notice.
-    {
-        let mgr = code_core::AGENT_MANAGER.read().await;
-        let busy = mgr
-            .list_agents(None, Some("auto-review".to_string()), false)
-            .into_iter()
-            .any(|agent| {
-                let status = format!("{:?}", agent.status).to_ascii_lowercase();
-                status == "running" || status == "pending"
-            });
-        if busy {
-            app_event_tx.send(AppEvent::BackgroundReviewFinished {
-                worktree_path: std::path::PathBuf::new(),
-                branch: String::new(),
-                has_findings: false,
-                findings: 0,
-                summary: Some("Auto review skipped: another auto review is already running.".to_string()),
-                error: None,
-                agent_id: None,
-                snapshot: None,
-            });
-            return;
-        }
-    }
-
-    let app_event_tx_clone = app_event_tx.clone();
-    let outcome = async move {
-        let git_root = code_core::git_worktree::get_git_root_from(&config.cwd)
-            .await
-            .map_err(|e| format!("failed to detect git root: {e}"))?;
-
-        let snapshot = task::spawn_blocking({
-            let repo_path = config.cwd.clone();
-            let base_snapshot = base_snapshot.clone();
-            move || {
-                let mut options = CreateGhostCommitOptions::new(repo_path.as_path())
-                    .message("auto review snapshot");
-                if let Some(base) = base_snapshot.as_ref() {
-                    options = options.parent(base.id());
-                }
-                let hook_repo = repo_path.clone();
-                let hook = move || bump_snapshot_epoch_for(&hook_repo);
-                create_ghost_commit(&options.post_commit_hook(&hook))
-            }
-        })
-        .await
-        .map_err(|e| format!("failed to spawn snapshot task: {e}"))
-        .and_then(|res| res.map_err(|e| format!("failed to capture snapshot: {e}")))?;
-
-        let snapshot_id = snapshot.id().to_string();
-        bump_snapshot_epoch_for(&config.cwd);
-
-        // Attempt to hold the shared review lock; if busy or a previous review
-        // with findings is still surfaced, fall back to a per-request
-        // auto-review worktree to avoid clobbering pending fixes.
-        let (worktree_path, branch, worktree_guard) = if prefer_fallback {
-            let (path, name, guard) =
-                allocate_fallback_auto_review_worktree(&git_root, &snapshot_id).await?;
-            (path, name, guard)
-        } else {
-            match try_acquire_lock("review", &config.cwd) {
-                Ok(Some(g)) => {
-                    let path = code_core::git_worktree::prepare_reusable_worktree(
-                        &git_root,
-                        AUTO_REVIEW_SHARED_WORKTREE,
-                        snapshot_id.as_str(),
-                        true,
-                    )
-                    .await
-                    .map_err(|e| format!("failed to prepare worktree: {e}"))?;
-                    (path, AUTO_REVIEW_SHARED_WORKTREE.to_string(), g)
-                }
-                Ok(None) => {
-                    let (path, name, guard) =
-                        allocate_fallback_auto_review_worktree(&git_root, &snapshot_id).await?;
-                    (path, name, guard)
-                }
-                Err(err) => {
-                    return Err(format!("could not acquire review lock: {err}"));
-                }
-            }
-        };
-
-        // Ensure Codex models are invoked via the `code-` CLI shim so they exist on PATH.
-        fn ensure_code_prefix(model: &str) -> String {
-            let lower = model.to_ascii_lowercase();
-            if lower.starts_with("code-") {
-                model.to_string()
-            } else {
-                format!("code-{model}")
-            }
-        }
-
-        let review_model = ensure_code_prefix(&config.auto_review_model);
-
-        // Allow the spawned agent to reuse the parent's review lock without blocking.
-        let mut env: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-        env.insert("CODE_REVIEW_LOCK_LEASE".to_string(), "1".to_string());
-        let agent_config = code_core::config_types::AgentConfig {
-            name: review_model.clone(),
-            command: String::new(),
-            args: Vec::new(),
-            read_only: false,
-            enabled: true,
-            description: None,
-            env: Some(env),
-            args_read_only: None,
-            args_write: None,
-            instructions: None,
-        };
-
-        // Use the /review entrypoint so upstream wiring (model defaults, review formatting) stays intact.
-        let mut review_prompt = format!(
-            "/review Analyze only changes made in commit {snapshot_id}. Identify critical bugs, regressions, security/performance/concurrency risks or incorrect assumptions. Provide actionable feedback and references to the changed code; ignore minor style or formatting nits."
-        );
-
-        if let Some(context) = turn_context {
-            review_prompt.push_str("\n\n");
-            review_prompt.push_str(&context);
-        }
-
-        let mut manager = code_core::AGENT_MANAGER.write().await;
-        let agent_id = manager
-            .create_agent_with_options(code_core::AgentCreateRequest {
-                model: review_model,
-                name: Some("Auto Review".to_string()),
-                prompt: review_prompt,
-                context: None,
-                output_goal: None,
-                files: Vec::new(),
-                read_only: false,
-                batch_id: Some(branch.clone()),
-                config: Some(agent_config.clone()),
-                worktree_branch: Some(branch.clone()),
-                worktree_base: Some(snapshot_id.clone()),
-                source_kind: Some(code_core::protocol::AgentSourceKind::AutoReview),
-                reasoning_effort: config.auto_review_model_reasoning_effort.into(),
-            })
-            .await;
-        insert_background_lock(&agent_id, worktree_guard);
-        drop(manager);
-
-        app_event_tx_clone.send(AppEvent::BackgroundReviewStarted {
-            worktree_path: worktree_path.clone(),
-            branch: branch.clone(),
-            agent_id: Some(agent_id.clone()),
-            snapshot: Some(snapshot_id.clone()),
-        });
-        Ok::<(PathBuf, String, String, String), String>((worktree_path, branch, agent_id, snapshot_id))
-    }
+    background_review::run_background_review_inner(
+        config,
+        app_event_tx,
+        base_snapshot,
+        turn_context,
+        prefer_fallback,
+    )
     .await;
-
-    if let Err(err) = outcome {
-        app_event_tx.send(AppEvent::BackgroundReviewFinished {
-            worktree_path: std::path::PathBuf::new(),
-            branch: String::new(),
-            has_findings: false,
-            findings: 0,
-            summary: None,
-            error: Some(err),
-            agent_id: None,
-            snapshot: None,
-        });
-    }
 }
 
 fn insert_background_lock(agent_id: &str, guard: code_core::review_coord::ReviewGuard) {
-    if let Ok(mut map) = BACKGROUND_REVIEW_LOCKS.lock() {
-        map.insert(agent_id.to_string(), guard);
-    }
+    background_review::insert_background_lock_inner(agent_id, guard);
 }
 
 fn release_background_lock(agent_id: &Option<String>) {
-    if let Some(id) = agent_id
-        && let Ok(mut map) = BACKGROUND_REVIEW_LOCKS.lock() {
-            map.remove(id);
-        }
+    background_review::release_background_lock_inner(agent_id);
 }
 
 #[cfg(test)]
