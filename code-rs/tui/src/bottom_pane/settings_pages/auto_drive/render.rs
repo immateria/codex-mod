@@ -66,11 +66,9 @@ impl AutoDriveSettingsView {
             AutoDriveSettingsMode::RoutingList => {
                 let rows = self.routing_list_menu_rows();
                 let total = rows.len();
-                let selected_id = self
-                    .routing_state
-                    .selected_idx
-                    .map(|idx| idx.min(total.saturating_sub(1)));
-                let scroll_top = self.routing_state.scroll_top.min(total.saturating_sub(1));
+                let state = self.routing_state.clamped(total);
+                let selected_id = state.selected_idx;
+                let scroll_top = state.scroll_top;
 
                 let Some(layout) = self.page().render_menu_rows_in_chrome(
                     chrome,

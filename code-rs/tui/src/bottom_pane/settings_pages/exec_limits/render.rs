@@ -30,7 +30,7 @@ impl ExecLimitsSettingsView {
         let total = rows.len();
         let mut state = self.state.get();
         state.clamp_selection(total);
-        let selected_idx = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+        let selected_idx = state.selected_idx.unwrap_or(0);
 
         let is_dirty = self.settings != self.last_applied;
         let row_specs: Vec<KeyValueRow<'_>> = rows

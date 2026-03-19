@@ -93,12 +93,9 @@ impl NetworkSettingsView {
     ) {
         let rows = self.build_rows(show_advanced);
         let total = rows.len();
-        let selected_idx = self
-            .state
-            .selected_idx
-            .unwrap_or(0)
-            .min(total.saturating_sub(1));
-        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+        let state = self.state.clamped(total);
+        let selected_idx = state.selected_idx.unwrap_or(0);
+        let scroll_top = state.scroll_top;
 
         let row_specs = self.main_row_specs(&rows, show_advanced);
         let Some(layout) = self.main_page().render_in_chrome(

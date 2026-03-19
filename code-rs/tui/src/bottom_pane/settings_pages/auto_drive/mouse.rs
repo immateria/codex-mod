@@ -174,8 +174,7 @@ impl AutoDriveSettingsView {
                     let idx = self
                         .routing_state
                         .selected_idx
-                        .unwrap_or(0)
-                        .min(total.saturating_sub(1));
+                        .unwrap_or(0);
                     if idx >= self.model_routing_entries.len() {
                         self.open_routing_editor(None);
                     } else {

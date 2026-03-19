@@ -352,8 +352,9 @@ impl ShellProfilesSettingsView {
         let row_specs = self.main_row_specs();
         let rows = Self::rows();
         let total = rows.len();
-        let scroll_top = self.scroll.scroll_top.min(total.saturating_sub(1));
-        let selected = Some(self.scroll.selected_idx.unwrap_or(0).min(total.saturating_sub(1)));
+        let scroll = self.scroll.clamped(total);
+        let scroll_top = scroll.scroll_top;
+        let selected = scroll.selected_idx;
         let Some(layout) = self
             .main_page()
             .render_in_chrome(chrome, area, buf, scroll_top, selected, &row_specs)
@@ -412,7 +413,7 @@ mod tests {
             .layout_in_chrome(ChromeMode::Framed, area)
             .expect("layout");
         let total = ShellProfilesSettingsView::rows().len();
-        let scroll_top = view.scroll.scroll_top.min(total.saturating_sub(1));
+        let scroll_top = view.scroll.clamped(total).scroll_top;
 
         assert_eq!(
             crate::bottom_pane::settings_ui::rows::selection_index_at(

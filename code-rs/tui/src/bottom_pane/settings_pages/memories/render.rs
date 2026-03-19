@@ -15,8 +15,8 @@ impl MemoriesSettingsView {
         let mut state = self.state.get();
         state.clamp_selection(total);
 
-        let selected = state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
-        let scroll_top = state.scroll_top.min(total.saturating_sub(1));
+        let selected = state.selected_idx.unwrap_or(0);
+        let scroll_top = state.scroll_top;
         let row_specs: Vec<KeyValueRow<'_>> = rows
             .iter()
             .enumerate()

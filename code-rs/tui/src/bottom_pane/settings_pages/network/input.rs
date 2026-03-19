@@ -153,7 +153,7 @@ impl NetworkSettingsView {
         let visible_budget = self.visible_budget(total);
         self.state.ensure_visible(total, visible_budget);
 
-        let selected = self.state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+        let selected = self.state.selected_idx.unwrap_or(0);
         let current_row = rows.get(selected).copied();
 
         let handled = match key_event {

@@ -17,12 +17,9 @@ impl InterfaceSettingsView {
         debug_assert!(selected_idx_raw < total);
         debug_assert!(self.state.scroll_top < total);
 
-        let selected_idx = self
-            .state
-            .selected_idx
-            .unwrap_or(0)
-            .min(total.saturating_sub(1));
-        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+        let state = self.state.clamped(total);
+        let selected_idx = state.selected_idx.unwrap_or(0);
+        let scroll_top = state.scroll_top;
         let selected_row = rows[selected_idx];
 
         let menu_rows = self.main_menu_rows(rows);

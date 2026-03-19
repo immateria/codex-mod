@@ -33,6 +33,15 @@ impl ScrollState {
         self.scroll_top = self.scroll_top.min(len.saturating_sub(1));
     }
 
+    /// Return a normalized copy of this state for a list of length `len`.
+    ///
+    /// Useful in render paths where we only have a shared reference to the view.
+    pub fn clamped(self, len: usize) -> Self {
+        let mut state = self;
+        state.clamp_selection(len);
+        state
+    }
+
     /// Move selection up by one, wrapping to the bottom when necessary.
     pub fn move_up_wrap(&mut self, len: usize) {
         if len == 0 {
@@ -163,5 +172,17 @@ mod tests {
         state.clamp_selection(3);
         assert_eq!(state.selected_idx, Some(0));
         assert_eq!(state.scroll_top, 2);
+    }
+
+    #[test]
+    fn clamped_returns_normalized_copy() {
+        let state = ScrollState {
+            selected_idx: Some(0),
+            scroll_top: 999,
+        };
+        let clamped = state.clamped(3);
+        assert_eq!(state.scroll_top, 999);
+        assert_eq!(clamped.selected_idx, Some(0));
+        assert_eq!(clamped.scroll_top, 2);
     }
 }

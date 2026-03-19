@@ -41,7 +41,7 @@ impl InterfaceSettingsView {
         }
 
         self.state.clamp_selection(total);
-        let selected = self.state.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+        let selected = self.state.selected_idx.unwrap_or(0);
         let current_row = rows.get(selected).copied();
 
         let visible = self.main_viewport_rows.get().max(1);

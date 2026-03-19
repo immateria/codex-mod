@@ -25,7 +25,7 @@ impl SettingsOverviewView {
             return;
         }
 
-        let scroll_top = self.scroll.scroll_top.min(self.rows.len().saturating_sub(1));
+        let scroll_top = self.scroll.clamped(self.rows.len()).scroll_top;
         let page = self.page();
         let rows = self.menu_rows();
         let Some(layout) = page.render_menu_rows_in_chrome(

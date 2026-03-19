@@ -416,8 +416,9 @@ impl ShellProfilesSettingsView {
             return;
         }
         let visible = area.height as usize;
-        let scroll_top = state.scroll.scroll_top.min(total.saturating_sub(1));
-        let selected = state.scroll.selected_idx.unwrap_or(0).min(total.saturating_sub(1));
+        let scroll = state.scroll.clamped(total);
+        let scroll_top = scroll.scroll_top;
+        let selected = scroll.selected_idx.unwrap_or(0);
         let conflict_label = Self::picker_conflict_label(state.target);
 
         for row_idx in 0..visible {

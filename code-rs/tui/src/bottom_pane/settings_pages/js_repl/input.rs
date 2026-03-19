@@ -49,8 +49,7 @@ impl JsReplSettingsView {
                 let selected = self
                     .state
                     .selected_idx
-                    .unwrap_or(0)
-                    .min(total.saturating_sub(1));
+                    .unwrap_or(0);
 
                 let handled = match key_event.code {
                     KeyCode::Esc => {

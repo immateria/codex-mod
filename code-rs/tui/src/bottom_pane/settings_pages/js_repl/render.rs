@@ -9,12 +9,9 @@ impl JsReplSettingsView {
     fn render_main_impl(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
         let rows = self.build_rows();
         let total = rows.len();
-        let selected_idx = self
-            .state
-            .selected_idx
-            .unwrap_or(0)
-            .min(total.saturating_sub(1));
-        let scroll_top = self.state.scroll_top.min(total.saturating_sub(1));
+        let state = self.state.clamped(total);
+        let selected_idx = state.selected_idx.unwrap_or(0);
+        let scroll_top = state.scroll_top;
 
         let row_specs = self.main_row_specs(&rows);
         let page = self.main_page();
