@@ -37,8 +37,11 @@ use crate::bottom_pane::SettingsSection;
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
 
 mod editor;
+mod input;
 mod main;
 mod model;
+mod mouse;
+mod pane_impl;
 mod persistence;
 mod picker;
 mod render;
@@ -189,133 +192,7 @@ impl ShellProfilesSettingsView {
     }
 
     pub(crate) fn handle_key_event_direct(&mut self, key: KeyEvent) -> bool {
-        if self.is_complete {
-            return true;
-        }
-
-        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Main, |mode| {
-            matches!(mode, ViewMode::Main)
-        });
-        match mode_guard.mode_mut() {
-            ViewMode::Main => match key {
-                KeyEvent { code: KeyCode::Esc, .. } => {
-                    self.is_complete = true;
-                    true
-                }
-                KeyEvent { code: KeyCode::Char('p'), modifiers, .. }
-                    if modifiers.contains(KeyModifiers::CONTROL) =>
-                {
-                    self.open_shell_selection();
-                    true
-                }
-                KeyEvent { code: KeyCode::Up, modifiers: KeyModifiers::NONE, .. } => {
-                    self.status = None;
-                    let rows = Self::rows();
-                    let visible = self.viewport_rows.get().max(1);
-                    self.scroll.move_up_wrap_visible(rows.len(), visible);
-                    true
-                }
-                KeyEvent { code: KeyCode::Down, modifiers: KeyModifiers::NONE, .. } => {
-                    self.status = None;
-                    let rows = Self::rows();
-                    let visible = self.viewport_rows.get().max(1);
-                    self.scroll.move_down_wrap_visible(rows.len(), visible);
-                    true
-                }
-                KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE, .. }
-                    if self.selected_row() == RowKind::Style =>
-                {
-                    self.cycle_style_next();
-                    true
-                }
-                KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE, .. }
-                    if self.selected_row() == RowKind::Style =>
-                {
-                    self.cycle_style_next();
-                    true
-                }
-                KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. }
-                | KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE, .. } => {
-                    self.status = None;
-                    self.activate_selected_row();
-                    true
-                }
-                _ => false,
-            },
-            ViewMode::EditList { target, before } => match (key.code, key.modifiers) {
-                (KeyCode::Esc, _) => {
-                    match *target {
-                        ListTarget::Summary => self.summary_field.set_text(before.as_str()),
-                        ListTarget::References => self.references_field.set_text(before.as_str()),
-                        ListTarget::SkillRoots => self.skill_roots_field.set_text(before.as_str()),
-                    }
-                    mode_guard.disarm();
-                    true
-                }
-                (KeyCode::Char('p'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    self.open_shell_selection();
-                    mode_guard.disarm();
-                    true
-                }
-                (KeyCode::Char('s'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    self.stage_pending_profile_from_fields();
-                    self.dirty = true;
-                    self.status = Some("Changes staged. Select Apply to persist.".to_string());
-                    mode_guard.disarm();
-                    true
-                }
-                (KeyCode::Char('g'), mods)
-                    if mods.contains(KeyModifiers::CONTROL)
-                        && matches!(*target, ListTarget::Summary) =>
-                {
-                    self.request_summary_generation();
-                    true
-                }
-                (KeyCode::Char('o'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    if matches!(*target, ListTarget::References | ListTarget::SkillRoots) {
-                        self.editor_append_picker_path(*target);
-                        true
-                    } else {
-                        false
-                    }
-                }
-                (KeyCode::Char('v'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    if matches!(*target, ListTarget::References | ListTarget::SkillRoots) {
-                        self.editor_show_last_path(*target);
-                        true
-                    } else {
-                        false
-                    }
-                }
-                _ => self.editor_field_mut(*target).handle_key(key),
-            },
-            ViewMode::PickList(state) => match (key.code, key.modifiers) {
-                (KeyCode::Esc, _) => {
-                    mode_guard.disarm();
-                    true
-                }
-                (KeyCode::Char('s'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-                    self.save_picker(state);
-                    mode_guard.disarm();
-                    true
-                }
-                (KeyCode::Up, KeyModifiers::NONE) => {
-                    let visible = self.pick_viewport_rows.get().max(1);
-                    state.scroll.move_up_wrap_visible(state.items.len(), visible);
-                    true
-                }
-                (KeyCode::Down, KeyModifiers::NONE) => {
-                    let visible = self.pick_viewport_rows.get().max(1);
-                    state.scroll.move_down_wrap_visible(state.items.len(), visible);
-                    true
-                }
-                (KeyCode::Char(' '), KeyModifiers::NONE)
-                | (KeyCode::Enter, KeyModifiers::NONE) => {
-                    Self::toggle_picker_selection(state)
-                }
-                _ => false,
-            },
-        }
+        input::handle_key_event_direct(self, key)
     }
 
     pub(crate) fn framed(&self) -> ShellProfilesSettingsViewFramed<'_> {
@@ -335,33 +212,15 @@ impl ShellProfilesSettingsView {
     }
 
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {
-        if self.is_complete {
-            return false;
-        }
-
-        let target = match &self.mode {
-            ViewMode::Main => return false,
-            ViewMode::EditList { target, .. } => *target,
-            ViewMode::PickList(_) => return false,
-        };
-        self.editor_field_mut(target).handle_paste(text);
-        true
+        input::handle_paste_direct(self, text)
     }
 
     fn render_content_only(&self, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            ViewMode::Main => self.render_main_without_frame(area, buf),
-            ViewMode::EditList { target, .. } => self.render_editor_without_frame(area, buf, *target),
-            ViewMode::PickList(state) => self.render_picker_without_frame(area, buf, state),
-        }
+        render::render_in_chrome(self, ChromeMode::ContentOnly, area, buf);
     }
 
     fn render_framed(&self, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            ViewMode::Main => self.render_main(area, buf),
-            ViewMode::EditList { target, .. } => self.render_editor(area, buf, *target),
-            ViewMode::PickList(state) => self.render_picker(area, buf, state),
-        }
+        render::render_in_chrome(self, ChromeMode::Framed, area, buf);
     }
 
     fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -374,141 +233,7 @@ impl ShellProfilesSettingsView {
         area: Rect,
         chrome: ChromeMode,
     ) -> bool {
-        if self.is_complete {
-            return false;
-        }
-
-        let mut mode_guard = ModeGuard::replace(&mut self.mode, ViewMode::Main, |mode| {
-            matches!(mode, ViewMode::Main)
-        });
-        match mode_guard.mode_mut() {
-            ViewMode::Main => match chrome {
-                ChromeMode::Framed => self.handle_mouse_event_main(mouse_event, area),
-                ChromeMode::ContentOnly => self.handle_mouse_event_main_content(mouse_event, area),
-            },
-            ViewMode::EditList { target, before } => {
-                let layout = self.compute_editor_layout_in_chrome(area, *target, chrome);
-                let Some(layout) = layout else {
-                    return false;
-                };
-
-                let handled = match mouse_event.kind {
-                    MouseEventKind::Down(MouseButton::Left) => {
-                        if let Some(action) = self.editor_footer_action_at(
-                            *target,
-                            mouse_event.column,
-                            mouse_event.row,
-                            &layout,
-                        ) {
-                            match action {
-                                EditorFooterAction::Save => {
-                                    self.stage_pending_profile_from_fields();
-                                    self.dirty = true;
-                                    self.status =
-                                        Some("Changes staged. Select Apply to persist.".to_string());
-                                    mode_guard.disarm();
-                                    return true;
-                                }
-                                EditorFooterAction::Generate => {
-                                    self.request_summary_generation();
-                                    return true;
-                                }
-                                EditorFooterAction::Pick => {
-                                    self.editor_append_picker_path(*target);
-                                    return true;
-                                }
-                                EditorFooterAction::Show => {
-                                    self.editor_show_last_path(*target);
-                                    return true;
-                                }
-                                EditorFooterAction::Cancel => {
-                                    match *target {
-                                        ListTarget::Summary => {
-                                            self.summary_field.set_text(before.as_str());
-                                        }
-                                        ListTarget::References => {
-                                            self.references_field.set_text(before.as_str());
-                                        }
-                                        ListTarget::SkillRoots => {
-                                            self.skill_roots_field.set_text(before.as_str());
-                                        }
-                                    }
-                                    mode_guard.disarm();
-                                    return true;
-                                }
-                            }
-                        }
-
-                        if layout.page.body.contains(ratatui::layout::Position {
-                            x: mouse_event.column,
-                            y: mouse_event.row,
-                        }) {
-                            self.editor_field_mut(*target).handle_mouse_click(
-                                mouse_event.column,
-                                mouse_event.row,
-                                layout.sections[0].inner,
-                            )
-                        } else {
-                            false
-                        }
-                    }
-                    MouseEventKind::ScrollDown => {
-                        if layout.page.body.contains(ratatui::layout::Position {
-                            x: mouse_event.column,
-                            y: mouse_event.row,
-                        }) {
-                            self.editor_field_mut(*target).handle_mouse_scroll(true)
-                        } else {
-                            false
-                        }
-                    }
-                    MouseEventKind::ScrollUp => {
-                        if layout.page.body.contains(ratatui::layout::Position {
-                            x: mouse_event.column,
-                            y: mouse_event.row,
-                        }) {
-                            self.editor_field_mut(*target).handle_mouse_scroll(false)
-                        } else {
-                            false
-                        }
-                    }
-                    _ => false,
-                };
-                handled
-            }
-            ViewMode::PickList(state) => {
-                let total = state.items.len();
-                if total == 0 {
-                    return false;
-                }
-
-                let Some(layout) = self.compute_picker_layout_in_chrome(area, state, chrome) else {
-                    return false;
-                };
-                self.pick_viewport_rows
-                    .set((layout.body.height as usize).max(1));
-
-                let outcome = route_scroll_state_mouse_in_body(
-                    mouse_event,
-                    layout.body,
-                    &mut state.scroll,
-                    total,
-                    SelectableListMouseConfig {
-                        hover_select: false,
-                        require_pointer_hit_for_scroll: true,
-                        scroll_behavior: ScrollSelectionBehavior::Clamp,
-                        ..SelectableListMouseConfig::default()
-                    },
-                );
-
-                let mut changed = outcome.changed;
-                if matches!(outcome.result, SelectableListMouseResult::Activated) {
-                    changed |= Self::toggle_picker_selection(state);
-                }
-
-                changed
-            }
-        }
+        mouse::handle_mouse_event_direct_in_chrome(self, chrome, mouse_event, area)
     }
 
     fn handle_mouse_event_direct_framed(
@@ -521,83 +246,5 @@ impl ShellProfilesSettingsView {
 
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
-    }
-}
-
-impl crate::bottom_pane::chrome_view::ChromeRenderable for ShellProfilesSettingsView {
-    fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
-        self.render_framed(area, buf);
-    }
-
-    fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {
-        self.render_content_only(area, buf);
-    }
-}
-
-impl crate::bottom_pane::chrome_view::ChromeMouseHandler for ShellProfilesSettingsView {
-    fn handle_mouse_event_direct_in_framed_chrome(
-        &mut self,
-        mouse_event: MouseEvent,
-        area: Rect,
-    ) -> bool {
-        self.handle_mouse_event_direct_framed(mouse_event, area)
-    }
-
-    fn handle_mouse_event_direct_in_content_only_chrome(
-        &mut self,
-        mouse_event: MouseEvent,
-        area: Rect,
-    ) -> bool {
-        self.handle_mouse_event_direct_content_only(mouse_event, area)
-    }
-}
-
-impl<'a> BottomPaneView<'a> for ShellProfilesSettingsView {
-    fn handle_key_event(&mut self, pane: &mut BottomPane<'a>, key_event: KeyEvent) {
-        self.handle_key_event_with_result(pane, key_event);
-    }
-
-    fn handle_key_event_with_result(
-        &mut self,
-        _pane: &mut BottomPane<'a>,
-        key_event: KeyEvent,
-    ) -> ConditionalUpdate {
-        redraw_if(self.handle_key_event_direct(key_event))
-    }
-
-    fn handle_mouse_event(
-        &mut self,
-        _pane: &mut BottomPane<'a>,
-        mouse_event: MouseEvent,
-        area: Rect,
-    ) -> ConditionalUpdate {
-        redraw_if(
-            self.framed_mut()
-                .handle_mouse_event_direct(mouse_event, area),
-        )
-    }
-
-    fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
-        redraw_if(self.handle_paste_direct(text))
-    }
-
-    fn is_complete(&self) -> bool {
-        self.is_complete()
-    }
-
-    fn desired_height(&self, _width: u16) -> u16 {
-        14
-    }
-
-    fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.framed().render(area, buf);
-    }
-
-    fn as_any(&self) -> Option<&dyn Any> {
-        Some(self)
-    }
-
-    fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
-        Some(self)
     }
 }
