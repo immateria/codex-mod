@@ -1,5 +1,4 @@
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::Receiver;
 use std::thread;
 use std::time::{Duration, Instant};
 #[cfg(debug_assertions)]
@@ -33,16 +32,16 @@ use crate::slash_command::SlashCommand;
 use crate::thread_spawner;
 use crate::tui;
 
-
-use super::render::flatten_draw_result;
-use super::state::{
+use super::priority::is_image_clipboard_paste_shortcut;
+use super::shell_style_profile_summary::generate_shell_style_profile_summary;
+use super::super::render::flatten_draw_result;
+use super::super::state::{
     App,
     AppState,
     ChatWidgetArgs,
     LoginFlowState,
     ThemeSplitPreview,
     BACKPRESSURE_FORCED_DRAW_SKIPS,
-    HIGH_EVENT_BURST_MAX,
 };
 
 fn auth_credentials_store_mode_label(mode: AuthCredentialsStoreMode) -> &'static str {
@@ -55,66 +54,6 @@ fn auth_credentials_store_mode_label(mode: AuthCredentialsStoreMode) -> &'static
 }
 
 impl App<'_> {
-    fn handle_login_mode_change(&mut self, using_chatgpt_auth: bool) {
-        self.config.using_chatgpt_auth = using_chatgpt_auth;
-        if let AppState::Chat { widget } = &mut self.app_state {
-            widget.set_using_chatgpt_auth(using_chatgpt_auth);
-            let _ = widget.reload_auth();
-        }
-
-        self.spawn_remote_model_discovery();
-    }
-
-    fn spawn_remote_model_discovery(&self) {
-        if crate::chatwidget::is_test_mode() {
-            return;
-        }
-        let remote_tx = self.app_event_tx.clone();
-        let remote_auth_manager = self._server.auth_manager();
-        let remote_provider = self.config.model_provider.clone();
-        let remote_code_home = self.config.code_home.clone();
-        let remote_using_chatgpt_hint = self.config.using_chatgpt_auth;
-        tokio::spawn(async move {
-            let remote_manager = code_core::remote_models::RemoteModelsManager::new(
-                remote_auth_manager.clone(),
-                remote_provider,
-                remote_code_home,
-            );
-            remote_manager.refresh_remote_models().await;
-            let remote_models = remote_manager.remote_models_snapshot().await;
-            if remote_models.is_empty() {
-                return;
-            }
-
-            let auth_mode = remote_auth_manager
-                .auth()
-                .map(|auth| auth.mode)
-                .or({
-                    if remote_using_chatgpt_hint {
-                        Some(AuthMode::ChatGPT)
-                    } else {
-                        Some(AuthMode::ApiKey)
-                    }
-                });
-            let supports_pro_only_models = remote_auth_manager.supports_pro_only_models();
-            let presets = code_common::model_presets::builtin_model_presets(
-                auth_mode,
-                supports_pro_only_models,
-            );
-            let presets = crate::remote_model_presets::merge_remote_models(
-                remote_models,
-                presets,
-                auth_mode,
-                supports_pro_only_models,
-            );
-            let default_model = remote_manager.default_model_slug(auth_mode).await;
-            remote_tx.send(AppEvent::ModelPresetsUpdated {
-                presets,
-                default_model,
-            });
-        });
-    }
-
     pub(crate) fn run(&mut self, terminal: &mut tui::Tui) -> Result<()> {
         // Insert an event to trigger the first render.
         let app_event_tx = self.app_event_tx.clone();
@@ -1598,7 +1537,7 @@ impl App<'_> {
                             // Guard: do not run if a task is active.
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 const INIT_PROMPT: &str =
-                                    include_str!("../../prompt_for_init_command.md");
+                                    include_str!("../../../prompt_for_init_command.md");
                                 widget.submit_text_message(INIT_PROMPT.to_string());
                             }
                         }
@@ -3119,204 +3058,5 @@ impl App<'_> {
         }
 
         Ok(())
-    }
-
-    /// Pull the next event with priority for interactive input.
-    /// Never returns None due to idleness; only returns None if both channels disconnect.
-    fn next_event_priority(&mut self) -> Option<AppEvent> {
-        next_event_priority_impl(
-            &self.app_event_rx_high,
-            &self.app_event_rx_bulk,
-            &mut self.consecutive_high_events,
-        )
-    }
-
-}
-
-fn is_image_clipboard_paste_shortcut(key_event: &KeyEvent) -> bool {
-    if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
-        return false;
-    }
-
-    match key_event {
-        KeyEvent {
-            code: KeyCode::Char('v' | 'V'),
-            modifiers,
-            ..
-        } => {
-            modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
-                && modifiers.contains(crossterm::event::KeyModifiers::ALT)
-        }
-        _ => false,
-    }
-}
-
-fn next_event_priority_impl(
-    high_rx: &Receiver<AppEvent>,
-    bulk_rx: &Receiver<AppEvent>,
-    consecutive_high_events: &mut u32,
-) -> Option<AppEvent> {
-    use std::sync::mpsc::RecvTimeoutError::{Disconnected, Timeout};
-
-    loop {
-        if *consecutive_high_events >= HIGH_EVENT_BURST_MAX
-            && let Ok(ev) = bulk_rx.try_recv() {
-                *consecutive_high_events = 0;
-                return Some(ev);
-            }
-
-        if let Ok(ev) = high_rx.try_recv() {
-            *consecutive_high_events = consecutive_high_events.saturating_add(1);
-            return Some(ev);
-        }
-
-        *consecutive_high_events = 0;
-        if let Ok(ev) = bulk_rx.try_recv() {
-            return Some(ev);
-        }
-
-        match high_rx.recv_timeout(Duration::from_millis(10)) {
-            Ok(ev) => {
-                *consecutive_high_events = 1;
-                return Some(ev);
-            }
-            Err(Timeout) => continue,
-            Err(Disconnected) => break,
-        }
-    }
-
-    bulk_rx.recv().ok()
-}
-
-async fn generate_shell_style_profile_summary(
-    config: std::sync::Arc<code_core::config::Config>,
-    auth_manager: std::sync::Arc<code_core::AuthManager>,
-    style: code_core::config_types::ShellScriptStyle,
-    profile: code_core::config_types::ShellStyleProfileConfig,
-) -> anyhow::Result<String> {
-    use code_core::ResponseEvent;
-    use futures::StreamExt;
-    use std::sync::Mutex;
-
-    let debug_logger = std::sync::Arc::new(Mutex::new(code_core::debug_logger::DebugLogger::new(
-        false,
-    )?));
-    let session_id = uuid::Uuid::new_v4();
-
-    let client = code_core::ModelClient::new(code_core::ModelClientInit {
-        config: config.clone(),
-        auth_manager: Some(auth_manager),
-        otel_event_manager: None,
-        provider: config.model_provider.clone(),
-        effort: code_core::config_types::ReasoningEffort::Minimal,
-        summary: code_core::config_types::ReasoningSummary::None,
-        verbosity: code_core::config_types::TextVerbosity::Low,
-        session_id,
-        debug_logger,
-    });
-
-    let mut prompt = code_core::Prompt::default();
-    prompt.include_additional_instructions = false;
-    prompt.base_instructions_override = Some(
-        "You write concise, user-facing summaries for configuration profiles. Output 1-2 sentences. No markdown."
-            .to_string(),
-    );
-
-    let profile_json = serde_json::to_string_pretty(&profile).unwrap_or_else(|_| format!("{profile:?}"));
-    let input_text = format!(
-        "Write a short summary for this shell style profile.\nStyle: {style}\n\nProfile JSON:\n{profile_json}\n\nReturn only the summary text."
-    );
-    prompt.input.push(code_core::ResponseItem::Message {
-        id: None,
-        role: "user".to_string(),
-        content: vec![code_core::ContentItem::InputText { text: input_text }],
-        end_turn: None,
-        phase: None,
-    });
-    prompt.set_log_tag("shell-style-profile-summary");
-
-    let mut stream = client.stream(&prompt).await?;
-    let mut output = String::new();
-    while let Some(event) = stream.next().await {
-        match event? {
-            ResponseEvent::OutputTextDelta { delta, .. } => output.push_str(&delta),
-            ResponseEvent::Completed { .. } => break,
-            _ => {}
-        }
-    }
-
-    let summary = output.trim().replace(['\r', '\n'], " ");
-    if summary.is_empty() {
-        anyhow::bail!("empty summary generated");
-    }
-
-    Ok(summary)
-}
-
-#[cfg(test)]
-mod next_event_priority_tests {
-    use super::*;
-    use std::sync::mpsc::channel;
-
-    #[test]
-    fn next_event_priority_serves_bulk_amid_high_burst() {
-        let (high_tx, high_rx) = channel();
-        let (bulk_tx, bulk_rx) = channel();
-
-        for _ in 0..(HIGH_EVENT_BURST_MAX + 4) {
-            high_tx
-                .send(AppEvent::RequestRedraw)
-                .expect("send high event");
-        }
-
-        bulk_tx
-            .send(AppEvent::FlushPendingExecEnds)
-            .expect("send bulk event");
-
-        // Keep high non-empty beyond the burst window.
-        for _ in 0..4 {
-            high_tx
-                .send(AppEvent::RequestRedraw)
-                .expect("send high event");
-        }
-
-        let mut consecutive = 0;
-        let mut saw_bulk = false;
-        for _ in 0..(HIGH_EVENT_BURST_MAX + 2) {
-            let ev = next_event_priority_impl(&high_rx, &bulk_rx, &mut consecutive)
-                .expect("expected an event");
-            if matches!(ev, AppEvent::FlushPendingExecEnds) {
-                saw_bulk = true;
-                break;
-            }
-        }
-
-        assert!(
-            saw_bulk,
-            "bulk event should not be starved behind continuous high-priority events"
-        );
-    }
-
-    #[test]
-    fn image_clipboard_fallback_shortcut_is_ctrl_alt_v_only() {
-        assert!(is_image_clipboard_paste_shortcut(&KeyEvent::new(
-            KeyCode::Char('v'),
-            crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT,
-        )));
-
-        assert!(!is_image_clipboard_paste_shortcut(&KeyEvent::new(
-            KeyCode::Char('v'),
-            crossterm::event::KeyModifiers::CONTROL,
-        )));
-
-        assert!(!is_image_clipboard_paste_shortcut(&KeyEvent::new(
-            KeyCode::Char('v'),
-            crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::SHIFT,
-        )));
-
-        assert!(!is_image_clipboard_paste_shortcut(&KeyEvent::new(
-            KeyCode::Insert,
-            crossterm::event::KeyModifiers::SHIFT,
-        )));
     }
 }
