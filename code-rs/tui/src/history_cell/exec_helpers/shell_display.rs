@@ -1,4 +1,4 @@
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 
 pub(crate) fn normalize_shell_command_display(cmd: &str) -> String {
@@ -150,4 +150,3 @@ pub(crate) fn emphasize_shell_command_name(line: &mut Line<'static>) {
         line.spans = rebuilt;
     }
 }
-
