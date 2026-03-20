@@ -2,7 +2,7 @@
 
 This note summarizes the places where `ChatWidget` still mutates `history_cells`
 directly so we can migrate them onto the `HistoryState::apply_event` pipeline.
-Line numbers reference `code-rs/tui/src/chatwidget.rs` as of 2025-09-27.
+Line numbers reference `chatwidget.rs` as of 2025-09-27.
 
 ## Structural mutations
 
