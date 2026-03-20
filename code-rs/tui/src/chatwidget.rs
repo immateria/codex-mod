@@ -429,7 +429,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::task;
 use uuid::Uuid;
 
-include!("chatwidget/shared_defs.rs");
+include!("chatwidget/shared_defs/mod.rs");
 impl ChatWidget<'_> {
     const MAX_UNDO_CONVERSATION_MESSAGES: usize = 8;
     const MAX_UNDO_PREVIEW_CHARS: usize = 160;
