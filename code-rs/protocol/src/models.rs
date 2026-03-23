@@ -24,6 +24,7 @@ use code_utils_image::error::ImageProcessingError;
 use schemars::JsonSchema;
 
 use crate::mcp::CallToolResult;
+use code_utils_absolute_path::AbsolutePathBuf;
 
 /// Controls whether a command should use the session sandbox or bypass it.
 #[derive(
@@ -60,8 +61,8 @@ impl SandboxPermissions {
 
 #[derive(Debug, Clone, Default, Eq, Hash, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 pub struct FileSystemPermissions {
-    pub read: Option<Vec<PathBuf>>,
-    pub write: Option<Vec<PathBuf>>,
+    pub read: Option<Vec<AbsolutePathBuf>>,
+    pub write: Option<Vec<AbsolutePathBuf>>,
 }
 
 impl FileSystemPermissions {
@@ -126,6 +127,12 @@ impl<'de> Deserialize<'de> for MacOsAutomationValue {
 #[derive(Debug, Clone, Default, Eq, Hash, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 pub struct NetworkPermissions {
     pub enabled: Option<bool>,
+}
+
+impl NetworkPermissions {
+    pub fn is_empty(&self) -> bool {
+        self.enabled.is_none()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
