@@ -2784,18 +2784,18 @@ fn v2_approval_policy_to_core(policy: AskForApproval) -> code_core::protocol::As
         AskForApproval::UnlessTrusted => code_core::protocol::AskForApproval::UnlessTrusted,
         AskForApproval::OnFailure => code_core::protocol::AskForApproval::OnFailure,
         AskForApproval::OnRequest => code_core::protocol::AskForApproval::OnRequest,
-        AskForApproval::Reject {
+        AskForApproval::Granular {
             sandbox_approval,
             rules,
             skill_approval,
             request_permissions,
             mcp_elicitations,
         } => code_core::protocol::AskForApproval::Reject(code_core::protocol::RejectConfig {
-            sandbox_approval,
-            rules,
-            skill_approval,
-            request_permissions,
-            mcp_elicitations,
+            sandbox_approval: !sandbox_approval,
+            rules: !rules,
+            skill_approval: !skill_approval,
+            request_permissions: !request_permissions,
+            mcp_elicitations: !mcp_elicitations,
         }),
         AskForApproval::Never => code_core::protocol::AskForApproval::Never,
     }
@@ -2806,12 +2806,12 @@ fn core_approval_policy_to_v2(policy: code_core::protocol::AskForApproval) -> As
         code_core::protocol::AskForApproval::UnlessTrusted => AskForApproval::UnlessTrusted,
         code_core::protocol::AskForApproval::OnFailure => AskForApproval::OnFailure,
         code_core::protocol::AskForApproval::OnRequest => AskForApproval::OnRequest,
-        code_core::protocol::AskForApproval::Reject(reject_config) => AskForApproval::Reject {
-            sandbox_approval: reject_config.sandbox_approval,
-            rules: reject_config.rules,
-            skill_approval: reject_config.skill_approval,
-            request_permissions: reject_config.request_permissions,
-            mcp_elicitations: reject_config.mcp_elicitations,
+        code_core::protocol::AskForApproval::Reject(reject_config) => AskForApproval::Granular {
+            sandbox_approval: !reject_config.sandbox_approval,
+            rules: !reject_config.rules,
+            skill_approval: !reject_config.skill_approval,
+            request_permissions: !reject_config.request_permissions,
+            mcp_elicitations: !reject_config.mcp_elicitations,
         },
         code_core::protocol::AskForApproval::Never => AskForApproval::Never,
     }

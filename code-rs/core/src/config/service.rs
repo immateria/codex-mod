@@ -410,12 +410,12 @@ fn map_approval_policy_to_v2(policy: CoreAskForApproval) -> V2AskForApproval {
         CoreAskForApproval::UnlessTrusted => V2AskForApproval::UnlessTrusted,
         CoreAskForApproval::OnFailure => V2AskForApproval::OnFailure,
         CoreAskForApproval::OnRequest => V2AskForApproval::OnRequest,
-        CoreAskForApproval::Reject(reject_config) => V2AskForApproval::Reject {
-            sandbox_approval: reject_config.sandbox_approval,
-            rules: reject_config.rules,
-            skill_approval: reject_config.skill_approval,
-            request_permissions: reject_config.request_permissions,
-            mcp_elicitations: reject_config.mcp_elicitations,
+        CoreAskForApproval::Reject(reject_config) => V2AskForApproval::Granular {
+            sandbox_approval: !reject_config.sandbox_approval,
+            rules: !reject_config.rules,
+            skill_approval: !reject_config.skill_approval,
+            request_permissions: !reject_config.request_permissions,
+            mcp_elicitations: !reject_config.mcp_elicitations,
         },
         CoreAskForApproval::Never => V2AskForApproval::Never,
     }
@@ -431,6 +431,7 @@ fn v2_config_snapshot_from(config: &Config) -> V2Config {
         model_auto_compact_token_limit: config.model_auto_compact_token_limit,
         model_provider: Some(config.model_provider_id.clone()),
         approval_policy: Some(map_approval_policy_to_v2(config.approval_policy)),
+        approvals_reviewer: None,
         sandbox_mode: None,
         sandbox_workspace_write: None,
         forced_chatgpt_workspace_id: None,

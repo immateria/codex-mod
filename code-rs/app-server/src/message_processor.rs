@@ -1348,21 +1348,8 @@ impl MessageProcessor {
                 .and_then(|value| i64::try_from(value).ok()),
             model_auto_compact_token_limit: config.model_auto_compact_token_limit,
             model_provider: Some(config.model_provider_id.clone()),
-            approval_policy: Some(match config.approval_policy {
-                code_core::protocol::AskForApproval::UnlessTrusted => {
-                    V2AskForApproval::UnlessTrusted
-                }
-                code_core::protocol::AskForApproval::OnFailure => V2AskForApproval::OnFailure,
-                code_core::protocol::AskForApproval::OnRequest => V2AskForApproval::OnRequest,
-                code_core::protocol::AskForApproval::Reject(config) => V2AskForApproval::Reject {
-                    sandbox_approval: config.sandbox_approval,
-                    rules: config.rules,
-                    skill_approval: config.skill_approval,
-                    request_permissions: config.request_permissions,
-                    mcp_elicitations: config.mcp_elicitations,
-                },
-                code_core::protocol::AskForApproval::Never => V2AskForApproval::Never,
-            }),
+            approval_policy: Some(map_approval_policy_to_v2(config.approval_policy)),
+            approvals_reviewer: None,
             sandbox_mode: None,
             sandbox_workspace_write: None,
             forced_chatgpt_workspace_id: None,
@@ -1551,12 +1538,12 @@ fn map_approval_policy_to_v2(
         code_core::protocol::AskForApproval::UnlessTrusted => V2AskForApproval::UnlessTrusted,
         code_core::protocol::AskForApproval::OnFailure => V2AskForApproval::OnFailure,
         code_core::protocol::AskForApproval::OnRequest => V2AskForApproval::OnRequest,
-        code_core::protocol::AskForApproval::Reject(config) => V2AskForApproval::Reject {
-            sandbox_approval: config.sandbox_approval,
-            rules: config.rules,
-            skill_approval: config.skill_approval,
-            request_permissions: config.request_permissions,
-            mcp_elicitations: config.mcp_elicitations,
+        code_core::protocol::AskForApproval::Reject(config) => V2AskForApproval::Granular {
+            sandbox_approval: !config.sandbox_approval,
+            rules: !config.rules,
+            skill_approval: !config.skill_approval,
+            request_permissions: !config.request_permissions,
+            mcp_elicitations: !config.mcp_elicitations,
         },
         code_core::protocol::AskForApproval::Never => V2AskForApproval::Never,
     }
