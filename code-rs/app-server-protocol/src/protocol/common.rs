@@ -7,6 +7,7 @@ use crate::export::GeneratedSchema;
 use crate::export::write_json_schema;
 use crate::protocol::v1;
 use crate::protocol::v2;
+use code_experimental_api_macros::ExperimentalApi;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -52,15 +53,15 @@ impl AuthMode {
 
 macro_rules! experimental_reason_expr {
     // If a request variant is explicitly marked experimental, that reason wins.
-    (#[experimental($reason:expr)] $params:ident $(, $inspect_params:tt)?) => {
+    (variant $variant:ident, #[experimental($reason:expr)] $params:ident $(, $inspect_params:tt)?) => {
         Some($reason)
     };
     // `inspect_params: true` is used when a method is mostly stable but needs
     // field-level gating from its params type (for example, ThreadStart).
-    ($params:ident, true) => {
+    (variant $variant:ident, $params:ident, true) => {
         crate::experimental_api::ExperimentalApi::experimental_reason($params)
     };
-    ($params:ident $(, $inspect_params:tt)?) => {
+    (variant $variant:ident, $params:ident $(, $inspect_params:tt)?) => {
         None
     };
 }
@@ -118,12 +119,33 @@ macro_rules! client_request_definitions {
             )*
         }
 
+        impl ClientRequest {
+            pub fn id(&self) -> &RequestId {
+                match self {
+                    $(Self::$variant { request_id, .. } => request_id,)*
+                }
+            }
+
+            pub fn method(&self) -> String {
+                serde_json::to_value(self)
+                    .ok()
+                    .and_then(|value| {
+                        value
+                            .get("method")
+                            .and_then(serde_json::Value::as_str)
+                            .map(str::to_owned)
+                    })
+                    .unwrap_or_else(|| "<unknown>".to_string())
+            }
+        }
+
         impl crate::experimental_api::ExperimentalApi for ClientRequest {
             fn experimental_reason(&self) -> Option<&'static str> {
                 match self {
                     $(
                         Self::$variant { params: _params, .. } => {
                             experimental_reason_expr!(
+                                variant $variant,
                                 $(#[experimental($reason)])?
                                 _params
                                 $(, $inspect_params)?
@@ -159,24 +181,33 @@ macro_rules! client_request_definitions {
             Ok(())
         }
 
+        #[allow(dead_code)]
+        pub(crate) fn visit_client_response_types(v: &mut impl ::ts_rs::TypeVisitor) {
+            $(
+                v.visit::<$response>();
+            )*
+        }
+
+        #[allow(clippy::vec_init_then_push)]
         pub fn export_client_response_schemas(
             out_dir: &::std::path::Path,
         ) -> ::anyhow::Result<Vec<GeneratedSchema>> {
-            Ok(vec![
-                $(
-                    write_json_schema::<$response>(out_dir, stringify!($response))?,
-                )*
-            ])
+            let mut schemas = Vec::new();
+            $(
+                schemas.push(write_json_schema::<$response>(out_dir, stringify!($response))?);
+            )*
+            Ok(schemas)
         }
 
+        #[allow(clippy::vec_init_then_push)]
         pub fn export_client_param_schemas(
             out_dir: &::std::path::Path,
         ) -> ::anyhow::Result<Vec<GeneratedSchema>> {
-            Ok(vec![
-                $(
-                    write_json_schema::<$params>(out_dir, stringify!($params))?,
-                )*
-            ])
+            let mut schemas = Vec::new();
+            $(
+                schemas.push(write_json_schema::<$params>(out_dir, stringify!($params))?);
+            )*
+            Ok(schemas)
         }
     };
 }
@@ -209,9 +240,34 @@ client_request_definitions! {
         params: v2::ThreadArchiveParams,
         response: v2::ThreadArchiveResponse,
     },
+    ThreadUnsubscribe => "thread/unsubscribe" {
+        params: v2::ThreadUnsubscribeParams,
+        response: v2::ThreadUnsubscribeResponse,
+    },
+    #[experimental("thread/increment_elicitation")]
+    /// Increment the thread-local out-of-band elicitation counter.
+    ///
+    /// This is used by external helpers to pause timeout accounting while a user
+    /// approval or other elicitation is pending outside the app-server request flow.
+    ThreadIncrementElicitation => "thread/increment_elicitation" {
+        params: v2::ThreadIncrementElicitationParams,
+        response: v2::ThreadIncrementElicitationResponse,
+    },
+    #[experimental("thread/decrement_elicitation")]
+    /// Decrement the thread-local out-of-band elicitation counter.
+    ///
+    /// When the count reaches zero, timeout accounting resumes for the thread.
+    ThreadDecrementElicitation => "thread/decrement_elicitation" {
+        params: v2::ThreadDecrementElicitationParams,
+        response: v2::ThreadDecrementElicitationResponse,
+    },
     ThreadSetName => "thread/name/set" {
         params: v2::ThreadSetNameParams,
         response: v2::ThreadSetNameResponse,
+    },
+    ThreadMetadataUpdate => "thread/metadata/update" {
+        params: v2::ThreadMetadataUpdateParams,
+        response: v2::ThreadMetadataUpdateResponse,
     },
     ThreadUnarchive => "thread/unarchive" {
         params: v2::ThreadUnarchiveParams,
@@ -220,6 +276,10 @@ client_request_definitions! {
     ThreadCompactStart => "thread/compact/start" {
         params: v2::ThreadCompactStartParams,
         response: v2::ThreadCompactStartResponse,
+    },
+    ThreadShellCommand => "thread/shellCommand" {
+        params: v2::ThreadShellCommandParams,
+        response: v2::ThreadShellCommandResponse,
     },
     #[experimental("thread/backgroundTerminals/clean")]
     ThreadBackgroundTerminalsClean => "thread/backgroundTerminals/clean" {
@@ -246,21 +306,57 @@ client_request_definitions! {
         params: v2::SkillsListParams,
         response: v2::SkillsListResponse,
     },
-    SkillsRemoteRead => "skills/remote/read" {
-        params: v2::SkillsRemoteReadParams,
-        response: v2::SkillsRemoteReadResponse,
+    PluginList => "plugin/list" {
+        params: v2::PluginListParams,
+        response: v2::PluginListResponse,
     },
-    SkillsRemoteWrite => "skills/remote/write" {
-        params: v2::SkillsRemoteWriteParams,
-        response: v2::SkillsRemoteWriteResponse,
+    PluginRead => "plugin/read" {
+        params: v2::PluginReadParams,
+        response: v2::PluginReadResponse,
     },
     AppsList => "app/list" {
         params: v2::AppsListParams,
         response: v2::AppsListResponse,
     },
+    FsReadFile => "fs/readFile" {
+        params: v2::FsReadFileParams,
+        response: v2::FsReadFileResponse,
+    },
+    FsWriteFile => "fs/writeFile" {
+        params: v2::FsWriteFileParams,
+        response: v2::FsWriteFileResponse,
+    },
+    FsCreateDirectory => "fs/createDirectory" {
+        params: v2::FsCreateDirectoryParams,
+        response: v2::FsCreateDirectoryResponse,
+    },
+    FsGetMetadata => "fs/getMetadata" {
+        params: v2::FsGetMetadataParams,
+        response: v2::FsGetMetadataResponse,
+    },
+    FsReadDirectory => "fs/readDirectory" {
+        params: v2::FsReadDirectoryParams,
+        response: v2::FsReadDirectoryResponse,
+    },
+    FsRemove => "fs/remove" {
+        params: v2::FsRemoveParams,
+        response: v2::FsRemoveResponse,
+    },
+    FsCopy => "fs/copy" {
+        params: v2::FsCopyParams,
+        response: v2::FsCopyResponse,
+    },
     SkillsConfigWrite => "skills/config/write" {
         params: v2::SkillsConfigWriteParams,
         response: v2::SkillsConfigWriteResponse,
+    },
+    PluginInstall => "plugin/install" {
+        params: v2::PluginInstallParams,
+        response: v2::PluginInstallResponse,
+    },
+    PluginUninstall => "plugin/uninstall" {
+        params: v2::PluginUninstallParams,
+        response: v2::PluginUninstallResponse,
     },
     TurnStart => "turn/start" {
         params: v2::TurnStartParams,
@@ -274,6 +370,26 @@ client_request_definitions! {
     TurnInterrupt => "turn/interrupt" {
         params: v2::TurnInterruptParams,
         response: v2::TurnInterruptResponse,
+    },
+    #[experimental("thread/realtime/start")]
+    ThreadRealtimeStart => "thread/realtime/start" {
+        params: v2::ThreadRealtimeStartParams,
+        response: v2::ThreadRealtimeStartResponse,
+    },
+    #[experimental("thread/realtime/appendAudio")]
+    ThreadRealtimeAppendAudio => "thread/realtime/appendAudio" {
+        params: v2::ThreadRealtimeAppendAudioParams,
+        response: v2::ThreadRealtimeAppendAudioResponse,
+    },
+    #[experimental("thread/realtime/appendText")]
+    ThreadRealtimeAppendText => "thread/realtime/appendText" {
+        params: v2::ThreadRealtimeAppendTextParams,
+        response: v2::ThreadRealtimeAppendTextResponse,
+    },
+    #[experimental("thread/realtime/stop")]
+    ThreadRealtimeStop => "thread/realtime/stop" {
+        params: v2::ThreadRealtimeStopParams,
+        response: v2::ThreadRealtimeStopResponse,
     },
     ReviewStart => "review/start" {
         params: v2::ReviewStartParams,
@@ -347,7 +463,7 @@ client_request_definitions! {
         response: v2::FeedbackUploadResponse,
     },
 
-    /// Execute a command (argv vector) under the server's sandbox.
+    /// Execute a standalone command (argv vector) under the server's sandbox.
     OneOffCommandExec => "command/exec" {
         params: v2::CommandExecParams,
         response: v2::CommandExecResponse,
@@ -362,7 +478,7 @@ client_request_definitions! {
         params: v2::CommandExecTerminateParams,
         response: v2::CommandExecTerminateResponse,
     },
-    /// Resize a running PTY-backed `command/exec` session.
+    /// Resize a running PTY-backed `command/exec` session by client-supplied `processId`.
     CommandExecResize => "command/exec/resize" {
         params: v2::CommandExecResizeParams,
         response: v2::CommandExecResizeResponse,
@@ -400,94 +516,18 @@ client_request_definitions! {
     },
 
     /// DEPRECATED APIs below
-    NewConversation {
-        params: v1::NewConversationParams,
-        response: v1::NewConversationResponse,
-    },
     GetConversationSummary {
         params: v1::GetConversationSummaryParams,
         response: v1::GetConversationSummaryResponse,
-    },
-    /// List recorded Codex conversations (rollouts) with optional pagination and search.
-    ListConversations {
-        params: v1::ListConversationsParams,
-        response: v1::ListConversationsResponse,
-    },
-    /// Resume a recorded Codex conversation from a rollout file.
-    ResumeConversation {
-        params: v1::ResumeConversationParams,
-        response: v1::ResumeConversationResponse,
-    },
-    /// Fork a recorded Codex conversation into a new session.
-    ForkConversation {
-        params: v1::ForkConversationParams,
-        response: v1::ForkConversationResponse,
-    },
-    ArchiveConversation {
-        params: v1::ArchiveConversationParams,
-        response: v1::ArchiveConversationResponse,
-    },
-    SendUserMessage {
-        params: v1::SendUserMessageParams,
-        response: v1::SendUserMessageResponse,
-    },
-    SendUserTurn {
-        params: v1::SendUserTurnParams,
-        response: v1::SendUserTurnResponse,
-    },
-    InterruptConversation {
-        params: v1::InterruptConversationParams,
-        response: v1::InterruptConversationResponse,
-    },
-    AddConversationListener {
-        params: v1::AddConversationListenerParams,
-        response: v1::AddConversationSubscriptionResponse,
-    },
-    RemoveConversationListener {
-        params: v1::RemoveConversationListenerParams,
-        response: v1::RemoveConversationSubscriptionResponse,
     },
     GitDiffToRemote {
         params: v1::GitDiffToRemoteParams,
         response: v1::GitDiffToRemoteResponse,
     },
-    LoginApiKey {
-        params: v1::LoginApiKeyParams,
-        response: v1::LoginApiKeyResponse,
-    },
-    LoginChatGpt {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        response: v1::LoginChatGptResponse,
-    },
-    // DEPRECATED in favor of CancelLoginAccount
-    CancelLoginChatGpt {
-        params: v1::CancelLoginChatGptParams,
-        response: v1::CancelLoginChatGptResponse,
-    },
-    LogoutChatGpt {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        response: v1::LogoutChatGptResponse,
-    },
     /// DEPRECATED in favor of GetAccount
     GetAuthStatus {
         params: v1::GetAuthStatusParams,
         response: v1::GetAuthStatusResponse,
-    },
-    GetUserSavedConfig {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        response: v1::GetUserSavedConfigResponse,
-    },
-    SetDefaultModel {
-        params: v1::SetDefaultModelParams,
-        response: v1::SetDefaultModelResponse,
-    },
-    GetUserAgent {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        response: v1::GetUserAgentResponse,
-    },
-    UserInfo {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        response: v1::UserInfoResponse,
     },
     FuzzyFileSearch {
         params: FuzzyFileSearchParams,
@@ -508,11 +548,6 @@ client_request_definitions! {
         params: FuzzyFileSearchSessionStopParams,
         response: FuzzyFileSearchSessionStopResponse,
     },
-    /// Execute a command (argv vector) under the server's sandbox.
-    ExecOneOffCommand {
-        params: v1::ExecOneOffCommandParams,
-        response: v1::ExecOneOffCommandResponse,
-    },
 }
 
 /// Generates an `enum ServerRequest` where each variant is a request that the
@@ -531,6 +566,7 @@ macro_rules! server_request_definitions {
     ) => {
         /// Request initiated from the server and sent to the client.
         #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+        #[allow(clippy::large_enum_variant)]
         #[serde(tag = "method", rename_all = "camelCase")]
         pub enum ServerRequest {
             $(
@@ -544,7 +580,16 @@ macro_rules! server_request_definitions {
             )*
         }
 
+        impl ServerRequest {
+            pub fn id(&self) -> &RequestId {
+                match self {
+                    $(Self::$variant { request_id, .. } => request_id,)*
+                }
+            }
+        }
+
         #[derive(Debug, Clone, PartialEq, JsonSchema)]
+        #[allow(clippy::large_enum_variant)]
         pub enum ServerRequestPayload {
             $( $variant($params), )*
         }
@@ -566,30 +611,39 @@ macro_rules! server_request_definitions {
             Ok(())
         }
 
+        #[allow(dead_code)]
+        pub(crate) fn visit_server_response_types(v: &mut impl ::ts_rs::TypeVisitor) {
+            $(
+                v.visit::<$response>();
+            )*
+        }
+
+        #[allow(clippy::vec_init_then_push)]
         pub fn export_server_response_schemas(
             out_dir: &Path,
         ) -> ::anyhow::Result<Vec<GeneratedSchema>> {
-            Ok(vec![
-                $(
-                    crate::export::write_json_schema::<$response>(
-                        out_dir,
-                        concat!(stringify!($variant), "Response"),
-                    )?,
-                )*
-            ])
+            let mut schemas = Vec::new();
+            $(
+                schemas.push(crate::export::write_json_schema::<$response>(
+                    out_dir,
+                    concat!(stringify!($variant), "Response"),
+                )?);
+            )*
+            Ok(schemas)
         }
 
+        #[allow(clippy::vec_init_then_push)]
         pub fn export_server_param_schemas(
             out_dir: &Path,
         ) -> ::anyhow::Result<Vec<GeneratedSchema>> {
-            Ok(vec![
-                $(
-                    crate::export::write_json_schema::<$params>(
-                        out_dir,
-                        concat!(stringify!($variant), "Params"),
-                    )?,
-                )*
-            ])
+            let mut schemas = Vec::new();
+            $(
+                schemas.push(crate::export::write_json_schema::<$params>(
+                    out_dir,
+                    concat!(stringify!($variant), "Params"),
+                )?);
+            )*
+            Ok(schemas)
         }
     };
 }
@@ -604,7 +658,16 @@ macro_rules! server_notification_definitions {
         ),* $(,)?
     ) => {
         /// Notification sent from the server to the client.
-        #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, TS, Display)]
+        #[derive(
+            Serialize,
+            Deserialize,
+            Debug,
+            Clone,
+            JsonSchema,
+            TS,
+            Display,
+            ExperimentalApi,
+        )]
         #[serde(tag = "method", content = "params", rename_all = "camelCase")]
         #[strum(serialize_all = "camelCase")]
         pub enum ServerNotification {
@@ -631,14 +694,13 @@ macro_rules! server_notification_definitions {
             }
         }
 
+        #[allow(clippy::vec_init_then_push)]
         pub fn export_server_notification_schemas(
             out_dir: &::std::path::Path,
         ) -> ::anyhow::Result<Vec<GeneratedSchema>> {
-            Ok(vec![
-                $(
-                    crate::export::write_json_schema::<$payload>(out_dir, stringify!($payload))?,
-                )*
-            ])
+            let mut schemas = Vec::new();
+            $(schemas.push(crate::export::write_json_schema::<$payload>(out_dir, stringify!($payload))?);)*
+            Ok(schemas)
         }
     };
 }
@@ -700,6 +762,18 @@ server_request_definitions! {
         response: v2::ToolRequestUserInputResponse,
     },
 
+    /// Request input for an MCP server elicitation.
+    McpServerElicitationRequest => "mcpServer/elicitation/request" {
+        params: v2::McpServerElicitationRequestParams,
+        response: v2::McpServerElicitationRequestResponse,
+    },
+
+    /// Request approval for additional permissions from the user.
+    PermissionsRequestApproval => "item/permissions/requestApproval" {
+        params: v2::PermissionsRequestApprovalParams,
+        response: v2::PermissionsRequestApprovalResponse,
+    },
+
     /// Execute a dynamic tool call on the client.
     DynamicToolCall => "item/tool/call" {
         params: v2::DynamicToolCallParams,
@@ -741,9 +815,18 @@ pub struct FuzzyFileSearchParams {
 pub struct FuzzyFileSearchResult {
     pub root: String,
     pub path: String,
+    pub match_type: FuzzyFileSearchMatchType,
     pub file_name: String,
     pub score: u32,
     pub indices: Option<Vec<u32>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub enum FuzzyFileSearchMatchType {
+    File,
+    Directory,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -803,13 +886,22 @@ server_notification_definitions! {
     /// NEW NOTIFICATIONS
     Error => "error" (v2::ErrorNotification),
     ThreadStarted => "thread/started" (v2::ThreadStartedNotification),
+    ThreadStatusChanged => "thread/status/changed" (v2::ThreadStatusChangedNotification),
+    ThreadArchived => "thread/archived" (v2::ThreadArchivedNotification),
+    ThreadUnarchived => "thread/unarchived" (v2::ThreadUnarchivedNotification),
+    ThreadClosed => "thread/closed" (v2::ThreadClosedNotification),
+    SkillsChanged => "skills/changed" (v2::SkillsChangedNotification),
     ThreadNameUpdated => "thread/name/updated" (v2::ThreadNameUpdatedNotification),
     ThreadTokenUsageUpdated => "thread/tokenUsage/updated" (v2::ThreadTokenUsageUpdatedNotification),
     TurnStarted => "turn/started" (v2::TurnStartedNotification),
+    HookStarted => "hook/started" (v2::HookStartedNotification),
     TurnCompleted => "turn/completed" (v2::TurnCompletedNotification),
+    HookCompleted => "hook/completed" (v2::HookCompletedNotification),
     TurnDiffUpdated => "turn/diff/updated" (v2::TurnDiffUpdatedNotification),
     TurnPlanUpdated => "turn/plan/updated" (v2::TurnPlanUpdatedNotification),
     ItemStarted => "item/started" (v2::ItemStartedNotification),
+    ItemGuardianApprovalReviewStarted => "item/autoApprovalReview/started" (v2::ItemGuardianApprovalReviewStartedNotification),
+    ItemGuardianApprovalReviewCompleted => "item/autoApprovalReview/completed" (v2::ItemGuardianApprovalReviewCompletedNotification),
     ItemCompleted => "item/completed" (v2::ItemCompletedNotification),
     /// This event is internal-only. Used by Codex Cloud.
     RawResponseItemCompleted => "rawResponseItem/completed" (v2::RawResponseItemCompletedNotification),
@@ -821,9 +913,10 @@ server_notification_definitions! {
     CommandExecutionOutputDelta => "item/commandExecution/outputDelta" (v2::CommandExecutionOutputDeltaNotification),
     TerminalInteraction => "item/commandExecution/terminalInteraction" (v2::TerminalInteractionNotification),
     FileChangeOutputDelta => "item/fileChange/outputDelta" (v2::FileChangeOutputDeltaNotification),
+    ServerRequestResolved => "serverRequest/resolved" (v2::ServerRequestResolvedNotification),
     McpToolCallProgress => "item/mcpToolCall/progress" (v2::McpToolCallProgressNotification),
     McpServerOauthLoginCompleted => "mcpServer/oauthLogin/completed" (v2::McpServerOauthLoginCompletedNotification),
-    WindowsSandboxSetupCompleted => "windowsSandbox/setupCompleted" (v2::WindowsSandboxSetupCompletedNotification),
+    McpServerStatusUpdated => "mcpServer/startupStatus/updated" (v2::McpServerStatusUpdatedNotification),
     AccountUpdated => "account/updated" (v2::AccountUpdatedNotification),
     AccountRateLimitsUpdated => "account/rateLimits/updated" (v2::AccountRateLimitsUpdatedNotification),
     AppListUpdated => "app/list/updated" (v2::AppListUpdatedNotification),
@@ -832,25 +925,33 @@ server_notification_definitions! {
     ReasoningTextDelta => "item/reasoning/textDelta" (v2::ReasoningTextDeltaNotification),
     /// Deprecated: Use `ContextCompaction` item type instead.
     ContextCompacted => "thread/compacted" (v2::ContextCompactedNotification),
+    ModelRerouted => "model/rerouted" (v2::ModelReroutedNotification),
     DeprecationNotice => "deprecationNotice" (v2::DeprecationNoticeNotification),
     ConfigWarning => "configWarning" (v2::ConfigWarningNotification),
     FuzzyFileSearchSessionUpdated => "fuzzyFileSearch/sessionUpdated" (FuzzyFileSearchSessionUpdatedNotification),
     FuzzyFileSearchSessionCompleted => "fuzzyFileSearch/sessionCompleted" (FuzzyFileSearchSessionCompletedNotification),
+    #[experimental("thread/realtime/started")]
+    ThreadRealtimeStarted => "thread/realtime/started" (v2::ThreadRealtimeStartedNotification),
+    #[experimental("thread/realtime/itemAdded")]
+    ThreadRealtimeItemAdded => "thread/realtime/itemAdded" (v2::ThreadRealtimeItemAddedNotification),
+    #[experimental("thread/realtime/transcriptUpdated")]
+    ThreadRealtimeTranscriptUpdated => "thread/realtime/transcriptUpdated" (v2::ThreadRealtimeTranscriptUpdatedNotification),
+    #[experimental("thread/realtime/outputAudio/delta")]
+    ThreadRealtimeOutputAudioDelta => "thread/realtime/outputAudio/delta" (v2::ThreadRealtimeOutputAudioDeltaNotification),
+    #[experimental("thread/realtime/error")]
+    ThreadRealtimeError => "thread/realtime/error" (v2::ThreadRealtimeErrorNotification),
+    #[experimental("thread/realtime/closed")]
+    ThreadRealtimeClosed => "thread/realtime/closed" (v2::ThreadRealtimeClosedNotification),
 
     /// Notifies the user of world-writable directories on Windows, which cannot be protected by the sandbox.
     WindowsWorldWritableWarning => "windows/worldWritableWarning" (v2::WindowsWorldWritableWarningNotification),
+    WindowsSandboxSetupCompleted => "windowsSandbox/setupCompleted" (v2::WindowsSandboxSetupCompletedNotification),
 
     #[serde(rename = "account/login/completed")]
     #[ts(rename = "account/login/completed")]
     #[strum(serialize = "account/login/completed")]
     AccountLoginCompleted(v2::AccountLoginCompletedNotification),
 
-    /// DEPRECATED NOTIFICATIONS below
-    AuthStatusChange(v1::AuthStatusChangeNotification),
-
-    /// Deprecated: use `account/login/completed` instead.
-    LoginChatGptComplete(v1::LoginChatGptCompleteNotification),
-    SessionConfigured(v1::SessionConfiguredNotification),
 }
 
 client_notification_definitions! {
@@ -861,49 +962,133 @@ client_notification_definitions! {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use code_protocol::ThreadId;
-    use code_protocol::account::PlanType;
-    use code_protocol::parse_command::ParsedCommand;
-    use code_protocol::protocol::AskForApproval;
+    use codex_protocol::ThreadId;
+    use codex_protocol::account::PlanType;
+    use codex_protocol::parse_command::ParsedCommand;
+    use codex_protocol::protocol::RealtimeConversationVersion;
+    use codex_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
 
+    fn absolute_path_string(path: &str) -> String {
+        let trimmed = path.trim_start_matches('/');
+        if cfg!(windows) {
+            format!(r"C:\{}", trimmed.replace('/', "\\"))
+        } else {
+            format!("/{trimmed}")
+        }
+    }
+
+    fn absolute_path(path: &str) -> AbsolutePathBuf {
+        AbsolutePathBuf::from_absolute_path(absolute_path_string(path)).expect("absolute path")
+    }
+
     #[test]
-    fn serialize_new_conversation() -> Result<()> {
-        let request = ClientRequest::NewConversation {
+    fn serialize_get_conversation_summary() -> Result<()> {
+        let request = ClientRequest::GetConversationSummary {
             request_id: RequestId::Integer(42),
-            params: v1::NewConversationParams {
-                model: Some("gpt-5.1-codex-max".to_string()),
-                model_provider: None,
-                profile: None,
-                cwd: None,
-                approval_policy: Some(AskForApproval::OnRequest),
-                sandbox: None,
-                config: None,
-                base_instructions: None,
-                developer_instructions: None,
-                compact_prompt: None,
-                include_apply_patch_tool: None,
+            params: v1::GetConversationSummaryParams::ThreadId {
+                conversation_id: ThreadId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?,
             },
         };
         assert_eq!(
             json!({
-                "method": "newConversation",
+                "method": "getConversationSummary",
                 "id": 42,
                 "params": {
-                    "model": "gpt-5.1-codex-max",
-                    "modelProvider": null,
-                    "profile": null,
-                    "cwd": null,
-                    "approvalPolicy": "on-request",
-                    "sandbox": null,
-                    "config": null,
-                    "baseInstructions": null,
-                    "includeApplyPatchTool": null
+                    "conversationId": "67e55044-10b1-426f-9247-bb680e5fe0c8"
                 }
             }),
             serde_json::to_value(&request)?,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn serialize_initialize_with_opt_out_notification_methods() -> Result<()> {
+        let request = ClientRequest::Initialize {
+            request_id: RequestId::Integer(42),
+            params: v1::InitializeParams {
+                client_info: v1::ClientInfo {
+                    name: "codex_vscode".to_string(),
+                    title: Some("Codex VS Code Extension".to_string()),
+                    version: "0.1.0".to_string(),
+                },
+                capabilities: Some(v1::InitializeCapabilities {
+                    experimental_api: true,
+                    opt_out_notification_methods: Some(vec![
+                        "thread/started".to_string(),
+                        "item/agentMessage/delta".to_string(),
+                    ]),
+                }),
+            },
+        };
+
+        assert_eq!(
+            json!({
+                "method": "initialize",
+                "id": 42,
+                "params": {
+                    "clientInfo": {
+                        "name": "codex_vscode",
+                        "title": "Codex VS Code Extension",
+                        "version": "0.1.0"
+                    },
+                    "capabilities": {
+                        "experimentalApi": true,
+                        "optOutNotificationMethods": [
+                            "thread/started",
+                            "item/agentMessage/delta"
+                        ]
+                    }
+                }
+            }),
+            serde_json::to_value(&request)?,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn deserialize_initialize_with_opt_out_notification_methods() -> Result<()> {
+        let request: ClientRequest = serde_json::from_value(json!({
+            "method": "initialize",
+            "id": 42,
+            "params": {
+                "clientInfo": {
+                    "name": "codex_vscode",
+                    "title": "Codex VS Code Extension",
+                    "version": "0.1.0"
+                },
+                "capabilities": {
+                    "experimentalApi": true,
+                    "optOutNotificationMethods": [
+                        "thread/started",
+                        "item/agentMessage/delta"
+                    ]
+                }
+            }
+        }))?;
+
+        assert_eq!(
+            request,
+            ClientRequest::Initialize {
+                request_id: RequestId::Integer(42),
+                params: v1::InitializeParams {
+                    client_info: v1::ClientInfo {
+                        name: "codex_vscode".to_string(),
+                        title: Some("Codex VS Code Extension".to_string()),
+                        version: "0.1.0".to_string(),
+                    },
+                    capabilities: Some(v1::InitializeCapabilities {
+                        experimental_api: true,
+                        opt_out_notification_methods: Some(vec![
+                            "thread/started".to_string(),
+                            "item/agentMessage/delta".to_string(),
+                        ]),
+                    }),
+                },
+            }
         );
         Ok(())
     }
@@ -949,7 +1134,7 @@ mod tests {
         let params = v1::ExecCommandApprovalParams {
             conversation_id,
             call_id: "call-42".to_string(),
-            approval_id: None,
+            approval_id: Some("approval-42".to_string()),
             command: vec!["echo".to_string(), "hello".to_string()],
             cwd: PathBuf::from("/tmp"),
             reason: Some("because tests".to_string()),
@@ -969,6 +1154,7 @@ mod tests {
                 "params": {
                     "conversationId": "67e55044-10b1-426f-9247-bb680e5fe0c8",
                     "callId": "call-42",
+                    "approvalId": "approval-42",
                     "command": ["echo", "hello"],
                     "cwd": "/tmp",
                     "reason": "because tests",
@@ -984,6 +1170,7 @@ mod tests {
         );
 
         let payload = ServerRequestPayload::ExecCommandApproval(params);
+        assert_eq!(request.id(), &RequestId::Integer(7));
         assert_eq!(payload.request_with_id(RequestId::Integer(7)), request);
         Ok(())
     }
@@ -1012,11 +1199,70 @@ mod tests {
     }
 
     #[test]
+    fn serialize_mcp_server_elicitation_request() -> Result<()> {
+        let requested_schema: v2::McpElicitationSchema = serde_json::from_value(json!({
+            "type": "object",
+            "properties": {
+                "confirmed": {
+                    "type": "boolean"
+                }
+            },
+            "required": ["confirmed"]
+        }))?;
+        let params = v2::McpServerElicitationRequestParams {
+            thread_id: "thr_123".to_string(),
+            turn_id: Some("turn_123".to_string()),
+            server_name: "codex_apps".to_string(),
+            request: v2::McpServerElicitationRequest::Form {
+                meta: None,
+                message: "Allow this request?".to_string(),
+                requested_schema,
+            },
+        };
+        let request = ServerRequest::McpServerElicitationRequest {
+            request_id: RequestId::Integer(9),
+            params: params.clone(),
+        };
+
+        assert_eq!(
+            json!({
+                "method": "mcpServer/elicitation/request",
+                "id": 9,
+                "params": {
+                    "threadId": "thr_123",
+                    "turnId": "turn_123",
+                    "serverName": "codex_apps",
+                    "mode": "form",
+                    "_meta": null,
+                    "message": "Allow this request?",
+                    "requestedSchema": {
+                        "type": "object",
+                        "properties": {
+                            "confirmed": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["confirmed"]
+                    }
+                }
+            }),
+            serde_json::to_value(&request)?,
+        );
+
+        let payload = ServerRequestPayload::McpServerElicitationRequest(params);
+        assert_eq!(request.id(), &RequestId::Integer(9));
+        assert_eq!(payload.request_with_id(RequestId::Integer(9)), request);
+        Ok(())
+    }
+
+    #[test]
     fn serialize_get_account_rate_limits() -> Result<()> {
         let request = ClientRequest::GetAccountRateLimits {
             request_id: RequestId::Integer(1),
             params: None,
         };
+        assert_eq!(request.id(), &RequestId::Integer(1));
+        assert_eq!(request.method(), "account/rateLimits/read");
         assert_eq!(
             json!({
                 "method": "account/rateLimits/read",
@@ -1233,6 +1479,27 @@ mod tests {
     }
 
     #[test]
+    fn serialize_fs_get_metadata() -> Result<()> {
+        let request = ClientRequest::FsGetMetadata {
+            request_id: RequestId::Integer(9),
+            params: v2::FsGetMetadataParams {
+                path: absolute_path("tmp/example"),
+            },
+        };
+        assert_eq!(
+            json!({
+                "method": "fs/getMetadata",
+                "id": 9,
+                "params": {
+                    "path": absolute_path_string("tmp/example")
+                }
+            }),
+            serde_json::to_value(&request)?,
+        );
+        Ok(())
+    }
+
+    #[test]
     fn serialize_list_experimental_features() -> Result<()> {
         let request = ClientRequest::ExperimentalFeatureList {
             request_id: RequestId::Integer(8),
@@ -1274,6 +1541,86 @@ mod tests {
     }
 
     #[test]
+    fn serialize_thread_realtime_start() -> Result<()> {
+        let request = ClientRequest::ThreadRealtimeStart {
+            request_id: RequestId::Integer(9),
+            params: v2::ThreadRealtimeStartParams {
+                thread_id: "thr_123".to_string(),
+                prompt: "You are on a call".to_string(),
+                session_id: Some("sess_456".to_string()),
+            },
+        };
+        assert_eq!(
+            json!({
+                "method": "thread/realtime/start",
+                "id": 9,
+                "params": {
+                    "threadId": "thr_123",
+                    "prompt": "You are on a call",
+                    "sessionId": "sess_456"
+                }
+            }),
+            serde_json::to_value(&request)?,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn serialize_thread_status_changed_notification() -> Result<()> {
+        let notification =
+            ServerNotification::ThreadStatusChanged(v2::ThreadStatusChangedNotification {
+                thread_id: "thr_123".to_string(),
+                status: v2::ThreadStatus::Idle,
+            });
+        assert_eq!(
+            json!({
+                "method": "thread/status/changed",
+                "params": {
+                    "threadId": "thr_123",
+                    "status": {
+                        "type": "idle"
+                    },
+                }
+            }),
+            serde_json::to_value(&notification)?,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn serialize_thread_realtime_output_audio_delta_notification() -> Result<()> {
+        let notification = ServerNotification::ThreadRealtimeOutputAudioDelta(
+            v2::ThreadRealtimeOutputAudioDeltaNotification {
+                thread_id: "thr_123".to_string(),
+                audio: v2::ThreadRealtimeAudioChunk {
+                    data: "AQID".to_string(),
+                    sample_rate: 24_000,
+                    num_channels: 1,
+                    samples_per_channel: Some(512),
+                    item_id: None,
+                },
+            },
+        );
+        assert_eq!(
+            json!({
+                "method": "thread/realtime/outputAudio/delta",
+                "params": {
+                    "threadId": "thr_123",
+                    "audio": {
+                        "data": "AQID",
+                        "sampleRate": 24000,
+                        "numChannels": 1,
+                        "samplesPerChannel": 512,
+                        "itemId": null
+                    }
+                }
+            }),
+            serde_json::to_value(&notification)?,
+        );
+        Ok(())
+    }
+
+    #[test]
     fn mock_experimental_method_is_marked_experimental() {
         let request = ClientRequest::MockExperimentalMethod {
             request_id: RequestId::Integer(1),
@@ -1282,18 +1629,47 @@ mod tests {
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&request);
         assert_eq!(reason, Some("mock/experimentalMethod"));
     }
-
     #[test]
-    fn thread_start_mock_field_is_marked_experimental() {
-        let request = ClientRequest::ThreadStart {
+    fn thread_realtime_start_is_marked_experimental() {
+        let request = ClientRequest::ThreadRealtimeStart {
             request_id: RequestId::Integer(1),
-            params: v2::ThreadStartParams {
-                mock_experimental_field: Some("mock".to_string()),
-                ..Default::default()
+            params: v2::ThreadRealtimeStartParams {
+                thread_id: "thr_123".to_string(),
+                prompt: "You are on a call".to_string(),
+                session_id: None,
             },
         };
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&request);
-        assert_eq!(reason, Some("thread/start.mockExperimentalField"));
+        assert_eq!(reason, Some("thread/realtime/start"));
+    }
+    #[test]
+    fn thread_realtime_started_notification_is_marked_experimental() {
+        let notification =
+            ServerNotification::ThreadRealtimeStarted(v2::ThreadRealtimeStartedNotification {
+                thread_id: "thr_123".to_string(),
+                session_id: Some("sess_456".to_string()),
+                version: RealtimeConversationVersion::V1,
+            });
+        let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&notification);
+        assert_eq!(reason, Some("thread/realtime/started"));
+    }
+
+    #[test]
+    fn thread_realtime_output_audio_delta_notification_is_marked_experimental() {
+        let notification = ServerNotification::ThreadRealtimeOutputAudioDelta(
+            v2::ThreadRealtimeOutputAudioDeltaNotification {
+                thread_id: "thr_123".to_string(),
+                audio: v2::ThreadRealtimeAudioChunk {
+                    data: "AQID".to_string(),
+                    sample_rate: 24_000,
+                    num_channels: 1,
+                    samples_per_channel: Some(512),
+                    item_id: None,
+                },
+            },
+        );
+        let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&notification);
+        assert_eq!(reason, Some("thread/realtime/outputAudio/delta"));
     }
 
     #[test]
@@ -1311,18 +1687,47 @@ mod tests {
             additional_permissions: Some(v2::AdditionalPermissionProfile {
                 network: None,
                 file_system: Some(v2::AdditionalFileSystemPermissions {
-                    read: Some(vec![std::path::PathBuf::from("/tmp/allowed")]),
+                    read: Some(vec![absolute_path("/tmp/allowed")]),
                     write: None,
                 }),
                 macos: None,
             }),
+            skill_metadata: None,
             proposed_execpolicy_amendment: None,
+            proposed_network_policy_amendments: None,
+            available_decisions: None,
         };
-
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&params);
         assert_eq!(
             reason,
             Some("item/commandExecution/requestApproval.additionalPermissions")
+        );
+    }
+
+    #[test]
+    fn command_execution_request_approval_skill_metadata_is_marked_experimental() {
+        let params = v2::CommandExecutionRequestApprovalParams {
+            thread_id: "thr_123".to_string(),
+            turn_id: "turn_123".to_string(),
+            item_id: "call_123".to_string(),
+            approval_id: None,
+            reason: None,
+            network_approval_context: None,
+            command: Some("cat file".to_string()),
+            cwd: None,
+            command_actions: None,
+            additional_permissions: None,
+            skill_metadata: Some(v2::CommandExecutionRequestApprovalSkillMetadata {
+                path_to_skills_md: PathBuf::from("/tmp/SKILLS.md"),
+            }),
+            proposed_execpolicy_amendment: None,
+            proposed_network_policy_amendments: None,
+            available_decisions: None,
+        };
+        let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&params);
+        assert_eq!(
+            reason,
+            Some("item/commandExecution/requestApproval.skillMetadata")
         );
     }
 }

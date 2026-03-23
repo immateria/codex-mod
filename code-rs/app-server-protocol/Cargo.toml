@@ -20,8 +20,15 @@ code-utils-absolute-path = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+serde_with = { workspace = true }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
+rmcp = { workspace = true, default-features = false, features = [
+    "base64",
+    "macros",
+    "schemars",
+    "server",
+] }
 ts-rs = { workspace = true }
 inventory = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v7"] }
