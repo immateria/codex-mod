@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -13,24 +12,13 @@ use code_core::config::load_global_mcp_servers;
 use code_core::config::write_global_mcp_servers;
 use code_core::config_types::McpServerConfig;
 use code_core::config_types::McpServerTransportConfig;
-use code_core::mcp_connection_manager::McpConnectionManager;
-use code_core::mcp_snapshot::collect_runtime_snapshot;
-use code_core::mcp_snapshot::format_failure_summary;
-use code_core::mcp_snapshot::format_transport_summary;
-use code_core::mcp_snapshot::merge_servers;
-use code_core::mcp_snapshot::MergedMcpServer;
-use code_rmcp_client::delete_oauth_tokens;
-use code_rmcp_client::perform_oauth_login;
-use code_rmcp_client::supports_oauth_login;
 
 /// Subcommands:
+/// - `serve`  — run the MCP server on stdio
 /// - `list`   — list configured servers (with `--json`)
 /// - `get`    — show a single server (with `--json`)
-/// - `status` — list live server status, auth, and discovered tools
 /// - `add`    — add a server launcher entry to `~/.code/config.toml` (Code also reads legacy `~/.codex/config.toml`)
 /// - `remove` — delete a server entry
-/// - `login`  — authenticate with MCP server using OAuth
-/// - `logout` — remove OAuth credentials for MCP server
 #[derive(Debug, clap::Parser)]
 pub struct McpCli {
     #[clap(flatten)]
@@ -46,15 +34,9 @@ pub enum McpSubcommand {
 
     Get(GetArgs),
 
-    Status(StatusArgs),
-
     Add(AddArgs),
 
     Remove(RemoveArgs),
-
-    Login(LoginArgs),
-
-    Logout(LogoutArgs),
 }
 
 #[derive(Debug, clap::Parser)]
@@ -75,34 +57,25 @@ pub struct GetArgs {
 }
 
 #[derive(Debug, clap::Parser)]
-pub struct StatusArgs {
-    /// Output runtime MCP status as JSON.
-    #[arg(long)]
-    pub json: bool,
-}
-
-#[derive(Debug, clap::Parser)]
 pub struct AddArgs {
     /// Name for the MCP server configuration.
     pub name: String,
 
     /// URL of a remote MCP server.
+    ///
+    /// When `--bearer-token` is omitted, Code records the server as a stdio
+    /// launcher using `npx -y mcp-remote <url>` so the MCP server can handle
+    /// OAuth flows.
     #[arg(long)]
     pub url: Option<String>,
 
     /// Optional bearer token to use with `--url` for static authentication.
+    ///
+    /// When set, Code records the server as a `streamable_http` MCP server.
     #[arg(long)]
     pub bearer_token: Option<String>,
 
-    /// Optional environment variable to read for a bearer token.
-    ///
-    /// Only valid with `--url`.
-    #[arg(long = "bearer-token-env-var", value_name = "ENV_VAR")]
-    pub bearer_token_env_var: Option<String>,
-
     /// Environment variables to set when launching the server.
-    ///
-    /// Only valid with stdio servers.
     #[arg(long, value_parser = parse_env_pair, value_name = "KEY=VALUE")]
     pub env: Vec<(String, String)>,
 
@@ -114,22 +87,6 @@ pub struct AddArgs {
 #[derive(Debug, clap::Parser)]
 pub struct RemoveArgs {
     /// Name of the MCP server configuration to remove.
-    pub name: String,
-}
-
-#[derive(Debug, clap::Parser)]
-pub struct LoginArgs {
-    /// Name of the MCP server to authenticate with OAuth.
-    pub name: String,
-
-    /// Comma-separated list of OAuth scopes to request.
-    #[arg(long, value_delimiter = ',', value_name = "SCOPE,SCOPE")]
-    pub scopes: Vec<String>,
-}
-
-#[derive(Debug, clap::Parser)]
-pub struct LogoutArgs {
-    /// Name of the MCP server to deauthenticate.
     pub name: String,
 }
 
@@ -147,20 +104,11 @@ impl McpCli {
             McpSubcommand::Get(args) => {
                 run_get(&config_overrides, args)?;
             }
-            McpSubcommand::Status(args) => {
-                run_status(&config_overrides, args).await?;
-            }
             McpSubcommand::Add(args) => {
-                run_add(&config_overrides, args).await?;
+                run_add(&config_overrides, args)?;
             }
             McpSubcommand::Remove(args) => {
                 run_remove(&config_overrides, args)?;
-            }
-            McpSubcommand::Login(args) => {
-                run_login(&config_overrides, args).await?;
-            }
-            McpSubcommand::Logout(args) => {
-                run_logout(&config_overrides, args).await?;
             }
         }
 
@@ -171,7 +119,6 @@ impl McpCli {
 fn build_mcp_transport_for_add(
     url: Option<String>,
     bearer_token: Option<String>,
-    bearer_token_env_var: Option<String>,
     env: Option<HashMap<String, String>>,
     command: Vec<String>,
 ) -> Result<McpServerTransportConfig> {
@@ -179,24 +126,25 @@ fn build_mcp_transport_for_add(
         if !command.is_empty() {
             bail!("--url cannot be combined with a command");
         }
-        if env.is_some() {
-            bail!("--env is only supported for stdio servers");
+        if let Some(bearer_token) = bearer_token {
+            return Ok(McpServerTransportConfig::StreamableHttp {
+                url,
+                bearer_token: Some(bearer_token),
+                bearer_token_env_var: None,
+                http_headers: None,
+                env_http_headers: None,
+                oauth_resource: None,
+            });
         }
-        if bearer_token.is_some() && bearer_token_env_var.is_some() {
-            bail!("--bearer-token cannot be combined with --bearer-token-env-var");
-        }
-        return Ok(McpServerTransportConfig::StreamableHttp {
-            url,
-            bearer_token,
-            bearer_token_env_var,
-            http_headers: None,
-            env_http_headers: None,
-            oauth_resource: None,
+        return Ok(McpServerTransportConfig::Stdio {
+            command: "npx".to_string(),
+            args: vec!["-y".to_string(), "mcp-remote".to_string(), url],
+            env,
         });
     }
 
-    if bearer_token.is_some() || bearer_token_env_var.is_some() {
-        bail!("--bearer-token and --bearer-token-env-var require --url");
+    if bearer_token.is_some() {
+        bail!("--bearer-token requires --url");
     }
 
     let mut command_parts = command.into_iter();
@@ -211,17 +159,14 @@ fn build_mcp_transport_for_add(
     })
 }
 
-async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Result<()> {
+fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Result<()> {
     // Validate any provided overrides even though they are not currently applied.
-    let overrides = config_overrides.parse_overrides().map_err(|e| anyhow!(e))?;
-    let config = Config::load_with_cli_overrides(overrides, ConfigOverrides::default())
-        .context("failed to load configuration")?;
+    config_overrides.parse_overrides().map_err(|e| anyhow!(e))?;
 
     let AddArgs {
         name,
         url,
         bearer_token,
-        bearer_token_env_var,
         env,
         command,
     } = add_args;
@@ -238,19 +183,18 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
         Some(map)
     };
 
-    let code_home = config.code_home.clone();
+    let code_home = find_code_home().context("failed to resolve CODEX_HOME")?;
     let mut servers = load_global_mcp_servers(&code_home)
         .with_context(|| format!("failed to load MCP servers from {}", code_home.display()))?;
 
-    let transport =
-        build_mcp_transport_for_add(url, bearer_token, bearer_token_env_var, env_map, command)?;
+    let transport = build_mcp_transport_for_add(url, bearer_token, env_map, command)?;
 
     let new_entry = McpServerConfig {
-        transport: transport.clone(),
+        transport,
         startup_timeout_sec: None,
         tool_timeout_sec: None,
-        scheduling: code_core::config_types::McpServerSchedulingToml::default(),
-        tool_scheduling: std::collections::BTreeMap::new(),
+        scheduling: Default::default(),
+        tool_scheduling: Default::default(),
         disabled_tools: Vec::new(),
     };
 
@@ -261,42 +205,61 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
 
     println!("Added global MCP server '{name}'.");
 
-    if let McpServerTransportConfig::StreamableHttp {
-        url,
-        bearer_token,
-        bearer_token_env_var,
-        http_headers,
-        env_http_headers,
-        oauth_resource: _,
-    } = &transport
-        && bearer_token.is_none()
-        && bearer_token_env_var.is_none()
-    {
-        match supports_oauth_login(url).await {
-            Ok(true) => {
-                println!("Detected OAuth support. Starting OAuth flow…");
-                perform_oauth_login(code_rmcp_client::OauthLoginArgs {
-                    code_home: &code_home,
-                    server_name: &name,
-                    server_url: url,
-                    store_mode: config.mcp_oauth_credentials_store_mode,
-                    http_headers: http_headers.clone(),
-                    env_http_headers: env_http_headers.clone(),
-                    scopes: &[],
-                    timeout_secs: None,
-                    callback_port: config.mcp_oauth_callback_port,
-                })
-                .await?;
-                println!("Successfully logged in.");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_with_url_defaults_to_mcp_remote() {
+        let transport = build_mcp_transport_for_add(
+            Some("https://mcp.example.com/mcp".to_string()),
+            None,
+            None,
+            Vec::new(),
+        )
+        .expect("transport");
+
+        match transport {
+            McpServerTransportConfig::Stdio { command, args, env } => {
+                assert_eq!(command, "npx");
+                assert_eq!(args[0], "-y");
+                assert_eq!(args[1], "mcp-remote");
+                assert_eq!(args[2], "https://mcp.example.com/mcp");
+                assert!(env.is_none());
             }
-            Ok(false) => {}
-            Err(_) => println!(
-                "MCP server may or may not require login. Run `codex mcp login {name}` to login."
-            ),
+            _ => panic!("expected stdio transport"),
         }
     }
 
-    Ok(())
+    #[test]
+    fn add_with_url_and_bearer_token_uses_streamable_http() {
+        let transport = build_mcp_transport_for_add(
+            Some("https://mcp.example.com/mcp".to_string()),
+            Some("token".to_string()),
+            None,
+            Vec::new(),
+        )
+        .expect("transport");
+
+        match transport {
+            McpServerTransportConfig::StreamableHttp {
+                url,
+                bearer_token,
+                bearer_token_env_var: _,
+                http_headers: _,
+                env_http_headers: _,
+                oauth_resource,
+            } => {
+                assert_eq!(url, "https://mcp.example.com/mcp");
+                assert_eq!(bearer_token.as_deref(), Some("token"));
+                assert_eq!(oauth_resource, None);
+            }
+            _ => panic!("expected streamable http transport"),
+        }
+    }
 }
 
 fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveArgs) -> Result<()> {
@@ -324,197 +287,6 @@ fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveArgs) ->
     }
 
     Ok(())
-}
-
-async fn run_login(config_overrides: &CliConfigOverrides, login_args: LoginArgs) -> Result<()> {
-    let overrides = config_overrides.parse_overrides().map_err(|e| anyhow!(e))?;
-    let config = Config::load_with_cli_overrides(overrides, ConfigOverrides::default())
-        .context("failed to load configuration")?;
-
-    let LoginArgs { name, scopes } = login_args;
-
-    let Some(server) = config.mcp_servers.get(&name) else {
-        bail!("No MCP server named '{name}' found.");
-    };
-
-    let (url, bearer_token, bearer_token_env_var, http_headers, env_http_headers) =
-        match &server.transport {
-            McpServerTransportConfig::StreamableHttp {
-                url,
-                bearer_token,
-                bearer_token_env_var,
-                http_headers,
-                env_http_headers,
-                oauth_resource: _,
-            } => (
-                url.clone(),
-                bearer_token.as_deref(),
-                bearer_token_env_var.as_deref(),
-                http_headers.clone(),
-                env_http_headers.clone(),
-            ),
-            _ => bail!("OAuth login is only supported for streamable HTTP servers."),
-        };
-
-    if bearer_token.is_some() || bearer_token_env_var.is_some() {
-        bail!(
-            "OAuth login is not supported when a bearer token is configured. Remove bearer_token/bearer_token_env_var from the server config first."
-        );
-    }
-
-    perform_oauth_login(code_rmcp_client::OauthLoginArgs {
-        code_home: &config.code_home,
-        server_name: &name,
-        server_url: &url,
-        store_mode: config.mcp_oauth_credentials_store_mode,
-        http_headers,
-        env_http_headers,
-        scopes: &scopes,
-        timeout_secs: None,
-        callback_port: config.mcp_oauth_callback_port,
-    })
-    .await?;
-
-    println!("Successfully logged in to MCP server '{name}'.");
-    Ok(())
-}
-
-async fn run_logout(config_overrides: &CliConfigOverrides, logout_args: LogoutArgs) -> Result<()> {
-    let overrides = config_overrides.parse_overrides().map_err(|e| anyhow!(e))?;
-    let config = Config::load_with_cli_overrides(overrides, ConfigOverrides::default())
-        .context("failed to load configuration")?;
-
-    let LogoutArgs { name } = logout_args;
-
-    let server = config.mcp_servers.get(&name).ok_or_else(|| {
-        anyhow!("No MCP server named '{name}' found in configuration.")
-    })?;
-
-    let url = match &server.transport {
-        McpServerTransportConfig::StreamableHttp { url, .. } => url.clone(),
-        _ => bail!("OAuth logout is only supported for streamable_http transports."),
-    };
-
-    match delete_oauth_tokens(
-        &config.code_home,
-        &name,
-        &url,
-        config.mcp_oauth_credentials_store_mode,
-    ) {
-        Ok(true) => println!("Removed OAuth credentials for '{name}'."),
-        Ok(false) => println!("No OAuth credentials stored for '{name}'."),
-        Err(err) => return Err(anyhow!("failed to delete OAuth credentials: {err}")),
-    }
-
-    Ok(())
-}
-
-async fn run_status(config_overrides: &CliConfigOverrides, status_args: StatusArgs) -> Result<()> {
-    let overrides = config_overrides.parse_overrides().map_err(|e| anyhow!(e))?;
-    let config = Config::load_with_cli_overrides(overrides, ConfigOverrides::default())
-        .context("failed to load configuration")?;
-
-    let (enabled_servers, _disabled_servers) = code_core::config::list_mcp_servers(&config.code_home)
-        .with_context(|| format!("failed to load MCP servers from {}", config.code_home.display()))?;
-
-    let excluded_tools: HashSet<(String, String)> = enabled_servers
-        .iter()
-        .flat_map(|(server_name, cfg)| {
-            let server_name = server_name.clone();
-            cfg.disabled_tools
-                .iter()
-                .cloned()
-                .map(move |tool_name| (server_name.clone(), tool_name))
-        })
-        .collect();
-    let enabled_server_map: HashMap<String, McpServerConfig> = enabled_servers.iter().cloned().collect();
-
-    let (manager, startup_errors) = McpConnectionManager::new(
-        config.code_home.clone(),
-        config.mcp_oauth_credentials_store_mode,
-        enabled_server_map,
-        excluded_tools,
-    )
-    .await
-    .context("failed to initialize MCP connection manager")?;
-
-    let mut runtime_snapshot = collect_runtime_snapshot(&manager).await;
-    for (server_name, failure) in startup_errors {
-        runtime_snapshot.failures.entry(server_name).or_insert(failure);
-    }
-
-    let merged_servers = merge_servers(&config.code_home, &runtime_snapshot)
-        .with_context(|| format!("failed to merge MCP status for {}", config.code_home.display()));
-    manager.shutdown_all().await;
-    let merged_servers = merged_servers?;
-
-    if status_args.json {
-        println!("{}", serde_json::to_string_pretty(&status_rows_json(&merged_servers))?);
-        return Ok(());
-    }
-
-    if merged_servers.is_empty() {
-        println!("No MCP servers configured yet. Try `codex mcp add my-tool -- my-command`.");
-        return Ok(());
-    }
-
-    print_status_rows(&merged_servers);
-
-    Ok(())
-}
-
-fn status_rows_json(servers: &[MergedMcpServer]) -> Vec<serde_json::Value> {
-    servers
-        .iter()
-        .map(|server| {
-            serde_json::json!({
-                "name": &server.name,
-                "enabled": server.enabled,
-                "transport": format_transport_summary(&server.config),
-                "startup_timeout_sec": server.config.startup_timeout_sec.map(|value| value.as_secs_f64()),
-                "tool_timeout_sec": server.config.tool_timeout_sec.map(|value| value.as_secs_f64()),
-                "auth_status": server.auth_status,
-                "tools": &server.tools,
-                "disabled_tools": &server.disabled_tools,
-                "failure": server.failure.as_ref().map(format_failure_summary),
-            })
-        })
-        .collect()
-}
-
-fn print_status_rows(servers: &[MergedMcpServer]) {
-    for (index, server) in servers.iter().enumerate() {
-        let enabled = if server.enabled { "on" } else { "off" };
-        println!("{} [{enabled}]", server.name);
-        println!("  transport: {}", format_transport_summary(&server.config));
-        if let Some(timeout) = server.config.startup_timeout_sec {
-            println!("  startup_timeout_sec: {:.3}", timeout.as_secs_f64());
-        }
-        if let Some(timeout) = server.config.tool_timeout_sec {
-            println!("  tool_timeout_sec: {:.3}", timeout.as_secs_f64());
-        }
-        println!("  auth: {}", server.auth_status);
-        if server.tools.is_empty() {
-            println!("  tools: -");
-        } else {
-            println!("  tools ({}): {}", server.tools.len(), server.tools.join(", "));
-        }
-        if server.disabled_tools.is_empty() {
-            println!("  disabled_tools: -");
-        } else {
-            println!(
-                "  disabled_tools ({}): {}",
-                server.disabled_tools.len(),
-                server.disabled_tools.join(", ")
-            );
-        }
-        if let Some(failure) = server.failure.as_ref() {
-            println!("  failure: {}", format_failure_summary(failure));
-        }
-        if index + 1 < servers.len() {
-            println!();
-        }
-    }
 }
 
 fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) -> Result<()> {
@@ -604,14 +376,16 @@ fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) -> Resul
                 url,
                 bearer_token,
                 bearer_token_env_var,
+                http_headers,
+                env_http_headers,
                 oauth_resource: _,
-                ..
             } => {
                 let has_bearer = if bearer_token.is_some() || bearer_token_env_var.is_some() {
                     "True"
                 } else {
                     "False"
                 };
+                let _ = (http_headers, env_http_headers);
                 http_rows.push([name.clone(), url.clone(), has_bearer.into()]);
             }
         }
@@ -773,21 +547,18 @@ fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Result<(
             let token_display = bearer_token
                 .as_ref()
                 .map(|_| "<redacted>".to_string())
+                .or_else(|| bearer_token_env_var.as_ref().map(|value| format!("env:{value}")))
                 .unwrap_or_else(|| "-".to_string());
             println!("  bearer_token: {token_display}");
-            let env_var_display = bearer_token_env_var.as_deref().unwrap_or("-");
-            println!("  bearer_token_env_var: {env_var_display}");
-            let headers_display = http_headers
-                .as_ref()
-                .map(|headers| format!("{} header(s)", headers.len()))
+            if let Some(headers) = http_headers {
+                println!("  http_headers: {}", serde_json::to_string(headers)?);
+            }
+            if let Some(headers) = env_http_headers {
+                println!("  env_http_headers: {}", serde_json::to_string(headers)?);
+            }
+            let resource_display = oauth_resource
+                .clone()
                 .unwrap_or_else(|| "-".to_string());
-            println!("  http_headers: {headers_display}");
-            let env_headers_display = env_http_headers
-                .as_ref()
-                .map(|headers| format!("{} header(s)", headers.len()))
-                .unwrap_or_else(|| "-".to_string());
-            println!("  env_http_headers: {env_headers_display}");
-            let resource_display = oauth_resource.as_deref().unwrap_or("-");
             println!("  oauth_resource: {resource_display}");
         }
     }
@@ -827,154 +598,5 @@ fn validate_server_name(name: &str) -> Result<()> {
         Ok(())
     } else {
         bail!("invalid server name '{name}' (use letters, numbers, '-', '_')");
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use clap::Parser;
-    use code_core::protocol::McpAuthStatus;
-    use code_core::protocol::McpServerFailure;
-    use code_core::protocol::McpServerFailurePhase;
-    use std::time::Duration;
-
-    #[test]
-    fn add_with_url_defaults_to_streamable_http() {
-        let transport = build_mcp_transport_for_add(
-            Some("https://mcp.example.com/mcp".to_string()),
-            None,
-            None,
-            None,
-            Vec::new(),
-        )
-        .expect("transport");
-
-        match transport {
-            McpServerTransportConfig::StreamableHttp {
-                url,
-                bearer_token,
-                bearer_token_env_var,
-                oauth_resource,
-                ..
-            } => {
-                assert_eq!(url, "https://mcp.example.com/mcp");
-                assert!(bearer_token.is_none());
-                assert!(bearer_token_env_var.is_none());
-                assert!(oauth_resource.is_none());
-            }
-            _ => panic!("expected streamable http transport"),
-        }
-    }
-
-    #[test]
-    fn add_with_url_and_bearer_token_uses_streamable_http() {
-        let transport = build_mcp_transport_for_add(
-            Some("https://mcp.example.com/mcp".to_string()),
-            Some("token".to_string()),
-            None,
-            None,
-            Vec::new(),
-        )
-        .expect("transport");
-
-        match transport {
-            McpServerTransportConfig::StreamableHttp { url, bearer_token, .. } => {
-                assert_eq!(url, "https://mcp.example.com/mcp");
-                assert_eq!(bearer_token.as_deref(), Some("token"));
-            }
-            _ => panic!("expected streamable http transport"),
-        }
-    }
-
-    #[test]
-    fn add_with_url_and_bearer_token_env_var_uses_streamable_http() {
-        let transport = build_mcp_transport_for_add(
-            Some("https://mcp.example.com/mcp".to_string()),
-            None,
-            Some("MCP_BEARER_TOKEN".to_string()),
-            None,
-            Vec::new(),
-        )
-        .expect("transport");
-
-        match transport {
-            McpServerTransportConfig::StreamableHttp {
-                url,
-                bearer_token,
-                bearer_token_env_var,
-                ..
-            } => {
-                assert_eq!(url, "https://mcp.example.com/mcp");
-                assert!(bearer_token.is_none());
-                assert_eq!(bearer_token_env_var.as_deref(), Some("MCP_BEARER_TOKEN"));
-            }
-            _ => panic!("expected streamable http transport"),
-        }
-    }
-
-    #[test]
-    fn clap_parses_status_subcommand() {
-        let parsed = McpCli::parse_from(["codex", "mcp", "status"]);
-        match parsed.subcommand {
-            McpSubcommand::Status(args) => assert!(!args.json),
-            _ => panic!("expected status subcommand"),
-        }
-    }
-
-    #[test]
-    fn clap_parses_status_json_flag() {
-        let parsed = McpCli::parse_from(["codex", "mcp", "status", "--json"]);
-        match parsed.subcommand {
-            McpSubcommand::Status(args) => assert!(args.json),
-            _ => panic!("expected status subcommand"),
-        }
-    }
-
-    #[test]
-    fn status_rows_json_includes_failure_and_auth() {
-        let server = MergedMcpServer {
-            name: "brave_search".to_string(),
-            enabled: true,
-            config: McpServerConfig {
-                transport: McpServerTransportConfig::StreamableHttp {
-                    url: "https://example.test/mcp".to_string(),
-                    bearer_token: None,
-                    bearer_token_env_var: None,
-                    http_headers: None,
-                    env_http_headers: None,
-                    oauth_resource: None,
-                },
-                startup_timeout_sec: Some(Duration::from_secs(15)),
-                tool_timeout_sec: Some(Duration::from_secs(5)),
-                disabled_tools: vec!["brave_news_search".to_string()],
-                scheduling: code_core::config_types::McpServerSchedulingToml::default(),
-                tool_scheduling: std::collections::BTreeMap::new(),
-            },
-            tools: vec!["brave_web_search".to_string()],
-            disabled_tools: vec!["brave_news_search".to_string()],
-            auth_status: McpAuthStatus::OAuth,
-            failure: Some(McpServerFailure {
-                phase: McpServerFailurePhase::ListTools,
-                message: "timed out".to_string(),
-            }),
-        };
-
-        let rows = status_rows_json(&[server]);
-        assert_eq!(rows.len(), 1);
-
-        let row = &rows[0];
-        assert_eq!(row["name"], "brave_search");
-        assert!(row["enabled"].as_bool().unwrap_or(false));
-        assert_eq!(row["transport"], "HTTP https://example.test/mcp");
-        assert_eq!(row["startup_timeout_sec"], 15.0);
-        assert_eq!(row["tool_timeout_sec"], 5.0);
-        assert_eq!(row["auth_status"], "oauth");
-        assert_eq!(row["tools"], serde_json::json!(["brave_web_search"]));
-        assert_eq!(
-            row["disabled_tools"],
-            serde_json::json!(["brave_news_search"])
-        );
-        assert_eq!(row["failure"], "Failed to list tools: timed out");
     }
 }

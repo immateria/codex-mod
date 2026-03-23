@@ -408,6 +408,12 @@ pub struct RejectConfig {
     pub sandbox_approval: bool,
     /// Reject prompts triggered by execpolicy `prompt` rules.
     pub rules: bool,
+    /// Reject approval prompts triggered by skill script execution.
+    #[serde(default)]
+    pub skill_approval: bool,
+    /// Reject approval prompts related to built-in permission requests.
+    #[serde(default)]
+    pub request_permissions: bool,
     /// Reject MCP elicitation prompts.
     pub mcp_elicitations: bool,
 }
@@ -419,6 +425,14 @@ impl RejectConfig {
 
     pub const fn rejects_rules_approval(self) -> bool {
         self.rules
+    }
+
+    pub const fn rejects_skill_approval(self) -> bool {
+        self.skill_approval
+    }
+
+    pub const fn rejects_request_permissions(self) -> bool {
+        self.request_permissions
     }
 
     pub const fn rejects_mcp_elicitations(self) -> bool {

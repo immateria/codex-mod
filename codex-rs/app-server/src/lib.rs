@@ -39,6 +39,7 @@ use codex_core::check_execpolicy_for_warnings;
 use codex_core::config_loader::ConfigLoadError;
 use codex_core::config_loader::TextRange as CoreTextRange;
 use codex_feedback::CodexFeedback;
+use codex_protocol::protocol::SessionSource;
 use codex_state::log_db;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -64,7 +65,9 @@ mod dynamic_tools;
 mod error_code;
 mod external_agent_config_api;
 mod filters;
+mod fs_api;
 mod fuzzy_file_search;
+pub mod in_process;
 mod message_processor;
 mod models;
 mod outgoing_message;
@@ -101,6 +104,8 @@ enum OutboundControlEvent {
     Opened {
         connection_id: ConnectionId,
         writer: mpsc::Sender<crate::outgoing_message::OutgoingMessage>,
+        // Allow codex/event/* notifications to be emitted.
+        allow_legacy_notifications: bool,
         disconnect_sender: Option<CancellationToken>,
         initialized: Arc<AtomicBool>,
         experimental_api_enabled: Arc<AtomicBool>,
@@ -261,10 +266,10 @@ fn app_text_range(range: &CoreTextRange) -> AppTextRange {
 fn project_config_warning(config: &Config) -> Option<ConfigWarningNotification> {
     let mut disabled_folders = Vec::new();
 
-    for layer in config
-        .config_layer_stack
-        .get_layers(ConfigLayerStackOrdering::LowestPrecedenceFirst, true)
-    {
+    for layer in config.config_layer_stack.get_layers(
+        ConfigLayerStackOrdering::LowestPrecedenceFirst,
+        /*include_disabled*/ true,
+    ) {
         if !matches!(layer.name, ConfigLayerSource::Project { .. })
             || layer.disabled_reason.is_none()
         {
@@ -331,6 +336,7 @@ pub async fn run_main(
         loader_overrides,
         default_analytics_enabled,
         AppServerTransport::Stdio,
+        SessionSource::VSCode,
     )
     .await
 }
@@ -341,6 +347,7 @@ pub async fn run_main_with_transport(
     loader_overrides: LoaderOverrides,
     default_analytics_enabled: bool,
     transport: AppServerTransport,
+    session_source: SessionSource,
 ) -> IoResult<()> {
     let (transport_event_tx, mut transport_event_rx) =
         mpsc::channel::<TransportEvent>(CHANNEL_CAPACITY);
@@ -413,7 +420,7 @@ pub async fn run_main_with_transport(
 
             let auth_manager = AuthManager::shared(
                 config.codex_home.clone(),
-                false,
+                /*enable_codex_api_key_env*/ false,
                 config.cli_auth_credentials_store_mode,
             );
             cloud_requirements_loader(
@@ -464,6 +471,22 @@ pub async fn run_main_with_transport(
     if let Some(warning) = project_config_warning(&config) {
         config_warnings.push(warning);
     }
+    for warning in &config.startup_warnings {
+        config_warnings.push(ConfigWarningNotification {
+            summary: warning.clone(),
+            details: None,
+            path: None,
+            range: None,
+        });
+    }
+    if let Some(warning) = codex_core::config::missing_system_bwrap_warning() {
+        config_warnings.push(ConfigWarningNotification {
+            summary: warning,
+            details: None,
+            path: None,
+            range: None,
+        });
+    }
 
     let feedback = CodexFeedback::new();
 
@@ -511,7 +534,6 @@ pub async fn run_main_with_transport(
         .map(|layer| layer.with_filter(Targets::new().with_default(Level::TRACE)));
     let otel_logger_layer = otel.as_ref().and_then(|o| o.logger_layer());
     let otel_tracing_layer = otel.as_ref().and_then(|o| o.tracing_layer());
-
     let _ = tracing_subscriber::registry()
         .with(stderr_fmt)
         .with(feedback_layer)
@@ -540,6 +562,7 @@ pub async fn run_main_with_transport(
                             OutboundControlEvent::Opened {
                                 connection_id,
                                 writer,
+                                allow_legacy_notifications,
                                 disconnect_sender,
                                 initialized,
                                 experimental_api_enabled,
@@ -552,6 +575,7 @@ pub async fn run_main_with_transport(
                                         initialized,
                                         experimental_api_enabled,
                                         opted_out_notification_methods,
+                                        allow_legacy_notifications,
                                         disconnect_sender,
                                     ),
                                 );
@@ -594,9 +618,13 @@ pub async fn run_main_with_transport(
             cli_overrides,
             loader_overrides,
             cloud_requirements: cloud_requirements.clone(),
+            auth_manager: None,
+            thread_manager: None,
             feedback: feedback.clone(),
             log_db,
             config_warnings,
+            session_source,
+            enable_codex_api_key_env: false,
         });
         let mut thread_created_rx = processor.thread_created_receiver();
         let mut running_turn_count_rx = processor.subscribe_running_assistant_turn_count();
@@ -647,6 +675,7 @@ pub async fn run_main_with_transport(
                             TransportEvent::ConnectionOpened {
                                 connection_id,
                                 writer,
+                                allow_legacy_notifications,
                                 disconnect_sender,
                             } => {
                                 let outbound_initialized = Arc::new(AtomicBool::new(false));
@@ -658,6 +687,7 @@ pub async fn run_main_with_transport(
                                     .send(OutboundControlEvent::Opened {
                                         connection_id,
                                         writer,
+                                        allow_legacy_notifications,
                                         disconnect_sender,
                                         initialized: Arc::clone(&outbound_initialized),
                                         experimental_api_enabled: Arc::clone(
@@ -711,7 +741,6 @@ pub async fn run_main_with_transport(
                                                 request,
                                                 transport,
                                                 &mut connection_state.session,
-                                                &connection_state.outbound_initialized,
                                             )
                                             .await;
                                         if let Ok(mut opted_out_notification_methods) = connection_state
@@ -734,7 +763,15 @@ pub async fn run_main_with_transport(
                                                 std::sync::atomic::Ordering::Release,
                                             );
                                         if !was_initialized && connection_state.session.initialized {
-                                            processor.send_initialize_notifications().await;
+                                            processor
+                                                .send_initialize_notifications_to_connection(
+                                                    connection_id,
+                                                )
+                                                .await;
+                                            processor.connection_initialized(connection_id).await;
+                                            connection_state
+                                                .outbound_initialized
+                                                .store(true, std::sync::atomic::Ordering::Release);
                                         }
                                     }
                                     JSONRPCMessage::Response(response) => {
@@ -793,6 +830,10 @@ pub async fn run_main_with_transport(
                 }
             }
 
+            if !shutdown_state.forced() {
+                processor.drain_background_tasks().await;
+                processor.shutdown_threads().await;
+            }
             info!("processor task exited (channel closed)");
         }
     });
@@ -813,6 +854,10 @@ pub async fn run_main_with_transport(
 
     for handle in stdio_handles {
         let _ = handle.await;
+    }
+
+    if let Some(otel) = otel {
+        otel.shutdown();
     }
 
     Ok(())

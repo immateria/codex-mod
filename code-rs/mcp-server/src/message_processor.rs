@@ -26,19 +26,12 @@ use code_protocol::protocol::SessionSource;
 use code_common::model_presets::{builtin_model_presets, clamp_reasoning_effort_for_model, ModelPreset};
 use code_core::AuthManager;
 use code_core::ConversationManager;
-use code_core::config_types::{
-    ClientTools,
-    McpServerConfig,
-    McpServerSchedulingToml,
-    McpServerTransportConfig,
-    ReasoningEffort,
-};
+use code_core::config_types::{ClientTools, McpServerConfig, McpServerTransportConfig, ReasoningEffort};
 use code_core::config::Config;
 use code_core::default_client::USER_AGENT_SUFFIX;
 use code_core::default_client::get_code_user_agent_default;
 use code_core::model_family::{derive_default_model_family, find_family_for_model};
 use code_core::protocol::Submission;
-use code_core::protocol::CollaborationModeKind;
 use code_core::protocol::Op;
 use code_app_server_protocol::AuthMode;
 use mcp_types::CallToolRequestParams;
@@ -97,7 +90,7 @@ impl MessageProcessor {
             conversation_manager.clone(),
             outgoing.clone(),
             code_linux_sandbox_exe.clone(),
-            config_for_processor,
+            config_for_processor.clone(),
         );
         let session_map: SessionMap = Arc::new(Mutex::new(HashMap::new()));
         Self {
@@ -113,8 +106,8 @@ impl MessageProcessor {
     }
 
     pub(crate) async fn process_request(&mut self, request: JSONRPCRequest) {
-        if let Ok(request_json) = serde_json::to_value(request.clone())
-            && let Ok(code_request) = serde_json::from_value::<ClientRequest>(request_json) {
+        if let Ok(request_json) = serde_json::to_value(request.clone()) {
+            if let Ok(code_request) = serde_json::from_value::<ClientRequest>(request_json) {
                 // If the request is a Codex request, handle it with the Codex
                 // message processor.
                 self.code_message_processor
@@ -122,6 +115,7 @@ impl MessageProcessor {
                     .await;
                 return;
             }
+        }
 
         tracing::trace!("processing JSON-RPC request: {}", request.method);
         // Hold on to the ID so we can respond.
@@ -216,8 +210,8 @@ impl MessageProcessor {
 
         let mut request = request;
 
-        if request.method == mcp_types::InitializeRequest::METHOD
-            && let Some(params) = request.params.as_mut() {
+        if request.method == mcp_types::InitializeRequest::METHOD {
+            if let Some(params) = request.params.as_mut() {
                 if let Some(protocol_version) = params.get_mut("protocolVersion") {
                     if let Some(num) = protocol_version.as_i64() {
                         *protocol_version = serde_json::Value::String(num.to_string());
@@ -256,6 +250,7 @@ impl MessageProcessor {
                     });
                 }
             }
+        }
 
         let client_request = match McpClientRequest::try_from(request) {
             Ok(client_request) => client_request,
@@ -1021,14 +1016,14 @@ impl MessageProcessor {
         let Some(session_entry) = session_entry else {
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: format!("unknown session id: {acp_session_id}"),
+                message: format!("unknown session id: {}", acp_session_id),
                 data: None,
             };
             self.outgoing.send_error(request_id, error).await;
             return;
         };
 
-        let session = session_entry.conversation;
+        let session = session_entry.conversation.clone();
 
         let outgoing = self.outgoing.clone();
         let requests_code_map = self.running_requests_id_to_code_uuid.clone();
@@ -1041,7 +1036,7 @@ impl MessageProcessor {
                 .insert(request_id.clone(), session_uuid);
 
             let result = crate::acp_tool_runner::prompt(
-                acp_session_id,
+                acp_session_id.clone(),
                 session,
                 prompt_blocks,
                 outgoing.clone(),
@@ -1119,7 +1114,7 @@ impl MessageProcessor {
         let Some(entry) = entry else {
             return Err(JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: format!("unknown session id: {session_id}"),
+                message: format!("unknown session id: {}", session_id),
                 data: None,
             });
         };
@@ -1128,7 +1123,7 @@ impl MessageProcessor {
         let selection = match resolve_model_selection(&model_id, &config_guard) {
             Some(selection) => selection,
             None => {
-                let message = format!("unknown model id: {model_id}");
+                let message = format!("unknown model id: {}", model_id.to_string());
                 return Err(JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
                     message,
@@ -1154,14 +1149,15 @@ impl MessageProcessor {
 
         drop(config_guard);
 
-        if let Some(op) = configure_op
-            && let Err(err) = entry.conversation.submit(op).await {
+        if let Some(op) = configure_op {
+            if let Err(err) = entry.conversation.submit(op).await {
                 return Err(JSONRPCErrorError {
                     code: INTERNAL_ERROR_CODE,
                     message: err.to_string(),
                     data: None,
                 });
             }
+        }
 
         if let Some(models_meta) = models_meta_value {
             let notification = acp::SessionNotification {
@@ -1465,20 +1461,22 @@ fn convert_mcp_servers(
                         },
                         startup_timeout_sec: None,
                         tool_timeout_sec: None,
-                        scheduling: McpServerSchedulingToml::default(),
-                        tool_scheduling: std::collections::BTreeMap::new(),
+                        scheduling: Default::default(),
+                        tool_scheduling: Default::default(),
                         disabled_tools: Vec::new(),
                     },
                 );
             }
             acp::McpServer::Http { name, .. } => {
                 return Err(anyhow!(
-                    "unsupported MCP transport for server '{name}': HTTP servers are not yet supported"
+                    "unsupported MCP transport for server '{}': HTTP servers are not yet supported",
+                    name
                 ));
             }
             acp::McpServer::Sse { name, .. } => {
                 return Err(anyhow!(
-                    "unsupported MCP transport for server '{name}': SSE servers are not yet supported"
+                    "unsupported MCP transport for server '{}': SSE servers are not yet supported",
+                    name
                 ));
             }
         }
@@ -1569,9 +1567,8 @@ fn session_models_from_config(config: &Config) -> Option<acp::SessionModelState>
         current_model_id = Some(id);
     }
 
-    let current_model_id = current_model_id?;
     Some(acp::SessionModelState {
-        current_model_id,
+        current_model_id: current_model_id.expect("current model id set"),
         available_models,
         meta: None,
     })
@@ -1674,7 +1671,9 @@ fn configure_session_op_from_config(config: &Config) -> Op {
         js_repl_runtime_args: config.js_repl_runtime_args.clone(),
         js_repl_node_module_dirs: config.js_repl_node_module_dirs.clone(),
         memories: config.memories.clone(),
-        collaboration_mode: CollaborationModeKind::from_sandbox_policy(&config.sandbox_policy),
+        collaboration_mode: code_core::protocol::CollaborationModeKind::from_sandbox_policy(
+            &config.sandbox_policy,
+        ),
     })
 }
 

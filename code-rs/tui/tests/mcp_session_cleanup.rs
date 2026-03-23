@@ -105,18 +105,15 @@ async fn mcp_stdio_server_exits_before_next_session() {
         },
         startup_timeout_sec: Some(Duration::from_secs(5)),
         tool_timeout_sec: Some(Duration::from_secs(5)),
-        disabled_tools: Vec::new(),
-        scheduling: code_core::config_types::McpServerSchedulingToml::default(),
-        tool_scheduling: std::collections::BTreeMap::new(),
+        enabled_tools: None,
+        disabled_tools: None,
     };
 
     let mut mcp_servers = HashMap::new();
     mcp_servers.insert("stub".to_string(), server_cfg.clone());
 
-    let overrides = ConfigOverrides {
-        mcp_servers: Some(mcp_servers),
-        ..Default::default()
-    };
+    let mut overrides = ConfigOverrides::default();
+    overrides.mcp_servers = Some(mcp_servers);
 
     let config = Config::load_from_base_config_with_overrides(
         ConfigToml::default(),
@@ -127,12 +124,7 @@ async fn mcp_stdio_server_exits_before_next_session() {
 
     let servers_map = config.mcp_servers.clone();
 
-    let (manager1, _) = McpConnectionManager::new(
-        config.code_home.clone(),
-        config.mcp_oauth_credentials_store_mode,
-        servers_map.clone(),
-        HashSet::new(),
-    )
+    let (manager1, _) = McpConnectionManager::new(servers_map.clone(), HashSet::new())
     .await
     .expect("start first MCP manager");
 
@@ -149,14 +141,9 @@ async fn mcp_stdio_server_exits_before_next_session() {
         std::fs::read_to_string(&log_path).unwrap_or_default()
     );
 
-    let (_manager2, _) = McpConnectionManager::new(
-        config.code_home.clone(),
-        config.mcp_oauth_credentials_store_mode,
-        servers_map,
-        HashSet::new(),
-    )
-    .await
-    .expect("start second MCP manager");
+    let (_manager2, _) = McpConnectionManager::new(servers_map, HashSet::new())
+        .await
+        .expect("start second MCP manager");
 }
 
 fn parse_log(log: &str, prefix: &str) -> Vec<u32> {

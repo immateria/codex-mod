@@ -23,17 +23,18 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use crate::auth::AuthCredentialsStoreMode;
+use crate::auth::AuthDotJson;
+use crate::auth::save_auth;
+use crate::default_client::originator;
 use crate::pkce::PkceCodes;
 use crate::pkce::generate_pkce;
+use crate::token_data::TokenData;
+use crate::token_data::parse_chatgpt_jwt_claims;
 use base64::Engine;
 use chrono::Utc;
 use codex_app_server_protocol::AuthMode;
-use codex_core::auth::AuthCredentialsStoreMode;
-use codex_core::auth::AuthDotJson;
-use codex_core::auth::save_auth;
-use codex_core::default_client::originator;
-use codex_core::token_data::TokenData;
-use codex_core::token_data::parse_chatgpt_jwt_claims;
+use codex_client::build_reqwest_client_with_custom_ca;
 use rand::RngCore;
 use serde_json::Value as JsonValue;
 use tiny_http::Header;
@@ -169,10 +170,13 @@ pub fn run_login_server(opts: ServerOptions) -> io::Result<LoginServer> {
         let server = server.clone();
         thread::spawn(move || -> io::Result<()> {
             while let Ok(request) = server.recv() {
-                tx.blocking_send(request).map_err(|e| {
-                    eprintln!("Failed to send request to channel: {e}");
-                    io::Error::other("Failed to send request to channel")
-                })?;
+                match tx.blocking_send(request) {
+                    Ok(()) => {}
+                    Err(error) => {
+                        eprintln!("Failed to send request to channel: {error}");
+                        return Err(io::Error::other("Failed to send request to channel"));
+                    }
+                }
             }
             Ok(())
         })
@@ -323,7 +327,7 @@ async fn process_request(
                         "Missing authorization code. Sign-in could not be completed.",
                         io::ErrorKind::InvalidData,
                         Some("missing_authorization_code"),
-                        None,
+                        /*error_description*/ None,
                     );
                 }
             };
@@ -341,7 +345,7 @@ async fn process_request(
                             &message,
                             io::ErrorKind::PermissionDenied,
                             Some("workspace_restriction"),
-                            None,
+                            /*error_description*/ None,
                         );
                     }
                     // Obtain API key via token-exchange and persist
@@ -379,7 +383,7 @@ async fn process_request(
                             "Sign-in completed but redirecting back to Codex failed.",
                             io::ErrorKind::Other,
                             Some("redirect_failed"),
-                            None,
+                            /*error_description*/ None,
                         ),
                     }
                 }
@@ -390,7 +394,7 @@ async fn process_request(
                         &format!("Token exchange failed: {err}"),
                         io::ErrorKind::Other,
                         Some("token_exchange_failed"),
-                        None,
+                        /*error_description*/ None,
                     )
                 }
             }
@@ -490,10 +494,7 @@ fn build_authorize_url(
         ("id_token_add_organizations".to_string(), "true".to_string()),
         ("codex_cli_simplified_flow".to_string(), "true".to_string()),
         ("state".to_string(), state.to_string()),
-        (
-            "originator".to_string(),
-            originator().value.as_str().to_string(),
-        ),
+        ("originator".to_string(), originator().value),
     ];
     if let Some(workspace_id) = forced_chatgpt_workspace_id {
         query.push(("allowed_workspace_id".to_string(), workspace_id.to_string()));
@@ -678,7 +679,6 @@ fn sanitize_url_for_logging(url: &str) -> String {
         Err(_) => "<invalid-url>".to_string(),
     }
 }
-
 /// Exchanges an authorization code for tokens.
 ///
 /// The returned error remains suitable for user-facing CLI/browser surfaces, so backend-provided
@@ -699,7 +699,7 @@ pub(crate) async fn exchange_code_for_tokens(
         refresh_token: String,
     }
 
-    let client = reqwest::Client::new();
+    let client = build_reqwest_client_with_custom_ca(reqwest::Client::builder())?;
     info!(
         issuer = %sanitize_url_for_logging(issuer),
         redirect_uri = %redirect_uri,
@@ -716,18 +716,21 @@ pub(crate) async fn exchange_code_for_tokens(
             urlencoding::encode(&pkce.code_verifier)
         ))
         .send()
-        .await
-        .map_err(|err| {
-            let err = redact_sensitive_error_url(err);
+        .await;
+    let resp = match resp {
+        Ok(resp) => resp,
+        Err(error) => {
+            let error = redact_sensitive_error_url(error);
             error!(
-                is_timeout = err.is_timeout(),
-                is_connect = err.is_connect(),
-                is_request = err.is_request(),
-                error = %err,
+                is_timeout = error.is_timeout(),
+                is_connect = error.is_connect(),
+                is_request = error.is_request(),
+                error = %error,
                 "oauth token exchange transport failure"
             );
-            io::Error::other(err)
-        })?;
+            return Err(io::Error::other(error));
+        }
+    };
 
     let status = resp.status();
     if !status.is_success() {
@@ -1065,7 +1068,7 @@ pub(crate) async fn obtain_api_key(
     struct ExchangeResp {
         access_token: String,
     }
-    let client = reqwest::Client::new();
+    let client = build_reqwest_client_with_custom_ca(reqwest::Client::builder())?;
     let resp = client
         .post(format!("{issuer}/oauth/token"))
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -1089,7 +1092,6 @@ pub(crate) async fn obtain_api_key(
     let body: ExchangeResp = resp.json().await.map_err(io::Error::other)?;
     Ok(body.access_token)
 }
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;

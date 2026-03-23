@@ -413,6 +413,8 @@ fn map_approval_policy_to_v2(policy: CoreAskForApproval) -> V2AskForApproval {
         CoreAskForApproval::Reject(reject_config) => V2AskForApproval::Reject {
             sandbox_approval: reject_config.sandbox_approval,
             rules: reject_config.rules,
+            skill_approval: reject_config.skill_approval,
+            request_permissions: reject_config.request_permissions,
             mcp_elicitations: reject_config.mcp_elicitations,
         },
         CoreAskForApproval::Never => V2AskForApproval::Never,

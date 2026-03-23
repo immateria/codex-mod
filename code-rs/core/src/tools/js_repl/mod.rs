@@ -645,6 +645,7 @@ impl JsReplManager {
             code_protocol::models::ResponseItem::FunctionCall {
                 id: None,
                 name: tool_req.tool_name.clone(),
+                namespace: None,
                 arguments: tool_req.arguments.clone(),
                 call_id: tool_req.id.clone(),
             }

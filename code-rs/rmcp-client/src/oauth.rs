@@ -35,6 +35,7 @@ use code_keyring_store::DefaultKeyringStore;
 use code_keyring_store::KeyringStore;
 
 const KEYRING_SERVICE: &str = "Code MCP Credentials";
+#[allow(dead_code)]
 const REFRESH_SKEW_MILLIS: u64 = 30_000;
 
 const FALLBACK_FILENAME: &str = ".credentials.json";
@@ -264,11 +265,13 @@ fn delete_oauth_tokens_from_keyring_and_file<K: KeyringStore>(
     Ok(keyring_removed || file_removed)
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub(crate) struct OAuthPersistor {
     inner: Arc<OAuthPersistorInner>,
 }
 
+#[allow(dead_code)]
 struct OAuthPersistorInner {
     code_home: PathBuf,
     server_name: String,
@@ -278,6 +281,7 @@ struct OAuthPersistorInner {
     last_credentials: Mutex<Option<StoredOAuthTokens>>,
 }
 
+#[allow(dead_code)]
 impl OAuthPersistor {
     pub(crate) fn new(
         code_home: PathBuf,
@@ -514,6 +518,7 @@ fn expires_in_from_timestamp(expires_at: u64) -> Option<u64> {
     }
 }
 
+#[allow(dead_code)]
 fn token_needs_refresh(expires_at: Option<u64>) -> bool {
     let Some(expires_at) = expires_at else {
         return false;
@@ -790,4 +795,3 @@ mod tests {
         Ok(())
     }
 }
-

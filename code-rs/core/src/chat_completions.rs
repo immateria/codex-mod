@@ -98,7 +98,9 @@ pub(crate) async fn stream_chat_completions(
             ResponseItem::FunctionCall { .. } | ResponseItem::LocalShellCall { .. } => {
                 last_emitted_role = Some("assistant")
             }
+            ResponseItem::ToolSearchCall { .. } => last_emitted_role = Some("assistant"),
             ResponseItem::FunctionCallOutput { .. } => last_emitted_role = Some("tool"),
+            ResponseItem::ToolSearchOutput { .. } => last_emitted_role = Some("tool"),
             ResponseItem::CompactionSummary { .. } => last_emitted_role = Some("assistant"),
             ResponseItem::Reasoning { .. } | ResponseItem::Other => {}
             ResponseItem::CustomToolCall { .. } => {}
@@ -299,6 +301,8 @@ pub(crate) async fn stream_chat_completions(
             | ResponseItem::WebSearchCall { .. }
             | ResponseItem::ImageGenerationCall { .. }
             | ResponseItem::GhostSnapshot { .. }
+            | ResponseItem::ToolSearchCall { .. }
+            | ResponseItem::ToolSearchOutput { .. }
             | ResponseItem::Other => {
                 // Omit these items from the conversation history.
                 continue;
@@ -903,6 +907,7 @@ async fn process_chat_sse<S>(
                         let item = ResponseItem::FunctionCall {
                             id: current_item_id.clone(),
                             name: fn_call_state.name.clone().unwrap_or_else(|| "".to_string()),
+                            namespace: None,
                             arguments: fn_call_state.arguments.clone(),
                             call_id: fn_call_state.call_id.clone().unwrap_or_else(String::new),
                         };

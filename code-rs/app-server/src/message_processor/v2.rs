@@ -510,6 +510,7 @@ impl MessageProcessor {
 
     pub(super) async fn list_models_v2(
         &self,
+        connection_id: ConnectionId,
         request_id: mcp_types::RequestId,
         params: ModelListParams,
     ) {
@@ -536,7 +537,8 @@ impl MessageProcessor {
         let total = presets.len();
         if total == 0 {
             self.outgoing
-                .send_response(
+                .send_response_to_connection(
+                    connection_id,
                     request_id,
                     ModelListResponse {
                         data: Vec::new(),
@@ -551,7 +553,9 @@ impl MessageProcessor {
         let start = match parse_cursor_offset(params.cursor.as_deref(), total, "models") {
             Ok(offset) => offset,
             Err(error) => {
-                self.outgoing.send_error(request_id, error).await;
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, error)
+                    .await;
                 return;
             }
         };
@@ -564,12 +568,17 @@ impl MessageProcessor {
         let next_cursor = (end < total).then(|| end.to_string());
 
         self.outgoing
-            .send_response(request_id, ModelListResponse { data, next_cursor })
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                ModelListResponse { data, next_cursor },
+            )
             .await;
     }
 
     pub(super) async fn list_threads_v2(
         &self,
+        connection_id: ConnectionId,
         request_id: mcp_types::RequestId,
         params: ThreadListParams,
     ) {
@@ -585,7 +594,8 @@ impl MessageProcessor {
             Ok(entries) => entries,
             Err(err) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INTERNAL_ERROR_CODE,
@@ -639,7 +649,9 @@ impl MessageProcessor {
         let start = match parse_cursor_offset(params.cursor.as_deref(), total, "threads") {
             Ok(offset) => offset,
             Err(error) => {
-                self.outgoing.send_error(request_id, error).await;
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, error)
+                    .await;
                 return;
             }
         };
@@ -652,12 +664,17 @@ impl MessageProcessor {
         let next_cursor = (end < total).then(|| end.to_string());
 
         self.outgoing
-            .send_response(request_id, ThreadListResponse { data, next_cursor })
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                ThreadListResponse { data, next_cursor },
+            )
             .await;
     }
 
     pub(super) async fn thread_read_v2(
         &self,
+        connection_id: ConnectionId,
         request_id: mcp_types::RequestId,
         params: ThreadReadParams,
     ) {
@@ -670,7 +687,8 @@ impl MessageProcessor {
             Ok(id) => id,
             Err(error) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
@@ -688,7 +706,8 @@ impl MessageProcessor {
             Ok(Some(entry)) if entry.session_id == parsed_id => entry,
             Ok(_) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
@@ -701,7 +720,8 @@ impl MessageProcessor {
             }
             Err(err) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INTERNAL_ERROR_CODE,
@@ -720,7 +740,8 @@ impl MessageProcessor {
                 Ok(turns) => turns,
                 Err(err) => {
                     self.outgoing
-                        .send_error(
+                        .send_error_to_connection(
+                            connection_id,
                             request_id,
                             JSONRPCErrorError {
                                 code: INTERNAL_ERROR_CODE,
@@ -740,12 +761,13 @@ impl MessageProcessor {
 
         let thread = session_entry_to_thread(&entry, &self.base_config.code_home, turns);
         self.outgoing
-            .send_response(request_id, ThreadReadResponse { thread })
+            .send_response_to_connection(connection_id, request_id, ThreadReadResponse { thread })
             .await;
     }
 
     pub(super) async fn list_mcp_server_status_v2(
         &self,
+        connection_id: ConnectionId,
         request_id: mcp_types::RequestId,
         params: ListMcpServerStatusParams,
     ) {
@@ -754,7 +776,8 @@ impl MessageProcessor {
                 Ok(servers) => servers,
                 Err(err) => {
                     self.outgoing
-                        .send_error(
+                        .send_error_to_connection(
+                            connection_id,
                             request_id,
                             JSONRPCErrorError {
                                 code: INTERNAL_ERROR_CODE,
@@ -792,7 +815,8 @@ impl MessageProcessor {
             Ok(result) => result,
             Err(err) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INTERNAL_ERROR_CODE,
@@ -815,7 +839,8 @@ impl MessageProcessor {
             Err(err) => {
                 manager.shutdown_all().await;
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INTERNAL_ERROR_CODE,
@@ -839,7 +864,9 @@ impl MessageProcessor {
             Ok(offset) => offset,
             Err(error) => {
                 manager.shutdown_all().await;
-                self.outgoing.send_error(request_id, error).await;
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, error)
+                    .await;
                 return;
             }
         };
@@ -898,7 +925,11 @@ impl MessageProcessor {
 
         let next_cursor = (end < total).then(|| end.to_string());
         self.outgoing
-            .send_response(request_id, ListMcpServerStatusResponse { data, next_cursor })
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                ListMcpServerStatusResponse { data, next_cursor },
+            )
             .await;
     }
 
@@ -970,7 +1001,8 @@ impl MessageProcessor {
             Ok(config) => config,
             Err(err) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
@@ -998,7 +1030,8 @@ impl MessageProcessor {
             Ok(new_conversation) => new_conversation,
             Err(err) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INTERNAL_ERROR_CODE,
@@ -1038,7 +1071,8 @@ impl MessageProcessor {
         .await;
 
         self.outgoing
-            .send_response(
+            .send_response_to_connection(
+                connection_id,
                 request_id,
                 ThreadStartResponse {
                     thread: thread.clone(),
@@ -1070,7 +1104,8 @@ impl MessageProcessor {
             Ok(id) => id,
             Err(err) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
@@ -1087,7 +1122,8 @@ impl MessageProcessor {
             Ok(conversation) => conversation,
             Err(err) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
@@ -1113,7 +1149,8 @@ impl MessageProcessor {
                 Ok(item) => items.push(item),
                 Err(message) => {
                     self.outgoing
-                        .send_error(
+                        .send_error_to_connection(
+                            connection_id,
                             request_id,
                             JSONRPCErrorError {
                                 code: INVALID_REQUEST_ERROR_CODE,
@@ -1137,7 +1174,8 @@ impl MessageProcessor {
             Ok(turn_id) => turn_id,
             Err(err) => {
                 self.outgoing
-                    .send_error(
+                    .send_error_to_connection(
+                        connection_id,
                         request_id,
                         JSONRPCErrorError {
                             code: INTERNAL_ERROR_CODE,
@@ -1151,7 +1189,8 @@ impl MessageProcessor {
         };
 
         self.outgoing
-            .send_response(
+            .send_response_to_connection(
+                connection_id,
                 request_id,
                 TurnStartResponse {
                     turn: Turn {
@@ -1460,10 +1499,14 @@ fn v2_approval_policy_to_core(policy: AskForApproval) -> code_core::protocol::As
         AskForApproval::Reject {
             sandbox_approval,
             rules,
+            skill_approval,
+            request_permissions,
             mcp_elicitations,
         } => code_core::protocol::AskForApproval::Reject(code_core::protocol::RejectConfig {
             sandbox_approval,
             rules,
+            skill_approval,
+            request_permissions,
             mcp_elicitations,
         }),
         AskForApproval::Never => code_core::protocol::AskForApproval::Never,
@@ -1478,6 +1521,8 @@ fn core_approval_policy_to_v2(policy: code_core::protocol::AskForApproval) -> As
         code_core::protocol::AskForApproval::Reject(reject_config) => AskForApproval::Reject {
             sandbox_approval: reject_config.sandbox_approval,
             rules: reject_config.rules,
+            skill_approval: reject_config.skill_approval,
+            request_permissions: reject_config.request_permissions,
             mcp_elicitations: reject_config.mcp_elicitations,
         },
         code_core::protocol::AskForApproval::Never => AskForApproval::Never,

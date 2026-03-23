@@ -28,7 +28,8 @@ async fn main() -> Result<()> {
         },
         startup_timeout_sec: Some(Duration::from_millis(500)),
         tool_timeout_sec: None,
-        disabled_tools: Vec::new(),
+        enabled_tools: None,
+        disabled_tools: None,
     };
     // Slow-one: 2s but we allow 3s
     let slow_ok = McpServerConfig {
@@ -42,7 +43,8 @@ async fn main() -> Result<()> {
         },
         startup_timeout_sec: Some(Duration::from_millis(3000)),
         tool_timeout_sec: None,
-        disabled_tools: Vec::new(),
+        enabled_tools: None,
+        disabled_tools: None,
     };
     // Slow-two: 3s but we allow 1s (should fail)
     let slow_fail = McpServerConfig {
@@ -56,7 +58,8 @@ async fn main() -> Result<()> {
         },
         startup_timeout_sec: Some(Duration::from_millis(1000)),
         tool_timeout_sec: None,
-        disabled_tools: Vec::new(),
+        enabled_tools: None,
+        disabled_tools: None,
     };
 
     let mut servers = HashMap::new();

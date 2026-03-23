@@ -1,12 +1,11 @@
-## @just-every/code v0.6.77
+## @just-every/code v0.6.83
 
-This release improves automatic context selection defaults and strengthens context-mode reliability.
+This release improves release pipeline reliability when BuildBuddy credentials are unavailable.
 
 ### Changes
 
-- Core/Context: default session context mode to `auto` for better out-of-the-box context selection.
-- Auto Context: enrich 1M-judge risk signals to improve context quality and decision reliability.
-- TUI/Context: persist explicit disabled state for 1M mode so settings stay consistent across sessions.
+- CI: fall back to local Bazel execution when the BuildBuddy API key is unavailable, keeping release jobs running in restricted environments.
+- Release Workflows: apply the BuildBuddy fallback path to both `rusty-v8-release` and `v8-canary` for consistent publish reliability.
 
 ### Install
 
@@ -15,4 +14,4 @@ npm install -g @just-every/code@latest
 code
 ```
 
-Compare: https://github.com/just-every/code/compare/v0.6.76...v0.6.77
+Compare: https://github.com/just-every/code/compare/v0.6.82...v0.6.83

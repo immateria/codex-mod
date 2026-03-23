@@ -693,6 +693,7 @@ pub fn sanitize_items_for_compact(items: Vec<ResponseItem>) -> Vec<ResponseItem>
             ResponseItem::FunctionCall {
                 id,
                 name,
+                namespace,
                 arguments,
                 call_id,
             } => {
@@ -700,6 +701,7 @@ pub fn sanitize_items_for_compact(items: Vec<ResponseItem>) -> Vec<ResponseItem>
                 Some(ResponseItem::FunctionCall {
                     id,
                     name,
+                    namespace,
                     arguments,
                     call_id,
                 })

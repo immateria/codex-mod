@@ -10,8 +10,7 @@ pub(crate) mod zsh_fork_backend;
 
 use crate::command_canonicalization::canonicalize_command_for_approval;
 use crate::exec::ExecToolCallOutput;
-use crate::features::Feature;
-use crate::guardian::GuardianReviewRequest;
+use crate::guardian::GuardianApprovalRequest;
 use crate::guardian::review_approval_request;
 use crate::guardian::routes_approval_to_guardian;
 use crate::powershell::prefix_powershell_script_with_utf8;
@@ -38,7 +37,6 @@ use codex_network_proxy::NetworkProxy;
 use codex_protocol::models::PermissionProfile;
 use codex_protocol::protocol::ReviewDecision;
 use futures::future::BoxFuture;
-use serde_json::json;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -52,6 +50,8 @@ pub struct ShellRequest {
     pub network: Option<NetworkProxy>,
     pub sandbox_permissions: SandboxPermissions,
     pub additional_permissions: Option<PermissionProfile>,
+    #[cfg(unix)]
+    pub additional_permissions_preapproved: bool,
     pub justification: Option<String>,
     pub exec_approval_requirement: ExecApprovalRequirement,
 }
@@ -145,33 +145,27 @@ impl Approvable<ShellRequest> for ShellRuntime {
         let keys = self.approval_keys(req);
         let command = req.command.clone();
         let cwd = req.cwd.clone();
-        let reason = ctx
-            .retry_reason
-            .clone()
-            .or_else(|| req.justification.clone());
+        let retry_reason = ctx.retry_reason.clone();
+        let reason = retry_reason.clone().or_else(|| req.justification.clone());
         let session = ctx.session;
         let turn = ctx.turn;
         let call_id = ctx.call_id.to_string();
         Box::pin(async move {
             if routes_approval_to_guardian(turn) {
-                let mut action = json!({
-                    "tool": "shell",
-                    "command": command,
-                    "cwd": cwd,
-                    "sandbox_permissions": req.sandbox_permissions,
-                    "additional_permissions": req.additional_permissions,
-                    "justification": reason,
-                });
-                if let Some(action) = action.as_object_mut() {
-                    if req.additional_permissions.is_none() {
-                        action.remove("additional_permissions");
-                    }
-                    if reason.is_none() {
-                        action.remove("justification");
-                    }
-                }
-                let request = GuardianReviewRequest { action };
-                return review_approval_request(session, turn, request, None).await;
+                return review_approval_request(
+                    session,
+                    turn,
+                    GuardianApprovalRequest::Shell {
+                        id: call_id,
+                        command,
+                        cwd,
+                        sandbox_permissions: req.sandbox_permissions,
+                        additional_permissions: req.additional_permissions.clone(),
+                        justification: req.justification.clone(),
+                    },
+                    retry_reason,
+                )
+                .await;
             }
             with_cached_approval(&session.services, "shell", keys, move || async move {
                 let available_decisions = None;
@@ -179,7 +173,7 @@ impl Approvable<ShellRequest> for ShellRuntime {
                     .request_command_approval(
                         turn,
                         call_id,
-                        None,
+                        /*approval_id*/ None,
                         command,
                         cwd,
                         reason,
@@ -188,6 +182,7 @@ impl Approvable<ShellRequest> for ShellRuntime {
                             .proposed_execpolicy_amendment()
                             .cloned(),
                         req.additional_permissions.clone(),
+                        /*skill_metadata*/ None,
                         available_decisions,
                     )
                     .await
@@ -231,9 +226,7 @@ impl ToolRuntime<ShellRequest, ExecToolCallOutput> for ShellRuntime {
             &req.cwd,
             &req.explicit_env_overrides,
         );
-        let command = if matches!(session_shell.shell_type, ShellType::PowerShell)
-            && ctx.session.features().enabled(Feature::PowershellUtf8)
-        {
+        let command = if matches!(session_shell.shell_type, ShellType::PowerShell) {
             prefix_powershell_script_with_utf8(&command)
         } else {
             command

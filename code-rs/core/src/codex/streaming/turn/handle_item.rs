@@ -131,6 +131,8 @@ pub(super) async fn handle_response_item(
             }
             None
         }
+        ResponseItem::ToolSearchCall { .. } => None,
+        ResponseItem::ToolSearchOutput { .. } => None,
         ResponseItem::ImageGenerationCall { .. } => None,
         ResponseItem::GhostSnapshot { .. } => None,
         ResponseItem::Other => None,

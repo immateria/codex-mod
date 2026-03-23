@@ -396,6 +396,12 @@ pub struct RejectConfig {
     pub sandbox_approval: bool,
     /// Reject prompts triggered by execpolicy `prompt` rules.
     pub rules: bool,
+    /// Reject approval prompts triggered by skill script execution.
+    #[serde(default)]
+    pub skill_approval: bool,
+    /// Reject approval prompts related to built-in permission requests.
+    #[serde(default)]
+    pub request_permissions: bool,
     /// Reject MCP elicitation prompts.
     pub mcp_elicitations: bool,
 }
@@ -407,6 +413,14 @@ impl RejectConfig {
 
     pub const fn rejects_rules_approval(self) -> bool {
         self.rules
+    }
+
+    pub const fn rejects_skill_approval(self) -> bool {
+        self.skill_approval
+    }
+
+    pub const fn rejects_request_permissions(self) -> bool {
+        self.request_permissions
     }
 
     pub const fn rejects_mcp_elicitations(self) -> bool {
@@ -2810,6 +2824,29 @@ mod tests {
         Ok(())
     }
 
+
+    #[test]
+    fn reject_config_defaults_missing_optional_flags_to_false() {
+        let decoded = serde_json::from_value::<RejectConfig>(json!({
+            "sandbox_approval": true,
+            "rules": false,
+            "mcp_elicitations": true,
+        }))
+        .expect("legacy reject config should deserialize");
+
+        assert_eq!(
+            decoded,
+            RejectConfig {
+                sandbox_approval: true,
+                rules: false,
+                skill_approval: false,
+                request_permissions: false,
+                mcp_elicitations: true,
+            }
+        );
+        assert!(!decoded.rejects_skill_approval());
+        assert!(!decoded.rejects_request_permissions());
+    }
 
     #[test]
     fn user_input_deserializes_without_final_output_json_schema_field() -> Result<()> {

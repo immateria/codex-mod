@@ -8,6 +8,7 @@ ready‑to‑spawn environment.
 
 pub(crate) mod macos_permissions;
 
+use crate::exec::ExecCapturePolicy;
 use crate::exec::ExecExpiration;
 use crate::exec::ExecToolCallOutput;
 use crate::exec::SandboxType;
@@ -28,6 +29,7 @@ use codex_network_proxy::NetworkProxy;
 use codex_protocol::config_types::WindowsSandboxLevel;
 use codex_protocol::models::FileSystemPermissions;
 use codex_protocol::models::MacOsSeatbeltProfileExtensions;
+use codex_protocol::models::NetworkPermissions;
 use codex_protocol::models::PermissionProfile;
 pub use codex_protocol::models::SandboxPermissions;
 use codex_protocol::permissions::FileSystemAccessMode;
@@ -40,6 +42,7 @@ use codex_protocol::protocol::NetworkAccess;
 use codex_protocol::protocol::ReadOnlyAccess;
 use codex_utils_absolute_path::AbsolutePathBuf;
 use dunce::canonicalize;
+use macos_permissions::intersect_macos_seatbelt_profile_extensions;
 use macos_permissions::merge_macos_seatbelt_profile_extensions;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -53,6 +56,7 @@ pub struct CommandSpec {
     pub cwd: PathBuf,
     pub env: HashMap<String, String>,
     pub expiration: ExecExpiration,
+    pub capture_policy: ExecCapturePolicy,
     pub sandbox_permissions: SandboxPermissions,
     pub additional_permissions: Option<PermissionProfile>,
     pub justification: Option<String>,
@@ -65,8 +69,10 @@ pub struct ExecRequest {
     pub env: HashMap<String, String>,
     pub network: Option<NetworkProxy>,
     pub expiration: ExecExpiration,
+    pub capture_policy: ExecCapturePolicy,
     pub sandbox: SandboxType,
     pub windows_sandbox_level: WindowsSandboxLevel,
+    pub windows_sandbox_private_desktop: bool,
     pub sandbox_permissions: SandboxPermissions,
     pub sandbox_policy: SandboxPolicy,
     pub file_system_sandbox_policy: FileSystemSandboxPolicy,
@@ -92,8 +98,9 @@ pub(crate) struct SandboxTransformRequest<'a> {
     #[cfg(target_os = "macos")]
     pub macos_seatbelt_profile_extensions: Option<&'a MacOsSeatbeltProfileExtensions>,
     pub codex_linux_sandbox_exe: Option<&'a PathBuf>,
-    pub use_linux_sandbox_bwrap: bool,
+    pub use_legacy_landlock: bool,
     pub windows_sandbox_level: WindowsSandboxLevel,
+    pub windows_sandbox_private_desktop: bool,
 }
 
 pub enum SandboxPreference {
@@ -146,20 +153,135 @@ impl EffectiveSandboxPermissions {
 pub(crate) fn normalize_additional_permissions(
     additional_permissions: PermissionProfile,
 ) -> Result<PermissionProfile, String> {
+    let network = additional_permissions
+        .network
+        .filter(|network| !network.is_empty());
+    let file_system = additional_permissions
+        .file_system
+        .map(|file_system| {
+            let read = file_system
+                .read
+                .map(|paths| normalize_permission_paths(paths, "file_system.read"));
+            let write = file_system
+                .write
+                .map(|paths| normalize_permission_paths(paths, "file_system.write"));
+            FileSystemPermissions { read, write }
+        })
+        .filter(|file_system| !file_system.is_empty());
+    let macos = additional_permissions.macos;
+
     Ok(PermissionProfile {
-        network: additional_permissions.network,
-        file_system: additional_permissions
-            .file_system
-            .map(|file_system| FileSystemPermissions {
-                read: file_system
-                    .read
-                    .map(|paths| normalize_permission_paths(paths, "file_system.read")),
-                write: file_system
-                    .write
-                    .map(|paths| normalize_permission_paths(paths, "file_system.write")),
-            }),
-        macos: additional_permissions.macos,
+        network,
+        file_system,
+        macos,
     })
+}
+
+pub(crate) fn merge_permission_profiles(
+    base: Option<&PermissionProfile>,
+    permissions: Option<&PermissionProfile>,
+) -> Option<PermissionProfile> {
+    let Some(permissions) = permissions else {
+        return base.cloned();
+    };
+
+    match base {
+        Some(base) => {
+            let network = match (base.network.as_ref(), permissions.network.as_ref()) {
+                (
+                    Some(NetworkPermissions {
+                        enabled: Some(true),
+                    }),
+                    _,
+                )
+                | (
+                    _,
+                    Some(NetworkPermissions {
+                        enabled: Some(true),
+                    }),
+                ) => Some(NetworkPermissions {
+                    enabled: Some(true),
+                }),
+                _ => None,
+            };
+            let file_system = match (base.file_system.as_ref(), permissions.file_system.as_ref()) {
+                (Some(base), Some(permissions)) => Some(FileSystemPermissions {
+                    read: merge_permission_paths(base.read.as_ref(), permissions.read.as_ref()),
+                    write: merge_permission_paths(base.write.as_ref(), permissions.write.as_ref()),
+                })
+                .filter(|file_system| !file_system.is_empty()),
+                (Some(base), None) => Some(base.clone()),
+                (None, Some(permissions)) => Some(permissions.clone()),
+                (None, None) => None,
+            };
+            let macos = merge_macos_seatbelt_profile_extensions(
+                base.macos.as_ref(),
+                permissions.macos.as_ref(),
+            );
+
+            Some(PermissionProfile {
+                network,
+                file_system,
+                macos,
+            })
+            .filter(|permissions| !permissions.is_empty())
+        }
+        None => Some(permissions.clone()).filter(|permissions| !permissions.is_empty()),
+    }
+}
+
+pub fn intersect_permission_profiles(
+    requested: PermissionProfile,
+    granted: PermissionProfile,
+) -> PermissionProfile {
+    let file_system = requested
+        .file_system
+        .map(|requested_file_system| {
+            let granted_file_system = granted.file_system.unwrap_or_default();
+            let read = requested_file_system
+                .read
+                .map(|requested_read| {
+                    let granted_read = granted_file_system.read.unwrap_or_default();
+                    requested_read
+                        .into_iter()
+                        .filter(|path| granted_read.contains(path))
+                        .collect()
+                })
+                .filter(|paths: &Vec<_>| !paths.is_empty());
+            let write = requested_file_system
+                .write
+                .map(|requested_write| {
+                    let granted_write = granted_file_system.write.unwrap_or_default();
+                    requested_write
+                        .into_iter()
+                        .filter(|path| granted_write.contains(path))
+                        .collect()
+                })
+                .filter(|paths: &Vec<_>| !paths.is_empty());
+            FileSystemPermissions { read, write }
+        })
+        .filter(|file_system| !file_system.is_empty());
+    let network = match (requested.network, granted.network) {
+        (
+            Some(NetworkPermissions {
+                enabled: Some(true),
+            }),
+            Some(NetworkPermissions {
+                enabled: Some(true),
+            }),
+        ) => Some(NetworkPermissions {
+            enabled: Some(true),
+        }),
+        _ => None,
+    };
+
+    let macos = intersect_macos_seatbelt_profile_extensions(requested.macos, granted.macos);
+
+    PermissionProfile {
+        network,
+        file_system,
+        macos,
+    }
 }
 
 fn normalize_permission_paths(
@@ -180,6 +302,29 @@ fn normalize_permission_paths(
     }
 
     out
+}
+
+fn merge_permission_paths(
+    base: Option<&Vec<AbsolutePathBuf>>,
+    permissions: Option<&Vec<AbsolutePathBuf>>,
+) -> Option<Vec<AbsolutePathBuf>> {
+    match (base, permissions) {
+        (Some(base), Some(permissions)) => {
+            let mut merged = Vec::with_capacity(base.len() + permissions.len());
+            let mut seen = HashSet::with_capacity(base.len() + permissions.len());
+
+            for path in base.iter().chain(permissions.iter()) {
+                if seen.insert(path.clone()) {
+                    merged.push(path.clone());
+                }
+            }
+
+            Some(merged).filter(|paths| !paths.is_empty())
+        }
+        (Some(base), None) => Some(base.clone()),
+        (None, Some(permissions)) => Some(permissions.clone()),
+        (None, None) => None,
+    }
 }
 
 fn dedup_absolute_paths(paths: Vec<AbsolutePathBuf>) -> Vec<AbsolutePathBuf> {
@@ -245,6 +390,26 @@ fn merge_file_system_policy_with_additional_permissions(
         FileSystemSandboxKind::Unrestricted | FileSystemSandboxKind::ExternalSandbox => {
             file_system_policy.clone()
         }
+    }
+}
+
+pub(crate) fn effective_file_system_sandbox_policy(
+    file_system_policy: &FileSystemSandboxPolicy,
+    additional_permissions: Option<&PermissionProfile>,
+) -> FileSystemSandboxPolicy {
+    let Some(additional_permissions) = additional_permissions else {
+        return file_system_policy.clone();
+    };
+
+    let (extra_reads, extra_writes) = additional_permission_roots(additional_permissions);
+    if extra_reads.is_empty() && extra_writes.is_empty() {
+        file_system_policy.clone()
+    } else {
+        merge_file_system_policy_with_additional_permissions(
+            file_system_policy,
+            extra_reads,
+            extra_writes,
+        )
     }
 }
 
@@ -431,8 +596,9 @@ impl SandboxManager {
             #[cfg(target_os = "macos")]
             macos_seatbelt_profile_extensions,
             codex_linux_sandbox_exe,
-            use_linux_sandbox_bwrap,
+            use_legacy_landlock,
             windows_sandbox_level,
+            windows_sandbox_private_desktop,
         } = request;
         #[cfg(not(target_os = "macos"))]
         let macos_seatbelt_profile_extensions = None;
@@ -509,11 +675,12 @@ impl SandboxManager {
                 let allow_proxy_network = allow_network_for_proxy(enforce_managed_network);
                 let mut args = create_linux_sandbox_command_args_for_policies(
                     command.clone(),
+                    spec.cwd.as_path(),
                     &effective_policy,
                     &effective_file_system_policy,
                     effective_network_policy,
                     sandbox_policy_cwd,
-                    use_linux_sandbox_bwrap,
+                    use_legacy_landlock,
                     allow_proxy_network,
                 );
                 let mut full_command = Vec::with_capacity(1 + args.len());
@@ -543,8 +710,10 @@ impl SandboxManager {
             env,
             network: network.cloned(),
             expiration: spec.expiration,
+            capture_policy: spec.capture_policy,
             sandbox,
             windows_sandbox_level,
+            windows_sandbox_private_desktop,
             sandbox_permissions: spec.sandbox_permissions,
             sandbox_policy: effective_policy,
             file_system_sandbox_policy: effective_file_system_policy,
@@ -564,7 +733,13 @@ pub async fn execute_env(
     stdout_stream: Option<StdoutStream>,
 ) -> crate::error::Result<ExecToolCallOutput> {
     let effective_policy = exec_request.sandbox_policy.clone();
-    execute_exec_request(exec_request, &effective_policy, stdout_stream, None).await
+    execute_exec_request(
+        exec_request,
+        &effective_policy,
+        stdout_stream,
+        /*after_spawn*/ None,
+    )
+    .await
 }
 
 pub async fn execute_exec_request_with_after_spawn(
@@ -577,558 +752,5 @@ pub async fn execute_exec_request_with_after_spawn(
 }
 
 #[cfg(test)]
-mod tests {
-    #[cfg(target_os = "macos")]
-    use super::EffectiveSandboxPermissions;
-    use super::SandboxManager;
-    use super::merge_file_system_policy_with_additional_permissions;
-    use super::normalize_additional_permissions;
-    use super::sandbox_policy_with_additional_permissions;
-    use super::should_require_platform_sandbox;
-    use crate::exec::SandboxType;
-    use crate::protocol::NetworkAccess;
-    use crate::protocol::ReadOnlyAccess;
-    use crate::protocol::SandboxPolicy;
-    use crate::tools::sandboxing::SandboxablePreference;
-    use codex_protocol::config_types::WindowsSandboxLevel;
-    use codex_protocol::models::FileSystemPermissions;
-    #[cfg(target_os = "macos")]
-    use codex_protocol::models::MacOsAutomationPermission;
-    #[cfg(target_os = "macos")]
-    use codex_protocol::models::MacOsPreferencesPermission;
-    #[cfg(target_os = "macos")]
-    use codex_protocol::models::MacOsSeatbeltProfileExtensions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::permissions::FileSystemAccessMode;
-    use codex_protocol::permissions::FileSystemPath;
-    use codex_protocol::permissions::FileSystemSandboxEntry;
-    use codex_protocol::permissions::FileSystemSandboxPolicy;
-    use codex_protocol::permissions::FileSystemSpecialPath;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use dunce::canonicalize;
-    use pretty_assertions::assert_eq;
-    use std::collections::HashMap;
-    use tempfile::TempDir;
-
-    #[test]
-    fn danger_full_access_defaults_to_no_sandbox_without_network_requirements() {
-        let manager = SandboxManager::new();
-        let sandbox = manager.select_initial(
-            &FileSystemSandboxPolicy::unrestricted(),
-            NetworkSandboxPolicy::Enabled,
-            SandboxablePreference::Auto,
-            WindowsSandboxLevel::Disabled,
-            false,
-        );
-        assert_eq!(sandbox, SandboxType::None);
-    }
-
-    #[test]
-    fn danger_full_access_uses_platform_sandbox_with_network_requirements() {
-        let manager = SandboxManager::new();
-        let expected = crate::safety::get_platform_sandbox(false).unwrap_or(SandboxType::None);
-        let sandbox = manager.select_initial(
-            &FileSystemSandboxPolicy::unrestricted(),
-            NetworkSandboxPolicy::Enabled,
-            SandboxablePreference::Auto,
-            WindowsSandboxLevel::Disabled,
-            true,
-        );
-        assert_eq!(sandbox, expected);
-    }
-
-    #[test]
-    fn restricted_file_system_uses_platform_sandbox_without_managed_network() {
-        let manager = SandboxManager::new();
-        let expected = crate::safety::get_platform_sandbox(false).unwrap_or(SandboxType::None);
-        let sandbox = manager.select_initial(
-            &FileSystemSandboxPolicy::restricted(vec![FileSystemSandboxEntry {
-                path: FileSystemPath::Special {
-                    value: FileSystemSpecialPath::Root,
-                },
-                access: FileSystemAccessMode::Read,
-            }]),
-            NetworkSandboxPolicy::Enabled,
-            SandboxablePreference::Auto,
-            WindowsSandboxLevel::Disabled,
-            false,
-        );
-        assert_eq!(sandbox, expected);
-    }
-
-    #[test]
-    fn full_access_restricted_policy_skips_platform_sandbox_when_network_is_enabled() {
-        let policy = FileSystemSandboxPolicy::restricted(vec![FileSystemSandboxEntry {
-            path: FileSystemPath::Special {
-                value: FileSystemSpecialPath::Root,
-            },
-            access: FileSystemAccessMode::Write,
-        }]);
-
-        assert_eq!(
-            should_require_platform_sandbox(&policy, NetworkSandboxPolicy::Enabled, false),
-            false
-        );
-    }
-
-    #[test]
-    fn root_write_policy_with_carveouts_still_uses_platform_sandbox() {
-        let blocked = AbsolutePathBuf::resolve_path_against_base(
-            "blocked",
-            std::env::current_dir().expect("current dir"),
-        )
-        .expect("blocked path");
-        let policy = FileSystemSandboxPolicy::restricted(vec![
-            FileSystemSandboxEntry {
-                path: FileSystemPath::Special {
-                    value: FileSystemSpecialPath::Root,
-                },
-                access: FileSystemAccessMode::Write,
-            },
-            FileSystemSandboxEntry {
-                path: FileSystemPath::Path { path: blocked },
-                access: FileSystemAccessMode::None,
-            },
-        ]);
-
-        assert_eq!(
-            should_require_platform_sandbox(&policy, NetworkSandboxPolicy::Enabled, false),
-            true
-        );
-    }
-
-    #[test]
-    fn full_access_restricted_policy_still_uses_platform_sandbox_for_restricted_network() {
-        let policy = FileSystemSandboxPolicy::restricted(vec![FileSystemSandboxEntry {
-            path: FileSystemPath::Special {
-                value: FileSystemSpecialPath::Root,
-            },
-            access: FileSystemAccessMode::Write,
-        }]);
-
-        assert_eq!(
-            should_require_platform_sandbox(&policy, NetworkSandboxPolicy::Restricted, false),
-            true
-        );
-    }
-
-    #[test]
-    fn transform_preserves_unrestricted_file_system_policy_for_restricted_network() {
-        let manager = SandboxManager::new();
-        let cwd = std::env::current_dir().expect("current dir");
-        let exec_request = manager
-            .transform(super::SandboxTransformRequest {
-                spec: super::CommandSpec {
-                    program: "true".to_string(),
-                    args: Vec::new(),
-                    cwd: cwd.clone(),
-                    env: HashMap::new(),
-                    expiration: crate::exec::ExecExpiration::DefaultTimeout,
-                    sandbox_permissions: super::SandboxPermissions::UseDefault,
-                    additional_permissions: None,
-                    justification: None,
-                },
-                policy: &SandboxPolicy::ExternalSandbox {
-                    network_access: crate::protocol::NetworkAccess::Restricted,
-                },
-                file_system_policy: &FileSystemSandboxPolicy::unrestricted(),
-                network_policy: NetworkSandboxPolicy::Restricted,
-                sandbox: SandboxType::None,
-                enforce_managed_network: false,
-                network: None,
-                sandbox_policy_cwd: cwd.as_path(),
-                #[cfg(target_os = "macos")]
-                macos_seatbelt_profile_extensions: None,
-                codex_linux_sandbox_exe: None,
-                use_linux_sandbox_bwrap: false,
-                windows_sandbox_level: WindowsSandboxLevel::Disabled,
-            })
-            .expect("transform");
-
-        assert_eq!(
-            exec_request.file_system_sandbox_policy,
-            FileSystemSandboxPolicy::unrestricted()
-        );
-        assert_eq!(
-            exec_request.network_sandbox_policy,
-            NetworkSandboxPolicy::Restricted
-        );
-    }
-
-    #[test]
-    fn normalize_additional_permissions_preserves_network() {
-        let temp_dir = TempDir::new().expect("create temp dir");
-        let path = AbsolutePathBuf::from_absolute_path(
-            canonicalize(temp_dir.path()).expect("canonicalize temp dir"),
-        )
-        .expect("absolute temp dir");
-        let permissions = normalize_additional_permissions(PermissionProfile {
-            network: Some(NetworkPermissions {
-                enabled: Some(true),
-            }),
-            file_system: Some(FileSystemPermissions {
-                read: Some(vec![path.clone()]),
-                write: Some(vec![path.clone()]),
-            }),
-            ..Default::default()
-        })
-        .expect("permissions");
-
-        assert_eq!(
-            permissions.network,
-            Some(NetworkPermissions {
-                enabled: Some(true),
-            })
-        );
-        assert_eq!(
-            permissions.file_system,
-            Some(FileSystemPermissions {
-                read: Some(vec![path.clone()]),
-                write: Some(vec![path]),
-            })
-        );
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn normalize_additional_permissions_preserves_macos_permissions() {
-        let permissions = normalize_additional_permissions(PermissionProfile {
-            macos: Some(MacOsSeatbeltProfileExtensions {
-                macos_preferences: MacOsPreferencesPermission::ReadWrite,
-                macos_automation: MacOsAutomationPermission::BundleIds(vec![
-                    "com.apple.Notes".to_string(),
-                ]),
-                macos_accessibility: true,
-                macos_calendar: true,
-            }),
-            ..Default::default()
-        })
-        .expect("permissions");
-
-        assert_eq!(
-            permissions.macos,
-            Some(MacOsSeatbeltProfileExtensions {
-                macos_preferences: MacOsPreferencesPermission::ReadWrite,
-                macos_automation: MacOsAutomationPermission::BundleIds(vec![
-                    "com.apple.Notes".to_string(),
-                ]),
-                macos_accessibility: true,
-                macos_calendar: true,
-            })
-        );
-    }
-
-    #[test]
-    fn read_only_additional_permissions_can_enable_network_without_writes() {
-        let temp_dir = TempDir::new().expect("create temp dir");
-        let path = AbsolutePathBuf::from_absolute_path(
-            canonicalize(temp_dir.path()).expect("canonicalize temp dir"),
-        )
-        .expect("absolute temp dir");
-        let policy = sandbox_policy_with_additional_permissions(
-            &SandboxPolicy::ReadOnly {
-                access: ReadOnlyAccess::Restricted {
-                    include_platform_defaults: true,
-                    readable_roots: vec![path.clone()],
-                },
-                network_access: false,
-            },
-            &PermissionProfile {
-                network: Some(NetworkPermissions {
-                    enabled: Some(true),
-                }),
-                file_system: Some(FileSystemPermissions {
-                    read: Some(vec![path.clone()]),
-                    write: Some(Vec::new()),
-                }),
-                ..Default::default()
-            },
-        );
-
-        assert_eq!(
-            policy,
-            SandboxPolicy::ReadOnly {
-                access: ReadOnlyAccess::Restricted {
-                    include_platform_defaults: true,
-                    readable_roots: vec![path],
-                },
-                network_access: true,
-            }
-        );
-    }
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn effective_permissions_merge_macos_extensions_with_additional_permissions() {
-        let temp_dir = TempDir::new().expect("create temp dir");
-        let path = AbsolutePathBuf::from_absolute_path(
-            canonicalize(temp_dir.path()).expect("canonicalize temp dir"),
-        )
-        .expect("absolute temp dir");
-        let effective_permissions = EffectiveSandboxPermissions::new(
-            &SandboxPolicy::ReadOnly {
-                access: ReadOnlyAccess::Restricted {
-                    include_platform_defaults: true,
-                    readable_roots: vec![path.clone()],
-                },
-                network_access: false,
-            },
-            Some(&MacOsSeatbeltProfileExtensions {
-                macos_preferences: MacOsPreferencesPermission::ReadOnly,
-                macos_automation: MacOsAutomationPermission::BundleIds(vec![
-                    "com.apple.Calendar".to_string(),
-                ]),
-                macos_accessibility: false,
-                macos_calendar: false,
-            }),
-            Some(&PermissionProfile {
-                file_system: Some(FileSystemPermissions {
-                    read: Some(vec![path]),
-                    write: Some(Vec::new()),
-                }),
-                macos: Some(MacOsSeatbeltProfileExtensions {
-                    macos_preferences: MacOsPreferencesPermission::ReadWrite,
-                    macos_automation: MacOsAutomationPermission::BundleIds(vec![
-                        "com.apple.Notes".to_string(),
-                    ]),
-                    macos_accessibility: true,
-                    macos_calendar: true,
-                }),
-                ..Default::default()
-            }),
-        );
-
-        assert_eq!(
-            effective_permissions.macos_seatbelt_profile_extensions,
-            Some(MacOsSeatbeltProfileExtensions {
-                macos_preferences: MacOsPreferencesPermission::ReadWrite,
-                macos_automation: MacOsAutomationPermission::BundleIds(vec![
-                    "com.apple.Calendar".to_string(),
-                    "com.apple.Notes".to_string(),
-                ]),
-                macos_accessibility: true,
-                macos_calendar: true,
-            })
-        );
-    }
-
-    #[test]
-    fn external_sandbox_additional_permissions_can_enable_network() {
-        let temp_dir = TempDir::new().expect("create temp dir");
-        let path = AbsolutePathBuf::from_absolute_path(
-            canonicalize(temp_dir.path()).expect("canonicalize temp dir"),
-        )
-        .expect("absolute temp dir");
-        let policy = sandbox_policy_with_additional_permissions(
-            &SandboxPolicy::ExternalSandbox {
-                network_access: NetworkAccess::Restricted,
-            },
-            &PermissionProfile {
-                network: Some(NetworkPermissions {
-                    enabled: Some(true),
-                }),
-                file_system: Some(FileSystemPermissions {
-                    read: Some(vec![path]),
-                    write: Some(Vec::new()),
-                }),
-                ..Default::default()
-            },
-        );
-
-        assert_eq!(
-            policy,
-            SandboxPolicy::ExternalSandbox {
-                network_access: NetworkAccess::Enabled,
-            }
-        );
-    }
-
-    #[test]
-    fn transform_additional_permissions_enable_network_for_external_sandbox() {
-        let manager = SandboxManager::new();
-        let cwd = std::env::current_dir().expect("current dir");
-        let temp_dir = TempDir::new().expect("create temp dir");
-        let path = AbsolutePathBuf::from_absolute_path(
-            canonicalize(temp_dir.path()).expect("canonicalize temp dir"),
-        )
-        .expect("absolute temp dir");
-        let exec_request = manager
-            .transform(super::SandboxTransformRequest {
-                spec: super::CommandSpec {
-                    program: "true".to_string(),
-                    args: Vec::new(),
-                    cwd: cwd.clone(),
-                    env: HashMap::new(),
-                    expiration: crate::exec::ExecExpiration::DefaultTimeout,
-                    sandbox_permissions: super::SandboxPermissions::WithAdditionalPermissions,
-                    additional_permissions: Some(PermissionProfile {
-                        network: Some(NetworkPermissions {
-                            enabled: Some(true),
-                        }),
-                        file_system: Some(FileSystemPermissions {
-                            read: Some(vec![path]),
-                            write: Some(Vec::new()),
-                        }),
-                        ..Default::default()
-                    }),
-                    justification: None,
-                },
-                policy: &SandboxPolicy::ExternalSandbox {
-                    network_access: NetworkAccess::Restricted,
-                },
-                file_system_policy: &FileSystemSandboxPolicy::unrestricted(),
-                network_policy: NetworkSandboxPolicy::Restricted,
-                sandbox: SandboxType::None,
-                enforce_managed_network: false,
-                network: None,
-                sandbox_policy_cwd: cwd.as_path(),
-                #[cfg(target_os = "macos")]
-                macos_seatbelt_profile_extensions: None,
-                codex_linux_sandbox_exe: None,
-                use_linux_sandbox_bwrap: false,
-                windows_sandbox_level: WindowsSandboxLevel::Disabled,
-            })
-            .expect("transform");
-
-        assert_eq!(
-            exec_request.sandbox_policy,
-            SandboxPolicy::ExternalSandbox {
-                network_access: NetworkAccess::Enabled,
-            }
-        );
-        assert_eq!(
-            exec_request.network_sandbox_policy,
-            NetworkSandboxPolicy::Enabled
-        );
-    }
-
-    #[test]
-    fn transform_additional_permissions_preserves_denied_entries() {
-        let manager = SandboxManager::new();
-        let cwd = std::env::current_dir().expect("current dir");
-        let temp_dir = TempDir::new().expect("create temp dir");
-        let workspace_root = AbsolutePathBuf::from_absolute_path(
-            canonicalize(temp_dir.path()).expect("canonicalize temp dir"),
-        )
-        .expect("absolute temp dir");
-        let allowed_path = workspace_root.join("allowed").expect("allowed path");
-        let denied_path = workspace_root.join("denied").expect("denied path");
-        let exec_request = manager
-            .transform(super::SandboxTransformRequest {
-                spec: super::CommandSpec {
-                    program: "true".to_string(),
-                    args: Vec::new(),
-                    cwd: cwd.clone(),
-                    env: HashMap::new(),
-                    expiration: crate::exec::ExecExpiration::DefaultTimeout,
-                    sandbox_permissions: super::SandboxPermissions::WithAdditionalPermissions,
-                    additional_permissions: Some(PermissionProfile {
-                        file_system: Some(FileSystemPermissions {
-                            read: None,
-                            write: Some(vec![allowed_path.clone()]),
-                        }),
-                        ..Default::default()
-                    }),
-                    justification: None,
-                },
-                policy: &SandboxPolicy::ReadOnly {
-                    access: ReadOnlyAccess::FullAccess,
-                    network_access: false,
-                },
-                file_system_policy: &FileSystemSandboxPolicy::restricted(vec![
-                    FileSystemSandboxEntry {
-                        path: FileSystemPath::Special {
-                            value: FileSystemSpecialPath::Root,
-                        },
-                        access: FileSystemAccessMode::Read,
-                    },
-                    FileSystemSandboxEntry {
-                        path: FileSystemPath::Path {
-                            path: denied_path.clone(),
-                        },
-                        access: FileSystemAccessMode::None,
-                    },
-                ]),
-                network_policy: NetworkSandboxPolicy::Restricted,
-                sandbox: SandboxType::None,
-                enforce_managed_network: false,
-                network: None,
-                sandbox_policy_cwd: cwd.as_path(),
-                #[cfg(target_os = "macos")]
-                macos_seatbelt_profile_extensions: None,
-                codex_linux_sandbox_exe: None,
-                use_linux_sandbox_bwrap: false,
-                windows_sandbox_level: WindowsSandboxLevel::Disabled,
-            })
-            .expect("transform");
-
-        assert_eq!(
-            exec_request.file_system_sandbox_policy,
-            FileSystemSandboxPolicy::restricted(vec![
-                FileSystemSandboxEntry {
-                    path: FileSystemPath::Special {
-                        value: FileSystemSpecialPath::Root,
-                    },
-                    access: FileSystemAccessMode::Read,
-                },
-                FileSystemSandboxEntry {
-                    path: FileSystemPath::Path { path: denied_path },
-                    access: FileSystemAccessMode::None,
-                },
-                FileSystemSandboxEntry {
-                    path: FileSystemPath::Path { path: allowed_path },
-                    access: FileSystemAccessMode::Write,
-                },
-            ])
-        );
-        assert_eq!(
-            exec_request.network_sandbox_policy,
-            NetworkSandboxPolicy::Restricted
-        );
-    }
-
-    #[test]
-    fn merge_file_system_policy_with_additional_permissions_preserves_unreadable_roots() {
-        let temp_dir = TempDir::new().expect("create temp dir");
-        let cwd = AbsolutePathBuf::from_absolute_path(
-            canonicalize(temp_dir.path()).expect("canonicalize temp dir"),
-        )
-        .expect("absolute temp dir");
-        let allowed_path = cwd.join("allowed").expect("allowed path");
-        let denied_path = cwd.join("denied").expect("denied path");
-        let merged_policy = merge_file_system_policy_with_additional_permissions(
-            &FileSystemSandboxPolicy::restricted(vec![
-                FileSystemSandboxEntry {
-                    path: FileSystemPath::Special {
-                        value: FileSystemSpecialPath::Root,
-                    },
-                    access: FileSystemAccessMode::Read,
-                },
-                FileSystemSandboxEntry {
-                    path: FileSystemPath::Path {
-                        path: denied_path.clone(),
-                    },
-                    access: FileSystemAccessMode::None,
-                },
-            ]),
-            vec![allowed_path.clone()],
-            Vec::new(),
-        );
-
-        assert_eq!(
-            merged_policy.entries.contains(&FileSystemSandboxEntry {
-                path: FileSystemPath::Path { path: denied_path },
-                access: FileSystemAccessMode::None,
-            }),
-            true
-        );
-        assert_eq!(
-            merged_policy.entries.contains(&FileSystemSandboxEntry {
-                path: FileSystemPath::Path { path: allowed_path },
-                access: FileSystemAccessMode::Read,
-            }),
-            true
-        );
-    }
-}
+#[path = "mod_tests.rs"]
+mod tests;
