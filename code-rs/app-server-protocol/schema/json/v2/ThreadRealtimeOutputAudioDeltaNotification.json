@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ThreadRealtimeAudioChunk": {
+      "properties": {
+        "data": {
+          "description": "Base64-encoded PCM audio.",
+          "type": "string"
+        },
+        "itemId": {
+          "description": "Optional id of the item this audio belongs to.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "numChannels": {
+          "description": "Number of channels.",
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "sampleRate": {
+          "description": "Sample rate in Hz.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "samplesPerChannel": {
+          "description": "Number of samples per channel.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "data",
+        "numChannels",
+        "sampleRate"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "EXPERIMENTAL - streamed output audio emitted by thread realtime.",
+  "properties": {
+    "audio": {
+      "$ref": "#/definitions/ThreadRealtimeAudioChunk"
+    },
+    "threadId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "audio",
+    "threadId"
+  ],
+  "title": "ThreadRealtimeOutputAudioDeltaNotification",
+  "type": "object"
+}

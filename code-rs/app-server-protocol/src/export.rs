@@ -17,7 +17,6 @@ use crate::protocol::common::EXPERIMENTAL_CLIENT_METHODS;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use code_protocol::protocol::EventMsg;
 use schemars::JsonSchema;
 use schemars::schema_for;
 use serde::Serialize;
@@ -172,7 +171,6 @@ pub fn generate_json_with_experimental(out_dir: &Path, experimental_api: bool) -
         |d| write_json_schema_with_return::<crate::ServerRequest>(d, "ServerRequest"),
         |d| write_json_schema_with_return::<crate::ClientNotification>(d, "ClientNotification"),
         |d| write_json_schema_with_return::<crate::ServerNotification>(d, "ServerNotification"),
-        |d| write_json_schema_with_return::<EventMsg>(d, "EventMsg"),
     ];
 
     let mut schemas: Vec<GeneratedSchema> = Vec::new();
@@ -861,7 +859,6 @@ fn build_schema_bundle(schemas: Vec<GeneratedSchema>) -> Result<Value> {
     const SPECIAL_DEFINITIONS: &[&str] = &[
         "ClientNotification",
         "ClientRequest",
-        "EventMsg",
         "ServerNotification",
         "ServerRequest",
     ];
@@ -1386,6 +1383,7 @@ fn generate_index_ts(out_dir: &Path) -> Result<PathBuf> {
             let stem = p.file_stem()?.to_string_lossy().into_owned();
             if stem == "index" { None } else { Some(stem) }
         })
+        .filter(|stem| stem != "EventMsg")
         .collect();
     stems.sort();
     stems.dedup();

@@ -15,6 +15,22 @@
         "authStatus": {
           "$ref": "#/definitions/McpAuthStatus"
         },
+        "disabledTools": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "failure": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "name": {
           "type": "string"
         },
@@ -30,19 +46,38 @@
           },
           "type": "array"
         },
+        "startupTimeoutSec": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "toolTimeoutSec": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "tools": {
           "additionalProperties": {
             "$ref": "#/definitions/Tool"
           },
           "type": "object"
+        },
+        "transport": {
+          "type": "string"
         }
       },
       "required": [
         "authStatus",
+        "enabled",
         "name",
         "resourceTemplates",
         "resources",
-        "tools"
+        "tools",
+        "transport"
       ],
       "type": "object"
     },
