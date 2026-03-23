@@ -222,6 +222,8 @@ fn map_result(value: FuzzyFileSearchResult) -> code_app_server_protocol::FuzzyFi
     code_app_server_protocol::FuzzyFileSearchResult {
         root: value.root,
         path: value.path,
+        // `code_file_search` currently filters out directories, so this is always a file match.
+        match_type: code_app_server_protocol::FuzzyFileSearchMatchType::File,
         file_name: value.file_name,
         score: value.score,
         indices: value.indices,
