@@ -35,6 +35,7 @@ use ts_rs::TS;
 
 const HEADER: &str = "// GENERATED CODE! DO NOT MODIFY BY HAND!\n\n";
 const IGNORED_DEFINITIONS: &[&str] = &["Option<()>"];
+const FLAT_V2_SHARED_DEFINITIONS: &[&str] = &["ClientRequest", "ServerNotification"];
 
 #[derive(Clone)]
 pub struct GeneratedSchema {
@@ -192,6 +193,11 @@ pub fn generate_json_with_experimental(out_dir: &Path, experimental_api: bool) -
     write_pretty_json(
         out_dir.join("codex_app_server_protocol.schemas.json"),
         &bundle,
+    )?;
+    let flat_v2_bundle = build_flat_v2_schema(&bundle)?;
+    write_pretty_json(
+        out_dir.join("codex_app_server_protocol.v2.schemas.json"),
+        &flat_v2_bundle,
     )?;
 
     if !experimental_api {
@@ -941,6 +947,198 @@ fn build_schema_bundle(schemas: Vec<GeneratedSchema>) -> Result<Value> {
     root.insert("definitions".to_string(), Value::Object(definitions));
 
     Ok(Value::Object(root))
+}
+
+fn build_flat_v2_schema(bundle: &Value) -> Result<Value> {
+    let Value::Object(root) = bundle else {
+        return Err(anyhow!("expected bundle root to be an object"));
+    };
+    let definitions = root
+        .get("definitions")
+        .and_then(Value::as_object)
+        .ok_or_else(|| anyhow!("expected bundle definitions map"))?;
+    let v2_definitions = definitions
+        .get("v2")
+        .and_then(Value::as_object)
+        .ok_or_else(|| anyhow!("expected v2 namespace in bundle definitions"))?;
+
+    let mut flat_root = root.clone();
+    let title = root
+        .get("title")
+        .and_then(Value::as_str)
+        .unwrap_or("CodexAppServerProtocol");
+    let mut flat_definitions = v2_definitions.clone();
+    let mut shared_definitions = Map::new();
+    let mut non_v2_refs = HashSet::new();
+
+    for shared in FLAT_V2_SHARED_DEFINITIONS {
+        let Some(shared_schema) = definitions.get(*shared) else {
+            continue;
+        };
+        let shared_schema = shared_schema.clone();
+        non_v2_refs.extend(collect_non_v2_refs(&shared_schema));
+        shared_definitions.insert((*shared).to_string(), shared_schema);
+    }
+
+    for name in collect_definition_dependencies(definitions, non_v2_refs) {
+        if name == "v2" || flat_definitions.contains_key(&name) {
+            continue;
+        }
+        if let Some(schema) = definitions.get(&name) {
+            flat_definitions.insert(name, schema.clone());
+        }
+    }
+
+    flat_definitions.extend(shared_definitions);
+    flat_root.insert("title".to_string(), Value::String(format!("{title}V2")));
+    flat_root.insert("definitions".to_string(), Value::Object(flat_definitions));
+    let mut flat_bundle = Value::Object(flat_root);
+    rewrite_ref_prefix(&mut flat_bundle, "#/definitions/v2/", "#/definitions/");
+    ensure_no_ref_prefix(&flat_bundle, "#/definitions/v2/", "flat v2")?;
+    ensure_referenced_definitions_present(&flat_bundle, "flat v2")?;
+    Ok(flat_bundle)
+}
+
+fn collect_non_v2_refs(value: &Value) -> HashSet<String> {
+    let mut refs = HashSet::new();
+    collect_non_v2_refs_inner(value, &mut refs);
+    refs
+}
+
+fn collect_non_v2_refs_inner(value: &Value, refs: &mut HashSet<String>) {
+    match value {
+        Value::Object(obj) => {
+            if let Some(Value::String(reference)) = obj.get("$ref")
+                && let Some(name) = reference.strip_prefix("#/definitions/")
+                && !reference.starts_with("#/definitions/v2/")
+            {
+                refs.insert(name.to_string());
+            }
+            for child in obj.values() {
+                collect_non_v2_refs_inner(child, refs);
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                collect_non_v2_refs_inner(child, refs);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_definition_dependencies(
+    definitions: &Map<String, Value>,
+    names: HashSet<String>,
+) -> HashSet<String> {
+    let mut seen = HashSet::new();
+    let mut to_process: Vec<String> = names.into_iter().collect();
+    while let Some(name) = to_process.pop() {
+        if !seen.insert(name.clone()) {
+            continue;
+        }
+        let Some(schema) = definitions.get(&name) else {
+            continue;
+        };
+        for dep in collect_non_v2_refs(schema) {
+            if !seen.contains(&dep) {
+                to_process.push(dep);
+            }
+        }
+    }
+    seen
+}
+
+fn rewrite_ref_prefix(value: &mut Value, prefix: &str, replacement: &str) {
+    match value {
+        Value::Object(obj) => {
+            if let Some(Value::String(reference)) = obj.get_mut("$ref") {
+                *reference = reference.replace(prefix, replacement);
+            }
+            for child in obj.values_mut() {
+                rewrite_ref_prefix(child, prefix, replacement);
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                rewrite_ref_prefix(child, prefix, replacement);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn ensure_no_ref_prefix(value: &Value, prefix: &str, label: &str) -> Result<()> {
+    if let Some(reference) = first_ref_with_prefix(value, prefix) {
+        return Err(anyhow!(
+            "{label} schema still references namespaced definitions; found {reference}"
+        ));
+    }
+    Ok(())
+}
+
+fn first_ref_with_prefix(value: &Value, prefix: &str) -> Option<String> {
+    match value {
+        Value::Object(obj) => {
+            if let Some(Value::String(reference)) = obj.get("$ref")
+                && reference.starts_with(prefix)
+            {
+                return Some(reference.clone());
+            }
+            obj.values()
+                .find_map(|child| first_ref_with_prefix(child, prefix))
+        }
+        Value::Array(items) => items
+            .iter()
+            .find_map(|child| first_ref_with_prefix(child, prefix)),
+        _ => None,
+    }
+}
+
+fn ensure_referenced_definitions_present(schema: &Value, label: &str) -> Result<()> {
+    let definitions = schema
+        .get("definitions")
+        .and_then(Value::as_object)
+        .ok_or_else(|| anyhow!("expected definitions map in {label} schema"))?;
+    let mut missing = HashSet::new();
+    collect_missing_definitions(schema, definitions, &mut missing);
+    if missing.is_empty() {
+        return Ok(());
+    }
+    let mut missing_names: Vec<String> = missing.into_iter().collect();
+    missing_names.sort();
+    Err(anyhow!(
+        "{label} schema missing definitions: {}",
+        missing_names.join(", ")
+    ))
+}
+
+fn collect_missing_definitions(
+    value: &Value,
+    definitions: &Map<String, Value>,
+    missing: &mut HashSet<String>,
+) {
+    match value {
+        Value::Object(obj) => {
+            if let Some(Value::String(reference)) = obj.get("$ref")
+                && let Some(name) = reference.strip_prefix("#/definitions/")
+            {
+                let name = name.split('/').next().unwrap_or(name);
+                if !definitions.contains_key(name) {
+                    missing.insert(name.to_string());
+                }
+            }
+            for child in obj.values() {
+                collect_missing_definitions(child, definitions, missing);
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                collect_missing_definitions(child, definitions, missing);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn insert_into_namespace(

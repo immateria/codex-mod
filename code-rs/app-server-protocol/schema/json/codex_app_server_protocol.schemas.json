@@ -5,7 +5,7 @@
       "properties": {
         "read": {
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/AbsolutePathBuf"
           },
           "type": [
             "array",
@@ -14,7 +14,7 @@
         },
         "write": {
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/AbsolutePathBuf"
           },
           "type": [
             "array",
@@ -61,6 +61,17 @@
       },
       "type": "object"
     },
+    "AdditionalNetworkPermissions": {
+      "properties": {
+        "enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "AdditionalPermissionProfile": {
       "properties": {
         "fileSystem": {
@@ -84,9 +95,13 @@
           ]
         },
         "network": {
-          "type": [
-            "boolean",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AdditionalNetworkPermissions"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       },
@@ -2226,29 +2241,6 @@
       "title": "FileChangeRequestApprovalResponse",
       "type": "object"
     },
-    "FileSystemPermissions": {
-      "properties": {
-        "read": {
-          "items": {
-            "type": "string"
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
-        "write": {
-          "items": {
-            "type": "string"
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        }
-      },
-      "type": "object"
-    },
     "FuzzyFileSearchMatchType": {
       "enum": [
         "file",
@@ -3334,17 +3326,6 @@
       ],
       "type": "string"
     },
-    "NetworkPermissions": {
-      "properties": {
-        "enabled": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        }
-      },
-      "type": "object"
-    },
     "ParsedCommand": {
       "oneOf": [
         {
@@ -3551,10 +3532,10 @@
     "RequestPermissionProfile": {
       "additionalProperties": false,
       "properties": {
-        "file_system": {
+        "fileSystem": {
           "anyOf": [
             {
-              "$ref": "#/definitions/FileSystemPermissions"
+              "$ref": "#/definitions/AdditionalFileSystemPermissions"
             },
             {
               "type": "null"
@@ -3564,7 +3545,7 @@
         "network": {
           "anyOf": [
             {
-              "$ref": "#/definitions/NetworkPermissions"
+              "$ref": "#/definitions/AdditionalNetworkPermissions"
             },
             {
               "type": "null"
@@ -5362,6 +5343,14 @@
         ],
         "type": "object"
       },
+      "ApprovalsReviewer": {
+        "description": "Configures who approval requests are routed to for review. Examples include sandbox escapes, blocked network access, MCP approval prompts, and ARC escalations. Defaults to `user`. `guardian_subagent` uses a carefully prompted subagent to gather relevant context and apply a risk-based decision framework before approving or denying the request.",
+        "enum": [
+          "user",
+          "guardian_subagent"
+        ],
+        "type": "string"
+      },
       "AppsConfig": {
         "type": "object"
       },
@@ -5438,7 +5427,7 @@
           {
             "additionalProperties": false,
             "properties": {
-              "reject": {
+              "granular": {
                 "properties": {
                   "mcp_elicitations": {
                     "type": "boolean"
@@ -5467,9 +5456,9 @@
               }
             },
             "required": [
-              "reject"
+              "granular"
             ],
-            "title": "RejectAskForApproval",
+            "title": "GranularAskForApproval",
             "type": "object"
           }
         ]
@@ -6223,6 +6212,17 @@
                 "type": "null"
               }
             ]
+          },
+          "approvals_reviewer": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/v2/ApprovalsReviewer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "[UNSTABLE] Optional default for where approval requests are routed for review."
           },
           "compact_prompt": {
             "type": [
@@ -9538,6 +9538,17 @@
                 "type": "null"
               }
             ]
+          },
+          "approvals_reviewer": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/v2/ApprovalsReviewer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "[UNSTABLE] Optional profile-level override for where approval requests are routed for review. If omitted, the enclosing config default is used."
           },
           "chatgpt_base_url": {
             "type": [
