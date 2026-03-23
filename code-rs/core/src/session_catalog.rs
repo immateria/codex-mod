@@ -138,6 +138,46 @@ impl SessionCatalog {
         Ok(updated)
     }
 
+    pub async fn update_git_info(
+        &self,
+        session_id: Uuid,
+        sha: Option<Option<String>>,
+        branch: Option<Option<String>>,
+        origin_url: Option<Option<String>>,
+    ) -> Result<Option<SessionIndexEntry>> {
+        let mut catalog = self.load_inner().await?;
+        let Some(mut entry) = catalog.entries.get(&session_id).cloned() else {
+            return Ok(None);
+        };
+
+        let mut updated = false;
+        if let Some(value) = sha {
+            entry.git_sha = value;
+            updated = true;
+        }
+        if let Some(value) = branch {
+            entry.git_branch = value;
+            updated = true;
+        }
+        if let Some(value) = origin_url {
+            entry.git_origin_url = value;
+            updated = true;
+        }
+
+        if !updated {
+            return Ok(Some(entry));
+        }
+
+        catalog
+            .upsert(entry.clone())
+            .context("failed to persist updated catalog entry")?;
+
+        let mut guard = self.cache.lock().await;
+        *guard = Some(catalog);
+
+        Ok(Some(entry))
+    }
+
     pub async fn set_memory_mode(
         &self,
         session_id: Uuid,
@@ -248,6 +288,93 @@ impl SessionCatalog {
 
         let mut guard = self.cache.lock().await;
         *guard = Some(catalog);
+        Ok(true)
+    }
+
+    /// Unarchive a session by moving its rollout (and optional snapshot) under
+    /// `sessions/` and clearing the archived flag.
+    pub async fn unarchive_conversation(
+        &self,
+        session_id: Uuid,
+        rollout_path: &Path,
+    ) -> Result<bool> {
+        if !rollout_path.exists() {
+            return Ok(false);
+        }
+
+        let code_home = &self.code_home;
+        let rel = rollout_path
+            .strip_prefix(code_home)
+            .context("rollout_path must be under code_home")?;
+
+        let sessions_prefix = Path::new(SESSIONS_SUBDIR);
+        let archived_prefix = Path::new(ARCHIVED_SESSIONS_SUBDIR);
+
+        let already_unarchived = rel.starts_with(sessions_prefix);
+        let suffix = if rel.starts_with(archived_prefix) {
+            rel.strip_prefix(archived_prefix)
+                .context("failed to strip archived prefix")?
+        } else if already_unarchived {
+            rel.strip_prefix(sessions_prefix)
+                .context("failed to strip sessions prefix")?
+        } else {
+            anyhow::bail!("rollout_path must be under sessions/ or archived_sessions/");
+        };
+
+        let new_rel = sessions_prefix.join(suffix);
+        let new_abs = code_home.join(&new_rel);
+
+        if !already_unarchived {
+            if let Some(parent) = new_abs.parent() {
+                tokio::fs::create_dir_all(parent)
+                    .await
+                    .context("failed to create sessions directory")?;
+            }
+
+            move_file(rollout_path, &new_abs)
+                .await
+                .context("failed to move rollout file")?;
+
+            let snapshot_old = rollout_path.with_extension("snapshot.json");
+            if snapshot_old.exists() {
+                let snapshot_new = new_abs.with_extension("snapshot.json");
+                if let Some(parent) = snapshot_new.parent() {
+                    tokio::fs::create_dir_all(parent)
+                        .await
+                        .context("failed to create sessions directory")?;
+                }
+                move_file(&snapshot_old, &snapshot_new)
+                    .await
+                    .context("failed to move snapshot file")?;
+            }
+        }
+
+        // Update catalog entry.
+        let mut catalog = self.load_inner().await?;
+        let Some(mut entry) = catalog.entries.get(&session_id).cloned() else {
+            return Ok(false);
+        };
+
+        entry.archived = false;
+        entry.rollout_path = new_rel;
+        let snapshot_new_abs = new_abs.with_extension("snapshot.json");
+        entry.snapshot_path = snapshot_new_abs
+            .exists()
+            .then(|| {
+                snapshot_new_abs
+                    .strip_prefix(code_home)
+                    .ok()
+                    .map(std::path::Path::to_path_buf)
+            })
+            .flatten();
+
+        catalog
+            .upsert(entry)
+            .context("failed to persist updated catalog entry")?;
+
+        let mut guard = self.cache.lock().await;
+        *guard = Some(catalog);
+
         Ok(true)
     }
 

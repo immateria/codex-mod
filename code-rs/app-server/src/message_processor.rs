@@ -39,13 +39,29 @@ use code_app_server_protocol::LoginAccountParams;
 use code_app_server_protocol::MergeStrategy;
 use code_app_server_protocol::ModelListParams;
 use code_app_server_protocol::ThreadListParams;
+use code_app_server_protocol::ThreadLoadedListParams;
 use code_app_server_protocol::ThreadReadParams;
 use code_app_server_protocol::ThreadStartParams;
+use code_app_server_protocol::ThreadResumeParams;
+use code_app_server_protocol::ThreadForkParams;
+use code_app_server_protocol::ThreadArchiveParams;
+use code_app_server_protocol::ThreadUnsubscribeParams;
+use code_app_server_protocol::ThreadSetNameParams;
+use code_app_server_protocol::ThreadMetadataUpdateParams;
+use code_app_server_protocol::ThreadUnarchiveParams;
 use code_app_server_protocol::ToolsV2;
 use code_app_server_protocol::TurnStartParams;
+use code_app_server_protocol::TurnInterruptParams;
 use code_app_server_protocol::AskForApproval as V2AskForApproval;
 use code_app_server_protocol::WindowsSandboxSetupStartParams;
 use code_app_server_protocol::WriteStatus;
+use code_app_server_protocol::FsReadFileParams;
+use code_app_server_protocol::FsWriteFileParams;
+use code_app_server_protocol::FsCreateDirectoryParams;
+use code_app_server_protocol::FsGetMetadataParams;
+use code_app_server_protocol::FsReadDirectoryParams;
+use code_app_server_protocol::FsRemoveParams;
+use code_app_server_protocol::FsCopyParams;
 use code_protocol::config_types::Verbosity;
 use code_protocol::config_types::WebSearchMode;
 use code_core::AuthManager;
@@ -341,9 +357,25 @@ impl MessageProcessor {
                 | "command/exec/terminate"
                 | "command/exec/resize"
                 | "thread/list"
+                | "thread/loaded/list"
                 | "thread/read"
                 | "thread/start"
+                | "thread/resume"
+                | "thread/fork"
+                | "thread/archive"
+                | "thread/unsubscribe"
+                | "thread/name/set"
+                | "thread/metadata/update"
+                | "thread/unarchive"
                 | "turn/start"
+                | "turn/interrupt"
+                | "fs/readFile"
+                | "fs/writeFile"
+                | "fs/createDirectory"
+                | "fs/getMetadata"
+                | "fs/readDirectory"
+                | "fs/remove"
+                | "fs/copy"
                 | "mcpServerStatus/list"
         );
         if is_v2_request && !session_initialized {
@@ -877,6 +909,27 @@ impl MessageProcessor {
                 self.list_threads_v2(connection_id, request_id, params).await;
                 true
             }
+            "thread/loaded/list" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: ThreadLoadedListParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid thread/loaded/list params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.list_loaded_threads_v2(connection_id, request_id, params)
+                    .await;
+                true
+            }
             "thread/read" => {
                 let params_value = request.params.clone().unwrap_or_else(|| json!({}));
                 let params: ThreadReadParams = match serde_json::from_value(params_value) {
@@ -917,6 +970,150 @@ impl MessageProcessor {
                 self.thread_start_v2(connection_id, request_id, params).await;
                 true
             }
+            "thread/resume" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: ThreadResumeParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid thread/resume params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.thread_resume_v2(connection_id, request_id, params).await;
+                true
+            }
+            "thread/fork" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: ThreadForkParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid thread/fork params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.thread_fork_v2(connection_id, request_id, params).await;
+                true
+            }
+            "thread/archive" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: ThreadArchiveParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid thread/archive params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.thread_archive_v2(connection_id, request_id, params).await;
+                true
+            }
+            "thread/unsubscribe" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: ThreadUnsubscribeParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid thread/unsubscribe params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.thread_unsubscribe_v2(connection_id, request_id, params)
+                    .await;
+                true
+            }
+            "thread/name/set" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: ThreadSetNameParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid thread/name/set params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.thread_set_name_v2(connection_id, request_id, params).await;
+                true
+            }
+            "thread/metadata/update" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: ThreadMetadataUpdateParams =
+                    match serde_json::from_value(params_value) {
+                        Ok(params) => params,
+                        Err(err) => {
+                            let error = JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("Invalid thread/metadata/update params: {err}"),
+                                data: None,
+                            };
+                            self.outgoing
+                                .send_error_to_connection(connection_id, request_id, error)
+                                .await;
+                            return true;
+                        }
+                    };
+
+                self.thread_metadata_update_v2(connection_id, request_id, params)
+                    .await;
+                true
+            }
+            "thread/unarchive" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: ThreadUnarchiveParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid thread/unarchive params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.thread_unarchive_v2(connection_id, request_id, params)
+                    .await;
+                true
+            }
             "turn/start" => {
                 let params_value = request.params.clone().unwrap_or_else(|| json!({}));
                 let params: TurnStartParams = match serde_json::from_value(params_value) {
@@ -935,6 +1132,171 @@ impl MessageProcessor {
                 };
 
                 self.turn_start_v2(connection_id, request_id, params).await;
+                true
+            }
+            "turn/interrupt" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: TurnInterruptParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid turn/interrupt params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.turn_interrupt_v2(connection_id, request_id, params).await;
+                true
+            }
+            "fs/readFile" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: FsReadFileParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid fs/readFile params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.fs_read_file_v2(connection_id, request_id, params).await;
+                true
+            }
+            "fs/writeFile" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: FsWriteFileParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid fs/writeFile params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.fs_write_file_v2(connection_id, request_id, params).await;
+                true
+            }
+            "fs/createDirectory" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: FsCreateDirectoryParams =
+                    match serde_json::from_value(params_value) {
+                        Ok(params) => params,
+                        Err(err) => {
+                            let error = JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("Invalid fs/createDirectory params: {err}"),
+                                data: None,
+                            };
+                            self.outgoing
+                                .send_error_to_connection(connection_id, request_id, error)
+                                .await;
+                            return true;
+                        }
+                    };
+
+                self.fs_create_directory_v2(connection_id, request_id, params)
+                    .await;
+                true
+            }
+            "fs/getMetadata" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: FsGetMetadataParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid fs/getMetadata params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.fs_get_metadata_v2(connection_id, request_id, params)
+                    .await;
+                true
+            }
+            "fs/readDirectory" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: FsReadDirectoryParams =
+                    match serde_json::from_value(params_value) {
+                        Ok(params) => params,
+                        Err(err) => {
+                            let error = JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("Invalid fs/readDirectory params: {err}"),
+                                data: None,
+                            };
+                            self.outgoing
+                                .send_error_to_connection(connection_id, request_id, error)
+                                .await;
+                            return true;
+                        }
+                    };
+
+                self.fs_read_directory_v2(connection_id, request_id, params)
+                    .await;
+                true
+            }
+            "fs/remove" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: FsRemoveParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid fs/remove params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.fs_remove_v2(connection_id, request_id, params).await;
+                true
+            }
+            "fs/copy" => {
+                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
+                let params: FsCopyParams = match serde_json::from_value(params_value) {
+                    Ok(params) => params,
+                    Err(err) => {
+                        let error = JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("Invalid fs/copy params: {err}"),
+                            data: None,
+                        };
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, error)
+                            .await;
+                        return true;
+                    }
+                };
+
+                self.fs_copy_v2(connection_id, request_id, params).await;
                 true
             }
             "mcpServerStatus/list" => {

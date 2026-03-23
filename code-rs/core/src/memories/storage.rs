@@ -964,6 +964,8 @@ mod tests {
             cwd_display: "~/project".to_string(),
             git_project_root: Some(PathBuf::from("/tmp/project")),
             git_branch: Some(git_branch.to_string()),
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: source,
             message_count: 1,

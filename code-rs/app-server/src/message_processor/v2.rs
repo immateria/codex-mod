@@ -10,6 +10,21 @@ use code_app_server_protocol::CommandExecTerminateParams;
 use code_app_server_protocol::CommandExecWriteParams;
 use code_app_server_protocol::ListMcpServerStatusParams;
 use code_app_server_protocol::ListMcpServerStatusResponse;
+use code_app_server_protocol::FsCopyParams;
+use code_app_server_protocol::FsCopyResponse;
+use code_app_server_protocol::FsCreateDirectoryParams;
+use code_app_server_protocol::FsCreateDirectoryResponse;
+use code_app_server_protocol::FsGetMetadataParams;
+use code_app_server_protocol::FsGetMetadataResponse;
+use code_app_server_protocol::FsReadDirectoryEntry;
+use code_app_server_protocol::FsReadDirectoryParams;
+use code_app_server_protocol::FsReadDirectoryResponse;
+use code_app_server_protocol::FsReadFileParams;
+use code_app_server_protocol::FsReadFileResponse;
+use code_app_server_protocol::FsRemoveParams;
+use code_app_server_protocol::FsRemoveResponse;
+use code_app_server_protocol::FsWriteFileParams;
+use code_app_server_protocol::FsWriteFileResponse;
 use code_app_server_protocol::CommandAction;
 use code_app_server_protocol::CommandExecutionOutputDeltaNotification;
 use code_app_server_protocol::CommandExecutionStatus;
@@ -25,9 +40,29 @@ use code_app_server_protocol::Thread;
 use code_app_server_protocol::ThreadItem;
 use code_app_server_protocol::ThreadListParams;
 use code_app_server_protocol::ThreadListResponse;
+use code_app_server_protocol::ThreadLoadedListParams;
+use code_app_server_protocol::ThreadLoadedListResponse;
 use code_app_server_protocol::ThreadStartedNotification;
+use code_app_server_protocol::ThreadArchivedNotification;
 use code_app_server_protocol::ThreadStartParams;
 use code_app_server_protocol::ThreadStartResponse;
+use code_app_server_protocol::ThreadResumeParams;
+use code_app_server_protocol::ThreadResumeResponse;
+use code_app_server_protocol::ThreadForkParams;
+use code_app_server_protocol::ThreadForkResponse;
+use code_app_server_protocol::ThreadArchiveParams;
+use code_app_server_protocol::ThreadArchiveResponse;
+use code_app_server_protocol::ThreadUnsubscribeParams;
+use code_app_server_protocol::ThreadUnsubscribeResponse;
+use code_app_server_protocol::ThreadUnsubscribeStatus;
+use code_app_server_protocol::ThreadSetNameParams;
+use code_app_server_protocol::ThreadSetNameResponse;
+use code_app_server_protocol::ThreadNameUpdatedNotification;
+use code_app_server_protocol::ThreadMetadataUpdateParams;
+use code_app_server_protocol::ThreadMetadataUpdateResponse;
+use code_app_server_protocol::ThreadUnarchiveParams;
+use code_app_server_protocol::ThreadUnarchiveResponse;
+use code_app_server_protocol::ThreadUnarchivedNotification;
 use code_app_server_protocol::ThreadReadParams;
 use code_app_server_protocol::ThreadReadResponse;
 use code_app_server_protocol::ThreadSortKey;
@@ -37,12 +72,16 @@ use code_app_server_protocol::TurnCompletedNotification;
 use code_app_server_protocol::TurnStartParams;
 use code_app_server_protocol::TurnStartResponse;
 use code_app_server_protocol::TurnStartedNotification;
+use code_app_server_protocol::TurnInterruptParams;
+use code_app_server_protocol::TurnInterruptResponse;
 use code_app_server_protocol::TurnStatus;
 use code_app_server_protocol::UserInput;
 use code_app_server_protocol::WindowsSandboxSetupCompletedNotification;
 use code_app_server_protocol::WindowsSandboxSetupMode;
 use code_app_server_protocol::WindowsSandboxSetupStartParams;
 use code_app_server_protocol::WindowsSandboxSetupStartResponse;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use chrono::Utc;
 use code_common::model_presets;
 use code_core::SessionCatalog;
@@ -508,6 +547,266 @@ impl MessageProcessor {
         });
     }
 
+    pub(super) async fn fs_read_file_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: FsReadFileParams,
+    ) {
+        match tokio::fs::read(params.path.as_path()).await {
+            Ok(bytes) => {
+                let response = FsReadFileResponse {
+                    data_base64: STANDARD.encode(bytes),
+                };
+                self.outgoing
+                    .send_response_to_connection(connection_id, request_id, response)
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, map_fs_error(err))
+                    .await;
+            }
+        }
+    }
+
+    pub(super) async fn fs_write_file_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: FsWriteFileParams,
+    ) {
+        let bytes = match STANDARD.decode(params.data_base64) {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!(
+                                "fs/writeFile requires valid base64 dataBase64: {err}"
+                            ),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        match tokio::fs::write(params.path.as_path(), bytes).await {
+            Ok(()) => {
+                self.outgoing
+                    .send_response_to_connection(connection_id, request_id, FsWriteFileResponse {})
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, map_fs_error(err))
+                    .await;
+            }
+        }
+    }
+
+    pub(super) async fn fs_create_directory_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: FsCreateDirectoryParams,
+    ) {
+        let recursive = params.recursive.unwrap_or(true);
+        let result = if recursive {
+            tokio::fs::create_dir_all(params.path.as_path()).await
+        } else {
+            tokio::fs::create_dir(params.path.as_path()).await
+        };
+
+        match result {
+            Ok(()) => {
+                self.outgoing
+                    .send_response_to_connection(
+                        connection_id,
+                        request_id,
+                        FsCreateDirectoryResponse {},
+                    )
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, map_fs_error(err))
+                    .await;
+            }
+        }
+    }
+
+    pub(super) async fn fs_get_metadata_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: FsGetMetadataParams,
+    ) {
+        match tokio::fs::metadata(params.path.as_path()).await {
+            Ok(metadata) => {
+                let created_at_ms = metadata
+                    .created()
+                    .ok()
+                    .and_then(system_time_to_unix_ms)
+                    .unwrap_or(0);
+                let modified_at_ms = metadata
+                    .modified()
+                    .ok()
+                    .and_then(system_time_to_unix_ms)
+                    .unwrap_or(0);
+                let response = FsGetMetadataResponse {
+                    is_directory: metadata.is_dir(),
+                    is_file: metadata.is_file(),
+                    created_at_ms,
+                    modified_at_ms,
+                };
+                self.outgoing
+                    .send_response_to_connection(connection_id, request_id, response)
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, map_fs_error(err))
+                    .await;
+            }
+        }
+    }
+
+    pub(super) async fn fs_read_directory_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: FsReadDirectoryParams,
+    ) {
+        let mut entries_out = Vec::new();
+        match tokio::fs::read_dir(params.path.as_path()).await {
+            Ok(mut entries) => loop {
+                match entries.next_entry().await {
+                    Ok(Some(entry)) => {
+                        let file_name = entry.file_name().to_string_lossy().to_string();
+                        let file_type = match entry.file_type().await {
+                            Ok(file_type) => file_type,
+                            Err(err) => {
+                                self.outgoing
+                                    .send_error_to_connection(
+                                        connection_id,
+                                        request_id,
+                                        map_fs_error(err),
+                                    )
+                                    .await;
+                                return;
+                            }
+                        };
+                        entries_out.push(FsReadDirectoryEntry {
+                            file_name,
+                            is_directory: file_type.is_dir(),
+                            is_file: file_type.is_file(),
+                        });
+                    }
+                    Ok(None) => break,
+                    Err(err) => {
+                        self.outgoing
+                            .send_error_to_connection(connection_id, request_id, map_fs_error(err))
+                            .await;
+                        return;
+                    }
+                }
+            },
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, map_fs_error(err))
+                    .await;
+                return;
+            }
+        }
+
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                FsReadDirectoryResponse { entries: entries_out },
+            )
+            .await;
+    }
+
+    pub(super) async fn fs_remove_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: FsRemoveParams,
+    ) {
+        let recursive = params.recursive.unwrap_or(true);
+        let force = params.force.unwrap_or(true);
+
+        let path = params.path.as_path();
+        let metadata = tokio::fs::metadata(path).await;
+        let result = match metadata {
+            Ok(metadata) => {
+                if metadata.is_dir() {
+                    if recursive {
+                        tokio::fs::remove_dir_all(path).await
+                    } else {
+                        tokio::fs::remove_dir(path).await
+                    }
+                } else {
+                    tokio::fs::remove_file(path).await
+                }
+            }
+            Err(err) if force && err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(err) => Err(err),
+        };
+
+        match result {
+            Ok(()) => {
+                self.outgoing
+                    .send_response_to_connection(connection_id, request_id, FsRemoveResponse {})
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, map_fs_error(err))
+                    .await;
+            }
+        }
+    }
+
+    pub(super) async fn fs_copy_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: FsCopyParams,
+    ) {
+        let result = if params.recursive {
+            copy_dir_recursive(
+                params.source_path.as_path(),
+                params.destination_path.as_path(),
+            )
+            .await
+        } else {
+            tokio::fs::copy(params.source_path.as_path(), params.destination_path.as_path())
+                .await
+                .map(|_| ())
+        };
+
+        match result {
+            Ok(()) => {
+                self.outgoing
+                    .send_response_to_connection(connection_id, request_id, FsCopyResponse {})
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, map_fs_error(err))
+                    .await;
+            }
+        }
+    }
+
     pub(super) async fn list_models_v2(
         &self,
         connection_id: ConnectionId,
@@ -668,6 +967,39 @@ impl MessageProcessor {
                 connection_id,
                 request_id,
                 ThreadListResponse { data, next_cursor },
+            )
+            .await;
+    }
+
+    pub(super) async fn list_loaded_threads_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: ThreadLoadedListParams,
+    ) {
+        let ids = self.conversation_manager.loaded_conversation_ids().await;
+
+        let total = ids.len();
+        let limit = params.limit.unwrap_or(total as u32).max(1) as usize;
+        let start = match parse_cursor_offset(params.cursor.as_deref(), total, "threads") {
+            Ok(offset) => offset,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, error)
+                    .await;
+                return;
+            }
+        };
+        let end = start.saturating_add(limit).min(total);
+
+        let data = ids[start..end].iter().map(ToString::to_string).collect();
+        let next_cursor = (end < total).then(|| end.to_string());
+
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                ThreadLoadedListResponse { data, next_cursor },
             )
             .await;
     }
@@ -1094,6 +1426,900 @@ impl MessageProcessor {
         .await;
     }
 
+    pub(super) async fn thread_resume_v2(
+        &mut self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: ThreadResumeParams,
+    ) {
+        let ThreadResumeParams {
+            thread_id,
+            history,
+            path,
+            model,
+            model_provider,
+            cwd,
+            approval_policy,
+            sandbox,
+            config,
+            base_instructions,
+            developer_instructions,
+            personality,
+        } = params;
+
+        if history.is_some() {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_REQUEST_ERROR_CODE,
+                        message: "thread/resume history is not supported".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        let catalog = SessionCatalog::new(self.base_config.code_home.clone());
+        let entry = if path.is_none() {
+            match catalog.find_by_id(&thread_id).await {
+                Ok(Some(entry)) => Some(entry),
+                Ok(None) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("thread not found: {thread_id}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INTERNAL_ERROR_CODE,
+                                message: format!("failed to query session catalog: {err}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+            }
+        } else {
+            None
+        };
+
+        let rollout_path = if let Some(path) = path {
+            if path.is_absolute() {
+                path
+            } else {
+                self.base_config.code_home.join(path)
+            }
+        } else if let Some(entry) = entry.as_ref() {
+            entry_to_rollout_path(&self.base_config.code_home, entry)
+        } else {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_REQUEST_ERROR_CODE,
+                        message: "thread/resume requires thread_id or path".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        };
+
+        let thread_cwd = cwd
+            .as_deref()
+            .map(PathBuf::from)
+            .map(|path| {
+                if path.is_absolute() {
+                    path
+                } else {
+                    self.base_config.cwd.join(path)
+                }
+            })
+            .or_else(|| entry.as_ref().map(|entry| entry.cwd_real.clone()))
+            .unwrap_or_else(|| self.base_config.cwd.clone());
+
+        let model_provider = model_provider.or_else(|| {
+            entry.as_ref()
+                .and_then(|entry| entry.model_provider.clone())
+        });
+
+        let overrides = ConfigOverrides {
+            model,
+            model_provider,
+            approval_policy: approval_policy.map(v2_approval_policy_to_core),
+            sandbox_mode: sandbox.map(SandboxMode::to_core),
+            cwd: Some(thread_cwd),
+            base_instructions,
+            code_linux_sandbox_exe: self.code_linux_sandbox_exe.clone(),
+            ..Default::default()
+        };
+
+        let mut cli_overrides = self.cli_overrides.clone();
+        if let Some(config_overrides) = config {
+            for (key, value) in config_overrides {
+                cli_overrides.push((key, code_utils_json_to_toml::json_to_toml(value)));
+            }
+        }
+
+        let mut config = match ConfigBuilder::new()
+            .with_code_home(self.base_config.code_home.clone())
+            .with_cli_overrides(cli_overrides)
+            .with_overrides(overrides)
+            .with_loader_overrides(code_core::config_loader::LoaderOverrides::default())
+            .load()
+        {
+            Ok(config) => config,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("failed to load thread config: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        // V2-specific fields that aren't part of the core config builder yet.
+        config.demo_developer_message = developer_instructions;
+        config.model_personality = personality.map(protocol_personality_to_core);
+
+        let model = config.model.clone();
+        let model_provider = config.model_provider_id.clone();
+        let cwd = config.cwd.clone();
+        let approval_policy = config.approval_policy;
+        let sandbox_policy = config.sandbox_policy.clone();
+        let reasoning_effort = Some(map_core_reasoning_effort(config.model_reasoning_effort.into()));
+
+        let resumed = match self
+            .conversation_manager
+            .resume_conversation_from_rollout(config, rollout_path, self.auth_manager.clone())
+            .await
+        {
+            Ok(conversation) => conversation,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to resume thread: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let thread_id = resumed.conversation_id;
+        let thread = if let Some(entry) = entry.as_ref()
+            && entry.session_id == Uuid::from(thread_id)
+        {
+            session_entry_to_thread(entry, &self.base_config.code_home, Vec::new())
+        } else {
+            Thread {
+                id: thread_id.to_string(),
+                preview: String::new(),
+                model_provider: model_provider.clone(),
+                created_at: Utc::now().timestamp(),
+                updated_at: Utc::now().timestamp(),
+                path: None,
+                cwd: cwd.clone(),
+                cli_version: env!("CARGO_PKG_VERSION").to_string(),
+                source: code_app_server_protocol::SessionSource::AppServer,
+                git_info: None,
+                turns: Vec::new(),
+            }
+        };
+
+        let thread_state = self
+            .thread_state_manager
+            .ensure_connection_subscribed(thread_id, connection_id)
+            .await;
+        self.ensure_thread_listener(
+            thread_id.to_string(),
+            resumed.conversation,
+            thread_state,
+        )
+        .await;
+
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                ThreadResumeResponse {
+                    thread,
+                    model,
+                    model_provider,
+                    cwd,
+                    approval_policy: core_approval_policy_to_v2(approval_policy),
+                    sandbox: core_sandbox_policy_to_v2(sandbox_policy),
+                    reasoning_effort,
+                },
+            )
+            .await;
+    }
+
+    pub(super) async fn thread_fork_v2(
+        &mut self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: ThreadForkParams,
+    ) {
+        let ThreadForkParams {
+            thread_id,
+            path,
+            model,
+            model_provider,
+            cwd,
+            approval_policy,
+            sandbox,
+            config,
+            base_instructions,
+            developer_instructions,
+        } = params;
+
+        let catalog = SessionCatalog::new(self.base_config.code_home.clone());
+        let entry = if path.is_none() {
+            match catalog.find_by_id(&thread_id).await {
+                Ok(Some(entry)) => Some(entry),
+                Ok(None) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("thread not found: {thread_id}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INTERNAL_ERROR_CODE,
+                                message: format!("failed to query session catalog: {err}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+            }
+        } else {
+            None
+        };
+
+        let rollout_path = if let Some(path) = path {
+            if path.is_absolute() {
+                path
+            } else {
+                self.base_config.code_home.join(path)
+            }
+        } else if let Some(entry) = entry.as_ref() {
+            entry_to_rollout_path(&self.base_config.code_home, entry)
+        } else {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_REQUEST_ERROR_CODE,
+                        message: "thread/fork requires thread_id or path".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        };
+
+        let thread_cwd = cwd
+            .as_deref()
+            .map(PathBuf::from)
+            .map(|path| {
+                if path.is_absolute() {
+                    path
+                } else {
+                    self.base_config.cwd.join(path)
+                }
+            })
+            .or_else(|| entry.as_ref().map(|entry| entry.cwd_real.clone()))
+            .unwrap_or_else(|| self.base_config.cwd.clone());
+
+        let model_provider = model_provider.or_else(|| {
+            entry.as_ref()
+                .and_then(|entry| entry.model_provider.clone())
+        });
+
+        let overrides = ConfigOverrides {
+            model,
+            model_provider,
+            approval_policy: approval_policy.map(v2_approval_policy_to_core),
+            sandbox_mode: sandbox.map(SandboxMode::to_core),
+            cwd: Some(thread_cwd),
+            base_instructions,
+            code_linux_sandbox_exe: self.code_linux_sandbox_exe.clone(),
+            ..Default::default()
+        };
+
+        let mut cli_overrides = self.cli_overrides.clone();
+        if let Some(config_overrides) = config {
+            for (key, value) in config_overrides {
+                cli_overrides.push((key, code_utils_json_to_toml::json_to_toml(value)));
+            }
+        }
+
+        let mut config = match ConfigBuilder::new()
+            .with_code_home(self.base_config.code_home.clone())
+            .with_cli_overrides(cli_overrides)
+            .with_overrides(overrides)
+            .with_loader_overrides(code_core::config_loader::LoaderOverrides::default())
+            .load()
+        {
+            Ok(config) => config,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("failed to load thread config: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        config.demo_developer_message = developer_instructions;
+
+        let model = config.model.clone();
+        let model_provider = config.model_provider_id.clone();
+        let cwd = config.cwd.clone();
+        let approval_policy = config.approval_policy;
+        let sandbox_policy = config.sandbox_policy.clone();
+        let reasoning_effort = Some(map_core_reasoning_effort(config.model_reasoning_effort.into()));
+
+        let forked = match self
+            .conversation_manager
+            .fork_conversation(0, config, rollout_path)
+            .await
+        {
+            Ok(conversation) => conversation,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to fork thread: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let thread_id = forked.conversation_id;
+        let thread = Thread {
+            id: thread_id.to_string(),
+            preview: String::new(),
+            model_provider: model_provider.clone(),
+            created_at: Utc::now().timestamp(),
+            updated_at: Utc::now().timestamp(),
+            path: None,
+            cwd: cwd.clone(),
+            cli_version: env!("CARGO_PKG_VERSION").to_string(),
+            source: code_app_server_protocol::SessionSource::AppServer,
+            git_info: None,
+            turns: Vec::new(),
+        };
+
+        let thread_state = self
+            .thread_state_manager
+            .ensure_connection_subscribed(thread_id, connection_id)
+            .await;
+        self.ensure_thread_listener(
+            thread_id.to_string(),
+            forked.conversation,
+            thread_state,
+        )
+        .await;
+
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                ThreadForkResponse {
+                    thread,
+                    model,
+                    model_provider,
+                    cwd,
+                    approval_policy: core_approval_policy_to_v2(approval_policy),
+                    sandbox: core_sandbox_policy_to_v2(sandbox_policy),
+                    reasoning_effort,
+                },
+            )
+            .await;
+    }
+
+    pub(super) async fn thread_archive_v2(
+        &mut self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: ThreadArchiveParams,
+    ) {
+        let thread_id = match code_protocol::ConversationId::from_string(&params.thread_id) {
+            Ok(id) => id,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("invalid thread id: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let catalog = SessionCatalog::new(self.base_config.code_home.clone());
+        let entry = match catalog.find_by_id(&params.thread_id).await {
+            Ok(Some(entry)) => entry,
+            Ok(None) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("thread not found: {}", params.thread_id),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to query session catalog: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let rollout_path = entry_to_rollout_path(&self.base_config.code_home, &entry);
+        let session_id = Uuid::from(thread_id);
+
+        let _conversation = self.conversation_manager.remove_conversation(&thread_id).await;
+        self.thread_state_manager.unload_thread(thread_id).await;
+
+        match catalog.archive_conversation(session_id, &rollout_path).await {
+            Ok(true) => {
+                self.outgoing
+                    .send_response_to_connection(connection_id, request_id, ThreadArchiveResponse {})
+                    .await;
+
+                send_server_notification_to_connection(
+                    self.outgoing.as_ref(),
+                    connection_id,
+                    ServerNotification::ThreadArchived(ThreadArchivedNotification {
+                        thread_id: params.thread_id,
+                    }),
+                )
+                .await;
+            }
+            Ok(false) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("thread not found: {}", params.thread_id),
+                            data: None,
+                        },
+                    )
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to archive thread: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+            }
+        }
+    }
+
+    pub(super) async fn thread_unsubscribe_v2(
+        &mut self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: ThreadUnsubscribeParams,
+    ) {
+        let thread_id = match code_protocol::ConversationId::from_string(&params.thread_id) {
+            Ok(id) => id,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("invalid thread id: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let loaded = self.conversation_manager.get_conversation(thread_id).await.is_ok();
+        let status = if !loaded {
+            ThreadUnsubscribeStatus::NotLoaded
+        } else if self
+            .thread_state_manager
+            .unsubscribe_connection_from_thread(thread_id, connection_id)
+            .await
+        {
+            ThreadUnsubscribeStatus::Unsubscribed
+        } else {
+            ThreadUnsubscribeStatus::NotSubscribed
+        };
+
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                ThreadUnsubscribeResponse { status },
+            )
+            .await;
+    }
+
+    pub(super) async fn thread_set_name_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: ThreadSetNameParams,
+    ) {
+        let session_id = match Uuid::parse_str(&params.thread_id) {
+            Ok(id) => id,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("invalid thread id: {error}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let catalog = SessionCatalog::new(self.base_config.code_home.clone());
+        let updated = match catalog
+            .set_nickname(session_id, Some(params.name.clone()))
+            .await
+        {
+            Ok(updated) => updated,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to update thread name: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+        if !updated {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_REQUEST_ERROR_CODE,
+                        message: format!("thread not found: {}", params.thread_id),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        self.outgoing
+            .send_response_to_connection(connection_id, request_id, ThreadSetNameResponse {})
+            .await;
+
+        send_server_notification_to_connection(
+            self.outgoing.as_ref(),
+            connection_id,
+            ServerNotification::ThreadNameUpdated(ThreadNameUpdatedNotification {
+                thread_id: params.thread_id,
+                thread_name: Some(params.name),
+            }),
+        )
+        .await;
+    }
+
+    pub(super) async fn thread_metadata_update_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: ThreadMetadataUpdateParams,
+    ) {
+        let session_id = match Uuid::parse_str(&params.thread_id) {
+            Ok(id) => id,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("invalid thread id: {error}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let catalog = SessionCatalog::new(self.base_config.code_home.clone());
+        let entry = if let Some(update) = params.git_info {
+            match catalog
+                .update_git_info(session_id, update.sha, update.branch, update.origin_url)
+                .await
+            {
+                Ok(Some(entry)) => entry,
+                Ok(None) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("thread not found: {}", params.thread_id),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INTERNAL_ERROR_CODE,
+                                message: format!("failed to update thread metadata: {err}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+            }
+        } else {
+            match catalog.find_by_id(&params.thread_id).await {
+                Ok(Some(entry)) => entry,
+                Ok(None) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("thread not found: {}", params.thread_id),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INTERNAL_ERROR_CODE,
+                                message: format!("failed to query session catalog: {err}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+            }
+        };
+
+        let thread = session_entry_to_thread(&entry, &self.base_config.code_home, Vec::new());
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                ThreadMetadataUpdateResponse { thread },
+            )
+            .await;
+    }
+
+    pub(super) async fn thread_unarchive_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: ThreadUnarchiveParams,
+    ) {
+        let session_id = match Uuid::parse_str(&params.thread_id) {
+            Ok(id) => id,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("invalid thread id: {error}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let catalog = SessionCatalog::new(self.base_config.code_home.clone());
+        let entry = match catalog.find_by_id(&params.thread_id).await {
+            Ok(Some(entry)) => entry,
+            Ok(None) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("thread not found: {}", params.thread_id),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to query session catalog: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let rollout_path = entry_to_rollout_path(&self.base_config.code_home, &entry);
+        match catalog.unarchive_conversation(session_id, &rollout_path).await {
+            Ok(true) => {
+                let refreshed = match catalog.find_by_id(&params.thread_id).await {
+                    Ok(Some(entry)) => entry,
+                    _ => entry,
+                };
+                let thread = session_entry_to_thread(&refreshed, &self.base_config.code_home, Vec::new());
+                self.outgoing
+                    .send_response_to_connection(
+                        connection_id,
+                        request_id,
+                        ThreadUnarchiveResponse { thread: thread.clone() },
+                    )
+                    .await;
+
+                send_server_notification_to_connection(
+                    self.outgoing.as_ref(),
+                    connection_id,
+                    ServerNotification::ThreadUnarchived(ThreadUnarchivedNotification {
+                        thread_id: params.thread_id,
+                    }),
+                )
+                .await;
+            }
+            Ok(false) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("thread not found: {}", params.thread_id),
+                            data: None,
+                        },
+                    )
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to unarchive thread: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+            }
+        }
+    }
+
     pub(super) async fn turn_start_v2(
         &mut self,
         connection_id: ConnectionId,
@@ -1201,6 +2427,68 @@ impl MessageProcessor {
                     },
                 },
             )
+            .await;
+    }
+
+    pub(super) async fn turn_interrupt_v2(
+        &mut self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: TurnInterruptParams,
+    ) {
+        let thread_id = match code_protocol::ConversationId::from_string(&params.thread_id) {
+            Ok(id) => id,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("invalid thread id: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let conversation = match self.conversation_manager.get_conversation(thread_id).await {
+            Ok(conversation) => conversation,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: format!("thread not found: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        if let Err(err) = conversation.submit(code_core::protocol::Op::Interrupt).await {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INTERNAL_ERROR_CODE,
+                        message: format!("failed to interrupt turn {}: {err}", params.turn_id),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        self.outgoing
+            .send_response_to_connection(connection_id, request_id, TurnInterruptResponse {})
             .await;
     }
 
@@ -1715,9 +3003,9 @@ fn session_entry_to_thread(
         cli_version: env!("CARGO_PKG_VERSION").to_string(),
         source: entry.session_source.clone().into(),
         git_info: Some(code_app_server_protocol::GitInfo {
-            sha: None,
+            sha: entry.git_sha.clone(),
             branch: entry.git_branch.clone(),
-            origin_url: None,
+            origin_url: entry.git_origin_url.clone(),
         }),
         turns,
     }
@@ -1827,4 +3115,56 @@ fn content_item_to_user_input(item: &ContentItem) -> Option<UserInput> {
             url: image_url.clone(),
         }),
     }
+}
+
+fn map_fs_error(err: std::io::Error) -> JSONRPCErrorError {
+    if err.kind() == std::io::ErrorKind::InvalidInput {
+        JSONRPCErrorError {
+            code: INVALID_REQUEST_ERROR_CODE,
+            message: err.to_string(),
+            data: None,
+        }
+    } else {
+        JSONRPCErrorError {
+            code: INTERNAL_ERROR_CODE,
+            message: err.to_string(),
+            data: None,
+        }
+    }
+}
+
+fn system_time_to_unix_ms(time: std::time::SystemTime) -> Option<i64> {
+    let duration = time.duration_since(std::time::UNIX_EPOCH).ok()?;
+    i64::try_from(duration.as_millis()).ok()
+}
+
+async fn copy_dir_recursive(
+    source: &std::path::Path,
+    destination: &std::path::Path,
+) -> std::io::Result<()> {
+    // Avoid async recursion (`E0733`) by doing an explicit DFS.
+    let mut stack = vec![(
+        source.to_path_buf(),
+        destination.to_path_buf(),
+    )];
+    while let Some((src_dir, dst_dir)) = stack.pop() {
+        tokio::fs::create_dir_all(&dst_dir).await?;
+        let mut entries = tokio::fs::read_dir(&src_dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let file_type = entry.file_type().await?;
+            let src_path = entry.path();
+            let dst_path = dst_dir.join(entry.file_name());
+            if file_type.is_dir() {
+                stack.push((src_path, dst_path));
+            } else if file_type.is_file() {
+                tokio::fs::copy(&src_path, &dst_path).await?;
+            } else if file_type.is_symlink() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "fs/copy does not support symlinks",
+                ));
+            }
+        }
+    }
+    Ok(())
 }

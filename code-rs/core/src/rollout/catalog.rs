@@ -61,6 +61,14 @@ pub struct SessionIndexEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub git_branch: Option<String>,
 
+    /// Git commit hash (SHA)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git_sha: Option<String>,
+
+    /// Git origin URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git_origin_url: Option<String>,
+
     /// Model provider/name used in this session
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_provider: Option<String>,
@@ -479,7 +487,10 @@ async fn parse_rollout_file(
     let mut cwd_real: Option<PathBuf> = None;
     let mut git_branch: Option<String> = None;
     let mut git_project_root: Option<PathBuf> = None;
+    let mut git_sha: Option<String> = None;
+    let mut git_origin_url: Option<String> = None;
     let mut session_source: Option<SessionSource> = None;
+    let mut model_provider: Option<String> = None;
     let mut message_count = 0usize;
     let mut user_message_count = 0usize;
     let mut last_user_snippet: Option<String> = None;
@@ -504,9 +515,12 @@ async fn parse_rollout_file(
                 created_at = Some(rollout_line.timestamp.clone());
                 cwd_real = Some(meta_line.meta.cwd.clone());
                 session_source = Some(meta_line.meta.source);
+                model_provider = meta_line.meta.model_provider;
 
                 if let Some(git_info) = meta_line.git {
                     git_branch = git_info.branch;
+                    git_sha = git_info.commit_hash;
+                    git_origin_url = git_info.repository_url;
                     // Try to derive git project root from cwd and repository structure
                     // For now, just use cwd as approximation
                     git_project_root = Some(meta_line.meta.cwd.clone());
@@ -584,7 +598,9 @@ async fn parse_rollout_file(
         cwd_display,
         git_project_root,
         git_branch,
-        model_provider: None, // TODO: extract from session if available
+        git_sha,
+        git_origin_url,
+        model_provider,
         session_source,
         message_count,
         user_message_count,
@@ -630,7 +646,11 @@ fn should_replace(existing: &SessionIndexEntry, candidate: &SessionIndexEntry) -
         || existing.snapshot_path != candidate.snapshot_path
         || existing.cwd_real != candidate.cwd_real
         || existing.session_source != candidate.session_source
+        || existing.model_provider != candidate.model_provider
+        || existing.git_project_root != candidate.git_project_root
         || existing.git_branch != candidate.git_branch
+        || existing.git_sha != candidate.git_sha
+        || existing.git_origin_url != candidate.git_origin_url
 }
 
 /// Update catalog entry for a session after new events are written.
@@ -727,6 +747,8 @@ mod tests {
             cwd_display: "/test".to_string(),
             git_project_root: None,
             git_branch: None,
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: SessionSource::Cli,
             message_count: 5,
@@ -764,6 +786,8 @@ mod tests {
             cwd_display: "/test".to_string(),
             git_project_root: None,
             git_branch: None,
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: SessionSource::Cli,
             message_count: 5,
@@ -804,6 +828,8 @@ mod tests {
             cwd_display: "/test".to_string(),
             git_project_root: None,
             git_branch: None,
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: SessionSource::Cli,
             message_count: 5,
@@ -846,6 +872,8 @@ mod tests {
             cwd_display: cwd.to_string_lossy().to_string(),
             git_project_root: Some(git_root.clone()),
             git_branch: Some("main".to_string()),
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: SessionSource::Cli,
             message_count: 5,
@@ -898,6 +926,8 @@ mod tests {
             cwd_display: "/test".to_string(),
             git_project_root: None,
             git_branch: None,
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: SessionSource::Cli,
             message_count: 5,
@@ -949,6 +979,8 @@ mod tests {
             cwd_display: "/test".to_string(),
             git_project_root: None,
             git_branch: None,
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: SessionSource::Cli,
             message_count: 5,
@@ -994,6 +1026,8 @@ mod tests {
             cwd_display: "/test".to_string(),
             git_project_root: None,
             git_branch: None,
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: SessionSource::Cli,
             message_count: 5,
@@ -1056,6 +1090,8 @@ mod tests {
             cwd_display: "/test".to_string(),
             git_project_root: None,
             git_branch: None,
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: SessionSource::Cli,
             message_count: 5,
@@ -1135,6 +1171,8 @@ mod tests {
             cwd_display: cwd1.to_string_lossy().to_string(),
             git_project_root: None,
             git_branch: None,
+            git_sha: None,
+            git_origin_url: None,
             model_provider: None,
             session_source: SessionSource::Cli,
             message_count: 5,

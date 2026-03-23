@@ -98,4 +98,41 @@ impl ThreadStateManager {
             }
         }
     }
+
+    pub(crate) async fn unsubscribe_connection_from_thread(
+        &mut self,
+        thread_id: ConversationId,
+        connection_id: ConnectionId,
+    ) -> bool {
+        let Some(thread_ids) = self.thread_ids_by_connection.get_mut(&connection_id) else {
+            return false;
+        };
+        let was_subscribed = thread_ids.remove(&thread_id);
+        if thread_ids.is_empty() {
+            self.thread_ids_by_connection.remove(&connection_id);
+        }
+
+        if was_subscribed
+            && let Some(thread_state) = self.thread_states.get(&thread_id)
+        {
+            let mut guard = thread_state.lock().await;
+            guard.remove_connection(connection_id);
+            if guard.subscribed_connection_ids().is_empty() {
+                guard.clear_listener();
+            }
+        }
+
+        was_subscribed
+    }
+
+    pub(crate) async fn unload_thread(&mut self, thread_id: ConversationId) {
+        for thread_ids in self.thread_ids_by_connection.values_mut() {
+            thread_ids.remove(&thread_id);
+        }
+        self.thread_ids_by_connection.retain(|_, ids| !ids.is_empty());
+
+        if let Some(thread_state) = self.thread_states.remove(&thread_id) {
+            thread_state.lock().await.clear_listener();
+        }
+    }
 }

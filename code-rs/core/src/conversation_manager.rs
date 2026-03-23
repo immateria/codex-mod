@@ -153,6 +153,13 @@ impl ConversationManager {
         self.conversations.write().await.remove(conversation_id)
     }
 
+    pub async fn loaded_conversation_ids(&self) -> Vec<ConversationId> {
+        let conversations = self.conversations.read().await;
+        let mut ids: Vec<ConversationId> = conversations.keys().copied().collect();
+        ids.sort_by_key(|id| id.to_string());
+        ids
+    }
+
     /// Fork an existing conversation by dropping the last `drop_last_messages`
     /// user/assistant messages from its transcript and starting a new
     /// conversation with identical configuration (unless overridden by the
