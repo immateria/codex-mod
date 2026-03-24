@@ -1,5 +1,8 @@
 use std::collections::HashSet;
 
+pub(crate) const TOOL_MENTION_SIGIL: char = '$';
+pub(crate) const PLUGIN_TEXT_MENTION_SIGIL: char = '@';
+
 #[derive(Debug, Default)]
 pub(crate) struct ToolMentions<'a> {
     pub(crate) names: HashSet<&'a str>,
@@ -28,6 +31,10 @@ pub(crate) fn collect_tool_mentions_from_messages<'a>(messages: &'a [String]) ->
 ///
 /// Supports explicit resource links in the form `[$tool-name](resource path)`.
 pub(crate) fn extract_tool_mentions(text: &str) -> ToolMentions<'_> {
+    extract_tool_mentions_with_sigil(text, TOOL_MENTION_SIGIL)
+}
+
+pub(crate) fn extract_tool_mentions_with_sigil(text: &str, sigil: char) -> ToolMentions<'_> {
     let text_bytes = text.as_bytes();
     let mut mentioned_names: HashSet<&str> = HashSet::new();
     let mut mentioned_paths: HashSet<&str> = HashSet::new();
@@ -37,18 +44,24 @@ pub(crate) fn extract_tool_mentions(text: &str) -> ToolMentions<'_> {
     while index < text_bytes.len() {
         let byte = text_bytes[index];
         if byte == b'['
-            && let Some((name, path, end_index)) =
-                parse_linked_tool_mention(text, text_bytes, index)
+            && let Some((name, path, end_index)) = parse_linked_tool_mention(text, text_bytes, index, sigil)
         {
             if !is_common_env_var(name) {
-                mentioned_names.insert(name);
+                // Avoid polluting skill-name mention sets with app/plugin/mcp link labels.
+                // (Those use linked mentions for disambiguation, not for matching by plain name.)
+                if !matches!(
+                    tool_kind_for_path(path),
+                    ToolMentionKind::App | ToolMentionKind::Mcp | ToolMentionKind::Plugin
+                ) {
+                    mentioned_names.insert(name);
+                }
                 mentioned_paths.insert(path);
             }
             index = end_index;
             continue;
         }
 
-        if byte != b'$' {
+        if byte != sigil as u8 {
             index += 1;
             continue;
         }
@@ -89,13 +102,14 @@ fn parse_linked_tool_mention<'a>(
     text: &'a str,
     text_bytes: &[u8],
     start: usize,
+    sigil: char,
 ) -> Option<(&'a str, &'a str, usize)> {
-    let dollar_index = start + 1;
-    if text_bytes.get(dollar_index) != Some(&b'$') {
+    let sigil_index = start + 1;
+    if text_bytes.get(sigil_index) != Some(&(sigil as u8)) {
         return None;
     }
 
-    let name_start = dollar_index + 1;
+    let name_start = sigil_index + 1;
     let first_name_byte = text_bytes.get(name_start)?;
     if !is_mention_name_char(*first_name_byte) {
         return None;
@@ -158,6 +172,39 @@ fn is_common_env_var(name: &str) -> bool {
 }
 
 fn is_mention_name_char(byte: u8) -> bool {
-    matches!(byte, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'-')
+    matches!(byte, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'-' | b':')
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ToolMentionKind {
+    App,
+    Mcp,
+    Plugin,
+    Skill,
+    Other,
+}
+
+const APP_PATH_PREFIX: &str = "app://";
+const MCP_PATH_PREFIX: &str = "mcp://";
+const PLUGIN_PATH_PREFIX: &str = "plugin://";
+const SKILL_PATH_PREFIX: &str = "skill://";
+const SKILL_FILENAME: &str = "SKILL.md";
+
+fn tool_kind_for_path(path: &str) -> ToolMentionKind {
+    if path.starts_with(APP_PATH_PREFIX) {
+        ToolMentionKind::App
+    } else if path.starts_with(MCP_PATH_PREFIX) {
+        ToolMentionKind::Mcp
+    } else if path.starts_with(PLUGIN_PATH_PREFIX) {
+        ToolMentionKind::Plugin
+    } else if path.starts_with(SKILL_PATH_PREFIX) || is_skill_filename(path) {
+        ToolMentionKind::Skill
+    } else {
+        ToolMentionKind::Other
+    }
+}
+
+fn is_skill_filename(path: &str) -> bool {
+    let file_name = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    file_name.eq_ignore_ascii_case(SKILL_FILENAME)
+}

@@ -476,6 +476,8 @@ pub(super) async fn preflight_turn_skill_input(
     pending_input_tail: &[ResponseItem],
     input: &mut Vec<ResponseItem>,
 ) {
+    let config_snapshot = turn_context.client.config();
+
     let mut mention_messages: Vec<String> = Vec::new();
     for item in initial_user_item.iter().copied().chain(pending_input_tail.iter()) {
         if let ResponseItem::Message { role, content, .. } = item
@@ -493,7 +495,7 @@ pub(super) async fn preflight_turn_skill_input(
         return;
     }
 
-    let mention_outcome = {
+    if let Some(mention_outcome) = {
         let skills = sess.skills.read().await;
         if skills.is_empty() {
             None
@@ -503,42 +505,77 @@ pub(super) async fn preflight_turn_skill_input(
                 skills.as_slice(),
             ))
         }
-    };
+    } {
+        for warning in mention_outcome.warnings {
+            send_warning_event(sess.as_ref(), turn_id, warning).await;
+        }
 
-    let Some(mention_outcome) = mention_outcome else {
-        return;
-    };
+        let injections = crate::skills::injection::build_skill_injections(&mention_outcome.mentioned).await;
+        for warning in injections.warnings {
+            send_warning_event(sess.as_ref(), turn_id, warning).await;
+        }
 
-    for warning in mention_outcome.warnings {
-        send_warning_event(sess.as_ref(), turn_id, warning).await;
+        ensure_skill_mcp_access_for_turn(
+            sess,
+            turn_id,
+            config_snapshot.as_ref(),
+            injections.mcp_dependencies.as_slice(),
+        )
+        .await;
+
+        let mcp_access = sess.mcp_access_snapshot();
+        for warning in crate::mcp::skill_dependencies::build_skill_mcp_dependency_warnings(
+            injections.mcp_dependencies.as_slice(),
+            &sess.mcp_connection_manager,
+            mcp_access.style_label.as_deref(),
+            &mcp_access.style_include_servers,
+            &mcp_access.style_exclude_servers,
+        ) {
+            send_warning_event(sess.as_ref(), turn_id, warning).await;
+        }
+
+        if !injections.items.is_empty() {
+            input.extend(injections.items);
+        }
     }
 
-    let injections = crate::skills::injection::build_skill_injections(&mention_outcome.mentioned).await;
-    for warning in injections.warnings {
-        send_warning_event(sess.as_ref(), turn_id, warning).await;
+    let mut mentioned_plugins: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for message in &mention_messages {
+        for path in crate::mentions::extract_tool_mentions(message.as_str())
+            .paths
+            .iter()
+            .copied()
+        {
+            if let Some(name) = path.strip_prefix("plugin://").filter(|name| !name.is_empty()) {
+                mentioned_plugins.insert(name.to_string());
+            }
+        }
+
+        for path in crate::mentions::extract_tool_mentions_with_sigil(
+            message.as_str(),
+            crate::mentions::PLUGIN_TEXT_MENTION_SIGIL,
+        )
+        .paths
+        .iter()
+        .copied()
+        {
+            if let Some(name) = path.strip_prefix("plugin://").filter(|name| !name.is_empty()) {
+                mentioned_plugins.insert(name.to_string());
+            }
+        }
     }
 
-    let config_snapshot = turn_context.client.config();
-    ensure_skill_mcp_access_for_turn(
-        sess,
-        turn_id,
-        config_snapshot.as_ref(),
-        injections.mcp_dependencies.as_slice(),
-    )
-    .await;
+    if !mentioned_plugins.is_empty() {
+        let plugin_manager = crate::plugins::PluginsManager::new(config_snapshot.code_home.clone());
+        let mut summaries: Vec<crate::plugins::PluginCapabilitySummary> = mentioned_plugins
+            .into_iter()
+            .filter_map(|config_name| plugin_manager.capability_summary_for_config_name(&config_name))
+            .collect();
+        summaries.sort_unstable_by(|left, right| left.config_name.cmp(&right.config_name));
 
-    let mcp_access = sess.mcp_access_snapshot();
-    for warning in crate::mcp::skill_dependencies::build_skill_mcp_dependency_warnings(
-        injections.mcp_dependencies.as_slice(),
-        &sess.mcp_connection_manager,
-        mcp_access.style_label.as_deref(),
-        &mcp_access.style_include_servers,
-        &mcp_access.style_exclude_servers,
-    ) {
-        send_warning_event(sess.as_ref(), turn_id, warning).await;
-    }
-
-    if !injections.items.is_empty() {
-        input.extend(injections.items);
+        let plugin_items = crate::plugins::build_plugin_injections(&summaries);
+        if !plugin_items.is_empty() {
+            input.extend(plugin_items);
+        }
     }
 }

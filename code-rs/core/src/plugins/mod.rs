@@ -1,7 +1,9 @@
+mod injection;
 mod manifest;
 mod manager;
 mod marketplace;
 mod remote;
+mod render;
 mod startup_sync;
 mod store;
 
@@ -11,6 +13,7 @@ pub(crate) use manifest::load_plugin_manifest;
 pub use manager::AppConnectorId;
 pub use manager::ConfiguredMarketplace;
 pub use manager::ConfiguredMarketplacePlugin;
+pub(crate) use manager::PluginCapabilitySummary;
 pub use manager::PluginDetail;
 pub use manager::PluginInstallError;
 pub use manager::PluginInstallOutcome;
@@ -23,6 +26,7 @@ pub use manager::RemotePluginSyncResult;
 pub use manager::PluginsManager;
 pub use manager::load_plugin_apps;
 pub use manager::OPENAI_CURATED_MARKETPLACE_NAME;
+pub(crate) use injection::build_plugin_injections;
 pub use marketplace::Marketplace;
 pub use marketplace::MarketplaceError;
 pub use marketplace::MarketplaceInterface;

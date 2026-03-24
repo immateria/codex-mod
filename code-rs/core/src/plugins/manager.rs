@@ -120,6 +120,16 @@ pub struct PluginDetail {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginCapabilitySummary {
+    pub config_name: String,
+    pub display_name: String,
+    pub description: Option<String>,
+    pub has_skills: bool,
+    pub mcp_server_names: Vec<String>,
+    pub apps: Vec<AppConnectorId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfiguredMarketplace {
     pub name: String,
     pub path: AbsolutePathBuf,
@@ -361,6 +371,56 @@ impl PluginsManager {
         apps.sort_unstable_by(|left, right| left.0.cmp(&right.0));
         apps.dedup_by(|left, right| left.0 == right.0);
         apps
+    }
+
+    pub fn capability_summary_for_config_name(
+        &self,
+        config_name: &str,
+    ) -> Option<PluginCapabilitySummary> {
+        let configured_plugins = configured_plugins_from_code_home(&self.code_home);
+        if configured_plugins
+            .get(config_name)
+            .is_some_and(|enabled| !*enabled)
+        {
+            return None;
+        }
+
+        let plugin_id = PluginId::parse(config_name).ok()?;
+        let plugin_root = self.store.active_plugin_root(&plugin_id)?;
+
+        let (manifest, description, display_name) = match load_plugin_manifest(plugin_root.as_path())
+        {
+            Some(manifest) => {
+                let description = manifest.description.clone();
+                let display_name = manifest
+                    .interface
+                    .as_ref()
+                    .and_then(|interface| interface.display_name.clone())
+                    .unwrap_or_else(|| manifest.name.clone());
+                (Some(manifest), description, display_name)
+            }
+            None => (None, None, plugin_id.plugin_name.clone()),
+        };
+
+        let apps = load_plugin_apps(plugin_root.as_path());
+        let mcp_servers = load_plugin_mcp_servers(plugin_root.as_path());
+        let mut mcp_server_names: Vec<String> = mcp_servers.into_keys().collect();
+        mcp_server_names.sort_unstable();
+        mcp_server_names.dedup();
+
+        let skills = load_plugin_skills(
+            plugin_root.as_path(),
+            manifest.as_ref().map(|manifest| &manifest.paths),
+        );
+
+        Some(PluginCapabilitySummary {
+            config_name: config_name.to_string(),
+            display_name,
+            description,
+            has_skills: !skills.is_empty(),
+            mcp_server_names,
+            apps,
+        })
     }
 
     pub(crate) fn effective_skill_roots(&self) -> Vec<PathBuf> {

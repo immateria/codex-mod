@@ -323,6 +323,17 @@ mod tests {
     }
 
     #[test]
+    fn linked_plugin_mention_does_not_trigger_skill_by_name() {
+        let skills = vec![meta("sample", "/skills/sample/SKILL.md")];
+        let messages = vec!["use [$sample](plugin://sample@test)".to_string()];
+
+        let outcome = collect_explicit_skill_mentions(&messages, &skills);
+
+        assert!(outcome.mentioned.is_empty());
+        assert!(outcome.warnings.is_empty());
+    }
+
+    #[test]
     fn parses_mcp_dependencies_from_frontmatter() {
         let contents = r#"---
 name: example
