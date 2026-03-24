@@ -12,8 +12,6 @@ use super::store::PluginIdError;
 use super::store::PluginInstallResult as StorePluginInstallResult;
 use super::store::PluginStore;
 use super::store::PluginStoreError;
-use crate::config::CONFIG_TOML_FILE;
-use crate::config::resolve_code_path_for_read;
 use crate::config_edit::clear_plugin_config;
 use crate::config_edit::set_plugin_enabled;
 use crate::config_types::McpServerConfig;
@@ -493,25 +491,48 @@ const fn default_enabled() -> bool {
 }
 
 fn configured_plugins_from_code_home(code_home: &Path) -> HashMap<String, bool> {
-    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
-    let contents = match fs::read_to_string(&read_path) {
-        Ok(contents) => contents,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return HashMap::new(),
+    // Plugin entries remain persisted user config only.
+    //
+    // Load via the config layer stack so any user-config disablement/parsing logic stays
+    // consistent with the rest of the config system.
+    let stack = match crate::config_loader::load_config_layers_state_blocking(
+        code_home,
+        &[],
+        crate::config_loader::LoaderOverrides::default(),
+    ) {
+        Ok(stack) => stack,
         Err(err) => {
-            warn!("failed to read config.toml for plugin config: {err}");
+            warn!("failed to load config layers for plugin config: {err}");
             return HashMap::new();
         }
     };
 
-    let parsed: PluginsConfigToml = match toml::from_str(&contents) {
+    let user_layer = stack.layers_high_to_low().find(|layer| {
+        matches!(
+            layer.name,
+            code_app_server_protocol::ConfigLayerSource::User { .. }
+        )
+    });
+    let Some(user_layer) = user_layer else {
+        return HashMap::new();
+    };
+    if user_layer.disabled_reason.is_some() {
+        return HashMap::new();
+    }
+
+    let parsed: PluginsConfigToml = match user_layer.config.clone().try_into() {
         Ok(parsed) => parsed,
         Err(err) => {
-            warn!("failed to parse config.toml plugin config: {err}");
+            warn!("failed to parse plugins config: {err}");
             return HashMap::new();
         }
     };
 
-    parsed.plugins.into_iter().map(|(key, cfg)| (key, cfg.enabled)).collect()
+    parsed
+        .plugins
+        .into_iter()
+        .map(|(key, cfg)| (key, cfg.enabled))
+        .collect()
 }
 
 fn plugin_skill_roots(plugin_root: &Path, manifest_paths: &PluginManifestPaths) -> Vec<PathBuf> {
