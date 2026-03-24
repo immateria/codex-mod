@@ -292,6 +292,7 @@ mod tool_call_id_tests {
             ResponseItem::FunctionCall {
                 id: None,
                 name: "shell".to_string(),
+                namespace: None,
                 arguments: "{}".to_string(),
                 call_id: "f1".to_string(),
             },
