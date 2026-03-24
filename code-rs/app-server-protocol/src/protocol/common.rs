@@ -962,11 +962,11 @@ client_notification_definitions! {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use codex_protocol::ThreadId;
-    use codex_protocol::account::PlanType;
-    use codex_protocol::parse_command::ParsedCommand;
-    use codex_protocol::protocol::RealtimeConversationVersion;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use code_protocol::ThreadId;
+    use code_protocol::account::PlanType;
+    use code_protocol::parse_command::ParsedCommand;
+    use code_protocol::protocol::RealtimeConversationVersion;
+    use code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;

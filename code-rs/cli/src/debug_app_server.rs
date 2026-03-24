@@ -138,6 +138,7 @@ impl AppServerClient {
                 },
                 capabilities: Some(code_app_server_protocol::InitializeCapabilities {
                     experimental_api: true,
+                    opt_out_notification_methods: None,
                 }),
             },
         };

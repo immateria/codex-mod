@@ -9,6 +9,8 @@ use code_protocol::account::PlanType;
 use code_protocol::approvals::ExecPolicyAmendment as CoreExecPolicyAmendment;
 use code_protocol::approvals::NetworkApprovalContext as CoreNetworkApprovalContext;
 use code_protocol::approvals::NetworkApprovalProtocol as CoreNetworkApprovalProtocol;
+use code_protocol::approvals::NetworkPolicyAmendment as CoreNetworkPolicyAmendment;
+use code_protocol::approvals::NetworkPolicyRuleAction as CoreNetworkPolicyRuleAction;
 use code_protocol::config_types::CollaborationMode;
 use code_protocol::config_types::CollaborationModeMask;
 use code_protocol::config_types::ForcedLoginMethod;
@@ -1071,6 +1073,38 @@ impl From<CoreExecPolicyAmendment> for ExecPolicyAmendment {
     fn from(value: CoreExecPolicyAmendment) -> Self {
         Self {
             command: value.command().to_vec(),
+        }
+    }
+}
+
+v2_enum_from_core!(
+    pub enum NetworkPolicyRuleAction from CoreNetworkPolicyRuleAction {
+        Allow, Deny
+    }
+);
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct NetworkPolicyAmendment {
+    pub host: String,
+    pub action: NetworkPolicyRuleAction,
+}
+
+impl NetworkPolicyAmendment {
+    pub fn into_core(self) -> CoreNetworkPolicyAmendment {
+        CoreNetworkPolicyAmendment {
+            host: self.host,
+            action: self.action.to_core(),
+        }
+    }
+}
+
+impl From<CoreNetworkPolicyAmendment> for NetworkPolicyAmendment {
+    fn from(value: CoreNetworkPolicyAmendment) -> Self {
+        Self {
+            host: value.host,
+            action: NetworkPolicyRuleAction::from(value.action),
         }
     }
 }
@@ -4862,16 +4896,41 @@ pub struct CommandExecutionRequestApprovalParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
     pub additional_permissions: Option<AdditionalPermissionProfile>,
+    /// Optional skill metadata when the approval was triggered by a skill script.
+    #[experimental("item/commandExecution/requestApproval.skillMetadata")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub skill_metadata: Option<CommandExecutionRequestApprovalSkillMetadata>,
     /// Optional proposed execpolicy amendment to allow similar commands without prompting.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
     pub proposed_execpolicy_amendment: Option<ExecPolicyAmendment>,
+    /// Optional proposed network policy amendments (allow/deny host) for future requests.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub proposed_network_policy_amendments: Option<Vec<NetworkPolicyAmendment>>,
+    /// Ordered list of decisions the client may present for this prompt.
+    #[experimental("item/commandExecution/requestApproval.availableDecisions")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub available_decisions: Option<Vec<CommandExecutionApprovalDecision>>,
 }
 
 impl CommandExecutionRequestApprovalParams {
     pub fn strip_experimental_fields(&mut self) {
+        // TODO: Avoid hardcoding individual experimental fields here.
+        // We need a generic outbound compatibility design for stripping or
+        // otherwise handling experimental server->client payloads.
         self.additional_permissions = None;
+        self.skill_metadata = None;
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct CommandExecutionRequestApprovalSkillMetadata {
+    pub path_to_skills_md: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
