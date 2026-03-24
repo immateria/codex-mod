@@ -27,6 +27,7 @@ pub use manager::PluginsManager;
 pub use manager::load_plugin_apps;
 pub use manager::OPENAI_CURATED_MARKETPLACE_NAME;
 pub(crate) use injection::build_plugin_injections;
+pub(crate) use render::render_plugins_section;
 pub use marketplace::Marketplace;
 pub use marketplace::MarketplaceError;
 pub use marketplace::MarketplaceInterface;

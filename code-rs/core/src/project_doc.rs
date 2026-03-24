@@ -14,6 +14,8 @@
 //! 3.  We do **not** walk past the Git root.
 
 use crate::config::Config;
+use crate::plugins::PluginsManager;
+use crate::plugins::render_plugins_section;
 use crate::skills::SkillMetadata;
 use crate::skills::render_skills_section;
 use std::collections::HashSet;
@@ -38,6 +40,10 @@ pub(crate) async fn get_user_instructions(
     skills: Option<&[SkillMetadata]>,
 ) -> Option<String> {
     let skills_section = skills.and_then(render_skills_section);
+    let plugins_section = {
+        let manager = PluginsManager::new(config.code_home.clone());
+        render_plugins_section(manager.capability_summaries().as_slice())
+    };
 
     let project_doc_parts = match read_project_doc_parts(config).await {
         Ok(Some(parts)) => parts,
@@ -74,6 +80,13 @@ pub(crate) async fn get_user_instructions(
         let key = skills_section.trim();
         if !key.is_empty() && seen.insert(key.to_string()) {
             unique_project_docs.push(skills_section);
+        }
+    }
+
+    if let Some(plugins_section) = plugins_section {
+        let key = plugins_section.trim();
+        if !key.is_empty() && seen.insert(key.to_string()) {
+            unique_project_docs.push(plugins_section);
         }
     }
 

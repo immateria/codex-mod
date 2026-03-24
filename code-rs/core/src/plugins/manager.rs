@@ -346,6 +346,78 @@ impl PluginsManager {
         });
     }
 
+    fn capability_summary_for_plugin_id(
+        &self,
+        config_name: &str,
+        plugin_id: &PluginId,
+    ) -> Option<PluginCapabilitySummary> {
+        let plugin_root = self.store.active_plugin_root(plugin_id)?;
+
+        let (manifest, description, display_name) = match load_plugin_manifest(plugin_root.as_path()) {
+            Some(manifest) => {
+                let description = manifest.description.clone();
+                // Match upstream behavior: `display_name` matches the plugin namespace used for
+                // skills (derived from the manifest name), not the optional UI display name.
+                let display_name = if manifest.name.trim().is_empty() {
+                    plugin_id.plugin_name.clone()
+                } else {
+                    manifest.name.clone()
+                };
+                (Some(manifest), description, display_name)
+            }
+            None => (None, None, plugin_id.plugin_name.clone()),
+        };
+
+        let apps = load_plugin_apps(plugin_root.as_path());
+        let mcp_servers = load_plugin_mcp_servers(plugin_root.as_path());
+        let mut mcp_server_names: Vec<String> = mcp_servers.into_keys().collect();
+        mcp_server_names.sort_unstable();
+        mcp_server_names.dedup();
+
+        let skills = load_plugin_skills(
+            plugin_root.as_path(),
+            manifest.as_ref().map(|manifest| &manifest.paths),
+        );
+
+        Some(PluginCapabilitySummary {
+            config_name: config_name.to_string(),
+            display_name,
+            description,
+            has_skills: !skills.is_empty(),
+            mcp_server_names,
+            apps,
+        })
+    }
+
+    pub fn capability_summaries(&self) -> Vec<PluginCapabilitySummary> {
+        let configured_plugins = configured_plugins_from_code_home(&self.code_home);
+        let mut out = Vec::new();
+
+        for (config_name, enabled) in configured_plugins {
+            if !enabled {
+                continue;
+            }
+            let plugin_id = match PluginId::parse(&config_name) {
+                Ok(plugin_id) => plugin_id,
+                Err(err) => {
+                    warn!("invalid plugin id in config: {err}");
+                    continue;
+                }
+            };
+
+            if let Some(summary) = self.capability_summary_for_plugin_id(&config_name, &plugin_id) {
+                out.push(summary);
+            }
+        }
+
+        out.sort_unstable_by(|left, right| {
+            left.display_name
+                .cmp(&right.display_name)
+                .then_with(|| left.config_name.cmp(&right.config_name))
+        });
+        out
+    }
+
     /// Return apps exposed by enabled, installed plugins.
     pub fn effective_apps(&self) -> Vec<AppConnectorId> {
         let configured_plugins = configured_plugins_from_code_home(&self.code_home);
@@ -386,42 +458,7 @@ impl PluginsManager {
         }
 
         let plugin_id = PluginId::parse(config_name).ok()?;
-        let plugin_root = self.store.active_plugin_root(&plugin_id)?;
-
-        let (manifest, description, display_name) = match load_plugin_manifest(plugin_root.as_path()) {
-            Some(manifest) => {
-                let description = manifest.description.clone();
-                // Match upstream behavior: `display_name` matches the plugin namespace used for
-                // skills (derived from the manifest name), not the optional UI display name.
-                let display_name = if manifest.name.trim().is_empty() {
-                    plugin_id.plugin_name.clone()
-                } else {
-                    manifest.name.clone()
-                };
-                (Some(manifest), description, display_name)
-            }
-            None => (None, None, plugin_id.plugin_name.clone()),
-        };
-
-        let apps = load_plugin_apps(plugin_root.as_path());
-        let mcp_servers = load_plugin_mcp_servers(plugin_root.as_path());
-        let mut mcp_server_names: Vec<String> = mcp_servers.into_keys().collect();
-        mcp_server_names.sort_unstable();
-        mcp_server_names.dedup();
-
-        let skills = load_plugin_skills(
-            plugin_root.as_path(),
-            manifest.as_ref().map(|manifest| &manifest.paths),
-        );
-
-        Some(PluginCapabilitySummary {
-            config_name: config_name.to_string(),
-            display_name,
-            description,
-            has_skills: !skills.is_empty(),
-            mcp_server_names,
-            apps,
-        })
+        self.capability_summary_for_plugin_id(config_name, &plugin_id)
     }
 
     /// Returns the plugin namespace for a `SKILL.md` path, if the skill is contained within a
