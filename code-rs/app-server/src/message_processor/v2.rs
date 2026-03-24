@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -28,6 +29,7 @@ use code_app_server_protocol::FsWriteFileResponse;
 use code_app_server_protocol::CommandAction;
 use code_app_server_protocol::CommandExecutionOutputDeltaNotification;
 use code_app_server_protocol::CommandExecutionStatus;
+use code_app_server_protocol::ConfigLayerSource;
 use code_app_server_protocol::McpServerStatus;
 use code_app_server_protocol::Model;
 use code_app_server_protocol::ModelListParams;
@@ -36,6 +38,15 @@ use code_app_server_protocol::ReasoningEffortOption;
 use code_app_server_protocol::SandboxMode;
 use code_app_server_protocol::SandboxPolicy;
 use code_app_server_protocol::ServerNotification;
+use code_app_server_protocol::SkillErrorInfo;
+use code_app_server_protocol::SkillMetadata as V2SkillMetadata;
+use code_app_server_protocol::SkillScope as V2SkillScope;
+use code_app_server_protocol::SkillsChangedNotification;
+use code_app_server_protocol::SkillsConfigWriteParams;
+use code_app_server_protocol::SkillsConfigWriteResponse;
+use code_app_server_protocol::SkillsListEntry;
+use code_app_server_protocol::SkillsListParams;
+use code_app_server_protocol::SkillsListResponse;
 use code_app_server_protocol::Thread;
 use code_app_server_protocol::ThreadItem;
 use code_app_server_protocol::ThreadListParams;
@@ -108,6 +119,7 @@ use code_protocol::protocol::RolloutLine;
 use code_protocol::protocol::SessionSource;
 use code_protocol::protocol::SubAgentSource;
 use mcp_types::JSONRPCErrorError;
+use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -873,6 +885,210 @@ impl MessageProcessor {
                 ModelListResponse { data, next_cursor },
             )
             .await;
+    }
+
+    pub(super) async fn skills_list_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: SkillsListParams,
+    ) {
+        let SkillsListParams {
+            cwds,
+            force_reload: _,
+            per_cwd_extra_user_roots,
+        } = params;
+
+        let requested_cwds = if cwds.is_empty() {
+            vec![self.base_config.cwd.clone()]
+        } else {
+            cwds
+        };
+
+        let per_cwd_extra_user_roots = per_cwd_extra_user_roots.unwrap_or_default();
+
+        let mut data = Vec::new();
+        for cwd in requested_cwds {
+            let mut entry_errors = Vec::new();
+
+            let extra_user_roots: Vec<PathBuf> = per_cwd_extra_user_roots
+                .iter()
+                .find(|entry| entry.cwd == cwd)
+                .map(|entry| entry.extra_user_roots.clone())
+                .unwrap_or_default();
+
+            let mut validated_extra_roots = Vec::new();
+            for root in extra_user_roots {
+                if !root.is_absolute() {
+                    entry_errors.push(SkillErrorInfo {
+                        path: root.clone(),
+                        message: "extra_user_roots entries must be absolute paths".to_string(),
+                    });
+                    continue;
+                }
+                validated_extra_roots.push(root);
+            }
+
+            let config = match ConfigBuilder::new()
+                .with_code_home(self.base_config.code_home.clone())
+                .with_cli_overrides(self.cli_overrides.clone())
+                .with_overrides(ConfigOverrides {
+                    cwd: Some(cwd.clone()),
+                    code_linux_sandbox_exe: self.code_linux_sandbox_exe.clone(),
+                    ..Default::default()
+                })
+                .with_loader_overrides(code_core::config_loader::LoaderOverrides::default())
+                .load()
+            {
+                Ok(config) => config,
+                Err(err) => {
+                    entry_errors.push(SkillErrorInfo {
+                        path: cwd.clone(),
+                        message: format!("failed to load effective config: {err}"),
+                    });
+                    data.push(SkillsListEntry {
+                        cwd,
+                        skills: Vec::new(),
+                        errors: entry_errors,
+                    });
+                    continue;
+                }
+            };
+
+            let disabled_paths = match code_core::config_loader::load_config_layers_state_with_cwd(
+                &self.base_config.code_home,
+                Some(&cwd),
+                &self.cli_overrides,
+                code_core::config_loader::LoaderOverrides::default(),
+            )
+            .await
+            {
+                Ok(stack) => disabled_skill_paths_from_stack(&stack),
+                Err(err) => {
+                    entry_errors.push(SkillErrorInfo {
+                        path: cwd.clone(),
+                        message: format!("failed to load config layers: {err}"),
+                    });
+                    HashSet::new()
+                }
+            };
+
+            let outcome = if validated_extra_roots.is_empty() {
+                code_core::skills::loader::load_skills(&config)
+            } else {
+                code_core::skills::loader::load_skills_with_extra_user_roots(
+                    &config,
+                    validated_extra_roots,
+                )
+            };
+
+            let mut skills = Vec::new();
+            for skill in outcome.skills {
+                let enabled = !disabled_paths.contains(&skill.path);
+                skills.push(V2SkillMetadata {
+                    name: skill.name,
+                    description: skill.description,
+                    short_description: None,
+                    interface: None,
+                    dependencies: None,
+                    path: skill.path,
+                    scope: core_skill_scope_to_v2(skill.scope),
+                    enabled,
+                });
+            }
+
+            let mut errors = entry_errors;
+            for err in outcome.errors {
+                errors.push(SkillErrorInfo {
+                    path: err.path,
+                    message: err.message,
+                });
+            }
+
+            data.push(SkillsListEntry { cwd, skills, errors });
+        }
+
+        self.outgoing
+            .send_response_to_connection(connection_id, request_id, SkillsListResponse { data })
+            .await;
+    }
+
+    pub(super) async fn skills_config_write_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: SkillsConfigWriteParams,
+    ) {
+        let SkillsConfigWriteParams { path, enabled } = params;
+
+        if path.as_os_str().is_empty() {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_PARAMS_ERROR_CODE,
+                        message: "skills/config/write path must not be empty".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        if !path.is_absolute() {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_PARAMS_ERROR_CODE,
+                        message: "skills/config/write path must be an absolute path".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        let mutated =
+            match code_core::config_edit::set_skill_config(&self.base_config.code_home, &path, enabled)
+                .await
+            {
+                Ok(mutated) => mutated,
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INTERNAL_ERROR_CODE,
+                                message: format!("failed to update skills config: {err}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+            };
+
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                SkillsConfigWriteResponse {
+                    effective_enabled: enabled,
+                },
+            )
+            .await;
+
+        if mutated {
+            broadcast_server_notification_simple(
+                &self.outgoing,
+                ServerNotification::SkillsChanged(SkillsChangedNotification {}),
+            )
+            .await;
+        }
     }
 
     pub(super) async fn list_threads_v2(
@@ -2777,6 +2993,82 @@ async fn send_server_notification_to_connection(
             },
         )
         .await;
+}
+
+async fn broadcast_server_notification_simple(
+    outgoing: &OutgoingMessageSender,
+    notification: ServerNotification,
+) {
+    let method = notification.to_string();
+    let params = match notification.to_params() {
+        Ok(params) => Some(params),
+        Err(err) => {
+            tracing::warn!("failed to serialize notification params: {err}");
+            None
+        }
+    };
+    outgoing.send_notification(OutgoingNotification { method, params }).await;
+}
+
+#[derive(Debug, Deserialize)]
+struct SkillConfigEntryToml {
+    path: PathBuf,
+    enabled: bool,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct SkillsConfigToml {
+    #[serde(default)]
+    config: Vec<SkillConfigEntryToml>,
+}
+
+fn normalize_override_path(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+fn disabled_skill_paths_from_stack(
+    config_layer_stack: &code_core::config_loader::ConfigLayerStack,
+) -> HashSet<PathBuf> {
+    let mut configs: HashMap<PathBuf, bool> = HashMap::new();
+    for layer in config_layer_stack.layers_high_to_low() {
+        if !matches!(layer.name, ConfigLayerSource::User { .. } | ConfigLayerSource::SessionFlags) {
+            continue;
+        }
+
+        let Some(skills_value) = layer.config.get("skills") else {
+            continue;
+        };
+
+        let skills: SkillsConfigToml = match skills_value.clone().try_into() {
+            Ok(skills) => skills,
+            Err(err) => {
+                tracing::warn!("invalid skills config: {err}");
+                continue;
+            }
+        };
+
+        for entry in skills.config {
+            let normalized = normalize_override_path(&entry.path);
+            if configs.contains_key(&normalized) {
+                continue;
+            }
+            configs.insert(normalized, entry.enabled);
+        }
+    }
+
+    configs
+        .into_iter()
+        .filter_map(|(path, enabled)| (!enabled).then_some(path))
+        .collect()
+}
+
+fn core_skill_scope_to_v2(scope: code_core::skills::model::SkillScope) -> V2SkillScope {
+    match scope {
+        code_core::skills::model::SkillScope::Repo => V2SkillScope::Repo,
+        code_core::skills::model::SkillScope::User => V2SkillScope::User,
+        code_core::skills::model::SkillScope::System => V2SkillScope::System,
+        code_core::skills::model::SkillScope::Admin => V2SkillScope::Admin,
+    }
 }
 
 fn v2_approval_policy_to_core(policy: AskForApproval) -> code_core::protocol::AskForApproval {

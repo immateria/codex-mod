@@ -71,6 +71,56 @@ pub fn load_skills(config: &Config) -> SkillLoadOutcome {
     load_skills_with_additional_roots(config, std::iter::empty::<PathBuf>())
 }
 
+/// Load skills with extra user-scoped roots that should be scanned before the
+/// standard roots (repo/user/system/admin). Earlier roots win when duplicate
+/// skill names are discovered.
+pub fn load_skills_with_extra_user_roots<I>(
+    config: &Config,
+    extra_user_roots: I,
+) -> SkillLoadOutcome
+where
+    I: IntoIterator<Item = PathBuf>,
+{
+    if let Err(err) = install_system_skills(&config.code_home) {
+        tracing::error!("failed to install system skills: {err}");
+    }
+
+    let mut seen_extra_roots: HashSet<PathBuf> = HashSet::new();
+    let mut roots: Vec<SkillRoot> = Vec::new();
+
+    for path in extra_user_roots {
+        if path.as_os_str().is_empty() {
+            continue;
+        }
+
+        let path = if path.is_relative() {
+            config.cwd.join(path)
+        } else {
+            path
+        };
+        let normalized = normalize_path(&path).unwrap_or_else(|_| path.clone());
+        if !seen_extra_roots.insert(normalized.clone()) {
+            continue;
+        }
+
+        if !normalized.is_dir() {
+            warn!(
+                "ignoring extra user skill root {} because it is not a directory",
+                normalized.display()
+            );
+            continue;
+        }
+
+        roots.push(SkillRoot {
+            path: normalized,
+            scope: SkillScope::User,
+        });
+    }
+
+    roots.extend(skill_roots(config));
+    load_skills_from_roots(roots)
+}
+
 /// Return the set of skill roots that should be watched for changes.
 ///
 /// This includes the default repo/user/system/admin roots plus any shell-style profile roots

@@ -684,6 +684,13 @@ impl MessageProcessor {
                 self.list_mcp_server_status_v2(connection_id, request_id, params)
                     .await;
             }
+            AppServerClientRequest::SkillsList { params, .. } => {
+                self.skills_list_v2(connection_id, request_id, params).await;
+            }
+            AppServerClientRequest::SkillsConfigWrite { params, .. } => {
+                self.skills_config_write_v2(connection_id, request_id, params)
+                    .await;
+            }
             _ => {
                 let error = JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,

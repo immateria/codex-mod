@@ -3,7 +3,11 @@ use crate::config_types::SubagentCommandConfig;
 use anyhow::Result;
 use std::path::Path;
 use tempfile::NamedTempFile;
+use toml_edit::ArrayOfTables;
 use toml_edit::DocumentMut;
+use toml_edit::Item as TomlItem;
+use toml_edit::Table as TomlTable;
+use toml_edit::value;
 
 pub const CONFIG_KEY_MODEL: &str = "model";
 pub const CONFIG_KEY_EFFORT: &str = "model_reasoning_effort";
@@ -105,6 +109,144 @@ fn apply_toml_edit_override_segments(
 
     let last = segments[segments.len() - 1];
     current[last] = value;
+}
+
+fn new_implicit_table() -> TomlTable {
+    let mut table = TomlTable::new();
+    table.set_implicit(true);
+    table
+}
+
+fn normalize_skill_config_path(path: &Path) -> String {
+    dunce::canonicalize(path)
+        .unwrap_or_else(|_| path.to_path_buf())
+        .to_string_lossy()
+        .to_string()
+}
+
+/// Set or clear a skill override entry in `config.toml`.
+///
+/// Semantics follow upstream codex-rs:
+/// - `enabled=true` removes any matching override entry.
+/// - `enabled=false` creates/updates an override entry with `enabled=false`.
+pub async fn set_skill_config(code_home: &Path, skill_path: &Path, enabled: bool) -> Result<bool> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match tokio::fs::read_to_string(&read_path).await {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            tokio::fs::create_dir_all(code_home).await?;
+            DocumentMut::new()
+        }
+        Err(e) => return Err(e.into()),
+    };
+
+    let normalized_path = normalize_skill_config_path(skill_path);
+    let mut remove_skills_table = false;
+    let mut mutated = false;
+
+    {
+        let root = doc.as_table_mut();
+        let skills_item = match root.get_mut("skills") {
+            Some(item) => item,
+            None => {
+                if enabled {
+                    return Ok(false);
+                }
+                root.insert("skills", TomlItem::Table(new_implicit_table()));
+                root.get_mut("skills").ok_or_else(|| anyhow::anyhow!("missing skills table"))?
+            }
+        };
+
+        if skills_item.as_table_mut().is_none() {
+            if enabled {
+                return Ok(false);
+            }
+            *skills_item = TomlItem::Table(new_implicit_table());
+        }
+
+        let skills_table = skills_item
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("skills item is not a table"))?;
+
+        let config_item = match skills_table.get_mut("config") {
+            Some(item) => item,
+            None => {
+                if enabled {
+                    return Ok(false);
+                }
+                skills_table.insert("config", TomlItem::ArrayOfTables(ArrayOfTables::new()));
+                skills_table
+                    .get_mut("config")
+                    .ok_or_else(|| anyhow::anyhow!("missing skills.config"))?
+            }
+        };
+
+        if !matches!(config_item, TomlItem::ArrayOfTables(_)) {
+            if enabled {
+                return Ok(false);
+            }
+            *config_item = TomlItem::ArrayOfTables(ArrayOfTables::new());
+        }
+
+        let TomlItem::ArrayOfTables(overrides) = config_item else {
+            return Ok(false);
+        };
+
+        let existing_index = overrides.iter().enumerate().find_map(|(idx, table)| {
+            table
+                .get("path")
+                .and_then(|item| item.as_str())
+                .map(Path::new)
+                .map(normalize_skill_config_path)
+                .filter(|value| *value == normalized_path)
+                .map(|_| idx)
+        });
+
+        if enabled {
+            if let Some(index) = existing_index {
+                overrides.remove(index);
+                mutated = true;
+                if overrides.is_empty() {
+                    skills_table.remove("config");
+                    if skills_table.is_empty() {
+                        remove_skills_table = true;
+                    }
+                }
+            }
+        } else if let Some(index) = existing_index {
+            for (idx, table) in overrides.iter_mut().enumerate() {
+                if idx == index {
+                    table["path"] = value(normalized_path);
+                    table["enabled"] = value(false);
+                    mutated = true;
+                    break;
+                }
+            }
+        } else {
+            let mut entry = TomlTable::new();
+            entry.set_implicit(false);
+            entry["path"] = value(normalized_path);
+            entry["enabled"] = value(false);
+            overrides.push(entry);
+            mutated = true;
+        }
+    }
+
+    if remove_skills_table {
+        let root = doc.as_table_mut();
+        root.remove("skills");
+    }
+
+    if !mutated {
+        return Ok(false);
+    }
+
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    tokio::fs::write(tmp_file.path(), doc.to_string()).await?;
+    tmp_file.persist(config_path)?;
+
+    Ok(true)
 }
 
 /// Upsert a `[[subagents.commands]]` entry by `name`.
@@ -1186,6 +1328,63 @@ model_reasoning_effort = "high"
             .await
             .expect("persist");
 
+        assert!(!code_home.join(CONFIG_TOML_FILE).exists());
+    }
+
+    #[tokio::test]
+    async fn set_skill_config_disable_writes_entry_and_enable_removes_entry() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let skill_path = code_home.join("skills").join("my-skill").join("SKILL.md");
+        tokio::fs::create_dir_all(skill_path.parent().expect("parent"))
+            .await
+            .expect("mkdir");
+        tokio::fs::write(&skill_path, "---\nname: my-skill\ndescription: ok\n---\n")
+            .await
+            .expect("write");
+
+        let mutated = set_skill_config(code_home, &skill_path, false)
+            .await
+            .expect("disable");
+        assert!(mutated);
+
+        let contents = read_config(code_home).await;
+        let parsed: toml::Value = toml::from_str(&contents).expect("toml");
+        let cfg = parsed
+            .get("skills")
+            .and_then(|value| value.as_table())
+            .and_then(|skills| skills.get("config"))
+            .and_then(|value| value.as_array())
+            .expect("skills.config");
+        assert_eq!(cfg.len(), 1);
+        let entry = cfg[0].as_table().expect("entry table");
+        let normalized_path = normalize_skill_config_path(&skill_path);
+        assert_eq!(
+            entry.get("path").and_then(|value| value.as_str()),
+            Some(normalized_path.as_str())
+        );
+        assert_eq!(entry.get("enabled").and_then(|value| value.as_bool()), Some(false));
+
+        let mutated = set_skill_config(code_home, &skill_path, true)
+            .await
+            .expect("enable");
+        assert!(mutated);
+
+        let contents = read_config(code_home).await;
+        assert!(contents.trim().is_empty());
+    }
+
+    #[tokio::test]
+    async fn set_skill_config_enable_is_noop_when_file_missing() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let skill_path = code_home.join("skills").join("my-skill").join("SKILL.md");
+        let mutated = set_skill_config(code_home, &skill_path, true)
+            .await
+            .expect("enable");
+        assert!(!mutated);
         assert!(!code_home.join(CONFIG_TOML_FILE).exists());
     }
 
