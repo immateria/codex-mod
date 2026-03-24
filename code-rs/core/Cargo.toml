@@ -107,6 +107,7 @@ uuid = { workspace = true, features = ["serde", "v4"] }
 url = "2"
 which = { workspace = true }
 wildmatch = { workspace = true }
+zip = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"

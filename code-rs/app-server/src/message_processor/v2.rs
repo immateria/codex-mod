@@ -1132,7 +1132,34 @@ impl MessageProcessor {
         } = params;
 
         let manager = PluginsManager::new(self.base_config.code_home.clone());
+        let auth = self.auth_manager.auth();
         let roots = cwds.unwrap_or_default();
+
+        let mut remote_sync_error = None;
+        if force_remote_sync {
+            match manager
+                .sync_plugins_from_remote(&self.base_config, auth.as_ref(), /*additive_only*/ false)
+                .await
+            {
+                Ok(sync_result) => {
+                    tracing::info!(
+                        installed_plugin_ids = ?sync_result.installed_plugin_ids,
+                        enabled_plugin_ids = ?sync_result.enabled_plugin_ids,
+                        disabled_plugin_ids = ?sync_result.disabled_plugin_ids,
+                        uninstalled_plugin_ids = ?sync_result.uninstalled_plugin_ids,
+                        "completed plugin/list remote sync"
+                    );
+                }
+                Err(err) => {
+                    tracing::warn!(
+                        error = %err,
+                        "plugin/list remote sync failed; returning local marketplace state"
+                    );
+                    remote_sync_error = Some(err.to_string());
+                }
+            }
+        }
+
         let marketplaces = match manager.list_marketplaces_for_roots(&roots) {
             Ok(marketplaces) => marketplaces,
             Err(err) => {
@@ -1151,13 +1178,31 @@ impl MessageProcessor {
             }
         };
 
-        let marketplaces = marketplaces
+        let marketplaces: Vec<PluginMarketplaceEntry> = marketplaces
             .into_iter()
             .map(configured_marketplace_to_v2)
             .collect();
 
-        let remote_sync_error = force_remote_sync
-            .then_some("remote plugin sync is not supported in this build".to_string());
+        let featured_plugin_ids =
+            if marketplaces.iter().any(|marketplace| {
+                marketplace.name == code_core::plugins::OPENAI_CURATED_MARKETPLACE_NAME
+            }) {
+                match manager
+                    .featured_plugin_ids_for_config(&self.base_config, auth.as_ref())
+                    .await
+                {
+                    Ok(featured_plugin_ids) => featured_plugin_ids,
+                    Err(err) => {
+                        tracing::warn!(
+                            error = %err,
+                            "plugin/list featured plugin fetch failed; returning empty featured ids"
+                        );
+                        Vec::new()
+                    }
+                }
+            } else {
+                Vec::new()
+            };
 
         self.outgoing
             .send_response_to_connection(
@@ -1166,7 +1211,7 @@ impl MessageProcessor {
                 PluginListResponse {
                     marketplaces,
                     remote_sync_error,
-                    featured_plugin_ids: Vec::new(),
+                    featured_plugin_ids,
                 },
             )
             .await;
@@ -1245,7 +1290,7 @@ impl MessageProcessor {
         let PluginInstallParams {
             marketplace_path,
             plugin_name,
-            force_remote_sync: _,
+            force_remote_sync,
         } = params;
 
         if plugin_name.trim().is_empty() {
@@ -1264,13 +1309,18 @@ impl MessageProcessor {
         }
 
         let manager = PluginsManager::new(self.base_config.code_home.clone());
-        let outcome = match manager
-            .install_plugin(PluginInstallRequest {
-                plugin_name,
-                marketplace_path,
-            })
-            .await
-        {
+        let auth = self.auth_manager.auth();
+        let request = PluginInstallRequest {
+            plugin_name,
+            marketplace_path,
+        };
+        let outcome = match if force_remote_sync {
+            manager
+                .install_plugin_with_remote_sync(&self.base_config, auth.as_ref(), request)
+                .await
+        } else {
+            manager.install_plugin(request).await
+        } {
             Ok(outcome) => outcome,
             Err(err) => {
                 let code = if err.is_invalid_request() {
@@ -1339,7 +1389,7 @@ impl MessageProcessor {
     ) {
         let PluginUninstallParams {
             plugin_id,
-            force_remote_sync: _,
+            force_remote_sync,
         } = params;
 
         if plugin_id.trim().is_empty() {
@@ -1358,7 +1408,15 @@ impl MessageProcessor {
         }
 
         let manager = PluginsManager::new(self.base_config.code_home.clone());
-        if let Err(err) = manager.uninstall_plugin(plugin_id).await {
+        let auth = self.auth_manager.auth();
+        let uninstall_result = if force_remote_sync {
+            manager
+                .uninstall_plugin_with_remote_sync(&self.base_config, auth.as_ref(), plugin_id)
+                .await
+        } else {
+            manager.uninstall_plugin(plugin_id).await
+        };
+        if let Err(err) = uninstall_result {
             let code = if err.is_invalid_request() {
                 INVALID_PARAMS_ERROR_CODE
             } else {

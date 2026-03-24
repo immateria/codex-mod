@@ -7,11 +7,23 @@ use super::marketplace::ResolvedMarketplacePlugin;
 use super::marketplace::list_marketplaces;
 use super::marketplace::load_marketplace;
 use super::marketplace::resolve_marketplace_plugin;
+use super::remote::RemotePluginFetchError;
+use super::remote::RemotePluginMutationError;
+use super::remote::enable_remote_plugin;
+use super::remote::fetch_remote_featured_plugin_ids;
+use super::remote::fetch_remote_plugin_status;
+use super::remote::uninstall_remote_plugin;
+use super::startup_sync::curated_plugins_repo_path;
+use super::startup_sync::read_curated_plugins_sha;
+use super::startup_sync::sync_openai_plugins_repo;
 use super::store::PluginId;
 use super::store::PluginIdError;
 use super::store::PluginInstallResult as StorePluginInstallResult;
 use super::store::PluginStore;
 use super::store::PluginStoreError;
+use crate::auth::CodexAuth;
+use crate::config::Config;
+use crate::config_edit::apply_plugin_config_updates;
 use crate::config_edit::clear_plugin_config;
 use crate::config_edit::set_plugin_enabled;
 use crate::config_types::McpServerConfig;
@@ -25,14 +37,42 @@ use serde::Deserialize;
 use serde_json::Map as JsonMap;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::RwLock;
+use std::time::Duration;
+use std::time::Instant;
+use tokio::sync::Mutex;
+use tracing::info;
 use tracing::warn;
 
 const DEFAULT_SKILLS_DIR_NAME: &str = "skills";
 const DEFAULT_MCP_CONFIG_FILE: &str = ".mcp.json";
 const DEFAULT_APP_CONFIG_FILE: &str = ".app.json";
+pub const OPENAI_CURATED_MARKETPLACE_NAME: &str = "openai-curated";
+const FEATURED_PLUGIN_IDS_CACHE_TTL: Duration = Duration::from_secs(60 * 60 * 3);
+
+#[derive(Clone, PartialEq, Eq)]
+struct FeaturedPluginIdsCacheKey {
+    chatgpt_base_url: String,
+    account_id: Option<String>,
+}
+
+#[derive(Clone)]
+struct CachedFeaturedPluginIds {
+    key: FeaturedPluginIdsCacheKey,
+    expires_at: Instant,
+    featured_plugin_ids: Vec<String>,
+}
+
+fn featured_plugin_ids_cache_key(config: &Config, auth: Option<&CodexAuth>) -> FeaturedPluginIdsCacheKey {
+    FeaturedPluginIdsCacheKey {
+        chatgpt_base_url: config.chatgpt_base_url.clone(),
+        account_id: auth.and_then(CodexAuth::get_account_id),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AppConnectorId(pub String);
@@ -98,10 +138,104 @@ pub struct ConfiguredMarketplacePlugin {
     pub enabled: bool,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RemotePluginSyncResult {
+    /// Plugin ids newly installed into the local plugin cache.
+    pub installed_plugin_ids: Vec<String>,
+    /// Plugin ids whose local config was changed to enabled.
+    pub enabled_plugin_ids: Vec<String>,
+    /// Plugin ids whose local config was changed to disabled.
+    /// This is not populated by `sync_plugins_from_remote`.
+    pub disabled_plugin_ids: Vec<String>,
+    /// Plugin ids removed from local cache or plugin config.
+    pub uninstalled_plugin_ids: Vec<String>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginRemoteSyncError {
+    #[error("chatgpt authentication required to sync remote plugins")]
+    AuthRequired,
+
+    #[error(
+        "chatgpt authentication required to sync remote plugins; api key auth is not supported"
+    )]
+    UnsupportedAuthMode,
+
+    #[error("failed to read auth token for remote plugin sync: {0}")]
+    AuthToken(#[source] std::io::Error),
+
+    #[error("failed to send remote plugin sync request to {url}: {source}")]
+    Request {
+        url: String,
+        #[source]
+        source: reqwest::Error,
+    },
+
+    #[error("remote plugin sync request to {url} failed with status {status}: {body}")]
+    UnexpectedStatus {
+        url: String,
+        status: reqwest::StatusCode,
+        body: String,
+    },
+
+    #[error("failed to parse remote plugin sync response from {url}: {source}")]
+    Decode {
+        url: String,
+        #[source]
+        source: serde_json::Error,
+    },
+
+    #[error("local curated marketplace is not available")]
+    LocalMarketplaceNotFound,
+
+    #[error("remote marketplace `{marketplace_name}` is not available locally")]
+    UnknownRemoteMarketplace { marketplace_name: String },
+
+    #[error("duplicate remote plugin `{plugin_name}` returned during sync")]
+    DuplicateRemotePlugin { plugin_name: String },
+
+    #[error("{0}")]
+    InvalidPluginId(#[from] PluginIdError),
+
+    #[error("{0}")]
+    Marketplace(#[from] MarketplaceError),
+
+    #[error("{0}")]
+    Store(#[from] PluginStoreError),
+
+    #[error("{0}")]
+    Config(#[from] anyhow::Error),
+
+    #[error("failed to join remote plugin sync task: {0}")]
+    Join(#[from] tokio::task::JoinError),
+}
+
+impl PluginRemoteSyncError {
+    fn join(source: tokio::task::JoinError) -> Self {
+        Self::Join(source)
+    }
+}
+
+impl From<RemotePluginFetchError> for PluginRemoteSyncError {
+    fn from(value: RemotePluginFetchError) -> Self {
+        match value {
+            RemotePluginFetchError::AuthRequired => Self::AuthRequired,
+            RemotePluginFetchError::UnsupportedAuthMode => Self::UnsupportedAuthMode,
+            RemotePluginFetchError::AuthToken(source) => Self::AuthToken(source),
+            RemotePluginFetchError::Request { url, source } => Self::Request { url, source },
+            RemotePluginFetchError::UnexpectedStatus { url, status, body } => {
+                Self::UnexpectedStatus { url, status, body }
+            }
+            RemotePluginFetchError::Decode { url, source } => Self::Decode { url, source },
+        }
+    }
+}
+
 pub struct PluginsManager {
     code_home: PathBuf,
     store: PluginStore,
+    featured_plugin_ids_cache: RwLock<Option<CachedFeaturedPluginIds>>,
+    remote_sync_lock: Mutex<()>,
     restriction_product: Option<Product>,
 }
 
@@ -118,6 +252,8 @@ impl PluginsManager {
         Self {
             code_home,
             store,
+            featured_plugin_ids_cache: RwLock::new(None),
+            remote_sync_lock: Mutex::new(()),
             restriction_product,
         }
     }
@@ -134,6 +270,70 @@ impl PluginsManager {
 
     pub fn store(&self) -> &PluginStore {
         &self.store
+    }
+
+    pub async fn featured_plugin_ids_for_config(
+        &self,
+        config: &Config,
+        auth: Option<&CodexAuth>,
+    ) -> Result<Vec<String>, RemotePluginFetchError> {
+        let cache_key = featured_plugin_ids_cache_key(config, auth);
+        if let Some(featured_plugin_ids) = self.cached_featured_plugin_ids(&cache_key) {
+            return Ok(featured_plugin_ids);
+        }
+
+        let featured_plugin_ids =
+            fetch_remote_featured_plugin_ids(config, auth, self.restriction_product).await?;
+        self.write_featured_plugin_ids_cache(cache_key, &featured_plugin_ids);
+        Ok(featured_plugin_ids)
+    }
+
+    fn cached_featured_plugin_ids(
+        &self,
+        cache_key: &FeaturedPluginIdsCacheKey,
+    ) -> Option<Vec<String>> {
+        {
+            let cache = match self.featured_plugin_ids_cache.read() {
+                Ok(cache) => cache,
+                Err(err) => err.into_inner(),
+            };
+            let now = Instant::now();
+            if let Some(cached) = cache.as_ref()
+                && now < cached.expires_at
+                && cached.key == *cache_key
+            {
+                return Some(cached.featured_plugin_ids.clone());
+            }
+        }
+
+        let mut cache = match self.featured_plugin_ids_cache.write() {
+            Ok(cache) => cache,
+            Err(err) => err.into_inner(),
+        };
+        let now = Instant::now();
+        if cache
+            .as_ref()
+            .is_some_and(|cached| now >= cached.expires_at || cached.key != *cache_key)
+        {
+            *cache = None;
+        }
+        None
+    }
+
+    fn write_featured_plugin_ids_cache(
+        &self,
+        cache_key: FeaturedPluginIdsCacheKey,
+        featured_plugin_ids: &[String],
+    ) {
+        let mut cache = match self.featured_plugin_ids_cache.write() {
+            Ok(cache) => cache,
+            Err(err) => err.into_inner(),
+        };
+        *cache = Some(CachedFeaturedPluginIds {
+            key: cache_key,
+            expires_at: Instant::now() + FEATURED_PLUGIN_IDS_CACHE_TTL,
+            featured_plugin_ids: featured_plugin_ids.to_vec(),
+        });
     }
 
     /// Return apps exposed by enabled, installed plugins.
@@ -200,9 +400,11 @@ impl PluginsManager {
         config_cwds: &[AbsolutePathBuf],
     ) -> Result<Vec<ConfiguredMarketplace>, MarketplaceError> {
         let configured_plugins = configured_plugins_from_code_home(&self.code_home);
+        let roots = self.marketplace_roots(config_cwds);
+        let mut seen_plugin_keys = HashSet::new();
 
         let mut marketplaces = Vec::new();
-        for marketplace in list_marketplaces(config_cwds)? {
+        for marketplace in list_marketplaces(&roots)? {
             let marketplace_name = marketplace.name.clone();
             let mut plugins = Vec::with_capacity(marketplace.plugins.len());
             for plugin in marketplace.plugins {
@@ -217,6 +419,9 @@ impl PluginsManager {
                         }
                     })?;
                 let plugin_key = plugin_id.as_key();
+                if !seen_plugin_keys.insert(plugin_key.clone()) {
+                    continue;
+                }
 
                 let installed = self.store.is_installed(&plugin_id);
                 let enabled = configured_plugins
@@ -343,14 +548,58 @@ impl PluginsManager {
         self.install_resolved_plugin(resolved).await
     }
 
+    pub async fn install_plugin_with_remote_sync(
+        &self,
+        config: &Config,
+        auth: Option<&CodexAuth>,
+        request: PluginInstallRequest,
+    ) -> Result<PluginInstallOutcome, PluginInstallError> {
+        let resolved = resolve_marketplace_plugin(
+            &request.marketplace_path,
+            &request.plugin_name,
+            self.restriction_product,
+        )?;
+        let plugin_id = resolved.plugin_id.as_key();
+        // Forward the backend mutation before the local install flow. We rely on
+        // `plugin/list(forceRemoteSync=true)` to sync local state rather than doing an extra
+        // reconcile pass here.
+        enable_remote_plugin(config, auth, &plugin_id)
+            .await
+            .map_err(PluginInstallError::from)?;
+        self.install_resolved_plugin(resolved).await
+    }
+
     async fn install_resolved_plugin(
         &self,
         resolved: ResolvedMarketplacePlugin,
     ) -> Result<PluginInstallOutcome, PluginInstallError> {
-        let auth_policy = resolved.auth_policy;
+        let ResolvedMarketplacePlugin {
+            plugin_id,
+            source_path,
+            auth_policy,
+        } = resolved;
+
+        let plugin_key = plugin_id.as_key();
+        let curated_plugin_version = if plugin_id.marketplace_name == OPENAI_CURATED_MARKETPLACE_NAME
+        {
+            let version = read_curated_plugins_sha(self.code_home.as_path());
+            if version.is_none() {
+                warn!(
+                    plugin = plugin_key,
+                    "curated plugin sha is not available; installing with default plugin version"
+                );
+            }
+            version
+        } else {
+            None
+        };
         let store = self.store.clone();
         let result: StorePluginInstallResult = tokio::task::spawn_blocking(move || {
-            store.install(resolved.source_path, resolved.plugin_id)
+            if let Some(plugin_version) = curated_plugin_version {
+                store.install_with_version(source_path, plugin_id, plugin_version)
+            } else {
+                store.install(source_path, plugin_id)
+            }
         })
         .await
         .map_err(PluginInstallError::join)??;
@@ -369,6 +618,27 @@ impl PluginsManager {
 
     pub async fn uninstall_plugin(&self, plugin_id: String) -> Result<(), PluginUninstallError> {
         let plugin_id = PluginId::parse(&plugin_id)?;
+        self.uninstall_plugin_id(plugin_id).await
+    }
+
+    pub async fn uninstall_plugin_with_remote_sync(
+        &self,
+        config: &Config,
+        auth: Option<&CodexAuth>,
+        plugin_id: String,
+    ) -> Result<(), PluginUninstallError> {
+        let plugin_id = PluginId::parse(&plugin_id)?;
+        let plugin_key = plugin_id.as_key();
+        // Forward the backend mutation before the local uninstall flow. We rely on
+        // `plugin/list(forceRemoteSync=true)` to sync local state rather than doing an extra
+        // reconcile pass here.
+        uninstall_remote_plugin(config, auth, &plugin_key)
+            .await
+            .map_err(PluginUninstallError::from)?;
+        self.uninstall_plugin_id(plugin_id).await
+    }
+
+    async fn uninstall_plugin_id(&self, plugin_id: PluginId) -> Result<(), PluginUninstallError> {
         let store = self.store.clone();
         let plugin_id_for_store = plugin_id.clone();
         tokio::task::spawn_blocking(move || store.uninstall(&plugin_id_for_store))
@@ -380,6 +650,210 @@ impl PluginsManager {
             .map_err(PluginUninstallError::from)?;
 
         Ok(())
+    }
+
+    pub async fn sync_plugins_from_remote(
+        &self,
+        config: &Config,
+        auth: Option<&CodexAuth>,
+        additive_only: bool,
+    ) -> Result<RemotePluginSyncResult, PluginRemoteSyncError> {
+        let _remote_sync_guard = self.remote_sync_lock.lock().await;
+
+        info!("starting remote plugin sync");
+        let remote_plugins = fetch_remote_plugin_status(config, auth)
+            .await
+            .map_err(PluginRemoteSyncError::from)?;
+        let configured_plugins = configured_plugins_from_code_home(&self.code_home);
+
+        let curated_marketplace_root = curated_plugins_repo_path(self.code_home.as_path());
+        let curated_marketplace_manifest_path =
+            curated_marketplace_root.join(".agents/plugins/marketplace.json");
+        let curated_sha = read_curated_plugins_sha(self.code_home.as_path());
+
+        if !curated_marketplace_manifest_path.is_file() || curated_sha.is_none() {
+            let code_home = self.code_home.clone();
+            let sync_result =
+                tokio::task::spawn_blocking(move || sync_openai_plugins_repo(code_home.as_path()))
+                    .await
+                    .map_err(PluginRemoteSyncError::join)?;
+            if let Err(err) = sync_result {
+                return Err(PluginRemoteSyncError::Store(PluginStoreError::Invalid(
+                    format!("failed to sync curated plugin marketplace: {err}"),
+                )));
+            }
+        }
+
+        let curated_marketplace_path = AbsolutePathBuf::try_from(curated_marketplace_manifest_path)
+            .map_err(|_| PluginRemoteSyncError::LocalMarketplaceNotFound)?;
+        let curated_marketplace = match load_marketplace(&curated_marketplace_path) {
+            Ok(marketplace) => marketplace,
+            Err(MarketplaceError::MarketplaceNotFound { .. }) => {
+                return Err(PluginRemoteSyncError::LocalMarketplaceNotFound);
+            }
+            Err(err) => return Err(err.into()),
+        };
+
+        let marketplace_name = curated_marketplace.name.clone();
+        let curated_plugin_version = read_curated_plugins_sha(self.code_home.as_path()).ok_or_else(
+            || {
+                PluginStoreError::Invalid(
+                    "local curated marketplace sha is not available".to_string(),
+                )
+            },
+        )?;
+
+        let mut local_plugins = Vec::<(
+            String,
+            PluginId,
+            AbsolutePathBuf,
+            Option<bool>,
+            Option<String>,
+            bool,
+        )>::new();
+        let mut local_plugin_names = HashSet::new();
+
+        for plugin in curated_marketplace.plugins {
+            let plugin_name = plugin.name;
+            if !local_plugin_names.insert(plugin_name.clone()) {
+                warn!(
+                    plugin = plugin_name,
+                    marketplace = %marketplace_name,
+                    "ignoring duplicate local plugin entry during remote sync"
+                );
+                continue;
+            }
+
+            let plugin_id = PluginId::new(plugin_name.clone(), marketplace_name.clone())?;
+            let plugin_key = plugin_id.as_key();
+            let source_path = match plugin.source {
+                MarketplacePluginSource::Local { path } => path,
+            };
+            let current_enabled = configured_plugins.get(&plugin_key).copied();
+            let installed_version = self.store.active_plugin_version(&plugin_id);
+            let product_allowed = self.restriction_product_matches(plugin.policy.products.as_deref());
+
+            local_plugins.push((
+                plugin_name,
+                plugin_id,
+                source_path,
+                current_enabled,
+                installed_version,
+                product_allowed,
+            ));
+        }
+
+        let mut remote_installed_plugin_names = HashSet::<String>::new();
+        for plugin in remote_plugins {
+            if plugin.marketplace_name != marketplace_name {
+                return Err(PluginRemoteSyncError::UnknownRemoteMarketplace {
+                    marketplace_name: plugin.marketplace_name,
+                });
+            }
+            if !local_plugin_names.contains(&plugin.name) {
+                warn!(
+                    plugin = plugin.name,
+                    marketplace = %marketplace_name,
+                    "ignoring remote plugin missing from local marketplace during sync"
+                );
+                continue;
+            }
+            // For now, sync treats remote `enabled = false` as uninstall rather than a distinct
+            // disabled state.
+            // TODO: Switch sync to `plugins/installed` so install and enable states stay distinct.
+            if !plugin.enabled {
+                continue;
+            }
+            if !remote_installed_plugin_names.insert(plugin.name.clone()) {
+                return Err(PluginRemoteSyncError::DuplicateRemotePlugin {
+                    plugin_name: plugin.name,
+                });
+            }
+        }
+
+        let mut enable_keys = Vec::new();
+        let mut clear_keys = Vec::new();
+        let mut installs = Vec::new();
+        let mut uninstalls = Vec::new();
+        let mut result = RemotePluginSyncResult::default();
+        let remote_plugin_count = remote_installed_plugin_names.len();
+        let local_plugin_count = local_plugins.len();
+
+        for (
+            plugin_name,
+            plugin_id,
+            source_path,
+            current_enabled,
+            installed_version,
+            product_allowed,
+        ) in local_plugins
+        {
+            if !product_allowed {
+                continue;
+            }
+
+            let plugin_key = plugin_id.as_key();
+            let is_installed = installed_version.is_some();
+
+            if remote_installed_plugin_names.contains(&plugin_name) {
+                if !is_installed {
+                    installs.push((
+                        source_path,
+                        plugin_id.clone(),
+                        curated_plugin_version.clone(),
+                    ));
+                    result.installed_plugin_ids.push(plugin_key.clone());
+                }
+
+                if current_enabled != Some(true) {
+                    enable_keys.push(plugin_key.clone());
+                    result.enabled_plugin_ids.push(plugin_key.clone());
+                }
+            } else if !additive_only {
+                if is_installed {
+                    uninstalls.push(plugin_id);
+                }
+                if is_installed || current_enabled.is_some() {
+                    result.uninstalled_plugin_ids.push(plugin_key.clone());
+                }
+                if current_enabled.is_some() {
+                    clear_keys.push(plugin_key);
+                }
+            }
+        }
+
+        let store = self.store.clone();
+        let store_result = tokio::task::spawn_blocking(move || {
+            for (source_path, plugin_id, plugin_version) in installs {
+                store.install_with_version(source_path, plugin_id, plugin_version)?;
+            }
+            for plugin_id in uninstalls {
+                store.uninstall(&plugin_id)?;
+            }
+            Ok::<(), PluginStoreError>(())
+        })
+        .await
+        .map_err(PluginRemoteSyncError::join)?;
+        store_result?;
+
+        if !enable_keys.is_empty() || !clear_keys.is_empty() {
+            apply_plugin_config_updates(self.code_home.as_path(), &enable_keys, &clear_keys)
+                .await
+                .map_err(PluginRemoteSyncError::from)?;
+        }
+
+        info!(
+            marketplace = %marketplace_name,
+            remote_plugin_count,
+            local_plugin_count,
+            installed_plugin_ids = ?result.installed_plugin_ids,
+            enabled_plugin_ids = ?result.enabled_plugin_ids,
+            disabled_plugin_ids = ?result.disabled_plugin_ids,
+            uninstalled_plugin_ids = ?result.uninstalled_plugin_ids,
+            "completed remote plugin sync"
+        );
+
+        Ok(result)
     }
 
     /// Merge enabled, installed plugin MCP servers into a single map.
@@ -421,12 +895,28 @@ impl PluginsManager {
 
         mcp_servers
     }
+
+    fn marketplace_roots(&self, config_cwds: &[AbsolutePathBuf]) -> Vec<AbsolutePathBuf> {
+        let mut roots = config_cwds.to_vec();
+        let curated_repo_root = curated_plugins_repo_path(self.code_home.as_path());
+        if curated_repo_root.is_dir()
+            && let Ok(curated_repo_root) = AbsolutePathBuf::try_from(curated_repo_root)
+        {
+            roots.push(curated_repo_root);
+        }
+        roots.sort_unstable_by(|left, right| left.as_path().cmp(right.as_path()));
+        roots.dedup_by(|left, right| left.as_path() == right.as_path());
+        roots
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum PluginInstallError {
     #[error("{0}")]
     Marketplace(#[from] MarketplaceError),
+
+    #[error("{0}")]
+    Remote(#[from] RemotePluginMutationError),
 
     #[error("{0}")]
     Store(#[from] PluginStoreError),
@@ -444,7 +934,16 @@ impl PluginInstallError {
     }
 
     pub fn is_invalid_request(&self) -> bool {
-        matches!(self, Self::Marketplace(MarketplaceError::PluginNotFound { .. } | MarketplaceError::PluginNotAvailable { .. } | MarketplaceError::InvalidPlugin(_)))
+        matches!(
+            self,
+            Self::Marketplace(
+                MarketplaceError::MarketplaceNotFound { .. }
+                    | MarketplaceError::InvalidMarketplaceFile { .. }
+                    | MarketplaceError::PluginNotFound { .. }
+                    | MarketplaceError::PluginNotAvailable { .. }
+                    | MarketplaceError::InvalidPlugin(_)
+            ) | Self::Store(PluginStoreError::Invalid(_))
+        )
     }
 }
 
@@ -452,6 +951,9 @@ impl PluginInstallError {
 pub enum PluginUninstallError {
     #[error("{0}")]
     InvalidPluginId(#[from] PluginIdError),
+
+    #[error("{0}")]
+    Remote(#[from] RemotePluginMutationError),
 
     #[error("{0}")]
     Store(#[from] PluginStoreError),

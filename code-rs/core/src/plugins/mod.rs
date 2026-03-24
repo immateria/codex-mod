@@ -1,6 +1,8 @@
 mod manifest;
 mod manager;
 mod marketplace;
+mod remote;
+mod startup_sync;
 mod store;
 
 pub use manifest::PluginManifestInterface;
@@ -15,9 +17,12 @@ pub use manager::PluginInstallOutcome;
 pub use manager::PluginInstallRequest;
 pub use manager::PluginReadOutcome;
 pub use manager::PluginReadRequest;
+pub use manager::PluginRemoteSyncError;
 pub use manager::PluginUninstallError;
+pub use manager::RemotePluginSyncResult;
 pub use manager::PluginsManager;
 pub use manager::load_plugin_apps;
+pub use manager::OPENAI_CURATED_MARKETPLACE_NAME;
 pub use marketplace::Marketplace;
 pub use marketplace::MarketplaceError;
 pub use marketplace::MarketplaceInterface;
