@@ -3,7 +3,7 @@
 //! Ensures the `/new` flow tears down the previous `McpConnectionManager`
 //! before spawning the next session so stdio servers exit cleanly.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -105,8 +105,9 @@ async fn mcp_stdio_server_exits_before_next_session() {
         },
         startup_timeout_sec: Some(Duration::from_secs(5)),
         tool_timeout_sec: Some(Duration::from_secs(5)),
-        enabled_tools: None,
-        disabled_tools: None,
+        scheduling: Default::default(),
+        tool_scheduling: BTreeMap::new(),
+        disabled_tools: Vec::new(),
     };
 
     let mut mcp_servers = HashMap::new();
@@ -123,10 +124,13 @@ async fn mcp_stdio_server_exits_before_next_session() {
     .expect("load config");
 
     let servers_map = config.mcp_servers.clone();
+    let code_home = config.code_home.clone();
+    let store_mode = config.mcp_oauth_credentials_store_mode;
 
-    let (manager1, _) = McpConnectionManager::new(servers_map.clone(), HashSet::new())
-    .await
-    .expect("start first MCP manager");
+    let (manager1, _) =
+        McpConnectionManager::new(code_home.clone(), store_mode, servers_map.clone(), HashSet::new())
+            .await
+            .expect("start first MCP manager");
 
     wait_for_spawn_count(&log_path, 1).await;
 
@@ -141,7 +145,7 @@ async fn mcp_stdio_server_exits_before_next_session() {
         std::fs::read_to_string(&log_path).unwrap_or_default()
     );
 
-    let (_manager2, _) = McpConnectionManager::new(servers_map, HashSet::new())
+    let (_manager2, _) = McpConnectionManager::new(code_home, store_mode, servers_map, HashSet::new())
         .await
         .expect("start second MCP manager");
 }
