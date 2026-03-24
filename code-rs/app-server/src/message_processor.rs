@@ -684,6 +684,14 @@ impl MessageProcessor {
                 self.list_mcp_server_status_v2(connection_id, request_id, params)
                     .await;
             }
+            AppServerClientRequest::McpServerOauthLogin { params, .. } => {
+                self.mcp_server_oauth_login_v2(connection_id, request_id, params)
+                    .await;
+            }
+            AppServerClientRequest::McpServerRefresh { params, .. } => {
+                self.mcp_server_refresh_v2(connection_id, request_id, params)
+                    .await;
+            }
             AppServerClientRequest::SkillsList { params, .. } => {
                 self.skills_list_v2(connection_id, request_id, params).await;
             }

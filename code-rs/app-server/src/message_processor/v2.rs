@@ -11,6 +11,10 @@ use code_app_server_protocol::CommandExecTerminateParams;
 use code_app_server_protocol::CommandExecWriteParams;
 use code_app_server_protocol::ListMcpServerStatusParams;
 use code_app_server_protocol::ListMcpServerStatusResponse;
+use code_app_server_protocol::McpServerOauthLoginCompletedNotification;
+use code_app_server_protocol::McpServerOauthLoginParams;
+use code_app_server_protocol::McpServerOauthLoginResponse;
+use code_app_server_protocol::McpServerRefreshResponse;
 use code_app_server_protocol::FsCopyParams;
 use code_app_server_protocol::FsCopyResponse;
 use code_app_server_protocol::FsCreateDirectoryParams;
@@ -118,6 +122,8 @@ use code_protocol::protocol::RolloutItem;
 use code_protocol::protocol::RolloutLine;
 use code_protocol::protocol::SessionSource;
 use code_protocol::protocol::SubAgentSource;
+use code_rmcp_client::OauthLoginArgs;
+use code_rmcp_client::perform_oauth_login_return_url;
 use mcp_types::JSONRPCErrorError;
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
@@ -1479,6 +1485,148 @@ impl MessageProcessor {
                 ListMcpServerStatusResponse { data, next_cursor },
             )
             .await;
+    }
+
+    pub(super) async fn mcp_server_refresh_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        _params: Option<()>,
+    ) {
+        let _config = match self.load_effective_config(/*cwd*/ None) {
+            Ok(config) => config,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, error)
+                    .await;
+                return;
+            }
+        };
+
+        self.outgoing
+            .send_response_to_connection(connection_id, request_id, McpServerRefreshResponse {})
+            .await;
+    }
+
+    pub(super) async fn mcp_server_oauth_login_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: McpServerOauthLoginParams,
+    ) {
+        let config = match self.load_effective_config(/*cwd*/ None) {
+            Ok(config) => config,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, error)
+                    .await;
+                return;
+            }
+        };
+
+        let McpServerOauthLoginParams {
+            name,
+            scopes,
+            timeout_secs,
+        } = params;
+
+        let Some(server) = config.mcp_servers.get(&name) else {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_REQUEST_ERROR_CODE,
+                        message: format!("No MCP server named '{name}' found."),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        };
+
+        let (url, http_headers, env_http_headers) = match &server.transport {
+            code_core::config_types::McpServerTransportConfig::StreamableHttp {
+                url,
+                http_headers,
+                env_http_headers,
+                ..
+            } => (url.clone(), http_headers.clone(), env_http_headers.clone()),
+            _ => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INVALID_REQUEST_ERROR_CODE,
+                            message: "OAuth login is only supported for streamable HTTP servers."
+                                .to_string(),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let resolved_scopes = scopes.unwrap_or_default();
+        match perform_oauth_login_return_url(OauthLoginArgs {
+            code_home: &config.code_home,
+            server_name: &name,
+            server_url: &url,
+            store_mode: config.mcp_oauth_credentials_store_mode,
+            http_headers,
+            env_http_headers,
+            scopes: &resolved_scopes,
+            timeout_secs,
+            callback_port: config.mcp_oauth_callback_port,
+        })
+        .await
+        {
+            Ok(handle) => {
+                let authorization_url = handle.authorization_url().to_string();
+                let notification_name = name.clone();
+                let outgoing = Arc::clone(&self.outgoing);
+
+                tokio::spawn(async move {
+                    let (success, error) = match handle.wait().await {
+                        Ok(()) => (true, None),
+                        Err(err) => (false, Some(err.to_string())),
+                    };
+
+                    let notification =
+                        ServerNotification::McpServerOauthLoginCompleted(
+                            McpServerOauthLoginCompletedNotification {
+                                name: notification_name,
+                                success,
+                                error,
+                            },
+                        );
+                    broadcast_server_notification_simple(outgoing.as_ref(), notification).await;
+                });
+
+                self.outgoing
+                    .send_response_to_connection(
+                        connection_id,
+                        request_id,
+                        McpServerOauthLoginResponse { authorization_url },
+                    )
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to login to MCP server '{name}': {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+            }
+        }
     }
 
     pub(super) async fn thread_start_v2(

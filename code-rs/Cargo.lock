@@ -1257,6 +1257,7 @@ dependencies = [
  "code-login",
  "code-mcp-types",
  "code-protocol",
+ "code-rmcp-client",
  "code-utils-json-to-toml",
  "codex-utils-absolute-path",
  "codex-utils-pty",
