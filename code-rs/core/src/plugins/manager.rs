@@ -21,6 +21,7 @@ use crate::skills::loader::SkillRoot;
 use crate::skills::loader::load_skills_from_roots;
 use crate::skills::model::SkillMetadata;
 use crate::skills::model::SkillScope;
+use code_protocol::protocol::Product;
 use code_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde_json::Map as JsonMap;
@@ -103,12 +104,34 @@ pub struct ConfiguredMarketplacePlugin {
 pub struct PluginsManager {
     code_home: PathBuf,
     store: PluginStore,
+    restriction_product: Option<Product>,
 }
 
 impl PluginsManager {
     pub fn new(code_home: PathBuf) -> Self {
+        Self::new_with_restriction_product(code_home, Some(Product::Codex))
+    }
+
+    pub fn new_with_restriction_product(
+        code_home: PathBuf,
+        restriction_product: Option<Product>,
+    ) -> Self {
         let store = PluginStore::new(code_home.clone());
-        Self { code_home, store }
+        Self {
+            code_home,
+            store,
+            restriction_product,
+        }
+    }
+
+    fn restriction_product_matches(&self, products: Option<&[Product]>) -> bool {
+        match products {
+            None => true,
+            Some([]) => false,
+            Some(products) => self
+                .restriction_product
+                .is_some_and(|product| product.matches_product_restriction(products)),
+        }
     }
 
     pub fn store(&self) -> &PluginStore {
@@ -185,6 +208,10 @@ impl PluginsManager {
             let marketplace_name = marketplace.name.clone();
             let mut plugins = Vec::with_capacity(marketplace.plugins.len());
             for plugin in marketplace.plugins {
+                if !self.restriction_product_matches(plugin.policy.products.as_deref()) {
+                    continue;
+                }
+
                 let plugin_id =
                     PluginId::new(plugin.name.clone(), marketplace_name.clone()).map_err(|err| {
                         match err {
@@ -212,12 +239,14 @@ impl PluginsManager {
 
             plugins.sort_unstable_by(|left, right| left.name.cmp(&right.name).then_with(|| left.id.cmp(&right.id)));
 
-            marketplaces.push(ConfiguredMarketplace {
-                name: marketplace.name,
-                path: marketplace.path,
-                interface: marketplace.interface,
-                plugins,
-            });
+            if !plugins.is_empty() {
+                marketplaces.push(ConfiguredMarketplace {
+                    name: marketplace.name,
+                    path: marketplace.path,
+                    interface: marketplace.interface,
+                    plugins,
+                });
+            }
         }
 
         marketplaces.sort_unstable_by(|left, right| left.name.cmp(&right.name));
@@ -242,6 +271,12 @@ impl PluginsManager {
                 marketplace_name,
             });
         };
+        if !self.restriction_product_matches(plugin.policy.products.as_deref()) {
+            return Err(MarketplaceError::PluginNotFound {
+                plugin_name: request.plugin_name.clone(),
+                marketplace_name,
+            });
+        }
 
         let plugin_id = PluginId::new(plugin.name.clone(), marketplace.name.clone()).map_err(|err| match err {
             PluginIdError::Invalid(message) => MarketplaceError::InvalidPlugin(message),
@@ -305,7 +340,7 @@ impl PluginsManager {
         let resolved = resolve_marketplace_plugin(
             &request.marketplace_path,
             &request.plugin_name,
-            /*restriction_product*/ None,
+            self.restriction_product,
         )?;
         self.install_resolved_plugin(resolved).await
     }
