@@ -16,60 +16,28 @@ use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::thread_state::ThreadStateManager;
 use code_app_server_protocol::AuthMode;
-use code_app_server_protocol::CommandExecParams;
-use code_app_server_protocol::CommandExecResizeParams;
-use code_app_server_protocol::CommandExecTerminateParams;
-use code_app_server_protocol::CommandExecWriteParams;
 use code_app_server_protocol::ConfigRequirements;
-use code_app_server_protocol::CancelLoginAccountParams;
 use code_app_server_protocol::Config as V2Config;
 use code_app_server_protocol::ConfigBatchWriteParams;
 use code_app_server_protocol::ConfigEdit;
-use code_app_server_protocol::ConfigReadParams;
 use code_app_server_protocol::ConfigReadResponse;
 use code_app_server_protocol::ConfigRequirementsReadResponse;
 use code_app_server_protocol::ConfigValueWriteParams;
 use code_app_server_protocol::ConfigWriteErrorCode;
 use code_app_server_protocol::ConfigWriteResponse;
-use code_app_server_protocol::ExternalAgentConfigDetectParams;
-use code_app_server_protocol::ExternalAgentConfigImportParams;
-use code_app_server_protocol::GetAccountParams;
-use code_app_server_protocol::ListMcpServerStatusParams;
-use code_app_server_protocol::LoginAccountParams;
 use code_app_server_protocol::MergeStrategy;
-use code_app_server_protocol::ModelListParams;
-use code_app_server_protocol::ThreadListParams;
-use code_app_server_protocol::ThreadLoadedListParams;
-use code_app_server_protocol::ThreadReadParams;
-use code_app_server_protocol::ThreadStartParams;
-use code_app_server_protocol::ThreadResumeParams;
-use code_app_server_protocol::ThreadForkParams;
-use code_app_server_protocol::ThreadArchiveParams;
-use code_app_server_protocol::ThreadUnsubscribeParams;
-use code_app_server_protocol::ThreadSetNameParams;
-use code_app_server_protocol::ThreadMetadataUpdateParams;
-use code_app_server_protocol::ThreadUnarchiveParams;
 use code_app_server_protocol::ToolsV2;
-use code_app_server_protocol::TurnStartParams;
-use code_app_server_protocol::TurnInterruptParams;
 use code_app_server_protocol::AskForApproval as V2AskForApproval;
-use code_app_server_protocol::WindowsSandboxSetupStartParams;
+use code_app_server_protocol::ClientRequest as AppServerClientRequest;
+use code_app_server_protocol::ExperimentalApi;
 use code_app_server_protocol::WriteStatus;
-use code_app_server_protocol::FsReadFileParams;
-use code_app_server_protocol::FsWriteFileParams;
-use code_app_server_protocol::FsCreateDirectoryParams;
-use code_app_server_protocol::FsGetMetadataParams;
-use code_app_server_protocol::FsReadDirectoryParams;
-use code_app_server_protocol::FsRemoveParams;
-use code_app_server_protocol::FsCopyParams;
 use code_protocol::config_types::Verbosity;
 use code_protocol::config_types::WebSearchMode;
 use code_core::AuthManager;
 use code_core::ConversationManager;
 use code_core::config::Config;
 use code_core::default_client::get_code_user_agent_with_suffix;
-use code_protocol::mcp_protocol::ClientRequest;
-use code_protocol::mcp_protocol::ClientRequest::Initialize;
+use code_protocol::mcp_protocol::ClientRequest as LegacyClientRequest;
 use code_protocol::mcp_protocol::GetUserAgentResponse;
 use code_protocol::mcp_protocol::InitializeResponse;
 use code_protocol::protocol::SessionSource;
@@ -104,6 +72,7 @@ pub(crate) struct MessageProcessor {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ConnectionSessionState {
     pub(crate) initialized: bool,
+    pub(crate) experimental_api_enabled: bool,
     pub(crate) user_agent_suffix: Option<String>,
     pub(crate) opted_out_notification_methods: HashSet<String>,
 }
@@ -168,64 +137,107 @@ impl MessageProcessor {
     ) {
         let request_id = request.id.clone();
 
-        if self
-            .try_process_v2_config_request(
-                connection_id,
-                request_id.clone(),
-                &request,
-                session.initialized,
-            )
-            .await
-        {
+        let request_json = match serde_json::to_value(&request) {
+            Ok(request_json) => request_json,
+            Err(err) => {
+                let error = JSONRPCErrorError {
+                    code: INVALID_REQUEST_ERROR_CODE,
+                    message: format!("Invalid request: {err}"),
+                    data: None,
+                };
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, error)
+                    .await;
+                return;
+            }
+        };
+
+        // Prefer the legacy initialize params for the `opt_out_notification_methods` extension.
+        if request.method == "initialize" {
+            if let Ok(code_request) =
+                serde_json::from_value::<LegacyClientRequest>(request_json.clone())
+            {
+                match code_request {
+                    // Handle Initialize internally so CodexMessageProcessor does not have to concern
+                    // itself with per-connection initialization state.
+                    LegacyClientRequest::Initialize { request_id, params } => {
+                        if session.initialized {
+                            let error = JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: "Already initialized".to_string(),
+                                data: None,
+                            };
+                            self.outgoing
+                                .send_error_to_connection(connection_id, request_id, error)
+                                .await;
+                            return;
+                        }
+
+                        let client_info = params.client_info;
+                        let (experimental_api_enabled, opted_out_notification_methods) =
+                            match params.capabilities {
+                                Some(capabilities) => (
+                                    capabilities.experimental_api,
+                                    capabilities
+                                        .opt_out_notification_methods
+                                        .unwrap_or_default(),
+                                ),
+                                None => (false, Vec::new()),
+                            };
+                        session.experimental_api_enabled = experimental_api_enabled;
+                        session.opted_out_notification_methods =
+                            opted_out_notification_methods.into_iter().collect();
+                        session.user_agent_suffix =
+                            Some(format!("{}; {}", client_info.name, client_info.version));
+
+                        if let Ok(mut methods) = outbound_opted_out_notification_methods.write() {
+                            *methods = session.opted_out_notification_methods.clone();
+                        }
+
+                        let user_agent = get_code_user_agent_with_suffix(
+                            Some(&self.base_config.responses_originator_header),
+                            session.user_agent_suffix.as_deref(),
+                        );
+                        let response = InitializeResponse { user_agent };
+                        self.outgoing
+                            .send_response_to_connection(connection_id, request_id, response)
+                            .await;
+
+                        session.initialized = true;
+                        outbound_initialized.store(true, Ordering::Release);
+                        return;
+                    }
+                    _ => {}
+                }
+            }
+
+            let error = JSONRPCErrorError {
+                code: INVALID_REQUEST_ERROR_CODE,
+                message: "Invalid request".to_string(),
+                data: None,
+            };
+            self.outgoing
+                .send_error_to_connection(connection_id, request_id, error)
+                .await;
             return;
         }
 
-        if let Ok(request_json) = serde_json::to_value(request)
-            && let Ok(code_request) = serde_json::from_value::<ClientRequest>(request_json)
+        if let Ok(v2_request) = serde_json::from_value::<AppServerClientRequest>(request_json.clone())
         {
+            self.process_app_server_v2_request(
+                connection_id,
+                request_id,
+                v2_request,
+                session.initialized,
+                session.experimental_api_enabled,
+            )
+                .await;
+            return;
+        }
+
+        if let Ok(code_request) = serde_json::from_value::<LegacyClientRequest>(request_json) {
             match code_request {
-                // Handle Initialize internally so CodexMessageProcessor does not have to concern
-                // itself with per-connection initialization state.
-                Initialize { request_id, params } => {
-                    if session.initialized {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: "Already initialized".to_string(),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return;
-                    }
-
-                    let client_info = params.client_info;
-                    let opted_out_notification_methods = params
-                        .capabilities
-                        .and_then(|capabilities| capabilities.opt_out_notification_methods)
-                        .unwrap_or_default();
-                    session.opted_out_notification_methods =
-                        opted_out_notification_methods.into_iter().collect();
-                    session.user_agent_suffix = Some(format!("{}; {}", client_info.name, client_info.version));
-
-                    if let Ok(mut methods) = outbound_opted_out_notification_methods.write() {
-                        *methods = session.opted_out_notification_methods.clone();
-                    }
-
-                    let user_agent = get_code_user_agent_with_suffix(
-                        Some(&self.base_config.responses_originator_header),
-                        session.user_agent_suffix.as_deref(),
-                    );
-                    let response = InitializeResponse { user_agent };
-                    self.outgoing
-                        .send_response_to_connection(connection_id, request_id, response)
-                        .await;
-
-                    session.initialized = true;
-                    outbound_initialized.store(true, Ordering::Release);
-                    return;
-                }
-                ClientRequest::GetUserAgent { request_id, .. } => {
+                LegacyClientRequest::GetUserAgent { request_id, .. } => {
                     if !session.initialized {
                         let error = JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
@@ -267,16 +279,17 @@ impl MessageProcessor {
             self.code_message_processor
                 .process_request_for_connection(connection_id, code_request)
                 .await;
-        } else {
-            let error = JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: "Invalid request".to_string(),
-                data: None,
-            };
-            self.outgoing
-                .send_error_to_connection(connection_id, request_id, error)
-                .await;
+            return;
         }
+
+        let error = JSONRPCErrorError {
+            code: INVALID_REQUEST_ERROR_CODE,
+            message: "Invalid request".to_string(),
+            data: None,
+        };
+        self.outgoing
+            .send_error_to_connection(connection_id, request_id, error)
+            .await;
     }
 
     pub(crate) async fn process_notification(&self, notification: JSONRPCNotification) {
@@ -330,55 +343,15 @@ impl MessageProcessor {
             .await;
     }
 
-    async fn try_process_v2_config_request(
+    async fn process_app_server_v2_request(
         &mut self,
         connection_id: ConnectionId,
         request_id: mcp_types::RequestId,
-        request: &JSONRPCRequest,
+        request: AppServerClientRequest,
         session_initialized: bool,
-    ) -> bool {
-        let is_v2_request = matches!(
-            request.method.as_str(),
-            "config/read"
-                | "configRequirements/read"
-                | "config/value/write"
-                | "config/batchWrite"
-                | "externalAgentConfig/detect"
-                | "externalAgentConfig/import"
-                | "account/read"
-                | "account/login/start"
-                | "account/login/cancel"
-                | "account/logout"
-                | "account/rateLimits/read"
-                | "model/list"
-                | "windowsSandbox/setupStart"
-                | "command/exec"
-                | "command/exec/write"
-                | "command/exec/terminate"
-                | "command/exec/resize"
-                | "thread/list"
-                | "thread/loaded/list"
-                | "thread/read"
-                | "thread/start"
-                | "thread/resume"
-                | "thread/fork"
-                | "thread/archive"
-                | "thread/unsubscribe"
-                | "thread/name/set"
-                | "thread/metadata/update"
-                | "thread/unarchive"
-                | "turn/start"
-                | "turn/interrupt"
-                | "fs/readFile"
-                | "fs/writeFile"
-                | "fs/createDirectory"
-                | "fs/getMetadata"
-                | "fs/readDirectory"
-                | "fs/remove"
-                | "fs/copy"
-                | "mcpServerStatus/list"
-        );
-        if is_v2_request && !session_initialized {
+        experimental_api_enabled: bool,
+    ) {
+        if !session_initialized {
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
                 message: "Not initialized".to_string(),
@@ -387,34 +360,33 @@ impl MessageProcessor {
             self.outgoing
                 .send_error_to_connection(connection_id, request_id, error)
                 .await;
-            return true;
+            return;
         }
 
-        match request.method.as_str() {
-            "config/read" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ConfigReadParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid config/read params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
+        if let Some(reason) = request.experimental_reason()
+            && !experimental_api_enabled
+        {
+            let error = JSONRPCErrorError {
+                code: INVALID_REQUEST_ERROR_CODE,
+                message: format!("Experimental API required: {reason}"),
+                data: None,
+            };
+            self.outgoing
+                .send_error_to_connection(connection_id, request_id, error)
+                .await;
+            return;
+        }
 
+        let request_method = request.method();
+        match request {
+            AppServerClientRequest::ConfigRead { params, .. } => {
                 let config = match self.load_effective_config(params.cwd.as_deref()) {
                     Ok(config) => config,
                     Err(error) => {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
                             .await;
-                        return true;
+                        return;
                     }
                 };
 
@@ -430,9 +402,8 @@ impl MessageProcessor {
                 self.outgoing
                     .send_response_to_connection(connection_id, request_id, response)
                     .await;
-                true
             }
-            "configRequirements/read" => {
+            AppServerClientRequest::ConfigRequirementsRead { .. } => {
                 let requirements = match code_core::config::load_allowed_approval_policies(
                     &self.base_config.code_home,
                 ) {
@@ -458,7 +429,7 @@ impl MessageProcessor {
                         self.outgoing
                             .send_error_to_connection(connection_id, request_id, error)
                             .await;
-                        return true;
+                        return;
                     }
                 };
 
@@ -466,25 +437,8 @@ impl MessageProcessor {
                 self.outgoing
                     .send_response_to_connection(connection_id, request_id, response)
                     .await;
-                true
             }
-            "config/value/write" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ConfigValueWriteParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid config/value/write params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ConfigValueWrite { params, .. } => {
                 match self.apply_config_value_write(params) {
                     Ok(response) => {
                         self.outgoing
@@ -497,25 +451,8 @@ impl MessageProcessor {
                             .await
                     }
                 }
-                true
             }
-            "config/batchWrite" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ConfigBatchWriteParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid config/batchWrite params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ConfigBatchWrite { params, .. } => {
                 match self.apply_config_batch_write(params) {
                     Ok(response) => {
                         self.outgoing
@@ -528,28 +465,8 @@ impl MessageProcessor {
                             .await
                     }
                 }
-                true
             }
-            "externalAgentConfig/detect" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ExternalAgentConfigDetectParams =
-                    match serde_json::from_value(params_value) {
-                        Ok(params) => params,
-                        Err(err) => {
-                            let error = JSONRPCErrorError {
-                                code: INVALID_REQUEST_ERROR_CODE,
-                                message: format!(
-                                    "Invalid externalAgentConfig/detect params: {err}"
-                                ),
-                                data: None,
-                            };
-                            self.outgoing
-                                .send_error_to_connection(connection_id, request_id, error)
-                                .await;
-                            return true;
-                        }
-                    };
-
+            AppServerClientRequest::ExternalAgentConfigDetect { params, .. } => {
                 match self.external_agent_config_api.detect(params).await {
                     Ok(response) => {
                         self.outgoing
@@ -562,28 +479,8 @@ impl MessageProcessor {
                             .await
                     }
                 }
-                true
             }
-            "externalAgentConfig/import" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ExternalAgentConfigImportParams =
-                    match serde_json::from_value(params_value) {
-                        Ok(params) => params,
-                        Err(err) => {
-                            let error = JSONRPCErrorError {
-                                code: INVALID_REQUEST_ERROR_CODE,
-                                message: format!(
-                                    "Invalid externalAgentConfig/import params: {err}"
-                                ),
-                                data: None,
-                            };
-                            self.outgoing
-                                .send_error_to_connection(connection_id, request_id, error)
-                                .await;
-                            return true;
-                        }
-                    };
-
+            AppServerClientRequest::ExternalAgentConfigImport { params, .. } => {
                 match self.external_agent_config_api.import(params).await {
                     Ok(response) => {
                         self.outgoing
@@ -596,25 +493,8 @@ impl MessageProcessor {
                             .await
                     }
                 }
-                true
             }
-            "account/read" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: GetAccountParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid account/read params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::GetAccount { params, .. } => {
                 match self
                     .code_message_processor
                     .get_account_response_v2(params.refresh_token)
@@ -631,25 +511,8 @@ impl MessageProcessor {
                             .await
                     }
                 }
-                true
             }
-            "account/login/start" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: LoginAccountParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid account/login/start params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::LoginAccount { params, .. } => {
                 match self.code_message_processor.login_account_v2(params).await {
                     Ok(response) => {
                         self.outgoing
@@ -662,26 +525,8 @@ impl MessageProcessor {
                             .await
                     }
                 }
-                true
             }
-            "account/login/cancel" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: CancelLoginAccountParams = match serde_json::from_value(params_value)
-                {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid account/login/cancel params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::CancelLoginAccount { params, .. } => {
                 match self.code_message_processor.cancel_login_account_v2(params).await {
                     Ok(response) => {
                         self.outgoing
@@ -694,9 +539,8 @@ impl MessageProcessor {
                             .await
                     }
                 }
-                true
             }
-            "account/logout" => {
+            AppServerClientRequest::LogoutAccount { .. } => {
                 match self.code_message_processor.logout_account_v2().await {
                     Ok(response) => {
                         self.outgoing
@@ -709,9 +553,8 @@ impl MessageProcessor {
                             .await
                     }
                 }
-                true
             }
-            "account/rateLimits/read" => {
+            AppServerClientRequest::GetAccountRateLimits { .. } => {
                 match self.code_message_processor.get_account_rate_limits_v2() {
                     Ok(response) => {
                         self.outgoing
@@ -724,604 +567,133 @@ impl MessageProcessor {
                             .await
                     }
                 }
-                true
             }
-            "model/list" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ModelListParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid model/list params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ModelList { params, .. } => {
                 self.list_models_v2(connection_id, request_id, params).await;
-                true
             }
-            "windowsSandbox/setupStart" => {
+            AppServerClientRequest::WindowsSandboxSetupStart { params, .. } => {
                 let connection_request_id = ConnectionRequestId {
                     connection_id,
                     request_id: request_id.clone(),
                 };
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: WindowsSandboxSetupStartParams =
-                    match serde_json::from_value(params_value) {
-                        Ok(params) => params,
-                        Err(err) => {
-                            self.outgoing
-                                .send_error_to_connection(
-                                    connection_id,
-                                    request_id,
-                                    JSONRPCErrorError {
-                                        code: INVALID_REQUEST_ERROR_CODE,
-                                        message: format!(
-                                            "Invalid windowsSandbox/setupStart params: {err}"
-                                        ),
-                                        data: None,
-                                    },
-                                )
-                                .await;
-                            return true;
-                        }
-                    };
-
                 self.windows_sandbox_setup_start(connection_request_id, params)
                     .await;
-                true
             }
-            "command/exec" => {
+            AppServerClientRequest::OneOffCommandExec { params, .. } => {
                 let connection_request_id = ConnectionRequestId {
                     connection_id,
                     request_id: request_id.clone(),
                 };
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: CommandExecParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        self.outgoing
-                            .send_error_to_connection(
-                                connection_id,
-                                request_id,
-                                JSONRPCErrorError {
-                                    code: INVALID_REQUEST_ERROR_CODE,
-                                    message: format!("Invalid command/exec params: {err}"),
-                                    data: None,
-                                },
-                            )
-                            .await;
-                        return true;
-                    }
-                };
-
                 self.command_exec_start(connection_request_id, params).await;
-                true
             }
-            "command/exec/write" => {
+            AppServerClientRequest::CommandExecWrite { params, .. } => {
                 let connection_request_id = ConnectionRequestId {
                     connection_id,
                     request_id: request_id.clone(),
                 };
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: CommandExecWriteParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        self.outgoing
-                            .send_error_to_connection(
-                                connection_id,
-                                request_id,
-                                JSONRPCErrorError {
-                                    code: INVALID_REQUEST_ERROR_CODE,
-                                    message: format!("Invalid command/exec/write params: {err}"),
-                                    data: None,
-                                },
-                            )
-                            .await;
-                        return true;
-                    }
-                };
-
                 self.command_exec_write(connection_request_id, params).await;
-                true
             }
-            "command/exec/resize" => {
+            AppServerClientRequest::CommandExecTerminate { params, .. } => {
                 let connection_request_id = ConnectionRequestId {
                     connection_id,
                     request_id: request_id.clone(),
                 };
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: CommandExecResizeParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        self.outgoing
-                            .send_error_to_connection(
-                                connection_id,
-                                request_id,
-                                JSONRPCErrorError {
-                                    code: INVALID_REQUEST_ERROR_CODE,
-                                    message: format!("Invalid command/exec/resize params: {err}"),
-                                    data: None,
-                                },
-                            )
-                            .await;
-                        return true;
-                    }
-                };
-
-                self.command_exec_resize(connection_request_id, params).await;
-                true
-            }
-            "command/exec/terminate" => {
-                let connection_request_id = ConnectionRequestId {
-                    connection_id,
-                    request_id: request_id.clone(),
-                };
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: CommandExecTerminateParams =
-                    match serde_json::from_value(params_value) {
-                        Ok(params) => params,
-                        Err(err) => {
-                            self.outgoing
-                                .send_error_to_connection(
-                                    connection_id,
-                                    request_id,
-                                    JSONRPCErrorError {
-                                        code: INVALID_REQUEST_ERROR_CODE,
-                                        message: format!(
-                                            "Invalid command/exec/terminate params: {err}"
-                                        ),
-                                        data: None,
-                                    },
-                                )
-                                .await;
-                            return true;
-                        }
-                    };
-
                 self.command_exec_terminate(connection_request_id, params)
                     .await;
-                true
             }
-            "thread/list" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadListParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/list params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
+            AppServerClientRequest::CommandExecResize { params, .. } => {
+                let connection_request_id = ConnectionRequestId {
+                    connection_id,
+                    request_id: request_id.clone(),
                 };
-
+                self.command_exec_resize(connection_request_id, params)
+                    .await;
+            }
+            AppServerClientRequest::ThreadList { params, .. } => {
                 self.list_threads_v2(connection_id, request_id, params).await;
-                true
             }
-            "thread/loaded/list" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadLoadedListParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/loaded/list params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ThreadLoadedList { params, .. } => {
                 self.list_loaded_threads_v2(connection_id, request_id, params)
                     .await;
-                true
             }
-            "thread/read" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadReadParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/read params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ThreadRead { params, .. } => {
                 self.thread_read_v2(connection_id, request_id, params).await;
-                true
             }
-            "thread/start" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadStartParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/start params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ThreadStart { params, .. } => {
                 self.thread_start_v2(connection_id, request_id, params).await;
-                true
             }
-            "thread/resume" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadResumeParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/resume params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ThreadResume { params, .. } => {
                 self.thread_resume_v2(connection_id, request_id, params).await;
-                true
             }
-            "thread/fork" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadForkParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/fork params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ThreadFork { params, .. } => {
                 self.thread_fork_v2(connection_id, request_id, params).await;
-                true
             }
-            "thread/archive" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadArchiveParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/archive params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
-                self.thread_archive_v2(connection_id, request_id, params).await;
-                true
+            AppServerClientRequest::ThreadArchive { params, .. } => {
+                self.thread_archive_v2(connection_id, request_id, params)
+                    .await;
             }
-            "thread/unsubscribe" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadUnsubscribeParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/unsubscribe params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ThreadUnsubscribe { params, .. } => {
                 self.thread_unsubscribe_v2(connection_id, request_id, params)
                     .await;
-                true
             }
-            "thread/name/set" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadSetNameParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/name/set params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
-                self.thread_set_name_v2(connection_id, request_id, params).await;
-                true
+            AppServerClientRequest::ThreadSetName { params, .. } => {
+                self.thread_set_name_v2(connection_id, request_id, params)
+                    .await;
             }
-            "thread/metadata/update" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadMetadataUpdateParams =
-                    match serde_json::from_value(params_value) {
-                        Ok(params) => params,
-                        Err(err) => {
-                            let error = JSONRPCErrorError {
-                                code: INVALID_REQUEST_ERROR_CODE,
-                                message: format!("Invalid thread/metadata/update params: {err}"),
-                                data: None,
-                            };
-                            self.outgoing
-                                .send_error_to_connection(connection_id, request_id, error)
-                                .await;
-                            return true;
-                        }
-                    };
-
+            AppServerClientRequest::ThreadMetadataUpdate { params, .. } => {
                 self.thread_metadata_update_v2(connection_id, request_id, params)
                     .await;
-                true
             }
-            "thread/unarchive" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ThreadUnarchiveParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid thread/unarchive params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::ThreadUnarchive { params, .. } => {
                 self.thread_unarchive_v2(connection_id, request_id, params)
                     .await;
-                true
             }
-            "turn/start" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: TurnStartParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid turn/start params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::TurnStart { params, .. } => {
                 self.turn_start_v2(connection_id, request_id, params).await;
-                true
             }
-            "turn/interrupt" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: TurnInterruptParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid turn/interrupt params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
-                self.turn_interrupt_v2(connection_id, request_id, params).await;
-                true
+            AppServerClientRequest::TurnInterrupt { params, .. } => {
+                self.turn_interrupt_v2(connection_id, request_id, params)
+                    .await;
             }
-            "fs/readFile" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: FsReadFileParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid fs/readFile params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::FsReadFile { params, .. } => {
                 self.fs_read_file_v2(connection_id, request_id, params).await;
-                true
             }
-            "fs/writeFile" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: FsWriteFileParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid fs/writeFile params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
-                self.fs_write_file_v2(connection_id, request_id, params).await;
-                true
+            AppServerClientRequest::FsWriteFile { params, .. } => {
+                self.fs_write_file_v2(connection_id, request_id, params)
+                    .await;
             }
-            "fs/createDirectory" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: FsCreateDirectoryParams =
-                    match serde_json::from_value(params_value) {
-                        Ok(params) => params,
-                        Err(err) => {
-                            let error = JSONRPCErrorError {
-                                code: INVALID_REQUEST_ERROR_CODE,
-                                message: format!("Invalid fs/createDirectory params: {err}"),
-                                data: None,
-                            };
-                            self.outgoing
-                                .send_error_to_connection(connection_id, request_id, error)
-                                .await;
-                            return true;
-                        }
-                    };
-
+            AppServerClientRequest::FsCreateDirectory { params, .. } => {
                 self.fs_create_directory_v2(connection_id, request_id, params)
                     .await;
-                true
             }
-            "fs/getMetadata" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: FsGetMetadataParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid fs/getMetadata params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::FsGetMetadata { params, .. } => {
                 self.fs_get_metadata_v2(connection_id, request_id, params)
                     .await;
-                true
             }
-            "fs/readDirectory" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: FsReadDirectoryParams =
-                    match serde_json::from_value(params_value) {
-                        Ok(params) => params,
-                        Err(err) => {
-                            let error = JSONRPCErrorError {
-                                code: INVALID_REQUEST_ERROR_CODE,
-                                message: format!("Invalid fs/readDirectory params: {err}"),
-                                data: None,
-                            };
-                            self.outgoing
-                                .send_error_to_connection(connection_id, request_id, error)
-                                .await;
-                            return true;
-                        }
-                    };
-
+            AppServerClientRequest::FsReadDirectory { params, .. } => {
                 self.fs_read_directory_v2(connection_id, request_id, params)
                     .await;
-                true
             }
-            "fs/remove" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: FsRemoveParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid fs/remove params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::FsRemove { params, .. } => {
                 self.fs_remove_v2(connection_id, request_id, params).await;
-                true
             }
-            "fs/copy" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: FsCopyParams = match serde_json::from_value(params_value) {
-                    Ok(params) => params,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid fs/copy params: {err}"),
-                            data: None,
-                        };
-                        self.outgoing
-                            .send_error_to_connection(connection_id, request_id, error)
-                            .await;
-                        return true;
-                    }
-                };
-
+            AppServerClientRequest::FsCopy { params, .. } => {
                 self.fs_copy_v2(connection_id, request_id, params).await;
-                true
             }
-            "mcpServerStatus/list" => {
-                let params_value = request.params.clone().unwrap_or_else(|| json!({}));
-                let params: ListMcpServerStatusParams =
-                    match serde_json::from_value(params_value) {
-                        Ok(params) => params,
-                        Err(err) => {
-                            let error = JSONRPCErrorError {
-                                code: INVALID_REQUEST_ERROR_CODE,
-                                message: format!("Invalid mcpServerStatus/list params: {err}"),
-                                data: None,
-                            };
-                            self.outgoing
-                                .send_error_to_connection(connection_id, request_id, error)
-                                .await;
-                            return true;
-                        }
-                    };
-
+            AppServerClientRequest::McpServerStatusList { params, .. } => {
                 self.list_mcp_server_status_v2(connection_id, request_id, params)
                     .await;
-                true
             }
-            _ => false,
+            _ => {
+                let error = JSONRPCErrorError {
+                    code: INVALID_REQUEST_ERROR_CODE,
+                    message: format!("Unsupported request: {request_method}"),
+                    data: None,
+                };
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, error)
+                    .await;
+            }
         }
     }
 
