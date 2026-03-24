@@ -455,8 +455,16 @@ fn parse_skill_file(path: &Path, scope: SkillScope) -> Result<SkillMetadata, Ski
     let parsed: SkillFrontmatter =
         serde_yaml::from_str(frontmatter).map_err(SkillParseError::InvalidYaml)?;
 
-    let name = sanitize_single_line(&parsed.name);
+    let mut name = sanitize_single_line(&parsed.name);
     let description = sanitize_single_line(&parsed.description);
+
+    if let Some(namespace) = crate::plugins::PluginsManager::plugin_namespace_for_skill_path(path) {
+        // Avoid double-prefixing skills that already include an explicit namespace. This is a
+        // backwards-compatible behavior for plugin skills that predate automatic namespacing.
+        if !name.contains(':') {
+            name = format!("{namespace}:{name}");
+        }
+    }
 
     validate_field(&name, MAX_NAME_LEN, "name")?;
     validate_field(&description, MAX_DESCRIPTION_LEN, "description")?;

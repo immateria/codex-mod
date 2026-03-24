@@ -388,15 +388,16 @@ impl PluginsManager {
         let plugin_id = PluginId::parse(config_name).ok()?;
         let plugin_root = self.store.active_plugin_root(&plugin_id)?;
 
-        let (manifest, description, display_name) = match load_plugin_manifest(plugin_root.as_path())
-        {
+        let (manifest, description, display_name) = match load_plugin_manifest(plugin_root.as_path()) {
             Some(manifest) => {
                 let description = manifest.description.clone();
-                let display_name = manifest
-                    .interface
-                    .as_ref()
-                    .and_then(|interface| interface.display_name.clone())
-                    .unwrap_or_else(|| manifest.name.clone());
+                // Match upstream behavior: `display_name` matches the plugin namespace used for
+                // skills (derived from the manifest name), not the optional UI display name.
+                let display_name = if manifest.name.trim().is_empty() {
+                    plugin_id.plugin_name.clone()
+                } else {
+                    manifest.name.clone()
+                };
                 (Some(manifest), description, display_name)
             }
             None => (None, None, plugin_id.plugin_name.clone()),
@@ -421,6 +422,21 @@ impl PluginsManager {
             mcp_server_names,
             apps,
         })
+    }
+
+    /// Returns the plugin namespace for a `SKILL.md` path, if the skill is contained within a
+    /// plugin directory.
+    ///
+    /// This is used to prefix plugin-provided skills as `plugin_name:skill_name` to avoid naming
+    /// collisions with user/repo skills.
+    pub(crate) fn plugin_namespace_for_skill_path(path: &Path) -> Option<String> {
+        for ancestor in path.ancestors() {
+            if let Some(manifest) = load_plugin_manifest(ancestor) {
+                return Some(manifest.name);
+            }
+        }
+
+        None
     }
 
     pub(crate) fn effective_skill_roots(&self) -> Vec<PathBuf> {
