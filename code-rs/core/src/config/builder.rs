@@ -75,6 +75,23 @@ impl ConfigBuilder {
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))?;
         config.approval_policy = constrained_approval_policy.value();
 
+        // Merge enabled plugin-provided MCP servers into the effective runtime config.
+        //
+        // Explicit config entries win on name collisions. Global disabled MCP servers should
+        // remain disabled even if a plugin provides a server with the same name.
+        let disabled_mcp_server_names: std::collections::HashSet<String> =
+            sources::list_mcp_servers(&config.code_home)
+                .ok()
+                .map(|(_enabled, disabled)| disabled.into_iter().map(|(name, _cfg)| name).collect())
+                .unwrap_or_default();
+        let plugin_manager = crate::plugins::PluginsManager::new(config.code_home.clone());
+        for (name, cfg) in plugin_manager.effective_mcp_servers() {
+            if disabled_mcp_server_names.contains(&name) {
+                continue;
+            }
+            config.mcp_servers.entry(name).or_insert(cfg);
+        }
+
         Ok(config)
     }
 

@@ -51,6 +51,26 @@ use code_app_server_protocol::SkillsConfigWriteResponse;
 use code_app_server_protocol::SkillsListEntry;
 use code_app_server_protocol::SkillsListParams;
 use code_app_server_protocol::SkillsListResponse;
+use code_app_server_protocol::AppInfo;
+use code_app_server_protocol::AppListUpdatedNotification;
+use code_app_server_protocol::AppSummary;
+use code_app_server_protocol::AppsListParams;
+use code_app_server_protocol::AppsListResponse;
+use code_app_server_protocol::MarketplaceInterface as V2MarketplaceInterface;
+use code_app_server_protocol::PluginDetail as V2PluginDetail;
+use code_app_server_protocol::PluginInstallParams;
+use code_app_server_protocol::PluginInstallResponse;
+use code_app_server_protocol::PluginInterface as V2PluginInterface;
+use code_app_server_protocol::PluginListParams;
+use code_app_server_protocol::PluginListResponse;
+use code_app_server_protocol::PluginMarketplaceEntry;
+use code_app_server_protocol::PluginReadParams;
+use code_app_server_protocol::PluginReadResponse;
+use code_app_server_protocol::PluginSource;
+use code_app_server_protocol::PluginSummary;
+use code_app_server_protocol::PluginUninstallParams;
+use code_app_server_protocol::PluginUninstallResponse;
+use code_app_server_protocol::SkillSummary as V2SkillSummary;
 use code_app_server_protocol::Thread;
 use code_app_server_protocol::ThreadItem;
 use code_app_server_protocol::ThreadListParams;
@@ -112,6 +132,9 @@ use code_core::mcp_snapshot::format_failure_summary;
 use code_core::mcp_snapshot::format_transport_summary;
 use code_core::mcp_snapshot::group_tool_definitions_by_server;
 use code_core::mcp_snapshot::merge_servers;
+use code_core::plugins::PluginInstallRequest;
+use code_core::plugins::PluginReadRequest;
+use code_core::plugins::PluginsManager;
 use code_protocol::mcp::Tool as ProtocolMcpTool;
 use code_protocol::models::ContentItem;
 use code_protocol::models::ReasoningItemContent;
@@ -1095,6 +1118,370 @@ impl MessageProcessor {
             )
             .await;
         }
+    }
+
+    pub(super) async fn plugin_list_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: PluginListParams,
+    ) {
+        let PluginListParams {
+            cwds,
+            force_remote_sync,
+        } = params;
+
+        let manager = PluginsManager::new(self.base_config.code_home.clone());
+        let roots = cwds.unwrap_or_default();
+        let marketplaces = match manager.list_marketplaces_for_roots(&roots) {
+            Ok(marketplaces) => marketplaces,
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code: INTERNAL_ERROR_CODE,
+                            message: format!("failed to list marketplaces: {err}"),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let marketplaces = marketplaces
+            .into_iter()
+            .map(configured_marketplace_to_v2)
+            .collect();
+
+        let remote_sync_error = force_remote_sync
+            .then_some("remote plugin sync is not supported in this build".to_string());
+
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                PluginListResponse {
+                    marketplaces,
+                    remote_sync_error,
+                    featured_plugin_ids: Vec::new(),
+                },
+            )
+            .await;
+    }
+
+    pub(super) async fn plugin_read_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: PluginReadParams,
+    ) {
+        let PluginReadParams {
+            marketplace_path,
+            plugin_name,
+        } = params;
+
+        if plugin_name.trim().is_empty() {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_PARAMS_ERROR_CODE,
+                        message: "plugin/read plugin_name must not be empty".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        let manager = PluginsManager::new(self.base_config.code_home.clone());
+        let outcome = match manager.read_plugin_for_config(&PluginReadRequest {
+            plugin_name,
+            marketplace_path,
+        }) {
+            Ok(outcome) => outcome,
+            Err(err) => {
+                let (code, message) = match &err {
+                    code_core::plugins::MarketplaceError::PluginNotFound { .. } => {
+                        (INVALID_PARAMS_ERROR_CODE, err.to_string())
+                    }
+                    _ => (INTERNAL_ERROR_CODE, format!("failed to read plugin: {err}")),
+                };
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code,
+                            message,
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let plugin = plugin_read_outcome_to_v2(outcome);
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                PluginReadResponse { plugin },
+            )
+            .await;
+    }
+
+    pub(super) async fn plugin_install_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: PluginInstallParams,
+    ) {
+        let PluginInstallParams {
+            marketplace_path,
+            plugin_name,
+            force_remote_sync: _,
+        } = params;
+
+        if plugin_name.trim().is_empty() {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_PARAMS_ERROR_CODE,
+                        message: "plugin/install plugin_name must not be empty".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        let manager = PluginsManager::new(self.base_config.code_home.clone());
+        let outcome = match manager
+            .install_plugin(PluginInstallRequest {
+                plugin_name,
+                marketplace_path,
+            })
+            .await
+        {
+            Ok(outcome) => outcome,
+            Err(err) => {
+                let code = if err.is_invalid_request() {
+                    INVALID_PARAMS_ERROR_CODE
+                } else {
+                    INTERNAL_ERROR_CODE
+                };
+                self.outgoing
+                    .send_error_to_connection(
+                        connection_id,
+                        request_id,
+                        JSONRPCErrorError {
+                            code,
+                            message: err.to_string(),
+                            data: None,
+                        },
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                PluginInstallResponse {
+                    auth_policy: outcome.auth_policy.into(),
+                    apps_needing_auth: Vec::new(),
+                },
+            )
+            .await;
+
+        let apps: Vec<AppInfo> = manager
+            .effective_apps()
+            .into_iter()
+            .map(|code_core::plugins::AppConnectorId(id)| AppInfo {
+                id: id.clone(),
+                name: id,
+                description: None,
+                logo_url: None,
+                logo_url_dark: None,
+                distribution_channel: None,
+                install_url: None,
+                is_accessible: true,
+                is_enabled: true,
+            })
+            .collect();
+        broadcast_server_notification_simple(
+            &self.outgoing,
+            ServerNotification::AppListUpdated(AppListUpdatedNotification { data: apps }),
+        )
+        .await;
+        broadcast_server_notification_simple(
+            &self.outgoing,
+            ServerNotification::SkillsChanged(SkillsChangedNotification {}),
+        )
+        .await;
+    }
+
+    pub(super) async fn plugin_uninstall_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: PluginUninstallParams,
+    ) {
+        let PluginUninstallParams {
+            plugin_id,
+            force_remote_sync: _,
+        } = params;
+
+        if plugin_id.trim().is_empty() {
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code: INVALID_PARAMS_ERROR_CODE,
+                        message: "plugin/uninstall plugin_id must not be empty".to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        let manager = PluginsManager::new(self.base_config.code_home.clone());
+        if let Err(err) = manager.uninstall_plugin(plugin_id).await {
+            let code = if err.is_invalid_request() {
+                INVALID_PARAMS_ERROR_CODE
+            } else {
+                INTERNAL_ERROR_CODE
+            };
+            self.outgoing
+                .send_error_to_connection(
+                    connection_id,
+                    request_id,
+                    JSONRPCErrorError {
+                        code,
+                        message: err.to_string(),
+                        data: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                PluginUninstallResponse {},
+            )
+            .await;
+
+        let apps: Vec<AppInfo> = manager
+            .effective_apps()
+            .into_iter()
+            .map(|code_core::plugins::AppConnectorId(id)| AppInfo {
+                id: id.clone(),
+                name: id,
+                description: None,
+                logo_url: None,
+                logo_url_dark: None,
+                distribution_channel: None,
+                install_url: None,
+                is_accessible: true,
+                is_enabled: true,
+            })
+            .collect();
+        broadcast_server_notification_simple(
+            &self.outgoing,
+            ServerNotification::AppListUpdated(AppListUpdatedNotification { data: apps }),
+        )
+        .await;
+        broadcast_server_notification_simple(
+            &self.outgoing,
+            ServerNotification::SkillsChanged(SkillsChangedNotification {}),
+        )
+        .await;
+    }
+
+    pub(super) async fn apps_list_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: AppsListParams,
+    ) {
+        let AppsListParams {
+            cursor,
+            limit,
+            thread_id: _,
+            force_refetch: _,
+        } = params;
+
+        let manager = PluginsManager::new(self.base_config.code_home.clone());
+        let mut data: Vec<AppInfo> = manager
+            .effective_apps()
+            .into_iter()
+            .map(|code_core::plugins::AppConnectorId(id)| AppInfo {
+                id: id.clone(),
+                name: id,
+                description: None,
+                logo_url: None,
+                logo_url_dark: None,
+                distribution_channel: None,
+                install_url: None,
+                is_accessible: true,
+                is_enabled: true,
+            })
+            .collect();
+        data.sort_by(|a, b| a.id.cmp(&b.id));
+
+        let total = data.len();
+        if total == 0 {
+            self.outgoing
+                .send_response_to_connection(
+                    connection_id,
+                    request_id,
+                    AppsListResponse {
+                        data,
+                        next_cursor: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
+        let limit = limit.unwrap_or(total as u32).max(1) as usize;
+        let start = match parse_cursor_offset(cursor.as_deref(), total, "apps") {
+            Ok(offset) => offset,
+            Err(error) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, error)
+                    .await;
+                return;
+            }
+        };
+        let end = start.saturating_add(limit).min(total);
+        let data = data[start..end].to_vec();
+        let next_cursor = (end < total).then(|| end.to_string());
+        self.outgoing
+            .send_response_to_connection(
+                connection_id,
+                request_id,
+                AppsListResponse {
+                    data,
+                    next_cursor,
+                },
+            )
+            .await;
     }
 
     pub(super) async fn list_threads_v2(
@@ -3216,6 +3603,110 @@ fn core_skill_scope_to_v2(scope: code_core::skills::model::SkillScope) -> V2Skil
         code_core::skills::model::SkillScope::User => V2SkillScope::User,
         code_core::skills::model::SkillScope::System => V2SkillScope::System,
         code_core::skills::model::SkillScope::Admin => V2SkillScope::Admin,
+    }
+}
+
+fn configured_marketplace_to_v2(
+    marketplace: code_core::plugins::ConfiguredMarketplace,
+) -> PluginMarketplaceEntry {
+    PluginMarketplaceEntry {
+        name: marketplace.name,
+        path: marketplace.path,
+        interface: marketplace.interface.map(marketplace_interface_to_v2),
+        plugins: marketplace
+            .plugins
+            .into_iter()
+            .map(configured_marketplace_plugin_to_v2)
+            .collect(),
+    }
+}
+
+fn marketplace_interface_to_v2(interface: code_core::plugins::MarketplaceInterface) -> V2MarketplaceInterface {
+    V2MarketplaceInterface {
+        display_name: interface.display_name,
+    }
+}
+
+fn configured_marketplace_plugin_to_v2(
+    plugin: code_core::plugins::ConfiguredMarketplacePlugin,
+) -> PluginSummary {
+    PluginSummary {
+        id: plugin.id,
+        name: plugin.name,
+        source: plugin_source_to_v2(plugin.source),
+        installed: plugin.installed,
+        enabled: plugin.enabled,
+        install_policy: plugin.policy.installation.into(),
+        auth_policy: plugin.policy.authentication.into(),
+        interface: plugin.interface.map(plugin_interface_to_v2),
+    }
+}
+
+fn plugin_source_to_v2(source: code_core::plugins::MarketplacePluginSource) -> PluginSource {
+    match source {
+        code_core::plugins::MarketplacePluginSource::Local { path } => PluginSource::Local { path },
+    }
+}
+
+fn plugin_interface_to_v2(interface: code_core::plugins::PluginManifestInterface) -> V2PluginInterface {
+    V2PluginInterface {
+        display_name: interface.display_name,
+        short_description: interface.short_description,
+        long_description: interface.long_description,
+        developer_name: interface.developer_name,
+        category: interface.category,
+        capabilities: interface.capabilities,
+        website_url: interface.website_url,
+        privacy_policy_url: interface.privacy_policy_url,
+        terms_of_service_url: interface.terms_of_service_url,
+        default_prompt: interface.default_prompt,
+        brand_color: interface.brand_color,
+        composer_icon: interface.composer_icon,
+        logo: interface.logo,
+        screenshots: interface.screenshots,
+    }
+}
+
+fn plugin_read_outcome_to_v2(outcome: code_core::plugins::PluginReadOutcome) -> V2PluginDetail {
+    let plugin = outcome.plugin;
+    V2PluginDetail {
+        marketplace_name: outcome.marketplace_name,
+        marketplace_path: outcome.marketplace_path,
+        summary: PluginSummary {
+            id: plugin.id,
+            name: plugin.name,
+            source: plugin_source_to_v2(plugin.source),
+            installed: plugin.installed,
+            enabled: plugin.enabled,
+            install_policy: plugin.policy.installation.into(),
+            auth_policy: plugin.policy.authentication.into(),
+            interface: plugin.interface.map(plugin_interface_to_v2),
+        },
+        description: plugin.description,
+        skills: plugin.skills.into_iter().map(skill_metadata_to_v2).collect(),
+        apps: plugin.apps.into_iter().map(app_connector_to_v2).collect(),
+        mcp_servers: plugin.mcp_server_names,
+    }
+}
+
+fn skill_metadata_to_v2(skill: code_core::skills::model::SkillMetadata) -> V2SkillSummary {
+    V2SkillSummary {
+        name: skill.name,
+        description: skill.description,
+        short_description: None,
+        interface: None,
+        path: skill.path,
+    }
+}
+
+fn app_connector_to_v2(app: code_core::plugins::AppConnectorId) -> AppSummary {
+    let code_core::plugins::AppConnectorId(id) = app;
+    AppSummary {
+        id: id.clone(),
+        name: id,
+        description: None,
+        install_url: None,
+        needs_auth: false,
     }
 }
 

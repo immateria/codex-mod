@@ -249,6 +249,130 @@ pub async fn set_skill_config(code_home: &Path, skill_path: &Path, enabled: bool
     Ok(true)
 }
 
+/// Ensure `[plugins."<plugin_key>"].enabled = <enabled>` exists in `config.toml`.
+///
+/// Semantics follow upstream codex-rs plugin install/uninstall flows:
+/// - install writes `enabled=true`
+/// - uninstall clears the entire `plugins."<plugin_key>"` entry
+pub async fn set_plugin_enabled(code_home: &Path, plugin_key: &str, enabled: bool) -> Result<bool> {
+    if plugin_key.trim().is_empty() {
+        anyhow::bail!("plugin key must not be empty");
+    }
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match tokio::fs::read_to_string(&read_path).await {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            tokio::fs::create_dir_all(code_home).await?;
+            DocumentMut::new()
+        }
+        Err(e) => return Err(e.into()),
+    };
+
+    let mut mutated = false;
+    {
+        let root = doc.as_table_mut();
+        let plugins_item = match root.get_mut("plugins") {
+            Some(item) => item,
+            None => {
+                root.insert("plugins", TomlItem::Table(new_implicit_table()));
+                root.get_mut("plugins")
+                    .ok_or_else(|| anyhow::anyhow!("missing plugins table"))?
+            }
+        };
+
+        if plugins_item.as_table_mut().is_none() {
+            *plugins_item = TomlItem::Table(new_implicit_table());
+        }
+
+        let plugins_table = plugins_item
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("plugins item is not a table"))?;
+
+        match plugins_table.get_mut(plugin_key) {
+            Some(item) => {
+                if let Some(entry) = item.as_table_mut() {
+                    let previous = entry
+                        .get("enabled")
+                        .and_then(|value| value.as_bool());
+                    if previous != Some(enabled) {
+                        mutated = true;
+                    }
+                    entry["enabled"] = value(enabled);
+                } else {
+                    let mut entry = TomlTable::new();
+                    entry.set_implicit(false);
+                    entry["enabled"] = value(enabled);
+                    *item = TomlItem::Table(entry);
+                    mutated = true;
+                }
+            }
+            None => {
+                let mut entry = TomlTable::new();
+                entry.set_implicit(false);
+                entry["enabled"] = value(enabled);
+                plugins_table.insert(plugin_key, TomlItem::Table(entry));
+                mutated = true;
+            }
+        }
+    }
+
+    if !mutated {
+        return Ok(false);
+    }
+
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    tokio::fs::write(tmp_file.path(), doc.to_string()).await?;
+    tmp_file.persist(config_path)?;
+
+    Ok(true)
+}
+
+/// Remove `plugins."<plugin_key>"` from `config.toml`.
+pub async fn clear_plugin_config(code_home: &Path, plugin_key: &str) -> Result<bool> {
+    if plugin_key.trim().is_empty() {
+        anyhow::bail!("plugin key must not be empty");
+    }
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match tokio::fs::read_to_string(&read_path).await {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(e.into()),
+    };
+
+    let mut mutated = false;
+    {
+        let root = doc.as_table_mut();
+        let Some(plugins_item) = root.get_mut("plugins") else {
+            return Ok(false);
+        };
+        let Some(plugins_table) = plugins_item.as_table_mut() else {
+            return Ok(false);
+        };
+
+        if plugins_table.remove(plugin_key).is_some() {
+            mutated = true;
+        }
+
+        if mutated && plugins_table.is_empty() {
+            root.remove("plugins");
+        }
+    }
+
+    if !mutated {
+        return Ok(false);
+    }
+
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    tokio::fs::write(tmp_file.path(), doc.to_string()).await?;
+    tmp_file.persist(config_path)?;
+
+    Ok(true)
+}
+
 /// Upsert a `[[subagents.commands]]` entry by `name`.
 /// If an entry with the same (case-insensitive) name exists, it is updated; otherwise a new entry is appended.
 pub async fn upsert_subagent_command(code_home: &Path, cmd: &SubagentCommandConfig) -> Result<()> {

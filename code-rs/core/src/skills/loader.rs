@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::config::resolve_code_path_for_read;
 use crate::git_info::resolve_root_git_project_for_trust;
+use crate::plugins::PluginsManager;
 use crate::skills::model::SkillError;
 use crate::skills::model::SkillLoadOutcome;
 use crate::skills::model::SkillMetadata;
@@ -312,6 +313,17 @@ fn skill_roots(config: &Config) -> Vec<SkillRoot> {
     // This makes repo/user skills win over system/admin skills. Callers that
     // prepend additional roots (e.g. shell-style roots) override all defaults.
     roots.push(user_skills_root(config));
+
+    // Plugin-provided skills should behave like user-scoped skills, but come after the
+    // user's own skills directory so local overrides win.
+    let plugin_manager = PluginsManager::new(config.code_home.clone());
+    for path in plugin_manager.effective_skill_roots() {
+        roots.push(SkillRoot {
+            path,
+            scope: SkillScope::User,
+        });
+    }
+
     roots.push(system_skills_root(config));
     roots.push(admin_skills_root());
 

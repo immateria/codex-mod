@@ -2520,6 +2520,42 @@ pub struct ListSkillsResponseEvent {
     pub skills: Vec<crate::skills::Skill>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(rename_all = "lowercase")]
+pub enum Product {
+    #[serde(alias = "CHATGPT")]
+    Chatgpt,
+    #[serde(alias = "CODEX")]
+    Codex,
+    #[serde(alias = "ATLAS")]
+    Atlas,
+}
+
+impl Product {
+    pub fn to_app_platform(self) -> &'static str {
+        match self {
+            Self::Chatgpt => "chat",
+            Self::Codex => "codex",
+            Self::Atlas => "atlas",
+        }
+    }
+
+    pub fn from_session_source_name(value: &str) -> Option<Self> {
+        let normalized = value.trim().to_ascii_lowercase();
+        match normalized.as_str() {
+            "chatgpt" => Some(Self::Chatgpt),
+            "codex" => Some(Self::Codex),
+            "atlas" => Some(Self::Atlas),
+            _ => None,
+        }
+    }
+
+    pub fn matches_product_restriction(&self, products: &[Product]) -> bool {
+        products.is_empty() || products.contains(self)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
 pub struct RemoteSkillSummary {
     pub id: String,

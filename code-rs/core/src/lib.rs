@@ -88,6 +88,7 @@ pub mod history;
 mod mentions;
 mod truncate;
 mod user_instructions;
+pub mod plugins;
 pub mod skills;
 pub use model_provider_info::BUILT_IN_OSS_MODEL_PROVIDER_ID;
 pub use model_provider_info::ModelProviderInfo;

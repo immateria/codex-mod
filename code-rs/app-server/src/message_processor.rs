@@ -699,6 +699,23 @@ impl MessageProcessor {
                 self.skills_config_write_v2(connection_id, request_id, params)
                     .await;
             }
+            AppServerClientRequest::PluginList { params, .. } => {
+                self.plugin_list_v2(connection_id, request_id, params).await;
+            }
+            AppServerClientRequest::PluginRead { params, .. } => {
+                self.plugin_read_v2(connection_id, request_id, params).await;
+            }
+            AppServerClientRequest::PluginInstall { params, .. } => {
+                self.plugin_install_v2(connection_id, request_id, params)
+                    .await;
+            }
+            AppServerClientRequest::PluginUninstall { params, .. } => {
+                self.plugin_uninstall_v2(connection_id, request_id, params)
+                    .await;
+            }
+            AppServerClientRequest::AppsList { params, .. } => {
+                self.apps_list_v2(connection_id, request_id, params).await;
+            }
             _ => {
                 let error = JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,

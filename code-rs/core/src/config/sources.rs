@@ -2978,6 +2978,25 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
         None => Vec::new(),
     };
 
+    // Merge in enabled plugin-provided MCP servers.
+    // Explicit config entries win on name collisions, including disabled entries.
+    let mut server_names: std::collections::HashSet<String> = enabled
+        .iter()
+        .map(|(name, _cfg)| name.clone())
+        .collect();
+    server_names.extend(disabled.iter().map(|(name, _cfg)| name.clone()));
+
+    let plugin_manager = crate::plugins::PluginsManager::new(code_home.to_path_buf());
+    let mut plugin_servers: Vec<(String, McpServerConfig)> = plugin_manager
+        .effective_mcp_servers()
+        .into_iter()
+        .filter(|(name, _cfg)| !server_names.contains(name))
+        .collect();
+    plugin_servers.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut enabled = enabled;
+    enabled.extend(plugin_servers);
+
     Ok((enabled, disabled))
 }
 
