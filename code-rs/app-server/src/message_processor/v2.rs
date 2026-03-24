@@ -3859,8 +3859,17 @@ fn v2_user_input_to_core_input_item(
         UserInput::Text { text, .. } => Ok(code_core::protocol::InputItem::Text { text }),
         UserInput::Image { url } => Ok(code_core::protocol::InputItem::Image { image_url: url }),
         UserInput::LocalImage { path } => Ok(code_core::protocol::InputItem::LocalImage { path }),
-        UserInput::Skill { .. } => Err("skill inputs are not supported by turn/start yet".to_string()),
-        UserInput::Mention { .. } => Err("mention inputs are not supported by turn/start yet".to_string()),
+        // Our core submission pipeline only accepts text/images today. To keep protocol
+        // parity with upstream v2, encode skill/mention selections as a standalone linked
+        // `$name` mention. This preserves behavior for skill injection (via mention parsing)
+        // and keeps rollouts readable. When replaying rollouts, we decode exact matches
+        // back into structured `UserInput::{Skill,Mention}` variants.
+        UserInput::Skill { name, path } => Ok(code_core::protocol::InputItem::Text {
+            text: format!("[${name}](skill://{})", path.to_string_lossy()),
+        }),
+        UserInput::Mention { name, path } => Ok(code_core::protocol::InputItem::Text {
+            text: format!("[${name}]({path})"),
+        }),
     }
 }
 
@@ -4092,9 +4101,100 @@ fn response_item_to_thread_item(item: ResponseItem) -> Option<ThreadItem> {
     }
 }
 
+fn parse_exact_linked_tool_mention(text: &str) -> Option<(&str, &str)> {
+    let trimmed = text.trim();
+    let bytes = trimmed.as_bytes();
+    if bytes.first() != Some(&b'[') {
+        return None;
+    }
+
+    let (name, path, end_index) = parse_linked_tool_mention(trimmed, bytes, 0)?;
+    if end_index != bytes.len() {
+        return None;
+    }
+
+    Some((name, path))
+}
+
+fn parse_linked_tool_mention<'a>(
+    text: &'a str,
+    text_bytes: &[u8],
+    start: usize,
+) -> Option<(&'a str, &'a str, usize)> {
+    let dollar_index = start + 1;
+    if text_bytes.get(dollar_index) != Some(&b'$') {
+        return None;
+    }
+
+    let name_start = dollar_index + 1;
+    let first_name_byte = text_bytes.get(name_start)?;
+    if !is_mention_name_char(*first_name_byte) {
+        return None;
+    }
+
+    let mut name_end = name_start + 1;
+    while let Some(next_byte) = text_bytes.get(name_end)
+        && is_mention_name_char(*next_byte)
+    {
+        name_end += 1;
+    }
+
+    if text_bytes.get(name_end) != Some(&b']') {
+        return None;
+    }
+
+    let mut path_start = name_end + 1;
+    while let Some(next_byte) = text_bytes.get(path_start)
+        && next_byte.is_ascii_whitespace()
+    {
+        path_start += 1;
+    }
+    if text_bytes.get(path_start) != Some(&b'(') {
+        return None;
+    }
+
+    let mut path_end = path_start + 1;
+    while let Some(next_byte) = text_bytes.get(path_end)
+        && *next_byte != b')'
+    {
+        path_end += 1;
+    }
+    if text_bytes.get(path_end) != Some(&b')') {
+        return None;
+    }
+
+    let path = text[path_start + 1..path_end].trim();
+    if path.is_empty() {
+        return None;
+    }
+
+    let name = &text[name_start..name_end];
+    Some((name, path, path_end + 1))
+}
+
+fn is_mention_name_char(byte: u8) -> bool {
+    matches!(byte, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'-')
+}
+
 fn content_item_to_user_input(item: &ContentItem) -> Option<UserInput> {
     match item {
         ContentItem::InputText { text } | ContentItem::OutputText { text } => {
+            if let Some((name, path)) = parse_exact_linked_tool_mention(text.as_str()) {
+                if path.starts_with("skill://") || path.ends_with("SKILL.md") || path.ends_with("skill.md")
+                {
+                    let normalized = path.strip_prefix("skill://").unwrap_or(path);
+                    return Some(UserInput::Skill {
+                        name: name.to_string(),
+                        path: PathBuf::from(normalized),
+                    });
+                }
+
+                return Some(UserInput::Mention {
+                    name: name.to_string(),
+                    path: path.to_string(),
+                });
+            }
+
             Some(UserInput::Text {
                 text: text.clone(),
                 text_elements: Vec::new(),
