@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use code_apply_patch::ApplyPatchAction;
 use code_apply_patch::ApplyPatchFileChange;
+use code_protocol::models::SandboxPermissions;
 
 use crate::codex::ApprovedCommandPattern;
 use crate::command_safety::context::CommandSafetyContext;
@@ -245,7 +246,7 @@ pub fn assess_command_safety(
     approval_policy: AskForApproval,
     sandbox_policy: &SandboxPolicy,
     approved: &HashSet<ApprovedCommandPattern>,
-    with_escalated_permissions: bool,
+    sandbox_permissions: SandboxPermissions,
 ) -> SafetyCheck {
     // A command is "trusted" because either:
     // - it belongs to a set of commands we consider "safe" by default, or
@@ -261,12 +262,13 @@ pub fn assess_command_safety(
     // `approved.contains(command)` is `true`, the user may have approved it for
     // the session _because_ they know it needs to run outside a sandbox.
     let user_explicitly_approved = approved.iter().any(|pattern| pattern.matches(command));
-    if is_known_safe_command_with_context_and_rules(
-        command,
-        safety_config.context,
-        safety_config.safe_rules,
-    )
-        || user_explicitly_approved
+    if user_explicitly_approved
+        || (!sandbox_permissions.requests_sandbox_override()
+            && is_known_safe_command_with_context_and_rules(
+                command,
+                safety_config.context,
+                safety_config.safe_rules,
+            ))
     {
         return SafetyCheck::AutoApprove {
             sandbox_type: SandboxType::None,
@@ -290,16 +292,39 @@ pub fn assess_command_safety(
         };
     }
 
-    assess_safety_for_untrusted_command(approval_policy, sandbox_policy, with_escalated_permissions)
+    assess_safety_for_untrusted_command(approval_policy, sandbox_policy, sandbox_permissions)
 }
 
 pub(crate) fn assess_safety_for_untrusted_command(
     approval_policy: AskForApproval,
     sandbox_policy: &SandboxPolicy,
-    with_escalated_permissions: bool,
+    sandbox_permissions: SandboxPermissions,
 ) -> SafetyCheck {
     use AskForApproval::*;
     use SandboxPolicy::*;
+
+    if sandbox_permissions.requests_sandbox_override()
+        && !matches!(sandbox_policy, DangerFullAccess)
+    {
+        match approval_policy {
+            Never => {
+                return SafetyCheck::Reject {
+                    reason: "sandbox override requires approval but approval policy is set to never"
+                        .to_string(),
+                };
+            }
+            Reject(config) => {
+                if config.rejects_sandbox_approval() || config.rejects_rules_approval() {
+                    return SafetyCheck::Reject {
+                        reason: "auto-rejected by approval policy".to_string(),
+                    };
+                }
+            }
+            _ => {}
+        }
+
+        return SafetyCheck::AskUser;
+    }
 
     match (approval_policy, sandbox_policy) {
         (UnlessTrusted, _) => {
@@ -320,7 +345,7 @@ pub(crate) fn assess_safety_for_untrusted_command(
                 SafetyCheck::Reject {
                     reason: "auto-rejected by approval policy".to_string(),
                 }
-            } else if with_escalated_permissions {
+            } else if sandbox_permissions.requests_sandbox_override() {
                 SafetyCheck::AskUser
             } else {
                 match get_platform_sandbox() {
@@ -333,7 +358,7 @@ pub(crate) fn assess_safety_for_untrusted_command(
             }
         }
         (OnRequest, ReadOnly) | (OnRequest, WorkspaceWrite { .. }) => {
-            if with_escalated_permissions {
+            if sandbox_permissions.requests_sandbox_override() {
                 SafetyCheck::AskUser
             } else {
                 match get_platform_sandbox() {
@@ -588,7 +613,7 @@ mod tests {
         let approval_policy = AskForApproval::OnRequest;
         let sandbox_policy = SandboxPolicy::ReadOnly;
         let approved: HashSet<ApprovedCommandPattern> = HashSet::new();
-        let request_escalated_privileges = true;
+        let sandbox_permissions = SandboxPermissions::RequireEscalated;
         let command_safety_context = CommandSafetyContext::current().with_command_shell(&command);
         let safety_config = CommandSafetyEvaluationConfig {
             context: command_safety_context,
@@ -603,7 +628,7 @@ mod tests {
             approval_policy,
             &sandbox_policy,
             &approved,
-            request_escalated_privileges,
+            sandbox_permissions,
         );
 
         assert_eq!(safety_check, SafetyCheck::AskUser);
@@ -615,7 +640,7 @@ mod tests {
         let approval_policy = AskForApproval::OnRequest;
         let sandbox_policy = SandboxPolicy::ReadOnly;
         let approved: HashSet<ApprovedCommandPattern> = HashSet::new();
-        let request_escalated_privileges = false;
+        let sandbox_permissions = SandboxPermissions::UseDefault;
         let command_safety_context = CommandSafetyContext::current().with_command_shell(&command);
         let safety_config = CommandSafetyEvaluationConfig {
             context: command_safety_context,
@@ -630,7 +655,7 @@ mod tests {
             approval_policy,
             &sandbox_policy,
             &approved,
-            request_escalated_privileges,
+            sandbox_permissions,
         );
 
         let expected = match get_platform_sandbox() {
@@ -661,7 +686,7 @@ mod tests {
             AskForApproval::Never,
             &SandboxPolicy::DangerFullAccess,
             &approved,
-            false,
+            Default::default(),
         );
         assert_eq!(
             with_detection,
@@ -681,7 +706,7 @@ mod tests {
             AskForApproval::Never,
             &SandboxPolicy::DangerFullAccess,
             &approved,
-            false,
+            Default::default(),
         );
         assert_eq!(
             without_detection,

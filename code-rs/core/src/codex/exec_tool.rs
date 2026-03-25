@@ -447,16 +447,67 @@ pub(crate) fn to_exec_params(params: ShellToolCallParams, sess: &Session) -> Exe
     let timeout_ms = params
         .timeout_ms
         .map(|ms| ms.max(MIN_SHELL_TIMEOUT_MS));
-    let with_escalated_permissions = params
-        .sandbox_permissions
-        .and_then(|p| p.requires_escalated_permissions().then_some(true));
+    let sandbox_permissions = params.sandbox_permissions.unwrap_or_default();
     ExecParams {
         command: params.command,
         cwd: sess.resolve_path(params.workdir.clone()),
         timeout_ms,
         env: create_env(&sess.shell_environment_policy),
-        with_escalated_permissions,
+        sandbox_permissions,
+        additional_permissions: params.additional_permissions,
         justification: params.justification,
+    }
+}
+
+fn effective_sandbox_policy_for_exec(
+    base: &crate::protocol::SandboxPolicy,
+    sandbox_permissions: SandboxPermissions,
+    additional_permissions: Option<&code_protocol::models::PermissionProfile>,
+) -> crate::protocol::SandboxPolicy {
+    if !sandbox_permissions.uses_additional_permissions() {
+        return base.clone();
+    }
+    let Some(additional_permissions) = additional_permissions else {
+        return base.clone();
+    };
+    if additional_permissions.is_empty() {
+        return base.clone();
+    }
+
+    let crate::protocol::SandboxPolicy::WorkspaceWrite {
+        writable_roots,
+        network_access,
+        exclude_tmpdir_env_var,
+        exclude_slash_tmp,
+        allow_git_writes,
+    } = base
+    else {
+        return base.clone();
+    };
+
+    let mut effective_writable_roots = writable_roots.clone();
+    if let Some(fs) = additional_permissions.file_system.as_ref()
+        && let Some(write_roots) = fs.write.as_ref()
+    {
+        for path in write_roots {
+            let path_buf = path.as_ref().to_path_buf();
+            if !effective_writable_roots.contains(&path_buf) {
+                effective_writable_roots.push(path_buf);
+            }
+        }
+    }
+
+    let mut effective_network_access = *network_access;
+    if additional_permissions.network.unwrap_or(false) {
+        effective_network_access = true;
+    }
+
+    crate::protocol::SandboxPolicy::WorkspaceWrite {
+        writable_roots: effective_writable_roots,
+        network_access: effective_network_access,
+        exclude_tmpdir_env_var: *exclude_tmpdir_env_var,
+        exclude_slash_tmp: *exclude_slash_tmp,
+        allow_git_writes: *allow_git_writes,
     }
 }
 
@@ -717,6 +768,43 @@ pub(crate) async fn handle_container_exec_with_params(
     let call_id = ctx.call_id.clone();
     let seq_hint = ctx.seq_hint;
     let output_index = ctx.output_index;
+
+    if params.sandbox_permissions.requires_escalated_permissions()
+        && params
+            .justification
+            .as_ref()
+            .map(|value| value.trim().is_empty())
+            .unwrap_or(true)
+    {
+        return ResponseInputItem::FunctionCallOutput {
+            call_id,
+            output: FunctionCallOutputPayload {
+                body: FunctionCallOutputBody::Text(
+                    "sandbox_permissions=require_escalated requires a justification".to_string(),
+                ),
+                success: None,
+            },
+        };
+    }
+
+    if params.sandbox_permissions.uses_additional_permissions()
+        && params
+            .additional_permissions
+            .as_ref()
+            .map(|value| value.is_empty())
+            .unwrap_or(true)
+    {
+        return ResponseInputItem::FunctionCallOutput {
+            call_id,
+            output: FunctionCallOutputPayload {
+                body: FunctionCallOutputBody::Text(
+                    "sandbox_permissions=with_additional_permissions requires additional_permissions"
+                        .to_string(),
+                ),
+                success: None,
+            },
+        };
+    }
     // Intercept risky git commands and require an explicit confirm prefix.
     // We support a simple convention: prefix the script with `confirm:` to proceed.
     // The prefix is stripped before execution.
@@ -1337,7 +1425,7 @@ pub(crate) async fn handle_container_exec_with_params(
             sess.approval_policy,
             &sess.sandbox_policy,
             &state.approved_commands,
-            params.with_escalated_permissions.unwrap_or(false),
+            params.sandbox_permissions,
         )
     };
     let command_for_display = params.command.clone();
@@ -1367,6 +1455,12 @@ pub(crate) async fn handle_container_exec_with_params(
             sandbox_type
         }
         SafetyCheck::AskUser => {
+            let additional_permissions = params
+                .sandbox_permissions
+                .uses_additional_permissions()
+                .then(|| params.additional_permissions.clone())
+                .flatten()
+                .filter(|value| !value.is_empty());
             let rx_approve = sess
                 .request_command_approval(super::session::CommandApprovalRequest {
                     sub_id: sub_id.clone(),
@@ -1376,7 +1470,7 @@ pub(crate) async fn handle_container_exec_with_params(
                     cwd: params.cwd.clone(),
                     reason: params.justification.clone(),
                     network_approval_context: None,
-                    additional_permissions: None,
+                    additional_permissions,
                 })
                 .await;
 
@@ -1409,11 +1503,12 @@ pub(crate) async fn handle_container_exec_with_params(
                     };
                 }
             }
-            // No sandboxing is applied because the user has given
-            // explicit approval. Often, we end up in this case because
-            // the command cannot be run in a sandbox, such as
-            // installing a new dependency that requires network access.
-            SandboxType::None
+            if params.sandbox_permissions.uses_additional_permissions() {
+                crate::safety::get_platform_sandbox().unwrap_or(SandboxType::None)
+            } else {
+                // No sandboxing is applied because the user has given explicit approval.
+                SandboxType::None
+            }
         }
         SafetyCheck::Reject { reason } => {
             return ResponseInputItem::FunctionCallOutput {
@@ -1505,7 +1600,11 @@ pub(crate) async fn handle_container_exec_with_params(
     let tx_event = sess.tx_event.clone();
     let sub_id_for_events = sub_id.clone();
     let call_id_for_events = call_id.clone();
-    let sandbox_policy = sess.sandbox_policy.clone();
+    let sandbox_policy = effective_sandbox_policy_for_exec(
+        &sess.sandbox_policy,
+        params.sandbox_permissions,
+        params.additional_permissions.as_ref(),
+    );
     let sandbox_cwd = sess.get_cwd().to_path_buf();
     let code_linux_sandbox_exe = sess.code_linux_sandbox_exe.clone();
     let exec_spool_dir_for_task = if sess.client.debug_enabled() {

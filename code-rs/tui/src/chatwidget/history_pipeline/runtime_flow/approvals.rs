@@ -24,6 +24,7 @@ impl ChatWidget<'_> {
                     id: approval_id,
                     command: ev.command,
                     reason: ev.reason,
+                    additional_permissions: ev.additional_permissions,
                 },
                 ticket,
             );

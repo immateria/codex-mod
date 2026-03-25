@@ -67,7 +67,8 @@ impl ToolHandler for ApplyPatchToolHandler {
                     cwd: sess.get_cwd().to_path_buf(),
                     timeout_ms: None,
                     env: HashMap::new(),
-                    with_escalated_permissions: None,
+                    sandbox_permissions: Default::default(),
+                    additional_permissions: None,
                     justification: None,
                 };
 

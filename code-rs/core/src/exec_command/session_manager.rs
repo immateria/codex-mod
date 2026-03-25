@@ -24,6 +24,8 @@ use crate::exec_command::session_id::SessionId;
 use crate::protocol::SandboxPolicy;
 use crate::spawn::CODEX_SANDBOX_ENV_VAR;
 use code_protocol::models::FunctionCallOutputPayload;
+use code_protocol::models::PermissionProfile;
+use code_protocol::models::SandboxPermissions;
 
 const EXEC_COMMAND_OUTPUT_MAX_BYTES: u64 = 1024 * 1024;
 
@@ -262,6 +264,20 @@ impl SessionManager {
             );
         }
 
+        if let Some(sandbox_permissions) = params.sandbox_permissions
+            && sandbox_permissions.uses_additional_permissions()
+            && params
+                .additional_permissions
+                .as_ref()
+                .map(|permissions| permissions.is_empty())
+                .unwrap_or(true)
+        {
+            return Err(
+                "sandbox_permissions=with_additional_permissions requires additional_permissions"
+                    .to_string(),
+            );
+        }
+
         // Allocate a session id.
         let session_id = SessionId(
             self.next_session_id
@@ -452,6 +468,59 @@ impl SessionManager {
     }
 }
 
+fn effective_sandbox_policy_for_exec_command(
+    base: &SandboxPolicy,
+    sandbox_permissions: SandboxPermissions,
+    additional_permissions: Option<&PermissionProfile>,
+) -> SandboxPolicy {
+    if !sandbox_permissions.uses_additional_permissions() {
+        return base.clone();
+    }
+
+    let Some(additional_permissions) = additional_permissions else {
+        return base.clone();
+    };
+    if additional_permissions.is_empty() {
+        return base.clone();
+    }
+
+    let SandboxPolicy::WorkspaceWrite {
+        writable_roots,
+        network_access,
+        exclude_tmpdir_env_var,
+        exclude_slash_tmp,
+        allow_git_writes,
+    } = base
+    else {
+        return base.clone();
+    };
+
+    let mut effective_writable_roots = writable_roots.clone();
+    if let Some(fs) = additional_permissions.file_system.as_ref()
+        && let Some(write_roots) = fs.write.as_ref()
+    {
+        for path in write_roots {
+            let path_buf = path.as_ref().to_path_buf();
+            if !effective_writable_roots.contains(&path_buf) {
+                effective_writable_roots.push(path_buf);
+            }
+        }
+    }
+
+    let mut effective_network_access = *network_access;
+    if additional_permissions.network.unwrap_or(false) {
+        effective_network_access = true;
+    }
+
+    SandboxPolicy::WorkspaceWrite {
+        writable_roots: effective_writable_roots,
+        network_access: effective_network_access,
+        exclude_tmpdir_env_var: *exclude_tmpdir_env_var,
+        exclude_slash_tmp: *exclude_slash_tmp,
+        allow_git_writes: *allow_git_writes,
+    }
+}
+
 /// Spawn PTY and child process per spawn_exec_command_session logic.
 async fn create_exec_command_session(
     params: ExecCommandParams,
@@ -477,11 +546,12 @@ async fn create_exec_command_session(
         justification: _,
     } = params;
 
-    if additional_permissions.is_some() {
-        tracing::debug!(
-            "exec_command additional_permissions is accepted for compatibility but not yet enforced"
-        );
-    }
+    let sandbox_permissions = sandbox_permissions.unwrap_or_default();
+    let sandbox_policy = effective_sandbox_policy_for_exec_command(
+        &sandbox_policy,
+        sandbox_permissions,
+        additional_permissions.as_ref(),
+    );
 
     // Use the native pty implementation for the system
     let pty_system = native_pty_system();
@@ -495,11 +565,9 @@ async fn create_exec_command_session(
     })?;
 
     let shell_mode_opt = if login { "-lc" } else { "-c" };
-    let requires_escalated_permissions = sandbox_permissions
-        .as_ref()
-        .is_some_and(|value| value.requires_escalated_permissions());
+    let requires_escalated_permissions = sandbox_permissions.requires_escalated_permissions();
     let seatbelt_enabled = cfg!(target_os = "macos")
-        && !matches!(sandbox_policy, SandboxPolicy::DangerFullAccess)
+        && !matches!(&sandbox_policy, &SandboxPolicy::DangerFullAccess)
         && !requires_escalated_permissions;
 
     // Spawn a shell into the pty. On macOS, apply seatbelt for parity with the

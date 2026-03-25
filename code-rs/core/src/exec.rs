@@ -36,6 +36,8 @@ use crate::seatbelt::spawn_command_under_seatbelt;
 use crate::spawn::StdioPolicy;
 use crate::spawn::spawn_child_async;
 use serde_bytes::ByteBuf;
+use code_protocol::models::PermissionProfile;
+use code_protocol::models::SandboxPermissions;
 
 // Note: legacy stream caps were removed in favor of streaming all bytes and
 // truncating at the consumer where appropriate. (CI cache test touch)
@@ -95,7 +97,8 @@ pub struct ExecParams {
     pub cwd: PathBuf,
     pub timeout_ms: Option<u64>,
     pub env: HashMap<String, String>,
-    pub with_escalated_permissions: Option<bool>,
+    pub sandbox_permissions: SandboxPermissions,
+    pub additional_permissions: Option<PermissionProfile>,
     pub justification: Option<String>,
 }
 

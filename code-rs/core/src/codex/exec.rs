@@ -672,11 +672,14 @@ impl Session {
         let _ = self.tx_event.send(event).await;
     }
 
-    fn resolve_internal_sandbox(&self, with_escalated_permissions: bool) -> SandboxType {
+    fn resolve_internal_sandbox(
+        &self,
+        sandbox_permissions: code_protocol::models::SandboxPermissions,
+    ) -> SandboxType {
         match assess_safety_for_untrusted_command(
             self.approval_policy,
             &self.sandbox_policy,
-            with_escalated_permissions,
+            sandbox_permissions,
         ) {
             SafetyCheck::AutoApprove { sandbox_type, .. } => sandbox_type,
             SafetyCheck::AskUser | SafetyCheck::Reject { .. } => {
@@ -817,7 +820,8 @@ impl Session {
             cwd: hook.resolved_cwd(self.get_cwd()),
             timeout_ms: hook.timeout_ms,
             env,
-            with_escalated_permissions: Some(false),
+            sandbox_permissions: Default::default(),
+            additional_permissions: None,
             justification: None,
         };
 
@@ -830,7 +834,7 @@ impl Session {
             parent_call_id: None,
         };
 
-        let sandbox_type = self.resolve_internal_sandbox(false);
+        let sandbox_type = self.resolve_internal_sandbox(Default::default());
         let exec_args = ExecInvokeArgs {
             params: exec_params,
             sandbox_type,
@@ -909,7 +913,8 @@ impl Session {
             cwd: command.resolved_cwd(self.get_cwd()),
             timeout_ms: command.timeout_ms,
             env,
-            with_escalated_permissions: Some(false),
+            sandbox_permissions: Default::default(),
+            additional_permissions: None,
             justification: None,
         };
 
@@ -923,7 +928,7 @@ impl Session {
             parent_call_id: None,
         };
 
-        let sandbox_type = self.resolve_internal_sandbox(false);
+        let sandbox_type = self.resolve_internal_sandbox(Default::default());
         let exec_args = ExecInvokeArgs {
             params: exec_params,
             sandbox_type,

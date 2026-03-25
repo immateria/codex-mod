@@ -128,6 +128,108 @@ impl ToolHandler for ExecCommandToolHandler {
                         | code_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {}
                     }
 
+                    let sandbox_permissions = params.sandbox_permissions.unwrap_or_default();
+                    if sandbox_permissions.requires_escalated_permissions()
+                        && params
+                            .justification
+                            .as_ref()
+                            .map(|justification| justification.trim().is_empty())
+                            .unwrap_or(true)
+                    {
+                        return unsupported_tool_call_output(
+                            &call_id,
+                            false,
+                            "sandbox_permissions=require_escalated requires a justification"
+                                .to_string(),
+                        );
+                    }
+
+                    let additional_permissions = sandbox_permissions
+                        .uses_additional_permissions()
+                        .then(|| params.additional_permissions.clone())
+                        .flatten();
+                    if sandbox_permissions.uses_additional_permissions()
+                        && additional_permissions
+                            .as_ref()
+                            .map(|permissions| permissions.is_empty())
+                            .unwrap_or(true)
+                    {
+                        return unsupported_tool_call_output(
+                            &call_id,
+                            false,
+                            "sandbox_permissions=with_additional_permissions requires additional_permissions"
+                                .to_string(),
+                        );
+                    }
+
+                    if sandbox_permissions.requests_sandbox_override()
+                        && !matches!(
+                            &sandbox_policy,
+                            &crate::protocol::SandboxPolicy::DangerFullAccess
+                        )
+                        && !sess.is_command_approved(&wrapper)
+                    {
+                        match sess.get_approval_policy() {
+                            AskForApproval::Never => {
+                                return unsupported_tool_call_output(
+                                    &call_id,
+                                    false,
+                                    "exec_command rejected: sandbox override requires approval but approval policy is set to never"
+                                        .to_string(),
+                                );
+                            }
+                            AskForApproval::Reject(config)
+                                if config.rejects_sandbox_approval()
+                                    || config.rejects_rules_approval() =>
+                            {
+                                return unsupported_tool_call_output(
+                                    &call_id,
+                                    false,
+                                    "exec_command rejected: approval policy auto-rejected sandbox override"
+                                        .to_string(),
+                                );
+                            }
+                            _ => {}
+                        }
+
+                        let reason = if sandbox_permissions.requires_escalated_permissions() {
+                            "Command requested to run without sandbox restrictions".to_string()
+                        } else {
+                            "Command requested additional sandbox permissions".to_string()
+                        };
+
+                        let rx_approve = sess
+                            .request_command_approval(CommandApprovalRequest {
+                                sub_id: sub_id.clone(),
+                                call_id: call_id.clone(),
+                                approval_id: None,
+                                command: wrapper.clone(),
+                                cwd: effective_workdir.clone(),
+                                reason: Some(reason),
+                                network_approval_context: None,
+                                additional_permissions: additional_permissions.clone(),
+                            })
+                            .await;
+                        let decision = rx_approve.await.unwrap_or_default();
+                        match decision {
+                            ReviewDecision::Approved => {}
+                            ReviewDecision::ApprovedForSession => {
+                                sess.add_approved_command(ApprovedCommandPattern::new(
+                                    wrapper.clone(),
+                                    ApprovedCommandMatchKind::Exact,
+                                    None,
+                                ));
+                            }
+                            ReviewDecision::Denied | ReviewDecision::Abort => {
+                                return unsupported_tool_call_output(
+                                    &call_id,
+                                    false,
+                                    "exec_command rejected by user".to_string(),
+                                );
+                            }
+                        }
+                    }
+
                     // Dangerous-command gating: exec_command previously bypassed command safety.
                     // Keep behavior minimal and non-regressive by prompting only for commands
                     // classified as dangerous (fork bomb / destructive operations), and honor
@@ -167,7 +269,7 @@ impl ToolHandler for ExecCommandToolHandler {
                                         .to_string(),
                                 ),
                                 network_approval_context: None,
-                                additional_permissions: None,
+                                additional_permissions,
                             })
                             .await;
                         let decision = rx_approve.await.unwrap_or_default();

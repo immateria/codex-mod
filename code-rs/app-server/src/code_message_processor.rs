@@ -1262,7 +1262,8 @@ impl CodexMessageProcessor {
             cwd,
             timeout_ms: params.timeout_ms,
             env,
-            with_escalated_permissions: None,
+            sandbox_permissions: Default::default(),
+            additional_permissions: None,
             justification: None,
         };
         let sandbox_type = get_platform_sandbox().unwrap_or(exec::SandboxType::None);
