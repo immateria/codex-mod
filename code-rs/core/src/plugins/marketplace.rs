@@ -217,6 +217,14 @@ pub fn list_marketplaces_outcome(
     list_marketplaces_with_home_outcome(additional_roots, home_dir().as_deref())
 }
 
+#[cfg(test)]
+fn list_marketplaces_with_home(
+    additional_roots: &[AbsolutePathBuf],
+    home_dir: Option<&Path>,
+) -> Result<Vec<Marketplace>, MarketplaceError> {
+    Ok(list_marketplaces_with_home_outcome(additional_roots, home_dir)?.marketplaces)
+}
+
 pub(crate) fn load_marketplace(path: &AbsolutePathBuf) -> Result<Marketplace, MarketplaceError> {
     let marketplace = load_raw_marketplace_manifest(path)?;
     let mut plugins = Vec::new();
