@@ -367,7 +367,6 @@
                 }
                 AppEvent::SetPluginMarketplaceSources { roots, sources } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.plugins_set_sources_snapshot(sources.clone());
                         widget.plugins_set_sources_sync_status(/*in_progress*/ true, None);
                     }
                     self.schedule_redraw();
@@ -428,6 +427,7 @@
                         }
                         Err(err) => {
                             if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.plugins_set_sources_snapshot(self.config.plugins.clone());
                                 widget.plugins_set_sources_sync_status(
                                     /*in_progress*/ false,
                                     Some(format!("Failed to save plugin sources: {err}")),

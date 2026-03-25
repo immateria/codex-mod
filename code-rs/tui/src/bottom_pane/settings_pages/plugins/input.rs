@@ -4,6 +4,17 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 impl PluginsSettingsView {
     pub(crate) fn handle_key_event_direct(&mut self, key_event: KeyEvent) -> bool {
+        if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+            let allow_ctrl_s = matches!(
+                &self.mode,
+                Mode::Sources(SourcesMode::EditCurated)
+                    | Mode::Sources(SourcesMode::EditMarketplaceRepo { .. })
+            ) && matches!(key_event.code, KeyCode::Char('s') | KeyCode::Char('S'));
+            if !allow_ctrl_s {
+                return false;
+            }
+        }
+
         match self.mode.clone() {
             Mode::List => self.handle_key_list(key_event),
             Mode::Detail { key } => self.handle_key_detail(key_event, key),
