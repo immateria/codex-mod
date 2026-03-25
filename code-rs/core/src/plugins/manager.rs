@@ -181,7 +181,7 @@ pub enum PluginRemoteSyncError {
     )]
     UnsupportedAuthMode,
 
-    #[error("failed to read auth token for remote plugin sync: {0}")]
+    #[error("failed to get auth token for remote plugin sync: {0}")]
     AuthToken(#[source] std::io::Error),
 
     #[error("failed to send remote plugin sync request to {url}: {source}")]

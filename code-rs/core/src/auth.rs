@@ -88,6 +88,9 @@ impl std::error::Error for RefreshTokenError {}
 const REFRESH_TOKEN_ACCOUNT_MISMATCH_MESSAGE: &str =
     "Your access token could not be refreshed because you have since logged out or signed in to another account. Please sign in again.";
 
+const REFRESH_TOKEN_REUSED_MESSAGE: &str =
+    "Your access token could not be refreshed because your refresh token has already been used. Please sign in again.";
+
 impl PartialEq for CodexAuth {
     fn eq(&self, other: &Self) -> bool {
         self.mode == other.mode
@@ -121,12 +124,16 @@ impl CodexAuth {
                     return self.persist_refresh_response(refresh_response).await
                 }
                 Err(err) => {
-                    if err.is_refresh_token_reused()
-                        && let Some(access) =
+                    if err.is_refresh_token_reused() {
+                        if let Some(access) =
                             self.adopt_rotated_refresh_token_from_disk(&refresh_token)?
                         {
                             return Ok(access);
                         }
+                        return Err(RefreshTokenError::permanent(format!(
+                            "refresh_token_reused: {REFRESH_TOKEN_REUSED_MESSAGE}"
+                        )));
+                    }
                     if err.kind == RefreshTokenErrorKind::Transient && attempt < 4 {
                         let delay = backoff(attempt as u64);
                         tokio::time::sleep(delay).await;

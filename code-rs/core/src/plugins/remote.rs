@@ -37,7 +37,7 @@ pub enum RemotePluginMutationError {
     )]
     UnsupportedAuthMode,
 
-    #[error("failed to read auth token for remote plugin mutation: {0}")]
+    #[error("failed to get auth token for remote plugin mutation: {0}")]
     AuthToken(#[source] std::io::Error),
 
     #[error("invalid chatgpt base url for remote plugin mutation: {0}")]
@@ -92,7 +92,7 @@ pub enum RemotePluginFetchError {
     )]
     UnsupportedAuthMode,
 
-    #[error("failed to read auth token for remote plugin sync: {0}")]
+    #[error("failed to get auth token for remote plugin sync: {0}")]
     AuthToken(#[source] std::io::Error),
 
     #[error("failed to send remote plugin sync request to {url}: {source}")]
@@ -306,4 +306,3 @@ fn remote_plugin_mutation_url(
     }
     Ok(url.to_string())
 }
-
