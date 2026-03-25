@@ -252,6 +252,17 @@ pub enum Op {
         response: RequestUserInputResponse,
     },
 
+    /// Resolve an MCP server elicitation request.
+    ResolveMcpElicitation {
+        server_name: String,
+        id: code_protocol::mcp::RequestId,
+        action: code_protocol::approvals::ElicitationAction,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        content: Option<Value>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        meta: Option<Value>,
+    },
+
     /// Resolve a dynamic tool call request.
     DynamicToolResponse {
         /// Call id for the in-flight request.
@@ -683,6 +694,10 @@ pub struct RecordedEvent {
     pub msg: EventMsg,
 }
 
+pub fn unbounded_event_channel() -> (async_channel::Sender<Event>, async_channel::Receiver<Event>) {
+    async_channel::unbounded()
+}
+
 pub fn event_msg_to_protocol(msg: &EventMsg) -> Option<code_protocol::protocol::EventMsg> {
     match msg {
         EventMsg::ReplayHistory(_) => None,
@@ -961,6 +976,9 @@ pub enum EventMsg {
     ExecCommandEnd(ExecCommandEndEvent),
 
     ExecApprovalRequest(ExecApprovalRequestEvent),
+
+    /// MCP server requested an elicitation response (form/url input).
+    ElicitationRequest(code_protocol::approvals::ElicitationRequestEvent),
 
     RequestUserInput(RequestUserInputEvent),
 

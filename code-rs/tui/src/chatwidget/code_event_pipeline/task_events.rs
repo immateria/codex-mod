@@ -38,6 +38,7 @@ impl ChatWidget<'_> {
         // so subsequent background events use standard placement.
         self.pending_user_prompts_for_next_turn = 0;
         self.pending_request_user_input = None;
+        self.pending_mcp_elicitation = None;
         // Reset stream headers for new turn.
         self.stream.reset_headers_for_new_turn();
         self.stream_state.current_kind = None;
@@ -86,6 +87,7 @@ impl ChatWidget<'_> {
     ) {
         self.clear_reconnecting();
         self.pending_request_user_input = None;
+        self.pending_mcp_elicitation = None;
         let had_running_execs = !self.exec.running_commands.is_empty();
         // Finalize any active streams.
         let finalizing_streams = self.stream.is_write_cycle_active();

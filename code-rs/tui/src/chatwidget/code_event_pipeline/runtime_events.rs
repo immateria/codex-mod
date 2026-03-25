@@ -272,6 +272,7 @@ impl ChatWidget<'_> {
 
     pub(super) fn handle_turn_aborted_event(&mut self) {
         self.pending_request_user_input = None;
+        self.pending_mcp_elicitation = None;
         // TurnAborted is emitted when the agent task is aborted and does not
         // imply a TaskComplete will arrive. Treat it as terminal for the active
         // turn so we don't leave the UI (or sleep inhibitor) stuck "running".

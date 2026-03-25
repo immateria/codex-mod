@@ -349,6 +349,9 @@ impl ChatWidget<'_> {
             EventMsg::ExecApprovalRequest(ev) => {
                 self.handle_exec_approval_request_event(id, ev, event.event_seq);
             }
+            EventMsg::ElicitationRequest(ev) => {
+                self.handle_mcp_elicitation_request_event(event.order.as_ref(), ev);
+            }
             EventMsg::RequestUserInput(ev) => {
                 self.handle_request_user_input_event(event.order.as_ref(), ev);
             }

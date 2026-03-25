@@ -649,6 +649,14 @@ struct PendingRequestUserInput {
     questions: Vec<code_protocol::request_user_input::RequestUserInputQuestion>,
 }
 
+#[derive(Clone, Debug)]
+struct PendingMcpElicitation {
+    turn_id: String,
+    server_name: String,
+    id: code_protocol::mcp::RequestId,
+    anchor_key: OrderKey,
+}
+
 #[derive(Clone)]
 struct RenderRequestSeed {
     history_id: HistoryId,
@@ -770,6 +778,7 @@ pub(crate) struct ChatWidget<'a> {
     last_developer_message: Option<String>,
     pending_turn_origin: Option<TurnOrigin>,
     pending_request_user_input: Option<PendingRequestUserInput>,
+    pending_mcp_elicitation: Option<PendingMcpElicitation>,
     current_turn_origin: Option<TurnOrigin>,
     // Tracks whether lingering running exec/tool cells have been cleared for the
     // current turn. Reset on TaskStarted; set after the first assistant message

@@ -18,12 +18,18 @@ use code_core::protocol::InputItem;
 use code_core::protocol::Op;
 use code_core::protocol::Submission;
 use code_core::protocol::TaskCompleteEvent;
+use code_protocol::approvals::ElicitationRequestEvent;
 use code_protocol::dynamic_tools::DynamicToolResponse;
 use mcp_types::CallToolResult;
 use mcp_types::ContentBlock;
+use mcp_types::ElicitRequest;
+use mcp_types::ModelContextProtocolRequest;
 use mcp_types::RequestId;
 use mcp_types::TextContent;
+use serde::Deserialize;
+use serde::Serialize;
 use serde_json::json;
+use serde_json::Value;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -258,6 +264,16 @@ async fn run_code_tool_session_inner(
                             .remove(&request_id);
                         break;
                     }
+                    EventMsg::ElicitationRequest(ev) => {
+                        handle_mcp_elicitation_request(
+                            outgoing.clone(),
+                            codex.clone(),
+                            request_id.clone(),
+                            ev,
+                        )
+                        .await;
+                        continue;
+                    }
                     EventMsg::DynamicToolCallRequest(ev) => {
                         let response = DynamicToolResponse {
                             content_items: vec![
@@ -376,5 +392,170 @@ async fn run_code_tool_session_inner(
                 break;
             }
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct McpElicitationElicitRequestParams {
+    pub message: String,
+    #[serde(rename = "requestedSchema")]
+    pub requested_schema: Value,
+}
+
+#[derive(Debug, Deserialize)]
+struct McpElicitationElicitResult {
+    pub action: code_protocol::approvals::ElicitationAction,
+    #[serde(default)]
+    pub content: Option<Value>,
+    #[serde(default)]
+    pub meta: Option<Value>,
+}
+
+async fn handle_mcp_elicitation_request(
+    outgoing: Arc<OutgoingMessageSender>,
+    codex: Arc<CodexConversation>,
+    request_id: RequestId,
+    ev: ElicitationRequestEvent,
+) {
+    let server_name = ev.server_name;
+    let id = ev.id;
+    let turn_id = ev.turn_id;
+
+    let (message, requested_schema) = match ev.request {
+        code_protocol::approvals::ElicitationRequest::Form {
+            meta: _,
+            message,
+            requested_schema,
+        } => (message, requested_schema),
+        code_protocol::approvals::ElicitationRequest::Url {
+            meta: _,
+            message: _,
+            url,
+            elicitation_id: _,
+        } => {
+            tracing::warn!(
+                "unsupported URL elicitation from MCP server '{server_name}': {url}"
+            );
+            if let Err(err) = codex
+                .submit(Op::ResolveMcpElicitation {
+                    server_name,
+                    id,
+                    action: code_protocol::approvals::ElicitationAction::Decline,
+                    content: None,
+                    meta: None,
+                })
+                .await
+            {
+                tracing::error!("failed to submit declined ResolveMcpElicitation: {err}");
+            }
+            return;
+        }
+    };
+
+    let message = format!("MCP server '{server_name}': {message}");
+    let params = McpElicitationElicitRequestParams {
+        message,
+        requested_schema,
+    };
+    let params_json = match serde_json::to_value(&params) {
+        Ok(value) => value,
+        Err(err) => {
+            tracing::error!("Failed to serialize McpElicitationElicitRequestParams: {err}");
+            if let Err(submit_err) = codex
+                .submit(Op::ResolveMcpElicitation {
+                    server_name,
+                    id,
+                    action: code_protocol::approvals::ElicitationAction::Decline,
+                    content: None,
+                    meta: None,
+                })
+                .await
+            {
+                tracing::error!(
+                    "failed to submit declined ResolveMcpElicitation after serialization error: {submit_err}"
+                );
+            }
+            return;
+        }
+    };
+
+    let on_response = outgoing
+        .send_request(ElicitRequest::METHOD, Some(params_json))
+        .await;
+
+    // Listen for the response on a separate task so we don't block the main agent loop.
+    tokio::spawn(async move {
+        on_mcp_elicitation_response(
+            server_name,
+            id,
+            turn_id,
+            request_id,
+            on_response,
+            codex,
+        )
+        .await;
+    });
+}
+
+async fn on_mcp_elicitation_response(
+    server_name: String,
+    id: code_protocol::mcp::RequestId,
+    turn_id: Option<String>,
+    request_id: RequestId,
+    receiver: tokio::sync::oneshot::Receiver<mcp_types::Result>,
+    codex: Arc<CodexConversation>,
+) {
+    let response = receiver.await;
+    let value = match response {
+        Ok(value) => value,
+        Err(err) => {
+            tracing::error!("elicitation request failed: {err:?}");
+            if let Err(submit_err) = codex
+                .submit(Op::ResolveMcpElicitation {
+                    server_name,
+                    id,
+                    action: code_protocol::approvals::ElicitationAction::Decline,
+                    content: None,
+                    meta: None,
+                })
+                .await
+            {
+                tracing::error!(
+                    "failed to submit declined ResolveMcpElicitation after request failure: {submit_err}"
+                );
+            }
+            return;
+        }
+    };
+
+    let response =
+        serde_json::from_value::<McpElicitationElicitResult>(value).unwrap_or_else(|err| {
+            tracing::error!("failed to deserialize MCP elicitation result: {err}");
+            McpElicitationElicitResult {
+                action: code_protocol::approvals::ElicitationAction::Decline,
+                content: None,
+                meta: None,
+            }
+        });
+
+    tracing::debug!(
+        server_name = %server_name,
+        request_id = ?request_id,
+        turn_id = ?turn_id,
+        action = ?response.action,
+        "resolved MCP elicitation"
+    );
+
+    if let Err(err) = codex
+        .submit(Op::ResolveMcpElicitation {
+            server_name,
+            id,
+            action: response.action,
+            content: response.content,
+            meta: response.meta,
+        })
+        .await
+    {
+        tracing::error!("failed to submit ResolveMcpElicitation: {err}");
     }
 }

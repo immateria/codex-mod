@@ -102,6 +102,64 @@ impl ChatWidget<'_> {
         turn_id: String,
         response: code_protocol::request_user_input::RequestUserInputResponse,
     ) {
+        if turn_id.starts_with("mcp_elicitation:") {
+            let Some(pending) = self.pending_mcp_elicitation.take() else {
+                tracing::warn!(
+                    "[mcp_elicitation] received UI answer but no request is pending (turn_id={turn_id})"
+                );
+                return;
+            };
+
+            if pending.turn_id != turn_id {
+                tracing::warn!(
+                    "[mcp_elicitation] received UI answer for unexpected turn_id (expected={}, got={turn_id})",
+                    pending.turn_id,
+                );
+            }
+
+            self.bottom_pane.close_request_user_input_view();
+
+            let selected = response
+                .answers
+                .get("mcp_elicitation")
+                .and_then(|answer| answer.answers.first())
+                .map(|value| value.trim().to_string())
+                .unwrap_or_default();
+
+            let action = match selected.to_ascii_lowercase().as_str() {
+                "accept" => code_protocol::approvals::ElicitationAction::Accept,
+                "cancel" => code_protocol::approvals::ElicitationAction::Cancel,
+                _ => code_protocol::approvals::ElicitationAction::Decline,
+            };
+
+            let display_text = match action {
+                code_protocol::approvals::ElicitationAction::Accept => "Accept".to_string(),
+                code_protocol::approvals::ElicitationAction::Decline => "Decline".to_string(),
+                code_protocol::approvals::ElicitationAction::Cancel => "Cancel".to_string(),
+            };
+            let key = Self::order_key_successor(pending.anchor_key);
+            let state = history_cell::new_user_prompt(display_text);
+            let _ = self
+                .history_insert_plain_state_with_key(state, key, "mcp_elicitation_answer");
+            self.restore_reasoning_in_progress_if_streaming();
+
+            if let Err(e) = self.code_op_tx.send(Op::ResolveMcpElicitation {
+                server_name: pending.server_name,
+                id: pending.id,
+                action,
+                content: None,
+                meta: None,
+            }) {
+                tracing::error!("failed to send Op::ResolveMcpElicitation: {e}");
+            }
+
+            self.clear_composer();
+            self.bottom_pane
+                .update_status_text("waiting for model".to_string());
+            self.request_redraw();
+            return;
+        }
+
         let Some(pending) = self.pending_request_user_input.take() else {
             tracing::warn!(
                 "[request_user_input] received UI answer but no request is pending (turn_id={turn_id})"

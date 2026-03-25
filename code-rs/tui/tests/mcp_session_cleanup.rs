@@ -12,6 +12,7 @@ use std::time::Duration;
 use code_core::config::{Config, ConfigOverrides, ConfigToml};
 use code_core::config_types::{McpServerConfig, McpServerTransportConfig};
 use code_core::mcp_connection_manager::McpConnectionManager;
+use code_core::protocol::{unbounded_event_channel, AskForApproval};
 
 const WRAPPER_SOURCE: &str = r#"
 use std::env;
@@ -126,9 +127,17 @@ async fn mcp_stdio_server_exits_before_next_session() {
     let servers_map = config.mcp_servers.clone();
     let code_home = config.code_home.clone();
     let store_mode = config.mcp_oauth_credentials_store_mode;
+    let (tx_event, _rx_event) = unbounded_event_channel();
 
     let (manager1, _) =
-        McpConnectionManager::new(code_home.clone(), store_mode, servers_map.clone(), HashSet::new())
+        McpConnectionManager::new(
+            code_home.clone(),
+            store_mode,
+            servers_map.clone(),
+            HashSet::new(),
+            tx_event.clone(),
+            AskForApproval::OnRequest,
+        )
             .await
             .expect("start first MCP manager");
 
@@ -145,7 +154,14 @@ async fn mcp_stdio_server_exits_before_next_session() {
         std::fs::read_to_string(&log_path).unwrap_or_default()
     );
 
-    let (_manager2, _) = McpConnectionManager::new(code_home, store_mode, servers_map, HashSet::new())
+    let (_manager2, _) = McpConnectionManager::new(
+        code_home,
+        store_mode,
+        servers_map,
+        HashSet::new(),
+        tx_event,
+        AskForApproval::OnRequest,
+    )
         .await
         .expect("start second MCP manager");
 }

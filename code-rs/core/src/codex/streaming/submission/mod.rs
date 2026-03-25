@@ -233,6 +233,30 @@ pub(in crate::codex) async fn submission_loop(
                 };
                 sess.notify_user_input_response(&id, response);
             }
+            Op::ResolveMcpElicitation {
+                server_name,
+                id,
+                action,
+                content,
+                meta,
+            } => {
+                let sess = match sess.as_ref() {
+                    Some(sess) => Arc::clone(sess),
+                    None => {
+                        send_no_session_event(sub.id).await;
+                        continue;
+                    }
+                };
+
+                tokio::spawn(async move {
+                    if let Err(err) = sess
+                        .resolve_mcp_elicitation(server_name, id, action, content, meta)
+                        .await
+                    {
+                        tracing::warn!("failed to resolve MCP elicitation: {err:#}");
+                    }
+                });
+            }
             Op::DynamicToolResponse { id, response } => {
                 let sess = match sess.as_ref() {
                     Some(sess) => sess,

@@ -53,7 +53,7 @@ impl RequestUserInputView {
     }
 
     pub(super) fn is_mcp_access_prompt(&self) -> bool {
-        self.call_id.starts_with("mcp_access:")
+        self.call_id.starts_with("mcp_access:") || self.call_id.starts_with("mcp_elicitation:")
     }
 
     pub(super) fn question_count(&self) -> usize {
@@ -320,4 +320,3 @@ impl RequestUserInputView {
         self.submitting = true;
     }
 }
-

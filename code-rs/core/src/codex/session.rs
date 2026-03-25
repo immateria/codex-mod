@@ -1,4 +1,5 @@
 use super::*;
+use code_rmcp_client::ElicitationResponse;
 use serde_json::Value;
 use code_protocol::dynamic_tools::DynamicToolResponse;
 use code_protocol::dynamic_tools::DynamicToolSpec;
@@ -875,6 +876,19 @@ impl Session {
 
     pub(crate) async fn shutdown_mcp_clients(&self) {
         self.mcp_connection_manager.shutdown_all().await;
+    }
+
+    pub(crate) async fn resolve_mcp_elicitation(
+        &self,
+        server_name: String,
+        id: code_protocol::mcp::RequestId,
+        action: code_protocol::approvals::ElicitationAction,
+        content: Option<Value>,
+        meta: Option<Value>,
+    ) -> anyhow::Result<()> {
+        self.mcp_connection_manager
+            .resolve_elicitation(server_name, id, ElicitationResponse { action, content, meta })
+            .await
     }
 
     pub(crate) fn update_validation_tool(&self, name: &str, enable: bool) {

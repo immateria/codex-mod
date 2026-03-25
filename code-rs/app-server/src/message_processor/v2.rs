@@ -1845,11 +1845,14 @@ impl MessageProcessor {
         let enabled_server_map: HashMap<String, code_core::config_types::McpServerConfig> =
             enabled_servers.iter().cloned().collect();
 
+        let (tx_event, _rx_event) = code_core::protocol::unbounded_event_channel();
         let (manager, startup_errors) = match McpConnectionManager::new(
             self.base_config.code_home.clone(),
             self.base_config.mcp_oauth_credentials_store_mode,
             enabled_server_map,
             excluded_tools,
+            tx_event,
+            code_core::protocol::AskForApproval::Never,
         )
         .await
         {

@@ -168,6 +168,8 @@ impl Runner<'_> {
             config.mcp_oauth_credentials_store_mode,
             effective_mcp_servers,
             excluded_tools,
+            self.tx_event.clone(),
+            approval_policy,
         )
         .await
         {

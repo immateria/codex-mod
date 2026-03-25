@@ -7,6 +7,7 @@ use crate::protocol::FileChange;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::Value as JsonValue;
 use ts_rs::TS;
 
 /// Proposed execpolicy change to allow commands starting with this prefix.
@@ -111,13 +112,43 @@ impl ExecApprovalRequestEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
 pub struct ElicitationRequestEvent {
+    /// Turn ID that this elicitation belongs to, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub turn_id: Option<String>,
     pub server_name: String,
     #[ts(type = "string | number")]
     pub id: RequestId,
-    pub message: String,
-    // TODO: MCP servers can request we fill out a schema for the elicitation. We don't support
-    // this yet.
-    // pub requested_schema: ElicitRequestParamsRequestedSchema,
+    pub request: ElicitationRequest,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum ElicitationRequest {
+    Form {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        meta: Option<JsonValue>,
+        message: String,
+        requested_schema: JsonValue,
+    },
+    Url {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        meta: Option<JsonValue>,
+        message: String,
+        url: String,
+        elicitation_id: String,
+    },
+}
+
+impl ElicitationRequest {
+    pub fn message(&self) -> &str {
+        match self {
+            Self::Form { message, .. } | Self::Url { message, .. } => message,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]

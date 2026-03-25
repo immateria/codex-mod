@@ -36,6 +36,7 @@ impl BottomPaneView<'_> for RequestUserInputView {
                     let has_cancel = self.select_current_option_by_label("Cancel");
                     if !has_cancel {
                         let _ = self.select_current_option_by_label("Deny");
+                        let _ = self.select_current_option_by_label("Decline");
                     }
                     self.submit();
                 } else {

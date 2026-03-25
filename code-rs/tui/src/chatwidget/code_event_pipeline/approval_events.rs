@@ -1,9 +1,12 @@
 use super::*;
 use code_core::protocol::OrderMeta;
 use code_core::protocol::RequestUserInputEvent;
+use code_protocol::approvals::ElicitationAction;
+use code_protocol::approvals::ElicitationRequestEvent;
 use code_protocol::dynamic_tools::DynamicToolCallRequest;
 use code_protocol::request_user_input::RequestUserInputAnswer;
 use code_protocol::request_user_input::RequestUserInputQuestion;
+use code_protocol::request_user_input::RequestUserInputQuestionOption;
 use code_protocol::request_user_input::RequestUserInputResponse;
 
 impl ChatWidget<'_> {
@@ -117,6 +120,93 @@ impl ChatWidget<'_> {
                     self.app_event_tx.clone(),
                 ));
         }
+        self.request_redraw();
+    }
+
+    pub(super) fn handle_mcp_elicitation_request_event(
+        &mut self,
+        order: Option<&OrderMeta>,
+        ev: ElicitationRequestEvent,
+    ) {
+        let key = self.near_time_key_current_req(order);
+        let message = ev.request.message();
+        let id_label = match &ev.id {
+            code_protocol::mcp::RequestId::String(value) => value.clone(),
+            code_protocol::mcp::RequestId::Integer(value) => value.to_string(),
+        };
+        let synthetic_turn_id = format!("mcp_elicitation:{}:{id_label}", ev.server_name);
+        let call_id = synthetic_turn_id.clone();
+
+        let mut lines: Vec<String> = Vec::new();
+        lines.push("MCP server requested elicitation".to_string());
+        lines.push(format!("server: `{}`", ev.server_name));
+        lines.push(format!("\n{message}"));
+        lines.push("\nUse the picker below to continue (Esc cancels).".to_string());
+
+        let role = history_cell::plain_role_for_kind(PlainMessageKind::Notice);
+        let state =
+            history_cell::plain_message_state_from_paragraphs(PlainMessageKind::Notice, role, lines);
+        let _ = self.history_insert_plain_state_with_key(state, key, "mcp_elicitation_request");
+        self.restore_reasoning_in_progress_if_streaming();
+
+        let auto_answer =
+            self.auto_state.is_active() && !self.auto_state.is_paused_manual();
+        if auto_answer {
+            let action = ElicitationAction::Decline;
+            if let Err(e) = self.code_op_tx.send(Op::ResolveMcpElicitation {
+                server_name: ev.server_name,
+                id: ev.id,
+                action,
+                content: None,
+                meta: None,
+            }) {
+                tracing::error!("failed to send Op::ResolveMcpElicitation: {e}");
+            }
+            self.bottom_pane
+                .update_status_text("waiting for model".to_string());
+            self.bottom_pane.set_task_running(true);
+            self.request_redraw();
+            return;
+        }
+
+        self.pending_mcp_elicitation = Some(PendingMcpElicitation {
+            turn_id: synthetic_turn_id.clone(),
+            server_name: ev.server_name.clone(),
+            id: ev.id.clone(),
+            anchor_key: key,
+        });
+        self.bottom_pane
+            .update_status_text("waiting for user input".to_string());
+        self.bottom_pane.set_task_running(true);
+        self.bottom_pane.ensure_input_focus();
+        self.bottom_pane.show_request_user_input(
+            crate::bottom_pane::panes::request_user_input::RequestUserInputView::new(
+                synthetic_turn_id,
+                call_id,
+                vec![RequestUserInputQuestion {
+                    id: "mcp_elicitation".to_string(),
+                    header: "MCP elicitation".to_string(),
+                    question: message.to_string(),
+                    is_other: false,
+                    is_secret: false,
+                    options: Some(vec![
+                        RequestUserInputQuestionOption {
+                            label: "Accept".to_string(),
+                            description: "Proceed (respond with an empty object).".to_string(),
+                        },
+                        RequestUserInputQuestionOption {
+                            label: "Decline".to_string(),
+                            description: "Decline this request.".to_string(),
+                        },
+                        RequestUserInputQuestionOption {
+                            label: "Cancel".to_string(),
+                            description: "Cancel without responding.".to_string(),
+                        },
+                    ]),
+                }],
+                self.app_event_tx.clone(),
+            ),
+        );
         self.request_redraw();
     }
 

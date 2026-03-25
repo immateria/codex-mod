@@ -8,7 +8,11 @@ use std::time::Duration;
 
 use anyhow::Result;
 use anyhow::anyhow;
+use futures::future::BoxFuture;
 use futures::FutureExt;
+use code_protocol::approvals::ElicitationAction as ProtocolElicitationAction;
+use code_protocol::approvals::ElicitationRequest;
+use code_protocol::mcp::RequestId as ProtocolRequestId;
 use mcp_types::CallToolRequestParams;
 use mcp_types::CallToolResult;
 use mcp_types::InitializeRequestParams;
@@ -23,6 +27,7 @@ use mcp_types::MCP_SCHEMA_VERSION;
 use mcp_types::ReadResourceRequestParams;
 use mcp_types::ReadResourceResult;
 use rmcp::model::CallToolRequestParam;
+use rmcp::model::CreateElicitationResult;
 use rmcp::model::InitializeRequestParam;
 use rmcp::model::PaginatedRequestParam;
 use rmcp::model::ReadResourceRequestParam;
@@ -32,6 +37,7 @@ use rmcp::service::{self};
 use rmcp::transport::StreamableHttpClientTransport;
 use rmcp::transport::child_process::TokioChildProcess;
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
+use serde_json::Value;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::Command;
@@ -70,6 +76,56 @@ enum ClientState {
 pub struct RmcpClient {
     state: Mutex<ClientState>,
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ElicitationResponse {
+    pub action: ProtocolElicitationAction,
+    pub content: Option<Value>,
+    #[allow(dead_code)]
+    pub meta: Option<Value>,
+}
+
+impl From<CreateElicitationResult> for ElicitationResponse {
+    fn from(value: CreateElicitationResult) -> Self {
+        let action = match value.action {
+            rmcp::model::ElicitationAction::Accept => ProtocolElicitationAction::Accept,
+            rmcp::model::ElicitationAction::Decline => ProtocolElicitationAction::Decline,
+            rmcp::model::ElicitationAction::Cancel => ProtocolElicitationAction::Cancel,
+        };
+        Self {
+            action,
+            content: value.content,
+            meta: None,
+        }
+    }
+}
+
+impl From<ElicitationResponse> for CreateElicitationResult {
+    fn from(value: ElicitationResponse) -> Self {
+        let action = match value.action {
+            ProtocolElicitationAction::Accept => rmcp::model::ElicitationAction::Accept,
+            ProtocolElicitationAction::Decline => rmcp::model::ElicitationAction::Decline,
+            ProtocolElicitationAction::Cancel => rmcp::model::ElicitationAction::Cancel,
+        };
+        let content = match action {
+            rmcp::model::ElicitationAction::Accept => {
+                Some(value.content.unwrap_or_else(|| serde_json::json!({})))
+            }
+            rmcp::model::ElicitationAction::Decline | rmcp::model::ElicitationAction::Cancel => None,
+        };
+        Self {
+            action,
+            content,
+        }
+    }
+}
+
+/// Interface for sending elicitation requests to the UI and awaiting a response.
+pub type SendElicitation = Box<
+    dyn Fn(ProtocolRequestId, ElicitationRequest) -> BoxFuture<'static, Result<ElicitationResponse>>
+        + Send
+        + Sync,
+>;
 
 fn resolve_streamable_http_bearer_token(
     bearer_token: Option<String>,
@@ -181,6 +237,7 @@ impl RmcpClient {
         &self,
         params: InitializeRequestParams,
         timeout: Option<Duration>,
+        send_elicitation: SendElicitation,
     ) -> Result<InitializeResult> {
         let transport = {
             let mut guard = self.state.lock().await;
@@ -195,7 +252,7 @@ impl RmcpClient {
         };
 
         let client_info = convert_to_rmcp::<_, InitializeRequestParam>(params.clone())?;
-        let client_handler = LoggingClientHandler::new(client_info);
+        let client_handler = LoggingClientHandler::new(client_info, send_elicitation);
         let service_future = match transport {
             PendingTransport::ChildProcess(transport) => {
                 service::serve_client(client_handler.clone(), transport).boxed()

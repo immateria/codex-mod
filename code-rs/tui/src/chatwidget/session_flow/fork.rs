@@ -99,6 +99,7 @@ impl ChatWidget<'_> {
             last_developer_message: None,
             pending_turn_origin: None,
             pending_request_user_input: None,
+            pending_mcp_elicitation: None,
             current_turn_origin: None,
             cleared_lingering_execs_this_turn: true,
             exec: ExecState {

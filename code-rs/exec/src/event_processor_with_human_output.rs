@@ -238,6 +238,13 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     "Model requested user input ({question_count} question(s)); interactive prompts are not supported in this runner.",
                 );
             }
+            EventMsg::ElicitationRequest(ev) => {
+                ts_println!(
+                    self,
+                    "MCP server `{}` requested elicitation; interactive prompts are not supported in this runner.",
+                    ev.server_name
+                );
+            }
             EventMsg::DynamicToolCallRequest(ev) => {
                 let tool = &ev.tool;
                 let call_id = &ev.call_id;

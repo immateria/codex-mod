@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::OsString;
 use std::path::PathBuf;
+use std::sync::Mutex as StdMutex;
 use std::sync::RwLock as StdRwLock;
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,9 +18,13 @@ use std::time::Duration;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
+use async_channel::Sender;
+use code_protocol::approvals::ElicitationAction;
 use code_protocol::protocol::McpAuthStatus;
+use code_rmcp_client::ElicitationResponse;
 use code_rmcp_client::OAuthCredentialsStoreMode;
 use code_rmcp_client::RmcpClient;
+use code_rmcp_client::SendElicitation;
 use futures::future::join_all;
 use mcp_types::ClientCapabilities;
 use mcp_types::Implementation;
@@ -34,6 +39,8 @@ use mcp_types::Tool;
 use serde_json::json;
 use sha1::Digest;
 use sha1::Sha1;
+use tokio::sync::Mutex;
+use tokio::sync::oneshot;
 use tokio::sync::RwLock as TokioRwLock;
 use tokio::task::JoinSet;
 use tracing::info;
@@ -45,7 +52,7 @@ use crate::config_types::McpServerSchedulingToml;
 use crate::config_types::McpServerTransportConfig;
 use crate::config_types::McpToolSchedulingOverrideToml;
 use code_mcp_call_limiter::{McpCallLimiter, acquire_and_schedule};
-use crate::protocol::{McpServerFailure, McpServerFailurePhase};
+use crate::protocol::{AskForApproval, Event, EventMsg, McpServerFailure, McpServerFailurePhase};
 
 /// Delimiter used to separate the server name from the tool name in a fully
 /// qualified tool name.
@@ -175,6 +182,97 @@ struct ToolInfo {
     tool: Tool,
 }
 
+type ResponderMap = HashMap<(String, code_protocol::mcp::RequestId), oneshot::Sender<ElicitationResponse>>;
+
+fn elicitation_is_rejected_by_policy(approval_policy: AskForApproval) -> bool {
+    match approval_policy {
+        AskForApproval::Never => true,
+        AskForApproval::Reject(config) => config.rejects_mcp_elicitations(),
+        AskForApproval::UnlessTrusted | AskForApproval::OnFailure | AskForApproval::OnRequest => false,
+    }
+}
+
+#[derive(Clone)]
+struct ElicitationRequestManager {
+    requests: Arc<Mutex<ResponderMap>>,
+    approval_policy: Arc<StdMutex<AskForApproval>>,
+}
+
+impl Default for ElicitationRequestManager {
+    fn default() -> Self {
+        Self::new(AskForApproval::Never)
+    }
+}
+
+impl ElicitationRequestManager {
+    fn new(approval_policy: AskForApproval) -> Self {
+        Self {
+            requests: Arc::new(Mutex::new(HashMap::new())),
+            approval_policy: Arc::new(StdMutex::new(approval_policy)),
+        }
+    }
+
+    async fn resolve(
+        &self,
+        server_name: String,
+        id: code_protocol::mcp::RequestId,
+        response: ElicitationResponse,
+    ) -> Result<()> {
+        self.requests
+            .lock()
+            .await
+            .remove(&(server_name, id))
+            .ok_or_else(|| anyhow!("elicitation request not found"))?
+            .send(response)
+            .map_err(|e| anyhow!("failed to send elicitation response: {e:?}"))
+    }
+
+    fn make_sender(&self, server_name: String, tx_event: Sender<Event>) -> SendElicitation {
+        let elicitation_requests = self.requests.clone();
+        let approval_policy = self.approval_policy.clone();
+        Box::new(move |id, request| {
+            let elicitation_requests = elicitation_requests.clone();
+            let tx_event = tx_event.clone();
+            let server_name = server_name.clone();
+            let approval_policy = approval_policy.clone();
+            Box::pin(async move {
+                if approval_policy
+                    .lock()
+                    .is_ok_and(|policy| elicitation_is_rejected_by_policy(*policy))
+                {
+                    return Ok(ElicitationResponse {
+                        action: ElicitationAction::Decline,
+                        content: None,
+                        meta: None,
+                    });
+                }
+
+                let (tx, rx) = oneshot::channel();
+                {
+                    let mut lock = elicitation_requests.lock().await;
+                    lock.insert((server_name.clone(), id.clone()), tx);
+                }
+
+                let _ = tx_event
+                    .send(Event {
+                        id: "mcp_elicitation_request".to_string(),
+                        event_seq: 0,
+                        msg: EventMsg::ElicitationRequest(code_protocol::approvals::ElicitationRequestEvent {
+                            turn_id: None,
+                            server_name,
+                            id,
+                            request,
+                        }),
+                        order: None,
+                    })
+                    .await;
+
+                rx.await.context("elicitation request channel closed unexpectedly")
+            })
+        })
+    }
+}
+
 #[derive(Clone)]
 struct ManagedClient {
     client: McpClientAdapter,
@@ -197,6 +295,7 @@ struct StreamableHttpClientArgs<'a> {
     oauth_store_mode: OAuthCredentialsStoreMode,
     params: mcp_types::InitializeRequestParams,
     startup_timeout: Duration,
+    send_elicitation: SendElicitation,
 }
 
 impl McpClientAdapter {
@@ -206,12 +305,15 @@ impl McpClientAdapter {
         env: Option<HashMap<String, String>>,
         params: mcp_types::InitializeRequestParams,
         startup_timeout: Duration,
+        send_elicitation: SendElicitation,
     ) -> Result<Self> {
         tracing::debug!(
             "new_stdio_client program: {program:?} args: {args:?} env: {env:?} params: {params:?} startup_timeout: {startup_timeout:?}"
         );
         let client = Arc::new(RmcpClient::new_stdio_client(program, args, env).await?);
-        client.initialize(params, Some(startup_timeout)).await?;
+        client
+            .initialize(params, Some(startup_timeout), send_elicitation)
+            .await?;
         Ok(McpClientAdapter::Rmcp(client))
     }
 
@@ -226,6 +328,7 @@ impl McpClientAdapter {
             oauth_store_mode: _oauth_store_mode,
             params,
             startup_timeout,
+            send_elicitation,
         } = args;
         let client = Arc::new(RmcpClient::new_streamable_http_client(
             url,
@@ -234,7 +337,9 @@ impl McpClientAdapter {
             http_headers,
             env_http_headers,
         )?);
-        client.initialize(params, Some(startup_timeout)).await?;
+        client
+            .initialize(params, Some(startup_timeout), send_elicitation)
+            .await?;
         Ok(McpClientAdapter::Rmcp(client))
     }
 
@@ -299,11 +404,12 @@ impl McpClientAdapter {
 }
 
 /// A thin wrapper around a set of running [`RmcpClient`] instances.
-#[derive(Default)]
 pub struct McpConnectionManager {
     /// Directory containing all Code state (used for MCP OAuth token storage).
     code_home: PathBuf,
     mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode,
+    tx_event: Sender<Event>,
+    elicitation_requests: ElicitationRequestManager,
     server_transports: StdRwLock<HashMap<String, McpServerTransportConfig>>,
     server_scheduling: StdRwLock<HashMap<String, McpServerSchedulingToml>>,
     tool_scheduling: StdRwLock<HashMap<(String, String), McpToolSchedulingOverrideToml>>,
@@ -323,6 +429,28 @@ pub struct McpConnectionManager {
     failures: StdRwLock<HashMap<String, McpServerFailure>>,
 }
 
+impl Default for McpConnectionManager {
+    fn default() -> Self {
+        let (tx_event, _rx) = async_channel::unbounded();
+        Self {
+            code_home: PathBuf::new(),
+            mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode::default(),
+            tx_event,
+            elicitation_requests: ElicitationRequestManager::default(),
+            server_transports: StdRwLock::new(HashMap::new()),
+            server_scheduling: StdRwLock::new(HashMap::new()),
+            tool_scheduling: StdRwLock::new(HashMap::new()),
+            server_limiters: StdRwLock::new(HashMap::new()),
+            tool_limiters: StdRwLock::new(HashMap::new()),
+            clients: TokioRwLock::new(HashMap::new()),
+            tools: StdRwLock::new(HashMap::new()),
+            excluded_tools: StdRwLock::new(HashSet::new()),
+            server_names: StdRwLock::new(Vec::new()),
+            failures: StdRwLock::new(HashMap::new()),
+        }
+    }
+}
+
 impl McpConnectionManager {
     /// Spawn a [`RmcpClient`] for each configured server.
     ///
@@ -337,13 +465,18 @@ impl McpConnectionManager {
         mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode,
         mcp_servers: HashMap<String, McpServerConfig>,
         excluded_tools: HashSet<(String, String)>,
+        tx_event: Sender<Event>,
+        approval_policy: AskForApproval,
     ) -> Result<(Self, ClientStartErrors)> {
         // Early exit if no servers are configured.
         if mcp_servers.is_empty() {
+            let elicitation_requests = ElicitationRequestManager::new(approval_policy);
             return Ok((
                 Self {
                     code_home,
                     mcp_oauth_credentials_store_mode,
+                    tx_event,
+                    elicitation_requests,
                     server_transports: StdRwLock::new(HashMap::new()),
                     server_scheduling: StdRwLock::new(HashMap::new()),
                     tool_scheduling: StdRwLock::new(HashMap::new()),
@@ -362,6 +495,7 @@ impl McpConnectionManager {
         // Launch all configured servers concurrently.
         let mut join_set = JoinSet::new();
         let mut errors = ClientStartErrors::new();
+        let elicitation_requests = ElicitationRequestManager::new(approval_policy);
         let mut server_transports = HashMap::with_capacity(mcp_servers.len());
         let mut server_scheduling: HashMap<String, McpServerSchedulingToml> =
             HashMap::with_capacity(mcp_servers.len());
@@ -418,6 +552,8 @@ impl McpConnectionManager {
             let tool_timeout = cfg.tool_timeout_sec;
             let code_home_for_server = code_home.clone();
             let oauth_store_mode = mcp_oauth_credentials_store_mode;
+            let tx_event_for_server = tx_event.clone();
+            let elicitation_requests_for_server = elicitation_requests.clone();
 
             join_set.spawn(async move {
                 let McpServerConfig { transport, .. } = cfg;
@@ -449,12 +585,17 @@ impl McpConnectionManager {
                         let args_for_error = args.clone();
                         let command_os: OsString = command.into();
                         let args_os: Vec<OsString> = args.into_iter().map(Into::into).collect();
+                        let send_elicitation = elicitation_requests_for_server.make_sender(
+                            server_name_for_error.clone(),
+                            tx_event_for_server.clone(),
+                        );
                         McpClientAdapter::new_stdio_client(
                             command_os,
                             args_os,
                             env,
                             params.clone(),
                             startup_timeout,
+                            send_elicitation,
                         )
                         .await
                         .with_context(|| {
@@ -483,6 +624,10 @@ impl McpConnectionManager {
                             bearer_token_env_var.as_deref(),
                         ) {
                             Ok(bearer_token) => {
+                                let send_elicitation = elicitation_requests_for_server.make_sender(
+                                    server_name_for_error.clone(),
+                                    tx_event_for_server.clone(),
+                                );
                                 McpClientAdapter::new_streamable_http_client(StreamableHttpClientArgs {
                                     code_home: code_home_for_server,
                                     server_name: &server_name_for_error,
@@ -493,6 +638,7 @@ impl McpConnectionManager {
                                     oauth_store_mode,
                                     params,
                                     startup_timeout,
+                                    send_elicitation,
                                 })
                                 .await
                             }
@@ -553,6 +699,8 @@ impl McpConnectionManager {
             Self {
             code_home,
             mcp_oauth_credentials_store_mode,
+            tx_event,
+            elicitation_requests,
             server_transports: StdRwLock::new(server_transports),
             server_scheduling: StdRwLock::new(server_scheduling),
             tool_scheduling: StdRwLock::new(tool_scheduling),
@@ -1190,12 +1338,16 @@ impl McpConnectionManager {
             McpServerTransportConfig::Stdio { command, args, env } => {
                 let command_os: OsString = command.into();
                 let args_os: Vec<OsString> = args.into_iter().map(Into::into).collect();
+                let send_elicitation = self
+                    .elicitation_requests
+                    .make_sender(server_name.to_string(), self.tx_event.clone());
                 McpClientAdapter::new_stdio_client(
                     command_os,
                     args_os,
                     env,
                     params,
                     startup_timeout,
+                    send_elicitation,
                 )
                 .await?
             }
@@ -1212,6 +1364,9 @@ impl McpConnectionManager {
                     bearer_token,
                     bearer_token_env_var.as_deref(),
                 )?;
+                let send_elicitation = self
+                    .elicitation_requests
+                    .make_sender(server_name.to_string(), self.tx_event.clone());
                 McpClientAdapter::new_streamable_http_client(StreamableHttpClientArgs {
                     code_home,
                     server_name,
@@ -1222,6 +1377,7 @@ impl McpConnectionManager {
                     oauth_store_mode,
                     params,
                     startup_timeout,
+                    send_elicitation,
                 })
                 .await?
             }
@@ -1264,6 +1420,17 @@ impl McpConnectionManager {
 
         self.refresh_tools().await;
         Ok(true)
+    }
+
+    pub(crate) async fn resolve_elicitation(
+        &self,
+        server_name: String,
+        id: code_protocol::mcp::RequestId,
+        response: ElicitationResponse,
+    ) -> Result<()> {
+        self.elicitation_requests
+            .resolve(server_name, id, response)
+            .await
     }
 
     /// Invoke the tool indicated by the (server, tool) pair.
@@ -1654,11 +1821,14 @@ mod tests {
         );
 
         let code_home = tempfile::tempdir().expect("code home");
+        let (tx_event, _rx_event) = async_channel::unbounded();
         let (_manager, errors) = McpConnectionManager::new(
             code_home.path().to_path_buf(),
             OAuthCredentialsStoreMode::Auto,
             servers,
             HashSet::new(),
+            tx_event,
+            AskForApproval::OnRequest,
         )
             .await
             .expect("manager creation should succeed even when servers fail");
