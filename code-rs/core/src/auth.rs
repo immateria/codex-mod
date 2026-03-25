@@ -256,46 +256,28 @@ impl CodexAuth {
                     return Ok(tokens);
                 }
                 if last_refresh < Utc::now() - chrono::Duration::days(28) {
-                    let refresh_response = tokio::time::timeout(
-                        Duration::from_secs(60),
-                        try_refresh_token(tokens.refresh_token.clone(), &self.client),
-                    )
-                    .await
-        .map_err(|_| {
-            std::io::Error::other("timed out while refreshing OpenAI API key")
-        })?
-        .map_err(std::io::Error::other)?;
-
-                    let updated_auth_dot_json = if let Some(storage) = self.storage.as_ref() {
-                        let code_home = self.code_home.as_deref().ok_or_else(|| {
-                            std::io::Error::other("missing code_home for auth storage")
-                        })?;
-                        update_tokens_in_storage(
-                            code_home,
-                            storage.as_ref(),
-                            refresh_response.id_token,
-                            refresh_response.access_token,
-                            refresh_response.refresh_token,
-                        )?
+                    if self
+                        .adopt_rotated_refresh_token_from_disk(&tokens.refresh_token)
+                        .map_err(std::io::Error::other)?
+                        .is_some()
+                    {
+                        tokens = self.get_current_token_data().ok_or(std::io::Error::other(
+                            "Token data is not available after adopting refreshed auth.",
+                        ))?;
                     } else {
-                        update_tokens(
-                            &self.auth_file,
-                            refresh_response.id_token,
-                            refresh_response.access_token,
-                            refresh_response.refresh_token,
-                        )
-                        .await?
-                    };
+                        tokio::time::timeout(Duration::from_secs(60), self.refresh_token())
+                            .await
+                            .map_err(|_| {
+                                std::io::Error::other(
+                                    "timed out while refreshing OpenAI API key",
+                                )
+                            })?
+                            .map_err(std::io::Error::other)?;
 
-                    tokens = updated_auth_dot_json
-                        .tokens
-                        .clone()
-                        .ok_or(std::io::Error::other(
+                        tokens = self.get_current_token_data().ok_or(std::io::Error::other(
                             "Token data is not available after refresh.",
                         ))?;
-
-                    let mut auth_lock = self.auth_dot_json_lock();
-                    *auth_lock = Some(updated_auth_dot_json);
+                    }
                 }
 
                 Ok(tokens)
@@ -1102,6 +1084,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use serde::Serialize;
     use serde_json::json;
+    use std::net::SocketAddr;
     use tempfile::tempdir;
 
     const LAST_REFRESH: &str = "2025-08-06T20:41:36.232376Z";
@@ -1477,6 +1460,72 @@ mod tests {
 
         assert_eq!(updated.refresh_token, rotated_tokens.refresh_token);
         assert_eq!(updated.access_token, rotated_access);
+    }
+
+    #[tokio::test]
+    async fn get_token_data_adopts_rotated_refresh_token_before_refreshing() {
+        let dir = tempdir().unwrap();
+        let auth_file = get_auth_file(dir.path());
+        let fake_jwt = write_auth_file(
+            AuthFileParams {
+                openai_api_key: None,
+                chatgpt_plan_type: "pro".to_string(),
+            },
+            dir.path(),
+        )
+        .expect("failed to write auth file");
+
+        let stale_tokens = TokenData {
+            id_token: parse_id_token(&fake_jwt).expect("failed to parse id token"),
+            access_token: "stale-access".to_string(),
+            refresh_token: "stale-refresh".to_string(),
+            account_id: None,
+        };
+
+        let cached_auth = AuthDotJson {
+            auth_mode: Some(AuthMode::ChatGPT),
+            openai_api_key: None,
+            tokens: Some(stale_tokens),
+            last_refresh: Some(Utc::now() - chrono::Duration::days(29)),
+        };
+
+        let rotated_tokens = TokenData {
+            id_token: parse_id_token(&fake_jwt).expect("failed to parse id token"),
+            access_token: "rotated-access".to_string(),
+            refresh_token: "rotated-refresh".to_string(),
+            account_id: None,
+        };
+
+        let rotated_auth = AuthDotJson {
+            auth_mode: Some(AuthMode::ChatGPT),
+            openai_api_key: None,
+            tokens: Some(rotated_tokens.clone()),
+            last_refresh: Some(Utc::now()),
+        };
+
+        write_auth_json(&auth_file, &rotated_auth).expect("failed to write rotated auth");
+
+        let auth = CodexAuth {
+            mode: AuthMode::ChatGPT,
+            api_key: None,
+            auth_dot_json: Arc::new(Mutex::new(Some(cached_auth))),
+            auth_file,
+            code_home: None,
+            storage: None,
+            client: reqwest::Client::builder()
+                .connect_timeout(Duration::from_millis(10))
+                .resolve("auth.openai.com", SocketAddr::from(([127, 0, 0, 1], 9)))
+                .build()
+                .expect("client should build"),
+        };
+
+        let token_data = auth
+            .get_token_data()
+            .await
+            .expect("rotated auth on disk should be adopted");
+
+        assert_eq!(token_data.refresh_token, rotated_tokens.refresh_token);
+        assert_eq!(token_data.access_token, rotated_tokens.access_token);
     }
 
     struct AuthFileParams {
