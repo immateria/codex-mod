@@ -97,6 +97,8 @@ pub enum SlashCommand {
     Verbosity,
     Prompts,
     Skills,
+    #[strum(serialize = "plugin", serialize = "plugins")]
+    Plugins,
     Perf,
     Demo,
     Agents,
@@ -157,6 +159,7 @@ impl SlashCommand {
             SlashCommand::Shell => "configure the shell used for command execution",
             SlashCommand::Prompts => "manage custom prompts",
             SlashCommand::Skills => "manage skills",
+            SlashCommand::Plugins => "browse and manage plugins",
             SlashCommand::Model => "choose your default model",
             SlashCommand::Fast => "open model settings with the Fast mode toggle",
             SlashCommand::ContextWindow => {

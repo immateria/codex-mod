@@ -35,7 +35,71 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn settings_summary_plugins(&self) -> Option<String> {
-        Some("Browse and manage plugins".to_string())
+        let state = self
+            .plugins_shared_state
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
+
+        match &state.list {
+            crate::chatwidget::PluginsListState::Uninitialized => {
+                Some("Browse and manage plugins".to_string())
+            }
+            crate::chatwidget::PluginsListState::Loading {
+                force_remote_sync,
+                ..
+            } => Some(if *force_remote_sync {
+                "Syncing plugins...".to_string()
+            } else {
+                "Loading plugins...".to_string()
+            }),
+            crate::chatwidget::PluginsListState::Failed { error, .. } => {
+                Some(format!("Error: {error}"))
+            }
+            crate::chatwidget::PluginsListState::Ready {
+                marketplaces,
+                marketplace_load_errors,
+                remote_sync_error,
+                ..
+            } => {
+                let marketplace_count = marketplaces.len();
+                let mut plugin_count = 0usize;
+                let mut installed_count = 0usize;
+                let mut enabled_installed_count = 0usize;
+
+                for marketplace in marketplaces {
+                    plugin_count = plugin_count.saturating_add(marketplace.plugins.len());
+                    for plugin in &marketplace.plugins {
+                        if plugin.installed {
+                            installed_count = installed_count.saturating_add(1);
+                            if plugin.enabled {
+                                enabled_installed_count = enabled_installed_count.saturating_add(1);
+                            }
+                        }
+                    }
+                }
+
+                let enabled_summary = if installed_count == 0 {
+                    "Enabled: 0".to_string()
+                } else {
+                    format!("Enabled: {enabled_installed_count}/{installed_count}")
+                };
+
+                let mut summary_parts = vec![
+                    format!("Installed: {installed_count}/{plugin_count}"),
+                    enabled_summary,
+                    format!("Marketplaces: {marketplace_count}"),
+                ];
+
+                if remote_sync_error.is_some() {
+                    summary_parts.push("Sync error".to_string());
+                }
+                if !marketplace_load_errors.is_empty() {
+                    summary_parts.push(format!("Load errors: {}", marketplace_load_errors.len()));
+                }
+
+                Some(summary_parts.join(" · "))
+            }
+        }
     }
 
     pub(super) fn settings_summary_js_repl(&self) -> Option<String> {

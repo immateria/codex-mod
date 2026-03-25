@@ -112,6 +112,16 @@ impl PluginsSettingsView {
                         format!("Remote sync error: {err}"),
                         Style::new().fg(colors::warning()),
                     )));
+                    let lowered = err.to_ascii_lowercase();
+                    if lowered.contains("refresh_token_reused")
+                        || lowered.contains("auth required")
+                        || lowered.contains("sign in")
+                    {
+                        header_lines.push(Line::from(Span::styled(
+                            "Hint: run /login and try sync again.".to_string(),
+                            Style::new().fg(colors::text_dim()),
+                        )));
+                    }
                 }
                 if !marketplace_load_errors.is_empty() {
                     let error_count = marketplace_load_errors.len();
@@ -119,6 +129,18 @@ impl PluginsSettingsView {
                         format!("{error_count} marketplace(s) failed to load."),
                         Style::new().fg(colors::warning()),
                     )));
+                    for error in marketplace_load_errors.iter().take(2) {
+                        header_lines.push(Line::from(Span::styled(
+                            format!("  {}: {}", error.path.display(), error.message),
+                            Style::new().fg(colors::text_dim()),
+                        )));
+                    }
+                    if error_count > 2 {
+                        header_lines.push(Line::from(Span::styled(
+                            format!("  ... and {} more", error_count.saturating_sub(2)),
+                            Style::new().fg(colors::text_dim()),
+                        )));
+                    }
                 }
             }
             PluginsListState::Uninitialized => {}
