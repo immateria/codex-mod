@@ -264,6 +264,26 @@ async fn run_code_tool_session_inner(
                             .remove(&request_id);
                         break;
                     }
+                    EventMsg::RequestPermissions(ev) => {
+                        let call_id = ev.call_id;
+                        let result = CallToolResult {
+                            content: vec![ContentBlock::TextContent(TextContent {
+                                r#type: "text".to_string(),
+                                text: format!(
+                                    "Codex requested additional permissions (call_id: {call_id}) but interactive prompts are not supported in this MCP tool session."
+                                ),
+                                annotations: None,
+                            })],
+                            is_error: Some(true),
+                            structured_content: None,
+                        };
+                        outgoing.send_response(request_id.clone(), result).await;
+                        running_requests_id_to_code_uuid
+                            .lock()
+                            .await
+                            .remove(&request_id);
+                        break;
+                    }
                     EventMsg::ElicitationRequest(ev) => {
                         handle_mcp_elicitation_request(
                             outgoing.clone(),

@@ -66,7 +66,8 @@ pub struct FileSystemPermissions {
 
 impl FileSystemPermissions {
     pub fn is_empty(&self) -> bool {
-        self.read.is_none() && self.write.is_none()
+        self.read.as_ref().map_or(true, Vec::is_empty)
+            && self.write.as_ref().map_or(true, Vec::is_empty)
     }
 }
 
@@ -80,10 +81,24 @@ pub struct MacOsPermissions {
 
 impl MacOsPermissions {
     pub fn is_empty(&self) -> bool {
-        self.preferences.is_none()
-            && self.automations.is_none()
-            && self.accessibility.is_none()
-            && self.calendar.is_none()
+        let preferences_empty = match &self.preferences {
+            None => true,
+            Some(MacOsPreferencesValue::Bool(false)) => true,
+            Some(MacOsPreferencesValue::Bool(true)) => false,
+            Some(MacOsPreferencesValue::Mode(mode)) => mode.trim().is_empty(),
+        };
+
+        let automations_empty = match &self.automations {
+            None => true,
+            Some(MacOsAutomationValue::Bool(false)) => true,
+            Some(MacOsAutomationValue::Bool(true)) => false,
+            Some(MacOsAutomationValue::BundleIds(bundle_ids)) => bundle_ids.is_empty(),
+        };
+
+        preferences_empty
+            && automations_empty
+            && !self.accessibility.unwrap_or(false)
+            && !self.calendar.unwrap_or(false)
     }
 }
 
@@ -157,7 +172,7 @@ pub struct PermissionProfile {
 
 impl PermissionProfile {
     pub fn is_empty(&self) -> bool {
-        self.network.is_none()
+        !self.network.unwrap_or(false)
             && self
                 .file_system
                 .as_ref()

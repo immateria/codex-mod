@@ -61,6 +61,7 @@ pub fn get_openai_tools(
     }
 
     tools.push(builtin_tools::create_request_user_input_tool());
+    tools.push(builtin_tools::create_request_permissions_tool());
     tools.push(builtin_tools::create_list_mcp_resources_tool());
     tools.push(builtin_tools::create_list_mcp_resource_templates_tool());
     tools.push(builtin_tools::create_read_mcp_resource_tool());

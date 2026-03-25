@@ -76,6 +76,8 @@ impl ToolRouter {
         let plan: Arc<dyn ToolHandler> = Arc::new(handlers::plan::PlanHandler);
         let request_user_input: Arc<dyn ToolHandler> =
             Arc::new(handlers::request_user_input::RequestUserInputHandler);
+        let request_permissions: Arc<dyn ToolHandler> =
+            Arc::new(handlers::request_permissions::RequestPermissionsHandler);
         let search_tool_bm25: Arc<dyn ToolHandler> =
             Arc::new(handlers::search_tool_bm25::SearchToolBm25Handler);
         let apply_patch: Arc<dyn ToolHandler> = Arc::new(handlers::apply_patch::ApplyPatchToolHandler);
@@ -104,6 +106,7 @@ impl ToolRouter {
         handlers.insert("container.exec", Arc::clone(&shell));
         handlers.insert("update_plan", plan);
         handlers.insert("request_user_input", request_user_input);
+        handlers.insert("request_permissions", request_permissions);
         handlers.insert("search_tool_bm25", search_tool_bm25);
         handlers.insert("apply_patch", apply_patch);
         handlers.insert(crate::exec_command::EXEC_COMMAND_TOOL_NAME, Arc::clone(&exec_command));

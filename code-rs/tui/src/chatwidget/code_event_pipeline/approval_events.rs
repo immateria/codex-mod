@@ -1,6 +1,7 @@
 use super::*;
 use code_core::protocol::OrderMeta;
 use code_core::protocol::RequestUserInputEvent;
+use code_core::protocol::RequestPermissionsEvent;
 use code_protocol::approvals::ElicitationAction;
 use code_protocol::approvals::ElicitationRequestEvent;
 use code_protocol::dynamic_tools::DynamicToolCallRequest;
@@ -24,6 +25,25 @@ impl ChatWidget<'_> {
                 this.finalize_active_stream();
                 this.flush_interrupt_queue();
                 this.handle_exec_approval_now(id2, ev2);
+                this.request_redraw();
+            },
+        );
+    }
+
+    pub(super) fn handle_request_permissions_event(
+        &mut self,
+        id: String,
+        ev: RequestPermissionsEvent,
+        seq: u64,
+    ) {
+        let id2 = id.clone();
+        let ev2 = ev.clone();
+        self.defer_or_handle(
+            move |interrupts| interrupts.push_request_permissions(seq, id, ev),
+            |this| {
+                this.finalize_active_stream();
+                this.flush_interrupt_queue();
+                this.handle_request_permissions_now(id2, ev2);
                 this.request_redraw();
             },
         );

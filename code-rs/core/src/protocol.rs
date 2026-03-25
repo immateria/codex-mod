@@ -64,6 +64,10 @@ pub use code_protocol::protocol::ExitedReviewModeEvent;
 pub use code_protocol::protocol::ReviewSnapshotInfo;
 pub use code_protocol::request_user_input::RequestUserInputEvent;
 pub use code_protocol::request_user_input::RequestUserInputResponse;
+pub use code_protocol::request_permissions::PermissionGrantScope;
+pub use code_protocol::request_permissions::RequestPermissionProfile;
+pub use code_protocol::request_permissions::RequestPermissionsEvent;
+pub use code_protocol::request_permissions::RequestPermissionsResponse;
 
 /// Submission Queue Entry - requests from user
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -250,6 +254,14 @@ pub enum Op {
         id: String,
         /// User-provided answers.
         response: RequestUserInputResponse,
+    },
+
+    /// Resolve a request_permissions tool call.
+    RequestPermissionsResponse {
+        /// Call id for the in-flight request.
+        id: String,
+        /// User-granted permissions.
+        response: RequestPermissionsResponse,
     },
 
     /// Resolve an MCP server elicitation request.
@@ -981,6 +993,8 @@ pub enum EventMsg {
     ElicitationRequest(code_protocol::approvals::ElicitationRequestEvent),
 
     RequestUserInput(RequestUserInputEvent),
+
+    RequestPermissions(RequestPermissionsEvent),
 
     DynamicToolCallRequest(DynamicToolCallRequest),
 

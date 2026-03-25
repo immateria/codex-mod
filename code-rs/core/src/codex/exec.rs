@@ -680,6 +680,7 @@ impl Session {
             self.approval_policy,
             &self.sandbox_policy,
             sandbox_permissions,
+            false,
         ) {
             SafetyCheck::AutoApprove { sandbox_type, .. } => sandbox_type,
             SafetyCheck::AskUser | SafetyCheck::Reject { .. } => {

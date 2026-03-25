@@ -355,6 +355,9 @@ impl ChatWidget<'_> {
             EventMsg::RequestUserInput(ev) => {
                 self.handle_request_user_input_event(event.order.as_ref(), ev);
             }
+            EventMsg::RequestPermissions(ev) => {
+                self.handle_request_permissions_event(id, ev, event.event_seq);
+            }
             EventMsg::DynamicToolCallRequest(ev) => {
                 self.handle_dynamic_tool_call_request_event(event.order.as_ref(), ev);
             }

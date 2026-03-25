@@ -238,6 +238,13 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     "Model requested user input ({question_count} question(s)); interactive prompts are not supported in this runner.",
                 );
             }
+            EventMsg::RequestPermissions(ev) => {
+                let call_id = &ev.call_id;
+                ts_println!(
+                    self,
+                    "Model requested additional permissions (call_id: {call_id}); interactive prompts are not supported in this runner.",
+                );
+            }
             EventMsg::ElicitationRequest(ev) => {
                 ts_println!(
                     self,

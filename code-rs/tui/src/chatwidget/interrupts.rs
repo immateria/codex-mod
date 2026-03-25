@@ -5,6 +5,7 @@ use code_core::protocol::ExecApprovalRequestEvent;
 use code_core::protocol::ExecCommandEndEvent;
 use code_core::protocol::McpToolCallEndEvent;
 use code_core::protocol::PatchApplyEndEvent;
+use code_core::protocol::RequestPermissionsEvent;
 
 use super::ChatWidget;
 use super::tools;
@@ -12,6 +13,7 @@ use super::tools;
 #[derive(Debug)]
 pub(crate) enum QueuedInterrupt {
     ExecApproval { seq: u64, id: String, ev: ExecApprovalRequestEvent },
+    RequestPermissions { seq: u64, id: String, ev: RequestPermissionsEvent },
     ApplyPatchApproval { seq: u64, id: String, ev: ApplyPatchApprovalRequestEvent },
     ExecEnd { seq: u64, ev: ExecCommandEndEvent, order: Option<code_core::protocol::OrderMeta> },
     McpEnd { seq: u64, ev: McpToolCallEndEvent, order: Option<code_core::protocol::OrderMeta> },
@@ -32,6 +34,10 @@ impl InterruptManager {
 
     pub(crate) fn push_exec_approval(&mut self, seq: u64, id: String, ev: ExecApprovalRequestEvent) {
         self.queue.push(QueuedInterrupt::ExecApproval { seq, id, ev });
+    }
+
+    pub(crate) fn push_request_permissions(&mut self, seq: u64, id: String, ev: RequestPermissionsEvent) {
+        self.queue.push(QueuedInterrupt::RequestPermissions { seq, id, ev });
     }
 
     pub(crate) fn push_apply_patch_approval(
@@ -67,6 +73,7 @@ impl InterruptManager {
         for q in self.queue.drain(..) {
             match q {
                 QueuedInterrupt::ExecApproval { id, ev, .. } => chat.handle_exec_approval_now(id, ev),
+                QueuedInterrupt::RequestPermissions { id, ev, .. } => chat.handle_request_permissions_now(id, ev),
                 QueuedInterrupt::ApplyPatchApproval { seq: _, id, ev } => {
                     chat.handle_apply_patch_approval_now(id, ev);
                 }
@@ -100,6 +107,7 @@ impl InterruptManager {
     fn seq_of(q: &QueuedInterrupt) -> u64 {
         match q {
             QueuedInterrupt::ExecApproval { seq, .. }
+        | QueuedInterrupt::RequestPermissions { seq, .. }
         | QueuedInterrupt::ApplyPatchApproval { seq, .. }
         | QueuedInterrupt::ExecEnd { seq, .. }
         | QueuedInterrupt::McpEnd { seq, .. }

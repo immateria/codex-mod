@@ -247,6 +247,7 @@ pub fn assess_command_safety(
     sandbox_policy: &SandboxPolicy,
     approved: &HashSet<ApprovedCommandPattern>,
     sandbox_permissions: SandboxPermissions,
+    sandbox_override_preapproved: bool,
 ) -> SafetyCheck {
     // A command is "trusted" because either:
     // - it belongs to a set of commands we consider "safe" by default, or
@@ -262,16 +263,28 @@ pub fn assess_command_safety(
     // `approved.contains(command)` is `true`, the user may have approved it for
     // the session _because_ they know it needs to run outside a sandbox.
     let user_explicitly_approved = approved.iter().any(|pattern| pattern.matches(command));
-    if user_explicitly_approved
-        || (!sandbox_permissions.requests_sandbox_override()
-            && is_known_safe_command_with_context_and_rules(
-                command,
-                safety_config.context,
-                safety_config.safe_rules,
-            ))
-    {
+    if user_explicitly_approved {
         return SafetyCheck::AutoApprove {
             sandbox_type: SandboxType::None,
+            user_explicitly_approved,
+        };
+    }
+
+    let sandbox_override_requires_approval = sandbox_permissions.requests_sandbox_override()
+        && !(sandbox_override_preapproved && sandbox_permissions.uses_additional_permissions());
+    if !sandbox_override_requires_approval
+        && is_known_safe_command_with_context_and_rules(
+            command,
+            safety_config.context,
+            safety_config.safe_rules,
+        )
+    {
+        return SafetyCheck::AutoApprove {
+            sandbox_type: if sandbox_permissions.uses_additional_permissions() {
+                get_platform_sandbox().unwrap_or(SandboxType::None)
+            } else {
+                SandboxType::None
+            },
             user_explicitly_approved,
         };
     }
@@ -292,18 +305,25 @@ pub fn assess_command_safety(
         };
     }
 
-    assess_safety_for_untrusted_command(approval_policy, sandbox_policy, sandbox_permissions)
+    assess_safety_for_untrusted_command(
+        approval_policy,
+        sandbox_policy,
+        sandbox_permissions,
+        sandbox_override_preapproved,
+    )
 }
 
 pub(crate) fn assess_safety_for_untrusted_command(
     approval_policy: AskForApproval,
     sandbox_policy: &SandboxPolicy,
     sandbox_permissions: SandboxPermissions,
+    sandbox_override_preapproved: bool,
 ) -> SafetyCheck {
     use AskForApproval::*;
     use SandboxPolicy::*;
 
     if sandbox_permissions.requests_sandbox_override()
+        && !(sandbox_override_preapproved && sandbox_permissions.uses_additional_permissions())
         && !matches!(sandbox_policy, DangerFullAccess)
     {
         match approval_policy {
@@ -345,7 +365,9 @@ pub(crate) fn assess_safety_for_untrusted_command(
                 SafetyCheck::Reject {
                     reason: "auto-rejected by approval policy".to_string(),
                 }
-            } else if sandbox_permissions.requests_sandbox_override() {
+            } else if sandbox_permissions.requests_sandbox_override()
+                && !(sandbox_override_preapproved && sandbox_permissions.uses_additional_permissions())
+            {
                 SafetyCheck::AskUser
             } else {
                 match get_platform_sandbox() {
@@ -358,7 +380,9 @@ pub(crate) fn assess_safety_for_untrusted_command(
             }
         }
         (OnRequest, ReadOnly) | (OnRequest, WorkspaceWrite { .. }) => {
-            if sandbox_permissions.requests_sandbox_override() {
+            if sandbox_permissions.requests_sandbox_override()
+                && !(sandbox_override_preapproved && sandbox_permissions.uses_additional_permissions())
+            {
                 SafetyCheck::AskUser
             } else {
                 match get_platform_sandbox() {
@@ -629,6 +653,7 @@ mod tests {
             &sandbox_policy,
             &approved,
             sandbox_permissions,
+            false,
         );
 
         assert_eq!(safety_check, SafetyCheck::AskUser);
@@ -656,6 +681,7 @@ mod tests {
             &sandbox_policy,
             &approved,
             sandbox_permissions,
+            false,
         );
 
         let expected = match get_platform_sandbox() {
@@ -687,6 +713,7 @@ mod tests {
             &SandboxPolicy::DangerFullAccess,
             &approved,
             Default::default(),
+            false,
         );
         assert_eq!(
             with_detection,
@@ -707,6 +734,7 @@ mod tests {
             &SandboxPolicy::DangerFullAccess,
             &approved,
             Default::default(),
+            false,
         );
         assert_eq!(
             without_detection,

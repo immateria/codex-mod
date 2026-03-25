@@ -178,6 +178,84 @@ pub(super) fn create_request_user_input_tool() -> OpenAiTool {
     })
 }
 
+pub(super) fn create_request_permissions_tool() -> OpenAiTool {
+    let permissions_schema = JsonSchema::Object {
+        properties: BTreeMap::from([
+            (
+                "network".to_string(),
+                JsonSchema::Object {
+                    properties: BTreeMap::from([(
+                        "enabled".to_string(),
+                        JsonSchema::Boolean {
+                            description: Some("Whether to enable network access.".to_string()),
+                        },
+                    )]),
+                    required: None,
+                    additional_properties: Some(false.into()),
+                },
+            ),
+            (
+                "file_system".to_string(),
+                JsonSchema::Object {
+                    properties: BTreeMap::from([
+                        (
+                            "read".to_string(),
+                            JsonSchema::Array {
+                                items: Box::new(JsonSchema::String {
+                                    description: None,
+                                    allowed_values: None,
+                                }),
+                                description: Some(
+                                    "Additional directories/files to read (absolute or relative to the session cwd)."
+                                        .to_string(),
+                                ),
+                            },
+                        ),
+                        (
+                            "write".to_string(),
+                            JsonSchema::Array {
+                                items: Box::new(JsonSchema::String {
+                                    description: None,
+                                    allowed_values: None,
+                                }),
+                                description: Some(
+                                    "Additional directories/files to write (absolute or relative to the session cwd)."
+                                        .to_string(),
+                                ),
+                            },
+                        ),
+                    ]),
+                    required: None,
+                    additional_properties: Some(false.into()),
+                },
+            ),
+        ]),
+        required: None,
+        additional_properties: Some(false.into()),
+    };
+
+    let mut properties = BTreeMap::new();
+    properties.insert(
+        "reason".to_string(),
+        JsonSchema::String {
+            description: Some("Optional explanation shown to the user.".to_string()),
+            allowed_values: None,
+        },
+    );
+    properties.insert("permissions".to_string(), permissions_schema);
+
+    OpenAiTool::Function(ResponsesApiTool {
+        name: "request_permissions".to_string(),
+        description: "Request additional filesystem or network permissions from the user and wait for approval.".to_string(),
+        strict: false,
+        parameters: JsonSchema::Object {
+            properties,
+            required: Some(vec!["permissions".to_string()]),
+            additional_properties: Some(false.into()),
+        },
+    })
+}
+
 pub(super) fn create_search_tool_bm25_tool() -> OpenAiTool {
     let mut properties = BTreeMap::new();
     properties.insert(

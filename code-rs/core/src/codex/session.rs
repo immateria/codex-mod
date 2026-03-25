@@ -17,6 +17,12 @@ pub(super) const MAX_WAIT_TRACKED_BATCHES: usize = 1024;
 pub(super) const MAX_WAIT_TRACKED_AGENT_IDS_PER_BATCH: usize = 2048;
 pub(super) const MAX_PENDING_MANUAL_COMPACTS: usize = 64;
 
+#[derive(Debug)]
+pub(super) struct PendingRequestPermissions {
+    pub(super) turn_id: String,
+    pub(super) tx: oneshot::Sender<crate::protocol::RequestPermissionsResponse>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ApprovedCommandPattern {
     argv: Vec<String>,
@@ -107,10 +113,13 @@ pub(super) struct State {
     pub(super) current_task: Option<AgentTask>,
     pub(super) pending_approvals: HashMap<String, oneshot::Sender<ReviewDecision>>,
     pub(super) pending_request_user_input: HashMap<String, oneshot::Sender<crate::protocol::RequestUserInputResponse>>,
+    pub(super) pending_request_permissions: HashMap<String, PendingRequestPermissions>,
     pub(super) pending_dynamic_tools: HashMap<String, oneshot::Sender<DynamicToolResponse>>,
     pub(super) pending_input: Vec<ResponseInputItem>,
     pub(super) pending_user_input: Vec<QueuedUserInput>,
     pub(super) history: ConversationHistory,
+    pub(super) granted_permissions_by_turn: HashMap<String, code_protocol::models::PermissionProfile>,
+    pub(super) granted_permissions_for_session: Option<code_protocol::models::PermissionProfile>,
     /// Active MCP tool selection when `search_tool_bm25` gating is enabled.
     /// When `None`, no selection has been made yet for this session.
     pub(super) active_mcp_tool_selection: Option<Vec<String>>,
@@ -1219,6 +1228,7 @@ impl Session {
             && agent.sub_id == sub_id {
                 state.current_task.take();
             }
+        state.granted_permissions_by_turn.remove(sub_id);
     }
 
     pub fn has_running_task(&self) -> bool {
@@ -1497,6 +1507,26 @@ impl Session {
         Ok(rx)
     }
 
+    pub fn register_pending_request_permissions(
+        &self,
+        turn_id: String,
+        call_id: String,
+    ) -> std::result::Result<oneshot::Receiver<crate::protocol::RequestPermissionsResponse>, String>
+    {
+        let (tx, rx) = oneshot::channel();
+        let mut state = crate::codex::lock_or_panic!(self.state);
+        if state.pending_request_permissions.contains_key(&call_id) {
+            return Err(format!(
+                "request_permissions already pending for call_id={call_id}"
+            ));
+        }
+        state.pending_request_permissions.insert(
+            call_id,
+            PendingRequestPermissions { turn_id, tx },
+        );
+        Ok(rx)
+    }
+
     pub fn notify_user_input_response(
         &self,
         turn_id: &str,
@@ -1511,6 +1541,104 @@ impl Session {
         } else {
             tracing::warn!("no pending request_user_input found for turn_id={turn_id}");
         }
+    }
+
+    pub fn notify_request_permissions_response(
+        &self,
+        call_id: &str,
+        response: crate::protocol::RequestPermissionsResponse,
+    ) {
+        fn merge_paths(
+            dst: &mut Option<Vec<code_utils_absolute_path::AbsolutePathBuf>>,
+            src: Option<Vec<code_utils_absolute_path::AbsolutePathBuf>>,
+        ) {
+            let Some(src) = src else {
+                return;
+            };
+            let dst = dst.get_or_insert_with(Vec::new);
+            for path in src {
+                if !dst.contains(&path) {
+                    dst.push(path);
+                }
+            }
+        }
+
+        fn merge_permission_profile(
+            dst: &mut code_protocol::models::PermissionProfile,
+            src: code_protocol::models::PermissionProfile,
+        ) {
+            if src.network.unwrap_or(false) {
+                dst.network = Some(true);
+            }
+            if let Some(src_fs) = src.file_system {
+                let fs = dst.file_system.get_or_insert_with(Default::default);
+                merge_paths(&mut fs.read, src_fs.read);
+                merge_paths(&mut fs.write, src_fs.write);
+            }
+            if let Some(src_macos) = src.macos {
+                let macos = dst.macos.get_or_insert_with(Default::default);
+                if src_macos.preferences.is_some() {
+                    macos.preferences = src_macos.preferences;
+                }
+                if src_macos.automations.is_some() {
+                    macos.automations = src_macos.automations;
+                }
+                if src_macos.accessibility.unwrap_or(false) {
+                    macos.accessibility = Some(true);
+                }
+                if src_macos.calendar.unwrap_or(false) {
+                    macos.calendar = Some(true);
+                }
+            }
+        }
+
+        let pending = {
+            let mut state = crate::codex::lock_or_panic!(self.state);
+            let pending = state.pending_request_permissions.remove(call_id);
+            if let Some(pending) = pending.as_ref()
+                && !response.permissions.is_empty()
+            {
+                let granted: code_protocol::models::PermissionProfile =
+                    response.permissions.clone().into();
+                if !granted.is_empty() {
+                    match response.scope {
+                        crate::protocol::PermissionGrantScope::Turn => {
+                            let slot = state
+                                .granted_permissions_by_turn
+                                .entry(pending.turn_id.clone())
+                                .or_insert_with(Default::default);
+                            merge_permission_profile(slot, granted);
+                        }
+                        crate::protocol::PermissionGrantScope::Session => {
+                            let slot = state
+                                .granted_permissions_for_session
+                                .get_or_insert_with(Default::default);
+                            merge_permission_profile(slot, granted);
+                        }
+                    }
+                }
+            }
+            pending
+        };
+
+        if let Some(pending) = pending {
+            let _ = pending.tx.send(response);
+        } else {
+            tracing::warn!("no pending request_permissions found for call_id={call_id}");
+        }
+    }
+
+    pub(crate) fn granted_turn_permissions(
+        &self,
+        turn_id: &str,
+    ) -> Option<code_protocol::models::PermissionProfile> {
+        let state = crate::codex::lock_or_panic!(self.state);
+        state.granted_permissions_by_turn.get(turn_id).cloned()
+    }
+
+    pub(crate) fn granted_session_permissions(&self) -> Option<code_protocol::models::PermissionProfile> {
+        let state = crate::codex::lock_or_panic!(self.state);
+        state.granted_permissions_for_session.clone()
     }
 
     pub fn register_pending_dynamic_tool(
@@ -2314,7 +2442,9 @@ impl Session {
         let mut state = crate::codex::lock_or_panic!(self.state);
         state.pending_approvals.clear();
         state.pending_request_user_input.clear();
+        state.pending_request_permissions.clear();
         state.pending_dynamic_tools.clear();
+        state.granted_permissions_by_turn.clear();
         // Do not clear `pending_input` here. When a user submits a new message
         // immediately after an interrupt, it may have been routed to
         // `pending_input` by an earlier code path. Clearing it would drop the

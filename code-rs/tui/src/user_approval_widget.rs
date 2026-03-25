@@ -35,7 +35,10 @@ use crate::exec_command::strip_bash_lc_and_escape;
 use crate::slash_command::SlashCommand;
 use code_core::protocol::ApprovedCommandMatchKind;
 use code_core::protocol::NetworkApprovalProtocol;
+use code_core::protocol::PermissionGrantScope;
 use code_protocol::models::PermissionProfile;
+use code_protocol::request_permissions::RequestPermissionProfile;
+use code_core::protocol::RequestPermissionsResponse;
 
 /// Request coming from the agent that needs user approval.
 pub(crate) enum ApprovalRequest {
@@ -51,6 +54,11 @@ pub(crate) enum ApprovalRequest {
         reason: Option<String>,
         host: String,
         protocol: NetworkApprovalProtocol,
+    },
+    Permissions {
+        id: String,
+        reason: Option<String>,
+        permissions: RequestPermissionProfile,
     },
     ApplyPatch {
         id: String,
@@ -249,6 +257,68 @@ impl UserApprovalWidget<'_> {
                 contents.push(Line::from(""));
                 Paragraph::new(contents).wrap(Wrap { trim: false })
             }
+            ApprovalRequest::Permissions {
+                reason,
+                permissions,
+                ..
+            } => {
+                let mut contents: Vec<Line> = vec![
+                    Line::from(""),
+                    Line::from(vec![
+                        "? ".fg(crate::colors::info()),
+                        "Code wants to request additional permissions".bold(),
+                    ]),
+                    Line::from(""),
+                ];
+
+                if let Some(reason) = reason {
+                    contents.push(Line::from(reason.clone().italic()));
+                    contents.push(Line::from(""));
+                }
+
+                let additional_permissions: PermissionProfile = permissions.clone().into();
+                if additional_permissions.network.unwrap_or(false)
+                    || additional_permissions
+                        .file_system
+                        .as_ref()
+                        .is_some_and(|fs| fs.read.is_some() || fs.write.is_some())
+                    || additional_permissions.macos.is_some()
+                {
+                    contents.push(Line::from(Span::styled(
+                        "Requested permissions:",
+                        Style::default()
+                            .fg(crate::colors::text_dim())
+                            .add_modifier(Modifier::ITALIC),
+                    )));
+
+                    if additional_permissions.network.unwrap_or(false) {
+                        contents.push(Line::from(Span::raw("  - network")));
+                    }
+
+                    if let Some(fs) = additional_permissions.file_system.as_ref() {
+                        if let Some(read_roots) = fs.read.as_ref() {
+                            for root in read_roots {
+                                contents.push(Line::from(Span::raw(format!(
+                                    "  - read {}",
+                                    root.as_ref().display()
+                                ))));
+                            }
+                        }
+                        if let Some(write_roots) = fs.write.as_ref() {
+                            for root in write_roots {
+                                contents.push(Line::from(Span::raw(format!(
+                                    "  - write {}",
+                                    root.as_ref().display()
+                                ))));
+                            }
+                        }
+                    }
+
+                    contents.push(Line::from(""));
+                }
+
+                Paragraph::new(contents).wrap(Wrap { trim: false })
+            }
             ApprovalRequest::ApplyPatch {
                 reason, grant_root, ..
             } => {
@@ -289,6 +359,7 @@ impl UserApprovalWidget<'_> {
         let select_options = match &approval_request {
             ApprovalRequest::Exec { command, .. } => build_exec_select_options(command),
             ApprovalRequest::Network { .. } => build_network_select_options(),
+            ApprovalRequest::Permissions { .. } => build_permissions_select_options(),
             ApprovalRequest::ApplyPatch { .. } => build_patch_select_options(),
             ApprovalRequest::TerminalCommand { .. } => build_terminal_select_options(),
         };
@@ -431,6 +502,14 @@ impl UserApprovalWidget<'_> {
                     ReviewDecision::Abort => format!("canceled: network to {host}"),
                 }
             }
+            ApprovalRequest::Permissions { .. } => match decision {
+                ReviewDecision::Approved => "granted additional permissions (this time)".to_string(),
+                ReviewDecision::ApprovedForSession => {
+                    "granted additional permissions (this session)".to_string()
+                }
+                ReviewDecision::Denied => "did not grant additional permissions".to_string(),
+                ReviewDecision::Abort => "canceled permissions request".to_string(),
+            },
             ApprovalRequest::ApplyPatch { .. } => {
                 format!("patch approval decision: {decision:?}")
             }
@@ -471,6 +550,30 @@ impl UserApprovalWidget<'_> {
                     id: id.clone(),
                     turn_id: None,
                     decision,
+                }
+            }
+            ApprovalRequest::Permissions {
+                id,
+                permissions,
+                ..
+            } => {
+                let granted_permissions = match decision {
+                    ReviewDecision::Approved | ReviewDecision::ApprovedForSession => {
+                        permissions.clone()
+                    }
+                    ReviewDecision::Denied | ReviewDecision::Abort => Default::default(),
+                };
+                let scope = if matches!(decision, ReviewDecision::ApprovedForSession) {
+                    PermissionGrantScope::Session
+                } else {
+                    PermissionGrantScope::Turn
+                };
+                Op::RequestPermissionsResponse {
+                    id: id.clone(),
+                    response: RequestPermissionsResponse {
+                        permissions: granted_permissions,
+                        scope,
+                    },
                 }
             }
             ApprovalRequest::ApplyPatch { id, .. } => Op::PatchApproval {
@@ -665,6 +768,29 @@ fn build_network_select_options() -> Vec<SelectOption> {
                 .to_string(),
             hotkey: KeyCode::Char('o'),
             action: SelectAction::DenyAndOpenNetworkSettings,
+        },
+    ]
+}
+
+fn build_permissions_select_options() -> Vec<SelectOption> {
+    vec![
+        SelectOption {
+            label: "Yes, grant these permissions".to_string(),
+            description: "Grant the requested permissions for this run".to_string(),
+            hotkey: KeyCode::Char('y'),
+            action: SelectAction::ApproveOnce,
+        },
+        SelectOption {
+            label: "Yes, grant these permissions for this session".to_string(),
+            description: "Grant the requested permissions for the rest of this session".to_string(),
+            hotkey: KeyCode::Char('a'),
+            action: SelectAction::ApproveForSession,
+        },
+        SelectOption {
+            label: "No, continue without permissions".to_string(),
+            description: "Deny this request and continue without additional permissions".to_string(),
+            hotkey: KeyCode::Char('n'),
+            action: SelectAction::Deny,
         },
     ]
 }

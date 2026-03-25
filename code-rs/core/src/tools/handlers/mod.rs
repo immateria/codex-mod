@@ -15,6 +15,7 @@ pub(crate) mod mcp_resource;
 pub(crate) mod plan;
 pub(crate) mod read_file;
 pub(crate) mod request_user_input;
+pub(crate) mod request_permissions;
 pub(crate) mod search_tool_bm25;
 pub(crate) mod shell;
 pub(crate) mod wait;

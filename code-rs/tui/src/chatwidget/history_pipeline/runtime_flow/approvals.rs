@@ -1,4 +1,5 @@
 use super::*;
+use code_core::protocol::RequestPermissionsEvent;
 
 impl ChatWidget<'_> {
     /// Clear memoized cell heights (called when history/content changes)
@@ -29,6 +30,16 @@ impl ChatWidget<'_> {
                 ticket,
             );
         }
+    }
+
+    pub(in super::super::super) fn handle_request_permissions_now(&mut self, _id: String, ev: RequestPermissionsEvent) {
+        let request = ApprovalRequest::Permissions {
+            id: ev.call_id,
+            reason: ev.reason,
+            permissions: ev.permissions,
+        };
+        let ticket = self.make_background_before_next_output_ticket();
+        self.bottom_pane.push_approval_request(request, ticket);
     }
 
     /// Handle apply patch approval request immediately

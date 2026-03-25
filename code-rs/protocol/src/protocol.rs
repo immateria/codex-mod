@@ -37,6 +37,7 @@ use crate::num_format::format_with_separators;
 use crate::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use crate::parse_command::ParsedCommand;
 use crate::plan_tool::UpdatePlanArgs;
+use crate::request_permissions::RequestPermissionsResponse;
 use crate::request_user_input::RequestUserInputResponse;
 use crate::user_input::UserInput;
 use code_utils_absolute_path::AbsolutePathBuf;
@@ -57,6 +58,7 @@ pub use crate::approvals::NetworkApprovalContext;
 pub use crate::approvals::NetworkApprovalProtocol;
 pub use crate::mcp_protocol::InputItem;
 pub use crate::request_user_input::RequestUserInputEvent;
+pub use crate::request_permissions::RequestPermissionsEvent;
 
 /// Open/close tags for special user-input blocks. Used across crates to avoid
 /// duplicated hardcoded strings.
@@ -237,6 +239,14 @@ pub enum Op {
         id: String,
         /// User-provided answers.
         response: RequestUserInputResponse,
+    },
+
+    /// Resolve a request_permissions tool call.
+    RequestPermissionsResponse {
+        /// Call id for the in-flight request.
+        id: String,
+        /// User-granted permissions.
+        response: RequestPermissionsResponse,
     },
 
     /// Resolve a dynamic tool call request.
@@ -870,6 +880,8 @@ pub enum EventMsg {
     ExecApprovalRequest(ExecApprovalRequestEvent),
 
     RequestUserInput(RequestUserInputEvent),
+
+    RequestPermissions(RequestPermissionsEvent),
 
     DynamicToolCallRequest(DynamicToolCallRequest),
 

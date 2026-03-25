@@ -768,6 +768,8 @@ pub(crate) async fn handle_container_exec_with_params(
     let call_id = ctx.call_id.clone();
     let seq_hint = ctx.seq_hint;
     let output_index = ctx.output_index;
+    let mut params = params;
+    let mut permissions_preapproved = false;
 
     if params.sandbox_permissions.requires_escalated_permissions()
         && params
@@ -785,6 +787,150 @@ pub(crate) async fn handle_container_exec_with_params(
                 success: None,
             },
         };
+    }
+
+    if !params.sandbox_permissions.requires_escalated_permissions() {
+        fn merge_paths(
+            dst: &mut Option<Vec<code_utils_absolute_path::AbsolutePathBuf>>,
+            src: Option<&Vec<code_utils_absolute_path::AbsolutePathBuf>>,
+        ) {
+            let Some(src) = src else {
+                return;
+            };
+            let dst = dst.get_or_insert_with(Vec::new);
+            for path in src {
+                if !dst.contains(path) {
+                    dst.push(path.clone());
+                }
+            }
+        }
+
+        fn merge_permission_profile(
+            dst: &mut code_protocol::models::PermissionProfile,
+            src: &code_protocol::models::PermissionProfile,
+        ) {
+            if src.network.unwrap_or(false) {
+                dst.network = Some(true);
+            }
+            if let Some(src_fs) = src.file_system.as_ref() {
+                let fs = dst.file_system.get_or_insert_with(Default::default);
+                merge_paths(&mut fs.read, src_fs.read.as_ref());
+                merge_paths(&mut fs.write, src_fs.write.as_ref());
+            }
+            if let Some(src_macos) = src.macos.as_ref() {
+                let macos = dst.macos.get_or_insert_with(Default::default);
+                if src_macos.preferences.is_some() {
+                    macos.preferences = src_macos.preferences.clone();
+                }
+                if src_macos.automations.is_some() {
+                    macos.automations = src_macos.automations.clone();
+                }
+                if src_macos.accessibility.unwrap_or(false) {
+                    macos.accessibility = Some(true);
+                }
+                if src_macos.calendar.unwrap_or(false) {
+                    macos.calendar = Some(true);
+                }
+            }
+        }
+
+        fn merge_permission_profiles(
+            first: Option<&code_protocol::models::PermissionProfile>,
+            second: Option<&code_protocol::models::PermissionProfile>,
+        ) -> Option<code_protocol::models::PermissionProfile> {
+            match (first, second) {
+                (None, None) => None,
+                (Some(profile), None) | (None, Some(profile)) => Some(profile.clone()),
+                (Some(first), Some(second)) => {
+                    let mut merged = first.clone();
+                    merge_permission_profile(&mut merged, second);
+                    Some(merged)
+                }
+            }
+        }
+
+        fn permission_profile_is_subset(
+            requested: &code_protocol::models::PermissionProfile,
+            granted: &code_protocol::models::PermissionProfile,
+        ) -> bool {
+            if requested.network.unwrap_or(false) && !granted.network.unwrap_or(false) {
+                return false;
+            }
+
+            if let Some(requested_fs) = requested.file_system.as_ref() {
+                if let Some(read) = requested_fs.read.as_ref()
+                    && !read.is_empty()
+                {
+                    let Some(granted_fs) = granted.file_system.as_ref() else {
+                        return false;
+                    };
+                    let Some(granted_read) = granted_fs.read.as_ref() else {
+                        return false;
+                    };
+                    for path in read {
+                        if !granted_read.contains(path) {
+                            return false;
+                        }
+                    }
+                }
+                if let Some(write) = requested_fs.write.as_ref()
+                    && !write.is_empty()
+                {
+                    let Some(granted_fs) = granted.file_system.as_ref() else {
+                        return false;
+                    };
+                    let Some(granted_write) = granted_fs.write.as_ref() else {
+                        return false;
+                    };
+                    for path in write {
+                        if !granted_write.contains(path) {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            if let Some(requested_macos) = requested.macos.as_ref() {
+                let Some(granted_macos) = granted.macos.as_ref() else {
+                    return false;
+                };
+                if requested_macos.preferences.is_some() && granted_macos.preferences.is_none() {
+                    return false;
+                }
+                if requested_macos.automations.is_some() && granted_macos.automations.is_none() {
+                    return false;
+                }
+                if requested_macos.accessibility.unwrap_or(false)
+                    && !granted_macos.accessibility.unwrap_or(false)
+                {
+                    return false;
+                }
+                if requested_macos.calendar.unwrap_or(false)
+                    && !granted_macos.calendar.unwrap_or(false)
+                {
+                    return false;
+                }
+            }
+
+            true
+        }
+
+        let granted_session = sess.granted_session_permissions();
+        let granted_turn = sess.granted_turn_permissions(&sub_id);
+        let granted_permissions =
+            merge_permission_profiles(granted_session.as_ref(), granted_turn.as_ref());
+        let effective_permissions =
+            merge_permission_profiles(params.additional_permissions.as_ref(), granted_permissions.as_ref());
+
+        permissions_preapproved = match (effective_permissions.as_ref(), granted_permissions.as_ref()) {
+            (Some(effective), Some(granted)) => permission_profile_is_subset(effective, granted),
+            _ => false,
+        };
+
+        if effective_permissions.is_some() && !params.sandbox_permissions.uses_additional_permissions() {
+            params.sandbox_permissions = SandboxPermissions::WithAdditionalPermissions;
+        }
+        params.additional_permissions = effective_permissions;
     }
 
     if params.sandbox_permissions.uses_additional_permissions()
@@ -1426,6 +1572,7 @@ pub(crate) async fn handle_container_exec_with_params(
             &sess.sandbox_policy,
             &state.approved_commands,
             params.sandbox_permissions,
+            permissions_preapproved,
         )
     };
     let command_for_display = params.command.clone();

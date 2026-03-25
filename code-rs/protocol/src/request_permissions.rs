@@ -23,7 +23,18 @@ pub struct RequestPermissionProfile {
 
 impl RequestPermissionProfile {
     pub fn is_empty(&self) -> bool {
-        self.network.is_none() && self.file_system.is_none()
+        let network_enabled = self
+            .network
+            .as_ref()
+            .and_then(|permissions| permissions.enabled)
+            .unwrap_or(false);
+
+        !network_enabled
+            && self
+                .file_system
+                .as_ref()
+                .map(FileSystemPermissions::is_empty)
+                .unwrap_or(true)
     }
 }
 
@@ -31,7 +42,10 @@ impl From<RequestPermissionProfile> for PermissionProfile {
     fn from(value: RequestPermissionProfile) -> Self {
         Self {
             // `NetworkPermissions { enabled: None }` is treated as empty for our internal bool representation.
-            network: value.network.and_then(|permissions| permissions.enabled),
+            network: value
+                .network
+                .and_then(|permissions| permissions.enabled)
+                .filter(|enabled| *enabled),
             file_system: value.file_system,
             macos: None,
         }
@@ -41,9 +55,9 @@ impl From<RequestPermissionProfile> for PermissionProfile {
 impl From<PermissionProfile> for RequestPermissionProfile {
     fn from(value: PermissionProfile) -> Self {
         Self {
-            network: value
-                .network
-                .map(|enabled| NetworkPermissions { enabled: Some(enabled) }),
+            network: value.network.filter(|enabled| *enabled).map(|enabled| NetworkPermissions {
+                enabled: Some(enabled),
+            }),
             file_system: value.file_system,
         }
     }
@@ -75,4 +89,3 @@ pub struct RequestPermissionsEvent {
     pub reason: Option<String>,
     pub permissions: RequestPermissionProfile,
 }
-
