@@ -15,6 +15,12 @@ use code_core::config_types::TuiHotkeysConfig;
 use code_core::config_types::McpServerSchedulingToml;
 use code_core::config_types::McpToolSchedulingOverrideToml;
 use code_core::config::NetworkProxySettingsToml;
+use code_core::plugins::{
+    ConfiguredMarketplace,
+    PluginInstallRequest,
+    PluginReadOutcome,
+    PluginReadRequest,
+};
 use code_core::protocol::Event;
 use code_core::protocol::OrderMeta;
 use code_core::protocol::ValidationGroup;
@@ -29,6 +35,7 @@ use crossterm::event::MouseEvent;
 use ratatui::text::Line;
 use crate::streaming::StreamKind;
 use crate::bottom_pane::SettingsSection;
+use code_utils_absolute_path::AbsolutePathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ModelSelectionKind {
@@ -160,6 +167,13 @@ pub(crate) struct AutoDriveSettingsUpdate {
     pub model_routing_enabled: bool,
     pub model_routing_entries: Vec<AutoDriveModelRoutingEntry>,
     pub continue_mode: AutoContinueMode,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct PluginListSnapshot {
+    pub marketplaces: Vec<ConfiguredMarketplace>,
+    pub remote_sync_error: Option<String>,
+    pub featured_plugin_ids: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -829,6 +843,50 @@ pub(crate) enum AppEvent {
         primary: StatusLineLane,
     },
     StatusLineSetupCancelled,
+
+    FetchPluginsList {
+        roots: Vec<AbsolutePathBuf>,
+        force_remote_sync: bool,
+    },
+    PluginsListLoaded {
+        roots: Vec<AbsolutePathBuf>,
+        result: Result<PluginListSnapshot, String>,
+    },
+    FetchPluginDetail {
+        request: PluginReadRequest,
+    },
+    PluginDetailLoaded {
+        request: PluginReadRequest,
+        result: Result<PluginReadOutcome, String>,
+    },
+    InstallPlugin {
+        request: PluginInstallRequest,
+        force_remote_sync: bool,
+    },
+    UninstallPlugin {
+        plugin_id_key: String,
+        force_remote_sync: bool,
+    },
+    SetPluginEnabled {
+        plugin_id_key: String,
+        enabled: bool,
+    },
+    PluginInstallFinished {
+        request: PluginInstallRequest,
+        force_remote_sync: bool,
+        result: Result<(), String>,
+    },
+    PluginUninstallFinished {
+        plugin_id_key: String,
+        force_remote_sync: bool,
+        result: Result<(), String>,
+    },
+    PluginEnabledSetFinished {
+        plugin_id_key: String,
+        enabled: bool,
+        result: Result<(), String>,
+    },
+
     SetAutoSwitchAccountsOnRateLimit(bool),
     SetApiKeyFallbackOnAllAccountsLimited(bool),
     RequestSetAuthCredentialsStoreMode {

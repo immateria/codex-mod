@@ -18,6 +18,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Memories      => self.settings_summary_memories(),
                     SettingsSection::Prompts       => self.settings_summary_prompts(),
                     SettingsSection::Skills        => self.settings_summary_skills(),
+                    SettingsSection::Plugins       => self.settings_summary_plugins(),
                     SettingsSection::AutoDrive     => self.settings_summary_auto_drive(),
                     SettingsSection::Review        => self.settings_summary_review(),
                     SettingsSection::Validation    => self.settings_summary_validation(),
@@ -31,6 +32,10 @@ impl ChatWidget<'_> {
                 SettingsOverviewRow::new(section, summary)
             })
             .collect()
+    }
+
+    pub(super) fn settings_summary_plugins(&self) -> Option<String> {
+        Some("Browse and manage plugins".to_string())
     }
 
     pub(super) fn settings_summary_js_repl(&self) -> Option<String> {

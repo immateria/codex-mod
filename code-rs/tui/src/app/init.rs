@@ -30,6 +30,8 @@ impl App<'_> {
     pub(crate) fn new(args: AppInitArgs) -> Self {
         let AppInitArgs {
             config,
+            cli_kv_overrides,
+            config_overrides,
             initial_prompt,
             initial_images,
             show_trust_screen,
@@ -333,6 +335,8 @@ impl App<'_> {
             consecutive_high_events: 0,
             app_state,
             config,
+            cli_kv_overrides,
+            config_overrides,
             latest_upgrade_version,
             startup_model_migration_notice,
             file_search,

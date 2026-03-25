@@ -33,6 +33,18 @@ impl App<'_> {
         }
     }
 
+    pub(crate) fn reload_config_with_startup_overrides(&self) -> anyhow::Result<code_core::config::Config> {
+        let mut config = code_core::config::Config::load_with_cli_overrides(
+            self.cli_kv_overrides.clone(),
+            self.config_overrides.clone(),
+        )?;
+
+        // Preserve CLI-only overrides that don't flow through `ConfigOverrides`.
+        config.demo_developer_message = self.config.demo_developer_message.clone();
+
+        Ok(config)
+    }
+
     /// Return a human-readable performance summary if timing was enabled.
     pub(crate) fn perf_summary(&self) -> Option<String> {
         if !self.timing_enabled {
@@ -47,4 +59,3 @@ impl App<'_> {
         Some(out)
     }
 }
-

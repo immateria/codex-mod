@@ -266,6 +266,10 @@ impl<'a> BottomPane<'a> {
         self.set_other_view(view, true);
     }
 
+    pub fn show_plugins_settings(&mut self, view: settings_pages::plugins::PluginsSettingsView) {
+        self.set_other_view(view, true);
+    }
+
     pub fn show_memories_settings(&mut self, view: settings_pages::memories::MemoriesSettingsView) {
         self.set_other_view(view, true);
     }

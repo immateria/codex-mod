@@ -173,6 +173,19 @@ impl ChatWidget<'_> {
         SkillsSettingsContent::new(self.build_skills_settings_view())
     }
 
+    pub(super) fn build_plugins_settings_view(&mut self) -> PluginsSettingsView {
+        let shared_state = self.plugins_shared_state();
+        let roots = code_utils_absolute_path::AbsolutePathBuf::try_from(self.config.cwd.clone())
+            .ok()
+            .into_iter()
+            .collect::<Vec<_>>();
+        PluginsSettingsView::new(shared_state, roots, self.app_event_tx.clone())
+    }
+
+    pub(super) fn build_plugins_settings_content(&mut self) -> PluginsSettingsContent {
+        PluginsSettingsContent::new(self.build_plugins_settings_view())
+    }
+
     pub(super) fn build_chrome_settings_content(&self, port: Option<u16>) -> ChromeSettingsContent {
         ChromeSettingsContent::new(self.app_event_tx.clone(), port)
     }

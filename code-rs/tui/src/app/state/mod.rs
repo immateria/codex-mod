@@ -121,6 +121,8 @@ pub(crate) struct App<'a> {
 
     /// Config is stored here so we can recreate ChatWidgets as needed.
     pub(super) config: Config,
+    pub(super) cli_kv_overrides: Vec<(String, toml::Value)>,
+    pub(super) config_overrides: code_core::config::ConfigOverrides,
 
     /// Latest available release version (if detected) so new widgets can surface it.
     pub(super) latest_upgrade_version: Option<String>,
@@ -226,6 +228,8 @@ pub(crate) struct ChatWidgetArgs {
 #[derive(Clone, Debug)]
 pub(crate) struct AppInitArgs {
     pub(crate) config: Config,
+    pub(crate) cli_kv_overrides: Vec<(String, toml::Value)>,
+    pub(crate) config_overrides: code_core::config::ConfigOverrides,
     pub(crate) initial_prompt: Option<String>,
     pub(crate) initial_images: Vec<PathBuf>,
     pub(crate) show_trust_screen: bool,

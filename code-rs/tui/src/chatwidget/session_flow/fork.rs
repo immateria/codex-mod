@@ -53,6 +53,7 @@ impl ChatWidget<'_> {
             active_exec_cell: None,
             history_cells,
             config: config.clone(),
+            plugins_shared_state: Arc::new(Mutex::new(PluginsSharedState::default())),
             turn_sleep_inhibitor: SleepInhibitor::new(config.prevent_idle_sleep),
             mcp_tool_catalog_by_id: HashMap::new(),
             mcp_tools_by_server: HashMap::new(),

@@ -75,6 +75,7 @@ impl ChatWidget<'_> {
         overlay.set_notifications_content(self.build_notifications_settings_content());
         overlay.set_prompts_content(self.build_prompts_settings_content());
         overlay.set_skills_content(self.build_skills_settings_content());
+        overlay.set_plugins_content(self.build_plugins_settings_content());
         if let Some(mcp_content) = self.build_mcp_settings_content() {
             overlay.set_mcp_content(mcp_content);
         }
@@ -87,6 +88,23 @@ impl ChatWidget<'_> {
         overlay.set_limits_content(self.build_limits_settings_content());
         overlay.set_chrome_content(self.build_chrome_settings_content(None));
         overlay.set_overview_rows(self.build_settings_overview_rows());
+    }
+
+    pub(crate) fn apply_reloaded_config(&mut self, config: code_core::config::Config) {
+        self.config = config;
+        self.refresh_settings_overview_rows();
+        let skills_content = self.build_skills_settings_content();
+        let plugins_content = self.build_plugins_settings_content();
+        let mcp_content = self.build_mcp_settings_content();
+
+        if let Some(overlay) = self.settings.overlay.as_mut() {
+            overlay.set_skills_content(skills_content);
+            overlay.set_plugins_content(plugins_content);
+            if let Some(mcp_content) = mcp_content {
+                overlay.set_mcp_content(mcp_content);
+            }
+        }
+        self.request_redraw();
     }
 
     fn apply_settings_overlay_mode(

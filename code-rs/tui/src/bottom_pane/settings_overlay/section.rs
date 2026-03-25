@@ -12,6 +12,7 @@ pub(crate) enum SettingsSection {
     Memories,
     Prompts,
     Skills,
+    Plugins,
     AutoDrive,
     Review,
     Planning,
@@ -26,7 +27,7 @@ pub(crate) enum SettingsSection {
 
 impl SettingsSection {
     #[cfg(not(target_os = "android"))]
-    pub(crate) const ALL: [SettingsSection; 22] = [
+    pub(crate) const ALL: [SettingsSection; 23] = [
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Interface,
@@ -39,6 +40,7 @@ impl SettingsSection {
         SettingsSection::Memories,
         SettingsSection::Prompts,
         SettingsSection::Skills,
+        SettingsSection::Plugins,
         SettingsSection::AutoDrive,
         SettingsSection::Review,
         SettingsSection::Planning,
@@ -52,7 +54,7 @@ impl SettingsSection {
     ];
 
     #[cfg(target_os = "android")]
-    pub(crate) const ALL: [SettingsSection; 21] = [
+    pub(crate) const ALL: [SettingsSection; 22] = [
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Interface,
@@ -65,6 +67,7 @@ impl SettingsSection {
         SettingsSection::Memories,
         SettingsSection::Prompts,
         SettingsSection::Skills,
+        SettingsSection::Plugins,
         SettingsSection::AutoDrive,
         SettingsSection::Review,
         SettingsSection::Planning,

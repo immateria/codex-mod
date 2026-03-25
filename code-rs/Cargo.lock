@@ -2021,6 +2021,7 @@ dependencies = [
  "code-protocol",
  "code-tui",
  "code-version",
+ "codex-utils-absolute-path",
  "codex-utils-sleep-inhibitor",
  "codex-utils-stream-parser",
  "color-eyre",

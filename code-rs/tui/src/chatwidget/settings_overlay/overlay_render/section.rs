@@ -67,6 +67,7 @@ impl SettingsOverlayView {
             SettingsSection::Agents => "Agents",
             SettingsSection::Memories => "Memories",
             SettingsSection::Skills => "Skills",
+            SettingsSection::Plugins => "Plugins",
             SettingsSection::AutoDrive => "Auto Drive Settings",
             SettingsSection::Review => "Review Settings",
             SettingsSection::Validation => "Validation Settings",

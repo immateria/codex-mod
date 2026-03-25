@@ -217,6 +217,13 @@ impl SettingsOverlayView {
                 }
                 self.render_placeholder(area, buf, SettingsSection::Skills.placeholder());
             }
+            SettingsSection::Plugins => {
+                if let Some(content) = self.plugins_content.as_ref() {
+                    content.render(area, buf);
+                    return;
+                }
+                self.render_placeholder(area, buf, SettingsSection::Plugins.placeholder());
+            }
             SettingsSection::AutoDrive => {
                 if let Some(content) = self.auto_drive_content.as_ref() {
                     content.render(area, buf);

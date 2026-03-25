@@ -745,6 +745,8 @@ pub async fn run_main(
     let run_result = run_ratatui_app(
         cli,
         config,
+        cli_kv_overrides,
+        overrides,
         should_show_trust_screen,
         startup_footer_notice,
         latest_upgrade_version,
@@ -806,6 +808,8 @@ pub(crate) fn install_unified_panic_hook() {
 fn run_ratatui_app(
     cli: Cli,
     mut config: Config,
+    cli_kv_overrides: Vec<(String, toml::Value)>,
+    overrides: ConfigOverrides,
     should_show_trust_screen: bool,
     startup_footer_notice: Option<String>,
     latest_upgrade_version: Option<String>,
@@ -849,6 +853,8 @@ fn run_ratatui_app(
     } = cli;
     let mut app = App::new(app::AppInitArgs {
         config: config.clone(),
+        cli_kv_overrides,
+        config_overrides: overrides,
         initial_prompt: prompt,
         initial_images: images,
         show_trust_screen: should_show_trust_screen,

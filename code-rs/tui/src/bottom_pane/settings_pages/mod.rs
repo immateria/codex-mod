@@ -17,6 +17,7 @@ pub(crate) mod network;
 pub(crate) mod notifications;
 pub(crate) mod overview;
 pub(crate) mod planning;
+pub(crate) mod plugins;
 pub(crate) mod prompts;
 pub(crate) mod review;
 pub(crate) mod shell;

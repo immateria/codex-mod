@@ -25,6 +25,7 @@ impl SettingsSection {
             SettingsSection::Notifications => "Notifications",
             SettingsSection::Prompts => "Prompts",
             SettingsSection::Skills => "Skills",
+            SettingsSection::Plugins => "Plugins",
         }
     }
 
@@ -62,6 +63,7 @@ impl SettingsSection {
             }
             SettingsSection::Prompts => "Create and edit custom prompt snippets.",
             SettingsSection::Skills => "Manage project-scoped and global skills.",
+            SettingsSection::Plugins => "Browse and manage installed plugins and marketplaces.",
         }
     }
 
@@ -93,6 +95,7 @@ impl SettingsSection {
             SettingsSection::Notifications => "Notification preferences coming soon.",
             SettingsSection::Prompts => "Manage custom prompts.",
             SettingsSection::Skills => "Manage skills.",
+            SettingsSection::Plugins => "Manage plugins and marketplaces.",
         }
     }
 }

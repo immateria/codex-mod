@@ -89,6 +89,7 @@ mod help_handlers;
 mod settings_handlers;
 mod settings_overlay;
 mod settings_routing;
+mod plugins_shared_state;
 mod limits_overlay;
 mod interrupts;
 mod input_pipeline;
@@ -118,6 +119,14 @@ mod tools;
 mod browser_sessions;
 #[cfg(not(target_os = "android"))]
 mod chrome_connection;
+
+pub(crate) use plugins_shared_state::{
+    PluginDetailKey,
+    PluginsActionInProgress,
+    PluginsDetailState,
+    PluginsListState,
+    PluginsSharedState,
+};
 #[cfg(target_os = "android")]
 mod chrome_connection_android;
 mod agent_runs;

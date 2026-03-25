@@ -44,6 +44,13 @@ impl ChatWidget<'_> {
         self.open_bottom_pane_settings(move |this| this.bottom_pane.show_skills_settings(view))
     }
 
+    fn open_plugins_settings_section(&mut self) -> bool {
+        let view = self.build_plugins_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_plugins_settings(view);
+        })
+    }
+
     fn open_auto_drive_settings_section(&mut self) -> bool {
         let view = self.build_auto_drive_settings_view();
         self.open_bottom_pane_settings(move |this| {
@@ -159,6 +166,7 @@ impl ChatWidget<'_> {
             SettingsSection::Memories                           => self.open_memories_settings_section(),
             SettingsSection::Prompts                            => self.open_prompts_settings_section(),
             SettingsSection::Skills                             => self.open_skills_settings_section(),
+            SettingsSection::Plugins                            => self.open_plugins_settings_section(),
             SettingsSection::AutoDrive                          => self.open_auto_drive_settings_section(),
             SettingsSection::Review                             => self.open_review_settings_section(),
             SettingsSection::Planning                           => self.open_planning_settings_section(),
@@ -226,7 +234,8 @@ impl ChatWidget<'_> {
             | SettingsSection::Prompts
             | SettingsSection::Accounts
             | SettingsSection::Memories
-            | SettingsSection::Skills => false,
+            | SettingsSection::Skills
+            | SettingsSection::Plugins => false,
         };
 
         if handled {

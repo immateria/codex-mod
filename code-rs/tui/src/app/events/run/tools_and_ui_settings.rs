@@ -172,6 +172,386 @@
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::FetchPluginsList { roots, force_remote_sync } => {
+                    let auth = if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_mark_list_loading(roots.clone(), force_remote_sync);
+                        widget.auth_manager().auth()
+                    } else {
+                        None
+                    };
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    let config = self.config.clone();
+                    tokio::spawn(async move {
+                        let manager = code_core::plugins::PluginsManager::new(code_home);
+
+                        let mut remote_sync_error = None;
+                        if force_remote_sync {
+                            if let Err(err) = manager
+                                .sync_plugins_from_remote(&config, auth.as_ref(), /*additive_only*/ false)
+                                .await
+                            {
+                                remote_sync_error = Some(err.to_string());
+                            }
+                        }
+
+                        let marketplaces = manager
+                            .list_marketplaces_for_roots(&roots)
+                            .map_err(|err| err.to_string());
+
+                        let featured_plugin_ids = manager
+                            .featured_plugin_ids_for_config(&config, auth.as_ref())
+                            .await
+                            .unwrap_or_else(|err| {
+                                tracing::debug!("failed to fetch featured plugin ids: {err}");
+                                Vec::new()
+                            });
+
+                        let result = marketplaces.map(|marketplaces| crate::app_event::PluginListSnapshot {
+                            marketplaces,
+                            remote_sync_error,
+                            featured_plugin_ids,
+                        });
+
+                        tx.send(AppEvent::PluginsListLoaded { roots, result });
+                    });
+                }
+                AppEvent::PluginsListLoaded { roots, result } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_apply_list_loaded(roots, result);
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::FetchPluginDetail { request } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        let key = crate::chatwidget::PluginDetailKey::new(
+                            request.marketplace_path.clone(),
+                            request.plugin_name.clone(),
+                        );
+                        widget.plugins_mark_detail_loading(key);
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    tokio::spawn(async move {
+                        let request_for_event = request.clone();
+                        let result = tokio::task::spawn_blocking(move || {
+                            let manager = code_core::plugins::PluginsManager::new(code_home);
+                            manager.read_plugin_for_config(&request)
+                        })
+                        .await
+                        .map_err(|err| err.to_string())
+                        .and_then(|result| result.map_err(|err| err.to_string()));
+
+                        tx.send(AppEvent::PluginDetailLoaded {
+                            request: request_for_event,
+                            result,
+                        });
+                    });
+                }
+                AppEvent::PluginDetailLoaded { request, result } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        let key = crate::chatwidget::PluginDetailKey::new(
+                            request.marketplace_path.clone(),
+                            request.plugin_name.clone(),
+                        );
+                        widget.plugins_apply_detail_loaded(key, result);
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::InstallPlugin { request, force_remote_sync } => {
+                    let auth = if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_set_action_in_progress(crate::chatwidget::PluginsActionInProgress::Install {
+                            marketplace_path: request.marketplace_path.clone(),
+                            plugin_name: request.plugin_name.clone(),
+                            force_remote_sync,
+                        });
+                        widget.auth_manager().auth()
+                    } else {
+                        None
+                    };
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    let config = self.config.clone();
+                    tokio::spawn(async move {
+                        let manager = code_core::plugins::PluginsManager::new(code_home);
+                        let result = if force_remote_sync {
+                            manager
+                                .install_plugin_with_remote_sync(&config, auth.as_ref(), request.clone())
+                                .await
+                                .map(|_| ())
+                        } else {
+                            manager.install_plugin(request.clone()).await.map(|_| ())
+                        };
+
+                        tx.send(AppEvent::PluginInstallFinished {
+                            request,
+                            force_remote_sync,
+                            result: result.map_err(|err| err.to_string()),
+                        });
+                    });
+                }
+                AppEvent::UninstallPlugin { plugin_id_key, force_remote_sync } => {
+                    let auth = if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_set_action_in_progress(crate::chatwidget::PluginsActionInProgress::Uninstall {
+                            plugin_id_key: plugin_id_key.clone(),
+                            force_remote_sync,
+                        });
+                        widget.auth_manager().auth()
+                    } else {
+                        None
+                    };
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    let config = self.config.clone();
+                    tokio::spawn(async move {
+                        let manager = code_core::plugins::PluginsManager::new(code_home);
+                        let result = if force_remote_sync {
+                            manager
+                                .uninstall_plugin_with_remote_sync(&config, auth.as_ref(), plugin_id_key.clone())
+                                .await
+                        } else {
+                            manager.uninstall_plugin(plugin_id_key.clone()).await
+                        };
+
+                        tx.send(AppEvent::PluginUninstallFinished {
+                            plugin_id_key,
+                            force_remote_sync,
+                            result: result.map_err(|err| err.to_string()),
+                        });
+                    });
+                }
+                AppEvent::SetPluginEnabled { plugin_id_key, enabled } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_set_action_in_progress(crate::chatwidget::PluginsActionInProgress::SetEnabled {
+                            plugin_id_key: plugin_id_key.clone(),
+                            enabled,
+                        });
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    tokio::spawn(async move {
+                        let result = code_core::config_edit::set_plugin_enabled(
+                            code_home.as_path(),
+                            &plugin_id_key,
+                            enabled,
+                        )
+                        .await
+                        .map(|_| ());
+
+                        tx.send(AppEvent::PluginEnabledSetFinished {
+                            plugin_id_key,
+                            enabled,
+                            result: result.map_err(|err| err.to_string()),
+                        });
+                    });
+                }
+                AppEvent::PluginInstallFinished { request, force_remote_sync: _force_remote_sync, result } => {
+                    let reload = if result.is_ok() {
+                        Some(self.reload_config_with_startup_overrides())
+                    } else {
+                        None
+                    };
+                    let mut should_refresh_list = false;
+                    let mut refresh_roots: Option<Vec<code_utils_absolute_path::AbsolutePathBuf>> = None;
+
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_clear_action_in_progress();
+                        match result {
+                            Ok(()) => {
+                                widget.plugins_set_action_error(None);
+                                widget.flash_footer_notice(format!(
+                                    "Installed plugin: {}",
+                                    request.plugin_name,
+                                ));
+
+                                match reload {
+                                    Some(Ok(config)) => {
+                                        self.config = config.clone();
+                                        widget.apply_reloaded_config(config);
+                                        widget.submit_op(widget.current_configure_session_op());
+                                        widget.submit_op(Op::ListSkills);
+                                        widget.submit_op(Op::RefreshMcpTools);
+
+                                        should_refresh_list = true;
+                                        refresh_roots = widget
+                                            .plugins_shared_state()
+                                            .lock()
+                                            .unwrap_or_else(|err| err.into_inner())
+                                            .list
+                                            .roots()
+                                            .map(|roots| roots.to_vec());
+                                    }
+                                    Some(Err(err)) => {
+                                        widget.flash_footer_notice(format!(
+                                            "Failed to reload config after install: {err}",
+                                        ));
+                                    }
+                                    None => {}
+                                }
+                            }
+                            Err(err) => {
+                                widget.plugins_set_action_error(Some(err.clone()));
+                                widget.flash_footer_notice(format!("Plugin install failed: {err}"));
+                            }
+                        }
+                    }
+
+                    if should_refresh_list {
+                        let roots = refresh_roots.unwrap_or_else(|| {
+                            code_utils_absolute_path::AbsolutePathBuf::try_from(self.config.cwd.clone())
+                                .ok()
+                                .into_iter()
+                                .collect::<Vec<_>>()
+                        });
+                        self.app_event_tx.send(AppEvent::FetchPluginsList {
+                            roots,
+                            force_remote_sync: false,
+                        });
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::PluginUninstallFinished {
+                    plugin_id_key: _plugin_id_key,
+                    force_remote_sync: _force_remote_sync,
+                    result,
+                } => {
+                    let reload = if result.is_ok() {
+                        Some(self.reload_config_with_startup_overrides())
+                    } else {
+                        None
+                    };
+                    let mut should_refresh_list = false;
+                    let mut refresh_roots: Option<Vec<code_utils_absolute_path::AbsolutePathBuf>> = None;
+
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_clear_action_in_progress();
+                        match result {
+                            Ok(()) => {
+                                widget.plugins_set_action_error(None);
+                                widget.flash_footer_notice("Plugin uninstalled".to_string());
+
+                                match reload {
+                                    Some(Ok(config)) => {
+                                        self.config = config.clone();
+                                        widget.apply_reloaded_config(config);
+                                        widget.submit_op(widget.current_configure_session_op());
+                                        widget.submit_op(Op::ListSkills);
+                                        widget.submit_op(Op::RefreshMcpTools);
+
+                                        should_refresh_list = true;
+                                        refresh_roots = widget
+                                            .plugins_shared_state()
+                                            .lock()
+                                            .unwrap_or_else(|err| err.into_inner())
+                                            .list
+                                            .roots()
+                                            .map(|roots| roots.to_vec());
+                                    }
+                                    Some(Err(err)) => {
+                                        widget.flash_footer_notice(format!(
+                                            "Failed to reload config after uninstall: {err}",
+                                        ));
+                                    }
+                                    None => {}
+                                }
+                            }
+                            Err(err) => {
+                                widget.plugins_set_action_error(Some(err.clone()));
+                                widget.flash_footer_notice(format!("Plugin uninstall failed: {err}"));
+                            }
+                        }
+                    }
+
+                    if should_refresh_list {
+                        let roots = refresh_roots.unwrap_or_else(|| {
+                            code_utils_absolute_path::AbsolutePathBuf::try_from(self.config.cwd.clone())
+                                .ok()
+                                .into_iter()
+                                .collect::<Vec<_>>()
+                        });
+                        self.app_event_tx.send(AppEvent::FetchPluginsList {
+                            roots,
+                            force_remote_sync: false,
+                        });
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::PluginEnabledSetFinished {
+                    plugin_id_key: _plugin_id_key,
+                    enabled: _enabled,
+                    result,
+                } => {
+                    let reload = if result.is_ok() {
+                        Some(self.reload_config_with_startup_overrides())
+                    } else {
+                        None
+                    };
+                    let mut should_refresh_list = false;
+                    let mut refresh_roots: Option<Vec<code_utils_absolute_path::AbsolutePathBuf>> = None;
+
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_clear_action_in_progress();
+                        match result {
+                            Ok(()) => {
+                                widget.plugins_set_action_error(None);
+                                widget.flash_footer_notice("Plugin setting updated".to_string());
+
+                                match reload {
+                                    Some(Ok(config)) => {
+                                        self.config = config.clone();
+                                        widget.apply_reloaded_config(config);
+                                        widget.submit_op(widget.current_configure_session_op());
+                                        widget.submit_op(Op::ListSkills);
+                                        widget.submit_op(Op::RefreshMcpTools);
+
+                                        should_refresh_list = true;
+                                        refresh_roots = widget
+                                            .plugins_shared_state()
+                                            .lock()
+                                            .unwrap_or_else(|err| err.into_inner())
+                                            .list
+                                            .roots()
+                                            .map(|roots| roots.to_vec());
+                                    }
+                                    Some(Err(err)) => {
+                                        widget.flash_footer_notice(format!(
+                                            "Failed to reload config after change: {err}",
+                                        ));
+                                    }
+                                    None => {}
+                                }
+                            }
+                            Err(err) => {
+                                widget.plugins_set_action_error(Some(err.clone()));
+                                widget.flash_footer_notice(format!("Plugin update failed: {err}"));
+                            }
+                        }
+                    }
+
+                    if should_refresh_list {
+                        let roots = refresh_roots.unwrap_or_else(|| {
+                            code_utils_absolute_path::AbsolutePathBuf::try_from(self.config.cwd.clone())
+                                .ok()
+                                .into_iter()
+                                .collect::<Vec<_>>()
+                        });
+                        self.app_event_tx.send(AppEvent::FetchPluginsList {
+                            roots,
+                            force_remote_sync: false,
+                        });
+                    }
+                    self.schedule_redraw();
+                }
                 event => {
                     include!("accounts_and_auth_store.rs");
                 }

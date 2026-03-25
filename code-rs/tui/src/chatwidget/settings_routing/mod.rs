@@ -6,6 +6,7 @@ use crate::bottom_pane::settings_pages::memories::MemoriesSettingsView;
 use crate::bottom_pane::settings_pages::model::ModelSelectionViewParams;
 use crate::bottom_pane::settings_pages::network::NetworkSettingsView;
 use crate::bottom_pane::settings_pages::overview::SettingsOverviewView;
+use crate::bottom_pane::settings_pages::plugins::PluginsSettingsView;
 use crate::bottom_pane::settings_pages::shell::ShellSelectionView;
 use crate::bottom_pane::settings_pages::shell_profiles::ShellProfilesSettingsView;
 use crate::chatwidget::settings_overlay::{
@@ -14,6 +15,7 @@ use crate::chatwidget::settings_overlay::{
     JsReplSettingsContent,
     MemoriesSettingsContent,
     NetworkSettingsContent,
+    PluginsSettingsContent,
     ShellSettingsContent,
     ShellProfilesSettingsContent,
 };
