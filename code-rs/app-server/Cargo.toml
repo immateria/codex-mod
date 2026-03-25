@@ -34,6 +34,7 @@ futures = { workspace = true }
 # We should only be using mcp-types for JSON-RPC types: it would be nice to
 # split this out into a separate crate at some point.
 mcp-types = { workspace = true }
+notify = { workspace = true }
 owo-colors = { workspace = true, features = ["supports-colors"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

@@ -11,6 +11,7 @@ use crate::code_message_processor::CodexMessageProcessor;
 use crate::external_agent_config_api::ExternalAgentConfigApi;
 use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
+use crate::fs_watch::FsWatchManager;
 use crate::outgoing_message::ConnectionRequestId;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
@@ -60,6 +61,7 @@ pub(crate) struct MessageProcessor {
     command_exec_manager: crate::command_exec::CommandExecManager,
     code_message_processor: CodexMessageProcessor,
     external_agent_config_api: ExternalAgentConfigApi,
+    fs_watch_manager: FsWatchManager,
     base_config: Arc<Config>,
     auth_manager: Arc<AuthManager>,
     conversation_manager: Arc<ConversationManager>,
@@ -111,12 +113,14 @@ impl MessageProcessor {
         );
         let external_agent_config_api =
             ExternalAgentConfigApi::new(config.code_home.clone());
+        let fs_watch_manager = FsWatchManager::new(outgoing.clone());
 
         Self {
             outgoing,
             command_exec_manager: crate::command_exec::CommandExecManager::default(),
             code_message_processor,
             external_agent_config_api,
+            fs_watch_manager,
             base_config: config_for_processor,
             auth_manager,
             conversation_manager,
@@ -317,6 +321,7 @@ impl MessageProcessor {
         self.command_exec_manager
             .connection_closed(connection_id)
             .await;
+        self.fs_watch_manager.connection_closed(connection_id).await;
         self.code_message_processor
             .on_connection_closed(connection_id)
             .await;
@@ -679,6 +684,12 @@ impl MessageProcessor {
             }
             AppServerClientRequest::FsCopy { params, .. } => {
                 self.fs_copy_v2(connection_id, request_id, params).await;
+            }
+            AppServerClientRequest::FsWatch { params, .. } => {
+                self.fs_watch_v2(connection_id, request_id, params).await;
+            }
+            AppServerClientRequest::FsUnwatch { params, .. } => {
+                self.fs_unwatch_v2(connection_id, request_id, params).await;
             }
             AppServerClientRequest::McpServerStatusList { params, .. } => {
                 self.list_mcp_server_status_v2(connection_id, request_id, params)

@@ -21,6 +21,8 @@ use code_app_server_protocol::FsCreateDirectoryParams;
 use code_app_server_protocol::FsCreateDirectoryResponse;
 use code_app_server_protocol::FsGetMetadataParams;
 use code_app_server_protocol::FsGetMetadataResponse;
+use code_app_server_protocol::FsUnwatchParams;
+use code_app_server_protocol::FsWatchParams;
 use code_app_server_protocol::FsReadDirectoryEntry;
 use code_app_server_protocol::FsReadDirectoryParams;
 use code_app_server_protocol::FsReadDirectoryResponse;
@@ -843,6 +845,46 @@ impl MessageProcessor {
             Err(err) => {
                 self.outgoing
                     .send_error_to_connection(connection_id, request_id, map_fs_error(err))
+                    .await;
+            }
+        }
+    }
+
+    pub(super) async fn fs_watch_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: FsWatchParams,
+    ) {
+        match self.fs_watch_manager.watch(connection_id, params).await {
+            Ok(response) => {
+                self.outgoing
+                    .send_response_to_connection(connection_id, request_id, response)
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, err)
+                    .await;
+            }
+        }
+    }
+
+    pub(super) async fn fs_unwatch_v2(
+        &self,
+        connection_id: ConnectionId,
+        request_id: mcp_types::RequestId,
+        params: FsUnwatchParams,
+    ) {
+        match self.fs_watch_manager.unwatch(connection_id, params).await {
+            Ok(response) => {
+                self.outgoing
+                    .send_response_to_connection(connection_id, request_id, response)
+                    .await;
+            }
+            Err(err) => {
+                self.outgoing
+                    .send_error_to_connection(connection_id, request_id, err)
                     .await;
             }
         }

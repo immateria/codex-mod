@@ -1284,6 +1284,7 @@ dependencies = [
  "codex-utils-absolute-path",
  "codex-utils-pty",
  "futures",
+ "notify",
  "owo-colors",
  "serde",
  "serde_json",
