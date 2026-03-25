@@ -17,6 +17,7 @@ use code_core::config_types::McpToolSchedulingOverrideToml;
 use code_core::config::NetworkProxySettingsToml;
 use code_core::plugins::{
     ConfiguredMarketplace,
+    MarketplaceListError,
     PluginInstallRequest,
     PluginReadOutcome,
     PluginReadRequest,
@@ -172,6 +173,7 @@ pub(crate) struct AutoDriveSettingsUpdate {
 #[derive(Debug, Clone)]
 pub(crate) struct PluginListSnapshot {
     pub marketplaces: Vec<ConfiguredMarketplace>,
+    pub marketplace_load_errors: Vec<MarketplaceListError>,
     pub remote_sync_error: Option<String>,
     pub featured_plugin_ids: Vec<String>,
 }

@@ -98,6 +98,7 @@ fn make_shared_state_ready(
         list: PluginsListState::Ready {
             roots,
             marketplaces,
+            marketplace_load_errors: Vec::new(),
             remote_sync_error: None,
             featured_plugin_ids: Vec::new(),
         },
@@ -176,4 +177,3 @@ fn detail_install_action_emits_install_event() {
         other => panic!("unexpected event: {other:?}"),
     }
 }
-

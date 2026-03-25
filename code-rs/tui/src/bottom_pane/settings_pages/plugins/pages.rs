@@ -102,10 +102,21 @@ impl PluginsSettingsView {
                     Style::new().fg(colors::error()),
                 )));
             }
-            PluginsListState::Ready { remote_sync_error, .. } => {
+            PluginsListState::Ready {
+                marketplace_load_errors,
+                remote_sync_error,
+                ..
+            } => {
                 if let Some(err) = remote_sync_error.as_ref() {
                     header_lines.push(Line::from(Span::styled(
                         format!("Remote sync error: {err}"),
+                        Style::new().fg(colors::warning()),
+                    )));
+                }
+                if !marketplace_load_errors.is_empty() {
+                    let error_count = marketplace_load_errors.len();
+                    header_lines.push(Line::from(Span::styled(
+                        format!("{error_count} marketplace(s) failed to load."),
                         Style::new().fg(colors::warning()),
                     )));
                 }

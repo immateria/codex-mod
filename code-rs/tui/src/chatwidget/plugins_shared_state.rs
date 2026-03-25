@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use code_core::plugins::{ConfiguredMarketplace, PluginReadOutcome};
+use code_core::plugins::{ConfiguredMarketplace, MarketplaceListError, PluginReadOutcome};
 use code_utils_absolute_path::AbsolutePathBuf;
 
 use crate::app_event::PluginListSnapshot;
@@ -33,6 +33,7 @@ pub(crate) enum PluginsListState {
     Ready {
         roots: Vec<AbsolutePathBuf>,
         marketplaces: Vec<ConfiguredMarketplace>,
+        marketplace_load_errors: Vec<MarketplaceListError>,
         remote_sync_error: Option<String>,
         featured_plugin_ids: Vec<String>,
     },
@@ -154,6 +155,7 @@ impl ChatWidget<'_> {
                 state.list = PluginsListState::Ready {
                     roots,
                     marketplaces: snapshot.marketplaces,
+                    marketplace_load_errors: snapshot.marketplace_load_errors,
                     remote_sync_error: snapshot.remote_sync_error,
                     featured_plugin_ids: snapshot.featured_plugin_ids,
                 };

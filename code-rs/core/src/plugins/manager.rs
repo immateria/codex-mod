@@ -1,10 +1,11 @@
 use super::PluginManifestPaths;
 use super::load_plugin_manifest;
 use super::marketplace::MarketplaceError;
+use super::marketplace::MarketplaceListError;
 use super::marketplace::MarketplacePluginPolicy;
 use super::marketplace::MarketplacePluginSource;
 use super::marketplace::ResolvedMarketplacePlugin;
-use super::marketplace::list_marketplaces;
+use super::marketplace::list_marketplaces_outcome;
 use super::marketplace::load_marketplace;
 use super::marketplace::resolve_marketplace_plugin;
 use super::remote::RemotePluginFetchError;
@@ -146,6 +147,12 @@ pub struct ConfiguredMarketplacePlugin {
     pub interface: Option<super::PluginManifestInterface>,
     pub installed: bool,
     pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ConfiguredMarketplaceListOutcome {
+    pub marketplaces: Vec<ConfiguredMarketplace>,
+    pub errors: Vec<MarketplaceListError>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -511,13 +518,15 @@ impl PluginsManager {
     pub fn list_marketplaces_for_roots(
         &self,
         config_cwds: &[AbsolutePathBuf],
-    ) -> Result<Vec<ConfiguredMarketplace>, MarketplaceError> {
+    ) -> Result<ConfiguredMarketplaceListOutcome, MarketplaceError> {
         let configured_plugins = configured_plugins_from_code_home(&self.code_home);
         let roots = self.marketplace_roots(config_cwds);
         let mut seen_plugin_keys = HashSet::new();
 
+        let marketplace_outcome = list_marketplaces_outcome(&roots)?;
+
         let mut marketplaces = Vec::new();
-        for marketplace in list_marketplaces(&roots)? {
+        for marketplace in marketplace_outcome.marketplaces {
             let marketplace_name = marketplace.name.clone();
             let mut plugins = Vec::with_capacity(marketplace.plugins.len());
             for plugin in marketplace.plugins {
@@ -566,7 +575,10 @@ impl PluginsManager {
         }
 
         marketplaces.sort_unstable_by(|left, right| left.name.cmp(&right.name));
-        Ok(marketplaces)
+        Ok(ConfiguredMarketplaceListOutcome {
+            marketplaces,
+            errors: marketplace_outcome.errors,
+        })
     }
 
     pub fn read_plugin_for_config(

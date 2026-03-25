@@ -59,6 +59,7 @@ use code_app_server_protocol::AppSummary;
 use code_app_server_protocol::AppsListParams;
 use code_app_server_protocol::AppsListResponse;
 use code_app_server_protocol::MarketplaceInterface as V2MarketplaceInterface;
+use code_app_server_protocol::MarketplaceLoadErrorInfo;
 use code_app_server_protocol::PluginDetail as V2PluginDetail;
 use code_app_server_protocol::PluginInstallParams;
 use code_app_server_protocol::PluginInstallResponse;
@@ -1202,8 +1203,8 @@ impl MessageProcessor {
             }
         }
 
-        let marketplaces = match manager.list_marketplaces_for_roots(&roots) {
-            Ok(marketplaces) => marketplaces,
+        let marketplaces_outcome = match manager.list_marketplaces_for_roots(&roots) {
+            Ok(outcome) => outcome,
             Err(err) => {
                 self.outgoing
                     .send_error_to_connection(
@@ -1220,10 +1221,20 @@ impl MessageProcessor {
             }
         };
 
-        let marketplaces: Vec<PluginMarketplaceEntry> = marketplaces
+        let marketplaces: Vec<PluginMarketplaceEntry> = marketplaces_outcome
+            .marketplaces
             .into_iter()
             .map(configured_marketplace_to_v2)
             .collect();
+
+        let marketplace_load_errors = marketplaces_outcome
+            .errors
+            .into_iter()
+            .map(|err| MarketplaceLoadErrorInfo {
+                marketplace_path: err.path,
+                message: err.message,
+            })
+            .collect::<Vec<_>>();
 
         let featured_plugin_ids =
             if marketplaces.iter().any(|marketplace| {
@@ -1252,6 +1263,7 @@ impl MessageProcessor {
                 request_id,
                 PluginListResponse {
                     marketplaces,
+                    marketplace_load_errors,
                     remote_sync_error,
                     featured_plugin_ids,
                 },

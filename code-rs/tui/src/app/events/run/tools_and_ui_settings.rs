@@ -197,7 +197,7 @@
                             }
                         }
 
-                        let marketplaces = manager
+                        let marketplaces_outcome = manager
                             .list_marketplaces_for_roots(&roots)
                             .map_err(|err| err.to_string());
 
@@ -209,8 +209,9 @@
                                 Vec::new()
                             });
 
-                        let result = marketplaces.map(|marketplaces| crate::app_event::PluginListSnapshot {
-                            marketplaces,
+                        let result = marketplaces_outcome.map(|outcome| crate::app_event::PluginListSnapshot {
+                            marketplaces: outcome.marketplaces,
+                            marketplace_load_errors: outcome.errors,
                             remote_sync_error,
                             featured_plugin_ids,
                         });
