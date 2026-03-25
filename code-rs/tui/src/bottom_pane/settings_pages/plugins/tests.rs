@@ -15,6 +15,7 @@ use code_core::plugins::{
     PluginDetail,
     PluginReadOutcome,
 };
+use code_core::config_types::{PluginMarketplaceRepoToml, PluginsToml};
 
 use crate::app_event::AppEvent;
 use crate::chatwidget::{PluginsDetailState, PluginsListState, PluginsSharedState};
@@ -106,6 +107,24 @@ fn make_shared_state_ready(
     }))
 }
 
+fn make_sources(
+    curated_url: Option<&str>,
+    curated_ref: Option<&str>,
+    repos: Vec<(&str, Option<&str>)>,
+) -> PluginsToml {
+    PluginsToml {
+        curated_repo_url: curated_url.map(std::string::ToString::to_string),
+        curated_repo_ref: curated_ref.map(std::string::ToString::to_string),
+        marketplace_repos: repos
+            .into_iter()
+            .map(|(url, git_ref)| PluginMarketplaceRepoToml {
+                url: url.to_string(),
+                git_ref: git_ref.map(std::string::ToString::to_string),
+            })
+            .collect(),
+    }
+}
+
 #[test]
 fn enter_on_list_opens_detail_and_requests_plugin_detail() {
     let root = abs("/tmp");
@@ -173,6 +192,186 @@ fn detail_install_action_emits_install_event() {
             assert!(!force_remote_sync);
             assert_eq!(request.plugin_name, "plugin-one");
             assert_eq!(request.marketplace_path, marketplace_path);
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
+fn s_from_plugins_list_enters_sources_list_mode() {
+    let root = abs("/tmp");
+    let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
+    let (tx, _rx) = mpsc::channel();
+    let app_event_tx = AppEventSender::new(tx);
+    let mut view = PluginsSettingsView::new(shared_state, vec![root], app_event_tx);
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('s'),
+        KeyModifiers::NONE
+    )));
+    assert!(matches!(view.mode, Mode::Sources(SourcesMode::List)));
+}
+
+#[test]
+fn sources_curated_editor_save_empty_url_clears_curated_fields() {
+    let root = abs("/tmp");
+    let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
+    {
+        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        state.sources = make_sources(
+            Some("https://example.com/curated.git"),
+            Some("stable"),
+            vec![("https://example.com/repo.git", Some("main"))],
+        );
+    }
+
+    let (tx, rx) = mpsc::channel();
+    let app_event_tx = AppEventSender::new(tx);
+    let mut view = PluginsSettingsView::new(shared_state, vec![root.clone()], app_event_tx);
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('s'),
+        KeyModifiers::NONE
+    )));
+    assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+    assert!(matches!(
+        view.mode,
+        Mode::Sources(SourcesMode::EditCurated)
+    ));
+
+    view.sources_editor.url_field.set_text("");
+    view.sources_editor.ref_field.set_text("should-clear");
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('s'),
+        KeyModifiers::CONTROL
+    )));
+
+    match rx.try_recv().expect("SetPluginMarketplaceSources") {
+        AppEvent::SetPluginMarketplaceSources { roots, sources } => {
+            assert_eq!(roots, vec![root]);
+            assert!(sources.curated_repo_url.is_none());
+            assert!(sources.curated_repo_ref.is_none());
+            assert_eq!(sources.marketplace_repos.len(), 1);
+            assert_eq!(sources.marketplace_repos[0].url, "https://example.com/repo.git");
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
+fn sources_add_repo_flow_emits_set_sources_with_appended_repo() {
+    let root = abs("/tmp");
+    let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
+
+    let (tx, rx) = mpsc::channel();
+    let app_event_tx = AppEventSender::new(tx);
+    let mut view = PluginsSettingsView::new(shared_state, vec![root.clone()], app_event_tx);
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('s'),
+        KeyModifiers::NONE
+    )));
+    assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE)));
+    assert!(matches!(
+        view.mode,
+        Mode::Sources(SourcesMode::EditMarketplaceRepo { index: None })
+    ));
+
+    view.sources_editor
+        .url_field
+        .set_text("https://github.com/acme/marketplace.git");
+    view.sources_editor.ref_field.set_text("main");
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('s'),
+        KeyModifiers::CONTROL
+    )));
+
+    match rx.try_recv().expect("SetPluginMarketplaceSources") {
+        AppEvent::SetPluginMarketplaceSources { roots, sources } => {
+            assert_eq!(roots, vec![root]);
+            assert_eq!(sources.marketplace_repos.len(), 1);
+            assert_eq!(
+                sources.marketplace_repos[0].url,
+                "https://github.com/acme/marketplace.git"
+            );
+            assert_eq!(
+                sources.marketplace_repos[0].git_ref.as_deref(),
+                Some("main")
+            );
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
+fn sources_delete_repo_confirm_flow_emits_set_sources_with_repo_removed() {
+    let root = abs("/tmp");
+    let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
+    {
+        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        state.sources = make_sources(
+            None,
+            None,
+            vec![
+                ("https://example.com/one.git", Some("main")),
+                ("https://example.com/two.git", None),
+            ],
+        );
+    }
+
+    let (tx, rx) = mpsc::channel();
+    let app_event_tx = AppEventSender::new(tx);
+    let mut view = PluginsSettingsView::new(shared_state, vec![root.clone()], app_event_tx);
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('s'),
+        KeyModifiers::NONE
+    )));
+    assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)));
+    assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)));
+    assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE)));
+    assert!(matches!(
+        view.mode,
+        Mode::Sources(SourcesMode::ConfirmRemoveRepo { index: 0 })
+    ));
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)));
+    assert!(view.handle_key_event_direct(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)));
+
+    match rx.try_recv().expect("SetPluginMarketplaceSources") {
+        AppEvent::SetPluginMarketplaceSources { roots, sources } => {
+            assert_eq!(roots, vec![root]);
+            assert_eq!(sources.marketplace_repos.len(), 1);
+            assert_eq!(sources.marketplace_repos[0].url, "https://example.com/two.git");
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
+fn sources_list_r_emits_sync_marketplaces_event() {
+    let root = abs("/tmp");
+    let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
+
+    let (tx, rx) = mpsc::channel();
+    let app_event_tx = AppEventSender::new(tx);
+    let mut view = PluginsSettingsView::new(shared_state, vec![root.clone()], app_event_tx);
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('s'),
+        KeyModifiers::NONE
+    )));
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('R'),
+        KeyModifiers::NONE
+    )));
+
+    match rx.try_recv().expect("SyncPluginMarketplaces") {
+        AppEvent::SyncPluginMarketplaces { roots, refresh_list_after } => {
+            assert_eq!(roots, vec![root]);
+            assert!(refresh_list_after);
         }
         other => panic!("unexpected event: {other:?}"),
     }

@@ -5,6 +5,7 @@ use code_core::config_types::ContextMode;
 use code_core::config_types::ServiceTier;
 use code_core::config_types::ShellConfig;
 use code_core::config_types::MemoriesToml;
+use code_core::config_types::PluginsToml;
 use code_core::config_types::ShellScriptStyle;
 use code_core::config_types::ShellStyleProfileConfig;
 use code_core::config_types::SettingsMenuConfig;
@@ -877,6 +878,24 @@ pub(crate) enum AppEvent {
     SetPluginEnabled {
         plugin_id_key: String,
         enabled: bool,
+    },
+    SetPluginMarketplaceSources {
+        roots: Vec<AbsolutePathBuf>,
+        sources: PluginsToml,
+    },
+    PluginMarketplaceSourcesSetFinished {
+        roots: Vec<AbsolutePathBuf>,
+        sources: PluginsToml,
+        result: Result<bool, String>,
+    },
+    SyncPluginMarketplaces {
+        roots: Vec<AbsolutePathBuf>,
+        refresh_list_after: bool,
+    },
+    PluginMarketplacesSynced {
+        roots: Vec<AbsolutePathBuf>,
+        refresh_list_after: bool,
+        result: Result<(), String>,
     },
     PluginInstallFinished {
         request: PluginInstallRequest,

@@ -365,6 +365,116 @@
                         });
                     });
                 }
+                AppEvent::SetPluginMarketplaceSources { roots, sources } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_set_sources_snapshot(sources.clone());
+                        widget.plugins_set_sources_sync_status(/*in_progress*/ true, None);
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    tokio::spawn(async move {
+                        let result = code_core::config_edit::set_plugin_marketplace_sources(
+                            code_home.as_path(),
+                            &sources,
+                        )
+                        .await
+                        .map_err(|err| err.to_string());
+
+                        tx.send(AppEvent::PluginMarketplaceSourcesSetFinished {
+                            roots,
+                            sources,
+                            result,
+                        });
+                    });
+                }
+                AppEvent::PluginMarketplaceSourcesSetFinished { roots, sources, result } => {
+                    match result {
+                        Ok(mutated) => {
+                            if mutated {
+                                let reload = self.reload_config_with_startup_overrides();
+                                match reload {
+                                    Ok(config) => {
+                                        self.config = config.clone();
+                                        if let AppState::Chat { widget } = &mut self.app_state {
+                                            widget.apply_reloaded_config_keep_settings_state(config);
+                                        }
+                                        self.app_event_tx.send(AppEvent::SyncPluginMarketplaces {
+                                            roots,
+                                            refresh_list_after: true,
+                                        });
+                                    }
+                                    Err(err) => {
+                                        if let AppState::Chat { widget } = &mut self.app_state {
+                                            widget.plugins_set_sources_sync_status(
+                                                /*in_progress*/ false,
+                                                Some(format!(
+                                                    "Saved plugin sources, but failed to reload config: {err}",
+                                                )),
+                                            );
+                                            let mut config = self.config.clone();
+                                            config.plugins = sources;
+                                            self.config = config.clone();
+                                            widget.apply_reloaded_config_keep_settings_state(config);
+                                        } else {
+                                            self.config.plugins = sources;
+                                        }
+                                    }
+                                }
+                            } else if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.plugins_set_sources_sync_status(/*in_progress*/ false, None);
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.plugins_set_sources_sync_status(
+                                    /*in_progress*/ false,
+                                    Some(format!("Failed to save plugin sources: {err}")),
+                                );
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::SyncPluginMarketplaces { roots, refresh_list_after } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.plugins_set_sources_sync_status(/*in_progress*/ true, None);
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    let config = self.config.clone();
+                    tokio::spawn(async move {
+                        let manager = code_core::plugins::PluginsManager::new(code_home);
+                        let result = manager
+                            .sync_marketplace_sources(&config)
+                            .await
+                            .map_err(|err| err.to_string());
+                        tx.send(AppEvent::PluginMarketplacesSynced {
+                            roots,
+                            refresh_list_after,
+                            result,
+                        });
+                    });
+                }
+                AppEvent::PluginMarketplacesSynced { roots, refresh_list_after, result } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        let error = match result.as_ref() {
+                            Ok(()) => None,
+                            Err(err) => Some(err.clone()),
+                        };
+                        widget.plugins_set_sources_sync_status(/*in_progress*/ false, error);
+                    }
+                    if refresh_list_after {
+                        self.app_event_tx.send(AppEvent::FetchPluginsList {
+                            roots,
+                            force_remote_sync: false,
+                        });
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::PluginInstallFinished { request, force_remote_sync: _force_remote_sync, result } => {
                     let reload = if result.is_ok() {
                         Some(self.reload_config_with_startup_overrides())

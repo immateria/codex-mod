@@ -3,10 +3,13 @@ use std::sync::{Arc, Mutex};
 
 use code_core::plugins::PluginInstallRequest;
 use code_core::plugins::PluginReadRequest;
+use code_core::config_types::PluginMarketplaceRepoToml;
+use code_core::config_types::PluginsToml;
 use code_utils_absolute_path::AbsolutePathBuf;
 
 use crate::app_event_sender::AppEventSender;
 use crate::components::scroll_state::ScrollState;
+use crate::components::form_text_field::FormTextField;
 
 use crate::chatwidget::PluginDetailKey;
 use crate::chatwidget::PluginsSharedState;
@@ -32,6 +35,58 @@ enum Mode {
         plugin_id_key: String,
         key: PluginDetailKey,
     },
+    Sources(SourcesMode),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum SourcesMode {
+    List,
+    EditCurated,
+    EditMarketplaceRepo {
+        index: Option<usize>,
+    },
+    ConfirmRemoveRepo {
+        index: usize,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SourcesEditorAction {
+    Save,
+    Cancel,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SourcesConfirmRemoveAction {
+    Delete,
+    Cancel,
+}
+
+struct SourcesEditorState {
+    url_field: FormTextField,
+    ref_field: FormTextField,
+    selected_row: usize,
+    hovered_button: Option<SourcesEditorAction>,
+    focused_button: SourcesEditorAction,
+    error: Option<String>,
+}
+
+impl SourcesEditorState {
+    fn new() -> Self {
+        let mut url_field = FormTextField::new_single_line();
+        url_field.set_placeholder("https://github.com/your-org/marketplace.git");
+        let mut ref_field = FormTextField::new_single_line();
+        ref_field.set_placeholder("main");
+
+        Self {
+            url_field,
+            ref_field,
+            selected_row: 0,
+            hovered_button: None,
+            focused_button: SourcesEditorAction::Save,
+            error: None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -54,11 +109,16 @@ pub(crate) struct PluginsSettingsView {
     roots: Vec<AbsolutePathBuf>,
     list_state: Cell<ScrollState>,
     list_viewport_rows: Cell<usize>,
+    sources_list_state: Cell<ScrollState>,
+    sources_list_viewport_rows: Cell<usize>,
+    sources_editor: SourcesEditorState,
     mode: Mode,
     hovered_detail_button: Option<DetailAction>,
     focused_detail_button: DetailAction,
     hovered_confirm_button: Option<ConfirmAction>,
     focused_confirm_button: ConfirmAction,
+    hovered_sources_confirm_button: Option<SourcesConfirmRemoveAction>,
+    focused_sources_confirm_button: SourcesConfirmRemoveAction,
     app_event_tx: AppEventSender,
     is_complete: bool,
 }
@@ -113,6 +173,22 @@ impl PluginsSettingsView {
             .send(crate::app_event::AppEvent::SetPluginEnabled {
                 plugin_id_key,
                 enabled,
+            });
+    }
+
+    fn request_set_plugin_marketplace_sources(&self, sources: PluginsToml) {
+        self.app_event_tx
+            .send(crate::app_event::AppEvent::SetPluginMarketplaceSources {
+                roots: self.roots.clone(),
+                sources,
+            });
+    }
+
+    fn request_sync_plugin_marketplaces(&self, refresh_list_after: bool) {
+        self.app_event_tx
+            .send(crate::app_event::AppEvent::SyncPluginMarketplaces {
+                roots: self.roots.clone(),
+                refresh_list_after,
             });
     }
 }

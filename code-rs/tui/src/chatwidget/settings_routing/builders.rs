@@ -176,6 +176,7 @@ impl ChatWidget<'_> {
     }
 
     pub(super) fn build_plugins_settings_view(&mut self) -> PluginsSettingsView {
+        self.plugins_set_sources_snapshot(self.config.plugins.clone());
         let shared_state = self.plugins_shared_state();
         let roots = code_utils_absolute_path::AbsolutePathBuf::try_from(self.config.cwd.clone())
             .ok()

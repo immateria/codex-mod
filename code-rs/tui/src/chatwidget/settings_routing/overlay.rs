@@ -107,6 +107,13 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    pub(crate) fn apply_reloaded_config_keep_settings_state(&mut self, config: code_core::config::Config) {
+        self.config = config;
+        self.plugins_set_sources_snapshot(self.config.plugins.clone());
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
     fn apply_settings_overlay_mode(
         overlay: &mut SettingsOverlayView,
         section: Option<SettingsSection>,

@@ -2,6 +2,7 @@ use super::*;
 
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
+use ratatui::layout::Constraint;
 
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
 use crate::bottom_pane::settings_ui::buttons::{
@@ -9,6 +10,7 @@ use crate::bottom_pane::settings_ui::buttons::{
     SettingsButtonKind,
     StandardButtonSpec,
 };
+use crate::bottom_pane::settings_ui::form_page::{SettingsFormPage, SettingsFormSection};
 use crate::bottom_pane::settings_ui::hints::{
     shortcut_line,
     status_and_shortcuts_split,
@@ -201,6 +203,7 @@ impl PluginsSettingsView {
             vec![shortcut_line(&[
                 KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(colors::function())),
                 KeyHint::new("Enter", " details").with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("s", " sources").with_key_style(Style::new().fg(colors::primary())),
                 KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
                 KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
                 KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error())),
@@ -306,6 +309,239 @@ impl PluginsSettingsView {
             ],
             Some(self.focused_confirm_button),
             self.hovered_confirm_button,
+        )
+    }
+
+    pub(super) fn sources_list_page(&self, snapshot: &PluginsSharedState) -> SettingsMenuPage<'static> {
+        let mut header_lines = vec![
+            Line::from(Span::styled(
+                "Edit plugin marketplace git sources (curated + additional repos).",
+                Style::new().fg(colors::text_dim()),
+            )),
+        ];
+
+        if snapshot.sources_sync_in_progress {
+            header_lines.push(Line::from(Span::styled(
+                "Syncing marketplaces...",
+                Style::new().fg(colors::function()),
+            )));
+        }
+        if let Some(err) = snapshot.sources_sync_error.as_ref() {
+            header_lines.push(Line::from(Span::styled(
+                format!("Marketplace sync error: {err}"),
+                Style::new().fg(colors::warning()),
+            )));
+        }
+
+        header_lines.push(Line::from(""));
+
+        SettingsMenuPage::new(
+            "Plugins",
+            SettingsPanelStyle::bottom_pane(),
+            header_lines,
+            vec![shortcut_line(&[
+                KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(colors::function())),
+                KeyHint::new("Enter", " edit").with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("a", " add repo").with_key_style(Style::new().fg(colors::primary())),
+                KeyHint::new("Del", " remove").with_key_style(Style::new().fg(colors::error())),
+                KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
+                KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
+                KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+            ])],
+        )
+    }
+
+    pub(super) fn sources_list_rows(
+        &self,
+        snapshot: &PluginsSharedState,
+    ) -> Vec<SettingsMenuRow<'static, usize>> {
+        let sources = &snapshot.sources;
+        let mut rows = Vec::new();
+
+        let curated_is_custom = sources
+            .curated_repo_url
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty());
+        let curated_value = if curated_is_custom { "Custom" } else { "Default" };
+        let curated_style = if curated_is_custom {
+            Style::new().fg(colors::primary())
+        } else {
+            Style::new().fg(colors::text_dim())
+        };
+        let mut curated_detail = if curated_is_custom {
+            sources
+                .curated_repo_url
+                .clone()
+                .unwrap_or_else(|| "Custom".to_string())
+        } else {
+            "Uses the built-in curated marketplace.".to_string()
+        };
+        if curated_is_custom
+            && let Some(git_ref) = sources.curated_repo_ref.as_deref()
+            && !git_ref.trim().is_empty()
+        {
+            curated_detail.push_str(&format!(" @ {git_ref}"));
+        }
+        rows.push(
+            SettingsMenuRow::new(0usize, "Curated marketplace")
+                .with_value(StyledText::new(curated_value.to_string(), curated_style))
+                .with_detail(StyledText::new(curated_detail, Style::new().fg(colors::text_dim()))),
+        );
+
+        rows.push(
+            SettingsMenuRow::new(1usize, "Add marketplace repo")
+                .with_detail(StyledText::new(
+                    "Append a new git repo source.".to_string(),
+                    Style::new().fg(colors::text_dim()),
+                )),
+        );
+
+        for (idx, repo) in sources.marketplace_repos.iter().enumerate() {
+            let row_id = idx.saturating_add(2);
+            let mut detail = repo.url.clone();
+            if let Some(git_ref) = repo.git_ref.as_deref()
+                && !git_ref.trim().is_empty()
+            {
+                detail.push_str(&format!(" @ {git_ref}"));
+            }
+            rows.push(
+                SettingsMenuRow::new(row_id, format!("Repo {}", idx + 1))
+                    .with_value(StyledText::new(
+                        repo.url.clone(),
+                        Style::new().fg(colors::text()),
+                    ))
+                    .with_detail(StyledText::new(detail, Style::new().fg(colors::text_dim()))),
+            );
+        }
+
+        rows
+    }
+
+    pub(super) fn sources_editor_form_page(
+        &self,
+        snapshot: &PluginsSharedState,
+        mode: &SourcesMode,
+    ) -> SettingsFormPage<'static> {
+        let title = match mode {
+            SourcesMode::EditCurated => "Curated source",
+            SourcesMode::EditMarketplaceRepo { .. } => "Marketplace repo",
+            _ => "Sources",
+        };
+
+        let mut header_lines = vec![title_line(title.to_string())];
+        match mode {
+            SourcesMode::EditCurated => {
+                header_lines.push(Line::from(
+                    "Override the curated marketplace repo. Leave URL blank to use the default.",
+                ));
+            }
+            SourcesMode::EditMarketplaceRepo { .. } => {
+                header_lines.push(Line::from(
+                    "Add or edit an additional marketplace git repo (URL required).",
+                ));
+            }
+            _ => {}
+        }
+        header_lines.push(Line::from(""));
+
+        let status = if let Some(err) = self.sources_editor.error.as_ref() {
+            Some(StyledText::new(err.clone(), Style::new().fg(colors::error())))
+        } else if let Some(err) = snapshot.sources_sync_error.as_ref() {
+            Some(StyledText::new(
+                format!("Marketplace sync error: {err}"),
+                Style::new().fg(colors::warning()),
+            ))
+        } else if snapshot.sources_sync_in_progress {
+            Some(StyledText::new(
+                "Syncing marketplaces...".to_string(),
+                Style::new().fg(colors::function()),
+            ))
+        } else {
+            None
+        };
+
+        let (status_lines, footer_lines) = status_and_shortcuts_split(
+            status,
+            &[
+                KeyHint::new("Tab", " next"),
+                KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("Esc", " cancel").with_key_style(Style::new().fg(colors::error())),
+            ],
+        );
+
+        let page = SettingsActionPage::new(
+            "Plugins",
+            SettingsPanelStyle::bottom_pane(),
+            header_lines,
+            footer_lines,
+        )
+        .with_status_lines(status_lines)
+        .with_action_rows(1)
+        .with_min_body_rows(4);
+
+        SettingsFormPage::new(
+            page,
+            vec![
+                SettingsFormSection::new("Repository URL", false, Constraint::Length(1)),
+                SettingsFormSection::new("Git ref (optional)", false, Constraint::Length(1)),
+            ],
+        )
+        .with_section_gap_rows(1)
+    }
+
+    pub(super) fn sources_editor_button_specs(&self) -> Vec<StandardButtonSpec<SourcesEditorAction>> {
+        let focused = match self.sources_editor.selected_row {
+            2 => Some(SourcesEditorAction::Save),
+            3 => Some(SourcesEditorAction::Cancel),
+            _ => None,
+        };
+        standard_button_specs(
+            &[
+                (SourcesEditorAction::Save, SettingsButtonKind::Save),
+                (SourcesEditorAction::Cancel, SettingsButtonKind::Cancel),
+            ],
+            focused,
+            self.sources_editor.hovered_button,
+        )
+    }
+
+    pub(super) fn sources_confirm_remove_page(
+        &self,
+        snapshot: &PluginsSharedState,
+    ) -> SettingsActionPage<'static> {
+        let status = snapshot.sources_sync_error.as_ref().map(|err| {
+            StyledText::new(
+                format!("Marketplace sync error: {err}"),
+                Style::new().fg(colors::warning()),
+            )
+        });
+        let shortcuts = [
+            KeyHint::new("←→", " actions").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new("Enter", " activate").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+        ];
+        let (status_lines, footer_lines) = status_and_shortcuts_split(status, &shortcuts);
+        SettingsActionPage::new(
+            "Plugins",
+            SettingsPanelStyle::bottom_pane(),
+            vec![title_line("Confirm remove".to_string())],
+            footer_lines,
+        )
+        .with_status_lines(status_lines)
+        .with_wrap_lines(true)
+        .with_action_rows(1)
+    }
+
+    pub(super) fn sources_confirm_remove_button_specs(
+        &self,
+    ) -> Vec<StandardButtonSpec<SourcesConfirmRemoveAction>> {
+        standard_button_specs(
+            &[
+                (SourcesConfirmRemoveAction::Delete, SettingsButtonKind::Delete),
+                (SourcesConfirmRemoveAction::Cancel, SettingsButtonKind::Cancel),
+            ],
+            Some(self.focused_sources_confirm_button),
+            self.hovered_sources_confirm_button,
         )
     }
 }

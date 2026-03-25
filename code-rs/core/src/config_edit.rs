@@ -1,5 +1,5 @@
 use crate::config::resolve_code_path_for_read;
-use crate::config_types::SubagentCommandConfig;
+use crate::config_types::{PluginMarketplaceRepoToml, PluginsToml, SubagentCommandConfig};
 use anyhow::Result;
 use std::path::Path;
 use tempfile::NamedTempFile;
@@ -467,6 +467,198 @@ pub async fn clear_plugin_config(code_home: &Path, plugin_key: &str) -> Result<b
 
         if mutated && plugins_table.is_empty() {
             root.remove("plugins");
+        }
+    }
+
+    if !mutated {
+        return Ok(false);
+    }
+
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    tokio::fs::write(tmp_file.path(), doc.to_string()).await?;
+    tmp_file.persist(config_path)?;
+
+    Ok(true)
+}
+
+fn normalize_marketplace_repo_url(url: &str) -> Option<String> {
+    let trimmed = url.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
+}
+
+fn normalize_marketplace_repo_ref(git_ref: Option<&str>) -> Option<String> {
+    git_ref
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(std::string::ToString::to_string)
+}
+
+fn parse_marketplace_repos_from_item(item: Option<&TomlItem>) -> Vec<PluginMarketplaceRepoToml> {
+    let Some(TomlItem::ArrayOfTables(tables)) = item else {
+        return Vec::new();
+    };
+
+    let mut repos = Vec::new();
+    for table in tables.iter() {
+        let Some(url) = table.get("url").and_then(|value| value.as_str()) else {
+            continue;
+        };
+        let Some(url) = normalize_marketplace_repo_url(url) else {
+            continue;
+        };
+        let git_ref = table
+            .get("ref")
+            .and_then(|value| value.as_str())
+            .and_then(|value| normalize_marketplace_repo_ref(Some(value)));
+        repos.push(PluginMarketplaceRepoToml { url, git_ref });
+    }
+    repos
+}
+
+fn build_marketplace_repos_item(repos: &[PluginMarketplaceRepoToml]) -> Option<TomlItem> {
+    if repos.is_empty() {
+        return None;
+    }
+
+    let mut overrides = ArrayOfTables::new();
+    for repo in repos {
+        let Some(url) = normalize_marketplace_repo_url(&repo.url) else {
+            continue;
+        };
+        let mut entry = TomlTable::new();
+        entry.set_implicit(false);
+        entry["url"] = value(url);
+        if let Some(git_ref) = normalize_marketplace_repo_ref(repo.git_ref.as_deref()) {
+            entry["ref"] = value(git_ref);
+        }
+        overrides.push(entry);
+    }
+
+    (!overrides.is_empty()).then_some(TomlItem::ArrayOfTables(overrides))
+}
+
+/// Persist plugin marketplace sources into `config.toml` at the document root.
+///
+/// - Writes `plugins.curated_repo_url` / `plugins.curated_repo_ref` (clearing both if URL is missing).
+/// - Writes `[[plugins.marketplace_repos]]` entries from `sources.marketplace_repos`.
+/// - Preserves any existing `[plugins."<plugin_key>"]` subtables.
+pub async fn set_plugin_marketplace_sources(code_home: &Path, sources: &PluginsToml) -> Result<bool> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match tokio::fs::read_to_string(&read_path).await {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let has_sources = sources
+                .curated_repo_url
+                .as_deref()
+                .map(str::trim)
+                .is_some_and(|value| !value.is_empty())
+                || !sources.marketplace_repos.is_empty();
+            if !has_sources {
+                return Ok(false);
+            }
+            tokio::fs::create_dir_all(code_home).await?;
+            DocumentMut::new()
+        }
+        Err(e) => return Err(e.into()),
+    };
+
+    let curated_url = sources
+        .curated_repo_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(std::string::ToString::to_string);
+    let curated_ref = if curated_url.is_some() {
+        normalize_marketplace_repo_ref(sources.curated_repo_ref.as_deref())
+    } else {
+        None
+    };
+
+    let desired_marketplace_repos = sources
+        .marketplace_repos
+        .iter()
+        .filter_map(|repo| {
+            normalize_marketplace_repo_url(&repo.url).map(|url| PluginMarketplaceRepoToml {
+                url,
+                git_ref: normalize_marketplace_repo_ref(repo.git_ref.as_deref()),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let mut mutated = false;
+    {
+        let root = doc.as_table_mut();
+        let plugins_item = match root.get_mut("plugins") {
+            Some(item) => item,
+            None => {
+                if curated_url.is_none() && desired_marketplace_repos.is_empty() {
+                    return Ok(false);
+                }
+                root.insert("plugins", TomlItem::Table(new_implicit_table()));
+                root.get_mut("plugins")
+                    .ok_or_else(|| anyhow::anyhow!("missing plugins table"))?
+            }
+        };
+
+        if plugins_item.as_table_mut().is_none() {
+            *plugins_item = TomlItem::Table(new_implicit_table());
+            mutated = true;
+        }
+
+        let plugins_table = plugins_item
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("plugins item is not a table"))?;
+
+        match curated_url.as_deref() {
+            None => {
+                if plugins_table.remove("curated_repo_url").is_some() {
+                    mutated = true;
+                }
+                if plugins_table.remove("curated_repo_ref").is_some() {
+                    mutated = true;
+                }
+            }
+            Some(url) => {
+                let previous = plugins_table
+                    .get("curated_repo_url")
+                    .and_then(|item| item.as_str());
+                if previous != Some(url) {
+                    plugins_table["curated_repo_url"] = value(url);
+                    mutated = true;
+                }
+
+                match curated_ref.as_deref() {
+                    None => {
+                        if plugins_table.remove("curated_repo_ref").is_some() {
+                            mutated = true;
+                        }
+                    }
+                    Some(git_ref) => {
+                        let previous = plugins_table
+                            .get("curated_repo_ref")
+                            .and_then(|item| item.as_str());
+                        if previous != Some(git_ref) {
+                            plugins_table["curated_repo_ref"] = value(git_ref);
+                            mutated = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        let existing_repos =
+            parse_marketplace_repos_from_item(plugins_table.get("marketplace_repos"));
+        if existing_repos != desired_marketplace_repos {
+            match build_marketplace_repos_item(&desired_marketplace_repos) {
+                Some(item) => {
+                    plugins_table["marketplace_repos"] = item;
+                }
+                None => {
+                    let _ = plugins_table.remove("marketplace_repos");
+                }
+            }
+            mutated = true;
         }
     }
 
@@ -1618,6 +1810,99 @@ model_reasoning_effort = "high"
             .expect("enable");
         assert!(!mutated);
         assert!(!code_home.join(CONFIG_TOML_FILE).exists());
+    }
+
+    #[tokio::test]
+    async fn set_plugin_marketplace_sources_updates_sources_and_preserves_plugin_entries() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let seed = r#"[plugins]
+curated_repo_url = "https://old.example.com/curated.git"
+curated_repo_ref = "old"
+
+[[plugins.marketplace_repos]]
+url = "https://old.example.com/marketplace.git"
+ref = "main"
+
+[plugins."some@plugin"]
+enabled = true
+"#;
+        tokio::fs::write(code_home.join(CONFIG_TOML_FILE), seed)
+            .await
+            .expect("seed write");
+
+        let sources = PluginsToml {
+            curated_repo_url: Some("https://example.com/custom/plugins.git".to_string()),
+            curated_repo_ref: Some("stable".to_string()),
+            marketplace_repos: vec![
+                PluginMarketplaceRepoToml {
+                    url: "https://github.com/acme/marketplace.git".to_string(),
+                    git_ref: Some("main".to_string()),
+                },
+                PluginMarketplaceRepoToml {
+                    url: "https://git.example.com/more.git".to_string(),
+                    git_ref: None,
+                },
+            ],
+        };
+
+        let mutated = set_plugin_marketplace_sources(code_home, &sources)
+            .await
+            .expect("persist sources");
+        assert!(mutated);
+
+        let contents = read_config(code_home).await;
+        let parsed: toml::Value = toml::from_str(&contents).expect("valid toml");
+        let root = parsed.as_table().expect("root table");
+        let plugins = root
+            .get("plugins")
+            .and_then(toml::Value::as_table)
+            .expect("plugins table");
+
+        assert_eq!(
+            plugins
+                .get("curated_repo_url")
+                .and_then(toml::Value::as_str),
+            Some("https://example.com/custom/plugins.git")
+        );
+        assert_eq!(
+            plugins
+                .get("curated_repo_ref")
+                .and_then(toml::Value::as_str),
+            Some("stable")
+        );
+
+        let marketplace_repos = plugins
+            .get("marketplace_repos")
+            .and_then(toml::Value::as_array)
+            .expect("marketplace_repos");
+        assert_eq!(marketplace_repos.len(), 2);
+        let first = marketplace_repos[0].as_table().expect("repo 0");
+        assert_eq!(
+            first.get("url").and_then(toml::Value::as_str),
+            Some("https://github.com/acme/marketplace.git")
+        );
+        assert_eq!(
+            first.get("ref").and_then(toml::Value::as_str),
+            Some("main")
+        );
+
+        let second = marketplace_repos[1].as_table().expect("repo 1");
+        assert_eq!(
+            second.get("url").and_then(toml::Value::as_str),
+            Some("https://git.example.com/more.git")
+        );
+        assert!(second.get("ref").is_none());
+
+        let plugin_entry = plugins
+            .get("some@plugin")
+            .and_then(toml::Value::as_table)
+            .expect("plugin entry");
+        assert_eq!(
+            plugin_entry.get("enabled").and_then(toml::Value::as_bool),
+            Some(true)
+        );
     }
 
     // Test helper moved to bottom per review guidance.

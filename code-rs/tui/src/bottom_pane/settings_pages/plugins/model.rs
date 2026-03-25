@@ -9,16 +9,24 @@ impl PluginsSettingsView {
         let mut list_state = ScrollState::new();
         list_state.selected_idx = Some(0);
 
+        let mut sources_list_state = ScrollState::new();
+        sources_list_state.selected_idx = Some(0);
+
         let view = Self {
             shared_state,
             roots,
             list_state: Cell::new(list_state),
             list_viewport_rows: Cell::new(DEFAULT_LIST_VIEWPORT_ROWS),
+            sources_list_state: Cell::new(sources_list_state),
+            sources_list_viewport_rows: Cell::new(DEFAULT_LIST_VIEWPORT_ROWS),
+            sources_editor: SourcesEditorState::new(),
             mode: Mode::List,
             hovered_detail_button: None,
             focused_detail_button: DetailAction::Back,
             hovered_confirm_button: None,
             focused_confirm_button: ConfirmAction::Cancel,
+            hovered_sources_confirm_button: None,
+            focused_sources_confirm_button: SourcesConfirmRemoveAction::Cancel,
             app_event_tx,
             is_complete: false,
         };

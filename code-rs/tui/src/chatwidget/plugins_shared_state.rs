@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use code_core::config_types::PluginsToml;
 use code_core::plugins::{ConfiguredMarketplace, MarketplaceListError, PluginReadOutcome};
 use code_utils_absolute_path::AbsolutePathBuf;
 
@@ -95,6 +96,9 @@ pub(crate) enum PluginsActionInProgress {
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct PluginsSharedState {
+    pub(crate) sources: PluginsToml,
+    pub(crate) sources_sync_in_progress: bool,
+    pub(crate) sources_sync_error: Option<String>,
     pub(crate) list: PluginsListState,
     pub(crate) details: HashMap<PluginDetailKey, PluginsDetailState>,
     pub(crate) action_in_progress: Option<PluginsActionInProgress>,
@@ -120,6 +124,17 @@ impl ChatWidget<'_> {
     pub(crate) fn plugins_set_action_error(&mut self, error: Option<String>) {
         let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
         state.action_error = error;
+    }
+
+    pub(crate) fn plugins_set_sources_snapshot(&mut self, sources: PluginsToml) {
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        state.sources = sources;
+    }
+
+    pub(crate) fn plugins_set_sources_sync_status(&mut self, in_progress: bool, error: Option<String>) {
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        state.sources_sync_in_progress = in_progress;
+        state.sources_sync_error = error;
     }
 
     pub(crate) fn plugins_mark_list_loading(

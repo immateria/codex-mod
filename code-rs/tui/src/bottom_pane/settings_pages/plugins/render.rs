@@ -34,6 +34,7 @@ impl PluginsSettingsView {
             Mode::ConfirmUninstall { plugin_id_key: _, key } => {
                 self.render_confirm_uninstall(chrome, area, buf, &snapshot, key.clone())
             }
+            Mode::Sources(mode) => self.render_sources(chrome, area, buf, &snapshot, mode.clone()),
         }
     }
 
@@ -152,6 +153,114 @@ impl PluginsSettingsView {
             "This will remove plugin files and clear its config entry.",
             Style::new().fg(colors::text_dim()),
         )));
+        Paragraph::new(lines)
+            .style(base)
+            .wrap(Wrap { trim: false })
+            .render(layout.body, buf);
+    }
+
+    fn render_sources(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        snapshot: &PluginsSharedState,
+        mode: SourcesMode,
+    ) {
+        match mode {
+            SourcesMode::List => self.render_sources_list(chrome, area, buf, snapshot),
+            SourcesMode::EditCurated | SourcesMode::EditMarketplaceRepo { .. } => {
+                self.render_sources_editor(chrome, area, buf, snapshot, &mode)
+            }
+            SourcesMode::ConfirmRemoveRepo { index } => {
+                self.render_sources_confirm_remove(chrome, area, buf, snapshot, index)
+            }
+        }
+    }
+
+    fn render_sources_list(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        snapshot: &PluginsSharedState,
+    ) {
+        let rows = self.sources_list_rows(snapshot);
+        let page = self.sources_list_page(snapshot);
+        let Some(layout) = page.layout_in_chrome(chrome, area) else {
+            return;
+        };
+
+        let visible_rows = layout.body.height.max(1) as usize;
+        self.sources_list_viewport_rows.set(visible_rows);
+
+        let mut state = self.sources_list_state.get();
+        state.clamp_selection(rows.len());
+        state.ensure_visible(rows.len(), visible_rows);
+        self.sources_list_state.set(state);
+
+        let _ = page.render_menu_rows_in_chrome(
+            chrome,
+            area,
+            buf,
+            state.scroll_top,
+            state.selected_idx,
+            &rows,
+        );
+    }
+
+    fn render_sources_editor(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        snapshot: &PluginsSharedState,
+        mode: &SourcesMode,
+    ) {
+        let page = self.sources_editor_form_page(snapshot, mode);
+        let buttons = self.sources_editor_button_specs();
+        let _ = page.render_with_standard_actions_end_in_chrome(
+            chrome,
+            area,
+            buf,
+            &[&self.sources_editor.url_field, &self.sources_editor.ref_field],
+            &buttons,
+        );
+    }
+
+    fn render_sources_confirm_remove(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        snapshot: &PluginsSharedState,
+        index: usize,
+    ) {
+        let page = self.sources_confirm_remove_page(snapshot);
+        let buttons = self.sources_confirm_remove_button_specs();
+        let Some(layout) = page.render_with_standard_actions_end_in_chrome(chrome, area, buf, &buttons) else {
+            return;
+        };
+
+        let base = Style::new().bg(colors::background()).fg(colors::text());
+        fill_rect(buf, layout.body, Some(' '), base);
+
+        let label = snapshot
+            .sources
+            .marketplace_repos
+            .get(index)
+            .map(|repo| repo.url.as_str())
+            .unwrap_or("(unknown repo)");
+        let lines = vec![
+            Line::from(Span::styled(
+                "Remove marketplace repo?".to_string(),
+                Style::new().fg(colors::warning()),
+            )),
+            Line::from(Span::styled(
+                label.to_string(),
+                Style::new().fg(colors::text_dim()),
+            )),
+        ];
         Paragraph::new(lines)
             .style(base)
             .wrap(Wrap { trim: false })
