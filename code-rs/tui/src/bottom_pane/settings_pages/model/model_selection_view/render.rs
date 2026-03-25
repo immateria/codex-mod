@@ -7,6 +7,7 @@ use code_core::config_types::{ContextMode, ServiceTier};
 
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
 use crate::bottom_pane::settings_ui::line_runs::SelectableLineRun;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -14,7 +15,7 @@ use crate::bottom_pane::settings_ui::toggle;
 use crate::colors;
 
 use super::super::model_selection_state::{reasoning_effort_label, EntryKind, ModelSelectionData};
-use super::ModelSelectionView;
+use super::{EditTarget, ModelSelectionView, ViewMode};
 
 impl ModelSelectionView {
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
@@ -97,10 +98,18 @@ impl ModelSelectionView {
         };
         let is_selected = self.selected_index == context_index;
         let context_status = match self.data.current.current_context_mode {
-            Some(ContextMode::OneM) => "enabled",
+            Some(ContextMode::OneM) => "1M",
             Some(ContextMode::Auto) => "auto",
             Some(ContextMode::Disabled) | None => "disabled",
         };
+        let context_window_index = self
+            .data
+            .context_window_entry_index()
+            .expect("context window row");
+        let auto_compact_index = self
+            .data
+            .auto_compact_entry_index()
+            .expect("auto compact row");
         let context_available = self.data.supports_extended_context();
 
         lines.push(SelectableLineRun::plain(vec![Line::from(vec![Span::styled(
@@ -137,7 +146,54 @@ impl ModelSelectionView {
             context_index,
             vec![Line::from(vec![
                 Span::styled(if is_selected { "› " } else { "  " }, arrow_style),
-                Span::styled(format!("1M Context: {context_status}"), label_style),
+                Span::styled(format!("Context preset: {context_status}"), label_style),
+            ])],
+        ));
+
+        let is_window_selected = self.selected_index == context_window_index;
+        let window_label_style = Self::highlighted(Style::new().fg(colors::text()), is_window_selected);
+        let window_arrow_style = if is_window_selected {
+            Style::new().bg(colors::selection()).bold()
+        } else {
+            Style::new().fg(colors::text_dim())
+        };
+        let mut window_value = self.current_context_window_label();
+        if self.data.context_window_is_default() {
+            window_value.push_str(" (auto)");
+        }
+        lines.push(SelectableLineRun::selectable(
+            context_window_index,
+            vec![Line::from(vec![
+                Span::styled(
+                    if is_window_selected { "› " } else { "  " },
+                    window_arrow_style,
+                ),
+                Span::styled("Context window: ", window_label_style),
+                Span::styled(window_value, window_label_style.fg(colors::success())),
+            ])],
+        ));
+
+        let is_compact_selected = self.selected_index == auto_compact_index;
+        let compact_label_style =
+            Self::highlighted(Style::new().fg(colors::text()), is_compact_selected);
+        let compact_arrow_style = if is_compact_selected {
+            Style::new().bg(colors::selection()).bold()
+        } else {
+            Style::new().fg(colors::text_dim())
+        };
+        let mut compact_value = self.current_auto_compact_label();
+        if self.data.auto_compact_is_default() {
+            compact_value.push_str(" (auto)");
+        }
+        lines.push(SelectableLineRun::selectable(
+            auto_compact_index,
+            vec![Line::from(vec![
+                Span::styled(
+                    if is_compact_selected { "› " } else { "  " },
+                    compact_arrow_style,
+                ),
+                Span::styled("Auto-compact at: ", compact_label_style),
+                Span::styled(compact_value, compact_label_style.fg(colors::success())),
             ])],
         ));
 
@@ -269,7 +325,7 @@ impl ModelSelectionView {
 
     pub(super) fn build_render_runs<'a>(&'a self) -> Vec<SelectableLineRun<'a, usize>> {
         let mut runs = Vec::new();
-        if self.data.target.supports_fast_mode() {
+        if self.data.supports_fast_mode() {
             self.push_fast_mode_section(&mut runs);
         }
         if self.data.target.supports_context_mode() {
@@ -322,19 +378,80 @@ impl ModelSelectionView {
             shortcut_line(&[
                 KeyHint::new("↑↓", " Navigate")
                     .with_key_style(Style::new().fg(colors::light_blue())),
-                KeyHint::new("Enter", " Select").with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new("←→ +/-", " Adjust")
+                    .with_key_style(Style::new().fg(colors::warning())),
+                KeyHint::new("Enter", " Select/Edit")
+                    .with_key_style(Style::new().fg(colors::success())),
                 KeyHint::new("Esc", " Cancel").with_key_style(Style::new().fg(colors::error())),
             ]),
         ]
     }
 
-    pub(super) fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
+    pub(super) fn edit_page(target: EditTarget, error: Option<&str>) -> SettingsEditorPage<'static> {
+        let (title, help_text) = match target {
+            EditTarget::ContextWindow => (
+                "Context window",
+                "Enter an integer like 500000, or 500k / 1m. Leave blank for the preset-derived value.",
+            ),
+            EditTarget::AutoCompact => (
+                "Auto-compact threshold",
+                "Enter the token threshold where pre-turn compaction should trigger. Leave blank for the preset-derived value.",
+            ),
+        };
+        let post_field_lines = match error {
+            Some(message) => vec![Line::from(Span::styled(
+                message.to_string(),
+                Style::new().fg(colors::error()),
+            ))],
+            None => vec![Line::from(Span::styled(
+                "Enter to save. Esc to cancel. Use auto or blank to reset to the derived value.",
+                Self::dim_style(),
+            ))],
+        };
+
+        SettingsEditorPage::new(
+            " Select Model & Reasoning ",
+            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
+            title,
+            vec![
+                Line::from(Span::styled(help_text, Self::dim_style())),
+                Line::from(""),
+            ],
+            post_field_lines,
+        )
+        .with_field_margin(Margin::new(2, 0))
+    }
+
+    fn render_main_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
         let runs = self.build_render_runs();
         let layout = self
             .page()
             .render_runs_in_chrome(chrome, area, buf, self.scroll_offset, &runs);
         if let Some(layout) = layout {
             self.visible_body_rows.set(layout.body.height as usize);
+        }
+    }
+
+    fn render_edit_in_chrome(
+        &self,
+        chrome: ChromeMode,
+        area: Rect,
+        buf: &mut Buffer,
+        target: EditTarget,
+        field: &crate::components::form_text_field::FormTextField,
+        error: Option<&str>,
+    ) {
+        let _ = Self::edit_page(target, error).render_in_chrome(chrome, area, buf, field);
+    }
+
+    pub(super) fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main | ViewMode::Transition => self.render_main_in_chrome(chrome, area, buf),
+            ViewMode::Edit {
+                target,
+                field,
+                error,
+            } => self.render_edit_in_chrome(chrome, area, buf, *target, field, error.as_deref()),
         }
     }
 
@@ -346,4 +463,3 @@ impl ModelSelectionView {
         self.render_in_chrome(ChromeMode::Framed, area, buf);
     }
 }
-

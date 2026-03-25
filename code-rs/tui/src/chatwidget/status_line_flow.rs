@@ -185,16 +185,21 @@ impl ChatWidget<'_> {
                 self.format_model_name(&self.config.model),
                 Self::format_reasoning_effort(self.config.model_reasoning_effort)
             )),
-            StatusLineItem::ServiceTier => Some(
-                if matches!(
-                    self.config.service_tier,
-                    Some(code_core::config_types::ServiceTier::Fast)
-                ) {
-                    "fast".to_string()
-                } else {
-                    "slow".to_string()
-                },
-            ),
+            StatusLineItem::ServiceTier => {
+                if !code_core::model_family::supports_service_tier(&self.config.model) {
+                    return None;
+                }
+                Some(
+                    if matches!(
+                        self.config.service_tier,
+                        Some(code_core::config_types::ServiceTier::Fast)
+                    ) {
+                        "fast".to_string()
+                    } else {
+                        "standard".to_string()
+                    },
+                )
+            }
             StatusLineItem::Shell => Some(match self.config.shell.as_ref() {
                 Some(shell) => {
                     let display = if shell.args.is_empty() {

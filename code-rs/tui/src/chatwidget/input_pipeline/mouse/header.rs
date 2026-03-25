@@ -33,6 +33,9 @@ impl ChatWidget<'_> {
                 self.handle_model_command(String::new());
             }
             ClickableAction::ToggleServiceTier => {
+                if !code_core::model_family::supports_service_tier(&self.config.model) {
+                    return;
+                }
                 let service_tier = if matches!(
                     self.config.service_tier,
                     Some(code_core::config_types::ServiceTier::Fast)

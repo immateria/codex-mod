@@ -1,7 +1,11 @@
 use crate::default_client::create_client;
 use crate::default_client::DEFAULT_ORIGINATOR;
+use crate::config_types::PluginMarketplaceRepoToml;
+use crate::config_types::PluginsToml;
 use reqwest::Client;
 use serde::Deserialize;
+use sha1::Digest;
+use sha1::Sha1;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -17,6 +21,7 @@ const OPENAI_PLUGINS_OWNER: &str = "openai";
 const OPENAI_PLUGINS_REPO: &str = "plugins";
 const CURATED_PLUGINS_RELATIVE_DIR: &str = ".tmp/plugins";
 const CURATED_PLUGINS_SHA_FILE: &str = ".tmp/plugins.sha";
+const MARKETPLACE_REPOS_RELATIVE_DIR: &str = ".tmp/plugin-marketplaces";
 const CURATED_PLUGINS_GIT_TIMEOUT: Duration = Duration::from_secs(30);
 const CURATED_PLUGINS_HTTP_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -43,8 +48,52 @@ pub(crate) fn read_curated_plugins_sha(code_home: &Path) -> Option<String> {
     read_sha_file(code_home.join(CURATED_PLUGINS_SHA_FILE).as_path())
 }
 
+pub(crate) fn synced_marketplace_repo_path(
+    code_home: &Path,
+    repo: &PluginMarketplaceRepoToml,
+) -> PathBuf {
+    code_home
+        .join(MARKETPLACE_REPOS_RELATIVE_DIR)
+        .join(marketplace_repo_cache_key(repo))
+}
+
 pub(crate) fn sync_openai_plugins_repo(code_home: &Path) -> Result<String, String> {
     sync_openai_plugins_repo_with_transport_overrides(code_home, "git", GITHUB_API_BASE_URL)
+}
+
+pub(crate) fn sync_curated_plugins_repo(
+    code_home: &Path,
+    plugins: &PluginsToml,
+) -> Result<String, String> {
+    match plugins.curated_repo_url.as_deref() {
+        Some(repo_url) => sync_repo_via_git(
+            repo_url,
+            plugins.curated_repo_ref.as_deref(),
+            curated_plugins_repo_path(code_home).as_path(),
+            code_home.join(CURATED_PLUGINS_SHA_FILE).as_path(),
+            "git",
+            "curated plugin marketplace repo",
+        ),
+        None => sync_openai_plugins_repo(code_home),
+    }
+}
+
+pub(crate) fn sync_git_marketplace_repo(
+    code_home: &Path,
+    repo: &PluginMarketplaceRepoToml,
+) -> Result<String, String> {
+    let repo_path = synced_marketplace_repo_path(code_home, repo);
+    let sha_path = code_home
+        .join(MARKETPLACE_REPOS_RELATIVE_DIR)
+        .join(format!("{}.sha", marketplace_repo_cache_key(repo)));
+    sync_repo_via_git(
+        repo.url.as_str(),
+        repo.git_ref.as_deref(),
+        repo_path.as_path(),
+        sha_path.as_path(),
+        "git",
+        "plugin marketplace repo",
+    )
 }
 
 fn sync_openai_plugins_repo_with_transport_overrides(
@@ -66,40 +115,14 @@ fn sync_openai_plugins_repo_with_transport_overrides(
 }
 
 fn sync_openai_plugins_repo_via_git(code_home: &Path, git_binary: &str) -> Result<String, String> {
-    let repo_path = curated_plugins_repo_path(code_home);
-    let sha_path = code_home.join(CURATED_PLUGINS_SHA_FILE);
-    let remote_sha = git_ls_remote_head_sha(git_binary)?;
-    let local_sha = read_local_git_or_sha_file(&repo_path, &sha_path, git_binary);
-
-    if local_sha.as_deref() == Some(remote_sha.as_str()) && repo_path.join(".git").is_dir() {
-        return Ok(remote_sha);
-    }
-
-    let cloned_repo_path = prepare_curated_repo_parent_and_temp_dir(&repo_path)?;
-    let clone_output = run_git_command_with_timeout(
-        Command::new(git_binary)
-            .env("GIT_OPTIONAL_LOCKS", "0")
-            .arg("clone")
-            .arg("--depth")
-            .arg("1")
-            .arg("https://github.com/openai/plugins.git")
-            .arg(&cloned_repo_path),
-        "git clone curated plugins repo",
-        CURATED_PLUGINS_GIT_TIMEOUT,
-    )?;
-    ensure_git_success(&clone_output, "git clone curated plugins repo")?;
-
-    let cloned_sha = git_head_sha(&cloned_repo_path, git_binary)?;
-    if cloned_sha != remote_sha {
-        return Err(format!(
-            "curated plugins clone HEAD mismatch: expected {remote_sha}, got {cloned_sha}"
-        ));
-    }
-
-    ensure_marketplace_manifest_exists(&cloned_repo_path)?;
-    activate_curated_repo(&repo_path, &cloned_repo_path)?;
-    write_curated_plugins_sha(&sha_path, &remote_sha)?;
-    Ok(remote_sha)
+    sync_repo_via_git(
+        "https://github.com/openai/plugins.git",
+        None,
+        curated_plugins_repo_path(code_home).as_path(),
+        code_home.join(CURATED_PLUGINS_SHA_FILE).as_path(),
+        git_binary,
+        "curated plugins repo",
+    )
 }
 
 fn sync_openai_plugins_repo_via_http(code_home: &Path, api_base_url: &str) -> Result<String, String> {
@@ -116,25 +139,25 @@ fn sync_openai_plugins_repo_via_http(code_home: &Path, api_base_url: &str) -> Re
         return Ok(remote_sha);
     }
 
-    let cloned_repo_path = prepare_curated_repo_parent_and_temp_dir(&repo_path)?;
+    let cloned_repo_path = prepare_repo_parent_and_temp_dir(&repo_path, "curated plugins repo")?;
     let zipball_bytes = runtime.block_on(fetch_curated_repo_zipball(api_base_url, &remote_sha))?;
     extract_zipball_to_dir(&zipball_bytes, &cloned_repo_path)?;
     ensure_marketplace_manifest_exists(&cloned_repo_path)?;
-    activate_curated_repo(&repo_path, &cloned_repo_path)?;
-    write_curated_plugins_sha(&sha_path, &remote_sha)?;
+    activate_repo(&repo_path, &cloned_repo_path, "curated plugins repo")?;
+    write_repo_sha(&sha_path, &remote_sha, "curated plugins repo")?;
     Ok(remote_sha)
 }
 
-fn prepare_curated_repo_parent_and_temp_dir(repo_path: &Path) -> Result<PathBuf, String> {
+fn prepare_repo_parent_and_temp_dir(repo_path: &Path, label: &str) -> Result<PathBuf, String> {
     let Some(parent) = repo_path.parent() else {
         return Err(format!(
-            "failed to determine curated plugins parent directory for {}",
+            "failed to determine {label} parent directory for {}",
             repo_path.display()
         ));
     };
     std::fs::create_dir_all(parent).map_err(|err| {
         format!(
-            "failed to create curated plugins parent directory {}: {err}",
+            "failed to create {label} parent directory {}: {err}",
             parent.display()
         )
     })?;
@@ -144,7 +167,7 @@ fn prepare_curated_repo_parent_and_temp_dir(repo_path: &Path) -> Result<PathBuf,
         .tempdir_in(parent)
         .map_err(|err| {
             format!(
-                "failed to create temporary curated plugins directory in {}: {err}",
+                "failed to create temporary {label} directory in {}: {err}",
                 parent.display()
             )
         })?;
@@ -161,11 +184,11 @@ fn ensure_marketplace_manifest_exists(repo_path: &Path) -> Result<(), String> {
     ))
 }
 
-fn activate_curated_repo(repo_path: &Path, staged_repo_path: &Path) -> Result<(), String> {
+fn activate_repo(repo_path: &Path, staged_repo_path: &Path, label: &str) -> Result<(), String> {
     if repo_path.exists() {
         let parent = repo_path.parent().ok_or_else(|| {
             format!(
-                "failed to determine curated plugins parent directory for {}",
+                "failed to determine {label} parent directory for {}",
                 repo_path.display()
             )
         })?;
@@ -174,7 +197,7 @@ fn activate_curated_repo(repo_path: &Path, staged_repo_path: &Path) -> Result<()
             .tempdir_in(parent)
             .map_err(|err| {
                 format!(
-                    "failed to create curated plugins backup directory in {}: {err}",
+                    "failed to create {label} backup directory in {}: {err}",
                     parent.display()
                 )
             })?;
@@ -182,7 +205,7 @@ fn activate_curated_repo(repo_path: &Path, staged_repo_path: &Path) -> Result<()
 
         std::fs::rename(repo_path, &backup_repo_path).map_err(|err| {
             format!(
-                "failed to move previous curated plugins repo out of the way at {}: {err}",
+                "failed to move previous {label} out of the way at {}: {err}",
                 repo_path.display()
             )
         })?;
@@ -191,13 +214,13 @@ fn activate_curated_repo(repo_path: &Path, staged_repo_path: &Path) -> Result<()
             let rollback_result = std::fs::rename(&backup_repo_path, repo_path);
             return match rollback_result {
                 Ok(()) => Err(format!(
-                    "failed to activate new curated plugins repo at {}: {err}",
+                    "failed to activate new {label} at {}: {err}",
                     repo_path.display()
                 )),
                 Err(rollback_err) => {
                     let backup_path = backup_dir.keep().join("repo");
                     Err(format!(
-                        "failed to activate new curated plugins repo at {}: {err}; failed to restore previous repo (left at {}): {rollback_err}",
+                        "failed to activate new {label} at {}: {err}; failed to restore previous repo (left at {}): {rollback_err}",
                         repo_path.display(),
                         backup_path.display()
                     ))
@@ -207,7 +230,7 @@ fn activate_curated_repo(repo_path: &Path, staged_repo_path: &Path) -> Result<()
     } else {
         std::fs::rename(staged_repo_path, repo_path).map_err(|err| {
             format!(
-                "failed to activate curated plugins repo at {}: {err}",
+                "failed to activate {label} at {}: {err}",
                 repo_path.display()
             )
         })?;
@@ -216,18 +239,18 @@ fn activate_curated_repo(repo_path: &Path, staged_repo_path: &Path) -> Result<()
     Ok(())
 }
 
-fn write_curated_plugins_sha(sha_path: &Path, remote_sha: &str) -> Result<(), String> {
+fn write_repo_sha(sha_path: &Path, remote_sha: &str, label: &str) -> Result<(), String> {
     if let Some(parent) = sha_path.parent() {
         std::fs::create_dir_all(parent).map_err(|err| {
             format!(
-                "failed to create curated plugins sha directory {}: {err}",
+                "failed to create {label} sha directory {}: {err}",
                 parent.display()
             )
         })?;
     }
     std::fs::write(sha_path, format!("{remote_sha}\n")).map_err(|err| {
         format!(
-            "failed to write curated plugins sha file {}: {err}",
+            "failed to write {label} sha file {}: {err}",
             sha_path.display()
         )
     })
@@ -243,31 +266,94 @@ fn read_local_git_or_sha_file(repo_path: &Path, sha_path: &Path, git_binary: &st
     read_sha_file(sha_path)
 }
 
-fn git_ls_remote_head_sha(git_binary: &str) -> Result<String, String> {
+fn sync_repo_via_git(
+    repo_url: &str,
+    git_ref: Option<&str>,
+    repo_path: &Path,
+    sha_path: &Path,
+    git_binary: &str,
+    label: &str,
+) -> Result<String, String> {
+    let remote_sha = git_ls_remote_sha(git_binary, repo_url, git_ref)?;
+    let local_sha = read_local_git_or_sha_file(repo_path, sha_path, git_binary);
+
+    if local_sha.as_deref() == Some(remote_sha.as_str()) && repo_path.join(".git").is_dir() {
+        return Ok(remote_sha);
+    }
+
+    let cloned_repo_path = prepare_repo_parent_and_temp_dir(repo_path, label)?;
+    let mut clone_command = Command::new(git_binary);
+    clone_command
+        .env("GIT_OPTIONAL_LOCKS", "0")
+        .arg("clone")
+        .arg("--depth")
+        .arg("1");
+    if let Some(git_ref) = git_ref.filter(|git_ref| !git_ref.trim().is_empty()) {
+        clone_command.arg("--branch").arg(git_ref);
+    }
+    clone_command.arg(repo_url).arg(&cloned_repo_path);
+
+    let clone_context = format!("git clone {label}");
+    let clone_output = run_git_command_with_timeout(
+        &mut clone_command,
+        clone_context.as_str(),
+        CURATED_PLUGINS_GIT_TIMEOUT,
+    )?;
+    ensure_git_success(&clone_output, clone_context.as_str())?;
+
+    let cloned_sha = git_head_sha(&cloned_repo_path, git_binary)?;
+    if cloned_sha != remote_sha {
+        return Err(format!(
+            "{label} clone HEAD mismatch: expected {remote_sha}, got {cloned_sha}"
+        ));
+    }
+
+    ensure_marketplace_manifest_exists(&cloned_repo_path)?;
+    activate_repo(repo_path, &cloned_repo_path, label)?;
+    write_repo_sha(sha_path, &remote_sha, label)?;
+    Ok(remote_sha)
+}
+
+fn git_ls_remote_sha(
+    git_binary: &str,
+    repo_url: &str,
+    git_ref: Option<&str>,
+) -> Result<String, String> {
+    let refspec = git_ref.unwrap_or("HEAD");
     let output = run_git_command_with_timeout(
         Command::new(git_binary)
             .env("GIT_OPTIONAL_LOCKS", "0")
             .arg("ls-remote")
-            .arg("https://github.com/openai/plugins.git")
-            .arg("HEAD"),
-        "git ls-remote curated plugins repo",
+            .arg(repo_url)
+            .arg(refspec),
+        "git ls-remote plugin marketplace repo",
         CURATED_PLUGINS_GIT_TIMEOUT,
     )?;
-    ensure_git_success(&output, "git ls-remote curated plugins repo")?;
+    ensure_git_success(&output, "git ls-remote plugin marketplace repo")?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let Some(first_line) = stdout.lines().next() else {
-        return Err("git ls-remote returned empty output for curated plugins repo".to_string());
+        return Err(format!("git ls-remote returned empty output for {repo_url}"));
     };
     let Some((sha, _)) = first_line.split_once('\t') else {
         return Err(format!(
-            "unexpected git ls-remote output for curated plugins repo: {first_line}"
+            "unexpected git ls-remote output for {repo_url}: {first_line}"
         ));
     };
     if sha.is_empty() {
-        return Err("git ls-remote returned empty sha for curated plugins repo".to_string());
+        return Err(format!("git ls-remote returned empty sha for {repo_url}"));
     }
     Ok(sha.to_string())
+}
+
+fn marketplace_repo_cache_key(repo: &PluginMarketplaceRepoToml) -> String {
+    let mut hasher = Sha1::new();
+    hasher.update(repo.url.as_bytes());
+    hasher.update(b"\n");
+    if let Some(git_ref) = repo.git_ref.as_deref() {
+        hasher.update(git_ref.as_bytes());
+    }
+    format!("{:x}", hasher.finalize())
 }
 
 fn git_head_sha(repo_path: &Path, git_binary: &str) -> Result<String, String> {
@@ -547,3 +633,92 @@ fn apply_zip_permissions(_entry: &zip::read::ZipFile<'_>, _output_path: &Path) -
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn init_marketplace_repo() -> (TempDir, String) {
+        let repo = TempDir::new().expect("temp repo");
+        fs::create_dir_all(repo.path().join(".agents/plugins"))
+            .expect("create marketplace dir");
+        fs::create_dir_all(repo.path().join("plugins/sample"))
+            .expect("create plugin dir");
+        fs::write(
+            repo.path().join(".agents/plugins/marketplace.json"),
+            r#"{
+  "name": "custom-marketplace",
+  "plugins": [
+    {
+      "name": "sample",
+      "source": { "path": "plugins/sample" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }
+    }
+  ]
+}"#,
+        )
+        .expect("write marketplace manifest");
+        fs::write(
+            repo.path().join("plugins/sample/plugin.json"),
+            r#"{"name":"sample","version":"1.0.0"}"#,
+        )
+        .expect("write plugin manifest");
+
+        run_git(repo.path(), ["init", "--initial-branch=main"]);
+        run_git(repo.path(), ["config", "user.email", "test@example.com"]);
+        run_git(repo.path(), ["config", "user.name", "Test User"]);
+        run_git(repo.path(), ["add", "."]);
+        run_git(repo.path(), ["commit", "-m", "initial"]);
+
+        (repo, "main".to_string())
+    }
+
+    fn run_git<const N: usize>(cwd: &Path, args: [&str; N]) {
+        let status = Command::new("git")
+            .args(args)
+            .current_dir(cwd)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .expect("git should run");
+        assert!(status.success(), "git command failed: {:?}", args);
+    }
+
+    #[test]
+    fn sync_git_marketplace_repo_clones_local_repo() {
+        let (repo, git_ref) = init_marketplace_repo();
+        let code_home = TempDir::new().expect("code home");
+        let marketplace_repo = PluginMarketplaceRepoToml {
+            url: repo.path().to_string_lossy().to_string(),
+            git_ref: Some(git_ref),
+        };
+
+        let sha =
+            sync_git_marketplace_repo(code_home.path(), &marketplace_repo).expect("sync should work");
+        let synced_repo_path = synced_marketplace_repo_path(code_home.path(), &marketplace_repo);
+
+        assert!(!sha.is_empty(), "expected synced sha to be recorded");
+        assert!(synced_repo_path.join(".agents/plugins/marketplace.json").is_file());
+    }
+
+    #[test]
+    fn sync_curated_plugins_repo_uses_override_repo_url() {
+        let (repo, git_ref) = init_marketplace_repo();
+        let code_home = TempDir::new().expect("code home");
+        let plugins = PluginsToml {
+            curated_repo_url: Some(repo.path().to_string_lossy().to_string()),
+            curated_repo_ref: Some(git_ref),
+            marketplace_repos: Vec::new(),
+        };
+
+        sync_curated_plugins_repo(code_home.path(), &plugins).expect("sync should work");
+
+        assert!(
+            curated_plugins_repo_path(code_home.path())
+                .join(".agents/plugins/marketplace.json")
+                .is_file()
+        );
+        assert!(read_curated_plugins_sha(code_home.path()).is_some());
+    }
+}

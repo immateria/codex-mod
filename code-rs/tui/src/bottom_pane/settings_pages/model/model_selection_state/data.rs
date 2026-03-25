@@ -2,7 +2,10 @@ use std::sync::OnceLock;
 
 use code_common::model_presets::ModelPreset;
 use code_core::config_types::{ContextMode, ReasoningEffort, ServiceTier};
-use code_core::model_family::{supports_extended_context, STANDARD_CONTEXT_WINDOW_272K};
+use code_core::model_family::{
+    STANDARD_CONTEXT_WINDOW_272K, default_auto_compact_limit_for_context_window,
+    derive_default_model_family, resolve_context_settings, supports_extended_context,
+};
 use code_protocol::num_format::format_with_separators_u64;
 
 use super::presets::{compare_presets, FlatPreset};
@@ -10,12 +13,14 @@ use super::target::ModelSelectionTarget;
 
 const SUMMARY_HEADER_LINES: u16 = 3;
 const FAST_MODE_SECTION_HEIGHT: u16 = 5;
-const CONTEXT_MODE_SECTION_HEIGHT: u16 = 5;
+const CONTEXT_MODE_SECTION_HEIGHT: u16 = 7;
 const CONTEXT_MODE_UNAVAILABLE_NOTICE_HEIGHT: u16 = 1;
 const FOLLOW_CHAT_SECTION_HEIGHT: u16 = 4;
 const FOOTER_HEIGHT: u16 = 2;
 const FAST_MODE_ROW_OFFSET: usize = 2;
 const CONTEXT_MODE_ROW_OFFSET: usize = 3;
+const CONTEXT_WINDOW_ROW_OFFSET: usize = 4;
+const AUTO_COMPACT_ROW_OFFSET: usize = 5;
 const FOLLOW_CHAT_ROW_OFFSET: usize = 2;
 
 pub(crate) struct ModelSelectionViewParams {
@@ -24,6 +29,8 @@ pub(crate) struct ModelSelectionViewParams {
     pub(crate) current_effort: ReasoningEffort,
     pub(crate) current_service_tier: Option<ServiceTier>,
     pub(crate) current_context_mode: Option<ContextMode>,
+    pub(crate) current_context_window: Option<u64>,
+    pub(crate) current_auto_compact_token_limit: Option<i64>,
     pub(crate) use_chat_model: bool,
     pub(crate) target: ModelSelectionTarget,
 }
@@ -34,6 +41,8 @@ pub(crate) struct CurrentSelection {
     pub(crate) current_effort: ReasoningEffort,
     pub(crate) current_service_tier: Option<ServiceTier>,
     pub(crate) current_context_mode: Option<ContextMode>,
+    pub(crate) current_context_window: Option<u64>,
+    pub(crate) current_auto_compact_token_limit: Option<i64>,
     pub(crate) use_chat_model: bool,
 }
 
@@ -49,6 +58,8 @@ pub(crate) struct ModelSelectionData {
 pub(crate) enum EntryKind {
     FastMode,
     ContextMode,
+    ContextWindow,
+    AutoCompact,
     FollowChat,
     Preset(usize),
 }
@@ -71,6 +82,10 @@ impl SelectionAction {
 }
 
 impl ModelSelectionData {
+    pub(crate) fn supports_fast_mode(&self) -> bool {
+        self.target.supports_fast_mode(&self.current.current_model)
+    }
+
     fn build_sorted_preset_indices(flat_presets: &[FlatPreset]) -> Vec<usize> {
         let mut indices: Vec<usize> = (0..flat_presets.len()).collect();
         indices.sort_by(|&a, &b| compare_presets(&flat_presets[a], &flat_presets[b]));
@@ -98,6 +113,8 @@ impl ModelSelectionData {
             current_effort,
             current_service_tier,
             current_context_mode,
+            current_context_window,
+            current_auto_compact_token_limit,
             use_chat_model,
             target,
         } = params;
@@ -113,6 +130,8 @@ impl ModelSelectionData {
                 current_effort,
                 current_service_tier,
                 current_context_mode,
+                current_context_window,
+                current_auto_compact_token_limit,
                 use_chat_model,
             },
             target,
@@ -121,7 +140,7 @@ impl ModelSelectionData {
 
     pub(crate) fn initial_selection(&self) -> usize {
         Self::initial_selection_for(
-            self.target.supports_fast_mode(),
+            self.supports_fast_mode(),
             self.target.supports_context_mode(),
             self.target.supports_follow_chat(),
             self.current.use_chat_model,
@@ -136,8 +155,9 @@ impl ModelSelectionData {
         presets: Vec<ModelPreset>,
         selected_index: usize,
     ) -> usize {
-        let include_fast_mode = self.target.supports_fast_mode();
+        let include_fast_mode = self.supports_fast_mode();
         let include_context_mode = self.target.supports_context_mode();
+        let context_entry_count = if include_context_mode { 3 } else { 0 };
         let include_follow_chat = self.target.supports_follow_chat();
         let previous_selected = self.entry_at(selected_index);
         let previous_preset = match previous_selected {
@@ -166,10 +186,19 @@ impl ModelSelectionData {
                     next_selected = Some(usize::from(include_fast_mode));
                 }
             }
+            Some(EntryKind::ContextWindow) => {
+                if include_context_mode {
+                    next_selected = Some(usize::from(include_fast_mode) + 1);
+                }
+            }
+            Some(EntryKind::AutoCompact) => {
+                if include_context_mode {
+                    next_selected = Some(usize::from(include_fast_mode) + 2);
+                }
+            }
             Some(EntryKind::FollowChat) => {
                 if include_follow_chat {
-                    next_selected =
-                        Some(usize::from(include_fast_mode) + usize::from(include_context_mode));
+                    next_selected = Some(usize::from(include_fast_mode) + context_entry_count);
                 }
             }
             Some(EntryKind::Preset(_)) => {
@@ -180,9 +209,8 @@ impl ModelSelectionData {
                                 && preset.effort == previous_effort
                         })
                 {
-                    let prefix = usize::from(include_fast_mode)
-                        + usize::from(include_context_mode)
-                        + usize::from(include_follow_chat);
+                    let prefix =
+                        usize::from(include_fast_mode) + context_entry_count + usize::from(include_follow_chat);
                     next_selected = Some(new_idx + prefix);
                 }
             }
@@ -220,8 +248,10 @@ impl ModelSelectionData {
         current_model: &str,
         current_effort: ReasoningEffort,
     ) -> usize {
+        let context_entry_count = if include_context_mode { 3 } else { 0 };
+
         if include_follow_chat && use_chat_model {
-            return usize::from(include_fast_mode) + usize::from(include_context_mode);
+            return usize::from(include_fast_mode) + context_entry_count;
         }
 
         if let Some((idx, _)) = flat_presets.iter().enumerate().find(|(_, preset)| {
@@ -229,7 +259,7 @@ impl ModelSelectionData {
         }) {
             return idx
                 + usize::from(include_fast_mode)
-                + usize::from(include_context_mode)
+                + context_entry_count
                 + usize::from(include_follow_chat);
         }
 
@@ -240,21 +270,21 @@ impl ModelSelectionData {
         {
             return idx
                 + usize::from(include_fast_mode)
-                + usize::from(include_context_mode)
+                + context_entry_count
                 + usize::from(include_follow_chat);
         }
 
         if include_follow_chat {
             if flat_presets.is_empty() {
-                usize::from(include_fast_mode) + usize::from(include_context_mode)
+                usize::from(include_fast_mode) + context_entry_count
             } else {
-                usize::from(include_fast_mode) + usize::from(include_context_mode) + 1
+                usize::from(include_fast_mode) + context_entry_count + 1
             }
         } else if include_fast_mode {
             if flat_presets.is_empty() {
                 0
             } else {
-                usize::from(include_fast_mode) + usize::from(include_context_mode)
+                usize::from(include_fast_mode) + context_entry_count
             }
         } else {
             0
@@ -275,11 +305,13 @@ impl ModelSelectionData {
 
     pub(crate) fn entries(&self) -> Vec<EntryKind> {
         let mut entries = Vec::new();
-        if self.target.supports_fast_mode() {
+        if self.supports_fast_mode() {
             entries.push(EntryKind::FastMode);
         }
         if self.target.supports_context_mode() {
             entries.push(EntryKind::ContextMode);
+            entries.push(EntryKind::ContextWindow);
+            entries.push(EntryKind::AutoCompact);
         }
         if self.target.supports_follow_chat() {
             entries.push(EntryKind::FollowChat);
@@ -291,8 +323,8 @@ impl ModelSelectionData {
     }
 
     pub(crate) fn entry_count(&self) -> usize {
-        usize::from(self.target.supports_fast_mode())
-            + usize::from(self.target.supports_context_mode())
+        usize::from(self.supports_fast_mode())
+            + usize::from(self.target.supports_context_mode()) * 3
             + usize::from(self.target.supports_follow_chat())
             + self.flat_presets.len()
     }
@@ -300,19 +332,27 @@ impl ModelSelectionData {
     pub(crate) fn context_mode_entry_index(&self) -> Option<usize> {
         self.target
             .supports_context_mode()
-            .then(|| usize::from(self.target.supports_fast_mode()))
+            .then(|| usize::from(self.supports_fast_mode()))
+    }
+
+    pub(crate) fn context_window_entry_index(&self) -> Option<usize> {
+        self.context_mode_entry_index().map(|index| index + 1)
+    }
+
+    pub(crate) fn auto_compact_entry_index(&self) -> Option<usize> {
+        self.context_mode_entry_index().map(|index| index + 2)
     }
 
     pub(crate) fn follow_chat_entry_index(&self) -> Option<usize> {
         self.target.supports_follow_chat().then(|| {
-            usize::from(self.target.supports_fast_mode())
-                + usize::from(self.target.supports_context_mode())
+            usize::from(self.supports_fast_mode())
+                + usize::from(self.target.supports_context_mode()) * 3
         })
     }
 
     pub(crate) fn entry_at(&self, entry_index: usize) -> Option<EntryKind> {
         let mut next_index = 0;
-        if self.target.supports_fast_mode() {
+        if self.supports_fast_mode() {
             if entry_index == next_index {
                 return Some(EntryKind::FastMode);
             }
@@ -321,6 +361,14 @@ impl ModelSelectionData {
         if self.target.supports_context_mode() {
             if entry_index == next_index {
                 return Some(EntryKind::ContextMode);
+            }
+            next_index += 1;
+            if entry_index == next_index {
+                return Some(EntryKind::ContextWindow);
+            }
+            next_index += 1;
+            if entry_index == next_index {
+                return Some(EntryKind::AutoCompact);
             }
             next_index += 1;
         }
@@ -338,7 +386,7 @@ impl ModelSelectionData {
 
     pub(crate) fn content_line_count(&self) -> u16 {
         let mut lines = SUMMARY_HEADER_LINES;
-        if self.target.supports_fast_mode() {
+        if self.supports_fast_mode() {
             lines = lines.saturating_add(FAST_MODE_SECTION_HEIGHT);
         }
         if self.target.supports_context_mode() {
@@ -379,7 +427,7 @@ impl ModelSelectionData {
         debug_assert!(entry_index < self.entry_count());
         let mut line = usize::from(SUMMARY_HEADER_LINES);
 
-        if self.target.supports_fast_mode() {
+        if self.supports_fast_mode() {
             if entry_index == 0 {
                 return line + FAST_MODE_ROW_OFFSET;
             }
@@ -389,6 +437,12 @@ impl ModelSelectionData {
         if let Some(context_entry_index) = self.context_mode_entry_index() {
             if entry_index == context_entry_index {
                 return line + CONTEXT_MODE_ROW_OFFSET;
+            }
+            if self.context_window_entry_index() == Some(entry_index) {
+                return line + CONTEXT_WINDOW_ROW_OFFSET;
+            }
+            if self.auto_compact_entry_index() == Some(entry_index) {
+                return line + AUTO_COMPACT_ROW_OFFSET;
             }
             line += usize::from(CONTEXT_MODE_SECTION_HEIGHT);
             if !self.supports_extended_context() {
@@ -449,9 +503,21 @@ impl ModelSelectionData {
                     Some(ContextMode::OneM) => Some(ContextMode::Auto),
                     Some(ContextMode::Auto) => Some(ContextMode::Disabled),
                 };
+                let family = derive_default_model_family(&self.current.current_model);
+                let (next_context_window, next_auto_compact_token_limit) =
+                    resolve_context_settings(
+                        &self.current.current_model,
+                        next_context_mode,
+                        None,
+                        None,
+                        &family,
+                    );
                 self.current.current_context_mode = next_context_mode;
+                self.current.current_context_window = next_context_window;
+                self.current.current_auto_compact_token_limit = next_auto_compact_token_limit;
                 Some(SelectionAction::SetContextMode(next_context_mode))
             }
+            EntryKind::ContextWindow | EntryKind::AutoCompact => None,
             EntryKind::FollowChat => {
                 self.current.use_chat_model = true;
                 Some(SelectionAction::UseChatModel)
@@ -468,5 +534,28 @@ impl ModelSelectionData {
             }
         }
     }
-}
 
+    pub(crate) fn context_window_is_default(&self) -> bool {
+        let family = derive_default_model_family(&self.current.current_model);
+        let (default_context_window, _) = resolve_context_settings(
+            &self.current.current_model,
+            self.current.current_context_mode,
+            None,
+            None,
+            &family,
+        );
+        self.current.current_context_window == default_context_window
+    }
+
+    pub(crate) fn auto_compact_is_default(&self) -> bool {
+        match (
+            self.current.current_context_window,
+            self.current.current_auto_compact_token_limit,
+        ) {
+            (Some(window), Some(limit)) => {
+                limit == default_auto_compact_limit_for_context_window(window)
+            }
+            _ => true,
+        }
+    }
+}

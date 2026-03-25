@@ -156,7 +156,12 @@ impl ChatWidget<'_> {
         };
         let effort = Self::format_reasoning_effort(self.config.model_reasoning_effort);
         let mut parts: Vec<String> = vec![format!("Model: {} ({})", model_display, effort)];
-        if matches!(self.config.service_tier, Some(code_core::config_types::ServiceTier::Fast)) {
+        if code_core::model_family::supports_service_tier(&self.config.model)
+            && matches!(
+                self.config.service_tier,
+                Some(code_core::config_types::ServiceTier::Fast)
+            )
+        {
             parts.push("Fast mode".to_string());
         }
         if let Some(profile) = self

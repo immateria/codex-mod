@@ -347,6 +347,16 @@ impl SettingsOverlayView {
         self.limits_content.as_ref()
     }
 
+    #[cfg(test)]
+    pub(crate) fn overview_sections(&self) -> Vec<SettingsSection> {
+        self.overview_rows.iter().map(|row| row.section).collect()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn has_plugins_content(&self) -> bool {
+        self.plugins_content.is_some()
+    }
+
     pub(crate) fn set_section(&mut self, section: SettingsSection) -> bool {
         if self.active_section() == section {
             return false;

@@ -1,3 +1,45 @@
+fn parse_token_count_arg(raw: &str) -> Result<u64, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err("missing token count".to_string());
+    }
+
+    let normalized = trimmed.to_ascii_lowercase();
+    let (number_text, multiplier) = if let Some(number_text) = normalized.strip_suffix('k') {
+        (number_text, 1_000u64)
+    } else if let Some(number_text) = normalized.strip_suffix('m') {
+        (number_text, 1_000_000u64)
+    } else {
+        (normalized.as_str(), 1u64)
+    };
+
+    let digits = number_text.replace(['_', ','], "");
+    let base = digits
+        .parse::<u64>()
+        .map_err(|_| format!("invalid token count: '{trimmed}'"))?;
+    let value = base
+        .checked_mul(multiplier)
+        .ok_or_else(|| format!("token count is too large: '{trimmed}'"))?;
+    if value == 0 {
+        return Err("token count must be greater than zero".to_string());
+    }
+    Ok(value)
+}
+
+fn requested_auto_compact_override_for_current_settings(
+    context_window: Option<u64>,
+    auto_compact_token_limit: Option<i64>,
+) -> Option<i64> {
+    match (context_window, auto_compact_token_limit) {
+        (Some(window), Some(limit))
+            if limit == code_core::model_family::default_auto_compact_limit_for_context_window(window) =>
+        {
+            None
+        }
+        (_, other) => other,
+    }
+}
+
 impl ChatWidget<'_> {
     pub(crate) fn handle_model_selection_closed(&mut self, target: ModelSelectionKind, _accepted: bool) {
         let expected_section = match target {
@@ -250,9 +292,162 @@ impl ChatWidget<'_> {
                 current_effort: self.config.model_reasoning_effort,
                 current_service_tier: self.config.service_tier,
                 current_context_mode: self.config.context_mode,
+                current_context_window: self.config.model_context_window,
+                current_auto_compact_token_limit: self.config.model_auto_compact_token_limit,
                 use_chat_model: false,
                 target: ModelSelectionTarget::Session,
             });
+        }
+    }
+
+    pub(crate) fn apply_session_context_settings(
+        &mut self,
+        context_mode: Option<code_core::config_types::ContextMode>,
+        requested_context_window: Option<u64>,
+        requested_auto_compact_token_limit: Option<i64>,
+    ) {
+        let (next_context_window, next_auto_compact) =
+            code_core::model_family::resolve_context_settings(
+                &self.config.model,
+                context_mode,
+                requested_context_window,
+                requested_auto_compact_token_limit,
+                &self.config.model_family,
+            );
+
+        if self.config.context_mode == context_mode
+            && self.config.model_context_window == next_context_window
+            && self.config.model_auto_compact_token_limit == next_auto_compact
+        {
+            self.bottom_pane
+                .flash_footer_notice("Context settings unchanged.".to_string());
+            return;
+        }
+
+        self.config.context_mode = context_mode;
+        self.config.model_context_window = next_context_window;
+        self.config.model_auto_compact_token_limit = next_auto_compact;
+
+        let window_label = self
+            .config
+            .model_context_window
+            .map(code_protocol::num_format::format_with_separators_u64)
+            .unwrap_or_else(|| "default".to_string());
+        let compact_label = self
+            .config
+            .model_auto_compact_token_limit
+            .map(|value| value.max(0) as u64)
+            .map(code_protocol::num_format::format_with_separators_u64)
+            .unwrap_or_else(|| "auto".to_string());
+
+        self.bottom_pane.flash_footer_notice(format!(
+            "Context window {window_label} tokens; auto-compact at {compact_label}."
+        ));
+        self.submit_op(self.current_configure_session_op());
+        self.bottom_pane.set_token_usage(
+            self.last_token_usage.clone(),
+            self.config.model_context_window,
+            self.config.context_mode,
+        );
+        self.refresh_settings_overview_rows();
+        self.request_redraw();
+    }
+
+    pub(crate) fn handle_context_window_command(&mut self, command_args: String) {
+        let trimmed = command_args.trim();
+        if trimmed.is_empty() {
+            let window_label = self
+                .config
+                .model_context_window
+                .map(code_protocol::num_format::format_with_separators_u64)
+                .unwrap_or_else(|| "default".to_string());
+            let compact_label = self
+                .config
+                .model_auto_compact_token_limit
+                .map(|value| value.max(0) as u64)
+                .map(code_protocol::num_format::format_with_separators_u64)
+                .unwrap_or_else(|| "auto".to_string());
+            self.push_background_tail(format!(
+                "Context window is {window_label} tokens; auto-compact at {compact_label}. Use /context-window auto|1m|disabled|500k."
+            ));
+            return;
+        }
+
+        match trimmed.to_ascii_lowercase().as_str() {
+            "auto" => {
+                self.apply_session_context_settings(
+                    Some(code_core::config_types::ContextMode::Auto),
+                    None,
+                    self.config.model_auto_compact_token_limit,
+                );
+            }
+            "1m" | "one-m" | "one-m-context" => {
+                self.apply_session_context_settings(
+                    Some(code_core::config_types::ContextMode::OneM),
+                    None,
+                    self.config.model_auto_compact_token_limit,
+                );
+            }
+            "off" | "disabled" | "default" | "standard" => {
+                self.apply_session_context_settings(
+                    Some(code_core::config_types::ContextMode::Disabled),
+                    None,
+                    self.config.model_auto_compact_token_limit,
+                );
+            }
+            _ => match parse_token_count_arg(trimmed) {
+                Ok(context_window) => self.apply_session_context_settings(
+                    self.config.context_mode,
+                    Some(context_window),
+                    requested_auto_compact_override_for_current_settings(
+                        self.config.model_context_window,
+                        self.config.model_auto_compact_token_limit,
+                    ),
+                ),
+                Err(err) => {
+                    self.history_push_plain_state(history_cell::new_error_event(format!(
+                        "{err}. Use /context-window auto|1m|disabled|500k"
+                    )));
+                }
+            },
+        }
+    }
+
+    pub(crate) fn handle_auto_compact_command(&mut self, command_args: String) {
+        let trimmed = command_args.trim();
+        if trimmed.is_empty() {
+            let compact_label = self
+                .config
+                .model_auto_compact_token_limit
+                .map(|value| value.max(0) as u64)
+                .map(code_protocol::num_format::format_with_separators_u64)
+                .unwrap_or_else(|| "auto".to_string());
+            self.push_background_tail(format!(
+                "Auto-compact threshold is {compact_label}. Use /auto-compact auto|450k."
+            ));
+            return;
+        }
+
+        match trimmed.to_ascii_lowercase().as_str() {
+            "auto" => {
+                self.apply_session_context_settings(
+                    self.config.context_mode,
+                    self.config.model_context_window,
+                    None,
+                );
+            }
+            _ => match parse_token_count_arg(trimmed) {
+                Ok(auto_compact_token_limit) => self.apply_session_context_settings(
+                    self.config.context_mode,
+                    self.config.model_context_window,
+                    i64::try_from(auto_compact_token_limit).ok(),
+                ),
+                Err(err) => {
+                    self.history_push_plain_state(history_cell::new_error_event(format!(
+                        "{err}. Use /auto-compact auto|450k"
+                    )));
+                }
+            },
         }
     }
 

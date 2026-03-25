@@ -280,13 +280,18 @@ impl ChatWidget<'_> {
             };
 
         let model_display = self.format_model_name(&self.config.model);
-        let service_tier_display = if matches!(
-            self.config.service_tier,
-            Some(code_core::config_types::ServiceTier::Fast)
-        ) {
-            "fast"
+        let service_tier_display = if code_core::model_family::supports_service_tier(&self.config.model)
+        {
+            if matches!(
+                self.config.service_tier,
+                Some(code_core::config_types::ServiceTier::Fast)
+            ) {
+                "fast"
+            } else {
+                "standard"
+            }
         } else {
-            "slow"
+            ""
         };
         let reasoning_display = Self::format_reasoning_effort(self.config.model_reasoning_effort);
         let mcp_display = mcp_indicator

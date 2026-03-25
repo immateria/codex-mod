@@ -71,8 +71,9 @@ impl ModelSelectionTarget {
         !matches!(self, ModelSelectionTarget::Session)
     }
 
-    pub(crate) fn supports_fast_mode(self) -> bool {
+    pub(crate) fn supports_fast_mode(self, current_model: &str) -> bool {
         matches!(self, ModelSelectionTarget::Session)
+            && code_core::model_family::supports_service_tier(current_model)
     }
 
     pub(crate) fn supports_context_mode(self) -> bool {
@@ -165,4 +166,3 @@ impl ModelSelectionTarget {
         }
     }
 }
-

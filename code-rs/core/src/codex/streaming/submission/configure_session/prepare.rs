@@ -136,9 +136,11 @@ impl Runner<'_> {
         updated_config.model_auto_compact_token_limit = model_auto_compact_token_limit;
 
         let (resolved_context_window, resolved_auto_compact) =
-            crate::model_family::resolve_context_mode_limits(
+            crate::model_family::resolve_context_settings(
                 &updated_config.model,
                 updated_config.context_mode,
+                updated_config.model_context_window,
+                updated_config.model_auto_compact_token_limit,
                 &updated_config.model_family,
             );
         maybe_update_from_model_info(

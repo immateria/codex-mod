@@ -89,6 +89,10 @@ pub enum SlashCommand {
     Mode,
     Model,
     Fast,
+    #[strum(serialize = "context-window", serialize = "context")]
+    ContextWindow,
+    #[strum(serialize = "auto-compact", serialize = "compact-at")]
+    AutoCompact,
     Reasoning,
     Verbosity,
     Prompts,
@@ -155,6 +159,12 @@ impl SlashCommand {
             SlashCommand::Skills => "manage skills",
             SlashCommand::Model => "choose your default model",
             SlashCommand::Fast => "open model settings with the Fast mode toggle",
+            SlashCommand::ContextWindow => {
+                "set model context window (/context-window auto|disabled|500k)"
+            }
+            SlashCommand::AutoCompact => {
+                "set auto-compaction threshold (/auto-compact auto|450k)"
+            }
             SlashCommand::Mode => "set collaboration mode (default/plan)",
             SlashCommand::Agents => "configure agents",
             SlashCommand::Auto => "work autonomously on long tasks with Auto Drive",

@@ -1,4 +1,4 @@
-use crossterm::event::{MouseEvent, MouseEventKind};
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::chrome::ChromeMode;
@@ -9,7 +9,7 @@ use crate::ui_interaction::{SelectableListMouseConfig, SelectableListMouseResult
 
 use crate::bottom_pane::ConditionalUpdate;
 
-use super::ModelSelectionView;
+use super::{ModelSelectionView, ViewMode};
 
 impl ModelSelectionView {
     pub(super) fn hit_test_in_body(&self, body: Rect, x: u16, y: u16) -> Option<usize> {
@@ -64,10 +64,41 @@ impl ModelSelectionView {
         mouse_event: MouseEvent,
         area: Rect,
     ) -> ConditionalUpdate {
-        let Some(layout) = self.page().layout_in_chrome(chrome, area) else {
-            return ConditionalUpdate::NoRedraw;
-        };
-        self.handle_mouse_event_shared(mouse_event, layout.body)
+        if matches!(self.mode, ViewMode::Main) {
+            let Some(layout) = self.page().layout_in_chrome(chrome, area) else {
+                return ConditionalUpdate::NoRedraw;
+            };
+            return self.handle_mouse_event_shared(mouse_event, layout.body);
+        }
+
+        match &mut self.mode {
+            ViewMode::Edit {
+                target,
+                field,
+                error,
+            } => {
+                let handled = match mouse_event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        let field_area = Self::edit_page(*target, error.as_deref())
+                            .layout_in_chrome(chrome, area)
+                            .map(|layout| layout.field);
+                        if let Some(field_area) = field_area {
+                            field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
+                        } else {
+                            false
+                        }
+                    }
+                    MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
+                    MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
+                    _ => false,
+                };
+                if handled {
+                    ConditionalUpdate::NeedsRedraw
+                } else {
+                    ConditionalUpdate::NoRedraw
+                }
+            }
+            ViewMode::Main | ViewMode::Transition => ConditionalUpdate::NoRedraw,
+        }
     }
 }
-

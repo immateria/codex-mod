@@ -435,6 +435,71 @@
     }
 
     #[test]
+    fn settings_overlay_overview_includes_all_sections() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    use crate::bottom_pane::SettingsSection;
+    use code_core::config_types::{SettingsMenuConfig, SettingsMenuOpenMode};
+
+    {
+        let chat = harness.chat();
+        chat.apply_tui_settings_menu(SettingsMenuConfig {
+            open_mode: SettingsMenuOpenMode::Overlay,
+            overlay_min_width: 80,
+        });
+        chat.show_settings_overlay(None);
+    }
+    harness.flush_into_widget();
+
+    let sections = {
+        let chat = harness.chat();
+        let overlay = chat
+            .settings
+            .overlay
+            .as_ref()
+            .expect("expected settings overlay to be open");
+        overlay.overview_sections()
+    };
+
+    assert_eq!(
+        sections,
+        SettingsSection::ALL.to_vec(),
+        "expected /settings overview to include every registered settings section",
+    );
+    }
+
+    #[test]
+    fn plugins_section_is_built_in_settings_overlay() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    use crate::bottom_pane::SettingsSection;
+    use code_core::config_types::{SettingsMenuConfig, SettingsMenuOpenMode};
+
+    {
+        let chat = harness.chat();
+        chat.apply_tui_settings_menu(SettingsMenuConfig {
+            open_mode: SettingsMenuOpenMode::Overlay,
+            overlay_min_width: 80,
+        });
+        chat.show_settings_overlay(Some(SettingsSection::Plugins));
+    }
+    harness.flush_into_widget();
+
+    let chat = harness.chat();
+    let overlay = chat
+        .settings
+        .overlay
+        .as_ref()
+        .expect("expected settings overlay to be open");
+
+    assert_eq!(overlay.active_section(), SettingsSection::Plugins);
+    assert!(
+        overlay.has_plugins_content(),
+        "expected Plugins content to be populated in /settings overlay",
+    );
+    }
+
+    #[test]
     fn clicking_wide_settings_overview_opens_selected_section() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
@@ -629,6 +694,7 @@
         use code_core::config_types::StatusLineLane;
         use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
 
+        chat.config.model = "gpt-5.4".to_string();
         chat.config.service_tier = None;
         chat.setup_status_line(
             vec![StatusLineItem::ServiceTier],
@@ -675,6 +741,7 @@
     let mut harness = ChatWidgetHarness::new();
 
     harness.with_chat(|chat| {
+        chat.config.model = "gpt-5.4".to_string();
         chat.config.service_tier = None;
     });
 
@@ -716,6 +783,45 @@
             service_tier: Some(code_core::config_types::ServiceTier::Fast),
         }
     )));
+    }
+
+    #[test]
+    fn service_tier_controls_hide_for_non_gpt_5_4_models() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    harness.with_chat(|chat| {
+        use code_core::config_types::StatusLineLane;
+        use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
+
+        chat.config.model = "gpt-5.4-mini".to_string();
+        chat.config.service_tier = None;
+        chat.setup_status_line(
+            vec![StatusLineItem::ServiceTier],
+            Vec::new(),
+            StatusLineLane::Top,
+        );
+    });
+
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(140, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        assert!(
+            !regions
+                .iter()
+                .any(|region| region.action == ClickableAction::ToggleServiceTier)
+        );
+    });
     }
 
     #[test]

@@ -1180,6 +1180,9 @@ impl MessageProcessor {
 
         let mut remote_sync_error = None;
         if force_remote_sync {
+            if let Err(err) = manager.sync_marketplace_sources(&self.base_config).await {
+                remote_sync_error = Some(err);
+            }
             match manager
                 .sync_plugins_from_remote(&self.base_config, auth.as_ref(), /*additive_only*/ false)
                 .await
@@ -1198,12 +1201,18 @@ impl MessageProcessor {
                         error = %err,
                         "plugin/list remote sync failed; returning local marketplace state"
                     );
-                    remote_sync_error = Some(err.to_string());
+                    match remote_sync_error.as_mut() {
+                        Some(existing) => {
+                            existing.push_str("; ");
+                            existing.push_str(&err.to_string());
+                        }
+                        None => remote_sync_error = Some(err.to_string()),
+                    }
                 }
             }
         }
 
-        let marketplaces_outcome = match manager.list_marketplaces_for_roots(&roots) {
+        let marketplaces_outcome = match manager.list_marketplaces_for_roots(&self.base_config, &roots) {
             Ok(outcome) => outcome,
             Err(err) => {
                 self.outgoing

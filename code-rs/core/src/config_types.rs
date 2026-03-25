@@ -25,6 +25,23 @@ pub const DEFAULT_MEMORIES_MAX_ROLLOUT_AGE_DAYS: i64 = 30;
 pub const DEFAULT_MEMORIES_MIN_ROLLOUT_IDLE_HOURS: i64 = 6;
 pub const DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_CONSOLIDATION: usize = 256;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+pub struct PluginMarketplaceRepoToml {
+    pub url: String,
+    #[serde(default, rename = "ref")]
+    pub git_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+pub struct PluginsToml {
+    #[serde(default)]
+    pub curated_repo_url: Option<String>,
+    #[serde(default)]
+    pub curated_repo_ref: Option<String>,
+    #[serde(default)]
+    pub marketplace_repos: Vec<PluginMarketplaceRepoToml>,
+}
+
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct MemoriesToml {
     pub no_memories_if_mcp_or_web_search: Option<bool>,

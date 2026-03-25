@@ -10,6 +10,8 @@ impl ChatWidget<'_> {
                 current_effort,
                 current_service_tier: this.config.service_tier,
                 current_context_mode: this.config.context_mode,
+                current_context_window: this.config.model_context_window,
+                current_auto_compact_token_limit: this.config.model_auto_compact_token_limit,
                 use_chat_model: false,
                 target: ModelSelectionTarget::Session,
             });

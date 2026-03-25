@@ -7,7 +7,7 @@ use ratatui::text::Span;
 pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -> HeaderTemplateRender {
     let mut include_reasoning = !input.minimal_header;
     let mut include_model = !input.minimal_header;
-    let mut include_service_tier = !input.minimal_header;
+    let mut include_service_tier = !input.minimal_header && !input.service_tier.is_empty();
     let mut include_shell = !input.minimal_header;
     let mut include_mcp = !input.minimal_header && input.mcp_indicator.is_some();
     let mut include_branch = !input.minimal_header && input.branch.is_some();

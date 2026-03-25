@@ -12,6 +12,8 @@ use code_app_server_protocol::GetAccountResponse;
 use code_app_server_protocol::LoginAccountParams;
 use code_app_server_protocol::LoginAccountResponse;
 use code_app_server_protocol::LogoutAccountResponse;
+use code_app_server_protocol::PermissionsRequestApprovalParams;
+use code_app_server_protocol::PermissionsRequestApprovalResponse;
 use code_app_server_protocol::ToolRequestUserInputOption;
 use code_app_server_protocol::ToolRequestUserInputParams;
 use code_app_server_protocol::ToolRequestUserInputQuestion;
@@ -131,6 +133,7 @@ use code_protocol::protocol::RateLimitWindow as CoreRateLimitWindow;
 // Removed deprecated ChatGPT login support scaffolding
 
 const TOOL_REQUEST_USER_INPUT_METHOD: &str = "item/tool/requestUserInput";
+const PERMISSIONS_REQUEST_APPROVAL_METHOD: &str = "item/permissions/requestApproval";
 
 struct ConversationListenerRegistration {
     owner_connection_id: ConnectionId,
@@ -1648,6 +1651,29 @@ async fn apply_bespoke_event_handling(
                 on_request_user_input_response(request_turn_id, rx, conversation).await;
             });
         }
+        EventMsg::RequestPermissions(request) => {
+            let request_turn_id = request.turn_id;
+            let request_call_id = request.call_id;
+            let params = PermissionsRequestApprovalParams {
+                thread_id: conversation_id.to_string(),
+                turn_id: request_turn_id,
+                item_id: request_call_id.clone(),
+                reason: request.reason,
+                permissions: request.permissions.into(),
+            };
+            let value = serde_json::to_value(&params).unwrap_or_default();
+            let rx = outgoing
+                .send_request_to_connection(
+                    owner_connection_id,
+                    PERMISSIONS_REQUEST_APPROVAL_METHOD,
+                    Some(value),
+                )
+                .await;
+
+            tokio::spawn(async move {
+                on_request_permissions_approval_response(request_call_id, rx, conversation).await;
+            });
+        }
         // No special handling needed for interrupts; responses are sent immediately.
 
         _ => {}
@@ -1863,6 +1889,61 @@ fn map_tool_request_user_input_response(
                 )
             })
             .collect(),
+    }
+}
+
+async fn on_request_permissions_approval_response(
+    call_id: String,
+    receiver: tokio::sync::oneshot::Receiver<mcp_types::Result>,
+    conversation: Arc<CodexConversation>,
+) {
+    let response = receiver.await;
+    let value = match response {
+        Ok(value) => value,
+        Err(err) => {
+            error!("request failed: {err:?}");
+            let empty = core_protocol::RequestPermissionsResponse {
+                permissions: code_protocol::request_permissions::RequestPermissionProfile::default(),
+                scope: code_protocol::request_permissions::PermissionGrantScope::Turn,
+            };
+            if let Err(err) = conversation
+                .submit(Op::RequestPermissionsResponse {
+                    id: call_id.clone(),
+                    response: empty,
+                })
+                .await
+            {
+                error!("failed to submit RequestPermissionsResponse: {err}");
+            }
+            return;
+        }
+    };
+
+    let response =
+        serde_json::from_value::<PermissionsRequestApprovalResponse>(value).unwrap_or_else(|err| {
+            error!("failed to deserialize PermissionsRequestApprovalResponse: {err}");
+            PermissionsRequestApprovalResponse {
+                permissions: code_app_server_protocol::RequestPermissionProfile {
+                    network: None,
+                    file_system: None,
+                },
+                scope: code_app_server_protocol::PermissionGrantScope::default(),
+            }
+        });
+
+    let response = core_protocol::RequestPermissionsResponse {
+        permissions: response.permissions.into(),
+        scope: response.scope.to_core(),
+    };
+
+    if let Err(err) = conversation
+        .submit(Op::RequestPermissionsResponse {
+            id: call_id,
+            response,
+        })
+        .await
+    {
+        error!("failed to submit RequestPermissionsResponse: {err}");
     }
 }
 

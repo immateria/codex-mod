@@ -469,16 +469,35 @@ pub const fn default_auto_compact_limit_for_context_window(context_window: u64) 
     ((context_window as i64) * 9) / 10
 }
 
-pub fn supports_extended_context(model: &str) -> bool {
-    model.eq_ignore_ascii_case("gpt-5.4")
+pub fn supports_service_tier(model: &str) -> bool {
+    let normalized = model
+        .strip_prefix("code-")
+        .or_else(|| model.strip_prefix("test-"))
+        .or_else(|| model.strip_prefix("cloud-"))
+        .unwrap_or(model);
+    normalized.eq_ignore_ascii_case("gpt-5.4")
 }
 
-pub fn resolve_context_mode_limits(
+pub fn supports_extended_context(model: &str) -> bool {
+    supports_service_tier(model)
+}
+
+pub fn max_supported_context_window(model: &str, family: &ModelFamily) -> Option<u64> {
+    if supports_extended_context(model) {
+        Some(EXTENDED_CONTEXT_WINDOW_1M)
+    } else {
+        family.context_window
+    }
+}
+
+pub fn resolve_context_settings(
     model: &str,
     mode: Option<ContextMode>,
+    requested_context_window: Option<u64>,
+    requested_auto_compact_token_limit: Option<i64>,
     family: &ModelFamily,
 ) -> (Option<u64>, Option<i64>) {
-    match mode {
+    let (mut context_window, mut auto_compact_token_limit) = match mode {
         Some(ContextMode::OneM | ContextMode::Auto) if supports_extended_context(model) => (
             Some(EXTENDED_CONTEXT_WINDOW_1M),
             Some(default_auto_compact_limit_for_context_window(
@@ -489,5 +508,104 @@ pub fn resolve_context_mode_limits(
             (family.context_window, family.auto_compact_token_limit())
         }
         _ => (family.context_window, family.auto_compact_token_limit()),
+    };
+
+    if let Some(requested_context_window) = requested_context_window {
+        let mut clamped_context_window = requested_context_window.max(1);
+        if let Some(max_supported) = max_supported_context_window(model, family) {
+            clamped_context_window = clamped_context_window.min(max_supported);
+        }
+        context_window = Some(clamped_context_window);
+        if requested_auto_compact_token_limit.is_none() {
+            auto_compact_token_limit = Some(default_auto_compact_limit_for_context_window(
+                clamped_context_window,
+            ));
+        }
+    }
+
+    if let Some(requested_auto_compact_token_limit) = requested_auto_compact_token_limit {
+        let mut clamped_auto_compact = requested_auto_compact_token_limit.max(1);
+        if let Some(context_window) = context_window
+            && let Ok(context_window) = i64::try_from(context_window)
+        {
+            clamped_auto_compact = clamped_auto_compact.min(context_window);
+        }
+        auto_compact_token_limit = Some(clamped_auto_compact);
+    } else if let Some(context_window) = context_window
+        && let Some(current_auto_compact_token_limit) = auto_compact_token_limit
+        && let Ok(context_window) = i64::try_from(context_window)
+        && current_auto_compact_token_limit > context_window
+    {
+        auto_compact_token_limit = Some(context_window);
+    }
+
+    (context_window, auto_compact_token_limit)
+}
+
+pub fn resolve_context_mode_limits(
+    model: &str,
+    mode: Option<ContextMode>,
+    family: &ModelFamily,
+) -> (Option<u64>, Option<i64>) {
+    resolve_context_settings(model, mode, None, None, family)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        default_auto_compact_limit_for_context_window,
+        derive_default_model_family,
+        resolve_context_settings,
+        supports_extended_context,
+        supports_service_tier,
+    };
+    use crate::config_types::ContextMode;
+
+    #[test]
+    fn service_tier_is_only_supported_for_gpt_5_4_variants() {
+        assert!(supports_service_tier("gpt-5.4"));
+        assert!(supports_service_tier("code-gpt-5.4"));
+        assert!(supports_service_tier("test-gpt-5.4"));
+        assert!(!supports_service_tier("gpt-5.4-mini"));
+        assert!(!supports_service_tier("gpt-5.3-codex"));
+    }
+
+    #[test]
+    fn extended_context_matches_service_tier_support() {
+        assert!(supports_extended_context("gpt-5.4"));
+        assert!(!supports_extended_context("gpt-5.4-mini"));
+    }
+
+    #[test]
+    fn explicit_context_window_and_compact_limit_override_mode_defaults() {
+        let family = derive_default_model_family("gpt-5.4");
+        let (context_window, auto_compact_token_limit) = resolve_context_settings(
+            "gpt-5.4",
+            Some(ContextMode::Auto),
+            Some(500_000),
+            Some(450_000),
+            &family,
+        );
+
+        assert_eq!(context_window, Some(500_000));
+        assert_eq!(auto_compact_token_limit, Some(450_000));
+    }
+
+    #[test]
+    fn explicit_context_window_uses_default_compact_limit_when_unspecified() {
+        let family = derive_default_model_family("gpt-5.4");
+        let (context_window, auto_compact_token_limit) = resolve_context_settings(
+            "gpt-5.4",
+            Some(ContextMode::Auto),
+            Some(500_000),
+            None,
+            &family,
+        );
+
+        assert_eq!(context_window, Some(500_000));
+        assert_eq!(
+            auto_compact_token_limit,
+            Some(default_auto_compact_limit_for_context_window(500_000))
+        );
     }
 }

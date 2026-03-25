@@ -33,7 +33,7 @@ impl StatusLineItem {
         match self {
             StatusLineItem::ModelName => "Current model name.",
             StatusLineItem::ModelWithReasoning => "Current model with reasoning level.",
-            StatusLineItem::ServiceTier => "Current response speed mode (fast or slow).",
+            StatusLineItem::ServiceTier => "Current GPT-5.4 response speed mode (fast or standard).",
             StatusLineItem::Shell => "Selected shell executable for tool execution.",
             StatusLineItem::ShellStyle => "Active shell script style for routing and profiles.",
             StatusLineItem::CurrentDir => "Current working directory.",
@@ -65,7 +65,7 @@ impl StatusLineItem {
         match self {
             StatusLineItem::ModelName => "GPT-5.3-Codex",
             StatusLineItem::ModelWithReasoning => "GPT-5.3-Codex High",
-            StatusLineItem::ServiceTier => "fast",
+            StatusLineItem::ServiceTier => "standard",
             StatusLineItem::Shell => "sh /bin/zsh",
             StatusLineItem::ShellStyle => "style zsh",
             StatusLineItem::CurrentDir => "~/code-termux",
@@ -89,4 +89,3 @@ impl StatusLineItem {
         }
     }
 }
-

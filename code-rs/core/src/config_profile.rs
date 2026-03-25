@@ -43,6 +43,8 @@ pub struct ConfigProfile {
     pub model_reasoning_summary: Option<ReasoningSummary>,
     pub model_text_verbosity: Option<TextVerbosity>,
     pub model_personality: Option<Personality>,
+    pub model_context_window: Option<u64>,
+    pub model_auto_compact_token_limit: Option<i64>,
     pub context_mode: Option<ContextMode>,
     pub service_tier: Option<ServiceTier>,
     pub windows: Option<WindowsToml>,

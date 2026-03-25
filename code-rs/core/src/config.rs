@@ -17,6 +17,7 @@ use crate::config_types::ValidationConfig;
 use crate::config_types::McpServerConfig;
 use crate::config_types::MemoriesConfig;
 use crate::config_types::MemoriesToml;
+use crate::config_types::PluginsToml;
 use crate::config_types::resolve_memories_config;
 use crate::config_types::Notifications;
 use crate::config_types::OtelConfig;
@@ -42,7 +43,6 @@ use crate::config_types::WindowsToml;
 use crate::config_types::DEFAULT_OTEL_ENVIRONMENT;
 use crate::git_info::resolve_root_git_project_for_trust;
 use crate::model_family::ModelFamily;
-use crate::model_family::resolve_context_mode_limits;
 use crate::model_family::derive_default_model_family;
 use crate::model_family::find_family_for_model;
 use crate::model_provider_info::ModelProviderInfo;
@@ -510,6 +510,9 @@ pub struct Config {
     /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
     pub chatgpt_base_url: String,
 
+    /// Plugin marketplace source configuration.
+    pub plugins: PluginsToml,
+
     /// Include an experimental plan tool that the model can use to update its current plan and status of each step.
     pub include_plan_tool: bool,
     /// Include the `apply_patch` tool for models that benefit from invoking
@@ -892,6 +895,10 @@ pub struct ConfigToml {
 
     /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
     pub chatgpt_base_url: Option<String>,
+
+    /// Plugin marketplace source configuration.
+    #[serde(default)]
+    pub plugins: Option<PluginsToml>,
 
     /// Experimental path to a file whose contents replace the built-in BASE_INSTRUCTIONS.
     pub experimental_instructions_file: Option<PathBuf>,
@@ -1820,11 +1827,6 @@ impl Config {
             None => None,
         };
         let windows_sandbox_level = windows_sandbox_level_from_mode(windows_sandbox_mode);
-        let context_mode = config_profile
-            .context_mode
-            .or(cfg.context_mode)
-            .or(Some(ContextMode::Auto));
-
         let model_family =
             find_family_for_model(&model).unwrap_or_else(|| derive_default_model_family(&model));
         let default_tool_output_max_bytes = model_family.tool_output_max_bytes();
@@ -1841,19 +1843,27 @@ impl Config {
         let chat_reasoning_effort =
             clamp_reasoning_effort_for_model(&model, requested_chat_effort);
 
-        let mut model_context_window = cfg.model_context_window;
+        let mut model_context_window = config_profile
+            .model_context_window
+            .or(cfg.model_context_window);
         let model_max_output_tokens = cfg
             .model_max_output_tokens
             .or(model_family.max_output_tokens);
-        let mut model_auto_compact_token_limit = cfg.model_auto_compact_token_limit;
-        let (context_mode_window, context_mode_auto_compact_limit) =
-            resolve_context_mode_limits(&model, context_mode, &model_family);
-        if model_context_window.is_none() {
-            model_context_window = context_mode_window;
-        }
-        if model_auto_compact_token_limit.is_none() {
-            model_auto_compact_token_limit = context_mode_auto_compact_limit;
-        }
+        let mut model_auto_compact_token_limit = config_profile
+            .model_auto_compact_token_limit
+            .or(cfg.model_auto_compact_token_limit);
+        let context_mode = config_profile
+            .context_mode
+            .or(cfg.context_mode)
+            .or(Some(ContextMode::Auto));
+        (model_context_window, model_auto_compact_token_limit) =
+            crate::model_family::resolve_context_settings(
+                &model,
+                context_mode,
+                model_context_window,
+                model_auto_compact_token_limit,
+                &model_family,
+            );
 
         // Load base instructions override from a file if specified. If the
         // path is relative, resolve it against the effective cwd so the
@@ -2220,6 +2230,7 @@ impl Config {
                 .chatgpt_base_url
                 .or(cfg.chatgpt_base_url)
                 .unwrap_or("https://chatgpt.com/backend-api/".to_string()),
+            plugins: cfg.plugins.unwrap_or_default(),
             include_plan_tool: include_plan_tool.unwrap_or(false),
             include_apply_patch_tool: include_apply_patch_tool.unwrap_or(false),
             tools_web_search_request,
@@ -4645,6 +4656,92 @@ context_mode = "disabled"
         assert_eq!(config.context_mode, Some(ContextMode::Disabled));
         assert_eq!(config.model_context_window, Some(272_000));
         assert_eq!(config.model_auto_compact_token_limit, Some(244_800));
+        Ok(())
+    }
+
+    #[test]
+    fn explicit_context_settings_override_auto_mode_defaults() -> anyhow::Result<()> {
+        let code_home = TempDir::new()?;
+        let cfg = toml::from_str::<ConfigToml>(
+            r#"
+model = "gpt-5.4"
+context_mode = "auto"
+model_context_window = 500000
+model_auto_compact_token_limit = 450000
+"#,
+        )?;
+        let config = Config::load_from_base_config_with_overrides(
+            cfg,
+            ConfigOverrides {
+                cwd: Some(code_home.path().to_path_buf()),
+                ..Default::default()
+            },
+            code_home.path().to_path_buf(),
+        )?;
+
+        assert_eq!(config.context_mode, Some(ContextMode::Auto));
+        assert_eq!(config.model_context_window, Some(500_000));
+        assert_eq!(config.model_auto_compact_token_limit, Some(450_000));
+        Ok(())
+    }
+
+    #[test]
+    fn profile_context_settings_override_base_config() -> anyhow::Result<()> {
+        let code_home = TempDir::new()?;
+        let cfg = toml::from_str::<ConfigToml>(
+            r#"
+model = "gpt-5.4"
+profile = "work"
+
+[profiles.work]
+model_context_window = 500000
+model_auto_compact_token_limit = 420000
+"#,
+        )?;
+        let config = Config::load_from_base_config_with_overrides(
+            cfg,
+            ConfigOverrides {
+                cwd: Some(code_home.path().to_path_buf()),
+                ..Default::default()
+            },
+            code_home.path().to_path_buf(),
+        )?;
+
+        assert_eq!(config.active_profile.as_deref(), Some("work"));
+        assert_eq!(config.model_context_window, Some(500_000));
+        assert_eq!(config.model_auto_compact_token_limit, Some(420_000));
+        Ok(())
+    }
+
+    #[test]
+    fn config_plugins_table_supports_repo_settings_and_plugin_entries() -> anyhow::Result<()> {
+        let cfg = toml::from_str::<ConfigToml>(
+            r#"
+[plugins]
+curated_repo_url = "https://example.com/custom/plugins.git"
+curated_repo_ref = "stable"
+
+[[plugins.marketplace_repos]]
+url = "https://example.com/extra/marketplace.git"
+ref = "main"
+
+[plugins."sample@openai-curated"]
+enabled = false
+"#,
+        )?;
+
+        let plugins = cfg.plugins.expect("plugins config should deserialize");
+        assert_eq!(
+            plugins.curated_repo_url.as_deref(),
+            Some("https://example.com/custom/plugins.git"),
+        );
+        assert_eq!(plugins.curated_repo_ref.as_deref(), Some("stable"));
+        assert_eq!(plugins.marketplace_repos.len(), 1);
+        assert_eq!(
+            plugins.marketplace_repos[0].url,
+            "https://example.com/extra/marketplace.git",
+        );
+        assert_eq!(plugins.marketplace_repos[0].git_ref.as_deref(), Some("main"));
         Ok(())
     }
 }

@@ -554,6 +554,16 @@
                                 widget.show_settings_overlay(Some(SettingsSection::Model));
                             }
                         }
+                        SlashCommand::ContextWindow => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.handle_context_window_command(command_args);
+                            }
+                        }
+                        SlashCommand::AutoCompact => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.handle_auto_compact_command(command_args);
+                            }
+                        }
                         SlashCommand::Mode => {
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.handle_mode_command(command_args);
@@ -930,6 +940,19 @@
                 AppEvent::UpdateSessionContextModeSelection { context_mode } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.apply_session_context_mode_selection(context_mode);
+                    }
+                }
+                AppEvent::UpdateSessionContextSettingsSelection {
+                    context_mode,
+                    context_window,
+                    auto_compact_token_limit,
+                } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apply_session_context_settings(
+                            context_mode,
+                            context_window,
+                            auto_compact_token_limit,
+                        );
                     }
                 }
                 AppEvent::UpdateReviewModelSelection { model, effort } => {

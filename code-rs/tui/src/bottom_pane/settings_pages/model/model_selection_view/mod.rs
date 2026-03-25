@@ -12,12 +12,30 @@ use std::cell::Cell;
 use code_common::model_presets::ModelPreset;
 
 use crate::app_event_sender::AppEventSender;
+use crate::components::form_text_field::FormTextField;
 
 use super::model_selection_state::{ModelSelectionData, ModelSelectionViewParams};
 
 pub(super) const SUMMARY_LINE_COUNT: usize = 3;
 pub(super) const FOOTER_LINE_COUNT: usize = 2;
 // 2 summary rows + 1 summary spacer + 1 footer spacer + 1 footer hint row.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum EditTarget {
+    ContextWindow,
+    AutoCompact,
+}
+
+#[derive(Debug)]
+pub(super) enum ViewMode {
+    Main,
+    Edit {
+        target: EditTarget,
+        field: FormTextField,
+        error: Option<String>,
+    },
+    Transition,
+}
+
 pub(crate) struct ModelSelectionView {
     data: ModelSelectionData,
     selected_index: usize,
@@ -25,6 +43,7 @@ pub(crate) struct ModelSelectionView {
     is_complete: bool,
     scroll_offset: usize,
     visible_body_rows: Cell<usize>,
+    mode: ViewMode,
 }
 
 pub(crate) type ModelSelectionViewFramed<'v> =
@@ -45,6 +64,7 @@ impl ModelSelectionView {
             is_complete: false,
             scroll_offset: 0,
             visible_body_rows: Cell::new(0),
+            mode: ViewMode::Main,
         }
     }
 
@@ -68,4 +88,3 @@ impl ModelSelectionView {
         self.selected_index = self.data.update_presets(presets, self.selected_index);
     }
 }
-

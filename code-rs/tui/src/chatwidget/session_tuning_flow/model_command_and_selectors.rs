@@ -40,6 +40,8 @@ impl ChatWidget<'_> {
             current_effort: self.config.model_reasoning_effort,
             current_service_tier: self.config.service_tier,
             current_context_mode: self.config.context_mode,
+            current_context_window: self.config.model_context_window,
+            current_auto_compact_token_limit: self.config.model_auto_compact_token_limit,
             use_chat_model: false,
             target: ModelSelectionTarget::Session,
         });
@@ -64,6 +66,8 @@ impl ChatWidget<'_> {
             current_effort: self.config.review_model_reasoning_effort,
             current_service_tier: self.config.service_tier,
             current_context_mode: None,
+            current_context_window: self.config.model_context_window,
+            current_auto_compact_token_limit: self.config.model_auto_compact_token_limit,
             use_chat_model: self.config.review_use_chat_model,
             target: ModelSelectionTarget::Review,
         });
@@ -97,6 +101,8 @@ impl ChatWidget<'_> {
             current_effort: effort,
             current_service_tier: self.config.service_tier,
             current_context_mode: None,
+            current_context_window: self.config.model_context_window,
+            current_auto_compact_token_limit: self.config.model_auto_compact_token_limit,
             use_chat_model: self.config.review_resolve_use_chat_model,
             target: ModelSelectionTarget::ReviewResolve,
         });
@@ -130,6 +136,8 @@ impl ChatWidget<'_> {
             current_effort: effort,
             current_service_tier: self.config.service_tier,
             current_context_mode: None,
+            current_context_window: self.config.model_context_window,
+            current_auto_compact_token_limit: self.config.model_auto_compact_token_limit,
             use_chat_model: self.config.auto_review_use_chat_model,
             target: ModelSelectionTarget::AutoReview,
         });
@@ -163,6 +171,8 @@ impl ChatWidget<'_> {
             current_effort: effort,
             current_service_tier: self.config.service_tier,
             current_context_mode: None,
+            current_context_window: self.config.model_context_window,
+            current_auto_compact_token_limit: self.config.model_auto_compact_token_limit,
             use_chat_model: self.config.auto_review_resolve_use_chat_model,
             target: ModelSelectionTarget::AutoReviewResolve,
         });
@@ -193,6 +203,8 @@ impl ChatWidget<'_> {
             current_effort: effort,
             current_service_tier: self.config.service_tier,
             current_context_mode: None,
+            current_context_window: self.config.model_context_window,
+            current_auto_compact_token_limit: self.config.model_auto_compact_token_limit,
             use_chat_model: self.config.planning_use_chat_model,
             target: ModelSelectionTarget::Planning,
         });
@@ -217,6 +229,8 @@ impl ChatWidget<'_> {
             current_effort: self.config.auto_drive.model_reasoning_effort,
             current_service_tier: self.config.service_tier,
             current_context_mode: None,
+            current_context_window: self.config.model_context_window,
+            current_auto_compact_token_limit: self.config.model_auto_compact_token_limit,
             use_chat_model: self.config.auto_drive_use_chat_model,
             target: ModelSelectionTarget::AutoDrive,
         });
@@ -255,27 +269,7 @@ impl ChatWidget<'_> {
         context_mode: Option<code_core::config_types::ContextMode>,
     ) {
         let context_mode = context_mode.or(Some(code_core::config_types::ContextMode::Disabled));
-        if self.config.context_mode == context_mode {
-            return;
-        }
-
-        self.config.context_mode = context_mode;
-        let (next_context_window, next_auto_compact) =
-            code_core::model_family::resolve_context_mode_limits(
-                &self.config.model,
-                self.config.context_mode,
-                &self.config.model_family,
-            );
-        self.config.model_context_window = next_context_window;
-        self.config.model_auto_compact_token_limit = next_auto_compact;
-        self.submit_op(self.current_configure_session_op());
-        self.bottom_pane.set_token_usage(
-            self.last_token_usage.clone(),
-            self.config.model_context_window,
-            self.config.context_mode,
-        );
-        self.refresh_settings_overview_rows();
-        self.request_redraw();
+        self.apply_session_context_settings(context_mode, None, None);
     }
 
     pub(crate) fn apply_shell_selection(

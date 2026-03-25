@@ -16,7 +16,9 @@ use super::remote::fetch_remote_plugin_status;
 use super::remote::uninstall_remote_plugin;
 use super::startup_sync::curated_plugins_repo_path;
 use super::startup_sync::read_curated_plugins_sha;
-use super::startup_sync::sync_openai_plugins_repo;
+use super::startup_sync::sync_curated_plugins_repo;
+use super::startup_sync::sync_git_marketplace_repo;
+use super::startup_sync::synced_marketplace_repo_path;
 use super::store::PluginId;
 use super::store::PluginIdError;
 use super::store::PluginInstallResult as StorePluginInstallResult;
@@ -46,6 +48,7 @@ use std::sync::RwLock;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::Mutex;
+use toml::Value as TomlValue;
 use tracing::info;
 use tracing::warn;
 
@@ -517,10 +520,11 @@ impl PluginsManager {
 
     pub fn list_marketplaces_for_roots(
         &self,
+        config: &Config,
         config_cwds: &[AbsolutePathBuf],
     ) -> Result<ConfiguredMarketplaceListOutcome, MarketplaceError> {
         let configured_plugins = configured_plugins_from_code_home(&self.code_home);
-        let roots = self.marketplace_roots(config_cwds);
+        let roots = self.marketplace_roots(config, config_cwds);
         let mut seen_plugin_keys = HashSet::new();
 
         let marketplace_outcome = list_marketplaces_outcome(&roots)?;
@@ -786,9 +790,6 @@ impl PluginsManager {
         let _remote_sync_guard = self.remote_sync_lock.lock().await;
 
         info!("starting remote plugin sync");
-        let remote_plugins = fetch_remote_plugin_status(config, auth)
-            .await
-            .map_err(PluginRemoteSyncError::from)?;
         let configured_plugins = configured_plugins_from_code_home(&self.code_home);
 
         let curated_marketplace_root = curated_plugins_repo_path(self.code_home.as_path());
@@ -798,10 +799,12 @@ impl PluginsManager {
 
         if !curated_marketplace_manifest_path.is_file() || curated_sha.is_none() {
             let code_home = self.code_home.clone();
-            let sync_result =
-                tokio::task::spawn_blocking(move || sync_openai_plugins_repo(code_home.as_path()))
-                    .await
-                    .map_err(PluginRemoteSyncError::join)?;
+            let plugins_config = config.plugins.clone();
+            let sync_result = tokio::task::spawn_blocking(move || {
+                sync_curated_plugins_repo(code_home.as_path(), &plugins_config)
+            })
+            .await
+            .map_err(PluginRemoteSyncError::join)?;
             if let Err(err) = sync_result {
                 return Err(PluginRemoteSyncError::Store(PluginStoreError::Invalid(
                     format!("failed to sync curated plugin marketplace: {err}"),
@@ -820,6 +823,16 @@ impl PluginsManager {
         };
 
         let marketplace_name = curated_marketplace.name.clone();
+        if marketplace_name != OPENAI_CURATED_MARKETPLACE_NAME {
+            info!(
+                marketplace = %marketplace_name,
+                "skipping ChatGPT remote plugin state sync for non-openai curated marketplace"
+            );
+            return Ok(RemotePluginSyncResult::default());
+        }
+        let remote_plugins = fetch_remote_plugin_status(config, auth)
+            .await
+            .map_err(PluginRemoteSyncError::from)?;
         let curated_plugin_version = read_curated_plugins_sha(self.code_home.as_path()).ok_or_else(
             || {
                 PluginStoreError::Invalid(
@@ -981,6 +994,32 @@ impl PluginsManager {
         Ok(result)
     }
 
+    pub async fn sync_marketplace_sources(&self, config: &Config) -> Result<(), String> {
+        let code_home = self.code_home.clone();
+        let plugins = config.plugins.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut errors = Vec::new();
+
+            if let Err(err) = sync_curated_plugins_repo(code_home.as_path(), &plugins) {
+                errors.push(format!("curated marketplace sync failed: {err}"));
+            }
+
+            for repo in &plugins.marketplace_repos {
+                if let Err(err) = sync_git_marketplace_repo(code_home.as_path(), repo) {
+                    errors.push(format!("marketplace repo sync failed for {}: {err}", repo.url));
+                }
+            }
+
+            if errors.is_empty() {
+                Ok(())
+            } else {
+                Err(errors.join("; "))
+            }
+        })
+        .await
+        .map_err(|err| format!("failed to join plugin marketplace sync task: {err}"))?
+    }
+
     /// Merge enabled, installed plugin MCP servers into a single map.
     ///
     /// Explicit config entries win on name collisions; callers should typically
@@ -1021,13 +1060,21 @@ impl PluginsManager {
         mcp_servers
     }
 
-    fn marketplace_roots(&self, config_cwds: &[AbsolutePathBuf]) -> Vec<AbsolutePathBuf> {
+    fn marketplace_roots(&self, config: &Config, config_cwds: &[AbsolutePathBuf]) -> Vec<AbsolutePathBuf> {
         let mut roots = config_cwds.to_vec();
         let curated_repo_root = curated_plugins_repo_path(self.code_home.as_path());
         if curated_repo_root.is_dir()
             && let Ok(curated_repo_root) = AbsolutePathBuf::try_from(curated_repo_root)
         {
             roots.push(curated_repo_root);
+        }
+        for repo in &config.plugins.marketplace_repos {
+            let synced_repo_root = synced_marketplace_repo_path(self.code_home.as_path(), repo);
+            if synced_repo_root.is_dir()
+                && let Ok(synced_repo_root) = AbsolutePathBuf::try_from(synced_repo_root)
+            {
+                roots.push(synced_repo_root);
+            }
         }
         roots.sort_unstable_by(|left, right| left.as_path().cmp(right.as_path()));
         roots.dedup_by(|left, right| left.as_path() == right.as_path());
@@ -1100,19 +1147,6 @@ impl PluginUninstallError {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
-struct PluginsConfigToml {
-    #[serde(default)]
-    plugins: HashMap<String, PluginConfigToml>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PluginConfigToml {
-    #[serde(default = "default_enabled")]
-    enabled: bool,
-}
-
 const fn default_enabled() -> bool {
     true
 }
@@ -1147,7 +1181,7 @@ fn configured_plugins_from_code_home(code_home: &Path) -> HashMap<String, bool> 
         return HashMap::new();
     }
 
-    let parsed: PluginsConfigToml = match user_layer.config.clone().try_into() {
+    let parsed: TomlValue = match user_layer.config.clone().try_into() {
         Ok(parsed) => parsed,
         Err(err) => {
             warn!("failed to parse plugins config: {err}");
@@ -1155,11 +1189,22 @@ fn configured_plugins_from_code_home(code_home: &Path) -> HashMap<String, bool> 
         }
     };
 
-    parsed
-        .plugins
-        .into_iter()
-        .map(|(key, cfg)| (key, cfg.enabled))
-        .collect()
+    let Some(plugins) = parsed.get("plugins").and_then(TomlValue::as_table) else {
+        return HashMap::new();
+    };
+
+    let mut configured_plugins = HashMap::new();
+    for (key, value) in plugins {
+        let Some(table) = value.as_table() else {
+            continue;
+        };
+        let enabled = table
+            .get("enabled")
+            .and_then(TomlValue::as_bool)
+            .unwrap_or_else(default_enabled);
+        configured_plugins.insert(key.clone(), enabled);
+    }
+    configured_plugins
 }
 
 fn plugin_skill_roots(plugin_root: &Path, manifest_paths: &PluginManifestPaths) -> Vec<PathBuf> {
@@ -1418,4 +1463,40 @@ fn normalize_plugin_mcp_server_value(
 #[derive(Debug, Default)]
 struct PluginMcpDiscovery {
     mcp_servers: HashMap<String, McpServerConfig>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::configured_plugins_from_code_home;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn configured_plugins_ignores_marketplace_source_settings() {
+        let code_home = TempDir::new().expect("code home");
+        fs::write(
+            code_home.path().join("config.toml"),
+            r#"
+[plugins]
+curated_repo_url = "https://example.com/custom/plugins.git"
+curated_repo_ref = "stable"
+
+[[plugins.marketplace_repos]]
+url = "https://example.com/extra/marketplace.git"
+ref = "main"
+
+[plugins."enabled@openai-curated"]
+
+[plugins."disabled@openai-curated"]
+enabled = false
+"#,
+        )
+        .expect("write config");
+
+        let configured = configured_plugins_from_code_home(code_home.path());
+        assert_eq!(configured.get("enabled@openai-curated"), Some(&true));
+        assert_eq!(configured.get("disabled@openai-curated"), Some(&false));
+        assert!(!configured.contains_key("curated_repo_url"));
+        assert!(!configured.contains_key("marketplace_repos"));
+    }
 }

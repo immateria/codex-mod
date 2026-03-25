@@ -7,7 +7,7 @@ use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
 use crate::bottom_pane::BottomPane;
 use crate::ui_interaction::redraw_if;
 
-use super::ModelSelectionView;
+use super::{ModelSelectionView, ViewMode};
 use super::{FOOTER_LINE_COUNT, SUMMARY_LINE_COUNT};
 
 impl crate::bottom_pane::chrome_view::ChromeRenderable for ModelSelectionView {
@@ -76,6 +76,9 @@ impl<'a> BottomPaneView<'a> for ModelSelectionView {
     }
 
     fn desired_height(&self, _width: u16) -> u16 {
+        if matches!(self.mode, ViewMode::Edit { .. }) {
+            return 12;
+        }
         let total = self
             .content_line_count()
             .saturating_add((SUMMARY_LINE_COUNT + FOOTER_LINE_COUNT + 2) as u16);
@@ -86,4 +89,3 @@ impl<'a> BottomPaneView<'a> for ModelSelectionView {
         self.framed().render(area, buf);
     }
 }
-

@@ -189,16 +189,25 @@
 
                         let mut remote_sync_error = None;
                         if force_remote_sync {
+                            if let Err(err) = manager.sync_marketplace_sources(&config).await {
+                                remote_sync_error = Some(err);
+                            }
                             if let Err(err) = manager
                                 .sync_plugins_from_remote(&config, auth.as_ref(), /*additive_only*/ false)
                                 .await
                             {
-                                remote_sync_error = Some(err.to_string());
+                                match remote_sync_error.as_mut() {
+                                    Some(existing) => {
+                                        existing.push_str("; ");
+                                        existing.push_str(&err.to_string());
+                                    }
+                                    None => remote_sync_error = Some(err.to_string()),
+                                }
                             }
                         }
 
                         let marketplaces_outcome = manager
-                            .list_marketplaces_for_roots(&roots)
+                            .list_marketplaces_for_roots(&config, &roots)
                             .map_err(|err| err.to_string());
 
                         let featured_plugin_ids = manager

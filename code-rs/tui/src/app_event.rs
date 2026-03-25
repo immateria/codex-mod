@@ -355,6 +355,11 @@ pub(crate) enum AppEvent {
     UpdateSessionContextModeSelection {
         context_mode: Option<ContextMode>,
     },
+    UpdateSessionContextSettingsSelection {
+        context_mode: Option<ContextMode>,
+        context_window: Option<u64>,
+        auto_compact_token_limit: Option<i64>,
+    },
 
     /// Update the dedicated review model + reasoning effort
     UpdateReviewModelSelection {
