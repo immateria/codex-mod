@@ -1688,10 +1688,26 @@ mod tests {
                 if matches!(path.extension().and_then(|ext| ext.to_str()), Some("ts")) {
                     // Only allow "?: T | null" in objects representing JSON-RPC requests,
                     // which we assume are called "*Params".
+                    //
+                    // Upstream exceptions: a few non-Params types intentionally use the
+                    // `ts(optional = nullable)` encoding (e.g. initialize capabilities).
                     let allow_optional_nullable = path
                         .file_stem()
                         .and_then(|stem| stem.to_str())
-                        .is_some_and(|stem| stem.ends_with("Params"));
+                        .is_some_and(|stem| {
+                            stem.ends_with("Params")
+                                || stem == "InitializeCapabilities"
+                                || matches!(
+                                    stem,
+                                    "CollabAgentRef"
+                                        | "CollabAgentStatusEntry"
+                                        | "CollabAgentSpawnEndEvent"
+                                        | "CollabAgentInteractionEndEvent"
+                                        | "CollabCloseEndEvent"
+                                        | "CollabResumeBeginEvent"
+                                        | "CollabResumeEndEvent"
+                                )
+                        });
 
                     let contents = fs::read_to_string(&path)?;
                     if contents.contains("| undefined") {

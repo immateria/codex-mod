@@ -1565,15 +1565,15 @@ pub struct McpServerStatus {
     pub enabled: bool,
     pub transport: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional = nullable)]
+    #[ts(optional)]
     pub startup_timeout_sec: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional = nullable)]
+    #[ts(optional)]
     pub tool_timeout_sec: Option<f64>,
     #[serde(default)]
     pub disabled_tools: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional = nullable)]
+    #[ts(optional)]
     pub failure: Option<String>,
     pub tools: std::collections::HashMap<String, McpTool>,
     pub resources: Vec<McpResource>,

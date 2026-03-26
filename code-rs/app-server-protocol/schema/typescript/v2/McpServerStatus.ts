@@ -6,4 +6,4 @@ import type { ResourceTemplate } from "../ResourceTemplate";
 import type { Tool } from "../Tool";
 import type { McpAuthStatus } from "./McpAuthStatus";
 
-export type McpServerStatus = { name: string, enabled: boolean, transport: string, startupTimeoutSec?: number | null, toolTimeoutSec?: number | null, disabledTools: Array<string>, failure?: string | null, tools: { [key in string]?: Tool }, resources: Array<Resource>, resourceTemplates: Array<ResourceTemplate>, authStatus: McpAuthStatus, };
+export type McpServerStatus = { name: string, enabled: boolean, transport: string, startupTimeoutSec?: number, toolTimeoutSec?: number, disabledTools: Array<string>, failure?: string, tools: { [key in string]?: Tool }, resources: Array<Resource>, resourceTemplates: Array<ResourceTemplate>, authStatus: McpAuthStatus, };
