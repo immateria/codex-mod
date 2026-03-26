@@ -1580,6 +1580,7 @@ dependencies = [
  "code-browser",
  "code-file-search",
  "code-git-tooling",
+ "code-hooks",
  "code-keyring-store",
  "code-mcp-types",
  "code-memories-state",
@@ -1750,6 +1751,23 @@ dependencies = [
  "thiserror 2.0.17",
  "ts-rs",
  "walkdir",
+]
+
+[[package]]
+name = "code-hooks"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "code-protocol",
+ "futures",
+ "pretty_assertions",
+ "regex",
+ "schemars 0.8.22",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

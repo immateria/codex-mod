@@ -1,0 +1,288 @@
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+
+use super::ConfiguredHandler;
+use super::config::HookHandlerConfig;
+use super::config::HooksFile;
+use crate::events::common::matcher_pattern_for_event;
+use crate::events::common::validate_matcher_pattern;
+
+pub(crate) struct DiscoveryResult {
+    pub handlers: Vec<ConfiguredHandler>,
+    pub warnings: Vec<String>,
+}
+
+pub(crate) fn discover_handlers(config_layer_folders_low_to_high: &[PathBuf]) -> DiscoveryResult {
+    let mut handlers = Vec::new();
+    let mut warnings = Vec::new();
+    let mut display_order = 0_i64;
+
+    for folder in config_layer_folders_low_to_high {
+        let source_path = folder.join("hooks.json");
+        if !source_path.is_file() {
+            continue;
+        }
+
+        let contents = match fs::read_to_string(&source_path) {
+            Ok(contents) => contents,
+            Err(err) => {
+                warnings.push(format!(
+                    "failed to read hooks config {}: {err}",
+                    source_path.display()
+                ));
+                continue;
+            }
+        };
+
+        let parsed: HooksFile = match serde_json::from_str(&contents) {
+            Ok(parsed) => parsed,
+            Err(err) => {
+                warnings.push(format!(
+                    "failed to parse hooks config {}: {err}",
+                    source_path.display()
+                ));
+                continue;
+            }
+        };
+
+        for group in parsed.hooks.pre_tool_use {
+            append_group_handlers(
+                &mut handlers,
+                &mut warnings,
+                &mut display_order,
+                source_path.as_path(),
+                code_protocol::protocol::HookEventName::PreToolUse,
+                matcher_pattern_for_event(
+                    code_protocol::protocol::HookEventName::PreToolUse,
+                    group.matcher.as_deref(),
+                ),
+                group.hooks,
+            );
+        }
+
+        for group in parsed.hooks.session_start {
+            append_group_handlers(
+                &mut handlers,
+                &mut warnings,
+                &mut display_order,
+                source_path.as_path(),
+                code_protocol::protocol::HookEventName::SessionStart,
+                matcher_pattern_for_event(
+                    code_protocol::protocol::HookEventName::SessionStart,
+                    group.matcher.as_deref(),
+                ),
+                group.hooks,
+            );
+        }
+
+        for group in parsed.hooks.user_prompt_submit {
+            append_group_handlers(
+                &mut handlers,
+                &mut warnings,
+                &mut display_order,
+                source_path.as_path(),
+                code_protocol::protocol::HookEventName::UserPromptSubmit,
+                matcher_pattern_for_event(
+                    code_protocol::protocol::HookEventName::UserPromptSubmit,
+                    group.matcher.as_deref(),
+                ),
+                group.hooks,
+            );
+        }
+
+        for group in parsed.hooks.stop {
+            append_group_handlers(
+                &mut handlers,
+                &mut warnings,
+                &mut display_order,
+                source_path.as_path(),
+                code_protocol::protocol::HookEventName::Stop,
+                matcher_pattern_for_event(
+                    code_protocol::protocol::HookEventName::Stop,
+                    group.matcher.as_deref(),
+                ),
+                group.hooks,
+            );
+        }
+    }
+
+    DiscoveryResult { handlers, warnings }
+}
+
+fn append_group_handlers(
+    handlers: &mut Vec<ConfiguredHandler>,
+    warnings: &mut Vec<String>,
+    display_order: &mut i64,
+    source_path: &Path,
+    event_name: code_protocol::protocol::HookEventName,
+    matcher: Option<&str>,
+    group_handlers: Vec<HookHandlerConfig>,
+) {
+    if let Some(matcher) = matcher
+        && let Err(err) = validate_matcher_pattern(matcher)
+    {
+        warnings.push(format!(
+            "invalid matcher {matcher:?} in {}: {err}",
+            source_path.display()
+        ));
+        return;
+    }
+
+    for handler in group_handlers {
+        match handler {
+            HookHandlerConfig::Command {
+                command,
+                timeout_sec,
+                r#async,
+                status_message,
+            } => {
+                if r#async {
+                    warnings.push(format!(
+                        "skipping async hook in {}: async hooks are not supported yet",
+                        source_path.display()
+                    ));
+                    continue;
+                }
+                if command.trim().is_empty() {
+                    warnings.push(format!(
+                        "skipping empty hook command in {}",
+                        source_path.display()
+                    ));
+                    continue;
+                }
+                let timeout_sec = timeout_sec.unwrap_or(600).max(1);
+                handlers.push(ConfiguredHandler {
+                    event_name,
+                    matcher: matcher.map(ToOwned::to_owned),
+                    command,
+                    timeout_sec,
+                    status_message,
+                    source_path: source_path.to_path_buf(),
+                    display_order: *display_order,
+                });
+                *display_order += 1;
+            }
+            HookHandlerConfig::Prompt {} => warnings.push(format!(
+                "skipping prompt hook in {}: prompt hooks are not supported yet",
+                source_path.display()
+            )),
+            HookHandlerConfig::Agent {} => warnings.push(format!(
+                "skipping agent hook in {}: agent hooks are not supported yet",
+                source_path.display()
+            )),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use code_protocol::protocol::HookEventName;
+    use pretty_assertions::assert_eq;
+
+    use super::ConfiguredHandler;
+    use super::HookHandlerConfig;
+    use super::append_group_handlers;
+    use crate::events::common::matcher_pattern_for_event;
+
+    #[test]
+    fn user_prompt_submit_ignores_invalid_matcher_during_discovery() {
+        let mut handlers = Vec::new();
+        let mut warnings = Vec::new();
+        let mut display_order = 0;
+
+        append_group_handlers(
+            &mut handlers,
+            &mut warnings,
+            &mut display_order,
+            Path::new("/tmp/hooks.json"),
+            HookEventName::UserPromptSubmit,
+            matcher_pattern_for_event(HookEventName::UserPromptSubmit, Some("[")),
+            vec![HookHandlerConfig::Command {
+                command: "echo hello".to_string(),
+                timeout_sec: None,
+                r#async: false,
+                status_message: None,
+            }],
+        );
+
+        assert_eq!(warnings, Vec::<String>::new());
+        assert_eq!(
+            handlers,
+            vec![ConfiguredHandler {
+                event_name: HookEventName::UserPromptSubmit,
+                matcher: None,
+                command: "echo hello".to_string(),
+                timeout_sec: 600,
+                status_message: None,
+                source_path: PathBuf::from("/tmp/hooks.json"),
+                display_order: 0,
+            }]
+        );
+    }
+
+    #[test]
+    fn pre_tool_use_keeps_valid_matcher_during_discovery() {
+        let mut handlers = Vec::new();
+        let mut warnings = Vec::new();
+        let mut display_order = 0;
+
+        append_group_handlers(
+            &mut handlers,
+            &mut warnings,
+            &mut display_order,
+            Path::new("/tmp/hooks.json"),
+            HookEventName::PreToolUse,
+            matcher_pattern_for_event(HookEventName::PreToolUse, Some("^Bash$")),
+            vec![HookHandlerConfig::Command {
+                command: "echo hello".to_string(),
+                timeout_sec: None,
+                r#async: false,
+                status_message: None,
+            }],
+        );
+
+        assert_eq!(warnings, Vec::<String>::new());
+        assert_eq!(
+            handlers,
+            vec![ConfiguredHandler {
+                event_name: HookEventName::PreToolUse,
+                matcher: Some("^Bash$".to_string()),
+                command: "echo hello".to_string(),
+                timeout_sec: 600,
+                status_message: None,
+                source_path: PathBuf::from("/tmp/hooks.json"),
+                display_order: 0,
+            }]
+        );
+    }
+
+    #[test]
+    fn pre_tool_use_treats_star_matcher_as_match_all() {
+        let mut handlers = Vec::new();
+        let mut warnings = Vec::new();
+        let mut display_order = 0;
+
+        append_group_handlers(
+            &mut handlers,
+            &mut warnings,
+            &mut display_order,
+            Path::new("/tmp/hooks.json"),
+            HookEventName::PreToolUse,
+            matcher_pattern_for_event(HookEventName::PreToolUse, Some("*")),
+            vec![HookHandlerConfig::Command {
+                command: "echo hello".to_string(),
+                timeout_sec: None,
+                r#async: false,
+                status_message: None,
+            }],
+        );
+
+        assert_eq!(warnings, Vec::<String>::new());
+        assert_eq!(handlers.len(), 1);
+        assert_eq!(handlers[0].matcher.as_deref(), Some("*"));
+    }
+}

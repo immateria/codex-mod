@@ -1,0 +1,35 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "code-hooks"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "code_hooks"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[features]
+# Stop hooks require additional protocol surface (prompt continuation fragments)
+# that this fork hasn't ported yet. Discovery still supports Stop handlers, but
+# execution is gated behind this opt-in feature for now.
+stop-hooks = []
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+code-protocol = { workspace = true }
+futures = { workspace = true, features = ["alloc"] }
+regex = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "process", "time"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }

@@ -34,6 +34,7 @@ code-app-server-protocol = { workspace = true }
 code-otel = { workspace = true, features = ["otel"] }
 code-browser = { path = "../browser" }
 code-context-timeline = { workspace = true }
+code-hooks = { workspace = true }
 code-message-history = { workspace = true }
 code-memories-state = { workspace = true }
 code-mcp-call-limiter = { workspace = true }
