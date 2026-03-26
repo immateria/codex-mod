@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::components::mode_guard::ModeGuard;
+use crate::app_event::AppEvent;
 
 use super::{EditTarget, ModelSelectionView, ViewMode};
 use super::super::model_selection_state::EntryKind;
@@ -22,10 +23,30 @@ impl ModelSelectionView {
                     self.mode = ViewMode::Main;
                     true
                 }
-                (KeyCode::Char('s'), KeyModifiers::CONTROL) | (KeyCode::Enter, _) => {
+                (KeyCode::Enter, _) => {
                     match self.save_edit_value(*target, field.text()) {
                         Ok(()) => {
                             self.mode = ViewMode::Main;
+                        }
+                        Err(message) => {
+                            *error = Some(message);
+                        }
+                    }
+                    true
+                }
+                (KeyCode::Char('s'), KeyModifiers::CONTROL) => {
+                    match self.save_edit_value(*target, field.text()) {
+                        Ok(()) => {
+                            self.mode = ViewMode::Main;
+                            if self.data.target.supports_context_mode() {
+                                self.app_event_tx.send(AppEvent::PersistSessionContextSettings {
+                                    context_window: self.data.current.current_context_window,
+                                    auto_compact_token_limit: self
+                                        .data
+                                        .current
+                                        .current_auto_compact_token_limit,
+                                });
+                            }
                         }
                         Err(message) => {
                             *error = Some(message);
@@ -48,6 +69,20 @@ impl ModelSelectionView {
     fn handle_key_event_main(&mut self, key_event: KeyEvent) -> bool {
         let selected_entry = self.data.entry_at(self.selected_index);
         match key_event {
+            KeyEvent {
+                code: KeyCode::Char('s'),
+                modifiers: KeyModifiers::CONTROL,
+                ..
+            } => {
+                if !self.data.target.supports_context_mode() {
+                    return false;
+                }
+                self.app_event_tx.send(AppEvent::PersistSessionContextSettings {
+                    context_window: self.data.current.current_context_window,
+                    auto_compact_token_limit: self.data.current.current_auto_compact_token_limit,
+                });
+                true
+            }
             KeyEvent {
                 code: KeyCode::Up | KeyCode::Char('k'),
                 modifiers: KeyModifiers::NONE,

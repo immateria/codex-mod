@@ -373,17 +373,22 @@ impl ModelSelectionView {
     }
 
     fn footer_lines(&self) -> Vec<Line<'static>> {
+        let mut hints = vec![
+            KeyHint::new("↑↓", " Navigate").with_key_style(Style::new().fg(colors::light_blue())),
+            KeyHint::new("←→ +/-", " Adjust").with_key_style(Style::new().fg(colors::warning())),
+            KeyHint::new("Enter", " Select/Edit").with_key_style(Style::new().fg(colors::success())),
+        ];
+        if self.data.target.supports_context_mode() {
+            hints.push(
+                KeyHint::new("Ctrl+S", " Save default")
+                    .with_key_style(Style::new().fg(colors::primary())),
+            );
+        }
+        hints.push(KeyHint::new("Esc", " Cancel").with_key_style(Style::new().fg(colors::error())));
+
         vec![
             Line::from(""),
-            shortcut_line(&[
-                KeyHint::new("↑↓", " Navigate")
-                    .with_key_style(Style::new().fg(colors::light_blue())),
-                KeyHint::new("←→ +/-", " Adjust")
-                    .with_key_style(Style::new().fg(colors::warning())),
-                KeyHint::new("Enter", " Select/Edit")
-                    .with_key_style(Style::new().fg(colors::success())),
-                KeyHint::new("Esc", " Cancel").with_key_style(Style::new().fg(colors::error())),
-            ]),
+            shortcut_line(&hints),
         ]
     }
 
@@ -404,7 +409,7 @@ impl ModelSelectionView {
                 Style::new().fg(colors::error()),
             ))],
             None => vec![Line::from(Span::styled(
-                "Enter to save. Esc to cancel. Use auto or blank to reset to the derived value.",
+                "Enter to apply. Ctrl+S to save default. Esc to cancel. Use auto or blank to reset to the derived value.",
                 Self::dim_style(),
             ))],
         };

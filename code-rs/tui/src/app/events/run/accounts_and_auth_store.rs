@@ -960,6 +960,77 @@
                         );
                     }
                 }
+                AppEvent::PersistSessionContextSettings {
+                    context_window,
+                    auto_compact_token_limit,
+                } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.flash_footer_notice("Saving context settings…".to_string());
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    let profile = self.config.active_profile.clone();
+                    tokio::spawn(async move {
+                        let result = code_core::config_edit::set_session_context_settings(
+                            code_home.as_path(),
+                            profile.as_deref(),
+                            context_window,
+                            auto_compact_token_limit,
+                        )
+                        .await
+                        .map_err(|err| err.to_string());
+
+                        tx.send(AppEvent::SessionContextSettingsPersisted {
+                            context_window,
+                            auto_compact_token_limit,
+                            result,
+                        });
+                    });
+                }
+                AppEvent::SessionContextSettingsPersisted {
+                    context_window,
+                    auto_compact_token_limit,
+                    result,
+                } => {
+                    match result {
+                        Ok(()) => {
+                            let reload = self.reload_config_with_startup_overrides();
+                            match reload {
+                                Ok(config) => {
+                                    self.config = config.clone();
+                                    if let AppState::Chat { widget } = &mut self.app_state {
+                                        widget.apply_reloaded_config_keep_settings_state(config);
+                                        widget.flash_footer_notice(
+                                            "Saved context settings to config.".to_string(),
+                                        );
+                                    }
+                                }
+                                Err(err) => {
+                                    let mut config = self.config.clone();
+                                    config.model_context_window = context_window;
+                                    config.model_auto_compact_token_limit = auto_compact_token_limit;
+                                    self.config = config.clone();
+                                    if let AppState::Chat { widget } = &mut self.app_state {
+                                        widget.apply_reloaded_config_keep_settings_state(config);
+                                        widget.flash_footer_notice(format!(
+                                            "Saved context settings, but failed to reload config: {err}",
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to save context settings: {err}"
+                                ));
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::UpdateReviewModelSelection { model, effort } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.apply_review_model_selection(model, effort);

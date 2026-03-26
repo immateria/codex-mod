@@ -356,6 +356,97 @@ fn adjusting_auto_compact_row_sends_context_settings_event() {
 }
 
 #[test]
+fn ctrl_s_in_main_persists_current_context_settings() {
+    let (tx, rx) = mpsc::channel::<AppEvent>();
+    let mut view = ModelSelectionView::new(
+        ModelSelectionViewParams {
+            presets: vec![preset("gpt-5.4")],
+            current_model: "gpt-5.4".to_string(),
+            current_effort: ReasoningEffort::Medium,
+            current_service_tier: None,
+            current_context_mode: Some(ContextMode::Auto),
+            current_context_window: Some(500_000),
+            current_auto_compact_token_limit: Some(450_000),
+            use_chat_model: false,
+            target: ModelSelectionTarget::Session,
+        },
+        AppEventSender::new(tx),
+    );
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('s'),
+        KeyModifiers::CONTROL
+    )));
+
+    match rx.recv().expect("persist event") {
+        AppEvent::PersistSessionContextSettings {
+            context_window,
+            auto_compact_token_limit,
+        } => {
+            assert_eq!(context_window, Some(500_000));
+            assert_eq!(auto_compact_token_limit, Some(450_000));
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
+fn ctrl_s_in_edit_saves_and_persists_context_settings() {
+    let (tx, rx) = mpsc::channel::<AppEvent>();
+    let mut view = ModelSelectionView::new(
+        ModelSelectionViewParams {
+            presets: vec![preset("gpt-5.4")],
+            current_model: "gpt-5.4".to_string(),
+            current_effort: ReasoningEffort::Medium,
+            current_service_tier: None,
+            current_context_mode: Some(ContextMode::Auto),
+            current_context_window: Some(500_000),
+            current_auto_compact_token_limit: Some(400_000),
+            use_chat_model: false,
+            target: ModelSelectionTarget::Session,
+        },
+        AppEventSender::new(tx),
+    );
+
+    view.open_edit_for(EditTarget::AutoCompact, true);
+    if let ViewMode::Edit { field, .. } = &mut view.mode {
+        field.set_text("90%");
+    } else {
+        panic!("expected edit mode");
+    }
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('s'),
+        KeyModifiers::CONTROL
+    )));
+    assert!(matches!(view.mode, ViewMode::Main));
+
+    match rx.recv().expect("context settings event") {
+        AppEvent::UpdateSessionContextSettingsSelection {
+            context_mode,
+            context_window,
+            auto_compact_token_limit,
+        } => {
+            assert_eq!(context_mode, Some(ContextMode::Auto));
+            assert_eq!(context_window, Some(500_000));
+            assert_eq!(auto_compact_token_limit, Some(450_000));
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+
+    match rx.recv().expect("persist event") {
+        AppEvent::PersistSessionContextSettings {
+            context_window,
+            auto_compact_token_limit,
+        } => {
+            assert_eq!(context_window, Some(500_000));
+            assert_eq!(auto_compact_token_limit, Some(450_000));
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
 fn editing_auto_compact_accepts_percent_of_context_window() {
     let (tx, rx) = mpsc::channel::<AppEvent>();
     let mut view = ModelSelectionView::new(

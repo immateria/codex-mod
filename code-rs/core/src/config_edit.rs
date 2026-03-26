@@ -67,6 +67,28 @@ pub async fn persist_overrides_and_clear_if_none(
     persist_overrides_with_behavior(code_home, profile, overrides, NoneBehavior::Remove).await
 }
 
+pub async fn set_session_context_settings(
+    code_home: &Path,
+    profile: Option<&str>,
+    context_window: Option<u64>,
+    auto_compact_token_limit: Option<i64>,
+) -> Result<()> {
+    let context_window_text = context_window.map(|value| value.to_string());
+    let auto_compact_text = auto_compact_token_limit.map(|value| value.to_string());
+    persist_overrides_and_clear_if_none(
+        code_home,
+        profile,
+        &[
+            (&["model_context_window"], context_window_text.as_deref()),
+            (
+                &["model_auto_compact_token_limit"],
+                auto_compact_text.as_deref(),
+            ),
+        ],
+    )
+    .await
+}
+
 /// Apply a single override onto a `toml_edit` document while preserving
 /// existing formatting/comments.
 /// The key is expressed as explicit segments to correctly handle keys that

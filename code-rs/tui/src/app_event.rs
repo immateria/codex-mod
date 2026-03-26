@@ -362,6 +362,15 @@ pub(crate) enum AppEvent {
         context_window: Option<u64>,
         auto_compact_token_limit: Option<i64>,
     },
+    PersistSessionContextSettings {
+        context_window: Option<u64>,
+        auto_compact_token_limit: Option<i64>,
+    },
+    SessionContextSettingsPersisted {
+        context_window: Option<u64>,
+        auto_compact_token_limit: Option<i64>,
+        result: Result<(), String>,
+    },
 
     /// Update the dedicated review model + reasoning effort
     UpdateReviewModelSelection {
