@@ -42,10 +42,10 @@ preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
 
 - hooks.json lifecycle hooks:
   - Port upstream engine as `code-hooks` and wire into `code-core` + TUI.
-  - Runs for: `session_start`, `user_prompt_submit`, `pre_tool_use`.
+  - Runs for: `session_start`, `user_prompt_submit`, `pre_tool_use`, `stop`.
   - Emits `HookStarted` / `HookCompleted` events (rendered in TUI history).
-  - Stop hooks are discovered but not executed yet (missing prompt continuation surface).
-  - Commits: `82d8161d76`, `c32b59d612`, `54f0c045ed`.
+  - Stop hook blocks inject a `hook_prompt` continuation and retry the turn.
+  - Commits: `82d8161d76`, `c32b59d612`, `54f0c045ed`, `299e43babd`.
 
 ## Next: Upstream Intake (Selective, Bisectable)
 

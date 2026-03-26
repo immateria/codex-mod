@@ -363,3 +363,107 @@ event: response.completed\ndata: {completed_one}\n\n"
     );
 }
 
+#[cfg(not(windows))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn lifecycle_hooks_stop_hook_blocking_injects_continuation_prompt_and_retries_turn() {
+    let code_home = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+
+    std::fs::write(
+        code_home.path().join("hooks.json"),
+        r#"
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if grep -q '\"stop_hook_active\":true'; then exit 0; else echo stop-hook-continue 1>&2; exit 2; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
+"#,
+    )
+    .unwrap();
+
+    let server = MockServer::start().await;
+    let sse_one = load_sse_fixture_with_id("tests/fixtures/completed_template.json", "resp-1");
+    let sse_two = load_sse_fixture_with_id("tests/fixtures/completed_template.json", "resp-2");
+
+    Mock::given(method("POST"))
+        .and(path_regex(".*/responses$"))
+        .respond_with(sse_response(sse_one))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path_regex(".*/responses$"))
+        .respond_with(sse_response(sse_two))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+
+    let mut config = load_default_config_for_test(&code_home);
+    config.cwd = project_dir.path().to_path_buf();
+    config.approval_policy = AskForApproval::Never;
+    config.sandbox_policy = SandboxPolicy::DangerFullAccess;
+    config.model_provider = ModelProviderInfo {
+        base_url: Some(format!("{}/v1", server.uri())),
+        ..built_in_model_providers()["openai"].clone()
+    };
+    config.model = "gpt-5.1-codex".to_string();
+
+    let conversation_manager =
+        ConversationManager::with_auth(CodexAuth::from_api_key("Test API Key"));
+    let codex = conversation_manager
+        .new_conversation(config)
+        .await
+        .expect("create conversation")
+        .conversation;
+
+    codex
+        .submit(Op::UserInput {
+            items: vec![InputItem::Text {
+                text: "hello".into(),
+            }],
+            final_output_json_schema: None,
+        })
+        .await
+        .unwrap();
+
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
+
+    let requests = server.received_requests().await.unwrap();
+    let responses_requests = requests
+        .iter()
+        .filter(|req| req.url.path().ends_with("/responses"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        responses_requests.len(),
+        2,
+        "expected two model requests (stop hook continuation), got {}",
+        responses_requests.len()
+    );
+
+    let first_body: serde_json::Value = responses_requests[0].body_json().unwrap();
+    let first_input = first_body["input"]
+        .as_array()
+        .expect("responses request should include input");
+    assert!(
+        find_message_index(first_input, "user", "hello").is_some(),
+        "expected initial user prompt in first request input"
+    );
+
+    let second_body: serde_json::Value = responses_requests[1].body_json().unwrap();
+    let second_input = second_body["input"]
+        .as_array()
+        .expect("responses request should include input");
+    assert!(
+        find_message_index(second_input, "user", "stop-hook-continue").is_some(),
+        "expected stop-hook continuation prompt in second request input"
+    );
+}
