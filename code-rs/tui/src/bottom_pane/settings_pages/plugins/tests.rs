@@ -101,6 +101,7 @@ fn make_shared_state_ready(
             marketplaces,
             marketplace_load_errors: Vec::new(),
             remote_sync_error: None,
+            remote_sync_needs_auth: false,
             featured_plugin_ids: Vec::new(),
         },
         ..Default::default()
@@ -210,6 +211,109 @@ fn s_from_plugins_list_enters_sources_list_mode() {
         KeyModifiers::NONE
     )));
     assert!(matches!(view.mode, Mode::Sources(SourcesMode::List)));
+}
+
+#[test]
+fn l_when_remote_sync_needs_auth_opens_accounts_then_login() {
+    let root = abs("/tmp");
+    let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
+    {
+        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        state.list = PluginsListState::Ready {
+            roots: vec![root.clone()],
+            marketplaces: Vec::new(),
+            marketplace_load_errors: Vec::new(),
+            remote_sync_error: Some("chatgpt authentication required to sync remote plugins".to_string()),
+            remote_sync_needs_auth: true,
+            featured_plugin_ids: Vec::new(),
+        };
+    }
+
+    let (tx, rx) = mpsc::channel();
+    let app_event_tx = AppEventSender::new(tx);
+    let mut view = PluginsSettingsView::new(shared_state, vec![root], app_event_tx);
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('l'),
+        KeyModifiers::NONE
+    )));
+
+    match rx.try_recv().expect("OpenSettings") {
+        AppEvent::OpenSettings { section } => {
+            assert_eq!(section, Some(crate::bottom_pane::SettingsSection::Accounts));
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+
+    match rx.try_recv().expect("ShowLoginAccounts") {
+        AppEvent::ShowLoginAccounts => {}
+        other => panic!("unexpected event: {other:?}"),
+    }
+}
+
+#[test]
+fn a_when_remote_sync_needs_auth_opens_accounts_settings() {
+    let root = abs("/tmp");
+    let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
+    {
+        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        state.list = PluginsListState::Ready {
+            roots: vec![root.clone()],
+            marketplaces: Vec::new(),
+            marketplace_load_errors: Vec::new(),
+            remote_sync_error: Some("failed to get auth token for remote plugin sync".to_string()),
+            remote_sync_needs_auth: true,
+            featured_plugin_ids: Vec::new(),
+        };
+    }
+
+    let (tx, rx) = mpsc::channel();
+    let app_event_tx = AppEventSender::new(tx);
+    let mut view = PluginsSettingsView::new(shared_state, vec![root], app_event_tx);
+
+    assert!(view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('a'),
+        KeyModifiers::NONE
+    )));
+
+    match rx.try_recv().expect("OpenSettings") {
+        AppEvent::OpenSettings { section } => {
+            assert_eq!(section, Some(crate::bottom_pane::SettingsSection::Accounts));
+        }
+        other => panic!("unexpected event: {other:?}"),
+    }
+    assert!(rx.try_recv().is_err(), "expected only one event");
+}
+
+#[test]
+fn l_and_a_are_ignored_when_remote_sync_does_not_need_auth() {
+    let root = abs("/tmp");
+    let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
+    {
+        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        state.list = PluginsListState::Ready {
+            roots: vec![root.clone()],
+            marketplaces: Vec::new(),
+            marketplace_load_errors: Vec::new(),
+            remote_sync_error: Some("curated marketplace sync failed".to_string()),
+            remote_sync_needs_auth: false,
+            featured_plugin_ids: Vec::new(),
+        };
+    }
+
+    let (tx, rx) = mpsc::channel();
+    let app_event_tx = AppEventSender::new(tx);
+    let mut view = PluginsSettingsView::new(shared_state, vec![root], app_event_tx);
+
+    assert!(!view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('l'),
+        KeyModifiers::NONE
+    )));
+    assert!(!view.handle_key_event_direct(KeyEvent::new(
+        KeyCode::Char('a'),
+        KeyModifiers::NONE
+    )));
+    assert!(rx.try_recv().is_err(), "expected no events");
 }
 
 #[test]

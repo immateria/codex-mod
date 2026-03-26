@@ -176,6 +176,7 @@ pub(crate) struct PluginListSnapshot {
     pub marketplaces: Vec<ConfiguredMarketplace>,
     pub marketplace_load_errors: Vec<MarketplaceListError>,
     pub remote_sync_error: Option<String>,
+    pub remote_sync_needs_auth: bool,
     pub featured_plugin_ids: Vec<String>,
 }
 

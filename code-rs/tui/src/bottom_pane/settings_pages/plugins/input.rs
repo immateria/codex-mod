@@ -29,6 +29,14 @@ impl PluginsSettingsView {
         let snapshot = self.shared_snapshot();
         let plugin_rows = Self::plugin_rows_from_snapshot(&snapshot);
         let plugin_count = plugin_rows.len();
+        let remote_sync_needs_auth = match &snapshot.list {
+            crate::chatwidget::PluginsListState::Ready {
+                remote_sync_error,
+                remote_sync_needs_auth,
+                ..
+            } => remote_sync_error.is_some() && *remote_sync_needs_auth,
+            _ => false,
+        };
 
         match key_event.code {
             KeyCode::Esc => {
@@ -67,6 +75,25 @@ impl PluginsSettingsView {
             }
             KeyCode::Char('R') => {
                 self.request_plugin_list(/*force_remote_sync*/ true);
+                true
+            }
+            KeyCode::Char('a') => {
+                if !remote_sync_needs_auth {
+                    return false;
+                }
+                self.app_event_tx.send(crate::app_event::AppEvent::OpenSettings {
+                    section: Some(crate::bottom_pane::SettingsSection::Accounts),
+                });
+                true
+            }
+            KeyCode::Char('l') => {
+                if !remote_sync_needs_auth {
+                    return false;
+                }
+                self.app_event_tx.send(crate::app_event::AppEvent::OpenSettings {
+                    section: Some(crate::bottom_pane::SettingsSection::Accounts),
+                });
+                self.app_event_tx.send(crate::app_event::AppEvent::ShowLoginAccounts);
                 true
             }
             KeyCode::Char('s') => {

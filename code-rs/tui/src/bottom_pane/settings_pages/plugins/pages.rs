@@ -85,6 +85,7 @@ impl PluginsSettingsView {
                 Style::new().fg(colors::text_dim()),
             )),
         ];
+        let mut show_auth_recovery_actions = false;
 
         match &snapshot.list {
             PluginsListState::Loading { force_remote_sync, .. } => {
@@ -107,6 +108,7 @@ impl PluginsSettingsView {
             PluginsListState::Ready {
                 marketplace_load_errors,
                 remote_sync_error,
+                remote_sync_needs_auth,
                 ..
             } => {
                 if let Some(err) = remote_sync_error.as_ref() {
@@ -114,16 +116,13 @@ impl PluginsSettingsView {
                         format!("Remote sync error: {err}"),
                         Style::new().fg(colors::warning()),
                     )));
-                    let lowered = err.to_ascii_lowercase();
-                    if lowered.contains("refresh_token_reused")
-                        || lowered.contains("auth required")
-                        || lowered.contains("sign in")
-                    {
-                        header_lines.push(Line::from(Span::styled(
-                            "Hint: run /login and try sync again.".to_string(),
-                            Style::new().fg(colors::text_dim()),
-                        )));
-                    }
+                    show_auth_recovery_actions = *remote_sync_needs_auth;
+                }
+                if show_auth_recovery_actions {
+                    header_lines.push(Line::from(Span::styled(
+                        "Action: press `l` to log in, or `a` for Accounts settings.".to_string(),
+                        Style::new().fg(colors::text_dim()),
+                    )));
                 }
                 if !marketplace_load_errors.is_empty() {
                     let error_count = marketplace_load_errors.len();
@@ -196,18 +195,24 @@ impl PluginsSettingsView {
 
         header_lines.push(Line::from(""));
 
+        let mut shortcuts = vec![
+            KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new("Enter", " details").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("s", " sources").with_key_style(Style::new().fg(colors::primary())),
+            KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
+            KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
+        ];
+        if show_auth_recovery_actions {
+            shortcuts.push(KeyHint::new("l", " login").with_key_style(Style::new().fg(colors::success())));
+            shortcuts.push(KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())));
+        }
+        shortcuts.push(KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error())));
+
         SettingsMenuPage::new(
             "Plugins",
             SettingsPanelStyle::bottom_pane(),
             header_lines,
-            vec![shortcut_line(&[
-                KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(colors::function())),
-                KeyHint::new("Enter", " details").with_key_style(Style::new().fg(colors::success())),
-                KeyHint::new("s", " sources").with_key_style(Style::new().fg(colors::primary())),
-                KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
-                KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
-                KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error())),
-            ])],
+            vec![shortcut_line(&shortcuts)],
         )
     }
 

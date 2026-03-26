@@ -188,6 +188,7 @@
                         let manager = code_core::plugins::PluginsManager::new(code_home);
 
                         let mut remote_sync_error = None;
+                        let mut remote_sync_needs_auth = false;
                         if force_remote_sync {
                             if let Err(err) = manager.sync_marketplace_sources(&config).await {
                                 remote_sync_error = Some(err);
@@ -196,6 +197,16 @@
                                 .sync_plugins_from_remote(&config, auth.as_ref(), /*additive_only*/ false)
                                 .await
                             {
+                                remote_sync_needs_auth |= match &err {
+                                    code_core::plugins::PluginRemoteSyncError::AuthRequired
+                                    | code_core::plugins::PluginRemoteSyncError::UnsupportedAuthMode
+                                    | code_core::plugins::PluginRemoteSyncError::AuthToken(_) => true,
+                                    code_core::plugins::PluginRemoteSyncError::UnexpectedStatus { status, .. } => {
+                                        let code = status.as_u16();
+                                        code == 401 || code == 403
+                                    }
+                                    _ => false,
+                                };
                                 match remote_sync_error.as_mut() {
                                     Some(existing) => {
                                         existing.push_str("; ");
@@ -222,6 +233,7 @@
                             marketplaces: outcome.marketplaces,
                             marketplace_load_errors: outcome.errors,
                             remote_sync_error,
+                            remote_sync_needs_auth,
                             featured_plugin_ids,
                         });
 

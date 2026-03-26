@@ -36,6 +36,7 @@ pub(crate) enum PluginsListState {
         marketplaces: Vec<ConfiguredMarketplace>,
         marketplace_load_errors: Vec<MarketplaceListError>,
         remote_sync_error: Option<String>,
+        remote_sync_needs_auth: bool,
         featured_plugin_ids: Vec<String>,
     },
     Failed {
@@ -172,6 +173,7 @@ impl ChatWidget<'_> {
                     marketplaces: snapshot.marketplaces,
                     marketplace_load_errors: snapshot.marketplace_load_errors,
                     remote_sync_error: snapshot.remote_sync_error,
+                    remote_sync_needs_auth: snapshot.remote_sync_needs_auth,
                     featured_plugin_ids: snapshot.featured_plugin_ids,
                 };
             }
