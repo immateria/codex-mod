@@ -65,5 +65,6 @@
     include!("harness.rs");
     include!("review.rs");
     include!("ordering.rs");
+    include!("hooks.rs");
     include!("autodrive.rs");
     include!("streaming.rs");

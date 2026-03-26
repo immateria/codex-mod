@@ -310,6 +310,70 @@ impl ChatWidget<'_> {
                 self.history_push_plain_state(history_cell::new_warning_event(message));
                 self.request_redraw();
             }
+            EventMsg::HookStarted(event) => {
+                let run = event.run;
+                let event_label = match run.event_name {
+                    code_protocol::protocol::HookEventName::PreToolUse => "pre tool use",
+                    code_protocol::protocol::HookEventName::SessionStart => "session start",
+                    code_protocol::protocol::HookEventName::UserPromptSubmit => "user prompt submit",
+                    code_protocol::protocol::HookEventName::Stop => "stop",
+                };
+                let status_message = run
+                    .status_message
+                    .as_ref()
+                    .map(|message| message.trim())
+                    .filter(|message| !message.is_empty());
+                let message = match status_message {
+                    Some(status) => format!("Running {event_label} hook: {status}"),
+                    None => format!("Running {event_label} hook"),
+                };
+                self.history_push_plain_paragraphs(PlainMessageKind::Notice, [message]);
+                self.request_redraw();
+            }
+            EventMsg::HookCompleted(event) => {
+                let run = event.run;
+                let event_label = match run.event_name {
+                    code_protocol::protocol::HookEventName::PreToolUse => "pre tool use",
+                    code_protocol::protocol::HookEventName::SessionStart => "session start",
+                    code_protocol::protocol::HookEventName::UserPromptSubmit => "user prompt submit",
+                    code_protocol::protocol::HookEventName::Stop => "stop",
+                };
+                let status = match run.status {
+                    code_protocol::protocol::HookRunStatus::Running => "running",
+                    code_protocol::protocol::HookRunStatus::Completed => "completed",
+                    code_protocol::protocol::HookRunStatus::Failed => "failed",
+                    code_protocol::protocol::HookRunStatus::Blocked => "blocked",
+                    code_protocol::protocol::HookRunStatus::Stopped => "stopped",
+                };
+                let mut lines = Vec::new();
+                lines.push(format!("Hook {event_label}: {status}"));
+                if let Some(status_message) = run
+                    .status_message
+                    .as_ref()
+                    .map(|message| message.trim())
+                    .filter(|message| !message.is_empty())
+                {
+                    lines.push(format!("  • {status_message}"));
+                }
+                for entry in run.entries {
+                    let kind_label = match entry.kind {
+                        code_protocol::protocol::HookOutputEntryKind::Warning => "warning",
+                        code_protocol::protocol::HookOutputEntryKind::Stop => "stop",
+                        code_protocol::protocol::HookOutputEntryKind::Feedback => "feedback",
+                        code_protocol::protocol::HookOutputEntryKind::Context => "context",
+                        code_protocol::protocol::HookOutputEntryKind::Error => "error",
+                    };
+                    let mut entry_lines = entry.text.lines();
+                    if let Some(first) = entry_lines.next() {
+                        lines.push(format!("  • {kind_label}: {first}"));
+                        for line in entry_lines {
+                            lines.push(format!("    {line}"));
+                        }
+                    }
+                }
+                self.history_push_plain_paragraphs(PlainMessageKind::Notice, lines);
+                self.request_redraw();
+            }
             EventMsg::PlanUpdate(update) => {
                 let (plan_title, plan_active) = {
                     let title = update
