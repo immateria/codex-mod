@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
+use tokio::sync::Mutex as TokioMutex;
 
 use code_app_server_protocol::AuthMode;
 
@@ -35,6 +36,7 @@ pub struct CodexAuth {
 
     pub(crate) api_key: Option<String>,
     pub(crate) auth_dot_json: Arc<Mutex<Option<AuthDotJson>>>,
+    refresh_lock: Arc<TokioMutex<()>>,
     pub(crate) auth_file: PathBuf,
     pub(crate) code_home: Option<PathBuf>,
     pub(in crate::auth) storage: Option<Arc<dyn AuthStorageBackend>>,
@@ -106,6 +108,10 @@ impl CodexAuth {
     }
 
     pub async fn refresh_token(&self) -> Result<String, RefreshTokenError> {
+        // Refresh tokens are rotated on use. Serialize refresh operations within this process
+        // so concurrent refresh attempts don't race and trigger `refresh_token_reused`.
+        let _refresh_guard = self.refresh_lock.lock().await;
+
         if self.mode == AuthMode::ChatgptAuthTokens {
             return Err(RefreshTokenError::permanent(
                 "ChatGPT auth tokens are managed externally and cannot be refreshed.",
@@ -125,10 +131,17 @@ impl CodexAuth {
                 }
                 Err(err) => {
                     if err.is_refresh_token_reused() {
-                        if let Some(access) =
-                            self.adopt_rotated_refresh_token_from_disk(&refresh_token)?
-                        {
-                            return Ok(access);
+                        // Another process (or an earlier refresh attempt) may have already
+                        // rotated the refresh token. Try to adopt the rotated token from disk.
+                        for retry in 0..3_u32 {
+                            if let Some(access) =
+                                self.adopt_rotated_refresh_token_from_disk(&refresh_token)?
+                            {
+                                return Ok(access);
+                            }
+                            if retry < 2 {
+                                tokio::time::sleep(Duration::from_millis(50_u64 * (retry as u64 + 1))).await;
+                            }
                         }
                         return Err(RefreshTokenError::permanent(format!(
                             "refresh_token_reused: {REFRESH_TOKEN_REUSED_MESSAGE}"
@@ -350,6 +363,7 @@ impl CodexAuth {
             code_home: None,
             storage: None,
             auth_dot_json,
+            refresh_lock: Arc::new(TokioMutex::new(())),
             client: crate::default_client::create_client("code_cli_rs"),
         }
     }
@@ -362,6 +376,7 @@ impl CodexAuth {
             code_home: None,
             storage: None,
             auth_dot_json: Arc::new(Mutex::new(None)),
+            refresh_lock: Arc::new(TokioMutex::new(())),
             client,
         }
     }
@@ -406,6 +421,7 @@ impl CodexAuth {
             code_home: None,
             storage: None,
             auth_dot_json: Arc::new(Mutex::new(Some(auth_dot_json))),
+            refresh_lock: Arc::new(TokioMutex::new(())),
             client: crate::default_client::create_client(originator),
         }
     }
@@ -735,6 +751,7 @@ fn load_auth(
                         tokens: Some(tokens),
                         last_refresh,
                     }))),
+                    refresh_lock: Arc::new(TokioMutex::new(())),
                     client,
                 }));
             }
@@ -792,6 +809,7 @@ fn load_auth(
             tokens,
             last_refresh,
         }))),
+        refresh_lock: Arc::new(TokioMutex::new(())),
         client,
     }))
 }
@@ -1445,6 +1463,7 @@ mod tests {
             mode: AuthMode::ChatGPT,
             api_key: None,
             auth_dot_json: Arc::new(Mutex::new(Some(cached_auth))),
+            refresh_lock: Arc::new(TokioMutex::new(())),
             auth_file,
             code_home: None,
             storage: None,
@@ -1516,6 +1535,7 @@ mod tests {
             mode: AuthMode::ChatGPT,
             api_key: None,
             auth_dot_json: Arc::new(Mutex::new(Some(cached_auth))),
+            refresh_lock: Arc::new(TokioMutex::new(())),
             auth_file,
             code_home: None,
             storage: None,
