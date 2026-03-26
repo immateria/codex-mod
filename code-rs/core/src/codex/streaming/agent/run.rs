@@ -51,6 +51,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
         );
     }
 
+    let mut blocked_by_user_prompt_hook = false;
     let mut initial_response_item: Option<ResponseItem> = None;
 
     if !pending_only_turn {
@@ -59,14 +60,58 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
         sess.enforce_user_message_limits(&sub_id, &mut response_input);
         let response_item: ResponseItem = response_input.into();
 
-        if is_review_mode {
-            review_history.push(response_item.clone());
-        } else {
-            // Record to history but we'll handle ephemeral images separately
-            sess.record_conversation_items(std::slice::from_ref(&response_item))
+        let prompt = match &response_item {
+            ResponseItem::Message { role, content, .. } if role == "user" => content
+                .iter()
+                .filter_map(|item| match item {
+                    ContentItem::InputText { text } => Some(text.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
+            _ => String::new(),
+        };
+
+        let hook_request = code_hooks::UserPromptSubmitRequest {
+            session_id: crate::codex::hook_runtime::thread_id_from_session_uuid(sess.as_ref()),
+            turn_id: sub_id.clone(),
+            cwd: turn_context.cwd.clone(),
+            transcript_path: sess.hook_transcript_path(),
+            model: turn_context.client.config().model.clone(),
+            permission_mode: crate::codex::hook_runtime::hook_permission_mode(
+                turn_context.approval_policy,
+            ),
+            prompt,
+        };
+
+        let hook_outcome =
+            crate::codex::hook_runtime::run_user_prompt_submit_hooks(&sess, &sub_id, &hook_request)
                 .await;
+        let should_stop = hook_outcome.should_stop;
+        let additional_context_items =
+            crate::codex::hook_runtime::additional_context_messages(hook_outcome.additional_contexts);
+        if !additional_context_items.is_empty() {
+            if is_review_mode {
+                review_history.extend(additional_context_items);
+            } else {
+                sess.record_conversation_items(additional_context_items.as_slice())
+                    .await;
+            }
         }
-        initial_response_item = Some(response_item);
+
+        if should_stop {
+            crate::codex::hook_runtime::emit_hook_blocked_warning(&sess, &sub_id).await;
+            blocked_by_user_prompt_hook = true;
+        } else {
+            if is_review_mode {
+                review_history.push(response_item.clone());
+            } else {
+                // Record to history but we'll handle ephemeral images separately
+                sess.record_conversation_items(std::slice::from_ref(&response_item))
+                    .await;
+            }
+            initial_response_item = Some(response_item);
+        }
     }
 
     let mut last_task_message: Option<String> = None;
@@ -83,7 +128,8 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
     let mut did_proactive_compact_this_iteration = false;
     let mut auto_compact_pending = false;
 
-    loop {
+    if !blocked_by_user_prompt_hook {
+        loop {
         // Note that pending_input would be something like a message the user
         // submitted through the UI while the model was running. Though the UI
         // may support this, the model might not.
@@ -428,6 +474,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
                 break;
             }
         }
+    }
     }
     if is_review_mode && !review_exit_emitted {
         let combined = if !review_messages.is_empty() {

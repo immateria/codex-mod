@@ -419,6 +419,7 @@ pub(crate) struct Session {
     pub(super) confirm_guard: ConfirmGuardRuntime,
     pub(super) project_hooks: ProjectHooks,
     pub(super) project_commands: Vec<ProjectCommand>,
+    pub(super) lifecycle_hooks: code_hooks::Hooks,
     pub(super) tool_output_max_bytes: usize,
     pub(super) hook_guard: AtomicBool,
     pub(super) github: Arc<RwLock<crate::config_types::GithubConfig>>,
@@ -1409,6 +1410,16 @@ impl Session {
             text_format_override: crate::codex::lock_or_panic!(self.next_turn_text_format).take(),
             final_output_json_schema,
         })
+    }
+
+    pub(super) fn hooks_json(&self) -> &code_hooks::Hooks {
+        &self.lifecycle_hooks
+    }
+
+    pub(super) fn hook_transcript_path(&self) -> Option<PathBuf> {
+        crate::codex::lock_or_panic!(self.rollout)
+            .as_ref()
+            .map(|recorder| recorder.rollout_path.clone())
     }
 
     pub(super) fn compact_prompt_text(&self) -> String {

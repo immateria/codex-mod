@@ -4416,6 +4416,7 @@ pub struct SkillsChangedNotification {}
 
 v2_enum_from_core! {
     pub enum HookEventName from CoreHookEventName {
+        PreToolUse,
         SessionStart,
         UserPromptSubmit,
         Stop,

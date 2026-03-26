@@ -1678,6 +1678,39 @@ pub(crate) async fn handle_container_exec_with_params(
     };
 
     let display_label = crate::util::strip_bash_lc_and_escape(&exec_command_context.command_for_display);
+
+    let hook_session_id = crate::codex::hook_runtime::thread_id_from_session_uuid(sess);
+    let pre_tool_use_request = code_hooks::PreToolUseRequest {
+        session_id: hook_session_id,
+        turn_id: sub_id.clone(),
+        cwd: params.cwd.clone(),
+        transcript_path: sess.hook_transcript_path(),
+        model: sess.client.config().model.clone(),
+        permission_mode: crate::codex::hook_runtime::hook_permission_mode(sess.approval_policy),
+        tool_name: "Bash".to_string(),
+        tool_use_id: call_id.clone(),
+        command: display_label.clone(),
+    };
+    if let Some(reason) = crate::codex::hook_runtime::run_pre_tool_use_hooks(
+        sess,
+        &sub_id,
+        &pre_tool_use_request,
+    )
+    .await
+    {
+        let output = if reason.trim().is_empty() {
+            "exec command blocked by hooks.json lifecycle hook".to_string()
+        } else {
+            format!("exec command blocked by hooks.json lifecycle hook: {reason}")
+        };
+        return ResponseInputItem::FunctionCallOutput {
+            call_id,
+            output: FunctionCallOutputPayload {
+                body: FunctionCallOutputBody::Text(output),
+                success: None,
+            },
+        };
+    }
     let params = maybe_run_with_user_profile(params, sess);
 
     // ToolBefore hook for shell/container.exec commands

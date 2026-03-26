@@ -87,6 +87,7 @@ pub(crate) mod agent_tool_call;
 mod events;
 mod exec;
 pub(crate) mod exec_tool;
+mod hook_runtime;
 mod fs_utils;
 pub(crate) mod mcp_access;
 mod session;

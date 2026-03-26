@@ -375,6 +375,8 @@ async fn run_code_tool_session_inner(
                     | EventMsg::ListCustomPromptsResponse(_)
                     | EventMsg::ListSkillsResponse(_)
                     | EventMsg::AgentStatusUpdate(_)
+                    | EventMsg::HookStarted(_)
+                    | EventMsg::HookCompleted(_)
                     | EventMsg::CompactionCheckpointWarning(_)
                     | EventMsg::TurnAborted(_)
                     | EventMsg::ConversationPath(_)

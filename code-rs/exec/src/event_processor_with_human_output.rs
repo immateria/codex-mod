@@ -816,6 +816,38 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                     None => eprintln!("{}", "review ended without results".style(self.dimmed)),
                 }
             }
+            EventMsg::HookStarted(event) => {
+                let event_name = format!("{:?}", event.run.event_name);
+                if let Some(status_message) = event.run.status_message.as_deref()
+                    && !status_message.trim().is_empty()
+                {
+                    ts_println!(
+                        self,
+                        "{} {} {}",
+                        "hook".style(self.magenta),
+                        event_name.style(self.dimmed),
+                        status_message.trim().style(self.dimmed),
+                    );
+                } else {
+                    ts_println!(
+                        self,
+                        "{} {}",
+                        "hook".style(self.magenta),
+                        event_name.style(self.dimmed),
+                    );
+                }
+            }
+            EventMsg::HookCompleted(event) => {
+                let event_name = format!("{:?}", event.run.event_name);
+                let status = format!("{:?}", event.run.status);
+                ts_println!(
+                    self,
+                    "{} {} {}",
+                    "hook".style(self.magenta),
+                    event_name.style(self.dimmed),
+                    status.style(self.dimmed),
+                );
+            }
             EventMsg::CompactionCheckpointWarning(_) => {}
         }
         CodexStatus::Running

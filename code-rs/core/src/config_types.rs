@@ -42,6 +42,26 @@ pub struct PluginsToml {
     pub marketplace_repos: Vec<PluginMarketplaceRepoToml>,
 }
 
+/// Settings for the upstream-compatible `hooks.json` lifecycle hooks engine.
+///
+/// These values are persisted under `[lifecycle_hooks]` in `config.toml`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+pub struct LifecycleHooksToml {
+    /// When `Some(false)`, disables the `hooks.json` lifecycle hook engine.
+    /// When omitted, hooks are enabled.
+    #[serde(default)]
+    pub enabled: Option<bool>,
+
+    /// Optional explicit shell program to use when running hook commands.
+    /// When omitted, Code derives a shell from the session's detected shell.
+    #[serde(default)]
+    pub shell_program: Option<String>,
+
+    /// Additional args passed to the hook shell program.
+    #[serde(default)]
+    pub shell_args: Vec<String>,
+}
+
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct MemoriesToml {
     pub no_memories_if_mcp_or_web_search: Option<bool>,

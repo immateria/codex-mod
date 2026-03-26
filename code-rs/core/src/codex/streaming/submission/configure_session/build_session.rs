@@ -1,4 +1,5 @@
 use super::*;
+use code_app_server_protocol::ConfigLayerSource;
 
 impl Runner<'_> {
     pub(super) async fn build_session(&mut self, prepared: Prepared) -> Built {
@@ -316,6 +317,80 @@ impl Runner<'_> {
             warn!("failed to initialize memories sqlite state: {err}");
         }
 
+        let lifecycle_hooks_enabled = config.lifecycle_hooks.enabled != Some(false);
+        let config_layer_folders_low_to_high = if lifecycle_hooks_enabled {
+            match crate::config_loader::load_config_layers_state_with_cwd(
+                config.code_home.as_path(),
+                Some(cwd.as_path()),
+                &[],
+                crate::config_loader::LoaderOverrides::default(),
+            )
+            .await
+            {
+                Ok(stack) => stack
+                    .layers_low_to_high()
+                    .filter(|layer| layer.disabled_reason.is_none())
+                    .filter_map(|layer| match &layer.name {
+                        ConfigLayerSource::System { file } => {
+                            file.as_path().parent().map(|parent| parent.to_path_buf())
+                        }
+                        ConfigLayerSource::User { file } => {
+                            file.as_path().parent().map(|parent| parent.to_path_buf())
+                        }
+                        ConfigLayerSource::Project { dot_codex_folder } => {
+                            Some(dot_codex_folder.as_path().to_path_buf())
+                        }
+                        ConfigLayerSource::Mdm { .. }
+                        | ConfigLayerSource::SessionFlags
+                        | ConfigLayerSource::LegacyManagedConfigTomlFromFile { .. }
+                        | ConfigLayerSource::LegacyManagedConfigTomlFromMdm => None,
+                    })
+                    .collect(),
+                Err(err) => {
+                    warn!("failed to load config layers for hooks.json discovery: {err}");
+                    Vec::new()
+                }
+            }
+        } else {
+            Vec::new()
+        };
+
+        let (hooks_shell_program, hooks_shell_args) = match config
+            .lifecycle_hooks
+            .shell_program
+            .as_deref()
+            .and_then(|program| {
+                let trimmed = program.trim();
+                (!trimmed.is_empty()).then_some(trimmed)
+            }) {
+            Some(program) => (Some(program.to_string()), config.lifecycle_hooks.shell_args.clone()),
+            None => match &resolved_shell {
+                crate::shell::Shell::Zsh(zsh) => {
+                    (Some(zsh.shell_path.clone()), vec!["-lc".to_string()])
+                }
+                crate::shell::Shell::Bash(bash) => {
+                    (Some(bash.shell_path.clone()), vec!["-lc".to_string()])
+                }
+                crate::shell::Shell::PowerShell(ps) => (
+                    Some(ps.exe.clone()),
+                    vec!["-NoProfile".to_string(), "-Command".to_string()],
+                ),
+                crate::shell::Shell::Generic(generic) => match generic.command.split_first() {
+                    Some((program, args)) => (Some(program.clone()), args.to_vec()),
+                    None => (None, Vec::new()),
+                },
+                crate::shell::Shell::Unknown => (None, Vec::new()),
+            },
+        };
+
+        let lifecycle_hooks = code_hooks::Hooks::new(code_hooks::HooksConfig {
+            legacy_notify_argv: None,
+            feature_enabled: lifecycle_hooks_enabled,
+            config_layer_folders_low_to_high,
+            shell_program: hooks_shell_program,
+            shell_args: hooks_shell_args,
+        });
+
         let mut new_session = Arc::new(Session {
             id: self.session_id,
             client,
@@ -388,6 +463,7 @@ impl Runner<'_> {
             confirm_guard: ConfirmGuardRuntime::from_config(&config.confirm_guard),
             project_hooks: config.project_hooks.clone(),
             project_commands: config.project_commands.clone(),
+            lifecycle_hooks,
             tool_output_max_bytes: config.tool_output_max_bytes,
             hook_guard: AtomicBool::new(false),
             github: Arc::new(RwLock::new(config.github.clone())),

@@ -43,8 +43,22 @@ impl Runner<'_> {
             }
         }
 
+        let replay_history_items_present = replay_history_items.is_some();
+
+        for warning in sess_arc.hooks_json().startup_warnings() {
+            let event = sess_arc.make_event(
+                INITIAL_SUBMIT_ID,
+                EventMsg::Warning(crate::protocol::WarningEvent {
+                    message: warning.clone(),
+                }),
+            );
+            if let Err(err) = self.tx_event.send(event).await {
+                warn!("failed to send hook startup warning: {err}");
+            }
+        }
+
         // If we resumed from a rollout, replay the prior transcript into the UI.
-        if replay_history_items.is_some()
+        if replay_history_items_present
             || restored_history_snapshot.is_some()
             || restored_items.is_some()
         {
@@ -75,6 +89,36 @@ impl Runner<'_> {
         }
 
         spawn_bridge_listener(Arc::clone(sess_arc));
+
+        let session_start_source =
+            if restored_items.is_some()
+                || restored_history_snapshot.is_some()
+                || replay_history_items_present
+            {
+                code_hooks::SessionStartSource::Resume
+            } else {
+                code_hooks::SessionStartSource::Startup
+            };
+
+        let hooks_session_id = crate::codex::hook_runtime::thread_id_from_session_uuid(sess_arc);
+        let session_start_request = code_hooks::SessionStartRequest {
+            session_id: hooks_session_id,
+            cwd: sess_arc.cwd.clone(),
+            transcript_path: sess_arc.hook_transcript_path(),
+            model: sess_arc.client.config().model.clone(),
+            permission_mode: crate::codex::hook_runtime::hook_permission_mode(sess_arc.approval_policy),
+            source: session_start_source,
+        };
+        let outcome = crate::codex::hook_runtime::run_session_start_hooks(
+            sess_arc,
+            submission_id.as_str(),
+            &session_start_request,
+            Some(submission_id.clone()),
+        )
+        .await;
+        crate::codex::hook_runtime::record_additional_contexts(sess_arc, outcome.additional_contexts)
+            .await;
+
         sess_arc.run_session_hooks(ProjectHookEvent::SessionStart).await;
 
         // Initialize agent manager after SessionConfigured is sent

@@ -17,6 +17,7 @@ use crate::config_types::ValidationConfig;
 use crate::config_types::McpServerConfig;
 use crate::config_types::MemoriesConfig;
 use crate::config_types::MemoriesToml;
+use crate::config_types::LifecycleHooksToml;
 use crate::config_types::PluginsToml;
 use crate::config_types::resolve_memories_config;
 use crate::config_types::Notifications;
@@ -322,6 +323,9 @@ pub struct Config {
 
     /// Project-specific commands available in the active workspace.
     pub project_commands: Vec<ProjectCommand>,
+
+    /// Upstream-compatible `hooks.json` lifecycle hooks configuration.
+    pub lifecycle_hooks: LifecycleHooksToml,
 
     pub shell_environment_policy: ShellEnvironmentPolicy,
 
@@ -895,6 +899,10 @@ pub struct ConfigToml {
 
     /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
     pub chatgpt_base_url: Option<String>,
+
+    /// Upstream-compatible `hooks.json` lifecycle hooks configuration.
+    #[serde(default)]
+    pub lifecycle_hooks: Option<LifecycleHooksToml>,
 
     /// Plugin marketplace source configuration.
     #[serde(default)]
@@ -2156,6 +2164,7 @@ impl Config {
             always_allow_commands,
             project_hooks,
             project_commands,
+            lifecycle_hooks: cfg.lifecycle_hooks.unwrap_or_default(),
             shell_environment_policy,
             shell: cfg.shell,
             shell_style_profiles: cfg.shell_style_profiles,

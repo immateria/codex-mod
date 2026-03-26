@@ -79,6 +79,10 @@ impl ConfigLayerStack {
         Self { layers_low_to_high }
     }
 
+    pub fn layers_low_to_high(&self) -> impl Iterator<Item = &ConfigLayerEntry> {
+        self.layers_low_to_high.iter()
+    }
+
     pub fn layers_high_to_low(&self) -> impl Iterator<Item = &ConfigLayerEntry> {
         self.layers_low_to_high.iter().rev()
     }

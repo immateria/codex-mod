@@ -960,6 +960,12 @@ pub enum EventMsg {
     /// Ack the client's configure message.
     SessionConfigured(SessionConfiguredEvent),
 
+    /// Lifecycle hook execution started (hooks.json).
+    HookStarted(code_protocol::protocol::HookStartedEvent),
+
+    /// Lifecycle hook execution completed (hooks.json).
+    HookCompleted(code_protocol::protocol::HookCompletedEvent),
+
     McpToolCallBegin(McpToolCallBeginEvent),
 
     McpToolCallEnd(McpToolCallEndEvent),
