@@ -147,7 +147,9 @@ impl ChatWidget<'_> {
                 server_name: pending.server_name,
                 id: pending.id,
                 action,
-                content: None,
+                // The picker currently doesn't surface typed form input, so accept returns `{}`.
+                content: matches!(action, code_protocol::approvals::ElicitationAction::Accept)
+                    .then(|| serde_json::json!({})),
                 meta: None,
             }) {
                 tracing::error!("failed to send Op::ResolveMcpElicitation: {e}");
@@ -198,5 +200,76 @@ impl ChatWidget<'_> {
         self.bottom_pane
             .update_status_text("waiting for model".to_string());
         self.request_redraw();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::chatwidget::smoke_helpers::ChatWidgetHarness;
+    use code_core::protocol::{Event, EventMsg};
+    use code_protocol::approvals::{ElicitationRequest, ElicitationRequestEvent};
+    use code_protocol::mcp::RequestId;
+    use code_protocol::request_user_input::RequestUserInputAnswer;
+    use code_protocol::request_user_input::RequestUserInputResponse;
+    use tokio::sync::mpsc::unbounded_channel;
+
+    #[test]
+    fn mcp_elicitation_accept_sends_empty_object_content() {
+        let mut harness = ChatWidgetHarness::new();
+
+        let (op_tx, mut op_rx) = unbounded_channel::<Op>();
+        harness.with_chat(|chat| {
+            chat.code_op_tx = op_tx;
+        });
+
+        let server_name = "demo_server".to_string();
+        let request_id = RequestId::String("req_123".to_string());
+        let request = ElicitationRequest::Form {
+            meta: None,
+            message: "please confirm".to_string(),
+            requested_schema: serde_json::json!({"type":"object"}),
+        };
+        harness.handle_event(Event {
+            id: "evt".into(),
+            event_seq: 0,
+            msg: EventMsg::ElicitationRequest(ElicitationRequestEvent {
+                turn_id: None,
+                server_name: server_name.clone(),
+                id: request_id.clone(),
+                request,
+            }),
+            order: None,
+        });
+
+        let mut answers = std::collections::HashMap::new();
+        answers.insert(
+            "mcp_elicitation".to_string(),
+            RequestUserInputAnswer {
+                answers: vec!["Accept".to_string()],
+            },
+        );
+        let response = RequestUserInputResponse { answers };
+        let turn_id = "mcp_elicitation:demo_server:req_123".to_string();
+
+        harness.with_chat(|chat| chat.on_request_user_input_answer(turn_id, response));
+
+        match op_rx.try_recv().expect("expected resolve op") {
+            Op::ResolveMcpElicitation {
+                server_name: got_server,
+                id: got_id,
+                action,
+                content,
+                meta,
+            } => {
+                assert_eq!(got_server, server_name);
+                assert_eq!(got_id, request_id);
+                assert_eq!(action, code_protocol::approvals::ElicitationAction::Accept);
+                assert_eq!(content, Some(serde_json::json!({})));
+                assert_eq!(meta, None);
+            }
+            other => panic!("unexpected op: {other:?}"),
+        }
     }
 }
