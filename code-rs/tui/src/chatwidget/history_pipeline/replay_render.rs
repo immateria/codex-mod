@@ -6,6 +6,15 @@ impl ChatWidget<'_> {
         match item {
             ResponseItem::Message { id, role, content, .. } => {
                 let message_id = id;
+                if role == "user"
+                    && code_protocol::items::parse_hook_prompt_message(
+                        message_id.as_ref(),
+                        content.as_slice(),
+                    )
+                    .is_some()
+                {
+                    return;
+                }
                 let mut text = String::new();
                 for c in content {
                     match c {

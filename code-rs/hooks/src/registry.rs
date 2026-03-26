@@ -8,6 +8,8 @@ use crate::events::pre_tool_use::PreToolUseOutcome;
 use crate::events::pre_tool_use::PreToolUseRequest;
 use crate::events::session_start::SessionStartOutcome;
 use crate::events::session_start::SessionStartRequest;
+use crate::events::stop::StopOutcome;
+use crate::events::stop::StopRequest;
 use crate::events::user_prompt_submit::UserPromptSubmitOutcome;
 use crate::events::user_prompt_submit::UserPromptSubmitRequest;
 use crate::types::Hook;
@@ -124,6 +126,17 @@ impl Hooks {
         request: UserPromptSubmitRequest,
     ) -> UserPromptSubmitOutcome {
         self.engine.run_user_prompt_submit(request).await
+    }
+
+    pub fn preview_stop(
+        &self,
+        request: &StopRequest,
+    ) -> Vec<code_protocol::protocol::HookRunSummary> {
+        self.engine.preview_stop(request)
+    }
+
+    pub async fn run_stop(&self, request: StopRequest) -> StopOutcome {
+        self.engine.run_stop(request).await
     }
 }
 

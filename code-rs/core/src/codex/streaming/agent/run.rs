@@ -115,6 +115,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
     }
 
     let mut last_task_message: Option<String> = None;
+    let mut stop_hook_active = false;
     // Although from the perspective of codex.rs, TurnDiffTracker has the lifecycle of a Agent which contains
     // many turns, from the perspective of the user, it is a single turn.
     let mut turn_diff_tracker = TurnDiffTracker::new();
@@ -237,7 +238,11 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
         let turn_input_messages: Vec<String> = turn_input
             .iter()
             .filter_map(|item| match item {
-                ResponseItem::Message { role, content, .. } if role == "user" => Some(content),
+                ResponseItem::Message { id, role, content, .. } if role == "user" => {
+                    code_protocol::items::parse_hook_prompt_message(id.as_ref(), content.as_slice())
+                        .is_none()
+                        .then_some(content)
+                }
                 _ => None,
             })
             .flat_map(|content| {
@@ -451,6 +456,58 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
                     if let Some(m) = last_task_message.as_ref() {
                         tracing::info!("core.turn completed: last_assistant_message.len={}", m.len());
                     }
+
+                    let stop_request = code_hooks::StopRequest {
+                        session_id: crate::codex::hook_runtime::thread_id_from_session_uuid(
+                            sess.as_ref(),
+                        ),
+                        turn_id: sub_id.clone(),
+                        cwd: turn_context.cwd.clone(),
+                        transcript_path: sess.hook_transcript_path(),
+                        model: turn_context.client.config().model.clone(),
+                        permission_mode: crate::codex::hook_runtime::hook_permission_mode(
+                            turn_context.approval_policy,
+                        ),
+                        stop_hook_active,
+                        last_assistant_message: last_task_message.clone(),
+                    };
+                    let stop_outcome = crate::codex::hook_runtime::run_stop_hooks(
+                        &sess,
+                        &sub_id,
+                        &stop_request,
+                    )
+                    .await;
+                    if stop_outcome.should_block {
+                        if let Some(hook_prompt_message) =
+                            code_protocol::items::build_hook_prompt_message(
+                                &stop_outcome.continuation_fragments,
+                            )
+                        {
+                            if is_review_mode {
+                                review_history.push(hook_prompt_message);
+                            } else {
+                                sess.record_conversation_items(std::slice::from_ref(
+                                    &hook_prompt_message,
+                                ))
+                                .await;
+                            }
+                            stop_hook_active = true;
+                            continue;
+                        } else {
+                            let event = sess.make_event(
+                                &sub_id,
+                                EventMsg::Warning(crate::protocol::WarningEvent {
+                                    message: "Stop hook requested continuation without a prompt; ignoring the block."
+                                        .to_string(),
+                                }),
+                            );
+                            let _ = sess.tx_event.send(event).await;
+                        }
+                    }
+                    if stop_outcome.should_stop {
+                        break;
+                    }
+
                     sess.maybe_notify(UserNotification::AgentTurnComplete {
                         turn_id: sub_id.clone(),
                         input_messages: turn_input_messages,

@@ -6,6 +6,8 @@ use code_hooks::SessionStartOutcome;
 use code_hooks::SessionStartRequest;
 use code_hooks::UserPromptSubmitOutcome;
 use code_hooks::UserPromptSubmitRequest;
+use code_hooks::StopOutcome;
+use code_hooks::StopRequest;
 use code_protocol::ThreadId;
 use code_protocol::models::DeveloperInstructions;
 use code_protocol::models::ResponseItem;
@@ -140,6 +142,19 @@ pub(super) async fn run_pre_tool_use_hooks(
     } else {
         None
     }
+}
+
+pub(super) async fn run_stop_hooks(
+    sess: &Session,
+    sub_id: &str,
+    request: &StopRequest,
+) -> StopOutcome {
+    let preview_runs = sess.hooks_json().preview_stop(request);
+    emit_hook_started_events(sess, sub_id, Some(request.turn_id.clone()), preview_runs).await;
+
+    let outcome = sess.hooks_json().run_stop(request.clone()).await;
+    emit_hook_completed_events(sess, sub_id, outcome.hook_events.clone()).await;
+    outcome
 }
 
 async fn run_context_injecting_hook<Fut, Outcome>(

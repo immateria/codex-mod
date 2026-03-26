@@ -12,12 +12,6 @@ path = "src/lib.rs"
 [lints]
 workspace = true
 
-[features]
-# Stop hooks require additional protocol surface (prompt continuation fragments)
-# that this fork hasn't ported yet. Discovery still supports Stop handlers, but
-# execution is gated behind this opt-in feature for now.
-stop-hooks = []
-
 [dependencies]
 anyhow = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }

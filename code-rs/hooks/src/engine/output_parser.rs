@@ -28,7 +28,6 @@ pub(crate) struct UserPromptSubmitOutput {
     pub additional_context: Option<String>,
 }
 
-#[cfg(feature = "stop-hooks")]
 #[derive(Debug, Clone)]
 pub(crate) struct StopOutput {
     pub universal: UniversalOutput,
@@ -45,7 +44,6 @@ use crate::schema::PreToolUsePermissionDecisionWire;
 use crate::schema::SessionStartCommandOutputWire;
 use crate::schema::UserPromptSubmitCommandOutputWire;
 
-#[cfg(feature = "stop-hooks")]
 use crate::schema::StopCommandOutputWire;
 
 pub(crate) fn parse_session_start(stdout: &str) -> Option<SessionStartOutput> {
@@ -131,7 +129,6 @@ pub(crate) fn parse_user_prompt_submit(stdout: &str) -> Option<UserPromptSubmitO
     })
 }
 
-#[cfg(feature = "stop-hooks")]
 pub(crate) fn parse_stop(stdout: &str) -> Option<StopOutput> {
     let wire: StopCommandOutputWire = parse_json(stdout)?;
     let should_block = matches!(wire.decision, Some(BlockDecisionWire::Block));

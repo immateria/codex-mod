@@ -13,6 +13,8 @@ use crate::events::pre_tool_use::PreToolUseOutcome;
 use crate::events::pre_tool_use::PreToolUseRequest;
 use crate::events::session_start::SessionStartOutcome;
 use crate::events::session_start::SessionStartRequest;
+use crate::events::stop::StopOutcome;
+use crate::events::stop::StopRequest;
 use crate::events::user_prompt_submit::UserPromptSubmitOutcome;
 use crate::events::user_prompt_submit::UserPromptSubmitRequest;
 
@@ -133,5 +135,13 @@ impl ClaudeHooksEngine {
         request: UserPromptSubmitRequest,
     ) -> UserPromptSubmitOutcome {
         crate::events::user_prompt_submit::run(&self.handlers, &self.shell, request).await
+    }
+
+    pub(crate) fn preview_stop(&self, request: &StopRequest) -> Vec<HookRunSummary> {
+        crate::events::stop::preview(&self.handlers, request)
+    }
+
+    pub(crate) async fn run_stop(&self, request: StopRequest) -> StopOutcome {
+        crate::events::stop::run(&self.handlers, &self.shell, request).await
     }
 }

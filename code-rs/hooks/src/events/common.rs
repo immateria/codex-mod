@@ -7,7 +7,6 @@ use code_protocol::protocol::HookRunStatus;
 use crate::engine::ConfiguredHandler;
 use crate::engine::dispatcher;
 
-#[cfg(feature = "stop-hooks")]
 pub(crate) fn join_text_chunks(chunks: Vec<String>) -> Option<String> {
     if chunks.is_empty() {
         None

@@ -31,7 +31,6 @@ impl NullableString {
         Self(path.map(|path| path.display().to_string()))
     }
 
-    #[cfg(feature = "stop-hooks")]
     pub(crate) fn from_string(value: Option<String>) -> Self {
         Self(value)
     }
