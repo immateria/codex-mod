@@ -17,6 +17,7 @@ use code_core::{CodexAuth, ConversationManager, ModelProviderInfo};
 use serde_json::json;
 use std::fs::File;
 use tempfile::TempDir;
+use tokio::time::timeout;
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -384,8 +385,8 @@ async fn lifecycle_hooks_stop_hook_blocking_injects_continuation_prompt_and_retr
         ]
       }
     ]
-  }
-}
+	  }
+	}
 "#,
     )
     .unwrap();
@@ -465,5 +466,180 @@ async fn lifecycle_hooks_stop_hook_blocking_injects_continuation_prompt_and_retr
     assert!(
         find_message_index(second_input, "user", "stop-hook-continue").is_some(),
         "expected stop-hook continuation prompt in second request input"
+    );
+}
+
+#[cfg(not(windows))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn lifecycle_hooks_user_prompt_submit_blocks_queued_user_input() {
+    let code_home = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+
+    std::fs::write(
+        code_home.path().join("hooks.json"),
+        r#"
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "if grep -q blockme; then echo blocked-by-hook 1>&2; exit 2; fi; exit 0" }
+        ]
+      }
+    ]
+  }
+}
+"#,
+    )
+    .unwrap();
+
+    let server = MockServer::start().await;
+    let function_call_args = json!({
+        "command": ["bash", "-lc", "sleep 0.25; echo exec-body"],
+        "workdir": project_dir.path(),
+        "timeout_ms": null,
+        "sandbox_permissions": null,
+        "justification": null,
+    });
+    let function_call_item = json!({
+        "type": "response.output_item.done",
+        "item": {
+            "type": "function_call",
+            "id": "call-1",
+            "call_id": "call-1",
+            "name": "shell",
+            "arguments": function_call_args.to_string(),
+        }
+    });
+    let completed_one = json!({
+        "type": "response.completed",
+        "response": {
+            "id": "resp-1",
+            "usage": {
+                "input_tokens": 0,
+                "input_tokens_details": null,
+                "output_tokens": 0,
+                "output_tokens_details": null,
+                "total_tokens": 0
+            }
+        }
+    });
+    let body_one = format!(
+        "event: response.output_item.done\ndata: {function_call_item}\n\n\
+event: response.completed\ndata: {completed_one}\n\n"
+    );
+
+    let message_item = json!({
+        "type": "response.output_item.done",
+        "item": {
+            "type": "message",
+            "id": "msg-1",
+            "role": "assistant",
+            "content": [{"type": "output_text", "text": "done"}],
+        }
+    });
+    let completed_two = json!({
+        "type": "response.completed",
+        "response": {
+            "id": "resp-2",
+            "usage": {
+                "input_tokens": 0,
+                "input_tokens_details": null,
+                "output_tokens": 0,
+                "output_tokens_details": null,
+                "total_tokens": 0
+            }
+        }
+    });
+    let body_two = format!(
+        "event: response.output_item.done\ndata: {message_item}\n\n\
+event: response.completed\ndata: {completed_two}\n\n"
+    );
+
+    Mock::given(method("POST"))
+        .and(path_regex(".*/responses$"))
+        .respond_with(sse_response(body_one))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path_regex(".*/responses$"))
+        .respond_with(sse_response(body_two))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+
+    let mut config = load_default_config_for_test(&code_home);
+    config.cwd = project_dir.path().to_path_buf();
+    config.approval_policy = AskForApproval::Never;
+    config.sandbox_policy = SandboxPolicy::DangerFullAccess;
+    config.model_provider = ModelProviderInfo {
+        base_url: Some(format!("{}/v1", server.uri())),
+        ..built_in_model_providers()["openai"].clone()
+    };
+    config.model = "gpt-5.1-codex".to_string();
+
+    let conversation_manager =
+        ConversationManager::with_auth(CodexAuth::from_api_key("Test API Key"));
+    let codex = conversation_manager
+        .new_conversation(config)
+        .await
+        .expect("create conversation")
+        .conversation;
+
+    codex
+        .submit(Op::UserInput {
+            items: vec![InputItem::Text {
+                text: "run tool".into(),
+            }],
+            final_output_json_schema: None,
+        })
+        .await
+        .unwrap();
+
+    // Wait until the shell tool begins, then queue a user input that should be
+    // rejected by the UserPromptSubmit hook.
+    loop {
+        let event = timeout(std::time::Duration::from_secs(5), codex.next_event())
+            .await
+            .expect("timeout waiting for exec begin")
+            .expect("event stream should remain open");
+        if let EventMsg::ExecCommandBegin(ev) = event.msg {
+            if ev.call_id == "call-1" {
+                break;
+            }
+        }
+    }
+
+    codex
+        .submit(Op::QueueUserInput {
+            items: vec![InputItem::Text {
+                text: "blockme".into(),
+            }],
+        })
+        .await
+        .unwrap();
+
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TaskComplete(_))).await;
+
+    let requests = server.received_requests().await.unwrap();
+    let responses_requests = requests
+        .iter()
+        .filter(|req| req.url.path().ends_with("/responses"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        responses_requests.len(),
+        2,
+        "expected two model requests (tool + follow-up), got {}",
+        responses_requests.len()
+    );
+
+    let second_body: serde_json::Value = responses_requests[1].body_json().unwrap();
+    let second_input = second_body["input"]
+        .as_array()
+        .expect("responses request should include input");
+    assert!(
+        find_message_index(second_input, "user", "blockme").is_none(),
+        "queued user prompt should be filtered by UserPromptSubmit hook"
     );
 }

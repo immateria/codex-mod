@@ -141,12 +141,66 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
         // pop_next_queued_user_input.
         let pending_input = if is_review_mode {
             sess.get_pending_input_filtered(false)
+                .into_iter()
+                .map(ResponseItem::from)
+                .collect::<Vec<ResponseItem>>()
         } else {
-            sess.get_pending_input()
-        }
-        .into_iter()
-        .map(ResponseItem::from)
-        .collect::<Vec<ResponseItem>>();
+            let (pending_input, queued_user_inputs) = sess.drain_pending_input_and_user_inputs();
+            let mut pending_input = pending_input
+                .into_iter()
+                .map(ResponseItem::from)
+                .collect::<Vec<ResponseItem>>();
+            if !queued_user_inputs.is_empty() {
+                let mut queued_items = Vec::new();
+                for queued in queued_user_inputs {
+                    let submission_id = queued.submission_id;
+                    let response_item: ResponseItem = queued.response_item.into();
+                    let prompt = match &response_item {
+                        ResponseItem::Message { role, content, .. } if role == "user" => content
+                            .iter()
+                            .filter_map(|item| match item {
+                                ContentItem::InputText { text } => Some(text.clone()),
+                                _ => None,
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                        _ => String::new(),
+                    };
+                    let hook_request = code_hooks::UserPromptSubmitRequest {
+                        session_id: crate::codex::hook_runtime::thread_id_from_session_uuid(
+                            sess.as_ref(),
+                        ),
+                        turn_id: submission_id,
+                        cwd: turn_context.cwd.clone(),
+                        transcript_path: sess.hook_transcript_path(),
+                        model: turn_context.client.config().model.clone(),
+                        permission_mode: crate::codex::hook_runtime::hook_permission_mode(
+                            turn_context.approval_policy,
+                        ),
+                        prompt,
+                    };
+                    let hook_outcome = crate::codex::hook_runtime::run_user_prompt_submit_hooks(
+                        &sess,
+                        &sub_id,
+                        &hook_request,
+                    )
+                    .await;
+                    let additional_context_items =
+                        crate::codex::hook_runtime::additional_context_messages(
+                            hook_outcome.additional_contexts,
+                        );
+                    queued_items.extend(additional_context_items);
+                    if hook_outcome.should_stop {
+                        crate::codex::hook_runtime::emit_hook_blocked_warning(&sess, &sub_id)
+                            .await;
+                        continue;
+                    }
+                    queued_items.push(response_item);
+                }
+                pending_input.extend(queued_items);
+            }
+            pending_input
+        };
         let mut pending_input_tail = pending_input.clone();
 
         if initial_response_item.is_none() {

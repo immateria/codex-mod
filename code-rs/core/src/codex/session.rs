@@ -2348,8 +2348,25 @@ impl Session {
     }
 
 
-    pub fn get_pending_input(&self) -> Vec<ResponseInputItem> {
-        self.get_pending_input_filtered(true)
+    pub(super) fn drain_pending_input_and_user_inputs(
+        &self,
+    ) -> (Vec<ResponseInputItem>, Vec<QueuedUserInput>) {
+        let mut state = crate::codex::lock_or_panic!(self.state);
+        if state.pending_input.is_empty() && state.pending_user_input.is_empty() {
+            return (Vec::with_capacity(0), Vec::with_capacity(0));
+        }
+
+        let mut pending_input = Vec::new();
+        if !state.pending_input.is_empty() {
+            std::mem::swap(&mut pending_input, &mut state.pending_input);
+        }
+
+        let mut pending_user_input = Vec::new();
+        if !state.pending_user_input.is_empty() {
+            std::mem::swap(&mut pending_user_input, &mut state.pending_user_input);
+        }
+
+        (pending_input, pending_user_input)
     }
 
     /// Returns pending input for the current turn. Callers can decide whether
