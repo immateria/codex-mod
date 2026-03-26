@@ -1,6 +1,6 @@
 # Integration Backlog
 
-Last updated: 2026-03-25
+Last updated: 2026-03-26
 
 This repo maintains two Rust workspaces:
 - `codex-rs/`: read-only mirror of `openai/codex` (upstream landing zone).
@@ -40,6 +40,13 @@ preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
     tokens from disk before failing.
   - Commit: `237adbea2a`.
 
+- hooks.json lifecycle hooks:
+  - Port upstream engine as `code-hooks` and wire into `code-core` + TUI.
+  - Runs for: `session_start`, `user_prompt_submit`, `pre_tool_use`.
+  - Emits `HookStarted` / `HookCompleted` events (rendered in TUI history).
+  - Stop hooks are discovered but not executed yet (missing prompt continuation surface).
+  - Commits: `82d8161d76`, `c32b59d612`, `54f0c045ed`.
+
 ## Next: Upstream Intake (Selective, Bisectable)
 
 The high-level workflow:
@@ -63,6 +70,8 @@ These exist in `codex-rs/` but are not fully ported into `code-rs/`.
 - `codex-rs/hooks/`
   - Hook config + execution + lifecycle events.
   - Useful for “pre/post tool/exec/turn” automation with first-class UX.
+  - Partially ported as `code-hooks` + lifecycle runtime; remaining work is the
+    Stop hook continuation loop and any app-server parity gaps.
 
 - `codex-rs/connectors/` + `codex-rs/features/`
   - Connector/app surface that upstream plugins build on.
@@ -71,6 +80,20 @@ These exist in `codex-rs/` but are not fully ported into `code-rs/`.
 
 - `codex-rs/secrets/`
   - General secret storage beyond `auth.json` (helps connectors/plugins auth).
+  - Current state in `code-rs` already covers the core “store secrets in keychain” needs for:
+    - CLI auth payload (`CODE_HOME/auth.json`) via `cli_auth_credentials_store` (`file|keyring|auto|ephemeral`):
+      - Storage backends: `code-rs/core/src/auth/storage.rs`
+      - Keyring abstraction: `code-rs/keyring-store/src/lib.rs` (macOS Keychain via `keyring` crate)
+      - TUI settings UI: `code-rs/tui/src/bottom_pane/settings_pages/accounts/account_switch_settings_view/*`
+    - Multi-account store (`auth_accounts.json`) uses the same backend modes:
+      - `code-rs/core/src/auth_accounts.rs`
+    - MCP OAuth tokens (streamable-http MCP servers) are stored separately:
+      - Store modes: `code-rs/rmcp-client/src/oauth.rs` (`auto|file|keyring`)
+      - Wiring: `code-rs/core/src/mcp_connection_manager.rs` + config fields in `code-rs/core/src/config.rs`
+  - Remaining gap vs `codex-rs/secrets/`:
+    - No general-purpose secret store for arbitrary provider keys / connector/plugin auth beyond the
+      OpenAI/ChatGPT auth payload and MCP OAuth tokens; non-OpenAI provider keys are still
+      sourced via the provider’s `env_key` in config.
 
 ### Medium ROI
 
@@ -99,4 +122,3 @@ These exist in `codex-rs/` but are not fully ported into `code-rs/`.
 
 - `codex-rs/lmstudio/`
   - Local-model integration; optional.
-
