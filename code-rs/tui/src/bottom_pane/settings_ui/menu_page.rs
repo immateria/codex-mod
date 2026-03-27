@@ -50,7 +50,7 @@ impl<'a> SettingsMenuPage<'a> {
             header_lines.len(),
             footer_lines.len(),
         )
-        .with_min_body_rows(1);
+        .with_min_body_rows(2);
 
         Self {
             panel,

@@ -50,7 +50,8 @@ impl<'a> SettingsEditorPage<'a> {
                 .with_status_lines(post_field_lines)
                 .with_action_rows(0),
             field_title: field_title.into(),
-            field_min_rows: 1,
+            // Even "single-line" editors read better with a little vertical space.
+            field_min_rows: 2,
             field_margin: Margin::new(0, 0),
             field_focused: false,
         }

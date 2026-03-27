@@ -113,6 +113,38 @@ impl<'a> SettingsFormPage<'a> {
         Some(layout)
     }
 
+    fn required_min_body_rows(&self) -> usize {
+        if self.sections.is_empty() {
+            return 1;
+        }
+
+        let mut rows = 0usize;
+        for (idx, section) in self.sections.iter().enumerate() {
+            let min_rows = match section.constraint {
+                Constraint::Length(n) => n as usize,
+                Constraint::Min(n) => n as usize,
+                Constraint::Max(_) => 1,
+                Constraint::Percentage(_) => 1,
+                Constraint::Ratio(_, _) => 1,
+                Constraint::Fill(_) => 1,
+            }
+            .max(1);
+
+            rows = rows.saturating_add(min_rows);
+            if idx + 1 < self.sections.len() {
+                rows = rows.saturating_add(self.section_gap_rows);
+            }
+        }
+        rows.max(1)
+    }
+
+    fn page_with_min_rows(&self) -> SettingsActionPage<'a> {
+        let required = self.required_min_body_rows();
+        self.page
+            .clone()
+            .with_min_body_rows(self.page.min_body_rows().max(required))
+    }
+
     fn section_rects(&self, body: Rect) -> Vec<Rect> {
         if self.sections.is_empty() || body.width == 0 || body.height == 0 {
             return Vec::new();
@@ -160,12 +192,12 @@ impl<'a> SettingsFormPage<'a> {
     }
 
     fn layout_framed(&self, area: Rect) -> Option<SettingsFormPageLayout> {
-        let page = self.page.framed().layout(area)?;
+        let page = self.page_with_min_rows().framed().layout(area)?;
         Some(self.layout_from_page(page))
     }
 
     fn layout_content_only(&self, area: Rect) -> Option<SettingsFormPageLayout> {
-        let page = self.page.content_only().layout(area)?;
+        let page = self.page_with_min_rows().content_only().layout(area)?;
         Some(self.layout_from_page(page))
     }
 
@@ -175,7 +207,7 @@ impl<'a> SettingsFormPage<'a> {
         buf: &mut Buffer,
         fields: &[&FormTextField],
     ) -> Option<SettingsFormPageLayout> {
-        let page = self.page.framed().render_shell(area, buf)?;
+        let page = self.page_with_min_rows().framed().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         if fields.len() != self.sections.len() {
             debug_assert_eq!(fields.len(), self.sections.len());
@@ -199,7 +231,7 @@ impl<'a> SettingsFormPage<'a> {
         buf: &mut Buffer,
         fields: &[&FormTextField],
     ) -> Option<SettingsFormPageLayout> {
-        let page = self.page.content_only().render_shell(area, buf)?;
+        let page = self.page_with_min_rows().content_only().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
         if fields.len() != self.sections.len() {
             debug_assert_eq!(fields.len(), self.sections.len());

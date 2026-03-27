@@ -129,6 +129,10 @@ impl<'a> SettingsActionPage<'a> {
         self
     }
 
+    pub(crate) fn min_body_rows(&self) -> usize {
+        self.min_body_rows
+    }
+
     pub(crate) fn with_wrap_lines(mut self, wrap_lines: bool) -> Self {
         self.wrap_lines = wrap_lines;
         self

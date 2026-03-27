@@ -64,6 +64,12 @@ impl<'a> SettingsListDetailPage<'a> {
         }
     }
 
+    fn forced_panel(&self) -> SettingsSectionedPanel<'a> {
+        self.panel
+            .clone()
+            .with_min_body_rows(usize::from(self.min_height))
+    }
+
     fn list_block(&self) -> Block<'_> {
         Block::bordered()
             .border_style(Style::new().fg(colors::border()))
@@ -106,13 +112,26 @@ impl<'a> SettingsListDetailPage<'a> {
     }
 
     pub(crate) fn layout(&self, area: Rect) -> Option<SettingsListDetailLayout> {
+        if let Some(layout) = self.forced_panel().layout(area) {
+            let layout = self.layout_from_panel(layout);
+            if matches!(layout.mode, SettingsListDetailMode::Split { .. }) {
+                return Some(layout);
+            }
+        }
+
         let layout = self.panel.layout(area)?;
         Some(self.layout_from_panel(layout))
     }
 
     pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsListDetailLayout> {
-        let layout = self.panel.render(area, buf)?;
-        let layout = self.layout_from_panel(layout);
+        let forced_panel = self.forced_panel();
+        let used_forced = forced_panel
+            .layout(area)
+            .map(|layout| matches!(self.layout_from_panel(layout).mode, SettingsListDetailMode::Split { .. }))
+            .unwrap_or(false);
+
+        let rendered = if used_forced { forced_panel.render(area, buf)? } else { self.panel.render(area, buf)? };
+        let layout = self.layout_from_panel(rendered);
         if let SettingsListDetailMode::Split {
             list_outer,
             detail_outer,
