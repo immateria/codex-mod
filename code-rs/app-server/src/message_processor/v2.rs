@@ -126,6 +126,7 @@ use code_chatgpt::connectors as chatgpt_connectors;
 use code_core::SessionCatalog;
 use code_core::SessionIndexEntry;
 use code_core::SessionQuery;
+use code_core::config::Config;
 use code_core::config::ConfigBuilder;
 use code_core::config::ConfigOverrides;
 use code_core::exec::ExecExpiration;
@@ -1552,12 +1553,81 @@ impl MessageProcessor {
         let AppsListParams {
             cursor,
             limit,
-            thread_id: _,
+            thread_id,
             force_refetch,
         } = params;
 
+        let config = if let Some(thread_id) = thread_id.as_deref() {
+            let catalog = SessionCatalog::new(self.base_config.code_home.clone());
+            let entry = match catalog.find_by_id(thread_id).await {
+                Ok(Some(entry)) => entry,
+                Ok(None) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("thread not found: {thread_id}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INTERNAL_ERROR_CODE,
+                                message: format!("failed to query session catalog: {err}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+            };
+            let cwd_override = entry.cwd_real.to_string_lossy().to_string();
+            match self.load_effective_config(Some(&cwd_override)) {
+                Ok(config) => config,
+                Err(error) => {
+                    self.outgoing
+                        .send_error_to_connection(connection_id, request_id, error)
+                        .await;
+                    return;
+                }
+            }
+        } else {
+            match self.load_effective_config(/*cwd*/ None) {
+                Ok(config) => config,
+                Err(error) => {
+                    self.outgoing
+                        .send_error_to_connection(connection_id, request_id, error)
+                        .await;
+                    return;
+                }
+            }
+        };
+
+        if !config.features_effective.enabled("apps") {
+            self.outgoing
+                .send_response_to_connection(
+                    connection_id,
+                    request_id,
+                    AppsListResponse {
+                        data: Vec::new(),
+                        next_cursor: None,
+                    },
+                )
+                .await;
+            return;
+        }
+
         let directory_connectors =
-            match chatgpt_connectors::list_all_connectors_with_options(&self.base_config, force_refetch).await
+            match chatgpt_connectors::list_all_connectors_with_options(&config, force_refetch).await
             {
                 Ok(connectors) => connectors,
                 Err(err) => {
@@ -1566,13 +1636,8 @@ impl MessageProcessor {
                 }
             };
 
-        let mut data = directory_connectors;
-        data.sort_by(|a, b| {
-            b.is_accessible
-                .cmp(&a.is_accessible)
-                .then_with(|| a.name.cmp(&b.name))
-                .then_with(|| a.id.cmp(&b.id))
-        });
+        let accessible_connectors = list_accessible_connector_metadata_from_codex_apps_mcp(&config).await;
+        let data = merge_accessible_apps(directory_connectors, accessible_connectors);
 
         let total = data.len();
         if total == 0 {
@@ -3971,6 +4036,166 @@ fn parse_cursor_offset(
     }
 
     Ok(start)
+}
+
+async fn list_accessible_connector_metadata_from_codex_apps_mcp(
+    config: &Config,
+) -> HashMap<String, (String, Option<String>)> {
+    let active_account_id = match code_core::apps_sources::active_chatgpt_account_id(&config.code_home) {
+        Ok(id) => id,
+        Err(err) => {
+            tracing::warn!("apps/list: failed to read active ChatGPT account id: {err}");
+            None
+        }
+    };
+
+    let (enabled_server_map, warnings) = code_core::apps_sources::build_codex_apps_source_servers(
+        config,
+        active_account_id.as_deref(),
+    )
+    .await;
+    for warning in warnings {
+        tracing::warn!("apps/list: {warning}");
+    }
+    if enabled_server_map.is_empty() {
+        return HashMap::new();
+    }
+
+    let (tx_event, _rx_event) = code_core::protocol::unbounded_event_channel();
+    let (manager, startup_errors) = match McpConnectionManager::new(
+        config.code_home.clone(),
+        config.mcp_oauth_credentials_store_mode,
+        enabled_server_map,
+        HashSet::new(),
+        tx_event,
+        code_core::protocol::AskForApproval::Never,
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(err) => {
+            tracing::warn!("apps/list: failed to start apps MCP manager: {err}");
+            return HashMap::new();
+        }
+    };
+
+    for (server_name, failure) in startup_errors {
+        tracing::warn!(
+            "apps/list: MCP server '{server_name}' {summary}",
+            summary = format_failure_summary(&failure)
+        );
+    }
+
+    let mut accessible: HashMap<String, (String, Option<String>)> = HashMap::new();
+    for (_qualified_name, _server_name, tool) in manager.list_all_tools_with_server_names() {
+        let protocol_tool = match convert_mcp_tool(&tool) {
+            Ok(tool) => tool,
+            Err(err) => {
+                tracing::warn!("apps/list: failed to convert MCP tool '{}': {err}", tool.name);
+                continue;
+            }
+        };
+
+        let Some(meta) = protocol_tool
+            .annotations
+            .as_ref()
+            .or(protocol_tool.meta.as_ref())
+            .and_then(serde_json::Value::as_object)
+        else {
+            continue;
+        };
+        let Some(connector_id) = meta
+            .get("connector_id")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+        else {
+            continue;
+        };
+        let connector_name = meta
+            .get("connector_name")
+            .or_else(|| meta.get("connector_display_name"))
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .unwrap_or(connector_id);
+        let connector_description = meta
+            .get("connector_description")
+            .or_else(|| meta.get("connectorDescription"))
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|description| !description.is_empty())
+            .map(str::to_string);
+
+        accessible
+            .entry(connector_id.to_string())
+            .or_insert_with(|| (connector_name.to_string(), connector_description.clone()));
+    }
+    manager.shutdown_all().await;
+
+    accessible
+}
+
+fn merge_accessible_apps(
+    mut directory: Vec<AppInfo>,
+    accessible: HashMap<String, (String, Option<String>)>,
+) -> Vec<AppInfo> {
+    let mut present_ids: HashSet<String> = HashSet::new();
+    for connector in &mut directory {
+        if accessible.contains_key(&connector.id) {
+            connector.is_accessible = true;
+        }
+        present_ids.insert(connector.id.clone());
+    }
+
+    for (id, (name, description)) in accessible {
+        if present_ids.contains(&id) {
+            continue;
+        }
+        let install_url = {
+            let synthetic = AppInfo {
+                id: id.clone(),
+                name: name.clone(),
+                description: description.clone(),
+                logo_url: None,
+                logo_url_dark: None,
+                distribution_channel: None,
+                branding: None,
+                app_metadata: None,
+                labels: None,
+                install_url: None,
+                is_accessible: true,
+                is_enabled: true,
+                plugin_display_names: Vec::new(),
+            };
+            let slug = code_connectors::connector_mention_slug(&synthetic);
+            format!("https://chatgpt.com/apps/{slug}/{id}")
+        };
+        directory.push(AppInfo {
+            id,
+            name,
+            description,
+            logo_url: None,
+            logo_url_dark: None,
+            distribution_channel: None,
+            branding: None,
+            app_metadata: None,
+            labels: None,
+            install_url: Some(install_url),
+            is_accessible: true,
+            is_enabled: true,
+            plugin_display_names: Vec::new(),
+        });
+    }
+
+    directory.sort_by(|left, right| {
+        right
+            .is_accessible
+            .cmp(&left.is_accessible)
+            .then_with(|| left.name.cmp(&right.name))
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    directory
 }
 
 fn model_preset_to_v2_model(preset: &model_presets::ModelPreset) -> Model {

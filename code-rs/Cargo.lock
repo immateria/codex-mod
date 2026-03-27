@@ -1275,6 +1275,7 @@ dependencies = [
  "code-arg0",
  "code-chatgpt",
  "code-common",
+ "code-connectors",
  "code-core",
  "code-file-search",
  "code-login",
