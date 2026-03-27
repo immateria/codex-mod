@@ -2,7 +2,6 @@ use crate::codex::ApprovedCommandPattern;
 use crate::protocol::ApprovedCommandMatchKind;
 use crate::config_profile::ConfigProfile;
 use crate::config_types::AgentConfig;
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use crate::config_types::AutoDriveSettings;
 use crate::config_types::AutoDriveModelRoutingEntry;
@@ -21,6 +20,7 @@ use crate::config_types::MemoriesToml;
 use crate::config_types::LifecycleHooksToml;
 use crate::config_types::AppsToml;
 use crate::config_types::AppsSourcesToml;
+use crate::config_types::FeaturesToml;
 use crate::config_types::PluginsToml;
 use crate::config_types::resolve_memories_config;
 use crate::config_types::Notifications;
@@ -299,6 +299,16 @@ pub struct Config {
 
     /// Name of the active profile, if any, that populated this configuration.
     pub active_profile: Option<String>,
+
+    /// Effective merged feature flags: global `[features]` overlaid with the
+    /// active profile's `features` table (key-wise).
+    pub features_effective: FeaturesToml,
+
+    /// Raw global `[features]` table from `config.toml` (if present).
+    pub global_features: Option<FeaturesToml>,
+
+    /// Raw `profiles.<active_profile>.features` table from `config.toml` (if present).
+    pub active_profile_features: Option<FeaturesToml>,
 
     /// Approval policy for executing commands.
     pub approval_policy: AskForApproval,
@@ -1368,30 +1378,6 @@ impl NetworkProxySettingsToml {
     }
 }
 
-#[derive(Deserialize, Debug, Clone, Default, JsonSchema)]
-pub struct FeaturesToml {
-    /// Upstream-style feature toggle map:
-    /// ```toml
-    /// [features]
-    /// foo = true
-    /// bar = false
-    /// ```
-    ///
-    /// This is intentionally flexible: unknown keys are preserved.
-    #[serde(flatten)]
-    pub entries: BTreeMap<String, bool>,
-}
-
-impl FeaturesToml {
-    pub(crate) fn get_bool(&self, key: &str) -> Option<bool> {
-        self.entries.get(key).copied()
-    }
-
-    pub(crate) fn enabled(&self, key: &str) -> bool {
-        self.get_bool(key).unwrap_or(false)
-    }
-}
-
 fn legacy_windows_sandbox_mode(features: Option<&FeaturesToml>) -> Option<WindowsSandboxModeToml> {
     let features = features?;
     if features.enabled("elevated_windows_sandbox") {
@@ -1408,13 +1394,14 @@ fn legacy_windows_sandbox_mode(features: Option<&FeaturesToml>) -> Option<Window
 fn resolve_windows_sandbox_mode(
     cfg: &ConfigToml,
     profile: &ConfigProfile,
+    features: Option<&FeaturesToml>,
 ) -> Option<WindowsSandboxModeToml> {
     profile
         .windows
         .as_ref()
         .and_then(|windows| windows.sandbox)
         .or_else(|| cfg.windows.as_ref().and_then(|windows| windows.sandbox))
-        .or_else(|| legacy_windows_sandbox_mode(cfg.features.as_ref()))
+        .or_else(|| legacy_windows_sandbox_mode(features))
 }
 
 fn windows_sandbox_level_from_mode(
@@ -1593,7 +1580,24 @@ impl Config {
                 }
                 None => (None, ConfigProfile::default()),
             };
-        let windows_sandbox_mode = resolve_windows_sandbox_mode(&cfg, &config_profile);
+        let global_features = cfg.features.clone();
+        let active_profile_features = config_profile.features.clone();
+        let mut features_effective = FeaturesToml::default();
+        if let Some(features) = global_features.as_ref() {
+            features_effective.entries.extend(features.entries.clone());
+        }
+        if let Some(features) = active_profile_features.as_ref() {
+            for (key, value) in &features.entries {
+                features_effective.entries.insert(key.clone(), *value);
+            }
+        }
+
+        // Apps are currently enabled by default in this fork; if the user wants
+        // to disable them, they can set `features.apps=false`.
+        features_effective.entries.entry("apps".to_string()).or_insert(true);
+
+        let windows_sandbox_mode =
+            resolve_windows_sandbox_mode(&cfg, &config_profile, Some(&features_effective));
 
         // (removed placeholder) sandbox_policy computed below after resolving project overrides.
 
@@ -1769,11 +1773,7 @@ impl Config {
             })
             .transpose()?;
 
-        let skills_enabled = cfg
-            .features
-            .as_ref()
-            .and_then(|features| features.get_bool("skills"))
-            .unwrap_or(true);
+        let skills_enabled = features_effective.get_bool("skills").unwrap_or(true);
         let global_memories = cfg.memories.clone();
         let active_profile_memories = config_profile.memories.clone();
         let project_memories = project_override.and_then(|project| project.memories.clone());
@@ -1782,20 +1782,13 @@ impl Config {
             active_profile_memories.as_ref(),
             project_memories.as_ref(),
         );
-        if cfg
-            .features
-            .as_ref()
-            .and_then(|features| features.get_bool("memories"))
-            == Some(false)
-        {
+        if features_effective.get_bool("memories") == Some(false) {
             memories.generate_memories = false;
             memories.use_memories = false;
         }
 
-        let prevent_idle_sleep = cfg
-            .features
-            .as_ref()
-            .and_then(|features| features.get_bool("prevent_idle_sleep"))
+        let prevent_idle_sleep = features_effective
+            .get_bool("prevent_idle_sleep")
             .unwrap_or(false);
 
         let env_ctx_v2_flag = *crate::flags::CTX_UI;
@@ -2221,6 +2214,9 @@ impl Config {
             auto_drive_use_chat_model,
             code_linux_sandbox_exe,
             active_profile: active_profile_name,
+            features_effective,
+            global_features,
+            active_profile_features,
 
             hide_agent_reasoning: cfg.hide_agent_reasoning.unwrap_or(false),
             show_raw_agent_reasoning: cfg

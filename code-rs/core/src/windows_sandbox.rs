@@ -7,7 +7,7 @@ use crate::config::Config;
 use crate::config::ConfigToml;
 use crate::config::set_windows_sandbox_mode;
 use crate::config_profile::ConfigProfile;
-use crate::config::FeaturesToml;
+use crate::config_types::FeaturesToml;
 use crate::config_types::WindowsSandboxModeToml;
 use crate::protocol::SandboxPolicy;
 #[cfg(target_os = "windows")]

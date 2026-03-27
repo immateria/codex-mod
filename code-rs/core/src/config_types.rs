@@ -78,6 +78,30 @@ pub struct AppsToml {
     pub apps: HashMap<String, TomlValue>,
 }
 
+#[derive(Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+pub struct FeaturesToml {
+    /// Upstream-style feature toggle map:
+    /// ```toml
+    /// [features]
+    /// foo = true
+    /// bar = false
+    /// ```
+    ///
+    /// This is intentionally flexible: unknown keys are preserved.
+    #[serde(flatten)]
+    pub entries: BTreeMap<String, bool>,
+}
+
+impl FeaturesToml {
+    pub fn get_bool(&self, key: &str) -> Option<bool> {
+        self.entries.get(key).copied()
+    }
+
+    pub fn enabled(&self, key: &str) -> bool {
+        self.get_bool(key).unwrap_or(false)
+    }
+}
+
 /// Settings for the upstream-compatible `hooks.json` lifecycle hooks engine.
 ///
 /// These values are persisted under `[lifecycle_hooks]` in `config.toml`.
