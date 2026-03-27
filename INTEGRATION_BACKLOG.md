@@ -1,6 +1,6 @@
 # Integration Backlog
 
-Last updated: 2026-03-26
+Last updated: 2026-03-27
 
 This repo maintains two Rust workspaces:
 - `codex-rs/`: read-only mirror of `openai/codex` (upstream landing zone).
@@ -47,6 +47,19 @@ preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
   - Stop hook blocks inject a `hook_prompt` continuation and retry the turn.
   - Commits: `82d8161d76`, `c32b59d612`, `54f0c045ed`, `299e43babd`.
 
+- Apps/connectors + Experimental features:
+  - Settings -> Apps (multi-account connector sources / OAuth pinning).
+  - `/apps` picker + AppLinkView install/refresh flow.
+  - Profile-scoped `[features]` map + Settings -> Experimental; `features.apps` gates Apps sources.
+  - Commits: `15074f1bd3`, `c3dc11e25d`, `79759dc6f6`, `d28f33d240`, `871d588151`,
+    `939d43d122`, `035a4c1a87`, `46d32fd12e`, `52c8018ee8`.
+
+- App-server `app/list` parity:
+  - `app/list` merges directory apps with accessible connector metadata from `codex_apps_*` MCP tools.
+  - Sends full `app/listUpdated` payload after plugin install/uninstall.
+  - Validates `threadId` (UUID) and supports gated listing based on thread config.
+  - Commits: `d1b22be725`, `ddbb86eff6`, `2dbec778cc`.
+
 ## Next: Upstream Intake (Selective, Bisectable)
 
 The high-level workflow:
@@ -68,15 +81,8 @@ These exist in `codex-rs/` but are not fully ported into `code-rs/`.
 ### High ROI
 
 - `codex-rs/hooks/`
-  - Hook config + execution + lifecycle events.
-  - Useful for “pre/post tool/exec/turn” automation with first-class UX.
-  - Partially ported as `code-hooks` + lifecycle runtime; remaining work is the
-    Stop hook continuation loop and any app-server parity gaps.
-
-- `codex-rs/connectors/` + `codex-rs/features/`
-  - Connector/app surface that upstream plugins build on.
-  - Worth porting if we want richer plugin “apps” behavior without importing
-    upstream’s monolithic managers.
+  - Largely ported as `code-hooks` + lifecycle runtime + TUI rendering.
+  - Remaining work is mostly “parity audit” (schema/method names/edge cases) rather than missing core wiring.
 
 - `codex-rs/secrets/`
   - General secret storage beyond `auth.json` (helps connectors/plugins auth).
@@ -96,6 +102,9 @@ These exist in `codex-rs/` but are not fully ported into `code-rs/`.
       sourced via the provider’s `env_key` in config.
 
 ### Medium ROI
+
+- `codex-rs/package-manager/`
+  - Shared installer for versioned runtime bundles and cached artifacts (platform detection + archive fetch/verify/extract + install locks).
 
 - `codex-rs/exec-server/`
   - Out-of-process exec runner plumbing for stronger isolation and robustness.
