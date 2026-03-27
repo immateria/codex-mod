@@ -68,6 +68,7 @@ pub mod housekeeping;
 pub mod mcp_connection_manager;
 pub mod mcp_snapshot;
 mod mcp;
+pub mod apps_sources;
 mod mcp_tool_call;
 mod memories;
 mod model_provider_info;

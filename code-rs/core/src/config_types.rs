@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use code_protocol::config_types::WindowsSandboxLevel;
 use schemars::JsonSchema;
+use toml::Value as TomlValue;
 use wildmatch::WildMatchPattern;
 
 use shlex::split as shlex_split;
@@ -40,6 +41,41 @@ pub struct PluginsToml {
     pub curated_repo_ref: Option<String>,
     #[serde(default)]
     pub marketplace_repos: Vec<PluginMarketplaceRepoToml>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AppsSourcesModeToml {
+    ActiveOnly,
+    ActivePlusPinned,
+    PinnedOnly,
+}
+
+impl Default for AppsSourcesModeToml {
+    fn default() -> Self {
+        Self::ActivePlusPinned
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+pub struct AppsSourcesToml {
+    #[serde(default)]
+    pub mode: AppsSourcesModeToml,
+    #[serde(default)]
+    pub pinned_account_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema, Default)]
+pub struct AppsToml {
+    #[serde(default, rename = "_sources", skip_serializing_if = "Option::is_none")]
+    pub sources: Option<AppsSourcesToml>,
+
+    /// Per-app settings keyed by app id, reserved for future policy support.
+    ///
+    /// We keep this as raw TOML so config edits can preserve unknown keys.
+    #[serde(default, flatten)]
+    #[schemars(skip)]
+    pub apps: HashMap<String, TomlValue>,
 }
 
 /// Settings for the upstream-compatible `hooks.json` lifecycle hooks engine.
@@ -1337,9 +1373,9 @@ pub struct CachedTerminalBackground {
 pub enum SettingsMenuOpenMode {
     /// Choose between the overlay and bottom-pane settings UIs based on the
     /// current terminal width.
-    #[default]
     Auto,
     /// Always open the full-screen settings overlay ("big menu").
+    #[default]
     Overlay,
     /// Always open the bottom-pane settings UI ("bottom menu") when possible.
     Bottom,

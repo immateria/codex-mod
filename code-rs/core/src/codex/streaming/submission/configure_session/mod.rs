@@ -255,6 +255,19 @@ impl Runner<'_> {
         }
     }
 
+    async fn send_warning_event(&self, sub_id: &str, message: String) {
+        warn!("{message}");
+        let event = Event {
+            id: sub_id.to_string(),
+            event_seq: 0,
+            msg: EventMsg::Warning(crate::protocol::WarningEvent { message }),
+            order: None,
+        };
+        if let Err(e) = self.tx_event.send(event).await {
+            warn!("failed to send warning message: {e:?}");
+        }
+    }
+
     async fn send_no_session_event(&self, sub_id: &str) {
         let event = Event {
             id: sub_id.to_string(),

@@ -9,6 +9,7 @@ use crate::config_types::ContextMode;
 use crate::config_types::ServiceTier;
 use crate::config_types::TextVerbosity;
 use crate::config_types::Personality;
+use crate::config_types::AppsToml;
 use crate::config_types::WindowsToml;
 use crate::protocol::AskForApproval;
 
@@ -50,6 +51,8 @@ pub struct ConfigProfile {
     pub windows: Option<WindowsToml>,
     pub memories: Option<MemoriesToml>,
     pub chatgpt_base_url: Option<String>,
+    #[serde(default)]
+    pub apps: Option<AppsToml>,
     pub experimental_instructions_file: Option<PathBuf>,
     pub compact_prompt_override: Option<String>,
     pub compact_prompt_override_file: Option<PathBuf>,

@@ -259,6 +259,26 @@ impl Runner<'_> {
             );
         }
 
+        // Add ephemeral connector-source MCP servers for any configured Apps sources.
+        let active_account_id =
+            match crate::apps_sources::active_chatgpt_account_id(&updated_config.code_home) {
+                Ok(id) => id,
+                Err(err) => {
+                    self.send_warning_event(
+                        &submission_id,
+                        format!("Apps sources: failed to read active ChatGPT account id: {err}"),
+                    )
+                    .await;
+                    None
+                }
+            };
+        let (apps_servers, apps_warnings) =
+            crate::apps_sources::build_codex_apps_source_servers(&updated_config, active_account_id.as_deref()).await;
+        for warning in apps_warnings {
+            self.send_warning_event(&submission_id, warning).await;
+        }
+        effective_mcp_servers.extend(apps_servers);
+
         let command_safety_profile = crate::safety::resolve_command_safety_profile(
             &resolved_shell,
             shell_override.as_ref().or(updated_config.shell.as_ref()),

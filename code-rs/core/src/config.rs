@@ -18,6 +18,8 @@ use crate::config_types::McpServerConfig;
 use crate::config_types::MemoriesConfig;
 use crate::config_types::MemoriesToml;
 use crate::config_types::LifecycleHooksToml;
+use crate::config_types::AppsToml;
+use crate::config_types::AppsSourcesToml;
 use crate::config_types::PluginsToml;
 use crate::config_types::resolve_memories_config;
 use crate::config_types::Notifications;
@@ -517,6 +519,9 @@ pub struct Config {
     /// Plugin marketplace source configuration.
     pub plugins: PluginsToml,
 
+    /// Connector-source account pinning for ChatGPT Apps / connectors.
+    pub apps_sources: AppsSourcesToml,
+
     /// Include an experimental plan tool that the model can use to update its current plan and status of each step.
     pub include_plan_tool: bool,
     /// Include the `apply_patch` tool for models that benefit from invoking
@@ -903,6 +908,10 @@ pub struct ConfigToml {
     /// Upstream-compatible `hooks.json` lifecycle hooks configuration.
     #[serde(default)]
     pub lifecycle_hooks: Option<LifecycleHooksToml>,
+
+    /// App/connector configuration (including connector-source pinning).
+    #[serde(default)]
+    pub apps: Option<AppsToml>,
 
     /// Plugin marketplace source configuration.
     #[serde(default)]
@@ -2240,6 +2249,12 @@ impl Config {
                 .or(cfg.chatgpt_base_url)
                 .unwrap_or("https://chatgpt.com/backend-api/".to_string()),
             plugins: cfg.plugins.unwrap_or_default(),
+            apps_sources: config_profile
+                .apps
+                .as_ref()
+                .and_then(|apps| apps.sources.clone())
+                .or_else(|| cfg.apps.as_ref().and_then(|apps| apps.sources.clone()))
+                .unwrap_or_default(),
             include_plan_tool: include_plan_tool.unwrap_or(false),
             include_apply_patch_tool: include_apply_patch_tool.unwrap_or(false),
             tools_web_search_request,

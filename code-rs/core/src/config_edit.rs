@@ -1,5 +1,11 @@
 use crate::config::resolve_code_path_for_read;
-use crate::config_types::{PluginMarketplaceRepoToml, PluginsToml, SubagentCommandConfig};
+use crate::config_types::{
+    AppsSourcesModeToml,
+    AppsSourcesToml,
+    PluginMarketplaceRepoToml,
+    PluginsToml,
+    SubagentCommandConfig,
+};
 use anyhow::Result;
 use std::path::Path;
 use tempfile::NamedTempFile;
@@ -681,6 +687,194 @@ pub async fn set_plugin_marketplace_sources(code_home: &Path, sources: &PluginsT
                 }
             }
             mutated = true;
+        }
+    }
+
+    if !mutated {
+        return Ok(false);
+    }
+
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    tokio::fs::write(tmp_file.path(), doc.to_string()).await?;
+    tmp_file.persist(config_path)?;
+
+    Ok(true)
+}
+
+fn normalize_account_id_list(ids: &[String]) -> Vec<String> {
+    ids.iter()
+        .map(|id| id.trim())
+        .filter(|id| !id.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+fn apps_sources_is_default(sources: &AppsSourcesToml) -> bool {
+    sources.mode == AppsSourcesModeToml::default() && sources.pinned_account_ids.is_empty()
+}
+
+/// Persist `[apps._sources]` into `config.toml`.
+///
+/// - Writes under `profiles.<active_profile>.apps._sources` when profile is set; otherwise root.
+/// - Removes `apps._sources` entirely when it matches defaults.
+/// - Preserves any existing `[apps.<app_id>]` subtables.
+pub async fn set_apps_sources(
+    code_home: &Path,
+    profile: Option<&str>,
+    sources: &AppsSourcesToml,
+) -> Result<bool> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match tokio::fs::read_to_string(&read_path).await {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if apps_sources_is_default(sources) {
+                return Ok(false);
+            }
+            tokio::fs::create_dir_all(code_home).await?;
+            DocumentMut::new()
+        }
+        Err(e) => return Err(e.into()),
+    };
+
+    let effective_profile = match profile {
+        Some(profile) => Some(profile.to_string()),
+        None => doc
+            .get("profile")
+            .and_then(|item| item.as_str())
+            .map(std::string::ToString::to_string),
+    };
+
+    let normalized_pins = normalize_account_id_list(&sources.pinned_account_ids);
+    let mut desired = sources.clone();
+    desired.pinned_account_ids = normalized_pins;
+
+    let mut mutated = false;
+    {
+        let root = doc.as_table_mut();
+        let base: &mut TomlTable = if let Some(profile) = effective_profile.as_deref() {
+            if !root.contains_key("profiles") {
+                root.insert("profiles", TomlItem::Table(new_implicit_table()));
+                mutated = true;
+            }
+            let profiles_item = root
+                .get_mut("profiles")
+                .ok_or_else(|| anyhow::anyhow!("missing profiles table"))?;
+            if profiles_item.as_table_mut().is_none() {
+                *profiles_item = TomlItem::Table(new_implicit_table());
+                mutated = true;
+            }
+            let profiles_table = profiles_item
+                .as_table_mut()
+                .ok_or_else(|| anyhow::anyhow!("profiles item is not a table"))?;
+
+            if !profiles_table.contains_key(profile) {
+                profiles_table.insert(profile, TomlItem::Table(new_implicit_table()));
+                mutated = true;
+            }
+            let profile_item = profiles_table
+                .get_mut(profile)
+                .ok_or_else(|| anyhow::anyhow!("missing profile table"))?;
+            if profile_item.as_table_mut().is_none() {
+                *profile_item = TomlItem::Table(new_implicit_table());
+                mutated = true;
+            }
+            profile_item
+                .as_table_mut()
+                .ok_or_else(|| anyhow::anyhow!("profile item is not a table"))?
+        } else {
+            root
+        };
+
+        let apps_item = match base.get_mut("apps") {
+            Some(item) => item,
+            None => {
+                if apps_sources_is_default(&desired) {
+                    return Ok(false);
+                }
+                base.insert("apps", TomlItem::Table(new_implicit_table()));
+                mutated = true;
+                base.get_mut("apps")
+                    .ok_or_else(|| anyhow::anyhow!("missing apps table"))?
+            }
+        };
+
+        if apps_item.as_table_mut().is_none() {
+            *apps_item = TomlItem::Table(new_implicit_table());
+            mutated = true;
+        }
+
+        let apps_table = apps_item
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("apps item is not a table"))?;
+
+        if apps_sources_is_default(&desired) {
+            if apps_table.remove("_sources").is_some() {
+                mutated = true;
+            }
+        } else {
+            let sources_item = match apps_table.get_mut("_sources") {
+                Some(item) => item,
+                None => {
+                    apps_table.insert("_sources", TomlItem::Table(new_implicit_table()));
+                    mutated = true;
+                    apps_table
+                        .get_mut("_sources")
+                        .ok_or_else(|| anyhow::anyhow!("missing apps._sources"))?
+                }
+            };
+
+            if sources_item.as_table_mut().is_none() {
+                *sources_item = TomlItem::Table(new_implicit_table());
+                mutated = true;
+            }
+
+            let sources_table = sources_item
+                .as_table_mut()
+                .ok_or_else(|| anyhow::anyhow!("apps._sources is not a table"))?;
+
+            if desired.mode == AppsSourcesModeToml::default() {
+                if sources_table.remove("mode").is_some() {
+                    mutated = true;
+                }
+            } else {
+                let desired_mode = match desired.mode {
+                    AppsSourcesModeToml::ActiveOnly => "active_only",
+                    AppsSourcesModeToml::ActivePlusPinned => "active_plus_pinned",
+                    AppsSourcesModeToml::PinnedOnly => "pinned_only",
+                };
+                let previous = sources_table.get("mode").and_then(|item| item.as_str());
+                if previous != Some(desired_mode) {
+                    sources_table["mode"] = value(desired_mode);
+                    mutated = true;
+                }
+            }
+
+            if desired.pinned_account_ids.is_empty() {
+                if sources_table.remove("pinned_account_ids").is_some() {
+                    mutated = true;
+                }
+            } else {
+                let previous = sources_table
+                    .get("pinned_account_ids")
+                    .and_then(|item| item.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|item| item.as_str())
+                            .map(str::to_string)
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                if previous != desired.pinned_account_ids {
+                    let mut arr = toml_edit::Array::new();
+                    arr.set_trailing_comma(true);
+                    for id in &desired.pinned_account_ids {
+                        arr.push(id.as_str());
+                    }
+                    sources_table["pinned_account_ids"] = TomlItem::Value(arr.into());
+                    mutated = true;
+                }
+            }
         }
     }
 
@@ -1923,6 +2117,136 @@ enabled = true
             .expect("plugin entry");
         assert_eq!(
             plugin_entry.get("enabled").and_then(toml::Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[tokio::test]
+    async fn set_apps_sources_writes_under_profile_when_profile_is_provided() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        tokio::fs::write(code_home.join(CONFIG_TOML_FILE), "profile = \"work\"\n")
+            .await
+            .expect("seed");
+
+        let sources = AppsSourcesToml {
+            mode: AppsSourcesModeToml::PinnedOnly,
+            pinned_account_ids: vec!["acc1".to_string(), "acc2".to_string()],
+        };
+
+        let mutated = set_apps_sources(code_home, Some("work"), &sources)
+            .await
+            .expect("set apps sources");
+        assert!(mutated);
+
+        let contents = read_config(code_home).await;
+        let parsed: toml::Value = toml::from_str(&contents).expect("valid toml");
+        let root = parsed.as_table().expect("root table");
+        assert_eq!(
+            root.get("profile").and_then(toml::Value::as_str),
+            Some("work")
+        );
+
+        let profiles = root
+            .get("profiles")
+            .and_then(toml::Value::as_table)
+            .expect("profiles");
+        let work = profiles
+            .get("work")
+            .and_then(toml::Value::as_table)
+            .expect("work profile");
+        let apps = work
+            .get("apps")
+            .and_then(toml::Value::as_table)
+            .expect("apps table");
+        let sources_table = apps
+            .get("_sources")
+            .and_then(toml::Value::as_table)
+            .expect("_sources table");
+        assert_eq!(
+            sources_table.get("mode").and_then(toml::Value::as_str),
+            Some("pinned_only")
+        );
+        let pins = sources_table
+            .get("pinned_account_ids")
+            .and_then(toml::Value::as_array)
+            .expect("pins");
+        assert_eq!(
+            pins.iter()
+                .filter_map(toml::Value::as_str)
+                .collect::<Vec<_>>(),
+            vec!["acc1", "acc2"]
+        );
+    }
+
+    #[tokio::test]
+    async fn set_apps_sources_removes_sources_table_when_defaults_are_provided() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let seed = r#"[apps._sources]
+mode = "pinned_only"
+pinned_account_ids = ["acc1"]
+"#;
+        tokio::fs::write(code_home.join(CONFIG_TOML_FILE), seed)
+            .await
+            .expect("seed");
+
+        let sources = AppsSourcesToml::default();
+        let mutated = set_apps_sources(code_home, None, &sources)
+            .await
+            .expect("set apps sources");
+        assert!(mutated);
+
+        let contents = read_config(code_home).await;
+        let parsed: toml::Value = toml::from_str(&contents).expect("valid toml");
+        let root = parsed.as_table().expect("root table");
+        let apps = root
+            .get("apps")
+            .and_then(toml::Value::as_table)
+            .expect("apps table");
+        assert!(apps.get("_sources").is_none(), "_sources should be removed");
+    }
+
+    #[tokio::test]
+    async fn set_apps_sources_preserves_existing_per_app_tables() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let seed = r#"[apps._sources]
+mode = "active_only"
+
+[apps."some_app"]
+enabled = true
+"#;
+        tokio::fs::write(code_home.join(CONFIG_TOML_FILE), seed)
+            .await
+            .expect("seed");
+
+        let sources = AppsSourcesToml {
+            mode: AppsSourcesModeToml::ActivePlusPinned,
+            pinned_account_ids: vec!["acc1".to_string()],
+        };
+
+        let mutated = set_apps_sources(code_home, None, &sources)
+            .await
+            .expect("set apps sources");
+        assert!(mutated);
+
+        let contents = read_config(code_home).await;
+        let parsed: toml::Value = toml::from_str(&contents).expect("valid toml");
+        let root = parsed.as_table().expect("root table");
+        let apps = root
+            .get("apps")
+            .and_then(toml::Value::as_table)
+            .expect("apps table");
+        let some_app = apps
+            .get("some_app")
+            .and_then(toml::Value::as_table)
+            .expect("some_app table");
+        assert_eq!(
+            some_app.get("enabled").and_then(toml::Value::as_bool),
             Some(true)
         );
     }
