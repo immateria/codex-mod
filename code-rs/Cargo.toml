@@ -36,6 +36,7 @@ members = [
     "skills",
     "network-proxy",
     "ollama",
+    "package-manager",
     "process-hardening",
     "protocol",
     "protocol-ts",
@@ -110,6 +111,7 @@ code-login = { path = "login" }
 code-mcp-client = { path = "mcp-client" }
 code-mcp-server = { path = "mcp-server" }
 code-ollama = { path = "ollama" }
+code-package-manager = { path = "package-manager", package = "codex-package-manager" }
 code-process-hardening = { path = "process-hardening" }
 code-protocol = { path = "protocol" }
 code-protocol-ts = { path = "protocol-ts" }
@@ -159,7 +161,9 @@ env_logger = "0.11.5"
 escargot = "0.5"
 encoding_rs = "0.8.35"
 eventsource-stream = "0.2.3"
+fd-lock = "4.0.4"
 filetime = "0.2"
+flate2 = "1.1.4"
 futures = "0.3"
 globset = "0.4"
 oauth2 = "5"
@@ -228,6 +232,7 @@ supports-color = "3.0.2"
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio-rustls", "sqlite"] }
 syn = { version = "2", features = ["full", "extra-traits"] }
 sys-locale = "0.3.2"
+tar = "0.4.45"
 tempfile = "3.23.0"
 textwrap = "0.16.2"
 thiserror = "2.0.16"
