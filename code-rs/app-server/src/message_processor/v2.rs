@@ -122,6 +122,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use chrono::Utc;
 use code_common::model_presets;
+use code_chatgpt::connectors as chatgpt_connectors;
 use code_core::SessionCatalog;
 use code_core::SessionIndexEntry;
 use code_core::SessionQuery;
@@ -1552,30 +1553,26 @@ impl MessageProcessor {
             cursor,
             limit,
             thread_id: _,
-            force_refetch: _,
+            force_refetch,
         } = params;
 
-        let manager = PluginsManager::new(self.base_config.code_home.clone());
-        let mut data: Vec<AppInfo> = manager
-            .effective_apps()
-            .into_iter()
-            .map(|code_core::plugins::AppConnectorId(id)| AppInfo {
-                id: id.clone(),
-                name: id,
-                description: None,
-                logo_url: None,
-                logo_url_dark: None,
-                distribution_channel: None,
-                branding: None,
-                app_metadata: None,
-                labels: None,
-                install_url: None,
-                is_accessible: true,
-                is_enabled: true,
-                plugin_display_names: Vec::new(),
-            })
-            .collect();
-        data.sort_by(|a, b| a.id.cmp(&b.id));
+        let directory_connectors =
+            match chatgpt_connectors::list_all_connectors_with_options(&self.base_config, force_refetch).await
+            {
+                Ok(connectors) => connectors,
+                Err(err) => {
+                    tracing::warn!("apps/list: failed to list directory connectors: {err:#}");
+                    Vec::new()
+                }
+            };
+
+        let mut data = directory_connectors;
+        data.sort_by(|a, b| {
+            b.is_accessible
+                .cmp(&a.is_accessible)
+                .then_with(|| a.name.cmp(&b.name))
+                .then_with(|| a.id.cmp(&b.id))
+        });
 
         let total = data.len();
         if total == 0 {
@@ -1597,8 +1594,8 @@ impl MessageProcessor {
             Ok(offset) => offset,
             Err(error) => {
                 self.outgoing
-                    .send_error_to_connection(connection_id, request_id, error)
-                    .await;
+                .send_error_to_connection(connection_id, request_id, error)
+                .await;
                 return;
             }
         };

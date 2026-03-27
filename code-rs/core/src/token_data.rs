@@ -1,6 +1,9 @@
 use base64::Engine;
+use chrono::DateTime;
+use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use thiserror::Error;
 use tracing::Level;
 
@@ -38,7 +41,11 @@ pub struct IdTokenInfo {
     /// The ChatGPT subscription plan type
     /// (e.g., "free", "plus", "pro", "business", "enterprise", "edu").
     /// (Note: values may vary by backend.)
-    pub(crate) chatgpt_plan_type: Option<PlanType>,
+    pub chatgpt_plan_type: Option<PlanType>,
+    /// ChatGPT user identifier associated with the token, if present.
+    pub chatgpt_user_id: Option<String>,
+    /// Organization/workspace identifier associated with the token, if present.
+    pub chatgpt_account_id: Option<String>,
     pub raw_jwt: String,
 }
 
@@ -49,11 +56,20 @@ impl IdTokenInfo {
             PlanType::Unknown(s) => s.clone(),
         })
     }
+
+    pub fn is_workspace_account(&self) -> bool {
+        matches!(
+            self.chatgpt_plan_type,
+            Some(PlanType::Known(
+                KnownPlan::Team | KnownPlan::Business | KnownPlan::Enterprise | KnownPlan::Edu
+            ))
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub(crate) enum PlanType {
+pub enum PlanType {
     Known(KnownPlan),
     Unknown(String),
 }
@@ -69,8 +85,9 @@ impl PlanType {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum KnownPlan {
+pub enum KnownPlan {
     Free,
+    Go,
     Plus,
     Pro,
     Team,
@@ -83,14 +100,34 @@ pub(crate) enum KnownPlan {
 struct IdClaims {
     #[serde(default)]
     email: Option<String>,
+    #[serde(rename = "https://api.openai.com/profile", default)]
+    profile: Option<ProfileClaims>,
     #[serde(rename = "https://api.openai.com/auth", default)]
     auth: Option<AuthClaims>,
+}
+
+#[derive(Deserialize)]
+struct ProfileClaims {
+    #[serde(default)]
+    email: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct AuthClaims {
     #[serde(default)]
     chatgpt_plan_type: Option<PlanType>,
+    #[serde(default)]
+    chatgpt_user_id: Option<String>,
+    #[serde(default)]
+    user_id: Option<String>,
+    #[serde(default)]
+    chatgpt_account_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct StandardJwtClaims {
+    #[serde(default)]
+    exp: Option<i64>,
 }
 
 #[derive(Debug, Error)]
@@ -103,16 +140,28 @@ pub enum IdTokenInfoError {
     Json(#[from] serde_json::Error),
 }
 
-pub fn parse_id_token(id_token: &str) -> Result<IdTokenInfo, IdTokenInfoError> {
+fn decode_jwt_payload<T: DeserializeOwned>(jwt: &str) -> Result<T, IdTokenInfoError> {
     // JWT format: header.payload.signature
-    let mut parts = id_token.split('.');
+    let mut parts = jwt.split('.');
     let (_header_b64, payload_b64, _sig_b64) = match (parts.next(), parts.next(), parts.next()) {
         (Some(h), Some(p), Some(s)) if !h.is_empty() && !p.is_empty() && !s.is_empty() => (h, p, s),
         _ => return Err(IdTokenInfoError::InvalidFormat),
     };
 
     let payload_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload_b64)?;
-    let claims: IdClaims = serde_json::from_slice(&payload_bytes)?;
+    let claims = serde_json::from_slice(&payload_bytes)?;
+    Ok(claims)
+}
+
+pub fn parse_jwt_expiration(jwt: &str) -> Result<Option<DateTime<Utc>>, IdTokenInfoError> {
+    let claims: StandardJwtClaims = decode_jwt_payload(jwt)?;
+    Ok(claims
+        .exp
+        .and_then(|exp| DateTime::<Utc>::from_timestamp(exp, 0)))
+}
+
+pub fn parse_id_token(id_token: &str) -> Result<IdTokenInfo, IdTokenInfoError> {
+    let claims: IdClaims = decode_jwt_payload(id_token)?;
     if tracing::enabled!(Level::DEBUG) {
         let plan = claims
             .auth
@@ -125,13 +174,24 @@ pub fn parse_id_token(id_token: &str) -> Result<IdTokenInfo, IdTokenInfoError> {
             "decoded ChatGPT id_token claims"
         );
     }
-    let IdClaims { email, auth } = claims;
+    let email = claims.email.or_else(|| claims.profile.and_then(|profile| profile.email));
 
-    Ok(IdTokenInfo {
-        email,
-        chatgpt_plan_type: auth.and_then(|a| a.chatgpt_plan_type),
-        raw_jwt: id_token.to_string(),
-    })
+    match claims.auth {
+        Some(auth) => Ok(IdTokenInfo {
+            email,
+            raw_jwt: id_token.to_string(),
+            chatgpt_plan_type: auth.chatgpt_plan_type,
+            chatgpt_user_id: auth.chatgpt_user_id.or(auth.user_id),
+            chatgpt_account_id: auth.chatgpt_account_id,
+        }),
+        None => Ok(IdTokenInfo {
+            email,
+            raw_jwt: id_token.to_string(),
+            chatgpt_plan_type: None,
+            chatgpt_user_id: None,
+            chatgpt_account_id: None,
+        }),
+    }
 }
 
 fn deserialize_id_token<'de, D>(deserializer: D) -> Result<IdTokenInfo, D::Error>
