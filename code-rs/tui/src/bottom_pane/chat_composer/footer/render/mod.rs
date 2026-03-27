@@ -44,17 +44,9 @@ fn spans_start_with_bullet(spans: &[Span<'static>]) -> bool {
 impl ChatComposer {
     pub(crate) fn footer_height(&self) -> u16 {
         if self.render_mode == ComposerRenderMode::FooterOnly {
-            return match &self.active_popup {
-                ActivePopup::Command(popup) => popup.calculate_required_height(),
-                ActivePopup::File(popup) => popup.calculate_required_height(),
-                ActivePopup::None => {
-                    if self.standard_terminal_hint.is_some() {
-                        1
-                    } else {
-                        0
-                    }
-                }
-            };
+            // Footer-only mode is used for terminal mode/status-only rendering.
+            // Suppress popups defensively even if they're still marked active.
+            return if self.standard_terminal_hint.is_some() { 1 } else { 0 };
         }
 
         match (&self.active_popup, self.embedded_mode) {
@@ -70,63 +62,64 @@ impl ChatComposer {
             return;
         }
 
-        match &self.active_popup {
-            ActivePopup::Command(popup) => {
-                popup.render_ref(area, buf);
-            }
-            ActivePopup::File(popup) => {
-                popup.render_ref(area, buf);
-            }
-            ActivePopup::None => {
-                if self.embedded_mode {
+        // Footer-only mode intentionally suppresses popups (terminal/status-only view),
+        // so treat popups as inactive for rendering purposes.
+        if self.render_mode != ComposerRenderMode::FooterOnly {
+            match &self.active_popup {
+                ActivePopup::Command(popup) => {
+                    popup.render_ref(area, buf);
                     return;
                 }
-
-                let now = Instant::now();
-
-                let key_hint_style = Style::default().fg(crate::colors::function());
-                let label_style = Style::default().fg(crate::colors::text_dim());
-
-                if override_hint::render_footer_hint_override(
-                    self,
-                    area,
-                    buf,
-                    key_hint_style,
-                    label_style,
-                ) {
+                ActivePopup::File(popup) => {
+                    popup.render_ref(area, buf);
                     return;
                 }
-
-                let built = sections::build_sections(self, now, key_hint_style, label_style);
-                let total_width = area.width as usize;
-                let (left_spans, right_spans, left_len, right_len) =
-                    fit::fit_sections_to_width(total_width, label_style, &built);
-                let (left_spans, left_len) = truncate::truncate_left_if_needed(
-                    total_width,
-                    right_len,
-                    left_spans,
-                    left_len,
-                );
-
-                let spacer = if total_width > left_len + right_len + FOOTER_TRAILING_PAD {
-                    " ".repeat(total_width - left_len - right_len - FOOTER_TRAILING_PAD)
-                } else {
-                    String::from(" ")
-                };
-
-                let mut line_spans = left_spans;
-                line_spans.push(Span::from(spacer));
-                line_spans.extend(right_spans);
-                line_spans.push(Span::from(" "));
-
-                Line::from(line_spans)
-                    .style(
-                        Style::default()
-                            .fg(crate::colors::text_dim())
-                            .add_modifier(Modifier::DIM),
-                    )
-                    .render_ref(area, buf);
+                ActivePopup::None => {}
             }
         }
+
+        if self.render_mode == ComposerRenderMode::FooterOnly && self.standard_terminal_hint.is_none()
+        {
+            return;
+        }
+
+        if self.embedded_mode {
+            return;
+        }
+
+        let now = Instant::now();
+
+        let key_hint_style = Style::default().fg(crate::colors::function());
+        let label_style = Style::default().fg(crate::colors::text_dim());
+
+        if override_hint::render_footer_hint_override(self, area, buf, key_hint_style, label_style) {
+            return;
+        }
+
+        let built = sections::build_sections(self, now, key_hint_style, label_style);
+        let total_width = area.width as usize;
+        let (left_spans, right_spans, left_len, right_len) =
+            fit::fit_sections_to_width(total_width, label_style, &built);
+        let (left_spans, left_len) =
+            truncate::truncate_left_if_needed(total_width, right_len, left_spans, left_len);
+
+        let spacer = if total_width > left_len + right_len + FOOTER_TRAILING_PAD {
+            " ".repeat(total_width - left_len - right_len - FOOTER_TRAILING_PAD)
+        } else {
+            String::from(" ")
+        };
+
+        let mut line_spans = left_spans;
+        line_spans.push(Span::from(spacer));
+        line_spans.extend(right_spans);
+        line_spans.push(Span::from(" "));
+
+        Line::from(line_spans)
+            .style(
+                Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::DIM),
+            )
+            .render_ref(area, buf);
     }
 }

@@ -52,7 +52,10 @@ impl PasteBurst {
     /// instead of submitting the composer.
     #[must_use]
     pub fn enter_should_insert_newline(&self, now: Instant) -> bool {
-        self.burst_window_until.is_some_and(|until| now <= until)
+        // Treat the suppression window as half-open [start, until). This makes
+        // the expiry instant deterministic in tests and avoids "one extra
+        // tick" behavior at the boundary.
+        self.burst_window_until.is_some_and(|until| now < until)
     }
 
     /// True when the most recent plain char arrived within the burst interval.
@@ -87,7 +90,7 @@ impl PasteBurst {
     /// request a final redraw if they care about that transition.
     #[must_use]
     pub fn flush_if_due(&mut self, now: Instant) -> bool {
-        let burst_expired = self.burst_window_until.is_some_and(|until| now > until);
+        let burst_expired = self.burst_window_until.is_some_and(|until| now >= until);
         if burst_expired {
             self.clear_enter_window();
             return true;
@@ -110,7 +113,7 @@ impl PasteBurst {
     /// Returns true while the Enter-suppression timing window is active.
     #[must_use]
     pub fn is_active(&self, now: Instant) -> bool {
-        self.burst_window_until.is_some_and(|until| now <= until)
+        self.burst_window_until.is_some_and(|until| now < until)
     }
 }
 
