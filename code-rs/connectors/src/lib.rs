@@ -12,6 +12,19 @@ use serde::Deserialize;
 
 pub const CONNECTORS_CACHE_TTL: Duration = Duration::from_secs(3600);
 
+pub fn connector_display_label(connector: &AppInfo) -> String {
+    let trimmed = connector.name.trim();
+    if trimmed.is_empty() {
+        connector.id.clone()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+pub fn connector_mention_slug(connector: &AppInfo) -> String {
+    connector_name_slug(&connector_display_label(connector))
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AllConnectorsCacheKey {
     chatgpt_base_url: String,
