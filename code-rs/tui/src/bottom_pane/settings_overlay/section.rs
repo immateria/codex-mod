@@ -3,6 +3,7 @@ pub(crate) enum SettingsSection {
     Model,
     Theme,
     Interface,
+    Experimental,
     Shell,
     ShellProfiles,
     ExecLimits,
@@ -28,10 +29,11 @@ pub(crate) enum SettingsSection {
 
 impl SettingsSection {
     #[cfg(not(target_os = "android"))]
-    pub(crate) const ALL: [SettingsSection; 24] = [
+    pub(crate) const ALL: [SettingsSection; 25] = [
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Interface,
+        SettingsSection::Experimental,
         SettingsSection::Shell,
         SettingsSection::ShellProfiles,
         SettingsSection::ExecLimits,
@@ -56,10 +58,11 @@ impl SettingsSection {
     ];
 
     #[cfg(target_os = "android")]
-    pub(crate) const ALL: [SettingsSection; 23] = [
+    pub(crate) const ALL: [SettingsSection; 24] = [
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Interface,
+        SettingsSection::Experimental,
         SettingsSection::Shell,
         SettingsSection::ShellProfiles,
         SettingsSection::ExecLimits,

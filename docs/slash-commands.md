@@ -23,8 +23,9 @@ Notes
 - `/login`: manage Code sign-ins (select, add, or disconnect accounts).
 - `/accounts`: open account switching settings.
 - `/settings [section]`: open the settings panel. Optional section argument
-  jumps directly to `model`, `theme`, `accounts`, `agents`, `memories`,
-  `skills`, `auto`, `review`, `validation`, `limits`, `chrome`, `mcp`, or
+  jumps directly to `model`, `theme`, `interface`, `experimental`, `accounts`,
+  `apps`, `agents`, `memories`, `prompts`, `skills`, `plugins`, `auto`,
+  `review`, `validation`, `limits`, `chrome`, `mcp`, `network`, or
   `notifications`.
 - `/memories [status|refresh|clear|settings]`: inspect effective Memories
   settings and artifact status, rebuild artifacts immediately, clear generated
@@ -74,6 +75,8 @@ Notes
 - `/skills`: manage skills.
 - `/apps`: browse and use apps (connectors). Installed apps can be inserted as
   `$<app>` mentions.
+- `/experimental`: toggle experimental feature flags (opens Settings →
+  Experimental).
 - `/status`: show current session configuration and token usage.
 - `/statusline [primary|secondary|top|bottom]`: choose and reorder built-in
   status fields. Uses the configured primary lane by default and supports

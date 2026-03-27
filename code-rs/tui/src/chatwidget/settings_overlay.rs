@@ -18,6 +18,7 @@ pub(crate) use self::contents::{
     AppsSettingsContent,
     AutoDriveSettingsContent,
     ExecLimitsSettingsContent,
+    ExperimentalFeaturesSettingsContent,
     InterfaceSettingsContent,
     JsReplSettingsContent,
     MemoriesSettingsContent,
@@ -57,6 +58,7 @@ pub(crate) struct SettingsOverlayView {
     planning_content: Option<PlanningSettingsContent>,
     theme_content: Option<ThemeSettingsContent>,
     interface_content: Option<InterfaceSettingsContent>,
+    experimental_features_content: Option<ExperimentalFeaturesSettingsContent>,
     shell_content: Option<ShellSettingsContent>,
     shell_profiles_content: Option<ShellProfilesSettingsContent>,
     exec_limits_content: Option<ExecLimitsSettingsContent>,
@@ -106,6 +108,7 @@ impl SettingsOverlayView {
             planning_content: None,
             theme_content: None,
             interface_content: None,
+            experimental_features_content: None,
             shell_content: None,
             shell_profiles_content: None,
             exec_limits_content: None,
@@ -231,6 +234,13 @@ impl SettingsOverlayView {
 
     pub(crate) fn set_interface_content(&mut self, content: InterfaceSettingsContent) {
         self.interface_content = Some(content);
+    }
+
+    pub(crate) fn set_experimental_features_content(
+        &mut self,
+        content: ExperimentalFeaturesSettingsContent,
+    ) {
+        self.experimental_features_content = Some(content);
     }
 
     pub(crate) fn set_shell_content(&mut self, content: ShellSettingsContent) {
@@ -432,6 +442,10 @@ impl SettingsOverlayView {
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Interface => self
                 .interface_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::Experimental => self
+                .experimental_features_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Shell => self

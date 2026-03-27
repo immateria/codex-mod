@@ -42,6 +42,7 @@ code-common = { path = "../common", features = [
 ] }
 code-connectors = { path = "../connectors" }
 code-core = { path = "../core" }
+code-features = { path = "../features" }
 code-file-search = { path = "../file-search" }
 code-git-tooling = { path = "../git-tooling" }
 code-login = { path = "../login" }

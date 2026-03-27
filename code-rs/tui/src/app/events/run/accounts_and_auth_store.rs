@@ -510,6 +510,12 @@
                                 widget.show_settings_overlay(section);
                             }
                         }
+                        SlashCommand::Experimental => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                let _ = command_args;
+                                widget.show_settings_overlay(Some(SettingsSection::Experimental));
+                            }
+                        }
                         SlashCommand::Memories => {
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.handle_memories_command(command_args);

@@ -6,6 +6,7 @@ impl SettingsSection {
             SettingsSection::Model => "Model",
             SettingsSection::Theme => "Theme",
             SettingsSection::Interface => "Interface",
+            SettingsSection::Experimental => "Experimental",
             SettingsSection::Shell => "Shell",
             SettingsSection::ShellProfiles => "Shell profiles",
             SettingsSection::ExecLimits => "Exec limits",
@@ -35,6 +36,9 @@ impl SettingsSection {
             SettingsSection::Model => "Choose the language model used for new completions.",
             SettingsSection::Theme => "Switch between preset color palettes and adjust contrast.",
             SettingsSection::Interface => "Control Settings UI routing and other layout preferences.",
+            SettingsSection::Experimental => {
+                "Toggle experimental features (saved to config.toml and applied after session reconfigure)."
+            }
             SettingsSection::Shell => "Select the shell used for tool execution.",
             SettingsSection::ShellProfiles => {
                 "Configure shell-style profiles (skills, references, MCP filters)."
@@ -76,6 +80,7 @@ impl SettingsSection {
             SettingsSection::Model => "Model settings coming soon.",
             SettingsSection::Theme => "Theme settings coming soon.",
             SettingsSection::Interface => "Control Settings UI routing (overlay vs bottom pane).",
+            SettingsSection::Experimental => "Toggle experimental features.",
             SettingsSection::Shell => "Select the shell used for tool execution.",
             SettingsSection::ShellProfiles => {
                 "Configure shell-style profiles (skills, references, MCP filters)."

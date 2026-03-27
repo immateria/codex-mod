@@ -716,10 +716,10 @@ pub const FEATURES: &[FeatureSpec] = &[
         key: "apps",
         stage: Stage::Experimental {
             name: "Apps",
-            menu_description: "Use a connected ChatGPT App using \"$\". Install Apps via /apps command. Restart Codex after enabling.",
-            announcement: "NEW: Use ChatGPT Apps (Connectors) in Codex via $ mentions. Enable in /experimental and restart Codex!",
+            menu_description: "Use a connected ChatGPT App using \"$\". Install and browse Apps via /apps, and manage connector-source accounts in Settings -> Apps.",
+            announcement: "NEW: Use ChatGPT Apps (Connectors) in Codex via $ mentions. Enable in /experimental!",
         },
-        default_enabled: false,
+        default_enabled: true,
     },
     FeatureSpec {
         id: Feature::ToolSuggest,

@@ -764,6 +764,61 @@
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::UpdateFeatureFlags { updates } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.flash_footer_notice("Saving experimental features...".to_string());
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    let profile = self.config.active_profile.clone();
+                    tokio::spawn(async move {
+                        let result = code_core::config_edit::set_feature_flags(
+                            code_home.as_path(),
+                            profile.as_deref(),
+                            &updates,
+                        )
+                        .await
+                        .map_err(|err| err.to_string());
+
+                        tx.send(AppEvent::UpdateFeatureFlagsFinished { result });
+                    });
+                }
+                AppEvent::UpdateFeatureFlagsFinished { result } => {
+                    match result {
+                        Ok(mutated) => {
+                            if mutated {
+                                match self.reload_config_with_startup_overrides() {
+                                    Ok(config) => {
+                                        self.config = config.clone();
+                                        if let AppState::Chat { widget } = &mut self.app_state {
+                                            widget.apply_reloaded_config_keep_settings_state(config);
+                                            widget.submit_op(widget.current_configure_session_op());
+                                        }
+                                    }
+                                    Err(err) => {
+                                        if let AppState::Chat { widget } = &mut self.app_state {
+                                            widget.flash_footer_notice(format!(
+                                                "Saved features, but failed to reload config: {err}",
+                                            ));
+                                        }
+                                    }
+                                }
+                            } else if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice("Experimental features unchanged".to_string());
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to save experimental features: {err}",
+                                ));
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::FetchAppsStatus {
                     account_ids,
                     force_refresh_tools,

@@ -8,6 +8,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Model         => self.settings_summary_model(),
                     SettingsSection::Theme         => self.settings_summary_theme(),
                     SettingsSection::Interface     => self.settings_summary_interface(),
+                    SettingsSection::Experimental  => self.settings_summary_experimental(),
                     SettingsSection::Shell         => self.settings_summary_shell(),
                     SettingsSection::ShellProfiles => self.settings_summary_shell_profiles(),
                     SettingsSection::ExecLimits    => self.settings_summary_exec_limits(),
@@ -33,6 +34,26 @@ impl ChatWidget<'_> {
                 SettingsOverviewRow::new(section, summary)
             })
             .collect()
+    }
+
+    pub(super) fn settings_summary_experimental(&self) -> Option<String> {
+        let mut total = 0usize;
+        let mut enabled = 0usize;
+        for spec in code_features::FEATURES {
+            let code_features::Stage::Experimental { .. } = spec.stage else {
+                continue;
+            };
+            total = total.saturating_add(1);
+            if self
+                .config
+                .features_effective
+                .get_bool(spec.key)
+                .unwrap_or(spec.default_enabled)
+            {
+                enabled = enabled.saturating_add(1);
+            }
+        }
+        Some(format!("Enabled: {enabled}/{total}"))
     }
 
     pub(super) fn settings_summary_apps(&self) -> Option<String> {

@@ -1,5 +1,6 @@
 use super::*;
 use crate::bottom_pane::settings_pages::exec_limits::ExecLimitsSettingsView;
+use crate::bottom_pane::settings_pages::experimental_features::ExperimentalFeaturesSettingsView;
 use crate::bottom_pane::settings_pages::interface::InterfaceSettingsView;
 use crate::bottom_pane::settings_pages::js_repl::JsReplSettingsView;
 use crate::bottom_pane::settings_pages::memories::MemoriesSettingsView;
@@ -13,6 +14,7 @@ use crate::bottom_pane::settings_pages::shell_profiles::ShellProfilesSettingsVie
 use crate::chatwidget::settings_overlay::{
     AppsSettingsContent,
     ExecLimitsSettingsContent,
+    ExperimentalFeaturesSettingsContent,
     InterfaceSettingsContent,
     JsReplSettingsContent,
     MemoriesSettingsContent,

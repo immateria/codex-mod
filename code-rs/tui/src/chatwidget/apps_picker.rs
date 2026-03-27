@@ -8,6 +8,7 @@ use crate::bottom_pane::SettingsSection;
 use crate::components::list_selection_view::ListSelectionView;
 use crate::components::list_selection_view::SelectionAction;
 use crate::components::list_selection_view::SelectionItem;
+use crate::history_cell;
 
 use super::AppsDirectoryCacheState;
 use super::ChatWidget;
@@ -16,6 +17,30 @@ const APPS_PICKER_VIEW_ID: &str = "apps_picker";
 
 impl ChatWidget<'_> {
     pub(crate) fn show_apps_picker(&mut self) {
+        if !self.config.features_effective.enabled("apps") {
+            use ratatui::style::Style;
+            use ratatui::text::{Line, Span};
+
+            let lines = vec![
+                Line::from(Span::styled(
+                    "/apps",
+                    Style::new().fg(crate::colors::keyword()),
+                )),
+                Line::from(""),
+                Line::from("Apps are disabled."),
+                Line::from(Span::styled(
+                    "Enable in Settings -> Experimental.",
+                    Style::new().fg(crate::colors::text_dim()),
+                )),
+            ];
+            let state = history_cell::plain_message_state_from_lines(
+                lines,
+                history_cell::HistoryCellType::Notice,
+            );
+            self.history_push_plain_state(state);
+            return;
+        }
+
         let view = match &self.apps_directory_cache {
             AppsDirectoryCacheState::Ready(apps) => self.build_apps_picker_view(apps),
             AppsDirectoryCacheState::Failed(err) => self.build_apps_picker_error_view(err),

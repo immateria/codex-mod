@@ -58,6 +58,7 @@ impl SettingsOverlayView {
             SettingsSection::Model => "Select Model & Reasoning",
             SettingsSection::Theme => "Theme Settings",
             SettingsSection::Interface => "Interface",
+            SettingsSection::Experimental => "Experimental Features",
             SettingsSection::Shell => "Shell Selection",
             SettingsSection::ShellProfiles => "Shell Profiles",
             SettingsSection::ExecLimits => "Exec Limits",

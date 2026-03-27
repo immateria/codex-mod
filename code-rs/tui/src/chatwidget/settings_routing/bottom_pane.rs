@@ -152,6 +152,13 @@ impl ChatWidget<'_> {
         })
     }
 
+    fn open_experimental_features_settings_section(&mut self) -> bool {
+        let view = self.build_experimental_features_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_experimental_features_settings(view);
+        })
+    }
+
     fn open_mcp_settings_section(&mut self) -> bool {
         let Some(rows) = self.build_mcp_server_rows() else {
             return false;
@@ -167,6 +174,7 @@ impl ChatWidget<'_> {
             SettingsSection::Model                              => self.open_model_settings_section(),
             SettingsSection::Theme                              => self.open_theme_settings_section(),
             SettingsSection::Interface                          => self.open_interface_settings_section(),
+            SettingsSection::Experimental                       => self.open_experimental_features_settings_section(),
             SettingsSection::Shell                              => self.open_shell_settings_section(),
             SettingsSection::ShellProfiles                       => self.open_shell_profiles_settings_section(),
             SettingsSection::ExecLimits                         => self.open_exec_limits_settings_section(),
@@ -229,6 +237,7 @@ impl ChatWidget<'_> {
             SettingsSection::Model
             | SettingsSection::Theme
             | SettingsSection::Interface
+            | SettingsSection::Experimental
             | SettingsSection::Shell
             | SettingsSection::ShellProfiles
             | SettingsSection::ExecLimits

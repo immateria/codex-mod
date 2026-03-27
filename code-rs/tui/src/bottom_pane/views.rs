@@ -193,6 +193,13 @@ impl<'a> BottomPane<'a> {
         self.set_other_view(view, true);
     }
 
+    pub fn show_experimental_features_settings(
+        &mut self,
+        view: settings_pages::experimental_features::ExperimentalFeaturesSettingsView,
+    ) {
+        self.set_other_view(view, true);
+    }
+
     pub fn show_shell_profiles_settings(
         &mut self,
         view: settings_pages::shell_profiles::ShellProfilesSettingsView,

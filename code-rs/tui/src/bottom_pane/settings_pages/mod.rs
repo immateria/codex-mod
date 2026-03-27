@@ -8,6 +8,7 @@ pub(crate) mod accounts;
 pub(crate) mod apps;
 pub(crate) mod agents;
 pub(crate) mod auto_drive;
+pub(crate) mod experimental_features;
 pub(crate) mod exec_limits;
 pub(crate) mod interface;
 pub(crate) mod js_repl;

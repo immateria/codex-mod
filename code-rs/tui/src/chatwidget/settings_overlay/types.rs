@@ -148,6 +148,7 @@ impl SettingsHelpOverlay {
                 | SettingsSection::Accounts
                 | SettingsSection::Apps
                 | SettingsSection::Memories
+                | SettingsSection::Experimental
                 | SettingsSection::Shell
                 | SettingsSection::ShellProfiles
                 | SettingsSection::Skills

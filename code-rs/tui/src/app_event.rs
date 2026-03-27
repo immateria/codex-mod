@@ -91,6 +91,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::Sender as StdSender;
 use crate::cloud_tasks_service::CloudEnvironment;
 use crate::resume::discovery::ResumeCandidate;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 /// Wrapper to allow including non-Debug types in Debug enums without leaking internals.
@@ -951,6 +952,13 @@ pub(crate) enum AppEvent {
     },
     AppsSourcesSetFinished {
         sources: AppsSourcesToml,
+        result: Result<bool, String>,
+    },
+
+    UpdateFeatureFlags {
+        updates: BTreeMap<String, bool>,
+    },
+    UpdateFeatureFlagsFinished {
         result: Result<bool, String>,
     },
 

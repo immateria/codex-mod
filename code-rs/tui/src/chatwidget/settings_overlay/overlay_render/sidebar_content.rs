@@ -154,6 +154,13 @@ impl SettingsOverlayView {
                 }
                 self.render_placeholder(area, buf, SettingsSection::Interface.placeholder());
             }
+            SettingsSection::Experimental => {
+                if let Some(content) = self.experimental_features_content.as_ref() {
+                    content.render(area, buf);
+                    return;
+                }
+                self.render_placeholder(area, buf, SettingsSection::Experimental.placeholder());
+            }
             SettingsSection::Shell => {
                 if let Some(content) = self.shell_content.as_ref() {
                     content.render(area, buf);
