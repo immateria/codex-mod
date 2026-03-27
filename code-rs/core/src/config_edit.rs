@@ -7,6 +7,7 @@ use crate::config_types::{
     SubagentCommandConfig,
 };
 use anyhow::Result;
+use std::collections::BTreeMap;
 use std::path::Path;
 use tempfile::NamedTempFile;
 use toml_edit::ArrayOfTables;
@@ -93,6 +94,126 @@ pub async fn set_session_context_settings(
         ],
     )
     .await
+}
+
+pub async fn set_feature_flags(
+    code_home: &Path,
+    profile: Option<&str>,
+    updates: &BTreeMap<String, bool>,
+) -> Result<bool> {
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let mut doc = match tokio::fs::read_to_string(&read_path).await {
+        Ok(s) => s.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            tokio::fs::create_dir_all(code_home).await?;
+            DocumentMut::new()
+        }
+        Err(e) => return Err(e.into()),
+    };
+
+    let mut mutated = false;
+
+    let target: &mut TomlTable = if let Some(profile) = profile {
+        let root = doc.as_table_mut();
+
+        let profiles_item = match root.get_mut("profiles") {
+            Some(item) => item,
+            None => {
+                if updates.is_empty() {
+                    return Ok(false);
+                }
+                root.insert("profiles", TomlItem::Table(new_implicit_table()));
+                root.get_mut("profiles")
+                    .ok_or_else(|| anyhow::anyhow!("missing profiles table"))?
+            }
+        };
+        if profiles_item.as_table_mut().is_none() {
+            if updates.is_empty() {
+                return Ok(false);
+            }
+            *profiles_item = TomlItem::Table(new_implicit_table());
+            mutated = true;
+        }
+
+        let profiles_table = profiles_item
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("profiles item is not a table"))?;
+
+        let profile_item = match profiles_table.get_mut(profile) {
+            Some(item) => item,
+            None => {
+                if updates.is_empty() {
+                    return Ok(false);
+                }
+                profiles_table.insert(profile, TomlItem::Table(new_implicit_table()));
+                mutated = true;
+                profiles_table
+                    .get_mut(profile)
+                    .ok_or_else(|| anyhow::anyhow!("missing profile table"))?
+            }
+        };
+
+        if profile_item.as_table_mut().is_none() {
+            if updates.is_empty() {
+                return Ok(false);
+            }
+            *profile_item = TomlItem::Table(new_implicit_table());
+            mutated = true;
+        }
+
+        profile_item
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("profile item is not a table"))?
+    } else {
+        doc.as_table_mut()
+    };
+
+    if updates.is_empty() {
+        if target.remove("features").is_some() {
+            mutated = true;
+        }
+    } else {
+        let features_item = match target.get_mut("features") {
+            Some(item) => item,
+            None => {
+                target.insert("features", TomlItem::Table(new_implicit_table()));
+                mutated = true;
+                target
+                    .get_mut("features")
+                    .ok_or_else(|| anyhow::anyhow!("missing features table"))?
+            }
+        };
+
+        if features_item.as_table_mut().is_none() {
+            *features_item = TomlItem::Table(new_implicit_table());
+            mutated = true;
+        }
+
+        let features_table = features_item
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("features item is not a table"))?;
+
+        for (key, value_bool) in updates {
+            let previous = features_table
+                .get(key)
+                .and_then(|value| value.as_bool());
+            if previous != Some(*value_bool) {
+                mutated = true;
+            }
+            features_table[key] = value(*value_bool);
+        }
+    }
+
+    if !mutated {
+        return Ok(false);
+    }
+
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    tokio::fs::write(tmp_file.path(), doc.to_string()).await?;
+    tmp_file.persist(config_path)?;
+
+    Ok(true)
 }
 
 /// Apply a single override onto a `toml_edit` document while preserving
@@ -1425,6 +1546,133 @@ model = "o3"
 model_reasoning_effort = "minimal"
 "#;
         assert_eq!(contents, expected);
+    }
+
+    #[tokio::test]
+    async fn set_feature_flags_updates_root_table() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let mut updates = BTreeMap::new();
+        updates.insert("apps".to_string(), false);
+        set_feature_flags(code_home, None, &updates)
+            .await
+            .expect("set features");
+
+        let contents = read_config(code_home).await;
+        let parsed: toml::Value = toml::from_str(&contents).expect("valid toml");
+        let table = parsed.as_table().expect("root table");
+        assert_eq!(
+            table
+                .get("features")
+                .and_then(|value| value.as_table())
+                .and_then(|t| t.get("apps"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+    }
+
+    #[tokio::test]
+    async fn set_feature_flags_updates_profile_table() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let mut updates = BTreeMap::new();
+        updates.insert("apps".to_string(), false);
+        set_feature_flags(code_home, Some("work"), &updates)
+            .await
+            .expect("set features");
+
+        let contents = read_config(code_home).await;
+        let parsed: toml::Value = toml::from_str(&contents).expect("valid toml");
+        let apps_flag = parsed
+            .get("profiles")
+            .and_then(|value| value.as_table())
+            .and_then(|t| t.get("work"))
+            .and_then(|value| value.as_table())
+            .and_then(|t| t.get("features"))
+            .and_then(|value| value.as_table())
+            .and_then(|t| t.get("apps"))
+            .and_then(|value| value.as_bool());
+        assert_eq!(apps_flag, Some(false));
+    }
+
+    #[tokio::test]
+    async fn set_feature_flags_preserves_unrelated_keys() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let seed = r#"[features]
+apps = true
+other = true
+
+[shell]
+program = "/bin/zsh"
+"#;
+        tokio::fs::write(code_home.join(CONFIG_TOML_FILE), seed)
+            .await
+            .expect("seed write");
+
+        let mut updates = BTreeMap::new();
+        updates.insert("apps".to_string(), false);
+        set_feature_flags(code_home, None, &updates)
+            .await
+            .expect("set features");
+
+        let contents = read_config(code_home).await;
+        let parsed: toml::Value = toml::from_str(&contents).expect("valid toml");
+        assert_eq!(
+            parsed
+                .get("features")
+                .and_then(|value| value.as_table())
+                .and_then(|t| t.get("other"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            parsed
+                .get("shell")
+                .and_then(|value| value.as_table())
+                .and_then(|t| t.get("program"))
+                .and_then(|value| value.as_str()),
+            Some("/bin/zsh")
+        );
+    }
+
+    #[tokio::test]
+    async fn set_feature_flags_removes_table_when_empty() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let seed = r#"[features]
+apps = false
+
+[shell]
+program = "/bin/zsh"
+"#;
+        tokio::fs::write(code_home.join(CONFIG_TOML_FILE), seed)
+            .await
+            .expect("seed write");
+
+        let updates = BTreeMap::new();
+        set_feature_flags(code_home, None, &updates)
+            .await
+            .expect("set features");
+
+        let contents = read_config(code_home).await;
+        let parsed: toml::Value = toml::from_str(&contents).expect("valid toml");
+        assert_eq!(
+            parsed.get("features").and_then(|value| value.as_table()),
+            None
+        );
+        assert_eq!(
+            parsed
+                .get("shell")
+                .and_then(|value| value.as_table())
+                .and_then(|t| t.get("program"))
+                .and_then(|value| value.as_str()),
+            Some("/bin/zsh")
+        );
     }
 
     /// Verifies explicit profile override writes under that profile even without active profile.
