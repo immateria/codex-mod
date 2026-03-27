@@ -60,6 +60,10 @@ preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
   - Validates `threadId` (UUID) and supports gated listing based on thread config.
   - Commits: `d1b22be725`, `ddbb86eff6`, `2dbec778cc`.
 
+- `codex-rs/package-manager`:
+  - Port upstream managed package installer (platform detection + archive fetch/verify/extract + install locks).
+  - Commit: `c0886bdb64`.
+
 ## Next: Upstream Intake (Selective, Bisectable)
 
 The high-level workflow:
@@ -102,9 +106,6 @@ These exist in `codex-rs/` but are not fully ported into `code-rs/`.
       sourced via the provider’s `env_key` in config.
 
 ### Medium ROI
-
-- `codex-rs/package-manager/`
-  - Shared installer for versioned runtime bundles and cached artifacts (platform detection + archive fetch/verify/extract + install locks).
 
 - `codex-rs/exec-server/`
   - Out-of-process exec runner plumbing for stronger isolation and robustness.
