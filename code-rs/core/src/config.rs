@@ -2,6 +2,7 @@ use crate::codex::ApprovedCommandPattern;
 use crate::protocol::ApprovedCommandMatchKind;
 use crate::config_profile::ConfigProfile;
 use crate::config_types::AgentConfig;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use crate::config_types::AutoDriveSettings;
 use crate::config_types::AutoDriveModelRoutingEntry;
@@ -1368,40 +1369,36 @@ impl NetworkProxySettingsToml {
 }
 
 #[derive(Deserialize, Debug, Clone, Default, JsonSchema)]
-#[schemars(deny_unknown_fields)]
 pub struct FeaturesToml {
-    /// Enable discovery and injection of skills.
-    #[serde(default)]
-    pub skills: Option<bool>,
+    /// Upstream-style feature toggle map:
+    /// ```toml
+    /// [features]
+    /// foo = true
+    /// bar = false
+    /// ```
+    ///
+    /// This is intentionally flexible: unknown keys are preserved.
+    #[serde(flatten)]
+    pub entries: BTreeMap<String, bool>,
+}
 
-    /// Prevent the machine from idling to sleep while a turn is running.
-    #[serde(default)]
-    pub prevent_idle_sleep: Option<bool>,
-    /// Legacy memories feature gate retained for compatibility with older
-    /// configs. Runtime memories behavior is controlled by `[memories]`.
-    #[serde(default)]
-    pub memories: Option<bool>,
+impl FeaturesToml {
+    pub(crate) fn get_bool(&self, key: &str) -> Option<bool> {
+        self.entries.get(key).copied()
+    }
 
-    /// Legacy compatibility toggle for Windows restricted-token sandboxing.
-    #[serde(default)]
-    pub experimental_windows_sandbox: Option<bool>,
-
-    /// Legacy alias for `experimental_windows_sandbox`.
-    #[serde(default)]
-    pub enable_experimental_windows_sandbox: Option<bool>,
-
-    /// Legacy compatibility toggle for elevated Windows sandboxing.
-    #[serde(default)]
-    pub elevated_windows_sandbox: Option<bool>,
+    pub(crate) fn enabled(&self, key: &str) -> bool {
+        self.get_bool(key).unwrap_or(false)
+    }
 }
 
 fn legacy_windows_sandbox_mode(features: Option<&FeaturesToml>) -> Option<WindowsSandboxModeToml> {
     let features = features?;
-    if features.elevated_windows_sandbox.unwrap_or(false) {
+    if features.enabled("elevated_windows_sandbox") {
         return Some(WindowsSandboxModeToml::Elevated);
     }
-    if features.experimental_windows_sandbox.unwrap_or(false)
-        || features.enable_experimental_windows_sandbox.unwrap_or(false)
+    if features.enabled("experimental_windows_sandbox")
+        || features.enabled("enable_experimental_windows_sandbox")
     {
         return Some(WindowsSandboxModeToml::Unelevated);
     }
@@ -1775,7 +1772,7 @@ impl Config {
         let skills_enabled = cfg
             .features
             .as_ref()
-            .and_then(|features| features.skills)
+            .and_then(|features| features.get_bool("skills"))
             .unwrap_or(true);
         let global_memories = cfg.memories.clone();
         let active_profile_memories = config_profile.memories.clone();
@@ -1788,7 +1785,7 @@ impl Config {
         if cfg
             .features
             .as_ref()
-            .and_then(|features| features.memories)
+            .and_then(|features| features.get_bool("memories"))
             == Some(false)
         {
             memories.generate_memories = false;
@@ -1798,7 +1795,7 @@ impl Config {
         let prevent_idle_sleep = cfg
             .features
             .as_ref()
-            .and_then(|features| features.prevent_idle_sleep)
+            .and_then(|features| features.get_bool("prevent_idle_sleep"))
             .unwrap_or(false);
 
         let env_ctx_v2_flag = *crate::flags::CTX_UI;

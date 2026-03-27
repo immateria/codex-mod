@@ -44,11 +44,11 @@ pub fn legacy_windows_sandbox_mode(
     features: Option<&FeaturesToml>,
 ) -> Option<WindowsSandboxModeToml> {
     let features = features?;
-    if features.elevated_windows_sandbox.unwrap_or(false) {
+    if features.enabled("elevated_windows_sandbox") {
         return Some(WindowsSandboxModeToml::Elevated);
     }
-    if features.experimental_windows_sandbox.unwrap_or(false)
-        || features.enable_experimental_windows_sandbox.unwrap_or(false)
+    if features.enabled("experimental_windows_sandbox")
+        || features.enabled("enable_experimental_windows_sandbox")
     {
         return Some(WindowsSandboxModeToml::Unelevated);
     }
