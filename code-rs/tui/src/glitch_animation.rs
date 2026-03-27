@@ -245,7 +245,9 @@ fn dynamic_welcome_lines(
         max_block_rows,
     );
     let block_capacity = max_block_line_capacity(scale, max_block_rows);
-    let used_text_fallback = wrapped.len() > block_capacity;
+    // Only use the full-text fallback in Tiny mode. For larger layouts, render as
+    // much block art as fits (cropping is preferable to dropping the logo).
+    let used_text_fallback = matches!(size, IntroArtSize::Tiny) && wrapped.len() > block_capacity;
 
     let mut core_lines = Vec::new();
     core_lines.push(center_line(
