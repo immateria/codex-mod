@@ -90,6 +90,7 @@ mod settings_handlers;
 mod settings_overlay;
 mod settings_routing;
 mod plugins_shared_state;
+mod apps_shared_state;
 mod limits_overlay;
 mod interrupts;
 mod input_pipeline;
@@ -126,6 +127,13 @@ pub(crate) use plugins_shared_state::{
     PluginsDetailState,
     PluginsListState,
     PluginsSharedState,
+};
+pub(crate) use apps_shared_state::{
+    AppsAccountSnapshot,
+    AppsAccountStatusState,
+    AppsActionInProgress,
+    AppsSharedState,
+    ConnectedAppSummary,
 };
 #[cfg(target_os = "android")]
 mod chrome_connection_android;

@@ -15,6 +15,7 @@ pub(crate) use self::agents::{AgentOverviewRow, AgentsSettingsContent};
 pub(crate) use self::chrome::ChromeSettingsContent;
 pub(crate) use self::contents::{
     AccountsSettingsContent,
+    AppsSettingsContent,
     AutoDriveSettingsContent,
     ExecLimitsSettingsContent,
     InterfaceSettingsContent,
@@ -62,6 +63,7 @@ pub(crate) struct SettingsOverlayView {
     updates_content: Option<UpdatesSettingsContent>,
     notifications_content: Option<NotificationsSettingsContent>,
     accounts_content: Option<AccountsSettingsContent>,
+    apps_content: Option<AppsSettingsContent>,
     memories_content: Option<MemoriesSettingsContent>,
     prompts_content: Option<PromptsSettingsContent>,
     skills_content: Option<SkillsSettingsContent>,
@@ -110,6 +112,7 @@ impl SettingsOverlayView {
             updates_content: None,
             notifications_content: None,
             accounts_content: None,
+            apps_content: None,
             memories_content: None,
             prompts_content: None,
             skills_content: None,
@@ -260,6 +263,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn accounts_content_mut(&mut self) -> Option<&mut AccountsSettingsContent> {
         self.accounts_content.as_mut()
+    }
+
+    pub(crate) fn set_apps_content(&mut self, content: AppsSettingsContent) {
+        self.apps_content = Some(content);
     }
 
     pub(crate) fn set_memories_content(&mut self, content: MemoriesSettingsContent) {
@@ -457,6 +464,10 @@ impl SettingsOverlayView {
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Accounts => self
                 .accounts_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::Apps => self
+                .apps_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Memories => self

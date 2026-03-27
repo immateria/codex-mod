@@ -502,11 +502,16 @@ impl ChatWidget<'_> {
                 self.bottom_pane.set_custom_prompts(ev.custom_prompts);
             }
             EventMsg::McpListToolsResponse(ev) => {
-                self.mcp_tool_catalog_by_id = ev
-                    .tools
-                    .into_iter()
-                    .map(|(id, tool)| (id, Self::mcp_tool_from_protocol(tool)))
-                    .collect();
+                let mut protocol_tools: HashMap<String, code_protocol::mcp::Tool> =
+                    HashMap::with_capacity(ev.tools.len());
+                let mut tools: HashMap<String, mcp_types::Tool> =
+                    HashMap::with_capacity(ev.tools.len());
+                for (id, tool) in ev.tools {
+                    protocol_tools.insert(id.clone(), tool.clone());
+                    tools.insert(id, Self::mcp_tool_from_protocol(tool));
+                }
+                self.mcp_tool_catalog_protocol_by_id = protocol_tools;
+                self.mcp_tool_catalog_by_id = tools;
                 self.mcp_tools_by_server = ev.server_tools.unwrap_or_default();
                 self.mcp_disabled_tools_by_server =
                     ev.server_disabled_tools.unwrap_or_default();
@@ -518,6 +523,12 @@ impl ChatWidget<'_> {
                     self.startup_mcp_error_summary = None;
                 }
                 self.refresh_mcp_settings_overlay();
+                if let Some(account_ids) = self.apps_take_pending_status_refresh_account_ids() {
+                    self.app_event_tx.send(AppEvent::FetchAppsStatus {
+                        account_ids,
+                        force_refresh_tools: false,
+                    });
+                }
             }
             EventMsg::ListSkillsResponse(ev) => {
                 let len = ev.skills.len();

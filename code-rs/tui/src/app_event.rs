@@ -6,6 +6,7 @@ use code_core::config_types::ServiceTier;
 use code_core::config_types::ShellConfig;
 use code_core::config_types::MemoriesToml;
 use code_core::config_types::PluginsToml;
+use code_core::config_types::AppsSourcesToml;
 use code_core::config_types::ShellScriptStyle;
 use code_core::config_types::ShellStyleProfileConfig;
 use code_core::config_types::SettingsMenuConfig;
@@ -38,6 +39,7 @@ use ratatui::text::Line;
 use crate::streaming::StreamKind;
 use crate::bottom_pane::SettingsSection;
 use code_utils_absolute_path::AbsolutePathBuf;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ModelSelectionKind {
@@ -178,6 +180,12 @@ pub(crate) struct PluginListSnapshot {
     pub remote_sync_error: Option<String>,
     pub remote_sync_needs_auth: bool,
     pub featured_plugin_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AppsStatusSnapshot {
+    pub connected_apps: Vec<crate::chatwidget::ConnectedAppSummary>,
+    pub last_refresh: DateTime<Utc>,
 }
 
 #[derive(Debug)]
@@ -921,6 +929,23 @@ pub(crate) enum AppEvent {
         plugin_id_key: String,
         enabled: bool,
         result: Result<(), String>,
+    },
+
+    FetchAppsStatus {
+        account_ids: Vec<String>,
+        force_refresh_tools: bool,
+    },
+    AppsStatusLoaded {
+        account_id: String,
+        result: Result<AppsStatusSnapshot, String>,
+        needs_login: bool,
+    },
+    SetAppsSources {
+        sources: AppsSourcesToml,
+    },
+    AppsSourcesSetFinished {
+        sources: AppsSourcesToml,
+        result: Result<bool, String>,
     },
 
     SetAutoSwitchAccountsOnRateLimit(bool),

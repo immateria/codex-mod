@@ -5,6 +5,7 @@
 //! concrete pages that render settings and handle input.
 
 pub(crate) mod accounts;
+pub(crate) mod apps;
 pub(crate) mod agents;
 pub(crate) mod auto_drive;
 pub(crate) mod exec_limits;

@@ -17,6 +17,7 @@ impl SettingsSection {
             "planning" | "plan" => Some(SettingsSection::Planning),
             "update" | "updates" => Some(SettingsSection::Updates),
             "account" | "accounts" | "auth" => Some(SettingsSection::Accounts),
+            "app" | "apps" | "connector" | "connectors" => Some(SettingsSection::Apps),
             "agent" | "agents" => Some(SettingsSection::Agents),
             "memory" | "memories" => Some(SettingsSection::Memories),
             "auto" | "autodrive" | "drive" => Some(SettingsSection::AutoDrive),

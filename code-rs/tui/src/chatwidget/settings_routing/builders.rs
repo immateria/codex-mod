@@ -175,6 +175,55 @@ impl ChatWidget<'_> {
         SkillsSettingsContent::new(self.build_skills_settings_view())
     }
 
+    pub(super) fn build_apps_settings_view(&mut self) -> AppsSettingsView {
+        self.apps_set_sources_snapshot(
+            self.config.active_profile.clone(),
+            self.config.apps_sources.clone(),
+        );
+
+        let code_home = self.config.code_home.clone();
+        let active_account_id =
+            code_core::auth_accounts::get_active_account_id(&code_home).unwrap_or_default();
+        let mut accounts = code_core::auth_accounts::list_accounts(&code_home).unwrap_or_default();
+        accounts.sort_by(|left, right| {
+            left.label
+                .as_deref()
+                .unwrap_or(left.id.as_str())
+                .cmp(right.label.as_deref().unwrap_or(right.id.as_str()))
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        let mut snapshot_accounts = accounts
+            .into_iter()
+            .map(|account| {
+                let label = account
+                    .label
+                    .clone()
+                    .unwrap_or_else(|| account.id.clone());
+                crate::chatwidget::AppsAccountSnapshot {
+                    id: account.id.clone(),
+                    label,
+                    is_chatgpt: account.mode.is_chatgpt(),
+                    is_active_model_account: active_account_id.as_deref() == Some(account.id.as_str()),
+                }
+            })
+            .collect::<Vec<_>>();
+        snapshot_accounts.sort_by(|left, right| {
+            right
+                .is_active_model_account
+                .cmp(&left.is_active_model_account)
+                .then_with(|| left.label.cmp(&right.label))
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        self.apps_set_accounts_snapshot(snapshot_accounts);
+
+        let shared_state = self.apps_shared_state();
+        AppsSettingsView::new(shared_state, self.app_event_tx.clone())
+    }
+
+    pub(super) fn build_apps_settings_content(&mut self) -> AppsSettingsContent {
+        AppsSettingsContent::new(self.build_apps_settings_view())
+    }
+
     pub(super) fn build_plugins_settings_view(&mut self) -> PluginsSettingsView {
         self.plugins_set_sources_snapshot(self.config.plugins.clone());
         let shared_state = self.plugins_shared_state();

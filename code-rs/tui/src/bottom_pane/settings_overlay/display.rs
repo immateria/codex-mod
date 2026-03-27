@@ -12,6 +12,7 @@ impl SettingsSection {
             SettingsSection::Planning => "Planning",
             SettingsSection::Updates => "Updates",
             SettingsSection::Accounts => "Accounts",
+            SettingsSection::Apps => "Apps",
             SettingsSection::Agents => "Agents",
             SettingsSection::Memories => "Memories",
             SettingsSection::AutoDrive => "Auto Drive",
@@ -45,6 +46,9 @@ impl SettingsSection {
             SettingsSection::Updates => "Control CLI auto-update cadence and release channels.",
             SettingsSection::Accounts => {
                 "Configure account switching behavior under rate and usage limits."
+            }
+            SettingsSection::Apps => {
+                "Pin connector-source accounts and view connected apps (multi-account connectors)."
             }
             SettingsSection::Agents => "Configure linked agents and default task permissions.",
             SettingsSection::Memories => {
@@ -80,6 +84,7 @@ impl SettingsSection {
             SettingsSection::Planning => "Planning settings coming soon.",
             SettingsSection::Updates => "Upgrade Codex and manage automatic updates.",
             SettingsSection::Accounts => "Account switching settings coming soon.",
+            SettingsSection::Apps => "Manage connector-source accounts and connected apps.",
             SettingsSection::Agents => "Agents configuration coming soon.",
             SettingsSection::Memories => {
                 "Configure scoped Memories generation, pollution rules, and artifact controls."

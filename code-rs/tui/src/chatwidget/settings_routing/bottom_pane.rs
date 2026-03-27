@@ -53,6 +53,13 @@ impl ChatWidget<'_> {
         })
     }
 
+    fn open_apps_settings_section(&mut self) -> bool {
+        let view = self.build_apps_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_apps_settings(view);
+        })
+    }
+
     fn open_auto_drive_settings_section(&mut self) -> bool {
         let view = self.build_auto_drive_settings_view();
         self.open_bottom_pane_settings(move |this| {
@@ -165,6 +172,7 @@ impl ChatWidget<'_> {
             SettingsSection::ExecLimits                         => self.open_exec_limits_settings_section(),
             SettingsSection::Updates                            => self.open_updates_settings_section(),
             SettingsSection::Accounts                           => false,
+            SettingsSection::Apps                               => self.open_apps_settings_section(),
             SettingsSection::Memories                           => self.open_memories_settings_section(),
             SettingsSection::Prompts                            => self.open_prompts_settings_section(),
             SettingsSection::Skills                             => self.open_skills_settings_section(),
@@ -235,6 +243,7 @@ impl ChatWidget<'_> {
             | SettingsSection::Notifications
             | SettingsSection::Prompts
             | SettingsSection::Accounts
+            | SettingsSection::Apps
             | SettingsSection::Memories
             | SettingsSection::Skills
             | SettingsSection::Plugins => false,

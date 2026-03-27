@@ -124,6 +124,7 @@ macro_rules! impl_settings_content_custom {
 }
 
 mod accounts;
+mod apps;
 mod auto_drive;
 mod exec_limits;
 mod interface;
@@ -145,6 +146,7 @@ mod updates;
 mod validation;
 
 pub(crate) use accounts::AccountsSettingsContent;
+pub(crate) use apps::AppsSettingsContent;
 pub(crate) use auto_drive::AutoDriveSettingsContent;
 pub(crate) use exec_limits::ExecLimitsSettingsContent;
 pub(crate) use interface::InterfaceSettingsContent;

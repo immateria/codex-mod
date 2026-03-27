@@ -146,6 +146,7 @@ impl SettingsHelpOverlay {
                 | SettingsSection::Network
                 | SettingsSection::ExecLimits
                 | SettingsSection::Accounts
+                | SettingsSection::Apps
                 | SettingsSection::Memories
                 | SettingsSection::Shell
                 | SettingsSection::ShellProfiles

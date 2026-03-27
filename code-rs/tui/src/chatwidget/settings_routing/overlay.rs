@@ -71,6 +71,7 @@ impl ChatWidget<'_> {
             overlay.set_updates_content(update_content);
         }
         overlay.set_accounts_content(self.build_accounts_settings_content());
+        overlay.set_apps_content(self.build_apps_settings_content());
         overlay.set_memories_content(self.build_memories_settings_content());
         overlay.set_notifications_content(self.build_notifications_settings_content());
         overlay.set_prompts_content(self.build_prompts_settings_content());
@@ -110,6 +111,7 @@ impl ChatWidget<'_> {
     pub(crate) fn apply_reloaded_config_keep_settings_state(&mut self, config: code_core::config::Config) {
         self.config = config;
         self.plugins_set_sources_snapshot(self.config.plugins.clone());
+        self.apps_set_sources_snapshot(self.config.active_profile.clone(), self.config.apps_sources.clone());
         self.refresh_settings_overview_rows();
         self.request_redraw();
     }

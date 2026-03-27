@@ -14,6 +14,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Planning      => self.settings_summary_planning(),
                     SettingsSection::Updates       => self.settings_summary_updates(),
                     SettingsSection::Accounts      => self.settings_summary_accounts(),
+                    SettingsSection::Apps          => self.settings_summary_apps(),
                     SettingsSection::Agents        => self.settings_summary_agents(),
                     SettingsSection::Memories      => self.settings_summary_memories(),
                     SettingsSection::Prompts       => self.settings_summary_prompts(),
@@ -32,6 +33,20 @@ impl ChatWidget<'_> {
                 SettingsOverviewRow::new(section, summary)
             })
             .collect()
+    }
+
+    pub(super) fn settings_summary_apps(&self) -> Option<String> {
+        let state = self
+            .apps_shared_state
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
+        let pins = state.sources_snapshot.pinned_account_ids.len();
+        let mode = match state.sources_snapshot.mode {
+            code_core::config_types::AppsSourcesModeToml::ActiveOnly => "active_only",
+            code_core::config_types::AppsSourcesModeToml::ActivePlusPinned => "active_plus_pinned",
+            code_core::config_types::AppsSourcesModeToml::PinnedOnly => "pinned_only",
+        };
+        Some(format!("Mode: {mode} · Pinned: {pins}"))
     }
 
     pub(super) fn settings_summary_plugins(&self) -> Option<String> {

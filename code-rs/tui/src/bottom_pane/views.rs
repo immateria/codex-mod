@@ -270,6 +270,10 @@ impl<'a> BottomPane<'a> {
         self.set_other_view(view, true);
     }
 
+    pub fn show_apps_settings(&mut self, view: settings_pages::apps::AppsSettingsView) {
+        self.set_other_view(view, true);
+    }
+
     pub fn show_memories_settings(&mut self, view: settings_pages::memories::MemoriesSettingsView) {
         self.set_other_view(view, true);
     }

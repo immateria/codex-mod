@@ -103,13 +103,13 @@ impl SettingsOverlayView {
 
         let line = Line::from(vec![
             Span::styled("Tab", key),
-            Span::styled(" Content    ", hint),
+            Span::styled(" Content  ", hint),
             Span::styled("Shift+Tab", key),
-            Span::styled(" Sidebar    ", hint),
+            Span::styled(" Sidebar  ", hint),
             Span::styled("Esc", key),
-            Span::styled(" Overview    ", hint),
+            Span::styled(" Overview  ", hint),
             Span::styled("?", key),
-            Span::styled(" Help    ", hint),
+            Span::styled(" Help  ", hint),
             Span::styled("Focus:", hint),
             Span::styled(format!(" {focus_label}"), focus),
         ]);

@@ -684,6 +684,136 @@
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::SetAppsSources { sources } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apps_set_action_in_progress(crate::chatwidget::AppsActionInProgress::SaveSources);
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    let profile = self.config.active_profile.clone();
+                    tokio::spawn(async move {
+                        let result = code_core::config_edit::set_apps_sources(
+                            code_home.as_path(),
+                            profile.as_deref(),
+                            &sources,
+                        )
+                        .await
+                        .map_err(|err| err.to_string());
+
+                        tx.send(AppEvent::AppsSourcesSetFinished { sources, result });
+                    });
+                }
+                AppEvent::AppsSourcesSetFinished { sources, result } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apps_clear_action_in_progress();
+                    }
+
+                    match result {
+                        Ok(mutated) => {
+                            if mutated {
+                                match self.reload_config_with_startup_overrides() {
+                                    Ok(config) => {
+                                        self.config = config.clone();
+                                        if let AppState::Chat { widget } = &mut self.app_state {
+                                            widget.apply_reloaded_config_keep_settings_state(config);
+                                            widget.submit_op(widget.current_configure_session_op());
+                                            widget.submit_op(Op::RefreshMcpTools);
+                                        }
+
+                                        let active_account_id = code_core::apps_sources::active_chatgpt_account_id(&self.config.code_home)
+                                            .unwrap_or_default();
+                                        let effective_source_ids = code_core::apps_sources::effective_source_account_ids(
+                                            &self.config.apps_sources,
+                                            active_account_id.as_deref(),
+                                        );
+                                        if !effective_source_ids.is_empty() {
+                                            self.app_event_tx.send(AppEvent::FetchAppsStatus {
+                                                account_ids: effective_source_ids,
+                                                force_refresh_tools: true,
+                                            });
+                                        }
+                                    }
+                                    Err(err) => {
+                                        if let AppState::Chat { widget } = &mut self.app_state {
+                                            widget.apps_set_action_error(Some(format!(
+                                                "Saved Apps sources, but failed to reload config: {err}",
+                                            )));
+                                            widget.apps_set_sources_snapshot(
+                                                self.config.active_profile.clone(),
+                                                sources.clone(),
+                                            );
+                                        }
+                                        self.config.apps_sources = sources;
+                                    }
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.apps_set_action_error(Some(format!(
+                                    "Failed to save Apps sources: {err}",
+                                )));
+                                widget.apps_set_sources_snapshot(
+                                    self.config.active_profile.clone(),
+                                    self.config.apps_sources.clone(),
+                                );
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::FetchAppsStatus {
+                    account_ids,
+                    force_refresh_tools,
+                } => {
+                    let should_compute = if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apps_mark_status_loading(&account_ids, force_refresh_tools);
+                        if force_refresh_tools {
+                            widget.submit_op(Op::RefreshMcpTools);
+                            false
+                        } else {
+                            true
+                        }
+                    } else {
+                        false
+                    };
+                    self.schedule_redraw();
+
+                    if should_compute {
+                        let results = if let AppState::Chat { widget } = &mut self.app_state {
+                            account_ids
+                                .iter()
+                                .map(|id| {
+                                    let (result, needs_login) =
+                                        widget.apps_status_snapshot_for_account_id(id);
+                                    (id.clone(), result, needs_login)
+                                })
+                                .collect::<Vec<_>>()
+                        } else {
+                            Vec::new()
+                        };
+
+                        for (account_id, result, needs_login) in results {
+                            self.app_event_tx.send(AppEvent::AppsStatusLoaded {
+                                account_id,
+                                result,
+                                needs_login,
+                            });
+                        }
+                    }
+                }
+                AppEvent::AppsStatusLoaded {
+                    account_id,
+                    result,
+                    needs_login,
+                } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apps_apply_status_loaded(account_id, result, needs_login);
+                    }
+                    self.schedule_redraw();
+                }
                 event => {
                     include!("accounts_and_auth_store.rs");
                 }
