@@ -136,7 +136,7 @@ impl HeightManager {
         let desired = bottom_desired_height.max(5).min(bottom_cap);
 
         // Bottom pane policy: Grow immediately, confirm small decreases over a few frames
-        let bottom_h = match (self.last_bottom, self.bypass_once) {
+        let mut bottom_h = match (self.last_bottom, self.bypass_once) {
             (Some(_), true) => desired,
             (Some(prev), false) => {
                 if desired > prev {
@@ -218,14 +218,22 @@ impl HeightManager {
             hud_h = 0;
         }
 
-        // Ensure the history area has at least one row; reduce HUD first if needed.
-        let min_history = 1u16;
+        // Ensure the history area has enough rows for at least one visible cell header so
+        // gutter click targets (fold/jump) remain usable on small terminals. When the
+        // bottom pane is only showing the composer (typical idle state), prioritize a
+        // few history rows by trimming bottom-pane padding if needed.
+        let min_history = if bottom_desired_height <= 6 { 3u16 } else { 1u16 };
         let total_non_history = status_h + bottom_h + hud_h;
         if total_non_history.saturating_add(min_history) > area.height {
-            let overflow = total_non_history.saturating_add(min_history) - area.height;
-            if hud_h > 0 {
+            let mut overflow = total_non_history.saturating_add(min_history) - area.height;
+            if hud_h > 0 && overflow > 0 {
                 let reduce = hud_h.min(overflow);
                 hud_h -= reduce;
+                overflow = overflow.saturating_sub(reduce);
+            }
+            if overflow > 0 && bottom_h > 0 {
+                let reduce = bottom_h.min(overflow);
+                bottom_h = bottom_h.saturating_sub(reduce);
             }
         }
 

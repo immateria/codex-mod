@@ -304,6 +304,8 @@ impl ChatWidget<'_> {
             cell.kind(),
             render_settings.width,
             cached_height,
+            cell.call_id().map(std::string::ToString::to_string),
+            cell.parent_call_id().map(std::string::ToString::to_string),
         );
         self.history_cells[idx] = Box::new(frozen);
         self.history_frozen_count = self.history_frozen_count.saturating_add(1);

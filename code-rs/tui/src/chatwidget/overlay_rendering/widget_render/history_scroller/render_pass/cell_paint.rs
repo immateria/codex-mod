@@ -353,41 +353,46 @@ impl ChatWidget<'_> {
                         _ => 0,
                     };
 
-                    if skip_top <= anchor_offset {
-                        let rel = anchor_offset - skip_top;
-                        let symbol_y = gutter_area.y.saturating_add(rel);
-                        if symbol_y < gutter_area.y.saturating_add(gutter_area.height) {
-                            let symbol_x = gutter_area.x;
-                            if let Some(symbol) = left_symbol {
-                                let symbol_style =
-                                    Style::default().fg(color_for_symbol(symbol)).bg(gutter_bg);
-                                buf.set_string(symbol_x, symbol_y, symbol, symbol_style);
-                            }
-                            if let Some(symbol) = right_symbol {
-                                let symbol_style =
-                                    Style::default().fg(color_for_symbol(symbol)).bg(gutter_bg);
-                                buf.set_string(
-                                    symbol_x.saturating_add(1),
-                                    symbol_y,
-                                    symbol,
-                                    symbol_style,
-                                );
-                            }
-                            if let Some(parent_call_id) = parent_call_id {
-                                self.clickable_regions.borrow_mut().push(
-                                    crate::chatwidget::ClickableRegion {
-                                        rect: Rect::new(
-                                            symbol_x,
-                                            symbol_y,
-                                            gutter_area.width.min(2),
-                                            1,
-                                        ),
-                                        action: crate::chatwidget::ClickableAction::JumpToCallId(
-                                            parent_call_id.to_string(),
-                                        ),
-                                    },
-                                );
-                            }
+                    // If the cell header is scrolled out of view (skip_top > anchor_offset),
+                    // paint the gutter symbol at the first visible row so jump/fold click
+                    // targets stay discoverable on tight viewports.
+                    let rel = if skip_top <= anchor_offset {
+                        anchor_offset - skip_top
+                    } else {
+                        0
+                    };
+                    let symbol_y = gutter_area.y.saturating_add(rel);
+                    if symbol_y < gutter_area.y.saturating_add(gutter_area.height) {
+                        let symbol_x = gutter_area.x;
+                        if let Some(symbol) = left_symbol {
+                            let symbol_style =
+                                Style::default().fg(color_for_symbol(symbol)).bg(gutter_bg);
+                            buf.set_string(symbol_x, symbol_y, symbol, symbol_style);
+                        }
+                        if let Some(symbol) = right_symbol {
+                            let symbol_style =
+                                Style::default().fg(color_for_symbol(symbol)).bg(gutter_bg);
+                            buf.set_string(
+                                symbol_x.saturating_add(1),
+                                symbol_y,
+                                symbol,
+                                symbol_style,
+                            );
+                        }
+                        if let Some(parent_call_id) = parent_call_id {
+                            self.clickable_regions.borrow_mut().push(
+                                crate::chatwidget::ClickableRegion {
+                                    rect: Rect::new(
+                                        symbol_x,
+                                        symbol_y,
+                                        gutter_area.width.min(2),
+                                        1,
+                                    ),
+                                    action: crate::chatwidget::ClickableAction::JumpToCallId(
+                                        parent_call_id.to_string(),
+                                    ),
+                                },
+                            );
                         }
                     }
                 }

@@ -7,12 +7,14 @@ use crate::history::state::HistoryId;
 use crate::history_cell::{HistoryCell, HistoryCellType};
 use crate::util::buffer::fill_rect;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FrozenHistoryCell {
     history_id: HistoryId,
     kind: HistoryCellType,
     cached_width: u16,
     cached_height: u16,
+    call_id: Option<String>,
+    parent_call_id: Option<String>,
 }
 
 impl FrozenHistoryCell {
@@ -21,12 +23,16 @@ impl FrozenHistoryCell {
         kind: HistoryCellType,
         cached_width: u16,
         cached_height: u16,
+        call_id: Option<String>,
+        parent_call_id: Option<String>,
     ) -> Self {
         Self {
             history_id,
             kind,
             cached_width,
             cached_height,
+            call_id,
+            parent_call_id,
         }
     }
 
@@ -57,6 +63,14 @@ impl HistoryCell for FrozenHistoryCell {
 
     fn kind(&self) -> HistoryCellType {
         self.kind
+    }
+
+    fn call_id(&self) -> Option<&str> {
+        self.call_id.as_deref()
+    }
+
+    fn parent_call_id(&self) -> Option<&str> {
+        self.parent_call_id.as_deref()
     }
 
     fn desired_height(&self, _width: u16) -> u16 {

@@ -282,6 +282,55 @@ pub(crate) fn build_preview_lines(text: &str) -> Vec<Line<'static>> {
     )
 }
 
+pub(crate) fn build_output_lines(text: &str) -> Vec<Line<'static>> {
+    // Prefer UI-themed JSON highlighting when the (ANSI-stripped) text parses as JSON.
+    let stripped_plain = sanitize_for_tui(
+        text,
+        SanitizeMode::Plain,
+        SanitizeOptions {
+            expand_tabs: true,
+            tabstop: 4,
+            debug_markers: false,
+        },
+    );
+    if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&stripped_plain) {
+        let pretty =
+            serde_json::to_string_pretty(&json_val).unwrap_or_else(|_| json_val.to_string());
+        return crate::syntax_highlight::highlight_code_block(&pretty, Some("json"));
+    }
+
+    let processed = format_json_compact(text).unwrap_or_else(|| text.to_string());
+    let processed = normalize_overwrite_sequences(&processed);
+    let (processed, clipped) = clip_preview_text(&processed, EXEC_PREVIEW_MAX_CHARS);
+    let processed = sanitize_for_tui(
+        &processed,
+        SanitizeMode::AnsiPreserving,
+        SanitizeOptions {
+            expand_tabs: true,
+            tabstop: 4,
+            debug_markers: false,
+        },
+    );
+
+    fn ansi_line_with_theme_bg(s: &str) -> Line<'static> {
+        let mut ln = ansi_escape_line(s);
+        for sp in ln.spans.iter_mut() {
+            sp.style.bg = None;
+        }
+        ln
+    }
+
+    let mut out: Vec<Line<'static>> = Vec::new();
+    if clipped {
+        out.push(Line::styled(
+            format!("… output truncated to last {EXEC_PREVIEW_MAX_CHARS} chars"),
+            Style::default().fg(crate::colors::text_dim()),
+        ));
+    }
+    out.extend(processed.lines().map(ansi_line_with_theme_bg));
+    out
+}
+
 fn build_preview_lines_windowed(
     text: &str,
     head: usize,
@@ -399,7 +448,7 @@ pub(crate) fn output_lines(
     let is_streaming_preview = *exit_code == STREAMING_EXIT_CODE;
 
     if !only_err && !stdout.is_empty() {
-        let mut stdout_lines = build_preview_lines(stdout);
+        let mut stdout_lines = build_output_lines(stdout);
         if include_angle_pipe {
             let angle_style = Style::default()
                 .fg(crate::colors::text_dim())

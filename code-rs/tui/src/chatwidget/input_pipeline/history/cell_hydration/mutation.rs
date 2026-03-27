@@ -7,7 +7,25 @@ impl ChatWidget<'_> {
         match mutation {
             HistoryMutation::Inserted { id, record, .. }
             | HistoryMutation::Replaced { id, record, .. } => {
-                if let Some(mut new_cell) = self.build_cell_from_record(&record) {
+                // Some cells carry transient metadata (e.g. `parent_call_id`) or
+                // additional fields that are not stored in the domain record.
+                // Preserve those by hydrating the existing cell rather than
+                // rebuilding from the record.
+                let existing_prefers_hydrate = cell
+                    .as_any()
+                    .is::<crate::history_cell::JsReplCell>()
+                    || cell.as_any().is::<crate::history_cell::ExecCell>()
+                    || cell.as_any().is::<crate::history_cell::PatchSummaryCell>()
+                    || cell.as_any().is::<crate::history_cell::ToolCallCell>()
+                    || cell.as_any().is::<crate::history_cell::RunningToolCallCell>();
+
+                if existing_prefers_hydrate {
+                    if !self.hydrate_cell_from_record(cell, &record) {
+                        self.assign_history_id(cell, id);
+                    } else {
+                        self.assign_history_id(cell, id);
+                    }
+                } else if let Some(mut new_cell) = self.build_cell_from_record(&record) {
                     self.assign_history_id(&mut new_cell, id);
                     *cell = new_cell;
                 } else if !self.hydrate_cell_from_record(cell, &record) {
