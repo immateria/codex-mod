@@ -173,6 +173,20 @@ use status_conversion::convert_mcp_resource_templates;
 use status_conversion::convert_mcp_resources;
 use status_conversion::convert_mcp_tool;
 
+async fn build_apps_list_for_config(config: &Config, force_refetch: bool) -> Vec<AppInfo> {
+    let directory_connectors =
+        match chatgpt_connectors::list_all_connectors_with_options(config, force_refetch).await {
+            Ok(connectors) => connectors,
+            Err(err) => {
+                tracing::warn!("apps/list: failed to list directory connectors: {err:#}");
+                Vec::new()
+            }
+        };
+
+    let accessible_connectors = list_accessible_connector_metadata_from_codex_apps_mcp(config).await;
+    merge_accessible_apps(directory_connectors, accessible_connectors)
+}
+
 impl MessageProcessor {
     pub(super) async fn command_exec_start(
         &self,
@@ -1419,25 +1433,18 @@ impl MessageProcessor {
             )
             .await;
 
-        let apps: Vec<AppInfo> = manager
-            .effective_apps()
-            .into_iter()
-            .map(|code_core::plugins::AppConnectorId(id)| AppInfo {
-                id: id.clone(),
-                name: id,
-                description: None,
-                logo_url: None,
-                logo_url_dark: None,
-                distribution_channel: None,
-                branding: None,
-                app_metadata: None,
-                labels: None,
-                install_url: None,
-                is_accessible: true,
-                is_enabled: true,
-                plugin_display_names: Vec::new(),
-            })
-            .collect();
+        let apps = match self.load_effective_config(/*cwd*/ None) {
+            Ok(config) if config.features_effective.enabled("apps") => {
+                build_apps_list_for_config(&config, /*force_refetch*/ false).await
+            }
+            Ok(_) => Vec::new(),
+            Err(err) => {
+                tracing::warn!(
+                    "plugin/install: failed to load effective config for apps list notification: {err:?}"
+                );
+                Vec::new()
+            }
+        };
         broadcast_server_notification_simple(
             &self.outgoing,
             ServerNotification::AppListUpdated(AppListUpdatedNotification { data: apps }),
@@ -1513,25 +1520,18 @@ impl MessageProcessor {
             )
             .await;
 
-        let apps: Vec<AppInfo> = manager
-            .effective_apps()
-            .into_iter()
-            .map(|code_core::plugins::AppConnectorId(id)| AppInfo {
-                id: id.clone(),
-                name: id,
-                description: None,
-                logo_url: None,
-                logo_url_dark: None,
-                distribution_channel: None,
-                branding: None,
-                app_metadata: None,
-                labels: None,
-                install_url: None,
-                is_accessible: true,
-                is_enabled: true,
-                plugin_display_names: Vec::new(),
-            })
-            .collect();
+        let apps = match self.load_effective_config(/*cwd*/ None) {
+            Ok(config) if config.features_effective.enabled("apps") => {
+                build_apps_list_for_config(&config, /*force_refetch*/ false).await
+            }
+            Ok(_) => Vec::new(),
+            Err(err) => {
+                tracing::warn!(
+                    "plugin/uninstall: failed to load effective config for apps list notification: {err:?}"
+                );
+                Vec::new()
+            }
+        };
         broadcast_server_notification_simple(
             &self.outgoing,
             ServerNotification::AppListUpdated(AppListUpdatedNotification { data: apps }),
@@ -1626,18 +1626,7 @@ impl MessageProcessor {
             return;
         }
 
-        let directory_connectors =
-            match chatgpt_connectors::list_all_connectors_with_options(&config, force_refetch).await
-            {
-                Ok(connectors) => connectors,
-                Err(err) => {
-                    tracing::warn!("apps/list: failed to list directory connectors: {err:#}");
-                    Vec::new()
-                }
-            };
-
-        let accessible_connectors = list_accessible_connector_metadata_from_codex_apps_mcp(&config).await;
-        let data = merge_accessible_apps(directory_connectors, accessible_connectors);
+        let data = build_apps_list_for_config(&config, force_refetch).await;
 
         let total = data.len();
         if total == 0 {
@@ -4196,6 +4185,113 @@ fn merge_accessible_apps(
             .then_with(|| left.id.cmp(&right.id))
     });
     directory
+}
+
+#[cfg(test)]
+mod apps_list_merge_tests {
+    use std::collections::HashMap;
+
+    use super::merge_accessible_apps;
+    use code_app_server_protocol::AppInfo;
+
+    #[test]
+    fn merge_accessible_apps_marks_accessible_and_adds_synthetic_entries() {
+        let directory = vec![
+            AppInfo {
+                id: "connector_a".to_string(),
+                name: "Alpha".to_string(),
+                description: Some("Directory description".to_string()),
+                logo_url: None,
+                logo_url_dark: None,
+                distribution_channel: None,
+                branding: None,
+                app_metadata: None,
+                labels: None,
+                install_url: None,
+                is_accessible: false,
+                is_enabled: true,
+                plugin_display_names: Vec::new(),
+            },
+            AppInfo {
+                id: "connector_c".to_string(),
+                name: "Charlie".to_string(),
+                description: None,
+                logo_url: None,
+                logo_url_dark: None,
+                distribution_channel: None,
+                branding: None,
+                app_metadata: None,
+                labels: None,
+                install_url: None,
+                is_accessible: false,
+                is_enabled: true,
+                plugin_display_names: Vec::new(),
+            },
+        ];
+
+        let mut accessible: HashMap<String, (String, Option<String>)> = HashMap::new();
+        accessible.insert(
+            "connector_a".to_string(),
+            ("Alpha via tools".to_string(), None),
+        );
+        accessible.insert(
+            "connector_b".to_string(),
+            ("Beta".to_string(), Some("From tools".to_string())),
+        );
+
+        let merged = merge_accessible_apps(directory, accessible);
+        let ids = merged
+            .iter()
+            .map(|app| app.id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, vec!["connector_a", "connector_b", "connector_c"]);
+
+        let connector_a = merged
+            .iter()
+            .find(|app| app.id == "connector_a")
+            .expect("connector_a should be present");
+        assert!(connector_a.is_accessible);
+        assert_eq!(connector_a.name, "Alpha");
+        assert_eq!(
+            connector_a.description.as_deref(),
+            Some("Directory description")
+        );
+
+        let connector_b = merged
+            .iter()
+            .find(|app| app.id == "connector_b")
+            .expect("connector_b should be present");
+        assert!(connector_b.is_accessible);
+        assert_eq!(connector_b.name, "Beta");
+        assert_eq!(connector_b.description.as_deref(), Some("From tools"));
+
+        let expected_install_url = {
+            let synthetic = AppInfo {
+                id: "connector_b".to_string(),
+                name: "Beta".to_string(),
+                description: Some("From tools".to_string()),
+                logo_url: None,
+                logo_url_dark: None,
+                distribution_channel: None,
+                branding: None,
+                app_metadata: None,
+                labels: None,
+                install_url: None,
+                is_accessible: true,
+                is_enabled: true,
+                plugin_display_names: Vec::new(),
+            };
+            let slug = code_connectors::connector_mention_slug(&synthetic);
+            format!("https://chatgpt.com/apps/{slug}/connector_b")
+        };
+        assert_eq!(connector_b.install_url.as_deref(), Some(expected_install_url.as_str()));
+
+        let connector_c = merged
+            .iter()
+            .find(|app| app.id == "connector_c")
+            .expect("connector_c should be present");
+        assert!(!connector_c.is_accessible);
+    }
 }
 
 fn model_preset_to_v2_model(preset: &model_presets::ModelPreset) -> Model {
