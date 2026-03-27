@@ -688,6 +688,14 @@ struct ClickableRegion {
     action: ClickableAction,
 }
 
+#[derive(Debug, Clone)]
+enum AppsDirectoryCacheState {
+    Uninitialized,
+    Loading,
+    Ready(Vec<code_app_server_protocol::AppInfo>),
+    Failed(String),
+}
+
 pub(crate) struct ChatWidget<'a> {
     app_event_tx: AppEventSender,
     code_op_tx: UnboundedSender<Op>,
@@ -718,6 +726,7 @@ pub(crate) struct ChatWidget<'a> {
     config: Config,
     plugins_shared_state: Arc<Mutex<PluginsSharedState>>,
     apps_shared_state: Arc<Mutex<AppsSharedState>>,
+    apps_directory_cache: AppsDirectoryCacheState,
     turn_sleep_inhibitor: SleepInhibitor,
     mcp_tool_catalog_protocol_by_id: HashMap<String, code_protocol::mcp::Tool>,
     mcp_tool_catalog_by_id: HashMap<String, mcp_types::Tool>,

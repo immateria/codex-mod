@@ -32,12 +32,15 @@ chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 code-ansi-escape = { path = "../ansi-escape" }
 code-arg0 = { path = "../arg0" }
+code-app-server-protocol = { path = "../app-server-protocol" }
 code-browser = { path = "../browser" }
+code-chatgpt = { path = "../chatgpt" }
 code-common = { path = "../common", features = [
     "cli",
     "elapsed",
     "sandbox_summary",
 ] }
+code-connectors = { path = "../connectors" }
 code-core = { path = "../core" }
 code-file-search = { path = "../file-search" }
 code-git-tooling = { path = "../git-tooling" }
@@ -104,6 +107,7 @@ fs2 = "0.4"
 syntect = { version = "5", features = ["yaml-load", "plist-load", "parsing", "default-syntaxes"] }
 which = "6"
 urlencoding = "2.1"
+webbrowser = { workspace = true }
 pulldown-cmark = "0.13"
 portable-pty = "0.9.0"
 thiserror = "1"

@@ -6,6 +6,7 @@ use code_core::config_types::{ShellConfig, TextVerbosity, ThemeName};
 
 use super::chat_composer::ComposerRenderMode;
 use super::panes::approval_modal::ApprovalModalView;
+use super::panes::app_link_view::AppLinkView;
 use super::panes::auto_coordinator::{AutoCoordinatorView, AutoCoordinatorViewModel};
 use super::panes::cloud_tasks::CloudTasksView;
 use super::panes::custom_prompt::CustomPromptView;
@@ -326,6 +327,14 @@ impl<'a> BottomPane<'a> {
         self.active_view_kind == kind
     }
 
+    pub(crate) fn is_list_selection_open(&self, view_id: &'static str) -> bool {
+        self.active_view
+            .as_ref()
+            .and_then(|view| view.as_any())
+            .and_then(|any| any.downcast_ref::<crate::components::list_selection_view::ListSelectionView>())
+            .is_some_and(|view| view.view_id() == Some(view_id))
+    }
+
     /// Called when the agent requests user approval.
     pub fn push_approval_request(&mut self, request: ApprovalRequest, ticket: BackgroundOrderTicket) {
         let (request, ticket) = if let Some(view) = self.active_view.as_mut() {
@@ -388,6 +397,10 @@ impl<'a> BottomPane<'a> {
 
     /// Show a multi-line prompt input view (used for custom review instructions)
     pub fn show_custom_prompt(&mut self, view: CustomPromptView) {
+        self.set_other_view(view, true);
+    }
+
+    pub(crate) fn show_app_link_view(&mut self, view: AppLinkView) {
         self.set_other_view(view, true);
     }
 

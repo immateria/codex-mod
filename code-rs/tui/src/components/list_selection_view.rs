@@ -29,6 +29,7 @@ pub(crate) struct SelectionItem {
 }
 
 pub(crate) struct ListSelectionView {
+    view_id: Option<&'static str>,
     title: String,
     subtitle: Option<String>,
     footer_hint: Option<String>,
@@ -103,7 +104,48 @@ impl ListSelectionView {
         app_event_tx: AppEventSender,
         max_rows: usize,
     ) -> Self {
+        Self::new_internal(
+            None,
+            title,
+            subtitle,
+            footer_hint,
+            items,
+            app_event_tx,
+            max_rows,
+        )
+    }
+
+    pub fn new_with_id(
+        view_id: &'static str,
+        title: String,
+        subtitle: Option<String>,
+        footer_hint: Option<String>,
+        items: Vec<SelectionItem>,
+        app_event_tx: AppEventSender,
+        max_rows: usize,
+    ) -> Self {
+        Self::new_internal(
+            Some(view_id),
+            title,
+            subtitle,
+            footer_hint,
+            items,
+            app_event_tx,
+            max_rows,
+        )
+    }
+
+    fn new_internal(
+        view_id: Option<&'static str>,
+        title: String,
+        subtitle: Option<String>,
+        footer_hint: Option<String>,
+        items: Vec<SelectionItem>,
+        app_event_tx: AppEventSender,
+        max_rows: usize,
+    ) -> Self {
         let mut s = Self {
+            view_id,
             title,
             subtitle,
             footer_hint,
@@ -120,6 +162,10 @@ impl ListSelectionView {
         s.state.clamp_selection(len);
         s.state.ensure_visible(len, s.max_rows.min(len));
         s
+    }
+
+    pub(crate) fn view_id(&self) -> Option<&'static str> {
+        self.view_id
     }
 
     fn move_up(&mut self) {
@@ -154,6 +200,14 @@ impl ListSelectionView {
 }
 
 impl BottomPaneView<'_> for ListSelectionView {
+    fn as_any(&self) -> Option<&dyn std::any::Any> {
+        Some(self)
+    }
+
+    fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
+        Some(self)
+    }
+
     fn handle_key_event(&mut self, _pane: &mut BottomPane<'_>, key_event: KeyEvent) {
         match key_event {
             KeyEvent {

@@ -33,6 +33,7 @@ use code_core::git_info::CommitLogEntry;
 use code_protocol::protocol::ReviewTarget;
 use code_file_search::FileMatch;
 use code_common::model_presets::ModelPreset;
+use code_app_server_protocol::AppInfo;
 use crossterm::event::KeyEvent;
 use crossterm::event::MouseEvent;
 use ratatui::text::Line;
@@ -186,6 +187,11 @@ pub(crate) struct PluginListSnapshot {
 pub(crate) struct AppsStatusSnapshot {
     pub connected_apps: Vec<crate::chatwidget::ConnectedAppSummary>,
     pub last_refresh: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AppLinkViewParams {
+    pub app: AppInfo,
 }
 
 #[derive(Debug)]
@@ -946,6 +952,23 @@ pub(crate) enum AppEvent {
     AppsSourcesSetFinished {
         sources: AppsSourcesToml,
         result: Result<bool, String>,
+    },
+
+    FetchAppsDirectory {
+        force_refetch: bool,
+    },
+    AppsDirectoryLoaded {
+        force_refetch: bool,
+        result: Result<Vec<AppInfo>, String>,
+    },
+    ShowAppLinkView {
+        params: AppLinkViewParams,
+    },
+    OpenUrlInBrowser {
+        url: String,
+    },
+    InsertText {
+        text: String,
     },
 
     SetAutoSwitchAccountsOnRateLimit(bool),

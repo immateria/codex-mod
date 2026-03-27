@@ -91,6 +91,7 @@ mod settings_overlay;
 mod settings_routing;
 mod plugins_shared_state;
 mod apps_shared_state;
+mod apps_picker;
 mod limits_overlay;
 mod interrupts;
 mod input_pipeline;

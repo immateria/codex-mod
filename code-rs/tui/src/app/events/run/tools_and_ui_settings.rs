@@ -814,6 +814,57 @@
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::FetchAppsDirectory { force_refetch } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apps_directory_mark_loading(force_refetch);
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let config = self.config.clone();
+                    tokio::spawn(async move {
+                        let result = code_chatgpt::connectors::list_all_connectors_with_options(
+                            &config,
+                            force_refetch,
+                        )
+                        .await
+                        .map_err(|err| err.to_string());
+                        tx.send(AppEvent::AppsDirectoryLoaded {
+                            force_refetch,
+                            result,
+                        });
+                    });
+                }
+                AppEvent::AppsDirectoryLoaded {
+                    force_refetch,
+                    result,
+                } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.apps_directory_apply_loaded(force_refetch, result);
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::ShowAppLinkView { params } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.open_app_link_view(params);
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::OpenUrlInBrowser { url } => {
+                    if let Err(err) = webbrowser::open(&url) {
+                        if let AppState::Chat { widget } = &mut self.app_state {
+                            widget.debug_notice(format!(
+                                "Failed to open browser: {err}. URL: {url}"
+                            ));
+                        }
+                    }
+                }
+                AppEvent::InsertText { text } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.insert_str(&text);
+                    }
+                    self.schedule_redraw();
+                }
                 event => {
                     include!("accounts_and_auth_store.rs");
                 }

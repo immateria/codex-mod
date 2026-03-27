@@ -2054,12 +2054,15 @@ dependencies = [
  "chrono",
  "clap",
  "code-ansi-escape",
+ "code-app-server-protocol",
  "code-arg0",
  "code-auto-drive-core",
  "code-auto-drive-diagnostics",
  "code-browser",
+ "code-chatgpt",
  "code-cloud-tasks-client",
  "code-common",
+ "code-connectors",
  "code-core",
  "code-file-search",
  "code-git-tooling",
@@ -2123,6 +2126,7 @@ dependencies = [
  "urlencoding",
  "uuid",
  "vt100",
+ "webbrowser",
  "which",
 ]
 

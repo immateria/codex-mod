@@ -596,6 +596,12 @@
                                 widget.handle_skills_command(command_args.as_str());
                             }
                         }
+                        SlashCommand::Apps => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                let _ = command_args;
+                                widget.show_apps_picker();
+                            }
+                        }
                         SlashCommand::Plugins => {
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.show_settings_overlay(Some(SettingsSection::Plugins));
