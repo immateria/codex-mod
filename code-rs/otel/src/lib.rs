@@ -24,3 +24,15 @@ mod imp {
 
 #[cfg(not(feature = "otel"))]
 pub use imp::OtelProvider;
+
+/// Lightweight metrics sink used by `code-features` and other subsystems.
+///
+/// The full fork uses structured tracing events via `OtelEventManager`; this
+/// type keeps upstream-compatible call sites compiling without forcing an
+/// OpenTelemetry dependency everywhere.
+#[derive(Debug, Clone, Default)]
+pub struct SessionTelemetry;
+
+impl SessionTelemetry {
+    pub fn counter(&self, _name: &str, _inc: u64, _tags: &[(&str, &str)]) {}
+}

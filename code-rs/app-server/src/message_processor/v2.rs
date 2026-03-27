@@ -1427,9 +1427,13 @@ impl MessageProcessor {
                 logo_url: None,
                 logo_url_dark: None,
                 distribution_channel: None,
+                branding: None,
+                app_metadata: None,
+                labels: None,
                 install_url: None,
                 is_accessible: true,
                 is_enabled: true,
+                plugin_display_names: Vec::new(),
             })
             .collect();
         broadcast_server_notification_simple(
@@ -1517,9 +1521,13 @@ impl MessageProcessor {
                 logo_url: None,
                 logo_url_dark: None,
                 distribution_channel: None,
+                branding: None,
+                app_metadata: None,
+                labels: None,
                 install_url: None,
                 is_accessible: true,
                 is_enabled: true,
+                plugin_display_names: Vec::new(),
             })
             .collect();
         broadcast_server_notification_simple(
@@ -1558,9 +1566,13 @@ impl MessageProcessor {
                 logo_url: None,
                 logo_url_dark: None,
                 distribution_channel: None,
+                branding: None,
+                app_metadata: None,
+                labels: None,
                 install_url: None,
                 is_accessible: true,
                 is_enabled: true,
+                plugin_display_names: Vec::new(),
             })
             .collect();
         data.sort_by(|a, b| a.id.cmp(&b.id));

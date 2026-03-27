@@ -1561,6 +1561,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "code-connectors"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "code-app-server-protocol",
+ "pretty_assertions",
+ "serde",
+ "tokio",
+ "urlencoding",
+]
+
+[[package]]
 name = "code-core"
 version = "0.0.0"
 dependencies = [
@@ -1715,6 +1727,20 @@ dependencies = [
  "serde_with",
  "starlark",
  "tempfile",
+]
+
+[[package]]
+name = "code-features"
+version = "0.0.0"
+dependencies = [
+ "code-login",
+ "code-otel",
+ "code-protocol",
+ "pretty_assertions",
+ "schemars 0.8.22",
+ "serde",
+ "toml 0.9.8",
+ "tracing",
 ]
 
 [[package]]

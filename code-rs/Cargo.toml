@@ -15,7 +15,9 @@ members = [
     "context-timeline",
     "codex-experimental-api-macros",
     "common",
+    "connectors",
     "core",
+    "features",
     "exec",
     "execpolicy",
     "message-history",
@@ -76,7 +78,9 @@ code-arg0 = { path = "arg0" }
 code-browser = { path = "browser" }
 code-chatgpt = { path = "chatgpt" }
 code-common = { path = "common" }
+code-connectors = { path = "connectors" }
 code-core = { path = "core" }
+code-features = { path = "features" }
 code-hooks = { path = "hooks" }
 code-context-timeline = { path = "context-timeline", package = "codex-context-timeline" }
 code-message-history = { path = "message-history", package = "codex-message-history" }
