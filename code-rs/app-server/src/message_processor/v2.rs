@@ -1558,8 +1558,25 @@ impl MessageProcessor {
         } = params;
 
         let config = if let Some(thread_id) = thread_id.as_deref() {
+            let parsed_id = match Uuid::parse_str(thread_id) {
+                Ok(id) => id,
+                Err(error) => {
+                    self.outgoing
+                        .send_error_to_connection(
+                            connection_id,
+                            request_id,
+                            JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("invalid thread id: {error}"),
+                                data: None,
+                            },
+                        )
+                        .await;
+                    return;
+                }
+            };
             let catalog = SessionCatalog::new(self.base_config.code_home.clone());
-            let entry = match catalog.find_by_id(thread_id).await {
+            let entry = match catalog.find_by_id(&parsed_id.to_string()).await {
                 Ok(Some(entry)) => entry,
                 Ok(None) => {
                     self.outgoing

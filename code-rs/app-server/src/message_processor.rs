@@ -1169,7 +1169,12 @@ mod tests {
         // Drain initialize response envelope to ensure processing completed.
         let envelope = outgoing_rx.recv().await.expect("initialize response envelope");
         match envelope {
-            OutgoingEnvelope::Broadcast { .. } => {}
+            OutgoingEnvelope::ToConnection {
+                connection_id: ConnectionId(42),
+                message: OutgoingMessage::Response(response),
+            } => {
+                assert_eq!(response.id, RequestId::Integer(1));
+            }
             _ => panic!("expected initialize response to be emitted"),
         }
     }
@@ -1211,13 +1216,14 @@ mod tests {
             .await
             .expect("expected not-initialized error");
         match envelope {
-            OutgoingEnvelope::Broadcast {
+            OutgoingEnvelope::ToConnection {
+                connection_id: ConnectionId(42),
                 message: OutgoingMessage::Error(error),
             } => {
                 assert_eq!(error.id, RequestId::Integer(7));
                 assert_eq!(error.error.message, "Not initialized");
             }
-            _ => panic!("expected broadcast error response"),
+            _ => panic!("expected connection-scoped error response"),
         }
     }
 
@@ -1261,6 +1267,166 @@ mod tests {
                 "config_write_error_code": ConfigWriteErrorCode::ConfigValidationError,
             }))
         );
+
+        let _ = std::fs::remove_dir_all(temp_code_home);
+    }
+
+    #[tokio::test]
+    async fn apps_list_v2_rejects_invalid_thread_id() {
+        let (outgoing_tx, mut outgoing_rx) = mpsc::channel::<OutgoingEnvelope>(8);
+        let outgoing = Arc::new(OutgoingMessageSender::new_with_routed_sender(outgoing_tx));
+
+        let mut config =
+            Config::load_with_cli_overrides(Vec::new(), code_core::config::ConfigOverrides::default())
+                .expect("load default config");
+        let temp_code_home = std::env::temp_dir().join(format!(
+            "code-app-server-message-processor-apps-list-invalid-thread-{}",
+            Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&temp_code_home).expect("create temp code home");
+        config.code_home = temp_code_home.clone();
+
+        let mut processor =
+            MessageProcessor::new(outgoing, None, Arc::new(config), Vec::new(), Vec::new());
+        let mut session = ConnectionSessionState::default();
+        let outbound_initialized = AtomicBool::new(false);
+        let outbound_opted_out_notification_methods = RwLock::new(HashSet::new());
+
+        let init_request = JSONRPCRequest {
+            jsonrpc: JSONRPC_VERSION.to_string(),
+            id: RequestId::Integer(1),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "clientInfo": {
+                    "name": "client-tests",
+                    "version": "1.0.0"
+                },
+                "capabilities": {
+                    "experimentalApi": true
+                }
+            })),
+        };
+        processor
+            .process_request(
+                ConnectionId(7),
+                init_request,
+                &mut session,
+                &outbound_initialized,
+                &outbound_opted_out_notification_methods,
+            )
+            .await;
+        let _ = outgoing_rx.recv().await.expect("initialize response envelope");
+
+        let request = JSONRPCRequest {
+            jsonrpc: JSONRPC_VERSION.to_string(),
+            id: RequestId::Integer(2),
+            method: "app/list".to_string(),
+            params: Some(json!({
+                "threadId": "not-a-uuid",
+            })),
+        };
+        processor
+            .process_request(
+                ConnectionId(7),
+                request,
+                &mut session,
+                &outbound_initialized,
+                &outbound_opted_out_notification_methods,
+            )
+            .await;
+
+        let envelope = outgoing_rx.recv().await.expect("app/list error envelope");
+        match envelope {
+            OutgoingEnvelope::ToConnection {
+                connection_id: ConnectionId(7),
+                message: OutgoingMessage::Error(error),
+            } => {
+                assert_eq!(error.id, RequestId::Integer(2));
+                assert_eq!(error.error.code, INVALID_REQUEST_ERROR_CODE);
+                assert!(error.error.message.contains("invalid thread id"));
+            }
+            _ => panic!("expected app/list error response"),
+        }
+
+        let _ = std::fs::remove_dir_all(temp_code_home);
+    }
+
+    #[tokio::test]
+    async fn apps_list_v2_rejects_unknown_thread_id() {
+        let (outgoing_tx, mut outgoing_rx) = mpsc::channel::<OutgoingEnvelope>(8);
+        let outgoing = Arc::new(OutgoingMessageSender::new_with_routed_sender(outgoing_tx));
+
+        let mut config =
+            Config::load_with_cli_overrides(Vec::new(), code_core::config::ConfigOverrides::default())
+                .expect("load default config");
+        let temp_code_home = std::env::temp_dir().join(format!(
+            "code-app-server-message-processor-apps-list-unknown-thread-{}",
+            Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&temp_code_home).expect("create temp code home");
+        config.code_home = temp_code_home.clone();
+
+        let mut processor =
+            MessageProcessor::new(outgoing, None, Arc::new(config), Vec::new(), Vec::new());
+        let mut session = ConnectionSessionState::default();
+        let outbound_initialized = AtomicBool::new(false);
+        let outbound_opted_out_notification_methods = RwLock::new(HashSet::new());
+
+        let init_request = JSONRPCRequest {
+            jsonrpc: JSONRPC_VERSION.to_string(),
+            id: RequestId::Integer(1),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "clientInfo": {
+                    "name": "client-tests",
+                    "version": "1.0.0"
+                },
+                "capabilities": {
+                    "experimentalApi": true
+                }
+            })),
+        };
+        processor
+            .process_request(
+                ConnectionId(7),
+                init_request,
+                &mut session,
+                &outbound_initialized,
+                &outbound_opted_out_notification_methods,
+            )
+            .await;
+        let _ = outgoing_rx.recv().await.expect("initialize response envelope");
+
+        let request = JSONRPCRequest {
+            jsonrpc: JSONRPC_VERSION.to_string(),
+            id: RequestId::Integer(2),
+            method: "app/list".to_string(),
+            params: Some(json!({
+                "threadId": Uuid::new_v4().to_string(),
+            })),
+        };
+        processor
+            .process_request(
+                ConnectionId(7),
+                request,
+                &mut session,
+                &outbound_initialized,
+                &outbound_opted_out_notification_methods,
+            )
+            .await;
+
+        let envelope = outgoing_rx.recv().await.expect("app/list error envelope");
+        match envelope {
+            OutgoingEnvelope::ToConnection {
+                connection_id: ConnectionId(7),
+                message: OutgoingMessage::Error(error),
+            } => {
+                assert_eq!(error.id, RequestId::Integer(2));
+                assert_eq!(error.error.code, INVALID_REQUEST_ERROR_CODE);
+                assert!(error.error.message.contains("thread not found"));
+            }
+            _ => panic!("expected app/list error response"),
+        }
 
         let _ = std::fs::remove_dir_all(temp_code_home);
     }
