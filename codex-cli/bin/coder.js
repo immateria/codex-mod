@@ -398,7 +398,14 @@ const { spawn } = await import("child_process");
 process.env.CODE_BINARY_PATH = binaryPath;
 
 const managedEnv = { ...process.env, CODE_BINARY_PATH: binaryPath };
-if (process.versions && process.versions.bun) {
+// Bun global installs (`bun install -g`) create a symlink under `~/.bun/bin` that
+// runs this script under Node (shebang). Detect that shim so `/update` can pick
+// the correct upgrade command.
+const invokedAs = process.argv[1] || "";
+const bunBinSegment = `${path.sep}.bun${path.sep}bin${path.sep}`;
+const isBunGlobalShim = invokedAs.includes(bunBinSegment);
+
+if ((process.versions && process.versions.bun) || isBunGlobalShim) {
   managedEnv.CODER_MANAGED_BY_BUN = "1";
   managedEnv.CODEX_MANAGED_BY_BUN = "1";
 } else {
