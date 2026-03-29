@@ -224,3 +224,131 @@ impl BottomPaneView<'_> for AppLinkView {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::app_event_sender::AppEventSender;
+    use crate::auto_drive_style::AutoDriveVariant;
+    use crate::bottom_pane::{BottomPane, BottomPaneParams};
+    use crossterm::event::KeyModifiers;
+    use std::sync::mpsc;
+
+    fn make_app_info(id: &str, name: &str, install_url: Option<String>) -> code_app_server_protocol::AppInfo {
+        code_app_server_protocol::AppInfo {
+            id: id.to_string(),
+            name: name.to_string(),
+            description: None,
+            logo_url: None,
+            logo_url_dark: None,
+            distribution_channel: None,
+            branding: None,
+            app_metadata: None,
+            labels: None,
+            install_url,
+            is_accessible: false,
+            is_enabled: false,
+            plugin_display_names: Vec::new(),
+        }
+    }
+
+    fn make_pane(app_event_tx: AppEventSender) -> BottomPane<'static> {
+        BottomPane::new(BottomPaneParams {
+            app_event_tx,
+            has_input_focus: true,
+            using_chatgpt_auth: true,
+            auto_drive_variant: AutoDriveVariant::default(),
+        })
+    }
+
+    #[test]
+    fn install_action_opens_url_and_switches_to_confirmation() {
+        let (tx, rx) = mpsc::channel::<AppEvent>();
+        let app_event_tx = AppEventSender::new(tx);
+
+        let app = make_app_info(
+            "gdrive",
+            "Google Drive",
+            Some("https://chatgpt.com/apps/google-drive/gdrive".to_string()),
+        );
+        let expected_url = app.install_url.clone().expect("install url");
+
+        let mut view = AppLinkView::new(AppLinkViewParams { app }, app_event_tx.clone());
+        let mut pane = make_pane(app_event_tx.clone());
+
+        view.handle_key_event(
+            &mut pane,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+        );
+
+        match rx.try_recv().expect("OpenUrlInBrowser") {
+            AppEvent::OpenUrlInBrowser { url } => assert_eq!(url, expected_url),
+            other => panic!("unexpected event: {other:?}"),
+        }
+
+        assert!(!view.is_complete());
+        assert_eq!(view.action_labels()[0], "I already installed it");
+    }
+
+    #[test]
+    fn confirm_action_refreshes_directory_and_closes() {
+        let (tx, rx) = mpsc::channel::<AppEvent>();
+        let app_event_tx = AppEventSender::new(tx);
+
+        let app = make_app_info(
+            "gdrive",
+            "Google Drive",
+            Some("https://chatgpt.com/apps/google-drive/gdrive".to_string()),
+        );
+
+        let mut view = AppLinkView::new(AppLinkViewParams { app }, app_event_tx.clone());
+        let mut pane = make_pane(app_event_tx.clone());
+
+        // Enter on first screen emits OpenUrlInBrowser and moves into confirmation.
+        view.handle_key_event(
+            &mut pane,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+        );
+        let _ = rx.try_recv().expect("OpenUrlInBrowser");
+        assert_eq!(view.action_labels()[0], "I already installed it");
+
+        // Enter on confirmation triggers refresh and closes.
+        view.handle_key_event(
+            &mut pane,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+        );
+        match rx.try_recv().expect("FetchAppsDirectory") {
+            AppEvent::FetchAppsDirectory { force_refetch } => assert!(force_refetch),
+            other => panic!("unexpected event: {other:?}"),
+        }
+        assert!(view.is_complete());
+    }
+
+    #[test]
+    fn esc_closes_without_emitting() {
+        let (tx, rx) = mpsc::channel::<AppEvent>();
+        let app_event_tx = AppEventSender::new(tx);
+
+        let app = make_app_info(
+            "gdrive",
+            "Google Drive",
+            Some("https://chatgpt.com/apps/google-drive/gdrive".to_string()),
+        );
+
+        // Link screen.
+        let mut view = AppLinkView::new(AppLinkViewParams { app: app.clone() }, app_event_tx.clone());
+        let mut pane = make_pane(app_event_tx.clone());
+        view.handle_key_event(&mut pane, KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert!(view.is_complete());
+        assert!(rx.try_recv().is_err());
+
+        // Confirmation screen.
+        let mut view = AppLinkView::new(AppLinkViewParams { app }, app_event_tx.clone());
+        view.handle_key_event(&mut pane, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        let _ = rx.try_recv().expect("OpenUrlInBrowser");
+        view.handle_key_event(&mut pane, KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert!(view.is_complete());
+        assert!(rx.try_recv().is_err());
+    }
+}

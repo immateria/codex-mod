@@ -68,3 +68,4 @@
     include!("hooks.rs");
     include!("autodrive.rs");
     include!("streaming.rs");
+    include!("apps.rs");
