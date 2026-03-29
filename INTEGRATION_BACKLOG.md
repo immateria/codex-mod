@@ -1,6 +1,6 @@
 # Integration Backlog
 
-Last updated: 2026-03-27
+Last updated: 2026-03-29
 
 This repo maintains two Rust workspaces:
 - `codex-rs/`: read-only mirror of `openai/codex` (upstream landing zone).
@@ -63,6 +63,11 @@ preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
 - `codex-rs/package-manager`:
   - Port upstream managed package installer (platform detection + archive fetch/verify/extract + install locks).
   - Commit: `c0886bdb64`.
+
+- Managed installer upgrade detection for `/update` + Upgrade settings UI:
+  - Supports `tui.upgrade_command` override and installer inference (npm, bun, Homebrew formula).
+  - Bun global installs are detected via both `~/.bun/bin` and custom `BUN_INSTALL` roots.
+  - Commits: `9eeb5779a0`, `3064811f4e`, `1d7111b212`.
 
 ## Next: Upstream Intake (Selective, Bisectable)
 
