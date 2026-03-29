@@ -61,6 +61,7 @@ pub(crate) struct MessageProcessor {
     command_exec_manager: crate::command_exec::CommandExecManager,
     code_message_processor: CodexMessageProcessor,
     external_agent_config_api: ExternalAgentConfigApi,
+    fs_api: crate::fs_api::FsApi,
     fs_watch_manager: FsWatchManager,
     base_config: Arc<Config>,
     auth_manager: Arc<AuthManager>,
@@ -114,12 +115,14 @@ impl MessageProcessor {
         let external_agent_config_api =
             ExternalAgentConfigApi::new(config.code_home.clone());
         let fs_watch_manager = FsWatchManager::new(outgoing.clone());
+        let fs_api = crate::fs_api::FsApi::new(&config_for_processor);
 
         Self {
             outgoing,
             command_exec_manager: crate::command_exec::CommandExecManager::default(),
             code_message_processor,
             external_agent_config_api,
+            fs_api,
             fs_watch_manager,
             base_config: config_for_processor,
             auth_manager,

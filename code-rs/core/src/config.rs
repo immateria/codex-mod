@@ -527,6 +527,14 @@ pub struct Config {
     /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
     pub chatgpt_base_url: String,
 
+    /// Experimental / do not use. Overrides the URL used when connecting to
+    /// a remote exec server.
+    pub experimental_exec_server_url: Option<String>,
+
+    /// Experimental / do not use. When set, spawns a local exec-server subprocess
+    /// and routes supported operations through it.
+    pub experimental_spawn_exec_server: bool,
+
     /// Plugin marketplace source configuration.
     pub plugins: PluginsToml,
 
@@ -915,6 +923,15 @@ pub struct ConfigToml {
 
     /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
     pub chatgpt_base_url: Option<String>,
+
+    /// Experimental / do not use. Overrides the URL used when connecting to
+    /// a remote exec server.
+    pub experimental_exec_server_url: Option<String>,
+
+    /// Experimental / do not use. When set, spawns a local exec-server subprocess
+    /// and routes supported operations through it.
+    #[serde(default)]
+    pub experimental_spawn_exec_server: bool,
 
     /// Upstream-compatible `hooks.json` lifecycle hooks configuration.
     #[serde(default)]
@@ -2241,6 +2258,12 @@ impl Config {
                 .chatgpt_base_url
                 .or(cfg.chatgpt_base_url)
                 .unwrap_or("https://chatgpt.com/backend-api/".to_string()),
+            experimental_exec_server_url: cfg
+                .experimental_exec_server_url
+                .as_ref()
+                .map(|url| url.trim().to_string())
+                .filter(|url| !url.is_empty()),
+            experimental_spawn_exec_server: cfg.experimental_spawn_exec_server,
             plugins: cfg.plugins.unwrap_or_default(),
             apps_sources: config_profile
                 .apps

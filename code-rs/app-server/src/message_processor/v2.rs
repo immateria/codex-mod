@@ -613,6 +613,22 @@ impl MessageProcessor {
         request_id: mcp_types::RequestId,
         params: FsReadFileParams,
     ) {
+        if self.fs_api.is_enabled() {
+            match self.fs_api.read_file(params).await {
+                Ok(response) => {
+                    self.outgoing
+                        .send_response_to_connection(connection_id, request_id, response)
+                        .await;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(connection_id, request_id, err)
+                        .await;
+                }
+            }
+            return;
+        }
+
         match tokio::fs::read(params.path.as_path()).await {
             Ok(bytes) => {
                 let response = FsReadFileResponse {
@@ -636,6 +652,22 @@ impl MessageProcessor {
         request_id: mcp_types::RequestId,
         params: FsWriteFileParams,
     ) {
+        if self.fs_api.is_enabled() {
+            match self.fs_api.write_file(params).await {
+                Ok(response) => {
+                    self.outgoing
+                        .send_response_to_connection(connection_id, request_id, response)
+                        .await;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(connection_id, request_id, err)
+                        .await;
+                }
+            }
+            return;
+        }
+
         let bytes = match STANDARD.decode(params.data_base64) {
             Ok(bytes) => bytes,
             Err(err) => {
@@ -676,6 +708,22 @@ impl MessageProcessor {
         request_id: mcp_types::RequestId,
         params: FsCreateDirectoryParams,
     ) {
+        if self.fs_api.is_enabled() {
+            match self.fs_api.create_directory(params).await {
+                Ok(response) => {
+                    self.outgoing
+                        .send_response_to_connection(connection_id, request_id, response)
+                        .await;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(connection_id, request_id, err)
+                        .await;
+                }
+            }
+            return;
+        }
+
         let recursive = params.recursive.unwrap_or(true);
         let result = if recursive {
             tokio::fs::create_dir_all(params.path.as_path()).await
@@ -707,6 +755,22 @@ impl MessageProcessor {
         request_id: mcp_types::RequestId,
         params: FsGetMetadataParams,
     ) {
+        if self.fs_api.is_enabled() {
+            match self.fs_api.get_metadata(params).await {
+                Ok(response) => {
+                    self.outgoing
+                        .send_response_to_connection(connection_id, request_id, response)
+                        .await;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(connection_id, request_id, err)
+                        .await;
+                }
+            }
+            return;
+        }
+
         match tokio::fs::metadata(params.path.as_path()).await {
             Ok(metadata) => {
                 let created_at_ms = metadata
@@ -743,6 +807,22 @@ impl MessageProcessor {
         request_id: mcp_types::RequestId,
         params: FsReadDirectoryParams,
     ) {
+        if self.fs_api.is_enabled() {
+            match self.fs_api.read_directory(params).await {
+                Ok(response) => {
+                    self.outgoing
+                        .send_response_to_connection(connection_id, request_id, response)
+                        .await;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(connection_id, request_id, err)
+                        .await;
+                }
+            }
+            return;
+        }
+
         let mut entries_out = Vec::new();
         match tokio::fs::read_dir(params.path.as_path()).await {
             Ok(mut entries) => loop {
@@ -800,6 +880,22 @@ impl MessageProcessor {
         request_id: mcp_types::RequestId,
         params: FsRemoveParams,
     ) {
+        if self.fs_api.is_enabled() {
+            match self.fs_api.remove(params).await {
+                Ok(response) => {
+                    self.outgoing
+                        .send_response_to_connection(connection_id, request_id, response)
+                        .await;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(connection_id, request_id, err)
+                        .await;
+                }
+            }
+            return;
+        }
+
         let recursive = params.recursive.unwrap_or(true);
         let force = params.force.unwrap_or(true);
 
@@ -841,6 +937,22 @@ impl MessageProcessor {
         request_id: mcp_types::RequestId,
         params: FsCopyParams,
     ) {
+        if self.fs_api.is_enabled() {
+            match self.fs_api.copy(params).await {
+                Ok(response) => {
+                    self.outgoing
+                        .send_response_to_connection(connection_id, request_id, response)
+                        .await;
+                }
+                Err(err) => {
+                    self.outgoing
+                        .send_error_to_connection(connection_id, request_id, err)
+                        .await;
+                }
+            }
+            return;
+        }
+
         let result = if params.recursive {
             copy_dir_recursive(
                 params.source_path.as_path(),

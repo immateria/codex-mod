@@ -36,6 +36,9 @@ pub struct JSONRPCRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub params: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub trace: Option<serde_json::Value>,
 }
 
 /// A notification which does not expect a response.
@@ -69,4 +72,3 @@ pub struct JSONRPCErrorError {
     pub data: Option<serde_json::Value>,
     pub message: String,
 }
-

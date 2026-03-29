@@ -27,6 +27,7 @@ code-connectors = { workspace = true }
 code-file-search = { workspace = true }
 code-login = { workspace = true }
 code-rmcp-client = { workspace = true }
+code-exec-server = { workspace = true }
 code-app-server-protocol = { workspace = true }
 code-protocol = { workspace = true }
 code-utils-pty = { workspace = true }
@@ -58,3 +59,4 @@ uuid = { workspace = true, features = ["serde", "v7"] }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
+tempfile = { workspace = true }

@@ -40,8 +40,10 @@ use crate::transport::start_websocket_acceptor;
 
 pub mod code_message_processor;
 mod command_exec;
+mod exec_server_spawn;
 mod error_code;
 mod external_agent_config_api;
+mod fs_api;
 mod fs_watch;
 mod fuzzy_file_search;
 mod message_processor;
