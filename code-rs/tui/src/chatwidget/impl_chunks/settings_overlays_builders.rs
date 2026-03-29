@@ -33,7 +33,7 @@ impl ChatWidget<'_> {
             error: None,
         }));
 
-        let resolution = crate::updates::resolve_upgrade_resolution();
+        let resolution = crate::updates::resolve_upgrade_resolution(&self.config);
         let (command, display, instructions) = match &resolution {
             crate::updates::UpgradeResolution::Command { command, display } => (
                 Some(command.clone()),

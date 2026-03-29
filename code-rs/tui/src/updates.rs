@@ -178,38 +178,20 @@ fn version_filepath(config: &Config) -> PathBuf {
     config.code_home.join(VERSION_FILENAME)
 }
 
-pub fn resolve_upgrade_resolution() -> UpgradeResolution {
-    if std::env::var_os("CODEX_MANAGED_BY_NPM").is_some() {
-        return UpgradeResolution::Command {
-            command: vec![
-                "npm".to_string(),
-                "install".to_string(),
-                "-g".to_string(),
-                "@just-every/code@latest".to_string(),
-            ],
-            display: "npm install -g @just-every/code@latest".to_string(),
-        };
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        if let Ok(exe_path) = std::env::current_exe()
-            && (exe_path.starts_with("/opt/homebrew") || exe_path.starts_with("/usr/local")) {
-                return UpgradeResolution::Command {
-                    command: vec![
-                        "brew".to_string(),
-                        "upgrade".to_string(),
-                        "code".to_string(),
-                    ],
-                    display: "brew upgrade code".to_string(),
-                };
+pub fn resolve_upgrade_resolution(config: &Config) -> UpgradeResolution {
+    match crate::update_action::detect_update_action(config) {
+        Some(action) => {
+            let (command, display) = action.command_and_display();
+            UpgradeResolution::Command {
+                command,
+                display,
             }
-    }
-
-    UpgradeResolution::Manual {
-        instructions: format!(
-            "Download the latest release from {CODE_RELEASE_URL} and replace the installed binary."
-        ),
+        }
+        None => UpgradeResolution::Manual {
+            instructions: format!(
+                "Download the latest release from {CODE_RELEASE_URL} and replace the installed binary."
+            ),
+        },
     }
 }
 
@@ -224,7 +206,7 @@ pub async fn auto_upgrade_if_enabled(config: &Config) -> anyhow::Result<AutoUpgr
         return Ok(AutoUpgradeOutcome::default());
     }
 
-    let resolution = resolve_upgrade_resolution();
+    let resolution = resolve_upgrade_resolution(config);
     let (command, command_display) = match resolution {
         UpgradeResolution::Command {
             command,

@@ -2271,6 +2271,14 @@ pub struct Tui {
     #[serde(default)]
     pub notifications: Notifications,
 
+    /// Optional custom upgrade command for `/update` and the Upgrade settings UI.
+    ///
+    /// When set, Code uses this command in place of installer inference (npm/bun/Homebrew).
+    /// This is the intended way to support other installation methods (for example, `cargo`
+    /// or `nix`) without adding brittle heuristics.
+    #[serde(default, deserialize_with = "deserialize_command_vec")]
+    pub upgrade_command: Vec<String>,
+
     /// Whether to use the terminal's Alternate Screen (full-screen) mode.
     /// When false, Codex renders nothing and leaves the standard terminal
     /// buffer visible; users can toggle back to Alternate Screen at runtime
@@ -2415,6 +2423,7 @@ impl Default for Tui {
             stream: StreamConfig::default(),
             spinner: SpinnerSelection::default(),
             notifications: Notifications::default(),
+            upgrade_command: Vec::new(),
             alternate_screen: true,
             review_auto_resolve: true,
             auto_review_enabled: true,

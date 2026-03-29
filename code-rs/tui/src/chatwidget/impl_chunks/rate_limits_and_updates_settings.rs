@@ -306,7 +306,7 @@ impl ChatWidget<'_> {
             return;
         }
 
-        match crate::updates::resolve_upgrade_resolution() {
+        match crate::updates::resolve_upgrade_resolution(&self.config) {
             crate::updates::UpgradeResolution::Command { command, display } => {
                 if command.is_empty() {
                     self.history_push_plain_state(history_cell::new_error_event(

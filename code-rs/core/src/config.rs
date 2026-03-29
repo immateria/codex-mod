@@ -4821,3 +4821,50 @@ mod notifications_tests {
         ));
     }
 }
+
+#[cfg(test)]
+mod upgrade_command_tests {
+    use crate::config_types::Tui;
+    use serde::Deserialize;
+
+    #[derive(Deserialize, Debug)]
+    struct RootTomlTest {
+        tui: Tui,
+    }
+
+    #[test]
+    fn tui_upgrade_command_accepts_string() {
+        let toml = r#"
+            [tui]
+            upgrade_command = "nix profile upgrade code"
+        "#;
+        let parsed: RootTomlTest = toml::from_str(toml).expect("deserialize upgrade_command");
+        assert_eq!(
+            parsed.tui.upgrade_command,
+            vec![
+                "nix".to_string(),
+                "profile".to_string(),
+                "upgrade".to_string(),
+                "code".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn tui_upgrade_command_accepts_array() {
+        let toml = r#"
+            [tui]
+            upgrade_command = ["bun", "install", "-g", "@just-every/code@latest"]
+        "#;
+        let parsed: RootTomlTest = toml::from_str(toml).expect("deserialize upgrade_command");
+        assert_eq!(
+            parsed.tui.upgrade_command,
+            vec![
+                "bun".to_string(),
+                "install".to_string(),
+                "-g".to_string(),
+                "@just-every/code@latest".to_string(),
+            ]
+        );
+    }
+}
