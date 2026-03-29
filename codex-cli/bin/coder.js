@@ -403,7 +403,13 @@ const managedEnv = { ...process.env, CODE_BINARY_PATH: binaryPath };
 // the correct upgrade command.
 const invokedAs = process.argv[1] || "";
 const bunBinSegment = `${path.sep}.bun${path.sep}bin${path.sep}`;
-const isBunGlobalShim = invokedAs.includes(bunBinSegment);
+const bunInstallRoot = process.env.BUN_INSTALL || "";
+const bunInstallBinPrefix = bunInstallRoot
+  ? `${path.join(bunInstallRoot, "bin")}${path.sep}`
+  : "";
+const isBunGlobalShim =
+  invokedAs.includes(bunBinSegment) ||
+  (bunInstallBinPrefix && invokedAs.startsWith(bunInstallBinPrefix));
 
 if ((process.versions && process.versions.bun) || isBunGlobalShim) {
   managedEnv.CODER_MANAGED_BY_BUN = "1";
