@@ -1610,6 +1610,7 @@ dependencies = [
  "codex-message-history",
  "codex-network-proxy",
  "codex-shell-command",
+ "codex-terminal-detection",
  "codex-utils-absolute-path",
  "codex-utils-pty",
  "codex-utils-string",
@@ -2263,6 +2264,14 @@ dependencies = [
  "tree-sitter",
  "tree-sitter-bash",
  "url",
+]
+
+[[package]]
+name = "codex-terminal-detection"
+version = "0.0.0"
+dependencies = [
+ "pretty_assertions",
+ "tracing",
 ]
 
 [[package]]

@@ -43,6 +43,7 @@ members = [
     "rmcp-client",
     "responses-api-proxy",
     "otel",
+    "terminal-detection",
     "tui",
     "git-apply",
     "utils/absolute-path",
@@ -118,6 +119,7 @@ code-protocol-ts = { path = "protocol-ts" }
 code-responses-api-proxy = { path = "responses-api-proxy" }
 code-rmcp-client = { path = "rmcp-client" }
 code-otel = { path = "otel" }
+code-terminal-detection = { path = "terminal-detection", package = "codex-terminal-detection" }
 code-tui = { path = "tui" }
 code-utils-readiness = { path = "utils/readiness" }
 code-auto-drive-core = { path = "code-auto-drive-core" }
