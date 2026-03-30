@@ -418,7 +418,7 @@ impl<T> Pipe for T {
 
 fn is_history_header(line: &str) -> bool {
     let trimmed = line.trim_start();
-    matches!(trimmed.chars().next(), Some(ch) if matches!(ch, '›' | '•' | '⋮' | '⚙' | '✔' | '✖' | '✶'))
+    matches!(trimmed.chars().next(), Some(ch) if matches!(ch, '›' | '•' | '⋮' | '⚙' | '✔' | '✗' | '✖' | '✶'))
 }
 
 fn count_collapsed_boundaries(output: &str) -> usize {
@@ -2402,7 +2402,8 @@ fn plan_agent_keeps_single_aggregate_block() {
             parent_call_id: None,
             tool_name: "agent_result".into(),
             parameters: Some(json!({
-                "action": "result"
+                "action": "result",
+                "batch_id": "batch-plan"
             })),
         }),
     );

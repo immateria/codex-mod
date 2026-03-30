@@ -289,7 +289,14 @@ fn dynamic_welcome_lines(
             }
         }
     };
-    pad_lines_vertically(core_lines, target_height, valign)
+    let mut out = pad_lines_vertically(core_lines, target_height, valign);
+    if !matches!(size, IntroArtSize::Tiny)
+        && let Some(last) = out.last_mut()
+        && last.trim().is_empty()
+    {
+        *last = center_line("Interactive: type /help", max_width);
+    }
+    out
 }
 
 fn compose_meta_line(brand_title: &str, version: &str, max_width: usize) -> String {

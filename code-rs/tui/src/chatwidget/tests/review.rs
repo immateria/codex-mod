@@ -196,6 +196,7 @@
     
     #[test]
     fn auto_review_triggers_when_enabled_and_diff_seen() {
+    let _stub_lock = AUTO_STUB_LOCK.lock().unwrap();
     let _guard = AutoReviewStubGuard::install(|| {});
     let _capture_guard = CaptureCommitStubGuard::install(|_, _| {
         Ok(GhostCommit::new("baseline".to_string(), None))
@@ -213,6 +214,7 @@
     
     #[test]
     fn auto_review_does_not_duplicate_while_running() {
+    let _stub_lock = AUTO_STUB_LOCK.lock().unwrap();
     let calls = Arc::new(AtomicUsize::new(0));
     let calls_clone = calls.clone();
     let _guard = AutoReviewStubGuard::install(move || {
@@ -238,6 +240,7 @@
     
     #[test]
     fn auto_review_skips_when_no_changes_since_reviewed_snapshot() {
+    let _stub_lock = AUTO_STUB_LOCK.lock().unwrap();
     let _rt = enter_test_runtime_guard();
     let calls = Arc::new(AtomicUsize::new(0));
     let calls_clone = calls.clone();
@@ -552,42 +555,50 @@
     
     #[test]
     fn missing_agent_clis_start_disabled_in_overview() {
-    let orig_path = std::env::var_os("PATH");
-    unsafe {
-        std::env::set_var("PATH", "");
-    }
-    
     let mut harness = ChatWidgetHarness::new();
     let chat = harness.chat();
+
+    // Avoid mutating global PATH (which can break other tests when run in
+    // parallel). Instead, add a deterministic "missing CLI" agent entry that
+    // points at a non-existent file path so `command_exists(...)` is false
+    // regardless of the host environment.
+    chat.config.agents.push(code_core::config_types::AgentConfig {
+        name: "missing-agent-cli".to_string(),
+        command: "/nonexistent/missing-agent-cli".to_string(),
+        args: Vec::new(),
+        read_only: false,
+        enabled: true,
+        description: None,
+        env: None,
+        args_read_only: None,
+        args_write: None,
+        instructions: None,
+    });
     
     let (rows, _commands) = chat.collect_agents_overview_rows();
-    let qwen = rows
+    let missing = rows
         .iter()
-        .find(|row| row.name == "qwen-3-coder")
-        .expect("qwen row present");
-    assert!(!qwen.installed);
-    assert!(!qwen.enabled);
+        .find(|row| row.name == "missing-agent-cli")
+        .expect("missing agent row present");
+    assert!(!missing.installed);
+    assert!(!missing.enabled);
     
+    let code_slug = enabled_agent_model_specs()
+        .into_iter()
+        .find(|spec| spec.family == "code")
+        .expect("code agent spec present")
+        .slug;
     let code = rows
         .iter()
-        .find(|row| row.name == "code-gpt-5.2")
+        .find(|row| row.name == code_slug)
         .expect("code row present");
     assert!(code.installed);
     assert!(code.enabled);
-    
-    if let Some(path) = orig_path {
-        unsafe {
-            std::env::set_var("PATH", path);
-        }
-    } else {
-        unsafe {
-            std::env::remove_var("PATH");
-        }
-    }
     }
     
     #[test]
     fn skipped_auto_review_with_findings_defers_to_next_turn() {
+    let _stub_lock = AUTO_STUB_LOCK.lock().unwrap();
     let _rt = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
     let chat = harness.chat();
@@ -659,6 +670,7 @@
     
     #[test]
     fn skipped_auto_review_clean_runs_immediately() {
+    let _stub_lock = AUTO_STUB_LOCK.lock().unwrap();
     let _rt = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
     let chat = harness.chat();
@@ -711,6 +723,7 @@
     
     #[test]
     fn multiple_skipped_auto_reviews_collapse_to_first_base() {
+    let _stub_lock = AUTO_STUB_LOCK.lock().unwrap();
     let _rt = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
     let chat = harness.chat();
@@ -777,6 +790,7 @@
     
     #[test]
     fn stale_background_review_is_reclaimed() {
+    let _stub_lock = AUTO_STUB_LOCK.lock().unwrap();
     let _rt = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
     let chat = harness.chat();

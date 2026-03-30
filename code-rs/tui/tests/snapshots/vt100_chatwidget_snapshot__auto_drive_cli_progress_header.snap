@@ -1,11 +1,12 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 861
 expression: "frames.join(\"\\n---FRAME---\\n\")"
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-   - Running commands
+ • - Running commands
 
 
   Auto Drive > Ready: run cargo check  ✶ Running (Xs)
@@ -18,7 +19,7 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-   - Running commands
+ • - Running commands
 
 
   Auto Drive > Running cargo check... · Installed dependencies  ✶ Thinking (Xs)
@@ -31,7 +32,7 @@ expression: "frames.join(\"\\n---FRAME---\\n\")"
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-   - Running commands
+ • - Running commands
 
 
   Auto Drive > Running cargo check... · Installed dependencies  ✶ Running (Xs)

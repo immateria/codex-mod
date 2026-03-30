@@ -6,27 +6,27 @@ expression: open
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
-
-
-
- • I can help with various tasks including:
-
-   - Writing code
-   - Reading files
-   - Running commands
-
-
- +------------------------------------------- Settings -------------------------------------------+
- | ↑↓/jk move  Enter open  Esc close                                                              |
- | > Model           Model: GPT-5.3-Codex (Medium)                                                |
- |   Theme           Theme: Light - Photon (16-color) · Spinner: Diamond                          |
- |   Interface       Mode: auto · Overlay >= 100                                                  |
- |   Shell           Shell: auto                                                                  |
- |   Shell profiles  Active: auto                                                                 |
- |   Updates         Auto update: Disabled                                                        |
- |   Accounts        Auto-switch: On · API key fallback: Off                                      |
- |   Agents          Enabled: 10/11                                                               |
- |   Prompts         Prompts enabled: 0                                                           |
- |   Skills          Skills loaded: 0                                                             |
- | Choose the language model used for new completions.                                            |
+ +Settings ▸ Overview-----------------------------------------------------------------------------+
+ |                                                                                                |
+ | › Model              Model: GPT-5.3-Codex (Medium)                                             |
+ |   + Choose the language model used for new completions.                                        |
+ |                           +----------------------------------------+                           |
+ |   Theme              Theme|Settings Overview                       |mond                       |
+ |   + Switch between preset |                                        |                           |
+ |                           |• ↑/↓  Move between sections            |                           |
+ |   Interface          Mode:|• Enter  Open selected section          |                           |
+ |   + Control Settings UI ro|• Tab    Jump forward between sections  |                           |
+ |                           |• Esc    Close settings                 |                           |
+ |   Experimental       Enabl|• ?      Toggle this help               |                           |
+ |   + Toggle experimental fe|                                        |fter session reconf...     |
+ |                           |Press Esc to close                      |                           |
+ |   Shell              Shell+----------------------------------------+                           |
+ |   + Select the shell used for tool execution.                                                  |
+ | ↑ ↓ Move    Enter Open    Esc Close    ? Help                                                  |
+ |                                                                                                |
  +------------------------------------------------------------------------------------------------+
+
+ +------------------------------------------------------------------------------------------------+
+ | What can I code for you today?                                                                 |
+ +------------------------------------------------------------------------------------------------+
+ Read Only  (Shift+Tab change)                                           Ctrl+G editor  •  API key

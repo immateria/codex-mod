@@ -6,25 +6,25 @@ expression: closed
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
-
-
-
-
-
-
-
-
-
- • Hello! How can I help you today?
-
-
-
- • I can help with various tasks including:
-
-   - Writing code
-   - Reading files
-   - Running commands
-
+ +Settings ▸ Overview-----------------------------------------------------------------------------+
+ |                                                                                                |
+ | › Model              Model: GPT-5.3-Codex (Medium)                                             |
+ |   + Choose the language model used for new completions.                                        |
+ |                                                                                                |
+ |   Theme              Theme: Light - Photon (16-color) · Spinner: Diamond                       |
+ |   + Switch between preset color palettes and adjust contrast.                                  |
+ |                                                                                                |
+ |   Interface          Mode: overlay                                                             |
+ |   + Control Settings UI routing and other layout preferences.                                  |
+ |                                                                                                |
+ |   Experimental       Enabled: 1/5                                                              |
+ |   + Toggle experimental features (saved to config.toml and applied after session reconf...     |
+ |                                                                                                |
+ |   Shell              Shell: auto                                                               |
+ |   + Select the shell used for tool execution.                                                  |
+ | ↑ ↓ Move    Enter Open    Esc Close    ? Help                                                  |
+ |                                                                                                |
+ +------------------------------------------------------------------------------------------------+
 
  +------------------------------------------------------------------------------------------------+
  | What can I code for you today?                                                                 |

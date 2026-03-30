@@ -116,6 +116,7 @@ mod util {
 }
 mod spinner;
 mod tui;
+mod tui_env;
 #[cfg(feature = "code-fork")]
 mod tui_event_extensions;
 #[cfg(feature = "code-fork")]
@@ -279,6 +280,10 @@ pub mod test_helpers {
                     frame.render_widget_ref(&*chat_widget, area);
                 })
                 .unwrap_or_else(|err| panic!("failed to draw VT100 frame: {err}"));
+
+                terminal
+                    .hide_cursor()
+                    .unwrap_or_else(|err| panic!("failed to hide VT100 cursor: {err}"));
 
                 terminal
                     .backend_mut()

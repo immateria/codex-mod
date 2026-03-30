@@ -6,27 +6,27 @@ expression: section_open
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
-                                 Code · v0.0.0
-
-
-
-
-
-
-
-
- • Hello! How can I help you today?
-
-
-
- • I can help with various tasks including:
-
-   - Writing code
-   - Reading files
-   - Running commands
-
+ +Settings ▸ Model--------------------------------------------------------------------------------+
+ |                                                                                                |
+ | ›  Model              + Select Model & Reasoning --------------------------------------------+ |
+ |    Theme              |                                                                      | |
+ |    Interface          | C+-----------------------------------------+                         | |
+ |    Experimental       | R|Model Shortcuts                          |                         | |
+ |    Shell              |  |                                         |                         | |
+ |    Shell profiles     | M|• Esc    Return to overview              |                         | |
+ |    Exec limits        | F|• Tab    Focus content                   |vailable on supported mo | |
+ |    Updates            | A|• Shift+Tab  Focus sidebar               |checks. Past 272,000 inp | |
+ |    Accounts           | ›|• ↑/↓    Change section (sidebar focus)  |                         | |
+ |    Apps               |  |• ?      Toggle this help                |                         | |
+ |    Agents             |  |                                         |                         | |
+ |    Memories           | ↑|Press Esc twice to close                 |dit   Ctrl+S Save defaul | |
+ |    Prompts            |  +-----------------------------------------+                         | |
+ |  ↓ Skills             +----------------------------------------------------------------------+ |
+ | Tab Content  Shift+Tab Sidebar  Esc Overview  ? Help  Focus: Content                           |
+ |                                                                                                |
+ +------------------------------------------------------------------------------------------------+
 
  +------------------------------------------------------------------------------------------------+
- | ?                                                                                              |
+ | What can I code for you today?                                                                 |
  +------------------------------------------------------------------------------------------------+
  Read Only  (Shift+Tab change)                                           Ctrl+G editor  •  API key

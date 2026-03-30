@@ -1,11 +1,12 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 751
 expression: output
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-
+ •
 
  » Missing stream id for assistant answer delta
 

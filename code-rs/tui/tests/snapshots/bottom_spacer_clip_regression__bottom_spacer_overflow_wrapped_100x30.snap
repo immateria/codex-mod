@@ -1,10 +1,11 @@
 ---
 source: tui/tests/bottom_spacer_clip_regression.rs
+assertion_line: 31
 expression: output
 ---
  |                                              Code                                              |
 
-   with scroll offsets.
+ › with scroll offsets.
 
 
    Assistant reply #6 contains a deliberately verbose paragraph that discusses wrapping,

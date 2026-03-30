@@ -14,6 +14,7 @@ use once_cell::sync::Lazy;
 use chrono::Utc;
 use ratatui::text::Line;
 use std::collections::VecDeque;
+use std::sync::Mutex;
 use std::sync::mpsc::{self, Receiver};
 use std::time::{Duration, Instant, SystemTime};
 use tokio::runtime::Runtime;
@@ -28,6 +29,8 @@ static TEST_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
         Err(err) => panic!("failed to build test runtime: {err}"),
     }
 });
+
+pub(crate) static TEST_ENV_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 #[cfg(test)]
 pub fn enter_test_runtime_guard() -> tokio::runtime::EnterGuard<'static> {
@@ -72,15 +75,13 @@ impl AutoContinueModeFixture {
 impl ChatWidgetHarness {
     pub fn new() -> Self {
         // Stabilize time-of-day dependent greeting so VT100 snapshots remain deterministic.
-        // Safe: tests run single-threaded by design.
-        unsafe { std::env::set_var("CODEX_TUI_FAKE_HOUR", "12"); }
-
-        unsafe {
-            std::env::set_var("CODEX_TUI_FORCE_MINIMAL_HEADER", "1");
-        }
-
-        unsafe {
-            std::env::set_var("CODE_TUI_TEST_MODE", "1");
+        // Safe: guarded by TEST_ENV_LOCK to avoid env var races between parallel tests.
+        {
+            let _env_lock = TEST_ENV_LOCK
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            unsafe { std::env::set_var("CODEX_TUI_FAKE_HOUR", "12"); }
+            unsafe { std::env::set_var("CODE_TUI_TEST_MODE", "1"); }
         }
 
         let cfg = Config::load_from_base_config_with_overrides(
@@ -117,6 +118,9 @@ impl ChatWidgetHarness {
             helper_seq: 0,
         };
         harness.chat.auto_state.elapsed_override = Some(Duration::from_secs(1));
+        // Avoid background refresh threads in tests; individual tests can opt in
+        // by clearing these fields.
+        harness.suppress_rate_limit_refresh();
         harness
     }
 

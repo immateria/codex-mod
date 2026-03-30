@@ -227,7 +227,7 @@ fn synthetic_end_clears_cancelled_exec_spinner() {
 
     let after = render_chat_widget_to_vt100(&mut harness, 80, 12);
     assert!(
-        after.contains("✖") || after.contains("exit code"),
+        after.contains("✗") || after.contains("exit code"),
         "synthetic end should mark the exec as finished:\n{after}"
     );
     assert!(

@@ -55,8 +55,8 @@ impl AppEventSender {
         let tx = if is_high { &self.high_tx } else { &self.bulk_tx };
         match tx.send(event) {
             Ok(()) => true,
-            Err(e) => {
-                tracing::error!("failed to send event: {e}");
+            Err(std::sync::mpsc::SendError(event)) => {
+                tracing::error!(?event, "failed to send event: sending on a closed channel");
                 false
             }
         }

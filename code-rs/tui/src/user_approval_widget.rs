@@ -217,36 +217,28 @@ impl UserApprovalWidget<'_> {
                     NetworkApprovalProtocol::Socks5Udp => "SOCKS5 UDP",
                 };
 
+                // Keep network approvals compact so common terminal sizes still show the
+                // full set of actions, even with the bottom pane height cap.
                 let mut contents: Vec<Line> = vec![
-                    Line::from(""),
                     Line::from(vec![
                         "? ".fg(crate::colors::info()),
                         "Network access blocked".bold(),
                     ]),
-                    Line::from(""),
                     Line::from(vec![
                         Span::styled("Host: ", Style::default().fg(crate::colors::text_dim())),
                         Span::raw(host.clone()),
                     ]),
                     Line::from(vec![
-                        Span::styled(
-                            "Protocol: ",
-                            Style::default().fg(crate::colors::text_dim()),
-                        ),
+                        Span::styled("Protocol: ", Style::default().fg(crate::colors::text_dim())),
                         Span::raw(protocol_label),
                     ]),
                     Line::from(vec![
-                        Span::styled(
-                            "Command: ",
-                            Style::default().fg(crate::colors::text_dim()),
-                        ),
+                        Span::styled("Command: ", Style::default().fg(crate::colors::text_dim())),
                         cmd_span,
                     ]),
-                    Line::from(""),
                 ];
                 if let Some(reason) = reason {
                     contents.push(Line::from(reason.clone().italic()));
-                    contents.push(Line::from(""));
                 }
                 contents.push(Line::from(Span::styled(
                     "To allow/deny permanently, edit Settings -> Network lists.",
@@ -254,7 +246,6 @@ impl UserApprovalWidget<'_> {
                         .fg(crate::colors::text_dim())
                         .add_modifier(Modifier::ITALIC),
                 )));
-                contents.push(Line::from(""));
                 Paragraph::new(contents).wrap(Wrap { trim: false })
             }
             ApprovalRequest::Permissions {
@@ -633,14 +624,30 @@ impl UserApprovalWidget<'_> {
 
     pub(crate) fn desired_height(&self, width: u16) -> u16 {
         let prompt = self.get_confirmation_prompt_height(width);
-        let option_lines = (self.select_options.len() as u16).saturating_mul(2);
-        prompt + option_lines + 2
+        // Each option renders:
+        // - label line
+        // - description line
+        // - blank spacer line (except after the last option)
+        let options = self.select_options.len() as u16;
+        let option_lines = if options == 0 {
+            0
+        } else {
+            options.saturating_mul(3).saturating_sub(1)
+        };
+        prompt.saturating_add(option_lines)
     }
 }
 
 impl WidgetRef for &UserApprovalWidget<'_> {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
-        let prompt_height = self.get_confirmation_prompt_height(area.width);
+        let mut prompt_height = self.get_confirmation_prompt_height(area.width);
+        // Favor keeping approval actions visible when space is tight (the bottom pane
+        // height is capped relative to terminal height).
+        let min_options_height = self.select_options.len() as u16;
+        if area.height > 0 && min_options_height > 0 {
+            let max_prompt_height = area.height.saturating_sub(min_options_height).max(1);
+            prompt_height = prompt_height.min(max_prompt_height);
+        }
         let [prompt_chunk, options_chunk] = Layout::vertical([
             Constraint::Length(prompt_height),
             Constraint::Min(0),
@@ -650,6 +657,14 @@ impl WidgetRef for &UserApprovalWidget<'_> {
         self.confirmation_prompt.clone().render(prompt_chunk, buf);
 
         let mut lines: Vec<Line> = Vec::new();
+        let expanded_needed = if self.select_options.is_empty() {
+            0
+        } else {
+            (self.select_options.len() as u16)
+                .saturating_mul(3)
+                .saturating_sub(1)
+        };
+        let expanded = options_chunk.height >= expanded_needed;
         for (idx, option) in self.select_options.iter().enumerate() {
             let selected = idx == self.selected_option;
             let indicator = if selected { "› " } else { "  " };
@@ -663,17 +678,18 @@ impl WidgetRef for &UserApprovalWidget<'_> {
 
             let label = format!("{}{}{}", indicator, option.label, hotkey_suffix(option.hotkey));
             lines.push(Line::from(Span::styled(label, line_style)));
-
-            let desc_style = Style::default()
-                .fg(crate::colors::text_dim())
-                .add_modifier(Modifier::ITALIC);
-            lines.push(Line::from(Span::styled(
-                format!("    {}", option.description),
-                desc_style,
-            )));
-            lines.push(Line::from(""));
+            if expanded {
+                let desc_style = Style::default()
+                    .fg(crate::colors::text_dim())
+                    .add_modifier(Modifier::ITALIC);
+                lines.push(Line::from(Span::styled(
+                    format!("    {}", option.description),
+                    desc_style,
+                )));
+                lines.push(Line::from(""));
+            }
         }
-        if !lines.is_empty() {
+        if expanded && !lines.is_empty() {
             lines.pop();
         }
 

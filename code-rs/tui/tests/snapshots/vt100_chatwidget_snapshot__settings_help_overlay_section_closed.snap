@@ -6,27 +6,27 @@ expression: section_closed
  +------------------------------------------------------------------------------------------------+
  |                                              Code                                              |
  +------------------------------------------------------------------------------------------------+
-                                 Code · v0.0.0
-
-
-
-
-
-
-
-
- • Hello! How can I help you today?
-
-
-
- • I can help with various tasks including:
-
-   - Writing code
-   - Reading files
-   - Running commands
-
+ +Settings ▸ Model--------------------------------------------------------------------------------+
+ |                                                                                                |
+ | ›  Model              + Select Model & Reasoning --------------------------------------------+ |
+ |    Theme              |                                                                      | |
+ |    Interface          | Current model: gpt-5.3-codex                                         | |
+ |    Experimental       | Reasoning effort: Medium                                             | |
+ |    Shell              |                                                                      | |
+ |    Shell profiles     | Mode Settings                                                        | |
+ |    Exec limits        | Fast mode speeds up replies. 1M Context is available on supported mo | |
+ |    Updates            | Auto uses 1M limits and pre-turn compaction checks. Past 272,000 inp | |
+ |    Accounts           | › Context preset: auto                                               | |
+ |    Apps               |   Context window: 272,000 tokens (auto)                              | |
+ |    Agents             |                                                                      | |
+ |    Memories           | ↑↓ Navigate   ←→ +/- Adjust   Enter Select/Edit   Ctrl+S Save defaul | |
+ |    Prompts            |                                                                      | |
+ |  ↓ Skills             +----------------------------------------------------------------------+ |
+ | Tab Content  Shift+Tab Sidebar  Esc Overview  ? Help  Focus: Content                           |
+ |                                                                                                |
+ +------------------------------------------------------------------------------------------------+
 
  +------------------------------------------------------------------------------------------------+
- | ?                                                                                              |
+ | What can I code for you today?                                                                 |
  +------------------------------------------------------------------------------------------------+
  Read Only  (Shift+Tab change)                                           Ctrl+G editor  •  API key

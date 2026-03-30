@@ -185,6 +185,9 @@ fn send_browser_screenshot_update_emits_codex_event() {
 
 #[test]
 fn cached_connection_write_skips_empty() {
+    let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let dir = tempdir().expect("tempdir");
     let _home_guard = EnvVarGuard::set("CODE_HOME", dir.path().as_os_str().to_owned());
     let _codex_home_guard = EnvVarGuard::clear("CODEX_HOME");
@@ -208,6 +211,9 @@ fn cached_connection_write_skips_empty() {
 
 #[test]
 fn cached_connection_round_trips() {
+    let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let dir = tempdir().expect("tempdir");
     let _home_guard = EnvVarGuard::set("CODE_HOME", dir.path().as_os_str().to_owned());
     let _codex_home_guard = EnvVarGuard::clear("CODEX_HOME");
@@ -253,4 +259,3 @@ fn build_cdp_success_message_uses_port_from_ws_cache_when_port_missing() {
         code_browser::global::set_last_connection(previous.0, previous.1).await;
     });
 }
-

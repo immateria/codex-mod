@@ -6,21 +6,21 @@ expression: output
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-   File written successfully
-   ... 1 more lines (use Fold Output to expand)
+ ✓ Finished release profile
+   warning: unused import
+   warning: dead code
 
- ✓ Complete, duration: Xs (bash({"command":"cargo build --release 2>&1"})) • 2
-   args, 4 result lines
-   + invocation: bash({"command":"cargo build --release 2>&1"})
-   + command: cargo build --release 2>&1
-   Compiling my-app v0.1.0
-   ... 3 more lines (use Fold Output to expand)
-
- ✓ Complete, duration: Xs (list_dir({"path":"/src"})) • 2 args, 7 result lines
+ ✓ Complete, duration: Xs
    + invocation: list_dir({"path":"/src"})
    + path: /src
+
    main.rs
-   ... 6 more lines (use Fold Output to expand)
+   lib.rs
+   api/
+   utils/
+   config/
+   tests/
+   benches/
 
  +----------------------------------------------------------------------------+
  | What can I code for you today?                                             |

@@ -191,7 +191,43 @@ impl ChatWidget<'_> {
                         }
                     }
                     HistoryMutation::Replaced { id: history_id, record, .. } => {
-                        self.update_cell_from_record(history_id, record);
+                        if self.cell_index_for_history_id(history_id).is_some() {
+                            self.update_cell_from_record(history_id, record);
+                        } else if let Some(mut cell) = self.build_cell_from_record(&record) {
+                            // The stream state may have been inserted by a delta
+                            // before the stream controller emitted any history
+                            // lines. Insert the cell now using the same ordering
+                            // key as the normal Inserted path.
+                            let insert_key = match explicit_id.as_deref() {
+                                Some(rid) => self.try_stream_order_key(kind, rid).unwrap_or_else(|| {
+                                    tracing::warn!(
+                                        "missing stream order key for Answer id={}; using synthetic key",
+                                        rid
+                                    );
+                                    self.next_internal_key()
+                                }),
+                                None => {
+                                    tracing::warn!(
+                                        "missing stream id for Answer; using synthetic key"
+                                    );
+                                    self.next_internal_key()
+                                }
+                            };
+                            self.assign_history_id(&mut cell, history_id);
+                            let new_idx = self.history_insert_existing_record(
+                                cell,
+                                insert_key,
+                                "stream-begin",
+                                history_id,
+                            );
+                            tracing::debug!(
+                                "history.new StreamingContentCell at idx={} id={:?}",
+                                new_idx,
+                                explicit_id
+                            );
+                        } else {
+                            tracing::warn!("assistant stream record could not build cell");
+                        }
                         self.mark_history_dirty();
                     }
                     HistoryMutation::Noop => {}
@@ -259,11 +295,16 @@ impl ChatWidget<'_> {
         state: AssistantStreamState,
     ) {
         if state.id != HistoryId::ZERO {
-            self.update_cell_from_record(
-                state.id,
-                HistoryRecord::AssistantStream(state),
-            );
-            self.autoscroll_if_near_bottom();
+            // Streaming deltas may update history_state before the streaming
+            // sink has inserted the corresponding cell. Only attempt a cell
+            // update when the cell is present to avoid warning noise.
+            if self.cell_index_for_history_id(state.id).is_some() {
+                self.update_cell_from_record(
+                    state.id,
+                    HistoryRecord::AssistantStream(state),
+                );
+                self.autoscroll_if_near_bottom();
+            }
             return;
         }
 
@@ -272,11 +313,13 @@ impl ChatWidget<'_> {
             .assistant_stream_state(stream_id)
             .cloned()
             && existing.id != HistoryId::ZERO {
-                self.update_cell_from_record(
-                    existing.id,
-                    HistoryRecord::AssistantStream(existing),
-                );
-                self.autoscroll_if_near_bottom();
+                if self.cell_index_for_history_id(existing.id).is_some() {
+                    self.update_cell_from_record(
+                        existing.id,
+                        HistoryRecord::AssistantStream(existing),
+                    );
+                    self.autoscroll_if_near_bottom();
+                }
         }
     }
 
@@ -448,11 +491,21 @@ impl ChatWidget<'_> {
                 record: HistoryRecord::AssistantStream(state),
                 ..
             } => {
-                self.refresh_streaming_cell_for_stream_id(stream_id, state);
+                // Inserting an assistant stream record can happen before the
+                // UI cell has been inserted via the streaming sink. Only update
+                // an existing cell to avoid history-state mismatch warnings.
+                if self.cell_index_for_history_id(state.id).is_some() {
+                    self.update_cell_from_record(
+                        state.id,
+                        HistoryRecord::AssistantStream(state),
+                    );
+                }
                 self.mark_history_dirty();
             }
             HistoryMutation::Replaced { id, record, .. } => {
-                if matches!(record, HistoryRecord::AssistantStream(_)) {
+                if matches!(record, HistoryRecord::AssistantStream(_))
+                    && self.cell_index_for_history_id(id).is_some()
+                {
                     self.update_cell_from_record(id, record);
                     self.mark_history_dirty();
                 }

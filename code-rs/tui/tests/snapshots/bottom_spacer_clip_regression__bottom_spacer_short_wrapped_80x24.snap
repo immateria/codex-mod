@@ -1,10 +1,11 @@
 ---
 source: tui/tests/bottom_spacer_clip_regression.rs
+assertion_line: 20
 expression: output
 ---
  |                                    Code                                    |
 
-   - Running commands
+ • - Running commands
 
 
 

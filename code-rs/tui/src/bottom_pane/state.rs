@@ -8,6 +8,7 @@ use code_protocol::custom_prompts::CustomPrompt;
 use code_protocol::skills::Skill;
 
 use crate::app_event::AppEvent;
+#[cfg(not(any(test, feature = "test-helpers")))]
 use crate::thread_spawner;
 
 use super::settings_pages;
@@ -15,15 +16,31 @@ use super::{AgentHintLabel, AutoReviewFooterStatus, BottomPane, ChatComposer};
 
 impl<'a> BottomPane<'a> {
     fn schedule_redraw_after(&self, dur: Duration, task_name: &'static str) {
-        let tx = self.app_event_tx.clone();
         let redraw_delay = dur + Duration::from_millis(120);
-        if thread_spawner::spawn_lightweight(task_name, move || {
-            std::thread::sleep(redraw_delay);
-            tx.send(AppEvent::RequestRedraw);
-        })
-        .is_none()
+        let tx = self.app_event_tx.clone();
+
+        // Snapshot tests construct a `ChatWidget` without an App event loop, so
+        // spinning up long-lived timer threads creates noise and can exhaust the
+        // lightweight thread budget. In that environment, just ask the App to
+        // schedule a frame instead of spawning a sleeper thread.
+        #[cfg(any(test, feature = "test-helpers"))]
         {
-            self.app_event_tx.send(AppEvent::ScheduleFrameIn(redraw_delay));
+            let _ = task_name;
+            tx.send(AppEvent::ScheduleFrameIn(redraw_delay));
+            return;
+        }
+
+        #[cfg(not(any(test, feature = "test-helpers")))]
+        {
+            let tx_thread = tx.clone();
+            if thread_spawner::spawn_lightweight(task_name, move || {
+                std::thread::sleep(redraw_delay);
+                tx_thread.send(AppEvent::RequestRedraw);
+            })
+            .is_none()
+            {
+                tx.send(AppEvent::ScheduleFrameIn(redraw_delay));
+            }
         }
     }
 

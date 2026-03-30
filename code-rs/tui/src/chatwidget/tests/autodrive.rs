@@ -745,9 +745,10 @@
         chat.config.service_tier = None;
     });
 
-    unsafe {
-        std::env::remove_var("CODEX_TUI_FORCE_MINIMAL_HEADER");
-    }
+    let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _header_guard = crate::tui_env::ForceMinimalHeaderOverrideGuard::set(false);
 
     {
         use crate::test_backend::VT100Backend;
@@ -758,10 +759,6 @@
         terminal
             .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
             .expect("draw");
-    }
-
-    unsafe {
-        std::env::set_var("CODEX_TUI_FORCE_MINIMAL_HEADER", "1");
     }
 
     let (x, y) = harness.with_chat(|chat| {
@@ -828,6 +825,9 @@
     fn header_directory_segment_click_dispatches_switch_cwd() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
+    let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let picked = std::env::temp_dir().join("picked-status-dir");
     std::fs::create_dir_all(&picked).expect("create picked directory");
     crate::native_picker::set_test_pick_result(Some(picked.clone()));
@@ -870,6 +870,9 @@
     fn statusline_directory_segment_click_dispatches_switch_cwd() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
+    let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let picked = std::env::temp_dir().join("picked-top-status-dir");
     std::fs::create_dir_all(&picked).expect("create picked directory");
     crate::native_picker::set_test_pick_result(Some(picked.clone()));
@@ -919,6 +922,9 @@
     fn startup_notice_preserves_second_line_directory_click_regions() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
+    let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let picked = std::env::temp_dir().join("picked-notice-dir");
     std::fs::create_dir_all(&picked).expect("create picked directory");
     crate::native_picker::set_test_pick_result(Some(picked.clone()));
@@ -933,9 +939,7 @@
         });
     });
 
-    unsafe {
-        std::env::remove_var("CODEX_TUI_FORCE_MINIMAL_HEADER");
-    }
+    let _header_guard = crate::tui_env::ForceMinimalHeaderOverrideGuard::set(false);
 
     {
         use crate::test_backend::VT100Backend;
@@ -946,10 +950,6 @@
         terminal
             .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
             .expect("draw");
-    }
-
-    unsafe {
-        std::env::set_var("CODEX_TUI_FORCE_MINIMAL_HEADER", "1");
     }
 
     let (x, y) = harness.with_chat(|chat| {

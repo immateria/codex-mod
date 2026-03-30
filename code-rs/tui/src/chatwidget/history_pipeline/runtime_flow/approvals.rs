@@ -53,12 +53,31 @@ impl ChatWidget<'_> {
 
         // Clone for session storage before moving into history
         let changes_clone = changes.clone();
+        // Avoid storing full file contents in history records (large patches can
+        // blow up memory and snapshot size). The diff viewer uses
+        // `session_patch_sets` instead.
+        let mut changes_for_history = changes;
+        for change in changes_for_history.values_mut() {
+            match change {
+                code_core::protocol::FileChange::Add { content }
+                => content.clear(),
+                code_core::protocol::FileChange::Delete => {}
+                code_core::protocol::FileChange::Update {
+                    original_content,
+                    new_content,
+                    ..
+                } => {
+                    original_content.clear();
+                    new_content.clear();
+                }
+            }
+        }
         // Surface the patch summary in the main conversation
         let key = self.next_internal_key();
         let _ = self.history_insert_with_key_global(
             Box::new(history_cell::new_patch_event(
                 history_cell::PatchEventType::ApprovalRequest,
-                changes,
+                changes_for_history,
             )),
             key,
         );

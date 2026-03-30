@@ -1,11 +1,12 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 1935
 expression: output
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-   - Running commands
+ • - Running commands
 
 
  › Keep browsing while checking status

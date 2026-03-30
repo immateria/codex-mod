@@ -71,7 +71,7 @@ pub(super) fn handle_key_event_inner(
             kind: KeyEventKind::Press | KeyEventKind::Repeat,
             ..
         }
-    ) && burst_active
+    ) && (burst_active || recent_plain_char)
     {
         view.insert_str("\t");
         view.history.reset_navigation();
@@ -94,4 +94,3 @@ pub(super) fn handle_key_event_inner(
 
     result
 }
-

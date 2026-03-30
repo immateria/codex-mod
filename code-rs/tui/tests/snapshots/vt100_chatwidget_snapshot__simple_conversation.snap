@@ -1,11 +1,12 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
+assertion_line: 1123
 expression: output
 ---
  +----------------------------------------------------------------------------+
  |                                    Code                                    |
  +----------------------------------------------------------------------------+
-
+ •
 
  › Can you help me understand the available commands?
 

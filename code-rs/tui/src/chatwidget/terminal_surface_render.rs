@@ -329,7 +329,7 @@ impl ChatWidget<'_> {
                     .map(|(kind, value)| (*kind, value.as_str())),
                 hovered_action: hovered_action.clone(),
                 hover_style,
-                minimal_header: std::env::var_os("CODEX_TUI_FORCE_MINIMAL_HEADER").is_some(),
+                minimal_header: crate::tui_env::force_minimal_header(),
                 demo_mode: self.config.demo_developer_message.is_some(),
                 inner_width,
             },
