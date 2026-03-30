@@ -244,7 +244,11 @@ pub(super) async fn run_turn(
 
                 let mut switched = false;
                 if sess.client.auto_switch_accounts_on_rate_limit()
-                    && auth::read_code_api_key_from_env().is_none()
+                    && auth::read_code_api_key_from_env_or_secrets(
+                        sess.client.code_home(),
+                        sess.client.config().cwd.as_path(),
+                    )
+                    .is_none()
                     && let Some(auth_manager) = sess.client.get_auth_manager() {
                         let auth = auth_manager.auth();
                         let current_account_id = auth

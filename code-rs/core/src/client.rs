@@ -1453,7 +1453,11 @@ impl ModelClient {
                     if status == StatusCode::TOO_MANY_REQUESTS
                         && self.config.auto_switch_accounts_on_rate_limit
                         && auth_manager.is_some()
-                        && auth::read_code_api_key_from_env().is_none()
+                        && auth::read_code_api_key_from_env_or_secrets(
+                            self.code_home(),
+                            self.config.cwd.as_path(),
+                        )
+                        .is_none()
                     {
                         let current_account_id = auth
                             .as_ref()
@@ -1889,7 +1893,11 @@ impl ModelClient {
             if status == StatusCode::TOO_MANY_REQUESTS
                 && self.config.auto_switch_accounts_on_rate_limit
                 && auth_manager.is_some()
-                && auth::read_code_api_key_from_env().is_none()
+                && auth::read_code_api_key_from_env_or_secrets(
+                    self.code_home(),
+                    self.config.cwd.as_path(),
+                )
+                .is_none()
             {
                 let now = Utc::now();
                 let current_account_id = auth

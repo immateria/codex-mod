@@ -437,6 +437,18 @@ pub fn read_code_api_key_from_env() -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+pub fn read_code_api_key_from_env_or_secrets(code_home: &Path, cwd: &Path) -> Option<String> {
+    let outcome = crate::secrets_resolver::resolve_secret_env_or_store_for_code_home(
+        CODEX_API_KEY_ENV_VAR,
+        code_home,
+        cwd,
+    );
+    outcome
+        .resolved
+        .map(|resolved| resolved.value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
 pub fn get_auth_file(code_home: &Path) -> PathBuf {
     storage::get_auth_file(code_home)
 }
@@ -1639,7 +1651,8 @@ impl AuthManager {
         auth_credentials_store_mode: AuthCredentialsStoreMode,
     ) -> Self {
         let mut effective_mode = preferred_auth_mode;
-        let auth = if let Some(api_key) = read_code_api_key_from_env() {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| code_home.clone());
+        let auth = if let Some(api_key) = read_code_api_key_from_env_or_secrets(&code_home, &cwd) {
             effective_mode = AuthMode::ApiKey;
             Some(CodexAuth::from_api_key(&api_key))
         } else {
@@ -1738,7 +1751,9 @@ impl AuthManager {
         let preferred = self.preferred_auth_method();
         let auth_credentials_store_mode = self.auth_credentials_store_mode();
         let env_auth = if self.enable_code_api_key_env {
-            read_code_api_key_from_env().map(|api_key| CodexAuth::from_api_key(&api_key))
+            let cwd = std::env::current_dir().unwrap_or_else(|_| self.code_home.clone());
+            read_code_api_key_from_env_or_secrets(&self.code_home, &cwd)
+                .map(|api_key| CodexAuth::from_api_key(&api_key))
         } else {
             None
         };
@@ -1776,7 +1791,9 @@ impl AuthManager {
 
         let preferred = self.preferred_auth_method();
         let env_auth = if self.enable_code_api_key_env {
-            read_code_api_key_from_env().map(|api_key| CodexAuth::from_api_key(&api_key))
+            let cwd = std::env::current_dir().unwrap_or_else(|_| self.code_home.clone());
+            read_code_api_key_from_env_or_secrets(&self.code_home, &cwd)
+                .map(|api_key| CodexAuth::from_api_key(&api_key))
         } else {
             None
         };
