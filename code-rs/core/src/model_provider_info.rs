@@ -325,37 +325,12 @@ impl ModelProviderInfo {
             return Ok(None);
         };
 
-        if let Ok(value) = std::env::var(env_key)
-            && !value.trim().is_empty()
-        {
-            return Ok(Some(value));
+        let outcome = crate::secrets_resolver::resolve_secret_env_or_store(env_key, cwd, secrets);
+        if let Some(resolved) = outcome.resolved {
+            return Ok(Some(resolved.value));
         }
-
-        let name = match code_secrets::SecretName::new(env_key) {
-            Ok(name) => name,
-            Err(_) => {
-                return Err(self.env_var_error_with_secrets_hint(env_key, None));
-            }
-        };
-
-        if let Some(secrets) = secrets {
-            let env_scope =
-                code_secrets::SecretScope::Environment(code_secrets::environment_id_from_cwd(cwd));
-            match secrets.get(&env_scope, &name) {
-                Ok(Some(value)) if !value.trim().is_empty() => return Ok(Some(value)),
-                Ok(_) => {}
-                Err(err) => {
-                    return Err(self.env_var_error_with_secrets_hint(env_key, Some(&err.to_string())));
-                }
-            }
-
-            match secrets.get(&code_secrets::SecretScope::Global, &name) {
-                Ok(Some(value)) if !value.trim().is_empty() => return Ok(Some(value)),
-                Ok(_) => {}
-                Err(err) => {
-                    return Err(self.env_var_error_with_secrets_hint(env_key, Some(&err.to_string())));
-                }
-            }
+        if let Some(err) = outcome.error.as_deref() {
+            return Err(self.env_var_error_with_secrets_hint(env_key, Some(err)));
         }
 
         Err(self.env_var_error_with_secrets_hint(env_key, None))

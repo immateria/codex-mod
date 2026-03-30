@@ -818,7 +818,14 @@ pub(crate) fn new_status_output(
                     .ok()
                     .flatten()
                     .and_then(|a| a.openai_api_key)
-                    .or_else(|| std::env::var(OPENAI_API_KEY_ENV_VAR).ok())
+                    .or_else(|| {
+                        let outcome = code_core::secrets_resolver::resolve_secret_env_or_store_for_code_home(
+                            OPENAI_API_KEY_ENV_VAR,
+                            &config.code_home,
+                            &config.cwd,
+                        );
+                        outcome.resolved.map(|resolved| resolved.value)
+                    })
                     .map(|k| key_suffix(&k))
                     .unwrap_or_else(|| "????".to_string());
                     lines.push(Line::from(format!("  • Method: API key (…{suffix})")));

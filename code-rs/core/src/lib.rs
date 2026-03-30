@@ -111,6 +111,7 @@ pub use memories::load_memories_status;
 pub use memories::refresh_memory_artifacts_now;
 mod conversation_manager;
 pub mod protocol;
+pub mod secrets_resolver;
 #[cfg(test)]
 mod event_mapping;
 pub mod review_format;

@@ -10,7 +10,6 @@ use code_core::config::ConfigOverrides;
 use code_login::ServerOptions;
 use code_login::run_device_code_login;
 use code_login::run_login_server;
-use std::env;
 use std::io::IsTerminal;
 use std::io::Read;
 use std::path::PathBuf;
@@ -148,11 +147,27 @@ pub async fn run_login_status(cli_config_overrides: CliConfigOverrides) -> ! {
                 Ok(api_key) => {
                     eprintln!("Logged in using an API key - {}", safe_format_key(&api_key));
 
-                    if let Ok(env_api_key) = env::var(OPENAI_API_KEY_ENV_VAR)
-                        && env_api_key == api_key {
-                        eprintln!(
-                            "   API loaded from OPENAI_API_KEY environment variable or .env file"
-                        );
+                    let outcome = code_core::secrets_resolver::resolve_secret_env_or_store_for_code_home(
+                        OPENAI_API_KEY_ENV_VAR,
+                        &config.code_home,
+                        &config.cwd,
+                    );
+                    if let Some(resolved) = outcome.resolved
+                        && resolved.value == api_key
+                    {
+                        match resolved.source {
+                            code_core::secrets_resolver::SecretValueSource::EnvVar => {
+                                eprintln!(
+                                    "   API loaded from OPENAI_API_KEY environment variable or .env file"
+                                );
+                            }
+                            code_core::secrets_resolver::SecretValueSource::SecretsEnvScope => {
+                                eprintln!("   API loaded from secrets store (env scope)");
+                            }
+                            code_core::secrets_resolver::SecretValueSource::SecretsGlobal => {
+                                eprintln!("   API loaded from secrets store (global scope)");
+                            }
+                        }
                     }
                     std::process::exit(0);
                 }

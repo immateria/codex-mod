@@ -18,15 +18,43 @@ struct RunFailureContext<'a> {
 pub(super) enum TokenSource {
     /// `GITHUB_TOKEN` or `GH_TOKEN` environment variable.
     Env,
+    /// Loaded from the local secrets store.
+    Secrets,
     /// Fetched via `gh auth token` from the GitHub CLI.
     GhCli,
 }
 
 /// Obtain a GitHub token, preferring environment variables and falling back to `gh`.
 /// Returns the token string and its source if available.
-pub(super) fn get_github_token() -> Option<(String, TokenSource)> {
-    if let Ok(t) = std::env::var("GITHUB_TOKEN") && !t.is_empty() { return Some((t, TokenSource::Env)); }
-    if let Ok(t) = std::env::var("GH_TOKEN") && !t.is_empty() { return Some((t, TokenSource::Env)); }
+pub(super) fn get_github_token(config: &Config) -> Option<(String, TokenSource)> {
+    let outcome = code_core::secrets_resolver::resolve_secret_env_or_store_for_code_home(
+        "GITHUB_TOKEN",
+        &config.code_home,
+        &config.cwd,
+    );
+    if let Some(resolved) = outcome.resolved {
+        let source = match resolved.source {
+            code_core::secrets_resolver::SecretValueSource::EnvVar => TokenSource::Env,
+            code_core::secrets_resolver::SecretValueSource::SecretsEnvScope
+            | code_core::secrets_resolver::SecretValueSource::SecretsGlobal => TokenSource::Secrets,
+        };
+        return Some((resolved.value, source));
+    }
+
+    let outcome = code_core::secrets_resolver::resolve_secret_env_or_store_for_code_home(
+        "GH_TOKEN",
+        &config.code_home,
+        &config.cwd,
+    );
+    if let Some(resolved) = outcome.resolved {
+        let source = match resolved.source {
+            code_core::secrets_resolver::SecretValueSource::EnvVar => TokenSource::Env,
+            code_core::secrets_resolver::SecretValueSource::SecretsEnvScope
+            | code_core::secrets_resolver::SecretValueSource::SecretsGlobal => TokenSource::Secrets,
+        };
+        return Some((resolved.value, source));
+    }
+
     // Fallback: use GitHub CLI if installed and logged in.
     if let Ok(out) = Command::new("gh").args(["auth", "token"]).output()
         && out.status.success() {
@@ -65,7 +93,7 @@ pub(super) fn maybe_watch_after_push(
 
         // Build API endpoint and client (optionally with token if present).
         let api_base = format!("https://api.github.com/repos/{owner}/{repo}/actions/runs");
-        let token = get_github_token().map(|(t, _)| t);
+        let token = get_github_token(&config).map(|(t, _)| t);
         let client = reqwest::Client::builder()
             .user_agent("codex-cli-rs/github-monitor")
             .build()

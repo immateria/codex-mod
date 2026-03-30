@@ -430,12 +430,6 @@ impl CodexAuth {
 pub const OPENAI_API_KEY_ENV_VAR: &str = "OPENAI_API_KEY";
 pub const CODEX_API_KEY_ENV_VAR: &str = "CODEX_API_KEY";
 
-fn read_openai_api_key_from_env() -> Option<String> {
-    env::var(OPENAI_API_KEY_ENV_VAR)
-        .ok()
-        .filter(|s| !s.is_empty())
-}
-
 pub fn read_code_api_key_from_env() -> Option<String> {
     env::var(CODEX_API_KEY_ENV_VAR)
         .ok()
@@ -706,8 +700,17 @@ fn load_auth(
     let auth_dot_json = match storage.load() {
         Ok(Some(auth)) => auth,
         Ok(None) if include_env_var => {
-            return match read_openai_api_key_from_env() {
-                Some(api_key) => Ok(Some(CodexAuth::from_api_key_with_client(&api_key, client))),
+            let cwd = std::env::current_dir().unwrap_or_else(|_| code_home.to_path_buf());
+            let outcome = crate::secrets_resolver::resolve_secret_env_or_store_for_code_home(
+                OPENAI_API_KEY_ENV_VAR,
+                code_home,
+                &cwd,
+            );
+            return match outcome.resolved {
+                Some(resolved) => Ok(Some(CodexAuth::from_api_key_with_client(
+                    &resolved.value,
+                    client,
+                ))),
                 None => Ok(None),
             };
         }
