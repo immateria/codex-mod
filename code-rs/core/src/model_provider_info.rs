@@ -8,14 +8,15 @@
 
 use crate::CodexAuth;
 use crate::error::CodexErr;
+use crate::error::EnvVarError;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::env::VarError;
+use std::path::Path;
 use std::time::Duration;
-use crate::error::EnvVarError;
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS: u64 = 300_000;
 const DEFAULT_STREAM_MAX_RETRIES: u64 = 5;
 const DEFAULT_REQUEST_MAX_RETRIES: u64 = 4;
@@ -194,8 +195,10 @@ impl ModelProviderInfo {
         &'a self,
         client: &'a reqwest::Client,
         auth: &Option<CodexAuth>,
+        secrets: Option<&code_secrets::SecretsManager>,
+        cwd: &Path,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
-        let effective_auth = self.effective_auth(auth)?;
+        let effective_auth = self.effective_auth(auth, secrets, cwd)?;
 
         let url = self.get_full_url(&effective_auth);
 
@@ -214,10 +217,12 @@ impl ModelProviderInfo {
         &'a self,
         client: &'a reqwest::Client,
         auth: &Option<CodexAuth>,
+        secrets: Option<&code_secrets::SecretsManager>,
+        cwd: &Path,
         method: reqwest::Method,
         url: reqwest::Url,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
-        let effective_auth = self.effective_auth(auth)?;
+        let effective_auth = self.effective_auth(auth, secrets, cwd)?;
 
         let mut builder = client.request(method, url);
 
@@ -232,13 +237,15 @@ impl ModelProviderInfo {
         &'a self,
         client: &'a reqwest::Client,
         auth: &Option<CodexAuth>,
+        secrets: Option<&code_secrets::SecretsManager>,
+        cwd: &Path,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
         if !matches!(self.wire_api, WireApi::Responses | WireApi::ResponsesWebsocket) {
             return Err(CodexErr::UnsupportedOperation(
                 "Compaction endpoint requires Responses API providers".to_string(),
             ));
         }
-        let effective_auth = self.effective_auth(auth)?;
+        let effective_auth = self.effective_auth(auth, secrets, cwd)?;
         let url = self.get_compact_url(&effective_auth).ok_or_else(|| {
             CodexErr::UnsupportedOperation(
                 "Compaction endpoint requires Responses API providers".to_string(),
@@ -256,6 +263,8 @@ impl ModelProviderInfo {
     fn effective_auth(
         &self,
         auth: &Option<CodexAuth>,
+        secrets: Option<&code_secrets::SecretsManager>,
+        cwd: &Path,
     ) -> crate::error::Result<Option<CodexAuth>> {
         if let Some(token) = self
             .experimental_bearer_token
@@ -266,7 +275,7 @@ impl ModelProviderInfo {
             return Ok(Some(CodexAuth::from_api_key(token)));
         }
 
-        match self.api_key() {
+        match self.api_key_from_env_or_secrets(secrets, cwd) {
             Ok(Some(key)) => Ok(Some(CodexAuth::from_api_key(&key))),
             Ok(None) => Ok(auth.clone()),
             Err(err) => {
@@ -277,6 +286,79 @@ impl ModelProviderInfo {
                 }
             }
         }
+    }
+
+    fn env_var_error_with_secrets_hint(
+        &self,
+        env_key: &str,
+        secrets_error: Option<&str>,
+    ) -> CodexErr {
+        let mut instructions = format!(
+            "Set `{env_key}` in the environment, or run `code secrets set {env_key}` to store it in CODE_HOME."
+        );
+        if let Some(extra) = self.env_key_instructions.as_deref() {
+            let extra = extra.trim();
+            if !extra.is_empty() {
+                instructions.push(' ');
+                instructions.push_str(extra);
+            }
+        }
+        if let Some(err) = secrets_error {
+            let err = err.trim();
+            if !err.is_empty() {
+                instructions.push(' ');
+                instructions.push_str(&format!("(secrets store error: {err})"));
+            }
+        }
+        CodexErr::EnvVar(EnvVarError {
+            var: env_key.to_string(),
+            instructions: Some(instructions),
+        })
+    }
+
+    fn api_key_from_env_or_secrets(
+        &self,
+        secrets: Option<&code_secrets::SecretsManager>,
+        cwd: &Path,
+    ) -> crate::error::Result<Option<String>> {
+        let Some(env_key) = self.env_key.as_deref() else {
+            return Ok(None);
+        };
+
+        if let Ok(value) = std::env::var(env_key)
+            && !value.trim().is_empty()
+        {
+            return Ok(Some(value));
+        }
+
+        let name = match code_secrets::SecretName::new(env_key) {
+            Ok(name) => name,
+            Err(_) => {
+                return Err(self.env_var_error_with_secrets_hint(env_key, None));
+            }
+        };
+
+        if let Some(secrets) = secrets {
+            let env_scope =
+                code_secrets::SecretScope::Environment(code_secrets::environment_id_from_cwd(cwd));
+            match secrets.get(&env_scope, &name) {
+                Ok(Some(value)) if !value.trim().is_empty() => return Ok(Some(value)),
+                Ok(_) => {}
+                Err(err) => {
+                    return Err(self.env_var_error_with_secrets_hint(env_key, Some(&err.to_string())));
+                }
+            }
+
+            match secrets.get(&code_secrets::SecretScope::Global, &name) {
+                Ok(Some(value)) if !value.trim().is_empty() => return Ok(Some(value)),
+                Ok(_) => {}
+                Err(err) => {
+                    return Err(self.env_var_error_with_secrets_hint(env_key, Some(&err.to_string())));
+                }
+            }
+        }
+
+        Err(self.env_var_error_with_secrets_hint(env_key, None))
     }
 
     /// Returns the OpenRouter-specific configuration, if this provider declares one.
@@ -592,6 +674,7 @@ fn matches_azure_responses_base_url(base_url: &str) -> bool {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use std::sync::Arc;
 
     #[test]
     fn test_deserialize_ollama_model_provider_toml() {
@@ -764,5 +847,202 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
             .expect("openai provider should include version header");
 
         assert_eq!(version, code_version::wire_compatible_version());
+    }
+
+    struct EnvVarGuard {
+        key: &'static str,
+        previous: Option<String>,
+    }
+
+    impl EnvVarGuard {
+        fn new(key: &'static str) -> Self {
+            let previous = std::env::var(key).ok();
+            Self { key, previous }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(value) => unsafe {
+                    std::env::set_var(self.key, value);
+                },
+                None => unsafe {
+                    std::env::remove_var(self.key);
+                },
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn env_key_uses_env_var_over_secrets() {
+        let _guard = EnvVarGuard::new("OPENAI_API_KEY");
+        unsafe {
+            std::env::set_var("OPENAI_API_KEY", "env-token");
+        }
+
+        let code_home = tempfile::tempdir().expect("tempdir");
+        let keyring = Arc::new(code_keyring_store::tests::MockKeyringStore::default());
+        let secrets = code_secrets::SecretsManager::new_with_keyring_store(
+            code_home.path().to_path_buf(),
+            code_secrets::SecretsBackendKind::Local,
+            keyring,
+        );
+
+        secrets
+            .set(
+                &code_secrets::SecretScope::Global,
+                &code_secrets::SecretName::new("OPENAI_API_KEY").expect("secret name"),
+                "secret-token",
+            )
+            .expect("seed secret");
+
+        let provider = ModelProviderInfo {
+            name: "example".into(),
+            base_url: Some("https://example.com".into()),
+            env_key: Some("OPENAI_API_KEY".into()),
+            env_key_instructions: None,
+            experimental_bearer_token: None,
+            wire_api: WireApi::Chat,
+            query_params: None,
+            http_headers: None,
+            env_http_headers: None,
+            request_max_retries: None,
+            stream_max_retries: None,
+            stream_idle_timeout_ms: None,
+            requires_openai_auth: false,
+            openrouter: None,
+        };
+
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("client");
+
+        let request = provider
+            .create_request_builder(
+                &client,
+                &None,
+                Some(&secrets),
+                std::path::Path::new("."),
+            )
+            .await
+            .expect("builder")
+            .build()
+            .expect("request");
+
+        let auth = request
+            .headers()
+            .get(reqwest::header::AUTHORIZATION)
+            .expect("authorization header");
+        assert_eq!(auth.to_str().expect("utf8"), "Bearer env-token");
+    }
+
+    #[tokio::test]
+    async fn env_key_falls_back_to_secrets() {
+        let _guard = EnvVarGuard::new("OPENAI_API_KEY");
+        unsafe {
+            std::env::remove_var("OPENAI_API_KEY");
+        }
+
+        let code_home = tempfile::tempdir().expect("tempdir");
+        let keyring = Arc::new(code_keyring_store::tests::MockKeyringStore::default());
+        let secrets = code_secrets::SecretsManager::new_with_keyring_store(
+            code_home.path().to_path_buf(),
+            code_secrets::SecretsBackendKind::Local,
+            keyring,
+        );
+
+        let cwd = tempfile::tempdir().expect("cwd");
+        std::fs::create_dir_all(cwd.path().join(".git")).expect("create git dir");
+        let env_id = code_secrets::environment_id_from_cwd(cwd.path());
+        let scope = code_secrets::SecretScope::Environment(env_id);
+        secrets
+            .set(
+                &scope,
+                &code_secrets::SecretName::new("OPENAI_API_KEY").expect("secret name"),
+                "secret-token",
+            )
+            .expect("seed secret");
+
+        let provider = ModelProviderInfo {
+            name: "example".into(),
+            base_url: Some("https://example.com".into()),
+            env_key: Some("OPENAI_API_KEY".into()),
+            env_key_instructions: None,
+            experimental_bearer_token: None,
+            wire_api: WireApi::Chat,
+            query_params: None,
+            http_headers: None,
+            env_http_headers: None,
+            request_max_retries: None,
+            stream_max_retries: None,
+            stream_idle_timeout_ms: None,
+            requires_openai_auth: false,
+            openrouter: None,
+        };
+
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("client");
+
+        let request = provider
+            .create_request_builder(&client, &None, Some(&secrets), cwd.path())
+            .await
+            .expect("builder")
+            .build()
+            .expect("request");
+
+        let auth = request
+            .headers()
+            .get(reqwest::header::AUTHORIZATION)
+            .expect("authorization header");
+        assert_eq!(auth.to_str().expect("utf8"), "Bearer secret-token");
+    }
+
+    #[tokio::test]
+    async fn env_key_error_mentions_secrets_command() {
+        let _guard = EnvVarGuard::new("OPENAI_API_KEY");
+        unsafe {
+            std::env::remove_var("OPENAI_API_KEY");
+        }
+
+        let provider = ModelProviderInfo {
+            name: "example".into(),
+            base_url: Some("https://example.com".into()),
+            env_key: Some("OPENAI_API_KEY".into()),
+            env_key_instructions: Some("Get a key from your provider.".to_string()),
+            experimental_bearer_token: None,
+            wire_api: WireApi::Chat,
+            query_params: None,
+            http_headers: None,
+            env_http_headers: None,
+            request_max_retries: None,
+            stream_max_retries: None,
+            stream_idle_timeout_ms: None,
+            requires_openai_auth: false,
+            openrouter: None,
+        };
+
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("client");
+
+        let err = provider
+            .create_request_builder(&client, &None, None, std::path::Path::new("."))
+            .await
+            .expect_err("missing env var must error");
+        let message = err.to_string();
+        assert!(message.contains("OPENAI_API_KEY"), "message was: {message}");
+        assert!(
+            message.contains("code secrets set OPENAI_API_KEY"),
+            "message was: {message}"
+        );
+        assert!(
+            message.contains("Get a key from your provider."),
+            "message was: {message}"
+        );
     }
 }

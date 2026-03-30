@@ -86,6 +86,7 @@ mod history_pipeline;
 mod history_render;
 mod history_virtualization_impl;
 mod help_handlers;
+mod secrets_help;
 mod settings_handlers;
 mod settings_overlay;
 mod settings_routing;

@@ -22,6 +22,9 @@ Notes
 - `/logout`: log out of Code.
 - `/login`: manage Code sign-ins (select, add, or disconnect accounts).
 - `/accounts`: open account switching settings.
+- `/secrets`: show how to store API keys and other secrets locally. Use
+  `code secrets set OPENAI_API_KEY` to store your key in `CODE_HOME` (encrypted
+  at rest). Use `--scope env` for per-repo secrets.
 - `/settings [section]`: open the settings panel. Optional section argument
   jumps directly to `model`, `theme`, `interface`, `experimental`, `accounts`,
   `apps`, `agents`, `memories`, `prompts`, `skills`, `plugins`, `auto`,

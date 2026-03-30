@@ -33,6 +33,7 @@ members = [
     "mcp-client",
     "mcp-server",
     "mcp-types",
+    "secrets",
     "shell-command",
     "skills",
     "network-proxy",
@@ -108,6 +109,7 @@ code-exec-server = { path = "exec-server", package = "codex-exec-server" }
 code-file-search = { path = "file-search" }
 code-git-tooling = { path = "git-tooling" }
 code-keyring-store = { path = "keyring-store" }
+code-secrets = { path = "secrets", package = "codex-secrets" }
 code-git-apply = { path = "git-apply" }
 code-linux-sandbox = { path = "linux-sandbox" }
 code-login = { path = "login" }
@@ -135,6 +137,7 @@ mcp-types = { path = "mcp-types", package = "code-mcp-types" }
 upstream-mcp-types = { git = "https://github.com/openai/codex.git", package = "mcp-types", rev = "6c384eb9c610f9a83037d9cad120fb792e782c7c" }
 
 # External
+age = "0.11.1"
 allocative = "0.3.3"
 ansi-to-tui = "7.0.0"
 anyhow = "1"

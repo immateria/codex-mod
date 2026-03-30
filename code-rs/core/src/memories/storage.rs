@@ -13,6 +13,7 @@ use code_memories_state::{
 };
 use code_protocol::models::{ContentItem, ResponseItem};
 use code_protocol::protocol::RolloutItem;
+use code_secrets::redact_secrets;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
@@ -379,7 +380,7 @@ fn finalize_epoch(
         .clone()
         .or_else(|| claim.last_user_snippet.clone())
         .unwrap_or_else(|| "(no user snippet)".to_string());
-    let rollout_slug = format!(
+    let rollout_slug = redact_secrets(format!(
         "{}-e{epoch_index}",
         rollout_summary_file_stem(
             claim.thread_id,
@@ -387,7 +388,24 @@ fn finalize_epoch(
             &epoch.cwd_display,
             epoch.git_branch.as_deref(),
         )
-    );
+    ));
+
+    let raw_memory = redact_secrets(render_raw_memory_body(
+        claim,
+        epoch_index,
+        epoch,
+        provenance,
+        &rollout_slug,
+        &snippet,
+    ));
+
+    let rollout_summary = redact_secrets(render_rollout_summary_body(
+        claim,
+        epoch_index,
+        epoch,
+        provenance,
+        &snippet,
+    ));
 
     Stage1EpochInput {
         id: code_memories_state::MemoryEpochId {
@@ -407,21 +425,8 @@ fn finalize_epoch(
         workspace_root: epoch.context.workspace_root.clone(),
         cwd_display: epoch.cwd_display.clone(),
         git_branch: epoch.git_branch.clone(),
-        raw_memory: render_raw_memory_body(
-            claim,
-            epoch_index,
-            epoch,
-            provenance,
-            &rollout_slug,
-            &snippet,
-        ),
-        rollout_summary: render_rollout_summary_body(
-            claim,
-            epoch_index,
-            epoch,
-            provenance,
-            &snippet,
-        ),
+        raw_memory,
+        rollout_summary,
         rollout_slug,
     }
 }
@@ -988,6 +993,45 @@ mod tests {
             meta_at.format("%d"),
             meta_at.format("%Y-%m-%dT%H-%M-%S"),
         ))
+    }
+
+    #[test]
+    fn fallback_epoch_input_redacts_secrets() {
+        let thread_id = Uuid::new_v4();
+        let snippet = "my key is sk-AAAAAAAAAAAAAAAAAAAA";
+        let claim = Stage1Claim {
+            thread_id,
+            rollout_path: PathBuf::from("/tmp/demo.jsonl"),
+            cwd: PathBuf::from("/tmp/project"),
+            cwd_display: "~/project".to_string(),
+            updated_at: 0,
+            updated_at_label: "1970-01-01T00:00:00Z".to_string(),
+            git_project_root: None,
+            git_branch: Some("main".to_string()),
+            last_user_snippet: Some(snippet.to_string()),
+        };
+
+        let epoch = fallback_epoch_input(&claim, Stage1EpochProvenance::CatalogFallback);
+        assert!(
+            !epoch.raw_memory.contains("sk-AAAAAAAAAAAAAAAAAAAA"),
+            "raw_memory should redact secrets, got:\n{}",
+            epoch.raw_memory
+        );
+        assert!(
+            epoch.raw_memory.contains("[REDACTED_SECRET]"),
+            "raw_memory should contain redaction marker, got:\n{}",
+            epoch.raw_memory
+        );
+        assert!(
+            !epoch.rollout_summary.contains("sk-AAAAAAAAAAAAAAAAAAAA"),
+            "rollout_summary should redact secrets, got:\n{}",
+            epoch.rollout_summary
+        );
+        assert!(
+            epoch.rollout_summary.contains("[REDACTED_SECRET]"),
+            "rollout_summary should contain redaction marker, got:\n{}",
+            epoch.rollout_summary
+        );
     }
 
     async fn write_rollout_lines(

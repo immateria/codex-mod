@@ -15,6 +15,7 @@ use code_cli::login::run_login_with_api_key;
 use code_cli::login::run_login_with_chatgpt;
 use code_cli::login::run_login_with_device_code;
 use code_cli::login::run_logout;
+use code_cli::secrets_cmd;
 mod bridge;
 mod llm;
 use llm::{LlmCli, run_llm};
@@ -168,6 +169,9 @@ enum Subcommand {
     /// Inspect and validate configuration files.
     Config(ConfigCli),
 
+    /// Manage locally-stored secrets (keyring-backed, encrypted at rest).
+    Secrets(SecretsCli),
+
     /// Download and run preview artifact by slug.
     Preview(PreviewArgs),
 
@@ -176,6 +180,93 @@ enum Subcommand {
 
     /// Manage Code Bridge subscription for this workspace.
     Bridge(BridgeCommand),
+}
+
+#[derive(Debug, clap::ValueEnum, Clone, Copy)]
+enum SecretsScopeArg {
+    Global,
+    Env,
+}
+
+#[derive(Debug, Parser)]
+struct SecretsCli {
+    #[clap(subcommand)]
+    action: SecretsSubcommand,
+}
+
+#[derive(Debug, clap::Subcommand)]
+enum SecretsSubcommand {
+    Set(SecretsSetArgs),
+    Get(SecretsGetArgs),
+    List(SecretsListArgs),
+    Delete(SecretsDeleteArgs),
+}
+
+#[derive(Debug, Parser)]
+struct SecretsSetArgs {
+    /// Secret name (must be A-Z0-9_).
+    #[arg(value_name = "NAME")]
+    name: String,
+
+    /// Scope to store the secret in.
+    #[arg(long = "scope", value_enum, default_value_t = SecretsScopeArg::Global)]
+    scope: SecretsScopeArg,
+
+    /// CWD used to derive the environment id when --scope env.
+    #[arg(long = "cwd", value_name = "PATH", conflicts_with = "env_id")]
+    cwd: Option<PathBuf>,
+
+    /// Explicit environment id when --scope env.
+    #[arg(long = "env-id", value_name = "ID", conflicts_with = "cwd")]
+    env_id: Option<String>,
+}
+
+#[derive(Debug, Parser)]
+struct SecretsGetArgs {
+    #[arg(value_name = "NAME")]
+    name: String,
+
+    /// Scope to read the secret from.
+    #[arg(long = "scope", value_enum, default_value_t = SecretsScopeArg::Global)]
+    scope: SecretsScopeArg,
+
+    #[arg(long = "cwd", value_name = "PATH", conflicts_with = "env_id")]
+    cwd: Option<PathBuf>,
+
+    #[arg(long = "env-id", value_name = "ID", conflicts_with = "cwd")]
+    env_id: Option<String>,
+
+    /// Print the secret value to stdout.
+    #[arg(long = "reveal", default_value_t = false)]
+    reveal: bool,
+}
+
+#[derive(Debug, Parser)]
+struct SecretsListArgs {
+    /// Optional scope filter.
+    #[arg(long = "scope", value_enum)]
+    scope: Option<SecretsScopeArg>,
+
+    #[arg(long = "cwd", value_name = "PATH", conflicts_with = "env_id")]
+    cwd: Option<PathBuf>,
+
+    #[arg(long = "env-id", value_name = "ID", conflicts_with = "cwd")]
+    env_id: Option<String>,
+}
+
+#[derive(Debug, Parser)]
+struct SecretsDeleteArgs {
+    #[arg(value_name = "NAME")]
+    name: String,
+
+    #[arg(long = "scope", value_enum, default_value_t = SecretsScopeArg::Global)]
+    scope: SecretsScopeArg,
+
+    #[arg(long = "cwd", value_name = "PATH", conflicts_with = "env_id")]
+    cwd: Option<PathBuf>,
+
+    #[arg(long = "env-id", value_name = "ID", conflicts_with = "cwd")]
+    env_id: Option<String>,
 }
 
 #[derive(Debug, Parser)]
@@ -863,6 +954,54 @@ async fn cli_main(code_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()>
         }
         Some(Subcommand::Config(config_cli)) => {
             config_cli.run().await?;
+        }
+        Some(Subcommand::Secrets(secrets_cli)) => {
+            let code_home = code_core::config::find_code_home()
+                .context("failed to resolve CODE_HOME for secrets store")?;
+            let keyring_store: std::sync::Arc<dyn code_keyring_store::KeyringStore> =
+                std::sync::Arc::new(code_keyring_store::DefaultKeyringStore);
+
+            let scope_selection = |scope: SecretsScopeArg,
+                                   cwd: Option<PathBuf>,
+                                   env_id: Option<String>| {
+                secrets_cmd::ScopeSelection {
+                    kind: match scope {
+                        SecretsScopeArg::Global => secrets_cmd::ScopeKind::Global,
+                        SecretsScopeArg::Env => secrets_cmd::ScopeKind::Env,
+                    },
+                    cwd,
+                    env_id,
+                }
+            };
+
+            let command = match secrets_cli.action {
+                SecretsSubcommand::Set(args) => {
+                    let value = secrets_cmd::read_secret_value_from_reader(std::io::stdin().lock())?;
+                    secrets_cmd::SecretsCommand::Set {
+                        name: args.name,
+                        value,
+                        scope: scope_selection(args.scope, args.cwd, args.env_id),
+                    }
+                }
+                SecretsSubcommand::Get(args) => secrets_cmd::SecretsCommand::Get {
+                    name: args.name,
+                    reveal: args.reveal,
+                    scope: scope_selection(args.scope, args.cwd, args.env_id),
+                },
+                SecretsSubcommand::List(args) => secrets_cmd::SecretsCommand::List {
+                    scope: args.scope.map(|scope| scope_selection(scope, args.cwd, args.env_id)),
+                },
+                SecretsSubcommand::Delete(args) => secrets_cmd::SecretsCommand::Delete {
+                    name: args.name,
+                    scope: scope_selection(args.scope, args.cwd, args.env_id),
+                },
+            };
+
+            let out = secrets_cmd::run_secrets_command(keyring_store, code_home, command)?;
+            print!("{}", out.stdout);
+            if out.exit_code != 0 {
+                process::exit(out.exit_code);
+            }
         }
         Some(Subcommand::Preview(args)) => {
             preview_main(args).await?;

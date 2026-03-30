@@ -239,6 +239,7 @@ pub struct ModelClient {
     otel_event_manager: Option<OtelEventManager>,
     client: reqwest::Client,
     provider: ModelProviderInfo,
+    secrets_manager: code_secrets::SecretsManager,
     session_id: Uuid,
     effort: ReasoningEffortConfig,
     summary: ReasoningSummaryConfig,
@@ -268,6 +269,7 @@ impl Clone for ModelClient {
             otel_event_manager: self.otel_event_manager.clone(),
             client: self.client.clone(),
             provider: self.provider.clone(),
+            secrets_manager: self.secrets_manager.clone(),
             session_id: self.session_id,
             effort: self.effort,
             summary: self.summary,
@@ -300,6 +302,8 @@ impl ModelClient {
             transport::clamp_text_verbosity_for_model(config.model.as_str(), verbosity);
         let clamped_effort = clamp_reasoning_effort_for_model(config.model.as_str(), effort);
         let client = create_client(&config.responses_originator_header);
+        let secrets_manager =
+            code_secrets::SecretsManager::new(config.code_home.clone(), code_secrets::SecretsBackendKind::Local);
 
         Self {
             config,
@@ -307,6 +311,7 @@ impl ModelClient {
             otel_event_manager,
             client,
             provider,
+            secrets_manager,
             session_id,
             effort: clamped_effort,
             summary,
@@ -594,6 +599,8 @@ impl ModelClient {
                     model_slug,
                     client: &self.client,
                     provider: &self.provider,
+                    secrets: Some(&self.secrets_manager),
+                    cwd: self.config.cwd.as_path(),
                     debug_logger: &self.debug_logger,
                     auth_manager: self.auth_manager.clone(),
                     otel_event_manager: self.otel_event_manager.clone(),
@@ -771,7 +778,14 @@ impl ModelClient {
             };
             let mut req_builder = self
                 .provider
-                .create_request_builder_for_url(&self.client, &auth, reqwest::Method::GET, url)
+                .create_request_builder_for_url(
+                    &self.client,
+                    &auth,
+                    Some(&self.secrets_manager),
+                    self.config.cwd.as_path(),
+                    reqwest::Method::GET,
+                    url,
+                )
                 .await?;
 
             let has_beta_header = req_builder
@@ -1203,7 +1217,12 @@ impl ModelClient {
 
             let mut req_builder = self
                 .provider
-                .create_request_builder(&self.client, &auth)
+                .create_request_builder(
+                    &self.client,
+                    &auth,
+                    Some(&self.secrets_manager),
+                    self.config.cwd.as_path(),
+                )
                 .await?;
 
             let has_beta_header = req_builder
@@ -1804,7 +1823,12 @@ impl ModelClient {
             let auth = auth_manager.as_ref().and_then(|m| m.auth());
             let mut request = self
                 .provider
-                .create_compact_request_builder(&self.client, &auth)
+                .create_compact_request_builder(
+                    &self.client,
+                    &auth,
+                    Some(&self.secrets_manager),
+                    self.config.cwd.as_path(),
+                )
                 .await?;
 
             // Ensure Responses API beta header is present for compact calls. Mirror the

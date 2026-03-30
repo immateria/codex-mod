@@ -43,6 +43,7 @@ code-terminal-detection = { workspace = true }
 code-windows-sandbox = { workspace = true }
 code-version = { path = "../code-version" }
 code-keyring-store = { workspace = true }
+code-secrets = { workspace = true }
 code-skills = { workspace = true }
 agent-client-protocol = "0.4.3"
 dirs = { workspace = true }

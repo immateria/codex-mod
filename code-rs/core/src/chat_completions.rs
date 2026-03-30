@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -45,6 +46,8 @@ pub(crate) struct ChatCompletionsRequest<'a> {
     pub(crate) model_slug: &'a str,
     pub(crate) client: &'a reqwest::Client,
     pub(crate) provider: &'a ModelProviderInfo,
+    pub(crate) secrets: Option<&'a code_secrets::SecretsManager>,
+    pub(crate) cwd: &'a Path,
     pub(crate) debug_logger: &'a Arc<Mutex<DebugLogger>>,
     pub(crate) auth_manager: Option<Arc<AuthManager>>,
     pub(crate) otel_event_manager: Option<OtelEventManager>,
@@ -61,6 +64,8 @@ pub(crate) async fn stream_chat_completions(
         model_slug,
         client,
         provider,
+        secrets,
+        cwd,
         debug_logger,
         auth_manager,
         otel_event_manager,
@@ -361,7 +366,9 @@ pub(crate) async fn stream_chat_completions(
         attempt += 1;
 
         let auth = auth_manager.as_ref().and_then(|m| m.auth());
-        let mut req_builder = provider.create_request_builder(client, &auth).await?;
+        let mut req_builder = provider
+            .create_request_builder(client, &auth, secrets, cwd)
+            .await?;
 
         if let Some(auth) = auth.as_ref()
             && auth.mode.is_chatgpt()

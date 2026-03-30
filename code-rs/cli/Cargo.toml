@@ -26,11 +26,13 @@ code-chatgpt = { workspace = true }
 code-common = { workspace = true, features = ["cli"] }
 code-core = { workspace = true }
 code-exec = { workspace = true }
+code-keyring-store = { workspace = true }
 code-login = { workspace = true }
 code-mcp-server = { workspace = true }
 code-rmcp-client = { workspace = true }
 code-process-hardening = { workspace = true }
 code-protocol = { workspace = true }
+code-secrets = { workspace = true }
 code-app-server-protocol = { workspace = true }
 code-protocol-ts = { workspace = true }
 code-responses-api-proxy = { workspace = true }

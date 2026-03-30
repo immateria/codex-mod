@@ -162,7 +162,14 @@ impl RemoteModelsManager {
 
         let mut request = match self
             .provider
-            .create_request_builder_for_url(&self.client, &auth, Method::GET, url)
+            .create_request_builder_for_url(
+                &self.client,
+                &auth,
+                None,
+                std::path::Path::new("."),
+                Method::GET,
+                url,
+            )
             .await
         {
             Ok(request) => request,
