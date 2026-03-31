@@ -1,6 +1,6 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2512
+assertion_line: 2513
 expression: section_closed
 ---
  +------------------------------------------------------------------------------------------------+
@@ -17,11 +17,11 @@ expression: section_closed
  |    Exec limits        | Fast mode speeds up replies. 1M Context is available on supported mo | |
  |    Updates            | Auto uses 1M limits and pre-turn compaction checks. Past 272,000 inp | |
  |    Accounts           | › Context preset: auto                                               | |
- |    Apps               |   Context window: 272,000 tokens (auto)                              | |
- |    Agents             |                                                                      | |
- |    Memories           | ↑↓ Navigate   ←→ +/- Adjust   Enter Select/Edit   Ctrl+S Save defaul | |
- |    Prompts            |                                                                      | |
- |  ↓ Skills             +----------------------------------------------------------------------+ |
+ |    Secrets            |   Context window: 272,000 tokens (auto)                              | |
+ |    Apps               |                                                                      | |
+ |    Agents             | ↑↓ Navigate   ←→ +/- Adjust   Enter Select/Edit   Ctrl+S Save defaul | |
+ |    Memories           |                                                                      | |
+ |  ↓ Prompts            +----------------------------------------------------------------------+ |
  | Tab Content  Shift+Tab Sidebar  Esc Overview  ? Help  Focus: Content                           |
  |                                                                                                |
  +------------------------------------------------------------------------------------------------+

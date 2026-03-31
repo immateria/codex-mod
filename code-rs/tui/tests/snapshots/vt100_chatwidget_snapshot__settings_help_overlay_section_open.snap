@@ -1,6 +1,6 @@
 ---
 source: tui/tests/vt100_chatwidget_snapshot.rs
-assertion_line: 2508
+assertion_line: 2509
 expression: section_open
 ---
  +------------------------------------------------------------------------------------------------+
@@ -17,11 +17,11 @@ expression: section_open
  |    Exec limits        | F|• Tab    Focus content                   |vailable on supported mo | |
  |    Updates            | A|• Shift+Tab  Focus sidebar               |checks. Past 272,000 inp | |
  |    Accounts           | ›|• ↑/↓    Change section (sidebar focus)  |                         | |
- |    Apps               |  |• ?      Toggle this help                |                         | |
- |    Agents             |  |                                         |                         | |
- |    Memories           | ↑|Press Esc twice to close                 |dit   Ctrl+S Save defaul | |
- |    Prompts            |  +-----------------------------------------+                         | |
- |  ↓ Skills             +----------------------------------------------------------------------+ |
+ |    Secrets            |  |• ?      Toggle this help                |                         | |
+ |    Apps               |  |                                         |                         | |
+ |    Agents             | ↑|Press Esc twice to close                 |dit   Ctrl+S Save defaul | |
+ |    Memories           |  +-----------------------------------------+                         | |
+ |  ↓ Prompts            +----------------------------------------------------------------------+ |
  | Tab Content  Shift+Tab Sidebar  Esc Overview  ? Help  Focus: Content                           |
  |                                                                                                |
  +------------------------------------------------------------------------------------------------+
