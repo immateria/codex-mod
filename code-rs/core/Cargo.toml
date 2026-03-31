@@ -11,6 +11,9 @@ path = "src/lib.rs"
 [lints]
 workspace = true
 
+[features]
+managed-network-proxy = ["dep:code-network-proxy"]
+
 [dependencies]
 anyhow = { workspace = true }
 askama = { workspace = true }
@@ -28,7 +31,7 @@ code-utils-json-to-toml = { workspace = true }
 code-utils-pty = { workspace = true }
 code-utils-string = { workspace = true }
 code-protocol = { workspace = true }
-code-network-proxy = { workspace = true }
+code-network-proxy = { workspace = true, optional = true }
 code-rmcp-client = { workspace = true }
 code-app-server-protocol = { workspace = true }
 code-otel = { workspace = true, features = ["otel"] }

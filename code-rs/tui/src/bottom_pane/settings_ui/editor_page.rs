@@ -68,6 +68,7 @@ impl<'a> SettingsEditorPage<'a> {
         self
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     pub(crate) fn with_wrap_lines(mut self, wrap_lines: bool) -> Self {
         self.page = self.page.with_wrap_lines(wrap_lines);
         self

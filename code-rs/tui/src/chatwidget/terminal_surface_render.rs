@@ -529,9 +529,8 @@ impl ChatWidget<'_> {
                 StatusLineItem::CurrentDir | StatusLineItem::ProjectRoot => {
                     Some(ClickableAction::ShowDirectoryPicker)
                 }
-                StatusLineItem::NetworkMediation => {
-                    Some(ClickableAction::ShowNetworkSettings)
-                }
+                #[cfg(feature = "managed-network-proxy")]
+                StatusLineItem::NetworkMediation => Some(ClickableAction::ShowNetworkSettings),
                 _ => None,
             };
 

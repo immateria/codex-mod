@@ -534,6 +534,7 @@
         );
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     #[test]
     fn statusline_network_segment_click_on_bottom_opens_network_settings() {
     let _guard = enter_test_runtime_guard();

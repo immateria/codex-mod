@@ -43,7 +43,7 @@ Legend: `Hybrid` means it started as a Codex port, then got adapted to fit this 
 | JS REPL history linkage                          | Fork choice | Child execs track `parent_call_id`, show lineage markers, and support jump-to-parent navigation.                                                                           | `code-rs/tui/src/history_cell/js_repl.rs`<br>`code-rs/tui/src/chatwidget/exec_tools/lifecycle/begin_flow.rs`                                                 |
 | MCP resource tools                               | Codex port  | `list_mcp_resources`, `list_mcp_resource_templates`, `read_mcp_resource` are implemented.                                                                                  | `code-rs/core/src/tools/handlers/mcp_resource.rs`                                                                                                            |
 | MCP settings editor                              | Fork choice | TUI supports server/tool scheduling edits (persist + apply without a full restart).                                                                                        | `code-rs/tui/src/bottom_pane/mcp_settings_view/*`<br>`code-rs/tui/src/app/events.rs`                                                                         |
-| Network mediation                                | Hybrid      | Upstream mediation ideas, but fork UX/policy: temporary approvals + macOS fail-closed path for sandboxed runs.                                                             | `code-rs/core/src/network_approval.rs`<br>`code-rs/core/src/seatbelt.rs`<br>`code-rs/tui/src/bottom_pane/network_settings_view.rs`                           |
+| Network mediation                                | Hybrid      | Upstream mediation ideas, but fork UX/policy: temporary approvals + macOS fail-closed path for sandboxed runs. Gated at build time via `managed-network-proxy`.            | `code-rs/core/src/network_approval.rs`<br>`code-rs/core/src/seatbelt.rs`<br>`code-rs/tui/src/bottom_pane/settings_pages/network/*`                           |
 | Network approval UX                              | Fork choice | Network prompts have network-specific options (`allow once`, `allow for session`, deny run/open settings).                                                                 | `code-rs/tui/src/user_approval_widget.rs`<br>`code-rs/tui/src/chatwidget/history_pipeline/runtime_flow/approvals.rs`                                         |
 | Status line lanes                                | Fork choice | Independent top/bottom status lanes with `/statusline` routing, clickable actions, speed toggles, and directory-picker controls.                                           | `code-rs/tui/src/chatwidget/status_line_flow.rs`<br>`code-rs/tui/src/chatwidget/terminal_surface_render.rs`                                                  |
 | Settings UX routing                              | Fork choice | Overlay + bottom pane are both first-class; auto mode switches by width threshold.                                                                                         | `code-rs/tui/src/chatwidget/settings_routing.rs`                                                                                                             |
@@ -82,7 +82,7 @@ Legend: `Hybrid` means it started as a Codex port, then got adapted to fit this 
 
 - Shell style/profile model is first-class config + UX.
 - MCP scheduling is enforced in core and editable in TUI.
-- Network mediation UX is explicit (settings + approvals + statusline deep links).
+- Network mediation UX is explicit (settings + approvals + statusline deep links when enabled).
 - Settings exist in two surfaces (overlay + bottom pane) with width-based routing.
 - The default header/status surface is interactive: speed mode and directory can be changed from the UI.
 - Hotkeys are configurable with per-platform overrides.
@@ -117,6 +117,16 @@ Legend: `Hybrid` means it started as a Codex port, then got adapted to fit this 
 - Rust sources to edit live under `code-rs/`.
 - `codex-rs/` is treated as a read-only mirror of OpenAI Codex and used for
   parity work and reference.
+
+### Optional build: no managed network proxy
+
+The managed network proxy subsystem (and its dependency tree) is controlled by a single Cargo feature:
+
+- Default build: proxy enabled (status quo): `cargo build -p code-cli`
+- Small build: proxy + Network UI compiled out: `cargo build -p code-cli --no-default-features`
+- Explicit opt-in: `cargo build -p code-cli --features managed-network-proxy`
+
+When compiled without `managed-network-proxy`, `[network] enabled=true` is ignored and Codex emits a warning during session configuration.
 
 ## Compare with upstream
 

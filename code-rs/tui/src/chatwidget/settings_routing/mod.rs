@@ -5,6 +5,7 @@ use crate::bottom_pane::settings_pages::interface::InterfaceSettingsView;
 use crate::bottom_pane::settings_pages::js_repl::JsReplSettingsView;
 use crate::bottom_pane::settings_pages::memories::MemoriesSettingsView;
 use crate::bottom_pane::settings_pages::model::ModelSelectionViewParams;
+#[cfg(feature = "managed-network-proxy")]
 use crate::bottom_pane::settings_pages::network::NetworkSettingsView;
 use crate::bottom_pane::settings_pages::overview::SettingsOverviewView;
 use crate::bottom_pane::settings_pages::apps::AppsSettingsView;
@@ -19,12 +20,13 @@ use crate::chatwidget::settings_overlay::{
     InterfaceSettingsContent,
     JsReplSettingsContent,
     MemoriesSettingsContent,
-    NetworkSettingsContent,
     PluginsSettingsContent,
     SecretsSettingsContent,
     ShellSettingsContent,
     ShellProfilesSettingsContent,
 };
+#[cfg(feature = "managed-network-proxy")]
+use crate::chatwidget::settings_overlay::NetworkSettingsContent;
 
 include!("overlay.rs");
 include!("builders.rs");

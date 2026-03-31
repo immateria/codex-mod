@@ -171,6 +171,7 @@ impl<'a> BottomPane<'a> {
         self.set_other_view(view, true);
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     pub fn show_network_settings(&mut self, view: settings_pages::network::NetworkSettingsView) {
         self.set_other_view(view, true);
     }

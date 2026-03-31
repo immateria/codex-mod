@@ -90,6 +90,7 @@ impl ChatWidget<'_> {
                     }
                 }
             }
+            #[cfg(feature = "managed-network-proxy")]
             ClickableAction::ShowNetworkSettings => {
                 self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);
             }

@@ -83,6 +83,7 @@ impl ChatWidget<'_> {
             overlay.set_mcp_content(mcp_content);
         }
         overlay.set_js_repl_content(self.build_js_repl_settings_content());
+        #[cfg(feature = "managed-network-proxy")]
         overlay.set_network_content(self.build_network_settings_content());
         overlay.set_agents_content(self.build_agents_settings_content());
         overlay.set_auto_drive_content(self.build_auto_drive_settings_content());

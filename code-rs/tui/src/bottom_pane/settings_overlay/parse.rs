@@ -33,6 +33,7 @@ impl SettingsSection {
             "chrome" | "browser" => Some(SettingsSection::Chrome),
             "mcp" => Some(SettingsSection::Mcp),
             "js" | "jsrepl" | "repl" | "js-repl" => Some(SettingsSection::JsRepl),
+            #[cfg(feature = "managed-network-proxy")]
             "network" | "net" | "proxy" => Some(SettingsSection::Network),
             "notification" | "notifications" | "notify" | "notif" => {
                 Some(SettingsSection::Notifications)

@@ -3,7 +3,6 @@ use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use code_network_proxy::NetworkProxy;
 use code_protocol::config_types::WindowsSandboxLevel;
 use code_protocol::models::SandboxPermissions;
 use code_protocol::protocol::NetworkAccess;
@@ -22,7 +21,7 @@ pub struct ExecRequest {
     pub command: Vec<String>,
     pub cwd: PathBuf,
     pub env: HashMap<String, String>,
-    pub network: Option<NetworkProxy>,
+    pub network: Option<crate::managed_network_proxy_api::ManagedNetworkProxy>,
     pub expiration: ExecExpiration,
     pub sandbox: SandboxType,
     pub windows_sandbox_level: WindowsSandboxLevel,
@@ -37,7 +36,7 @@ pub struct BuildExecRequestParams {
     pub command: Vec<String>,
     pub cwd: PathBuf,
     pub env: HashMap<String, String>,
-    pub network: Option<NetworkProxy>,
+    pub network: Option<crate::managed_network_proxy_api::ManagedNetworkProxy>,
     pub expiration: ExecExpiration,
     pub sandbox_permissions: SandboxPermissions,
     pub windows_sandbox_level: WindowsSandboxLevel,

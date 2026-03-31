@@ -110,6 +110,7 @@ impl ChatWidget<'_> {
         })
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     fn open_network_settings_section(&mut self) -> bool {
         let view = self.build_network_settings_view();
         self.open_bottom_pane_settings(move |this| {
@@ -212,6 +213,7 @@ impl ChatWidget<'_> {
             SettingsSection::Notifications                      => self.open_notifications_settings_section(),
             SettingsSection::Mcp                                => self.open_mcp_settings_section(),
             SettingsSection::JsRepl                             => self.open_js_repl_settings_section(),
+            #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network                            => self.open_network_settings_section(),
 
             SettingsSection::Agents | SettingsSection::Limits | SettingsSection::Chrome => false,
@@ -268,7 +270,6 @@ impl ChatWidget<'_> {
             | SettingsSection::AutoDrive
             | SettingsSection::Mcp
             | SettingsSection::JsRepl
-            | SettingsSection::Network
             | SettingsSection::Notifications
             | SettingsSection::Prompts
             | SettingsSection::Accounts
@@ -277,6 +278,8 @@ impl ChatWidget<'_> {
             | SettingsSection::Memories
             | SettingsSection::Skills
             | SettingsSection::Plugins => false,
+            #[cfg(feature = "managed-network-proxy")]
+            SettingsSection::Network => false,
         };
 
         if handled {

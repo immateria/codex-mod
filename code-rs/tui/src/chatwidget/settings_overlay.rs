@@ -24,7 +24,6 @@ pub(crate) use self::contents::{
     MemoriesSettingsContent,
     McpSettingsContent,
     ModelSettingsContent,
-    NetworkSettingsContent,
     NotificationsSettingsContent,
     PlanningSettingsContent,
     PluginsSettingsContent,
@@ -38,6 +37,8 @@ pub(crate) use self::contents::{
     UpdatesSettingsContent,
     ValidationSettingsContent,
 };
+#[cfg(feature = "managed-network-proxy")]
+pub(crate) use self::contents::NetworkSettingsContent;
 pub(crate) use self::limits::LimitsSettingsContent;
 pub(crate) use self::types::{SettingsContent, SettingsOverviewRow};
 
@@ -74,6 +75,7 @@ pub(crate) struct SettingsOverlayView {
     plugins_content: Option<PluginsSettingsContent>,
     mcp_content: Option<McpSettingsContent>,
     js_repl_content: Option<JsReplSettingsContent>,
+    #[cfg(feature = "managed-network-proxy")]
     network_content: Option<NetworkSettingsContent>,
     agents_content: Option<AgentsSettingsContent>,
     review_content: Option<ReviewSettingsContent>,
@@ -129,6 +131,7 @@ impl SettingsOverlayView {
             plugins_content: None,
             mcp_content: None,
             js_repl_content: None,
+            #[cfg(feature = "managed-network-proxy")]
             network_content: None,
             agents_content: None,
             review_content: None,
@@ -319,6 +322,7 @@ impl SettingsOverlayView {
         self.js_repl_content = Some(content);
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     pub(crate) fn set_network_content(&mut self, content: NetworkSettingsContent) {
         self.network_content = Some(content);
     }
@@ -548,6 +552,7 @@ impl SettingsOverlayView {
                 .js_repl_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
+            #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => self
                 .network_content
                 .as_mut()

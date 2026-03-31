@@ -1,7 +1,7 @@
-use code_network_proxy::ALLOW_LOCAL_BINDING_ENV_KEY;
-use code_network_proxy::PROXY_URL_ENV_KEYS;
-use code_network_proxy::has_proxy_url_env_vars;
-use code_network_proxy::proxy_url_env_value;
+use crate::managed_network_proxy_api::ALLOW_LOCAL_BINDING_ENV_KEY;
+use crate::managed_network_proxy_api::PROXY_URL_ENV_KEYS;
+use crate::managed_network_proxy_api::has_proxy_url_env_vars;
+use crate::managed_network_proxy_api::proxy_url_env_value;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::path::Path;

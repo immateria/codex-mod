@@ -24,13 +24,14 @@ pub(crate) enum SettingsSection {
     Chrome,
     Mcp,
     JsRepl,
+    #[cfg(feature = "managed-network-proxy")]
     Network,
     Notifications,
 }
 
 impl SettingsSection {
     #[cfg(not(target_os = "android"))]
-    pub(crate) const ALL: [SettingsSection; 26] = [
+    pub(crate) const ALL: &[SettingsSection] = &[
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Interface,
@@ -54,13 +55,14 @@ impl SettingsSection {
         SettingsSection::Chrome,
         SettingsSection::Mcp,
         SettingsSection::JsRepl,
+        #[cfg(feature = "managed-network-proxy")]
         SettingsSection::Network,
         SettingsSection::Notifications,
         SettingsSection::Limits,
     ];
 
     #[cfg(target_os = "android")]
-    pub(crate) const ALL: [SettingsSection; 25] = [
+    pub(crate) const ALL: &[SettingsSection] = &[
         SettingsSection::Model,
         SettingsSection::Theme,
         SettingsSection::Interface,
@@ -83,6 +85,7 @@ impl SettingsSection {
         SettingsSection::Validation,
         SettingsSection::Mcp,
         SettingsSection::JsRepl,
+        #[cfg(feature = "managed-network-proxy")]
         SettingsSection::Network,
         SettingsSection::Notifications,
         SettingsSection::Limits,

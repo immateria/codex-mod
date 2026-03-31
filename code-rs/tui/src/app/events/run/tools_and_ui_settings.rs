@@ -1,4 +1,5 @@
             match event {
+                #[cfg(feature = "managed-network-proxy")]
                 AppEvent::SetNetworkProxySettings(settings) => {
                     match code_core::config::set_network_proxy_settings(
                         &self.config.code_home,

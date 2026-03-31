@@ -122,6 +122,7 @@ impl ChatWidget<'_> {
         MemoriesSettingsContent::new(self.build_memories_settings_view())
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     pub(super) fn build_network_settings_view(&mut self) -> NetworkSettingsView {
         let ticket = self.make_background_tail_ticket();
         NetworkSettingsView::new(
@@ -132,6 +133,7 @@ impl ChatWidget<'_> {
         )
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     pub(super) fn build_network_settings_content(&mut self) -> NetworkSettingsContent {
         NetworkSettingsContent::new(self.build_network_settings_view())
     }
@@ -153,11 +155,8 @@ impl ChatWidget<'_> {
             runtime_args: self.config.js_repl_runtime_args.clone(),
             node_module_dirs: self.config.js_repl_node_module_dirs.clone(),
         };
-        let network_enabled = self
-            .config
-            .network
-            .as_ref()
-            .is_some_and(|net| net.enabled);
+        let network_enabled = cfg!(feature = "managed-network-proxy")
+            && self.config.network.as_ref().is_some_and(|net| net.enabled);
         JsReplSettingsView::new(settings, network_enabled, self.app_event_tx.clone(), ticket)
     }
 

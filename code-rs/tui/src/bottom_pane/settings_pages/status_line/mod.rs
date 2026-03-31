@@ -20,6 +20,7 @@ pub(crate) enum StatusLineItem {
     CurrentDir,
     ProjectRoot,
     GitBranch,
+    #[cfg(feature = "managed-network-proxy")]
     NetworkMediation,
     Approval,
     Sandbox,

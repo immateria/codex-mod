@@ -24,6 +24,7 @@ impl SettingsSection {
             SettingsSection::Chrome => "Chrome",
             SettingsSection::Mcp => "MCP",
             SettingsSection::JsRepl => "JS REPL",
+            #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => "Network",
             SettingsSection::Notifications => "Notifications",
             SettingsSection::Prompts => "Prompts",
@@ -69,6 +70,7 @@ impl SettingsSection {
             SettingsSection::Chrome => "Connect to Chrome or switch browser integrations.",
             SettingsSection::Mcp => "Enable and manage local MCP servers for tooling.",
             SettingsSection::JsRepl => "Configure the optional js_repl tool runtime and paths.",
+            #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => "Configure managed network mediation and approvals.",
             SettingsSection::Notifications => {
                 "Adjust desktop and terminal notification preferences."
@@ -106,6 +108,7 @@ impl SettingsSection {
             SettingsSection::Chrome => "Chrome integration settings coming soon.",
             SettingsSection::Mcp => "MCP server management coming soon.",
             SettingsSection::JsRepl => "Configure the js_repl tool runtime and paths.",
+            #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => "Configure managed network mediation for tool execution.",
             SettingsSection::Notifications => "Notification preferences coming soon.",
             SettingsSection::Prompts => "Manage custom prompts.",

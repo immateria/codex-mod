@@ -752,7 +752,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     attempt_id.clone(),
                 ));
 
-                let username = code_network_proxy::proxy_username_for_attempt_id(&attempt_id);
+                let username = crate::managed_network_proxy_api::proxy_username_for_attempt_id(&attempt_id);
                 let proxy_url = format!("http://{username}@{}", managed_proxy.http_addr());
                 let no_proxy = "localhost,127.0.0.1,::1,.local,169.254.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16";
                 let reqwest_proxy = match reqwest::Proxy::all(&proxy_url) {

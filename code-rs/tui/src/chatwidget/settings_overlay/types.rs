@@ -138,12 +138,11 @@ impl SettingsHelpOverlay {
                 hint,
             )]));
         }
-        if matches!(
+        let show_activate = matches!(
             section,
             SettingsSection::Agents
                 | SettingsSection::Mcp
                 | SettingsSection::JsRepl
-                | SettingsSection::Network
                 | SettingsSection::ExecLimits
                 | SettingsSection::Accounts
                 | SettingsSection::Apps
@@ -152,7 +151,17 @@ impl SettingsHelpOverlay {
                 | SettingsSection::Shell
                 | SettingsSection::ShellProfiles
                 | SettingsSection::Skills
-        ) {
+        ) || {
+            #[cfg(feature = "managed-network-proxy")]
+            {
+                matches!(section, SettingsSection::Network)
+            }
+            #[cfg(not(feature = "managed-network-proxy"))]
+            {
+                false
+            }
+        };
+        if show_activate {
             lines.push(Line::from(vec![Span::styled(
                 "• Enter  Activate focused action",
                 hint,

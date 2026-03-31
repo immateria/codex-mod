@@ -78,6 +78,7 @@ impl SettingsOverlayView {
             SettingsSection::Chrome => "Chrome Launch Options",
             SettingsSection::Notifications => "Notifications",
             SettingsSection::JsRepl => "JS REPL",
+            #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => "Network Mediation",
             SettingsSection::Mcp => "MCP Servers",
             SettingsSection::Prompts => "Custom Prompts",

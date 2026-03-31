@@ -16,6 +16,7 @@ use code_core::config_types::ThemeName;
 use code_core::config_types::TuiHotkeysConfig;
 use code_core::config_types::McpServerSchedulingToml;
 use code_core::config_types::McpToolSchedulingOverrideToml;
+#[cfg(feature = "managed-network-proxy")]
 use code_core::config::NetworkProxySettingsToml;
 use code_core::plugins::{
     ConfiguredMarketplace,
@@ -871,6 +872,7 @@ pub(crate) enum AppEvent {
         _action: MemoriesArtifactsAction,
         result: Result<String, String>,
     },
+    #[cfg(feature = "managed-network-proxy")]
     SetNetworkProxySettings(NetworkProxySettingsToml),
     SetExecLimitsSettings(code_core::config::ExecLimitsToml),
     SetJsReplSettings(code_core::config::JsReplSettingsToml),

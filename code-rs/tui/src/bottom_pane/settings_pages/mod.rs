@@ -15,6 +15,7 @@ pub(crate) mod js_repl;
 pub(crate) mod mcp;
 pub(crate) mod memories;
 pub(crate) mod model;
+#[cfg(feature = "managed-network-proxy")]
 pub(crate) mod network;
 pub(crate) mod notifications;
 pub(crate) mod overview;

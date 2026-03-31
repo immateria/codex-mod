@@ -11,6 +11,10 @@ path = "src/main.rs"
 name = "code_cli"
 path = "src/lib.rs"
 
+[features]
+default = ["managed-network-proxy"]
+managed-network-proxy = ["code-core/managed-network-proxy", "code-tui/managed-network-proxy"]
+
 [lints]
 workspace = true
 

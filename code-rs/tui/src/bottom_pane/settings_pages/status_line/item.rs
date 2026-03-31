@@ -11,6 +11,7 @@ impl StatusLineItem {
             StatusLineItem::CurrentDir => "Current directory",
             StatusLineItem::ProjectRoot => "Project root",
             StatusLineItem::GitBranch => "Git branch",
+            #[cfg(feature = "managed-network-proxy")]
             StatusLineItem::NetworkMediation => "Network mediation",
             StatusLineItem::Approval => "Approval policy",
             StatusLineItem::Sandbox => "Sandbox policy",
@@ -39,6 +40,7 @@ impl StatusLineItem {
             StatusLineItem::CurrentDir => "Current working directory.",
             StatusLineItem::ProjectRoot => "Detected project root directory.",
             StatusLineItem::GitBranch => "Current git branch when available.",
+            #[cfg(feature = "managed-network-proxy")]
             StatusLineItem::NetworkMediation => "Managed network mediation state (enabled/mode).",
             StatusLineItem::Approval => "Current approval policy for command execution.",
             StatusLineItem::Sandbox => "Current sandbox policy for tool execution.",
@@ -71,6 +73,7 @@ impl StatusLineItem {
             StatusLineItem::CurrentDir => "~/code-termux",
             StatusLineItem::ProjectRoot => "code-termux",
             StatusLineItem::GitBranch => "main",
+            #[cfg(feature = "managed-network-proxy")]
             StatusLineItem::NetworkMediation => "net limited",
             StatusLineItem::Approval => "approval on-request",
             StatusLineItem::Sandbox => "sbx workspace-write",

@@ -100,21 +100,37 @@ impl Runner<'_> {
         updated_config.memories = memories;
         updated_config.shell_style_profiles = shell_style_profiles;
 
-        updated_config.network_proxy = match updated_config.network.as_ref().filter(|net| net.enabled)
-        {
-            Some(net) => {
-                match crate::config::network_proxy_spec::NetworkProxySpec::from_config(
-                    net.to_network_proxy_config(),
-                ) {
-                    Ok(spec) => Some(spec),
-                    Err(err) => {
-                        let message = format!("invalid managed network config: {err}");
-                        self.send_error_event(&submission_id, message).await;
-                        return Err(ConfigureSessionControl::Exit);
+        updated_config.network_proxy = {
+            #[cfg(feature = "managed-network-proxy")]
+            {
+                match updated_config.network.as_ref().filter(|net| net.enabled) {
+                    Some(net) => {
+                        match crate::config::network_proxy_spec::NetworkProxySpec::from_config(
+                            net.to_network_proxy_config(),
+                        ) {
+                            Ok(spec) => Some(spec),
+                            Err(err) => {
+                                let message = format!("invalid managed network config: {err}");
+                                self.send_error_event(&submission_id, message).await;
+                                return Err(ConfigureSessionControl::Exit);
+                            }
+                        }
                     }
+                    None => None,
                 }
             }
-            None => None,
+            #[cfg(not(feature = "managed-network-proxy"))]
+            {
+                if updated_config.network.as_ref().is_some_and(|net| net.enabled) {
+                    self.send_warning_event(
+                        &submission_id,
+                        "Managed network mediation is not available in this build; ignoring `[network]` settings."
+                            .to_string(),
+                    )
+                    .await;
+                }
+                None
+            }
         };
 
         updated_config.model_family = find_family_for_model(&updated_config.model)

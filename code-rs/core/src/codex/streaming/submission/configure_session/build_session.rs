@@ -269,30 +269,44 @@ impl Runner<'_> {
         }
 
         let network_approval = Arc::new(crate::network_approval::NetworkApprovalService::default());
+
+        #[cfg(feature = "managed-network-proxy")]
         let network_policy_decider_session = config.network_proxy.as_ref().map(|_| {
             Arc::new(tokio::sync::RwLock::new(std::sync::Weak::<Session>::new()))
         });
+
+        #[cfg(feature = "managed-network-proxy")]
         let network_policy_decider = network_policy_decider_session.as_ref().map(|session| {
             crate::network_approval::build_network_policy_decider(
                 Arc::clone(&network_approval),
                 Arc::clone(session),
             )
         });
-        let network_proxy = if let Some(spec) = config.network_proxy.as_ref() {
-            match spec
-                .start_proxy(&sandbox_policy, network_policy_decider, None, true)
-                .await
+
+        let network_proxy = {
+            #[cfg(feature = "managed-network-proxy")]
             {
-                Ok(proxy) => Some(proxy),
-                Err(err) => {
-                    let message = format!("Failed to start managed network proxy: {err}");
-                    error!("{message}");
-                    mcp_connection_errors.push(message);
+                if let Some(spec) = config.network_proxy.as_ref() {
+                    match spec
+                        .start_proxy(&sandbox_policy, network_policy_decider, None, true)
+                        .await
+                    {
+                        Ok(proxy) => Some(proxy),
+                        Err(err) => {
+                            let message = format!("Failed to start managed network proxy: {err}");
+                            error!("{message}");
+                            mcp_connection_errors.push(message);
+                            None
+                        }
+                    }
+                } else {
                     None
                 }
             }
-        } else {
-            None
+            #[cfg(not(feature = "managed-network-proxy"))]
+            {
+                None
+            }
         };
 
         let js_repl_default_runtime = config.js_repl_runtime;
@@ -490,11 +504,14 @@ impl Runner<'_> {
             inner.self_handle = weak_handle;
         }
         self.sess = Some(new_session);
-        if let Some(sess_arc) = self.sess.as_ref()
-            && let Some(lock) = network_policy_decider_session.as_ref()
+        #[cfg(feature = "managed-network-proxy")]
         {
-            let mut guard = lock.write().await;
-            *guard = Arc::downgrade(sess_arc);
+            if let Some(sess_arc) = self.sess.as_ref()
+                && let Some(lock) = network_policy_decider_session.as_ref()
+            {
+                let mut guard = lock.write().await;
+                *guard = Arc::downgrade(sess_arc);
+            }
         }
         if let Some(sess_arc) = self.sess.as_ref() {
             if config.memories.generate_memories {

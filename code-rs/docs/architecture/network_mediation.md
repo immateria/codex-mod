@@ -9,6 +9,18 @@ the actual policy semantics.
 
 ## What "Network Mediation" Means
 
+## Build-Time Gating
+
+The managed network proxy subsystem is gated by the Cargo feature `managed-network-proxy`.
+
+- Default build: enabled (status quo).
+- Small build: compile it out via `cargo build -p code-cli --no-default-features`.
+
+When compiled without `managed-network-proxy`:
+
+- The Settings UI has **no Network section** and there is **no network status segment**.
+- `[network] enabled=true` is ignored and Codex emits a warning during session configuration.
+
 Network mediation is a **managed, local proxy** started by core (outside the
 sandbox). When enabled, sandboxed tools are configured (and on macOS, enforced)
 to send outbound network traffic through that proxy. The proxy applies:
@@ -222,8 +234,10 @@ state is visible.
   - header/statusline region builders:
     - If the top header template adds a `{network}` placeholder in the future,
       make it clickable there too.
-    - For the bottom statusline, make the `StatusLineItem::NetworkMediation`
-      segment clickable and open Settings → Network.
+- For the bottom statusline, make the `StatusLineItem::NetworkMediation`
+  segment clickable and open Settings → Network.
+
+Note: this segment and action are compiled out entirely when `managed-network-proxy` is disabled.
 
 Hover should cover the entire segment, like model/reasoning currently does.
 
@@ -258,6 +272,11 @@ adoption.
    - no approval prompt
    - error points user to Settings → Network
 5. Clicking `net ...` opens Settings → Network.
+
+Feature-off build sanity:
+
+1. Settings has no Network section.
+2. Enabling `[network] enabled=true` triggers a warning and is otherwise ignored.
 
 ## References (Current Code)
 

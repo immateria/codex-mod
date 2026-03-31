@@ -1,3 +1,4 @@
+    #[cfg(feature = "managed-network-proxy")]
     #[test]
     fn network_settings_emits_apply_event_with_expected_fields() {
     let _guard = enter_test_runtime_guard();
@@ -257,7 +258,7 @@
 
     {
         let chat = harness.chat();
-        chat.show_settings_overlay(Some(SettingsSection::Network));
+        chat.show_settings_overlay(Some(SettingsSection::Experimental));
     }
     harness.flush_into_widget();
 
@@ -276,8 +277,8 @@
     // Default focus is content. Home should not switch sections while content is focused.
     let output_before = render(&mut harness);
     assert!(
-        output_before.contains("Network Mediation") && output_before.contains("Focus: Content"),
-        "expected Network settings with content focus, got:\n{output_before}",
+        output_before.contains("Experimental Features") && output_before.contains("Focus: Content"),
+        "expected Experimental settings with content focus, got:\n{output_before}",
     );
 
     harness.with_chat(|chat| {
@@ -286,7 +287,7 @@
     });
     let output_after_home = render(&mut harness);
     assert!(
-        output_after_home.contains("Network Mediation"),
+        output_after_home.contains("Experimental Features"),
         "expected Home to not switch sections while content is focused, got:\n{output_after_home}",
     );
 
@@ -337,7 +338,7 @@
             overlay_min_width: 100,
         });
         chat.layout.last_frame_width.set(120);
-        chat.show_settings_overlay(Some(SettingsSection::Network));
+        chat.show_settings_overlay(Some(SettingsSection::Experimental));
         assert!(
             chat.settings.overlay.is_some(),
             "expected overlay settings at wide width",
@@ -367,7 +368,7 @@
             .expect("expected overlay settings after widening width");
         assert_eq!(
             overlay.active_section(),
-            SettingsSection::Network,
+            SettingsSection::Experimental,
             "expected active settings section to be preserved across mode switches",
         );
         assert!(
@@ -738,6 +739,7 @@
     );
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     #[test]
     fn statusline_network_segment_click_on_top_opens_network_settings() {
     let _guard = enter_test_runtime_guard();

@@ -681,7 +681,9 @@ impl Session {
         Arc::clone(&self.exec_command_manager)
     }
 
-    pub(crate) fn managed_network_proxy(&self) -> Option<code_network_proxy::NetworkProxy> {
+    pub(crate) fn managed_network_proxy(
+        &self,
+    ) -> Option<crate::managed_network_proxy_api::ManagedNetworkProxy> {
         self.network_proxy
             .as_ref()
             .map(crate::config::network_proxy_spec::StartedNetworkProxy::proxy)

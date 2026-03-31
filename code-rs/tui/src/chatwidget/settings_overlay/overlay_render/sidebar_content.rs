@@ -294,6 +294,7 @@ impl SettingsOverlayView {
                 }
                 self.render_placeholder(area, buf, SettingsSection::JsRepl.placeholder());
             }
+            #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network => {
                 if let Some(content) = self.network_content.as_ref() {
                     content.render(area, buf);

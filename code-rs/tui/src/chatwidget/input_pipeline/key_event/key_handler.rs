@@ -291,10 +291,19 @@ impl ChatWidget<'_> {
                 Some(ClickableAction::ShowReasoningSelector)
             } else if matches_tui_hotkey(hotkeys.shell_selector, &key_event) {
                 Some(ClickableAction::ShowShellSelector)
-            } else if matches_tui_hotkey(hotkeys.network_settings, &key_event) {
-                Some(ClickableAction::ShowNetworkSettings)
             } else {
-                None
+                #[cfg(feature = "managed-network-proxy")]
+                {
+                    if matches_tui_hotkey(hotkeys.network_settings, &key_event) {
+                        Some(ClickableAction::ShowNetworkSettings)
+                    } else {
+                        None
+                    }
+                }
+                #[cfg(not(feature = "managed-network-proxy"))]
+                {
+                    None
+                }
             };
             if let Some(action) = action {
                 self.handle_clickable_action(action);

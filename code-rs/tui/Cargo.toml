@@ -18,6 +18,7 @@ debug-logs = []
 dev-faults = ["code-auto-drive-core/dev-faults"]
 # Fork-specific extensions layered on top of upstream history rendering.
 code-fork = []
+managed-network-proxy = ["code-core/managed-network-proxy"]
 test-helpers = ["code-auto-drive-core/test-helpers"]
 # Enable clipboard support (disabled on Android and for testing)
 clipboard = ["arboard"]

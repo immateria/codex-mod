@@ -1281,6 +1281,7 @@ pub enum NetworkModeToml {
 }
 
 impl NetworkModeToml {
+    #[cfg(feature = "managed-network-proxy")]
     fn to_proxy_mode(self) -> code_network_proxy::NetworkMode {
         match self {
             Self::Limited => code_network_proxy::NetworkMode::Limited,
@@ -1375,6 +1376,7 @@ impl Default for NetworkProxySettingsToml {
 }
 
 impl NetworkProxySettingsToml {
+    #[cfg(feature = "managed-network-proxy")]
     pub(crate) fn to_network_proxy_config(&self) -> code_network_proxy::NetworkProxyConfig {
         let mut cfg = code_network_proxy::NetworkProxyConfig::default();
         cfg.network.enabled = self.enabled;
@@ -1781,14 +1783,27 @@ impl Config {
             .or(cfg.tools.as_ref().and_then(|t| t.view_image))
             .unwrap_or(true);
 
-        let network_proxy = cfg
-            .network
-            .as_ref()
-            .filter(|net| net.enabled)
-            .map(|net| {
-                network_proxy_spec::NetworkProxySpec::from_config(net.to_network_proxy_config())
-            })
-            .transpose()?;
+        let network_proxy = {
+            #[cfg(feature = "managed-network-proxy")]
+            {
+                cfg.network
+                    .as_ref()
+                    .filter(|net| net.enabled)
+                    .map(|net| {
+                        network_proxy_spec::NetworkProxySpec::from_config(net.to_network_proxy_config())
+                    })
+                    .transpose()?
+            }
+            #[cfg(not(feature = "managed-network-proxy"))]
+            {
+                if cfg.network.as_ref().is_some_and(|net| net.enabled) {
+                    tracing::warn!(
+                        "Managed network mediation is not available in this build; ignoring `[network]` settings."
+                    );
+                }
+                None
+            }
+        };
 
         let skills_enabled = features_effective.get_bool("skills").unwrap_or(true);
         let global_memories = cfg.memories.clone();

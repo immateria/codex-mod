@@ -673,6 +673,7 @@ enum ClickableAction {
     ShowShellSelector,
     ShowReasoningSelector,
     ShowDirectoryPicker,
+    #[cfg(feature = "managed-network-proxy")]
     ShowNetworkSettings,
     AcceptStartupModelMigration,
     DismissStartupModelMigration,

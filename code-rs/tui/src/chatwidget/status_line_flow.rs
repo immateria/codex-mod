@@ -230,6 +230,7 @@ impl ChatWidget<'_> {
                         .unwrap_or_else(|| root.display().to_string())
                 }),
             StatusLineItem::GitBranch => self.get_git_branch(),
+            #[cfg(feature = "managed-network-proxy")]
             StatusLineItem::NetworkMediation => {
                 let Some(settings) = self.config.network.as_ref() else {
                     return Some("net off".to_string());

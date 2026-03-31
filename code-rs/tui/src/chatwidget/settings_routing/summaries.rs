@@ -28,6 +28,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Chrome        => self.settings_summary_chrome(),
                     SettingsSection::Mcp           => self.settings_summary_mcp(),
                     SettingsSection::JsRepl        => self.settings_summary_js_repl(),
+                    #[cfg(feature = "managed-network-proxy")]
                     SettingsSection::Network       => self.settings_summary_network(),
                     SettingsSection::Notifications => self.settings_summary_notifications(),
                     SettingsSection::Limits        => self.settings_summary_limits(),
@@ -230,6 +231,7 @@ impl ChatWidget<'_> {
         }
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     pub(super) fn settings_summary_network(&self) -> Option<String> {
         let Some(network) = self.config.network.as_ref() else {
             return Some("Status: Disabled".to_string());

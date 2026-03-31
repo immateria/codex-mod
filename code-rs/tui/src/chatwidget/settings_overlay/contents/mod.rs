@@ -133,6 +133,7 @@ mod js_repl;
 mod memories;
 mod mcp;
 mod model;
+#[cfg(feature = "managed-network-proxy")]
 mod network;
 mod notifications;
 mod planning;
@@ -157,6 +158,7 @@ pub(crate) use js_repl::JsReplSettingsContent;
 pub(crate) use memories::MemoriesSettingsContent;
 pub(crate) use mcp::McpSettingsContent;
 pub(crate) use model::ModelSettingsContent;
+#[cfg(feature = "managed-network-proxy")]
 pub(crate) use network::NetworkSettingsContent;
 pub(crate) use notifications::NotificationsSettingsContent;
 pub(crate) use planning::PlanningSettingsContent;

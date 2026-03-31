@@ -259,6 +259,7 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
+    #[cfg(feature = "managed-network-proxy")]
     pub(crate) fn apply_network_proxy_settings(
         &mut self,
         settings: Option<code_core::config::NetworkProxySettingsToml>,
