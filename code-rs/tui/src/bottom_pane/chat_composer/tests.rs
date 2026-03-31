@@ -211,6 +211,10 @@ fn map_status_message_shows_connecting_for_connecting_status() {
         ChatComposer::map_status_message("(connecting to model)"),
         "Connecting".to_string(),
     );
+    assert_eq!(
+        ChatComposer::map_status_message("reconnecting to model"),
+        "Reconnecting".to_string(),
+    );
 }
 
 #[test]
