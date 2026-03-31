@@ -29,6 +29,18 @@ impl ChatWidget<'_> {
         self.open_bottom_pane_settings(move |this| this.bottom_pane.show_update_settings(view))
     }
 
+    fn open_accounts_settings_section(&mut self) -> bool {
+        let view = crate::bottom_pane::settings_pages::accounts::AccountSwitchSettingsView::new(
+            self.app_event_tx.clone(),
+            self.config.auto_switch_accounts_on_rate_limit,
+            self.config.api_key_fallback_on_all_accounts_limited,
+            self.config.cli_auth_credentials_store_mode,
+        );
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_account_switch_settings(view);
+        })
+    }
+
     fn open_memories_settings_section(&mut self) -> bool {
         let view = self.build_memories_settings_view();
         self.open_bottom_pane_settings(move |this| {
@@ -186,7 +198,7 @@ impl ChatWidget<'_> {
             SettingsSection::ShellProfiles                       => self.open_shell_profiles_settings_section(),
             SettingsSection::ExecLimits                         => self.open_exec_limits_settings_section(),
             SettingsSection::Updates                            => self.open_updates_settings_section(),
-            SettingsSection::Accounts                           => false,
+            SettingsSection::Accounts                           => self.open_accounts_settings_section(),
             SettingsSection::Secrets                            => self.open_secrets_settings_section(),
             SettingsSection::Apps                               => self.open_apps_settings_section(),
             SettingsSection::Memories                           => self.open_memories_settings_section(),

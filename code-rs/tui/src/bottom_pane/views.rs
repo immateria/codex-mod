@@ -294,6 +294,10 @@ impl<'a> BottomPane<'a> {
         self.set_other_view(view, true);
     }
 
+    pub fn show_account_switch_settings(&mut self, view: settings_pages::accounts::AccountSwitchSettingsView) {
+        self.set_other_view(view, true);
+    }
+
     pub fn show_login_accounts(&mut self, view: settings_pages::accounts::LoginAccountsView) {
         self.set_other_view(view, false);
     }

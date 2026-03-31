@@ -437,6 +437,46 @@
     }
 
     #[test]
+    fn auto_settings_menu_can_reroute_accounts_section_to_bottom_pane() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+        use crate::bottom_pane::SettingsSection;
+        use code_core::config_types::{SettingsMenuConfig, SettingsMenuOpenMode};
+
+        {
+            let chat = harness.chat();
+            chat.apply_tui_settings_menu(SettingsMenuConfig {
+                open_mode: SettingsMenuOpenMode::Auto,
+                overlay_min_width: 100,
+            });
+            chat.layout.last_frame_width.set(120);
+            chat.show_settings_overlay(Some(SettingsSection::Accounts));
+            assert!(
+                chat.settings.overlay.is_some(),
+                "expected overlay settings to open at wide width",
+            );
+        }
+
+        {
+            let chat = harness.chat();
+            chat.sync_settings_route_for_width(80);
+            assert!(
+                chat.settings.overlay.is_none(),
+                "expected Accounts section to reroute to bottom-pane settings when width is narrow",
+            );
+            assert!(
+                chat.bottom_pane.has_active_view(),
+                "expected a bottom-pane settings view to be active after rerouting",
+            );
+            assert_eq!(
+                chat.settings.bottom_route,
+                Some(Some(SettingsSection::Accounts)),
+                "expected Accounts section to be tracked as the active bottom-pane route",
+            );
+        }
+    }
+
+    #[test]
     fn settings_overlay_overview_keeps_selected_row_visible_when_scrolling() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();
