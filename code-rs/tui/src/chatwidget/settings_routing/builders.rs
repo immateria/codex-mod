@@ -250,6 +250,16 @@ impl ChatWidget<'_> {
         PluginsSettingsContent::new(self.build_plugins_settings_view())
     }
 
+    pub(super) fn build_secrets_settings_view(&mut self) -> SecretsSettingsView {
+        let shared_state = self.secrets_shared_state();
+        let env_id = code_secrets::environment_id_from_cwd(&self.config.cwd);
+        SecretsSettingsView::new(shared_state, env_id, self.app_event_tx.clone())
+    }
+
+    pub(super) fn build_secrets_settings_content(&mut self) -> SecretsSettingsContent {
+        SecretsSettingsContent::new(self.build_secrets_settings_view())
+    }
+
     pub(super) fn build_chrome_settings_content(&self, port: Option<u16>) -> ChromeSettingsContent {
         ChromeSettingsContent::new(self.app_event_tx.clone(), port)
     }

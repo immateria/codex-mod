@@ -117,34 +117,37 @@ mod tests {
         );
         let area = Rect::new(0, 0, 30, 10);
         let layout = page.framed().layout(area).expect("layout");
+        let rows = (0..10)
+            .map(|idx| KeyValueRow::new(format!("Row {idx}")))
+            .collect::<Vec<_>>();
 
         assert_eq!(
-            crate::bottom_pane::settings_ui::rows::selection_index_at(
+            crate::bottom_pane::settings_ui::rows::selection_index_at_over_text(
                 layout.body,
-                layout.body.x,
+                layout.body.x.saturating_add(2),
                 layout.body.y,
                 3,
-                10,
+                &rows,
             ),
             Some(3)
         );
         assert_eq!(
-            crate::bottom_pane::settings_ui::rows::selection_index_at(
+            crate::bottom_pane::settings_ui::rows::selection_index_at_over_text(
                 layout.body,
-                layout.body.x,
+                layout.body.x.saturating_add(2),
                 layout.body.y.saturating_add(2),
                 3,
-                10,
+                &rows,
             ),
             Some(5)
         );
         assert_eq!(
-            crate::bottom_pane::settings_ui::rows::selection_index_at(
+            crate::bottom_pane::settings_ui::rows::selection_index_at_over_text(
                 layout.body,
                 layout.header.x,
                 layout.header.y,
                 3,
-                10,
+                &rows,
             ),
             None
         );

@@ -4,7 +4,8 @@ use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::chrome::ChromeMode;
-use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
+use crate::bottom_pane::settings_ui::rows::selection_index_at_over_text;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 use crate::ui_interaction::{
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
@@ -30,11 +31,14 @@ impl MemoriesSettingsView {
         self.viewport_rows.set(layout.visible_rows());
 
         let mut state = self.state.get();
-        let outcome = route_scroll_state_mouse_in_body(
+        let row_specs = self.main_row_specs(state.selected_idx.unwrap_or(0));
+        let visible_rows = layout.visible_rows().max(1);
+        let outcome = route_scroll_state_mouse_with_hit_test(
             mouse_event,
-            layout.body,
             &mut state,
             total,
+            visible_rows,
+            |x, y, scroll_top| selection_index_at_over_text(layout.body, x, y, scroll_top, &row_specs),
             SelectableListMouseConfig {
                 hover_select: false,
                 activate_on_left_click: true,

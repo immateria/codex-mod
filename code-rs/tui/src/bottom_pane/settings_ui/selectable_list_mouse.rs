@@ -1,5 +1,4 @@
 use crossterm::event::MouseEvent;
-use ratatui::layout::Rect;
 
 use crate::components::scroll_state::ScrollState;
 use crate::ui_interaction::{
@@ -100,21 +99,4 @@ pub(crate) fn route_scroll_state_mouse_with_hit_test_no_ensure_visible(
         result,
         changed: result.handled() || state_changed,
     }
-}
-
-pub(crate) fn route_scroll_state_mouse_in_body(
-    mouse_event: MouseEvent,
-    body: Rect,
-    state: &mut ScrollState,
-    item_count: usize,
-    config: SelectableListMouseConfig,
-) -> ScrollStateMouseOutcome {
-    route_scroll_state_mouse_with_hit_test(
-        mouse_event,
-        state,
-        item_count,
-        body.height as usize,
-        |x, y, scroll_top| super::rows::selection_index_at(body, x, y, scroll_top, item_count),
-        config,
-    )
 }

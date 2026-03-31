@@ -120,11 +120,64 @@ pub(super) fn handle_mouse_event_direct_in_chrome(
             };
             view.pick_viewport_rows.set((layout.body.height as usize).max(1));
 
-            let outcome = route_scroll_state_mouse_in_body(
+            let visible_rows = (layout.body.height as usize).max(1);
+            let kind = mouse_event.kind;
+            let outcome = crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test(
                 mouse_event,
-                layout.body,
                 &mut state.scroll,
                 total,
+                visible_rows,
+                |x, y, scroll_top| {
+                    let body = layout.body;
+                    if x < body.x || x >= body.x.saturating_add(body.width) {
+                        return None;
+                    }
+                    if y < body.y || y >= body.y.saturating_add(body.height) {
+                        return None;
+                    }
+                    let rel = y.saturating_sub(body.y) as usize;
+                    let idx = scroll_top.saturating_add(rel);
+                    if matches!(kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+                        return Some(idx.min(total.saturating_sub(1)));
+                    }
+                    if idx >= total {
+                        return None;
+                    }
+
+                    let item = &state.items[idx];
+                    let checked = state.checked.get(idx).copied().unwrap_or(false);
+                    let check = if checked { "[x]" } else { "[ ]" };
+
+                    let conflict_label = ShellProfilesSettingsView::picker_conflict_label(state.target);
+                    let mut suffix = String::new();
+                    let conflict_key = if item.is_no_filter_option {
+                        String::new()
+                    } else {
+                        super::persistence::normalize_list_key(&item.name)
+                    };
+                    if !item.is_no_filter_option {
+                        if item.is_unknown {
+                            suffix.push_str(" (unknown)");
+                        }
+                        if state.other_values.contains(&conflict_key) {
+                            suffix.push_str(" (");
+                            suffix.push_str(conflict_label);
+                            suffix.push(')');
+                        }
+                    }
+
+                    let line = Line::from(vec![
+                        Span::raw(format!("  {check} ")),
+                        Span::raw(format!("{}{}", item.name, suffix)),
+                    ]);
+                    crate::bottom_pane::settings_ui::hit_test::line_has_non_whitespace_at(
+                        &line,
+                        body.x,
+                        body.width,
+                        x,
+                    )
+                    .then_some(idx)
+                },
                 SelectableListMouseConfig {
                     hover_select: false,
                     require_pointer_hit_for_scroll: true,
@@ -142,4 +195,3 @@ pub(super) fn handle_mouse_event_direct_in_chrome(
         }
     }
 }
-

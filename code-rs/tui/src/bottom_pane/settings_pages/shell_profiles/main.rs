@@ -3,8 +3,8 @@ use super::persistence::{parse_path_list, style_profile_is_empty};
 
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
-use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
-use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
+use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText, selection_index_at_over_text};
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 
 impl ShellProfilesSettingsView {
     pub(super) fn rows() -> [RowKind; 11] {
@@ -280,7 +280,7 @@ impl ShellProfilesSettingsView {
         )
     }
 
-    fn main_row_specs(&self) -> Vec<KeyValueRow<'_>> {
+    fn main_row_specs(&self) -> Vec<KeyValueRow<'static>> {
         Self::rows()
             .iter()
             .copied()
@@ -315,13 +315,27 @@ impl ShellProfilesSettingsView {
         let Some(layout) = self.main_page().layout_in_chrome(chrome, area) else {
             return false;
         };
-        self.viewport_rows.set(layout.visible_rows().max(1));
+        let visible_rows = layout.visible_rows().max(1);
+        self.viewport_rows.set(visible_rows);
 
-        let outcome = route_scroll_state_mouse_in_body(
+        let row_specs = self.main_row_specs();
+        let kind = mouse_event.kind;
+        let outcome = route_scroll_state_mouse_with_hit_test(
             mouse_event,
-            layout.body,
             &mut self.scroll,
             total,
+            visible_rows,
+            |x, y, scroll_top| {
+                if matches!(kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+                    if !crate::ui_interaction::contains_point(layout.body, x, y) {
+                        return None;
+                    }
+                    let rel = y.saturating_sub(layout.body.y) as usize;
+                    Some(scroll_top.saturating_add(rel).min(total.saturating_sub(1)))
+                } else {
+                    selection_index_at_over_text(layout.body, x, y, scroll_top, &row_specs)
+                }
+            },
             SelectableListMouseConfig {
                 hover_select: false,
                 require_pointer_hit_for_scroll: true,
@@ -414,24 +428,25 @@ mod tests {
             .expect("layout");
         let total = ShellProfilesSettingsView::rows().len();
         let scroll_top = view.scroll.clamped(total).scroll_top;
+        let row_specs = view.main_row_specs();
 
         assert_eq!(
-            crate::bottom_pane::settings_ui::rows::selection_index_at(
+            crate::bottom_pane::settings_ui::rows::selection_index_at_over_text(
                 content_layout.body,
-                content_layout.body.x,
+                content_layout.body.x.saturating_add(2),
                 content_layout.body.y,
                 scroll_top,
-                total,
+                &row_specs,
             ),
             Some(0)
         );
         assert_eq!(
-            crate::bottom_pane::settings_ui::rows::selection_index_at(
+            crate::bottom_pane::settings_ui::rows::selection_index_at_over_text(
                 framed_layout.body,
-                content_layout.body.x,
+                content_layout.body.x.saturating_add(2),
                 content_layout.body.y,
                 scroll_top,
-                total,
+                &row_specs,
             ),
             None
         );

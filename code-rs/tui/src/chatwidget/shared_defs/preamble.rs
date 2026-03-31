@@ -726,6 +726,7 @@ pub(crate) struct ChatWidget<'a> {
     config: Config,
     plugins_shared_state: Arc<Mutex<PluginsSharedState>>,
     apps_shared_state: Arc<Mutex<AppsSharedState>>,
+    secrets_shared_state: Arc<Mutex<SecretsSharedState>>,
     apps_directory_cache: AppsDirectoryCacheState,
     turn_sleep_inhibitor: SleepInhibitor,
     mcp_tool_catalog_protocol_by_id: HashMap<String, code_protocol::mcp::Tool>,

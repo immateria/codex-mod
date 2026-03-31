@@ -15,6 +15,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Planning      => self.settings_summary_planning(),
                     SettingsSection::Updates       => self.settings_summary_updates(),
                     SettingsSection::Accounts      => self.settings_summary_accounts(),
+                    SettingsSection::Secrets       => self.settings_summary_secrets(),
                     SettingsSection::Apps          => self.settings_summary_apps(),
                     SettingsSection::Agents        => self.settings_summary_agents(),
                     SettingsSection::Memories      => self.settings_summary_memories(),
@@ -336,6 +337,40 @@ impl ChatWidget<'_> {
         Some(format!("{auto_switch} · {api_key_fallback}"))
     }
 
+    pub(super) fn settings_summary_secrets(&self) -> Option<String> {
+        let state = self
+            .secrets_shared_state
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
+
+        match &state.list {
+            crate::chatwidget::SecretsListState::Uninitialized => {
+                Some("Manage stored secrets".to_string())
+            }
+            crate::chatwidget::SecretsListState::Loading { .. } => {
+                Some("Loading secrets...".to_string())
+            }
+            crate::chatwidget::SecretsListState::Failed { error, .. } => {
+                Some(format!("Error: {error}"))
+            }
+            crate::chatwidget::SecretsListState::Ready { entries, .. } => {
+                let mut env_count = 0usize;
+                let mut global_count = 0usize;
+                for entry in entries {
+                    match entry.scope {
+                        code_secrets::SecretScope::Environment(_) => {
+                            env_count = env_count.saturating_add(1);
+                        }
+                        code_secrets::SecretScope::Global => {
+                            global_count = global_count.saturating_add(1);
+                        }
+                    }
+                }
+                Some(format!("Repo: {env_count} · Global: {global_count}"))
+            }
+        }
+    }
+
     pub(super) fn settings_summary_agents(&self) -> Option<String> {
         let (enabled, total) = agent_summary_counts(&self.config.agents);
         let commands = self.config.subagent_commands.len();
@@ -533,6 +568,32 @@ impl ChatWidget<'_> {
         settings: code_core::config_types::SettingsMenuConfig,
     ) {
         self.config.tui.settings_menu = settings;
+        // If the settings UI is already open, re-route it immediately so the
+        // new preference takes effect without requiring the user to close and
+        // reopen `/settings`.
+        if self.settings.bottom_route.is_some() && !self.bottom_pane.has_active_view() {
+            self.settings.bottom_route = None;
+        }
+        let open_route = if let Some(overlay) = self.settings.overlay.as_ref() {
+            Some(if overlay.is_menu_active() {
+                None
+            } else {
+                Some(overlay.active_section())
+            })
+        } else {
+            self.settings.bottom_route
+        };
+        if let Some(route) = open_route {
+            let prefer_overlay = self.should_open_settings_overlay();
+            if prefer_overlay {
+                if self.settings.overlay.is_none() {
+                    self.bottom_pane.clear_active_view();
+                    self.show_settings_overlay_view(route);
+                }
+            } else if self.settings.overlay.is_some() {
+                self.show_settings_bottom_pane(route);
+            }
+        }
         self.refresh_settings_overview_rows();
         self.request_redraw();
     }

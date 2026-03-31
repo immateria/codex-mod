@@ -115,6 +115,7 @@ impl AutoDriveSettingsView {
         match &self.mode {
             AutoDriveSettingsMode::Main => {
                 let rows = self.main_menu_rows();
+                let total = rows.len();
                 let Some(layout) = self.page().layout_in_chrome(chrome, area) else {
                     return false;
                 };
@@ -126,12 +127,21 @@ impl AutoDriveSettingsView {
                     require_pointer_hit_for_scroll: true,
                     ..SelectableListMouseConfig::default()
                 };
+                let kind = mouse_event.kind;
                 let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
                     mouse_event,
                     &mut self.main_state,
-                    rows.len(),
+                    total,
                     |x, y, scroll_top| {
-                        SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, scroll_top, &rows)
+                        if matches!(kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+                            if !crate::ui_interaction::contains_point(layout.body, x, y) {
+                                return None;
+                            }
+                            let rel = y.saturating_sub(layout.body.y) as usize;
+                            Some(scroll_top.saturating_add(rel).min(total.saturating_sub(1)))
+                        } else {
+                            SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, scroll_top, &rows)
+                        }
                     },
                     config,
                 );
@@ -158,13 +168,22 @@ impl AutoDriveSettingsView {
                     require_pointer_hit_for_scroll: true,
                     ..SelectableListMouseConfig::default()
                 };
+                let kind = mouse_event.kind;
                 let outcome = route_scroll_state_mouse_with_hit_test(
                     mouse_event,
                     &mut self.routing_state,
                     total,
                     visible_rows,
                     |x, y, scroll_top| {
-                        SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, scroll_top, &rows)
+                        if matches!(kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+                            if !crate::ui_interaction::contains_point(layout.body, x, y) {
+                                return None;
+                            }
+                            let rel = y.saturating_sub(layout.body.y) as usize;
+                            Some(scroll_top.saturating_add(rel).min(total.saturating_sub(1)))
+                        } else {
+                            SettingsMenuPage::selection_menu_id_in_body(layout.body, x, y, scroll_top, &rows)
+                        }
                     },
                     config,
                 );

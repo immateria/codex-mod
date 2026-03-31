@@ -92,6 +92,7 @@ mod settings_overlay;
 mod settings_routing;
 mod plugins_shared_state;
 mod apps_shared_state;
+mod secrets_shared_state;
 mod apps_picker;
 mod limits_overlay;
 mod interrupts;
@@ -136,6 +137,11 @@ pub(crate) use apps_shared_state::{
     AppsActionInProgress,
     AppsSharedState,
     ConnectedAppSummary,
+};
+pub(crate) use secrets_shared_state::{
+    SecretsActionInProgress,
+    SecretsListState,
+    SecretsSharedState,
 };
 #[cfg(target_os = "android")]
 mod chrome_connection_android;

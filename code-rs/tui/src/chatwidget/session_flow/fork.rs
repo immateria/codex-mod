@@ -55,6 +55,7 @@ impl ChatWidget<'_> {
             config: config.clone(),
             plugins_shared_state: Arc::new(Mutex::new(PluginsSharedState::default())),
             apps_shared_state: Arc::new(Mutex::new(AppsSharedState::default())),
+            secrets_shared_state: Arc::new(Mutex::new(SecretsSharedState::default())),
             apps_directory_cache: AppsDirectoryCacheState::Uninitialized,
             turn_sleep_inhibitor: SleepInhibitor::new(config.prevent_idle_sleep),
             mcp_tool_catalog_protocol_by_id: HashMap::new(),

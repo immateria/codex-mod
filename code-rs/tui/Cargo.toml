@@ -48,6 +48,7 @@ code-git-tooling = { path = "../git-tooling" }
 code-login = { path = "../login" }
 code-ollama = { path = "../ollama" }
 code-protocol = { path = "../protocol" }
+code-secrets = { workspace = true }
 code-utils-absolute-path = { workspace = true }
 code-utils-sleep-inhibitor = { workspace = true }
 code-utils-stream-parser = { workspace = true }

@@ -2,7 +2,8 @@ use crossterm::event::MouseEvent;
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::chrome::ChromeMode;
-use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
+use crate::bottom_pane::settings_ui::menu_rows::selection_id_at as selection_menu_id_at;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 use crate::ui_interaction::{
     SelectableListMouseConfig,
     SelectableListMouseResult,
@@ -21,11 +22,14 @@ impl NotificationsSettingsView {
             return false;
         };
 
-        let outcome = route_scroll_state_mouse_in_body(
+        let rows = self.menu_rows();
+        let visible = layout.body.height.max(1) as usize;
+        let outcome = route_scroll_state_mouse_with_hit_test(
             mouse_event,
-            layout.body,
             &mut self.state,
             Self::ROW_COUNT,
+            visible,
+            |x, y, scroll_top| selection_menu_id_at(layout.body, x, y, scroll_top, &rows),
             SelectableListMouseConfig {
                 hover_select: false,
                 scroll_select: false,

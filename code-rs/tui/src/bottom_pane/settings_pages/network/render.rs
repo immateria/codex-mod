@@ -9,7 +9,7 @@ use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
 use crate::bottom_pane::settings_ui::toggle;
 
 impl NetworkSettingsView {
-    fn main_row_specs(&self, rows: &[RowKind], show_advanced: bool) -> Vec<KeyValueRow<'_>> {
+    pub(super) fn main_row_specs(&self, rows: &[RowKind], show_advanced: bool) -> Vec<KeyValueRow<'static>> {
         let mode = Self::mode_label(self.settings.mode);
 
         let allowed_count = self.settings.allowed_domains.len();

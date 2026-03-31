@@ -5,6 +5,7 @@ pub(crate) mod fields;
 pub(crate) mod frame;
 pub(crate) mod form_page;
 pub(crate) mod hints;
+pub(crate) mod hit_test;
 pub(crate) mod layout;
 pub(crate) mod line_runs;
 pub(crate) mod list_detail_page;

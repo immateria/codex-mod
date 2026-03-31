@@ -278,6 +278,10 @@ impl<'a> BottomPane<'a> {
         self.set_other_view(view, true);
     }
 
+    pub fn show_secrets_settings(&mut self, view: settings_pages::secrets::SecretsSettingsView) {
+        self.set_other_view(view, true);
+    }
+
     pub fn show_apps_settings(&mut self, view: settings_pages::apps::AppsSettingsView) {
         self.set_other_view(view, true);
     }

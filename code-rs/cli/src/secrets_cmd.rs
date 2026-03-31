@@ -172,7 +172,6 @@ pub fn run_secrets_command(
 mod tests {
     use super::*;
     use code_keyring_store::tests::MockKeyringStore;
-    use pretty_assertions::assert_eq;
     use std::io::Cursor;
 
     #[test]

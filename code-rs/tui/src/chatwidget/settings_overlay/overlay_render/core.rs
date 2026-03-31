@@ -98,6 +98,7 @@ impl SettingsOverlayView {
         if self.overview_rows.is_empty() {
             *self.last_overview_list_area.borrow_mut() = area;
             *self.last_overview_line_sections.borrow_mut() = Vec::new();
+            *self.last_overview_line_hit_ranges.borrow_mut() = Vec::new();
             *self.last_overview_scroll.borrow_mut() = 0;
             let line = Line::from(vec![Span::styled(
                 "No settings available.",
@@ -113,6 +114,7 @@ impl SettingsOverlayView {
         let content_width = area.width as usize;
         let mut lines: Vec<Line<'static>> = Vec::new();
         let mut line_sections: Vec<Option<SettingsSection>> = Vec::new();
+        let mut line_hit_ranges: Vec<[Option<(u16, u16)>; 2]> = Vec::new();
         let mut selected_range: Option<(usize, usize)> = None;
 
         for (idx, row) in self.overview_rows.iter().enumerate() {
@@ -122,6 +124,7 @@ impl SettingsOverlayView {
             if row.section == SettingsSection::Limits && !lines.is_empty() {
                 lines.push(Line::from(""));
                 line_sections.push(None);
+                line_hit_ranges.push([None, None]);
                 let dash_count = content_width.saturating_sub(2);
                 if dash_count > 0 {
                     lines.push(Line::from(vec![Span::styled(
@@ -129,8 +132,10 @@ impl SettingsOverlayView {
                         Style::default().fg(crate::colors::border_dim()),
                     )]));
                     line_sections.push(None);
+                    line_hit_ranges.push([None, None]);
                     lines.push(Line::from(""));
                     line_sections.push(None);
+                    line_hit_ranges.push([None, None]);
                 }
             }
             // Anchor selection to the row itself, not any pre-row separators.
@@ -149,6 +154,18 @@ impl SettingsOverlayView {
             let summary_src = row.summary.as_deref().unwrap_or("—");
             let base_width = 1 + 1 + LABEL_COLUMN_WIDTH;
             let available_tail = content_width.saturating_sub(base_width);
+            let label_hit_start = area.x.saturating_add(2);
+            let label_hit_end_offset =
+                2usize.saturating_add(UnicodeWidthStr::width(row.section.label()));
+            let label_hit_end = area
+                .x
+                .saturating_add(label_hit_end_offset.min(content_width) as u16);
+            let label_hit_range = if label_hit_end > label_hit_start {
+                Some((label_hit_start, label_hit_end))
+            } else {
+                None
+            };
+            let mut summary_hit_range: Option<(u16, u16)> = None;
 
             let mut summary_line = Line::from(vec![
                 Span::styled(indicator.to_string(), Style::default().fg(crate::colors::text())),
@@ -163,6 +180,20 @@ impl SettingsOverlayView {
                 if summary_budget > 0 {
                     let summary_trimmed = self.trim_with_ellipsis(summary_src, summary_budget);
                     if !summary_trimmed.is_empty() {
+                        let summary_hit_start_offset = 2usize
+                            .saturating_add(LABEL_COLUMN_WIDTH)
+                            .saturating_add(1);
+                        let summary_hit_start = area
+                            .x
+                            .saturating_add(summary_hit_start_offset.min(content_width) as u16);
+                        let summary_hit_end_offset = summary_hit_start_offset
+                            .saturating_add(UnicodeWidthStr::width(summary_trimmed.as_str()));
+                        let summary_hit_end = area
+                            .x
+                            .saturating_add(summary_hit_end_offset.min(content_width) as u16);
+                        if summary_hit_end > summary_hit_start {
+                            summary_hit_range = Some((summary_hit_start, summary_hit_end));
+                        }
                         self.push_summary_spans(&mut summary_line, &summary_trimmed);
                     }
                 }
@@ -177,9 +208,11 @@ impl SettingsOverlayView {
             }
             lines.push(summary_line);
             line_sections.push(Some(row.section));
+            line_hit_ranges.push([label_hit_range, summary_hit_range]);
 
             let info_text = row.section.help_line();
             let info_trimmed = self.trim_with_ellipsis(info_text, content_width.saturating_sub(8));
+            let info_trimmed_width = UnicodeWidthStr::width(info_trimmed.as_str());
             let info_style = Style::default().fg(crate::colors::text_dim());
             let mut info_line = Line::from(vec![
                 Span::raw("  "),
@@ -195,6 +228,17 @@ impl SettingsOverlayView {
             }
             lines.push(info_line);
             line_sections.push(Some(row.section));
+            let info_hit_start = area.x.saturating_add(4);
+            let info_hit_end_offset = 4usize.saturating_add(info_trimmed_width);
+            let info_hit_end = area
+                .x
+                .saturating_add(info_hit_end_offset.min(content_width) as u16);
+            let info_hit_range = if info_hit_end > info_hit_start {
+                Some((info_hit_start, info_hit_end))
+            } else {
+                None
+            };
+            line_hit_ranges.push([info_hit_range, None]);
 
             if is_active {
                 let row_end = lines.len().saturating_sub(1);
@@ -204,6 +248,7 @@ impl SettingsOverlayView {
             if idx != self.overview_rows.len().saturating_sub(1) {
                 lines.push(Line::from(""));
                 line_sections.push(None);
+                line_hit_ranges.push([None, None]);
                 if matches!(row.section, SettingsSection::Updates) {
                     let dash_count = content_width.saturating_sub(2);
                     if dash_count > 0 {
@@ -212,8 +257,10 @@ impl SettingsOverlayView {
                             Style::default().fg(crate::colors::border_dim()),
                         )]));
                         line_sections.push(None);
+                        line_hit_ranges.push([None, None]);
                         lines.push(Line::from(""));
                         line_sections.push(None);
+                        line_hit_ranges.push([None, None]);
                     }
                 }
             }
@@ -246,6 +293,7 @@ impl SettingsOverlayView {
         let scroll = scroll.min(u16::MAX as usize) as u16;
         *self.last_overview_list_area.borrow_mut() = area;
         *self.last_overview_line_sections.borrow_mut() = line_sections;
+        *self.last_overview_line_hit_ranges.borrow_mut() = line_hit_ranges;
         *self.last_overview_scroll.borrow_mut() = scroll as usize;
 
         Paragraph::new(lines)

@@ -4,9 +4,11 @@ use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::chrome::ChromeMode;
-use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
+use crate::bottom_pane::settings_ui::rows::selection_index_at_over_text;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 use crate::components::mode_guard::ModeGuard;
 use crate::ui_interaction::{
+    contains_point,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
@@ -36,11 +38,25 @@ impl NetworkSettingsView {
                 self.viewport_rows.set(layout.visible_rows());
 
                 self.reconcile_selection_state(*show_advanced);
-                let outcome = route_scroll_state_mouse_in_body(
+                let row_specs = self.main_row_specs(&rows, *show_advanced);
+                let visible_rows = layout.visible_rows().max(1);
+                let kind = mouse_event.kind;
+                let outcome = route_scroll_state_mouse_with_hit_test(
                     mouse_event,
-                    layout.body,
                     &mut self.state,
                     total,
+                    visible_rows,
+                    |x, y, scroll_top| {
+                        if matches!(kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+                            if !contains_point(layout.body, x, y) {
+                                return None;
+                            }
+                            let rel = y.saturating_sub(layout.body.y) as usize;
+                            Some(scroll_top.saturating_add(rel).min(total.saturating_sub(1)))
+                        } else {
+                            selection_index_at_over_text(layout.body, x, y, scroll_top, &row_specs)
+                        }
+                    },
                     SelectableListMouseConfig {
                         hover_select: false,
                         require_pointer_hit_for_scroll: true,

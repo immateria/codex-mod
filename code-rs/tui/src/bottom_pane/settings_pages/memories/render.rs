@@ -9,16 +9,9 @@ use crate::bottom_pane::chrome::ChromeMode;
 use crate::colors;
 
 impl MemoriesSettingsView {
-    fn render_main_with(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
+    pub(super) fn main_row_specs(&self, selected: usize) -> Vec<KeyValueRow<'_>> {
         let rows = Self::rows();
-        let total = rows.len();
-        let mut state = self.state.get();
-        state.clamp_selection(total);
-
-        let selected = state.selected_idx.unwrap_or(0);
-        let scroll_top = state.scroll_top;
-        let row_specs: Vec<KeyValueRow<'_>> = rows
-            .iter()
+        rows.iter()
             .enumerate()
             .map(|(idx, row)| {
                 let is_selected = idx == selected;
@@ -38,7 +31,18 @@ impl MemoriesSettingsView {
                 }
                 spec
             })
-            .collect();
+            .collect()
+    }
+
+    fn render_main_with(&self, area: Rect, buf: &mut Buffer, chrome: ChromeMode) {
+        let rows = Self::rows();
+        let total = rows.len();
+        let mut state = self.state.get();
+        state.clamp_selection(total);
+
+        let selected = state.selected_idx.unwrap_or(0);
+        let scroll_top = state.scroll_top;
+        let row_specs = self.main_row_specs(selected);
         let page = self.main_page();
         let Some(layout) =
             page.render_in_chrome(chrome, area, buf, scroll_top, Some(selected), &row_specs)

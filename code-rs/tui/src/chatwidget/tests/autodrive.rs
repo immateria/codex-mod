@@ -378,6 +378,65 @@
     }
 
     #[test]
+    fn apply_tui_settings_menu_reroutes_open_settings_ui() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+        use crate::bottom_pane::SettingsSection;
+        use code_core::config_types::{SettingsMenuConfig, SettingsMenuOpenMode};
+
+        {
+            let chat = harness.chat();
+            chat.apply_tui_settings_menu(SettingsMenuConfig {
+                open_mode: SettingsMenuOpenMode::Overlay,
+                overlay_min_width: 100,
+            });
+            chat.layout.last_frame_width.set(120);
+            chat.show_settings_overlay(Some(SettingsSection::Interface));
+            assert!(
+                chat.settings.overlay.is_some(),
+                "expected overlay settings to be open before rerouting",
+            );
+        }
+
+        {
+            let chat = harness.chat();
+            chat.apply_tui_settings_menu(SettingsMenuConfig {
+                open_mode: SettingsMenuOpenMode::Bottom,
+                overlay_min_width: 100,
+            });
+            assert!(
+                chat.settings.overlay.is_none(),
+                "expected overlay settings to close after switching to bottom mode",
+            );
+            assert!(
+                chat.bottom_pane.has_active_view(),
+                "expected a bottom-pane settings view after switching to bottom mode",
+            );
+            assert_eq!(
+                chat.settings.bottom_route,
+                Some(Some(SettingsSection::Interface)),
+                "expected current settings section to be preserved when rerouting to bottom pane",
+            );
+        }
+
+        {
+            let chat = harness.chat();
+            chat.apply_tui_settings_menu(SettingsMenuConfig {
+                open_mode: SettingsMenuOpenMode::Overlay,
+                overlay_min_width: 100,
+            });
+            assert!(
+                chat.settings.overlay.is_some(),
+                "expected overlay settings to be restored after switching back to overlay mode",
+            );
+            assert!(
+                !chat.bottom_pane.has_active_view(),
+                "expected bottom-pane view to be cleared when rerouting back to overlay",
+            );
+        }
+    }
+
+    #[test]
     fn settings_overlay_overview_keeps_selected_row_visible_when_scrolling() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();

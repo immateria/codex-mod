@@ -91,6 +91,9 @@ impl ChatWidget<'_> {
         self.bottom_pane.update_status_text(String::new());
         self.bottom_pane
             .flash_footer_notice_for("Resuming".to_string(), Duration::from_secs(2));
+        // If the reconnect banner was shown for a background retry (no active
+        // task/stream), ensure we don't leave the spinner running forever.
+        self.maybe_hide_spinner();
         self.request_redraw();
     }
 }

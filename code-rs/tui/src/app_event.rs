@@ -34,6 +34,7 @@ use code_protocol::protocol::ReviewTarget;
 use code_file_search::FileMatch;
 use code_common::model_presets::ModelPreset;
 use code_app_server_protocol::AppInfo;
+use code_secrets::SecretListEntry;
 use crossterm::event::KeyEvent;
 use crossterm::event::MouseEvent;
 use ratatui::text::Line;
@@ -182,6 +183,11 @@ pub(crate) struct PluginListSnapshot {
     pub remote_sync_error: Option<String>,
     pub remote_sync_needs_auth: bool,
     pub featured_plugin_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SecretsListSnapshot {
+    pub entries: Vec<SecretListEntry>,
 }
 
 #[derive(Debug, Clone)]
@@ -936,6 +942,23 @@ pub(crate) enum AppEvent {
         plugin_id_key: String,
         enabled: bool,
         result: Result<(), String>,
+    },
+
+    FetchSecretsList {
+        env_id: String,
+    },
+    SecretsListLoaded {
+        env_id: String,
+        result: Result<SecretsListSnapshot, String>,
+    },
+    DeleteSecret {
+        env_id: String,
+        entry: SecretListEntry,
+    },
+    DeleteSecretFinished {
+        env_id: String,
+        entry: SecretListEntry,
+        result: Result<bool, String>,
     },
 
     FetchAppsStatus {

@@ -65,6 +65,7 @@ impl SettingsOverlayView {
             SettingsSection::Planning => "Planning Settings",
             SettingsSection::Updates => "Upgrade",
             SettingsSection::Accounts => "Account Switching",
+            SettingsSection::Secrets => "Secrets",
             SettingsSection::Apps => "Apps",
             SettingsSection::Agents => "Agents",
             SettingsSection::Memories => "Memories",

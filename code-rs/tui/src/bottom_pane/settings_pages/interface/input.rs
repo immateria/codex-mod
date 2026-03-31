@@ -105,6 +105,12 @@ impl InterfaceSettingsView {
                 self.is_complete = true;
                 true
             }
+            KeyEvent { code: KeyCode::Char('s') | KeyCode::Char('S'), modifiers, .. }
+                if modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                self.apply_settings();
+                true
+            }
             _ => false,
         }
     }

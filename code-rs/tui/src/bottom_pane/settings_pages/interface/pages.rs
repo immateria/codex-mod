@@ -27,6 +27,7 @@ impl InterfaceSettingsView {
             KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(crate::colors::function())),
             KeyHint::new("Enter", " activate").with_key_style(Style::new().fg(crate::colors::success())),
             KeyHint::new("←→", " adjust").with_key_style(Style::new().fg(crate::colors::function())),
+            KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(crate::colors::success())),
             KeyHint::new("Esc", " close").with_key_style(Style::new().fg(crate::colors::error()).bold()),
         ])];
         let footer_lines = vec![self.main_footer_line_for_row(selected_row)];

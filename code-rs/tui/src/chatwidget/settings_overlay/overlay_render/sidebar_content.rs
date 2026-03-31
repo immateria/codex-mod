@@ -203,6 +203,13 @@ impl SettingsOverlayView {
                 }
                 self.render_placeholder(area, buf, SettingsSection::Accounts.placeholder());
             }
+            SettingsSection::Secrets => {
+                if let Some(content) = self.secrets_content.as_ref() {
+                    content.render(area, buf);
+                    return;
+                }
+                self.render_placeholder(area, buf, SettingsSection::Secrets.placeholder());
+            }
             SettingsSection::Apps => {
                 if let Some(content) = self.apps_content.as_ref() {
                     content.render(area, buf);

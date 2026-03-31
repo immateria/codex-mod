@@ -4,8 +4,10 @@ use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::chrome::ChromeMode;
-use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
+use crate::bottom_pane::settings_ui::menu_rows::selection_id_at as selection_menu_id_at;
+use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 use crate::ui_interaction::{
+    contains_point,
     ScrollSelectionBehavior,
     SelectableListMouseConfig,
     SelectableListMouseResult,
@@ -31,11 +33,24 @@ impl InterfaceSettingsView {
         let visible = layout.body.height.max(1) as usize;
         self.main_viewport_rows.set(visible);
 
-        let outcome = route_scroll_state_mouse_in_body(
+        let rows = self.main_menu_rows(self.build_rows());
+        let kind = mouse_event.kind;
+        let outcome = route_scroll_state_mouse_with_hit_test(
             mouse_event,
-            layout.body,
             &mut self.state,
             total,
+            visible,
+            |x, y, scroll_top| {
+                if matches!(kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+                    if !contains_point(layout.body, x, y) {
+                        return None;
+                    }
+                    let rel = y.saturating_sub(layout.body.y) as usize;
+                    Some(scroll_top.saturating_add(rel).min(total.saturating_sub(1)))
+                } else {
+                    selection_menu_id_at(layout.body, x, y, scroll_top, &rows)
+                }
+            },
             SelectableListMouseConfig {
                 hover_select: false,
                 require_pointer_hit_for_scroll: true,

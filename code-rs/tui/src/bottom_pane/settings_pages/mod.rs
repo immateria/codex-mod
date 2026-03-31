@@ -22,6 +22,7 @@ pub(crate) mod planning;
 pub(crate) mod plugins;
 pub(crate) mod prompts;
 pub(crate) mod review;
+pub(crate) mod secrets;
 pub(crate) mod shell;
 pub(crate) mod shell_profiles;
 pub(crate) mod skills;

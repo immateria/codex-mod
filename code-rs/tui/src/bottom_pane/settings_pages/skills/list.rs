@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::bottom_pane::settings_ui::hit_test::line_has_non_whitespace_at;
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 
 impl SkillsSettingsView {
@@ -21,12 +22,13 @@ impl SkillsSettingsView {
         Self::list_area_from_inner(area)
     }
 
-    fn list_selection_at(
+    fn list_selection_at_over_text(
         list_area: Rect,
         x: u16,
         y: u16,
         scroll_top: usize,
         skills_len: usize,
+        hit_lines: &[Line<'static>],
     ) -> Option<usize> {
         if !list_area.contains(Position { x, y }) {
             return None;
@@ -34,17 +36,23 @@ impl SkillsSettingsView {
 
         debug_assert!(y >= list_area.y, "y={y} is above list_area.y={}", list_area.y);
         let visible_row = (y - list_area.y) as usize;
+
         if skills_len == 0 {
-            // Empty lists render an informational line above the "Add new..." row, so treat either
-            // of the first two visible lines as selecting the sole "Add new..." item.
-            return (visible_row <= 1).then_some(0);
+            // Empty lists render an informational line above the "Add new..." row, so treat
+            // either of the first two visible lines as selecting the sole "Add new..." item.
+            if visible_row > 1 {
+                return None;
+            }
+            let line = hit_lines.get(visible_row)?;
+            return line_has_non_whitespace_at(line, list_area.x, list_area.width, x).then_some(0);
         }
+
         let row = scroll_top.saturating_add(visible_row);
-        if row <= skills_len {
-            Some(row)
-        } else {
-            None
+        if row > skills_len {
+            return None;
         }
+        let line = hit_lines.get(row)?;
+        line_has_non_whitespace_at(line, list_area.x, list_area.width, x).then_some(row)
     }
 
     pub(super) fn handle_list_mouse_event_framed(
@@ -71,13 +79,62 @@ impl SkillsSettingsView {
         list_area: Rect,
     ) -> bool {
         let item_count = self.list_item_count();
+        let selected = self.selected_list_index();
         let skills_len = self.skills.len();
+        let hit_lines = if skills_len == 0 {
+            vec![
+                Line::from("No skills yet. Press Enter or Ctrl+N to create one."),
+                Line::from(format!(
+                    "{arrow} Add new...",
+                    arrow = if selected == 0 { ">" } else { " " },
+                )),
+            ]
+        } else {
+            let mut lines = Vec::with_capacity(skills_len.saturating_add(1));
+            for (idx, skill) in self.skills.iter().enumerate() {
+                let arrow = if idx == selected { ">" } else { " " };
+                let scope_text = match skill.scope {
+                    SkillScope::Repo => " [repo]",
+                    SkillScope::User => " [user]",
+                    SkillScope::System => " [system]",
+                };
+                lines.push(Line::from(format!(
+                    "{arrow} {name}{scope_text}  {desc}",
+                    name = skill.name.as_str(),
+                    desc = skill.description.as_str(),
+                )));
+            }
+            lines.push(Line::from(format!(
+                "{arrow} Add new...",
+                arrow = if selected == skills_len { ">" } else { " " },
+            )));
+            lines
+        };
+
+        let kind = mouse_event.kind;
         let outcome = route_scroll_state_mouse_with_hit_test(
             mouse_event,
             &mut self.list_state,
             item_count,
             list_area.height.max(1) as usize,
-            |x, y, scroll_top| Self::list_selection_at(list_area, x, y, scroll_top, skills_len),
+            |x, y, scroll_top| {
+                if matches!(kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+                    if !list_area.contains(Position { x, y }) {
+                        return None;
+                    }
+                    let rel = y.saturating_sub(list_area.y) as usize;
+                    Some(scroll_top.saturating_add(rel).min(item_count.saturating_sub(1)))
+                } else {
+                    Self::list_selection_at_over_text(
+                        list_area,
+                        x,
+                        y,
+                        scroll_top,
+                        skills_len,
+                        &hit_lines,
+                    )
+                }
+            },
             SelectableListMouseConfig {
                 require_pointer_hit_for_scroll: true,
                 scroll_behavior: ScrollSelectionBehavior::Clamp,

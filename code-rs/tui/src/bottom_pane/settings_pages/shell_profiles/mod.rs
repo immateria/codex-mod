@@ -34,7 +34,6 @@ use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
 use crate::bottom_pane::BottomPane;
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::SettingsSection;
-use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_in_body;
 
 mod editor;
 mod input;

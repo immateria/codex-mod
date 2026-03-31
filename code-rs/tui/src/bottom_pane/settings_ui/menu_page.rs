@@ -2,11 +2,12 @@ use std::borrow::Cow;
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
-use ratatui::text::Line;
+use ratatui::style::{Style, Stylize};
+use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::colors;
+use crate::live_wrap::RowBuilder;
 use crate::ui_interaction::split_header_body_footer;
 use crate::util::buffer::{fill_rect, write_line};
 
@@ -16,6 +17,7 @@ use super::line_runs::{
 };
 use super::menu_rows::{
     render_menu_rows,
+    render_menu_rows_compact,
     selection_id_at as selection_menu_id_at,
     SettingsMenuRow,
 };
@@ -27,6 +29,7 @@ pub(crate) struct SettingsMenuPage<'a> {
     panel: SettingsSectionedPanel<'a>,
     header_lines: Vec<Line<'static>>,
     footer_lines: Vec<Line<'static>>,
+    render_detail_pane: bool,
 }
 
 pub(crate) struct SettingsMenuPageFramed<'p, 'a> {
@@ -56,7 +59,13 @@ impl<'a> SettingsMenuPage<'a> {
             panel,
             header_lines,
             footer_lines,
+            render_detail_pane: false,
         }
+    }
+
+    pub(crate) fn with_detail_pane(mut self) -> Self {
+        self.render_detail_pane = true;
+        self
     }
 
     pub(crate) fn framed(&self) -> SettingsMenuPageFramed<'_, 'a> {
@@ -169,6 +178,66 @@ impl<'a> SettingsMenuPage<'a> {
                 .render_runs(area, buf, scroll_top, runs),
         }
     }
+
+    pub(crate) fn menu_body_layout(&self, body: Rect) -> SettingsMenuBodyLayout {
+        if !self.render_detail_pane || body.width < 4 || body.height == 0 {
+            return SettingsMenuBodyLayout {
+                list: body,
+                divider: None,
+                detail: None,
+            };
+        }
+
+        const DIVIDER_COLS: u16 = 1;
+        const MIN_LIST_COLS: u16 = 18;
+        const MIN_DETAIL_COLS: u16 = 18;
+
+        if body.width <= DIVIDER_COLS + 1 {
+            return SettingsMenuBodyLayout {
+                list: body,
+                divider: None,
+                detail: None,
+            };
+        }
+
+        let total = body.width.saturating_sub(DIVIDER_COLS);
+        if total <= MIN_LIST_COLS {
+            return SettingsMenuBodyLayout {
+                list: body,
+                divider: None,
+                detail: None,
+            };
+        }
+
+        let mut list_cols = total.saturating_mul(2).saturating_div(5);
+        let max_list_cols = total
+            .saturating_sub(MIN_DETAIL_COLS)
+            .max(MIN_LIST_COLS);
+        list_cols = list_cols.clamp(MIN_LIST_COLS, max_list_cols);
+        let detail_cols = total.saturating_sub(list_cols);
+        if detail_cols == 0 {
+            return SettingsMenuBodyLayout {
+                list: body,
+                divider: None,
+                detail: None,
+            };
+        }
+
+        let list = Rect::new(body.x, body.y, list_cols, body.height);
+        let divider = Rect::new(body.x.saturating_add(list_cols), body.y, DIVIDER_COLS, body.height);
+        let detail = Rect::new(
+            divider.x.saturating_add(DIVIDER_COLS),
+            body.y,
+            detail_cols,
+            body.height,
+        );
+
+        SettingsMenuBodyLayout {
+            list,
+            divider: Some(divider),
+            detail: Some(detail),
+        }
+    }
 }
 
 impl<'p, 'a> SettingsMenuPageFramed<'p, 'a> {
@@ -194,14 +263,16 @@ impl<'p, 'a> SettingsMenuPageFramed<'p, 'a> {
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        render_menu_rows(
-            layout.body,
-            buf,
-            scroll_top,
-            selected_id,
-            rows,
-            base,
-        );
+        let body_layout = self.page.menu_body_layout(layout.body);
+        if let Some(detail) = body_layout.detail {
+            render_menu_rows_compact(body_layout.list, buf, scroll_top, selected_id, rows, base);
+            if let Some(divider) = body_layout.divider {
+                fill_rect(buf, divider, Some('|'), base);
+            }
+            render_menu_detail_pane(detail, buf, selected_id, rows, base);
+        } else {
+            render_menu_rows(layout.body, buf, scroll_top, selected_id, rows, base);
+        }
         Some(layout)
     }
 
@@ -242,14 +313,16 @@ impl<'p, 'a> SettingsMenuPageContentOnly<'p, 'a> {
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.render_shell(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        render_menu_rows(
-            layout.body,
-            buf,
-            scroll_top,
-            selected_id,
-            rows,
-            base,
-        );
+        let body_layout = self.page.menu_body_layout(layout.body);
+        if let Some(detail) = body_layout.detail {
+            render_menu_rows_compact(body_layout.list, buf, scroll_top, selected_id, rows, base);
+            if let Some(divider) = body_layout.divider {
+                fill_rect(buf, divider, Some('|'), base);
+            }
+            render_menu_detail_pane(detail, buf, selected_id, rows, base);
+        } else {
+            render_menu_rows(layout.body, buf, scroll_top, selected_id, rows, base);
+        }
         Some(layout)
     }
 
@@ -279,10 +352,116 @@ fn render_lines(area: Rect, buf: &mut Buffer, lines: &[Line<'_>], base_style: St
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SettingsMenuBodyLayout {
+    pub(crate) list: Rect,
+    pub(crate) divider: Option<Rect>,
+    pub(crate) detail: Option<Rect>,
+}
+
+fn render_menu_detail_pane<Id: Copy + PartialEq>(
+    area: Rect,
+    buf: &mut Buffer,
+    selected_id: Option<Id>,
+    rows: &[SettingsMenuRow<'_, Id>],
+    base_style: Style,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+
+    fill_rect(buf, area, Some(' '), base_style);
+
+    let Some(selected_id) = selected_id else {
+        return;
+    };
+    let Some(row) = rows.iter().find(|row| row.id == selected_id) else {
+        return;
+    };
+
+    let padding_x = 1u16;
+    let origin_x = area.x.saturating_add(padding_x);
+    let max_width = area.width.saturating_sub(padding_x);
+    if max_width == 0 {
+        return;
+    }
+
+    let mut y = area.y;
+    let mut header_spans = vec![Span::styled(
+        row.label.as_ref().to_string(),
+        Style::new().fg(colors::text()).bold(),
+    )];
+    if let Some(value) = &row.value {
+        header_spans.push(Span::raw("  "));
+        header_spans.push(Span::styled(value.text.as_ref().to_string(), value.style));
+    }
+    write_line(
+        buf,
+        origin_x,
+        y,
+        max_width,
+        &Line::from(header_spans),
+        base_style,
+    );
+    y = y.saturating_add(2);
+    if y >= area.y.saturating_add(area.height) {
+        return;
+    }
+
+    if let Some(detail) = &row.detail {
+        let wrap_width = usize::from(max_width.max(1));
+        let mut builder = RowBuilder::new(wrap_width);
+        builder.push_fragment(detail.text.as_ref());
+        for wrapped in builder.display_rows() {
+            if y >= area.y.saturating_add(area.height) {
+                break;
+            }
+            write_line(
+                buf,
+                origin_x,
+                y,
+                max_width,
+                &Line::from(Span::styled(wrapped.text, detail.style)),
+                base_style,
+            );
+            y = y.saturating_add(1);
+        }
+    }
+
+    if y < area.y.saturating_add(area.height)
+        && let Some(hint) = row.selected_hint.as_deref()
+    {
+        write_line(
+            buf,
+            origin_x,
+            y,
+            max_width,
+            &Line::from(Span::styled(
+                hint.to_string(),
+                Style::new().fg(colors::text_dim()),
+            )),
+            base_style,
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use ratatui::layout::Margin;
+
+    fn buffer_lines(buf: &Buffer, area: Rect) -> Vec<String> {
+        let mut out = Vec::new();
+        for y in area.y..area.y.saturating_add(area.height) {
+            let mut line = String::with_capacity(area.width as usize);
+            for x in area.x..area.x.saturating_add(area.width) {
+                let symbol = buf[(x, y)].symbol();
+                line.push(symbol.chars().next().unwrap_or(' '));
+            }
+            out.push(line);
+        }
+        out
+    }
 
     #[test]
     fn render_shell_and_layout_agree() {
@@ -396,5 +575,39 @@ mod tests {
             page.content_only()
                 .render_shell(area, &mut content_expected_buf)
         );
+    }
+
+    #[test]
+    fn detail_pane_renders_selected_row_detail_wrapped() {
+        let page = SettingsMenuPage::new(
+            "Test",
+            SettingsPanelStyle::bottom_pane(),
+            vec![Line::from("header")],
+            vec![Line::from("footer")],
+        )
+        .with_detail_pane();
+
+        let rows = vec![SettingsMenuRow::new(1usize, "Feature")
+            .with_detail(crate::bottom_pane::settings_ui::rows::StyledText::new(
+                "This is a very long description that should be visible in the detail pane",
+                Style::new().fg(colors::text_dim()),
+            ))];
+
+        let area = Rect::new(0, 0, 80, 8);
+        let mut buf = Buffer::empty(area);
+        let layout = page
+            .content_only()
+            .render_menu_rows(area, &mut buf, 0, Some(1usize), &rows)
+            .expect("render");
+
+        let body_layout = page.menu_body_layout(layout.body);
+        let detail_rect = body_layout.detail.expect("detail pane");
+        let list_rect = body_layout.list;
+
+        let detail_text = buffer_lines(&buf, detail_rect).join("\n");
+        assert!(detail_text.contains("very long description"));
+
+        let list_text = buffer_lines(&buf, list_rect).join("\n");
+        assert!(!list_text.contains("very long description"));
     }
 }

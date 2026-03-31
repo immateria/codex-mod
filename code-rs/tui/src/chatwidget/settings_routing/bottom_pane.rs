@@ -53,6 +53,13 @@ impl ChatWidget<'_> {
         })
     }
 
+    fn open_secrets_settings_section(&mut self) -> bool {
+        let view = self.build_secrets_settings_view();
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_secrets_settings(view);
+        })
+    }
+
     fn open_apps_settings_section(&mut self) -> bool {
         let view = self.build_apps_settings_view();
         self.open_bottom_pane_settings(move |this| {
@@ -180,6 +187,7 @@ impl ChatWidget<'_> {
             SettingsSection::ExecLimits                         => self.open_exec_limits_settings_section(),
             SettingsSection::Updates                            => self.open_updates_settings_section(),
             SettingsSection::Accounts                           => false,
+            SettingsSection::Secrets                            => self.open_secrets_settings_section(),
             SettingsSection::Apps                               => self.open_apps_settings_section(),
             SettingsSection::Memories                           => self.open_memories_settings_section(),
             SettingsSection::Prompts                            => self.open_prompts_settings_section(),
@@ -252,6 +260,7 @@ impl ChatWidget<'_> {
             | SettingsSection::Notifications
             | SettingsSection::Prompts
             | SettingsSection::Accounts
+            | SettingsSection::Secrets
             | SettingsSection::Apps
             | SettingsSection::Memories
             | SettingsSection::Skills

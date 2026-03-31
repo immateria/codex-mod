@@ -68,3 +68,4 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 
 [dev-dependencies]
 filetime = { workspace = true }
+pretty_assertions = "1"

@@ -10,31 +10,9 @@ use crate::bottom_pane::settings_ui::rows::{KeyValueRow, StyledText};
 use crate::colors;
 
 impl ExecLimitsSettingsView {
-    fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
-        match &self.mode {
-            ViewMode::Main => self.render_main_in_chrome(chrome, area, buf),
-            ViewMode::Edit { target, field, error } => self.render_edit_in_chrome(
-                chrome,
-                area,
-                buf,
-                *target,
-                field,
-                error.as_deref(),
-            ),
-            ViewMode::Transition => self.render_main_in_chrome(chrome, area, buf),
-        }
-    }
-
-    fn render_main_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
-        let rows = Self::build_rows();
-        let total = rows.len();
-        let mut state = self.state.get();
-        state.clamp_selection(total);
-        let selected_idx = state.selected_idx.unwrap_or(0);
-
+    pub(super) fn main_row_specs(&self, rows: &[RowKind]) -> Vec<KeyValueRow<'_>> {
         let is_dirty = self.settings != self.last_applied;
-        let row_specs: Vec<KeyValueRow<'_>> = rows
-            .iter()
+        rows.iter()
             .copied()
             .map(|row| match row {
                 RowKind::PidsMax => KeyValueRow::new("Process limit (pids.max)").with_value(
@@ -57,7 +35,32 @@ impl ExecLimitsSettingsView {
                 )),
                 RowKind::Close => KeyValueRow::new("Close"),
             })
-            .collect();
+            .collect()
+    }
+
+    fn render_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
+        match &self.mode {
+            ViewMode::Main => self.render_main_in_chrome(chrome, area, buf),
+            ViewMode::Edit { target, field, error } => self.render_edit_in_chrome(
+                chrome,
+                area,
+                buf,
+                *target,
+                field,
+                error.as_deref(),
+            ),
+            ViewMode::Transition => self.render_main_in_chrome(chrome, area, buf),
+        }
+    }
+
+    fn render_main_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {
+        let rows = Self::build_rows();
+        let total = rows.len();
+        let mut state = self.state.get();
+        state.clamp_selection(total);
+        let selected_idx = state.selected_idx.unwrap_or(0);
+
+        let row_specs = self.main_row_specs(&rows);
         let page = SettingsRowPage::new(
             " Exec Limits ",
             self.render_header_lines(),

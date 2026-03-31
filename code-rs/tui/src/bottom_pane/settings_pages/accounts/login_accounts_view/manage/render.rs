@@ -162,7 +162,7 @@ impl LoginAccountsState {
         }
     }
 
-    fn render_account_list_lines(&self) -> Vec<Line<'static>> {
+    pub(super) fn render_account_list_lines(&self) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
         if self.accounts.is_empty() {
             lines.push(Line::from(Span::styled(

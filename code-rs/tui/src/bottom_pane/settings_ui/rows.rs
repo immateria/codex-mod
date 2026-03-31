@@ -9,6 +9,8 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::colors;
 
+use super::hit_test::line_has_non_whitespace_at;
+
 const SPACES: &str = "                                                                ";
 const _: () = assert!(SPACES.len() == 64);
 
@@ -69,19 +71,26 @@ impl<'a> KeyValueRow<'a> {
     }
 }
 
-pub(crate) fn selection_index_at(
+pub(crate) fn selection_index_at_over_text(
     body: Rect,
     x: u16,
     y: u16,
     scroll_top: usize,
-    total: usize,
+    rows: &[KeyValueRow<'_>],
 ) -> Option<usize> {
     if !body.contains(Position { x, y }) {
         return None;
     }
     let rel = y.saturating_sub(body.y) as usize;
     let idx = scroll_top.saturating_add(rel);
-    (idx < total).then_some(idx)
+    let row = rows.get(idx)?;
+
+    let default_pad_cols = default_label_pad_cols(rows);
+    let line = kv_row_line(false, row, default_pad_cols);
+    if !line_has_non_whitespace_at(&line, body.x, body.width, x) {
+        return None;
+    }
+    Some(idx)
 }
 
 pub(crate) fn row_style(selected: bool) -> Style {
@@ -223,9 +232,10 @@ mod tests {
     #[test]
     fn selection_index_accounts_for_scroll_offset() {
         let body = Rect::new(2, 5, 20, 4);
-        assert_eq!(selection_index_at(body, 3, 5, 7, 20), Some(7));
-        assert_eq!(selection_index_at(body, 3, 8, 7, 20), Some(10));
-        assert_eq!(selection_index_at(body, 30, 8, 7, 20), None);
+        let rows = (0..20).map(|idx| KeyValueRow::new(format!("Row {idx}"))).collect::<Vec<_>>();
+        assert_eq!(selection_index_at_over_text(body, 4, 5, 7, &rows), Some(7));
+        assert_eq!(selection_index_at_over_text(body, 4, 8, 7, &rows), Some(10));
+        assert_eq!(selection_index_at_over_text(body, 30, 8, 7, &rows), None);
     }
 
     #[test]

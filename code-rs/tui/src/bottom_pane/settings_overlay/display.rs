@@ -13,6 +13,7 @@ impl SettingsSection {
             SettingsSection::Planning => "Planning",
             SettingsSection::Updates => "Updates",
             SettingsSection::Accounts => "Accounts",
+            SettingsSection::Secrets => "Secrets",
             SettingsSection::Apps => "Apps",
             SettingsSection::Agents => "Agents",
             SettingsSection::Memories => "Memories",
@@ -50,6 +51,9 @@ impl SettingsSection {
             SettingsSection::Updates => "Control CLI auto-update cadence and release channels.",
             SettingsSection::Accounts => {
                 "Configure account switching behavior under rate and usage limits."
+            }
+            SettingsSection::Secrets => {
+                "Inspect secret keys stored locally and delete entries (values are never shown)."
             }
             SettingsSection::Apps => {
                 "Pin connector-source accounts and view connected apps (multi-account connectors)."
@@ -89,6 +93,7 @@ impl SettingsSection {
             SettingsSection::Planning => "Planning settings coming soon.",
             SettingsSection::Updates => "Upgrade Codex and manage automatic updates.",
             SettingsSection::Accounts => "Account switching settings coming soon.",
+            SettingsSection::Secrets => "Manage secrets stored in CODE_HOME (delete only).",
             SettingsSection::Apps => "Manage connector-source accounts and connected apps.",
             SettingsSection::Agents => "Agents configuration coming soon.",
             SettingsSection::Memories => {

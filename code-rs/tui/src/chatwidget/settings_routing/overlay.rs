@@ -72,6 +72,7 @@ impl ChatWidget<'_> {
             overlay.set_updates_content(update_content);
         }
         overlay.set_accounts_content(self.build_accounts_settings_content());
+        overlay.set_secrets_content(self.build_secrets_settings_content());
         overlay.set_apps_content(self.build_apps_settings_content());
         overlay.set_memories_content(self.build_memories_settings_content());
         overlay.set_notifications_content(self.build_notifications_settings_content());

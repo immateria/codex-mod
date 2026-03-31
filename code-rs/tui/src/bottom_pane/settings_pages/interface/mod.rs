@@ -21,6 +21,9 @@ mod pane_impl;
 mod render;
 mod rows;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum RowKind {
     OpenMode,

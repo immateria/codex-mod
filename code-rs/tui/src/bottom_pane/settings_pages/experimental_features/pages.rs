@@ -45,6 +45,7 @@ impl ExperimentalFeaturesSettingsView {
             header_lines,
             vec![shortcut_line(&shortcuts)],
         )
+        .with_detail_pane()
     }
 
     pub(super) fn overview_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {
@@ -79,4 +80,3 @@ impl ExperimentalFeaturesSettingsView {
             .collect()
     }
 }
-

@@ -1,11 +1,13 @@
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 use crate::app_event::AppEvent;
+use crate::bottom_pane::settings_ui::hit_test::line_has_non_whitespace_at;
 use crate::bottom_pane::settings_ui::list_detail_page::SettingsListDetailMode;
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test_no_ensure_visible;
 use crate::components::scroll_state::ScrollState;
 use crate::ui_interaction::{
+    contains_point,
     wrap_next,
     wrap_prev,
     ScrollSelectionBehavior,
@@ -71,23 +73,25 @@ impl LoginAccountsState {
         let account_count = u16::try_from(self.accounts.len()).unwrap_or(u16::MAX);
         let empty_offset = u16::from(self.accounts.is_empty());
 
-        if rel_y < account_count {
-            return Some(rel_y as usize);
-        }
-
         let add_row_y = account_count
             .saturating_add(2)
             .saturating_add(empty_offset);
         let store_paths_row_y = account_count
             .saturating_add(3)
             .saturating_add(empty_offset);
-        if rel_y == add_row_y {
-            Some(self.add_account_index())
+        let (selection_idx, line_idx) = if rel_y < account_count {
+            (rel_y as usize, rel_y as usize)
+        } else if rel_y == add_row_y {
+            (self.add_account_index(), add_row_y as usize)
         } else if rel_y == store_paths_row_y {
-            Some(self.store_paths_index())
+            (self.store_paths_index(), store_paths_row_y as usize)
         } else {
-            None
-        }
+            return None;
+        };
+
+        let lines = self.render_account_list_lines();
+        let line = lines.get(line_idx)?;
+        line_has_non_whitespace_at(line, area.x, area.width, x).then_some(selection_idx)
     }
 
     pub(super) fn handle_list_mouse(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
@@ -99,11 +103,18 @@ impl LoginAccountsState {
             selected_idx: Some(self.selected),
             scroll_top: 0,
         };
+        let kind = mouse_event.kind;
         let outcome = route_scroll_state_mouse_with_hit_test_no_ensure_visible(
             mouse_event,
             &mut state,
             self.selectable_row_count(),
-            |x, y, _scroll_top| self.list_selection_for_position(list_area, x, y),
+            |x, y, _scroll_top| {
+                if matches!(kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+                    contains_point(list_area, x, y).then_some(0)
+                } else {
+                    self.list_selection_for_position(list_area, x, y)
+                }
+            },
             SelectableListMouseConfig {
                 require_pointer_hit_for_scroll: true,
                 scroll_behavior: ScrollSelectionBehavior::Clamp,

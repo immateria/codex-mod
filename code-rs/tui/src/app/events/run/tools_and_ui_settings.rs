@@ -819,6 +819,112 @@
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::FetchSecretsList { env_id } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.secrets_mark_list_loading(env_id.clone());
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    tokio::spawn(async move {
+                        let env_id_for_list = env_id.clone();
+                        let result = tokio::task::spawn_blocking(move || {
+                            let manager = code_secrets::SecretsManager::new(
+                                code_home,
+                                code_secrets::SecretsBackendKind::Local,
+                            );
+
+                            let mut entries = Vec::new();
+                            entries.extend(manager.list(Some(&code_secrets::SecretScope::Global))?);
+                            entries.extend(manager.list(Some(&code_secrets::SecretScope::Environment(
+                                env_id_for_list.clone(),
+                            )))?);
+
+                            fn scope_rank(scope: &code_secrets::SecretScope) -> u8 {
+                                match scope {
+                                    code_secrets::SecretScope::Environment(_) => 0,
+                                    code_secrets::SecretScope::Global => 1,
+                                }
+                            }
+
+                            entries.sort_by(|left, right| {
+                                scope_rank(&left.scope)
+                                    .cmp(&scope_rank(&right.scope))
+                                    .then_with(|| left.name.as_str().cmp(right.name.as_str()))
+                            });
+
+                            Ok::<_, anyhow::Error>(crate::app_event::SecretsListSnapshot { entries })
+                        })
+                        .await
+                        .map_err(|err| err.to_string())
+                        .and_then(|result| result.map_err(|err| err.to_string()));
+
+                        tx.send(AppEvent::SecretsListLoaded { env_id, result });
+                    });
+                }
+                AppEvent::SecretsListLoaded { env_id, result } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.secrets_apply_list_loaded(env_id, result);
+                    }
+                    self.schedule_redraw();
+                }
+                AppEvent::DeleteSecret { env_id, entry } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.secrets_mark_delete_in_progress(env_id.clone(), entry.clone());
+                    }
+                    self.schedule_redraw();
+
+                    let tx = self.app_event_tx.clone();
+                    let code_home = self.config.code_home.clone();
+                    tokio::spawn(async move {
+                        let entry_for_delete = entry.clone();
+                        let result = tokio::task::spawn_blocking(move || {
+                            let manager = code_secrets::SecretsManager::new(
+                                code_home,
+                                code_secrets::SecretsBackendKind::Local,
+                            );
+                            manager.delete(&entry_for_delete.scope, &entry_for_delete.name)
+                        })
+                        .await
+                        .map_err(|err| err.to_string())
+                        .and_then(|result| result.map_err(|err| err.to_string()));
+
+                        tx.send(AppEvent::DeleteSecretFinished { env_id, entry, result });
+                    });
+                }
+                AppEvent::DeleteSecretFinished { env_id, entry, result } => {
+                    if let AppState::Chat { widget } = &mut self.app_state {
+                        widget.secrets_apply_delete_finished(env_id.clone(), entry.clone(), result.clone());
+
+                        match &result {
+                            Ok(true) => {
+                                widget.flash_footer_notice(format!(
+                                    "Deleted secret: {}",
+                                    entry.name.as_str(),
+                                ));
+                            }
+                            Ok(false) => {
+                                widget.flash_footer_notice(format!(
+                                    "Secret not found: {}",
+                                    entry.name.as_str(),
+                                ));
+                            }
+                            Err(err) => {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to delete secret {}: {err}",
+                                    entry.name.as_str(),
+                                ));
+                            }
+                        }
+                    }
+
+                    if result.is_ok() {
+                        self.app_event_tx.send(AppEvent::FetchSecretsList { env_id });
+                    }
+
+                    self.schedule_redraw();
+                }
                 AppEvent::FetchAppsStatus {
                     account_ids,
                     force_refresh_tools,

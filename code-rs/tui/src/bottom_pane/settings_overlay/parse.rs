@@ -20,6 +20,7 @@ impl SettingsSection {
             "planning" | "plan" => Some(SettingsSection::Planning),
             "update" | "updates" => Some(SettingsSection::Updates),
             "account" | "accounts" | "auth" => Some(SettingsSection::Accounts),
+            "secret" | "secrets" | "credential" | "credentials" => Some(SettingsSection::Secrets),
             "app" | "apps" | "connector" | "connectors" => Some(SettingsSection::Apps),
             "agent" | "agents" => Some(SettingsSection::Agents),
             "memory" | "memories" => Some(SettingsSection::Memories),

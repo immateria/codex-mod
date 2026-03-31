@@ -30,6 +30,7 @@ pub(crate) use self::contents::{
     PluginsSettingsContent,
     PromptsSettingsContent,
     ReviewSettingsContent,
+    SecretsSettingsContent,
     ShellSettingsContent,
     ShellProfilesSettingsContent,
     SkillsSettingsContent,
@@ -65,6 +66,7 @@ pub(crate) struct SettingsOverlayView {
     updates_content: Option<UpdatesSettingsContent>,
     notifications_content: Option<NotificationsSettingsContent>,
     accounts_content: Option<AccountsSettingsContent>,
+    secrets_content: Option<SecretsSettingsContent>,
     apps_content: Option<AppsSettingsContent>,
     memories_content: Option<MemoriesSettingsContent>,
     prompts_content: Option<PromptsSettingsContent>,
@@ -87,6 +89,10 @@ pub(crate) struct SettingsOverlayView {
     last_overview_list_area: RefCell<Rect>,
     /// Section mapping for each rendered overview list line (None for separators).
     last_overview_line_sections: RefCell<Vec<Option<SettingsSection>>>,
+    /// Horizontal hit ranges for each rendered overview list line (separators use `[None; 2]`).
+    /// Stored as (start_x, end_x) in terminal cell coordinates. Some lines have
+    /// two disjoint hit ranges (e.g., label + summary).
+    last_overview_line_hit_ranges: RefCell<Vec<[Option<(u16, u16)>; 2]>>,
     /// Vertical scroll offset used for the overview list.
     last_overview_scroll: RefCell<usize>,
     /// Last panel inner area where content is rendered (for mouse forwarding)
@@ -115,6 +121,7 @@ impl SettingsOverlayView {
             updates_content: None,
             notifications_content: None,
             accounts_content: None,
+            secrets_content: None,
             apps_content: None,
             memories_content: None,
             prompts_content: None,
@@ -133,6 +140,7 @@ impl SettingsOverlayView {
             last_sidebar_area: RefCell::new(Rect::default()),
             last_overview_list_area: RefCell::new(Rect::default()),
             last_overview_line_sections: RefCell::new(Vec::new()),
+            last_overview_line_hit_ranges: RefCell::new(Vec::new()),
             last_overview_scroll: RefCell::new(0),
             last_panel_inner_area: RefCell::new(Rect::default()),
             hovered_section: RefCell::new(None),
@@ -273,6 +281,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn accounts_content_mut(&mut self) -> Option<&mut AccountsSettingsContent> {
         self.accounts_content.as_mut()
+    }
+
+    pub(crate) fn set_secrets_content(&mut self, content: SecretsSettingsContent) {
+        self.secrets_content = Some(content);
     }
 
     pub(crate) fn set_apps_content(&mut self, content: AppsSettingsContent) {
@@ -478,6 +490,10 @@ impl SettingsOverlayView {
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Accounts => self
                 .accounts_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::Secrets => self
+                .secrets_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Apps => self

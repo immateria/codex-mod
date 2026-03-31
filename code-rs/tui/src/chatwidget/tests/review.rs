@@ -881,8 +881,10 @@
         .on_error("stream error: retrying 1/5".to_string());
 
     assert!(harness.chat().reconnect_notice_active);
+    assert!(harness.chat().bottom_pane.is_task_running());
     harness.chat().clear_reconnecting();
     assert!(!harness.chat().reconnect_notice_active);
+    assert!(!harness.chat().bottom_pane.is_task_running());
     }
 
     #[test]
