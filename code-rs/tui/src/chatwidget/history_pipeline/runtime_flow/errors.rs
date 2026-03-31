@@ -73,7 +73,12 @@ impl ChatWidget<'_> {
     pub(in super::super::super) fn mark_reconnecting(&mut self, message: String) {
         // Keep task running and surface a concise status in the input header.
         self.bottom_pane.set_task_running(true);
-        self.bottom_pane.update_status_text("Retrying...".to_string());
+        let status_text = if self.turn_sequence == 0 {
+            "Connecting..."
+        } else {
+            "Retrying..."
+        };
+        self.bottom_pane.update_status_text(status_text.to_string());
 
         if !self.reconnect_notice_active {
             self.reconnect_notice_active = true;

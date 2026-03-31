@@ -202,6 +202,18 @@ fn map_status_message_shows_searching_for_search_status() {
 }
 
 #[test]
+fn map_status_message_shows_connecting_for_connecting_status() {
+    assert_eq!(
+        ChatComposer::map_status_message("connecting to model"),
+        "Connecting".to_string(),
+    );
+    assert_eq!(
+        ChatComposer::map_status_message("(connecting to model)"),
+        "Connecting".to_string(),
+    );
+}
+
+#[test]
 fn subagent_popup_prefill_does_not_record_submission_history() {
     let (tx, _rx) = std::sync::mpsc::channel::<AppEvent>();
     let app_tx = AppEventSender::new(tx);
@@ -256,4 +268,3 @@ fn insert_selected_path_quotes_and_escapes_internal_quotes() {
         "\"/tmp/my \\\"quoted\\\" file.txt\" "
     );
 }
-

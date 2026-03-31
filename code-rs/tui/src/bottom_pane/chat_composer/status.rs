@@ -84,6 +84,10 @@ impl ChatComposer {
         {
             "Responding".to_string()
         }
+        // Initial connection / handshake
+        else if lower.contains("connecting") {
+            "Connecting".to_string()
+        }
         // Transient network/stream retry patterns → keep spinner visible with a
         // clear reconnecting message so the user knows we are still working.
         else if lower.contains("retrying")
@@ -121,4 +125,3 @@ impl ChatComposer {
         }
     }
 }
-
