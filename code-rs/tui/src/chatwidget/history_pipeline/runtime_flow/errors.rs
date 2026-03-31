@@ -73,10 +73,13 @@ impl ChatWidget<'_> {
     pub(in super::super::super) fn mark_reconnecting(&mut self, message: String) {
         // Keep task running and surface a concise status in the input header.
         self.bottom_pane.set_task_running(true);
-        let status_text = if self.turn_sequence == 0 {
-            "Connecting..."
-        } else {
+        // We want "Connecting..." until we have ever received any stream payload.
+        // The first successful stream is the closest proxy for "we have connected"
+        // that doesn't depend on turn/task sequencing.
+        let status_text = if self.has_seen_model_stream {
             "Retrying..."
+        } else {
+            "Connecting..."
         };
         self.bottom_pane.update_status_text(status_text.to_string());
 

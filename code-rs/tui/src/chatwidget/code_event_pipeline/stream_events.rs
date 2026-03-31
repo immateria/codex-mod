@@ -16,6 +16,7 @@ impl ChatWidget<'_> {
             return;
         }
 
+        self.has_seen_model_stream = true;
         self.clear_reconnecting();
 
         // Allow a fresh lingering-exec sweep even if the per-turn guard
@@ -91,6 +92,7 @@ impl ChatWidget<'_> {
             return;
         }
 
+        self.has_seen_model_stream = true;
         self.clear_reconnecting();
 
         self.ensure_lingering_execs_cleared();
@@ -145,6 +147,7 @@ impl ChatWidget<'_> {
             self.stop_spinner();
             return;
         }
+        self.has_seen_model_stream = true;
         self.clear_reconnecting();
         tracing::debug!(
             "AgentReasoning event with text: {:?}...",
@@ -196,6 +199,7 @@ impl ChatWidget<'_> {
             self.stop_spinner();
             return;
         }
+        self.has_seen_model_stream = true;
         self.clear_reconnecting();
         if self.strict_stream_ids_enabled() && id.trim().is_empty() {
             self.warn_missing_stream_id("assistant reasoning delta");
@@ -249,6 +253,8 @@ impl ChatWidget<'_> {
             self.stop_spinner();
             return;
         }
+        self.has_seen_model_stream = true;
+        self.clear_reconnecting();
         if self.strict_stream_ids_enabled() && id.trim().is_empty() {
             self.warn_missing_stream_id("assistant raw reasoning delta");
             return;
@@ -292,6 +298,8 @@ impl ChatWidget<'_> {
             self.stop_spinner();
             return;
         }
+        self.has_seen_model_stream = true;
+        self.clear_reconnecting();
         tracing::debug!(
             "AgentReasoningRawContent event with text: {:?}...",
             text.chars().take(100).collect::<String>()

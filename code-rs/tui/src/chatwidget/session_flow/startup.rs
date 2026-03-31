@@ -114,6 +114,7 @@ impl ChatWidget<'_> {
             startup_model_migration_notice,
             reconnect_notice_active: false,
             reconnect_notice_started_at: None,
+            has_seen_model_stream: false,
             initial_user_message: create_initial_user_message(
                 initial_prompt.unwrap_or_default(),
                 initial_images,
