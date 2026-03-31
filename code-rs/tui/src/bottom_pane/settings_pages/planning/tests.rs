@@ -30,7 +30,8 @@ fn planning_mouse_hit_targets_content_row() {
     assert_eq!(
         crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage::selection_menu_id_in_body(
             layout.body,
-            layout.body.x,
+            // Hit-testing requires the pointer to be over the visible text (not row padding).
+            layout.body.x.saturating_add(2),
             layout.body.y,
             0,
             &rows,
@@ -39,5 +40,8 @@ fn planning_mouse_hit_targets_content_row() {
     );
     assert!(view
         .content_only_mut()
-        .handle_mouse_event_direct(left_click(layout.body.x, layout.body.y), area));
+        .handle_mouse_event_direct(
+            left_click(layout.body.x.saturating_add(2), layout.body.y),
+            area,
+        ));
 }

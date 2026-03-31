@@ -34,7 +34,11 @@ fn mouse_activation_opens_expected_section() {
         .expect("layout");
 
     assert!(view.handle_mouse_event_direct(
-        left_click(layout.body.x, layout.body.y.saturating_add(1)),
+        // Hit-testing requires the pointer to be over the visible text (not row padding).
+        left_click(
+            layout.body.x.saturating_add(2),
+            layout.body.y.saturating_add(1),
+        ),
         area,
     ));
 

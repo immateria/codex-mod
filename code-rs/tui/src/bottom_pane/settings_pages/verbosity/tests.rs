@@ -23,7 +23,11 @@ fn mouse_click_selects_expected_verbosity_row() {
         .expect("layout");
 
     assert!(view.handle_mouse_event_direct(
-        mouse_left_click(layout.body.x + 1, layout.body.y + 1),
+        // Hit-testing requires the pointer to be over the visible text (not row padding).
+        mouse_left_click(
+            layout.body.x.saturating_add(2),
+            layout.body.y.saturating_add(1),
+        ),
         area,
     ));
     assert_eq!(view.selected_verbosity(), TextVerbosity::Medium);

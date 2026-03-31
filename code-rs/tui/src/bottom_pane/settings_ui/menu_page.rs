@@ -494,7 +494,7 @@ mod tests {
         assert_eq!(
             SettingsMenuPage::selection_menu_id_in_body(
                 layout.body,
-                layout.body.x,
+                layout.body.x.saturating_add(2),
                 layout.body.y,
                 0,
                 &rows,

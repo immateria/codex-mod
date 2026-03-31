@@ -32,7 +32,11 @@ fn content_only_mouse_uses_content_geometry_not_framed_geometry() {
         .page()
         .layout_in_chrome(ChromeMode::ContentOnly, area)
         .expect("layout");
-    let click = mouse_left_click(content_layout.body.x, content_layout.body.y);
+    // Hit-testing requires the pointer to be over the visible text (not row padding).
+    let click = mouse_left_click(
+        content_layout.body.x.saturating_add(2),
+        content_layout.body.y,
+    );
 
     view.state.selected_idx = Some(1);
     assert!(!view.handle_mouse_event_direct_framed(click, area));

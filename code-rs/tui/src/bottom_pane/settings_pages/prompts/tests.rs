@@ -41,7 +41,8 @@ fn content_only_mouse_hit_testing_uses_content_only_layout() {
         .expect("framed layout");
 
     let pos = Position {
-        x: content_layout.body.x,
+        // Hit-testing requires the pointer to be over the visible text (not row padding).
+        x: content_layout.body.x.saturating_add(2),
         y: content_layout.body.y,
     };
     assert!(content_layout.body.contains(pos));
@@ -79,4 +80,3 @@ fn list_navigation_scrolls_to_keep_selection_visible() {
     assert_eq!(view.list_state.selected_idx, Some(3));
     assert_eq!(view.list_state.scroll_top, 1);
 }
-

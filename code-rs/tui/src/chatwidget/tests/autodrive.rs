@@ -617,19 +617,32 @@
     }
     harness.flush_into_widget();
 
-    {
+    let (theme_col, theme_row) = {
         let chat = harness.chat();
         let mut terminal = Terminal::new(VT100Backend::new(120, 30)).expect("terminal");
         terminal
             .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
             .expect("draw");
-    }
+        let snapshot = terminal.backend().to_string();
+        let (row, col) = snapshot
+            .lines()
+            .enumerate()
+            .find_map(|(idx, line)| {
+                if !line.contains("Theme:") {
+                    return None;
+                }
+                let col = line.find("Theme")?;
+                Some((idx, col))
+            })
+            .expect("expected Theme row to be present in Settings overview snapshot");
+        (col as u16, row as u16)
+    };
 
     harness.with_chat(|chat| {
         chat.handle_mouse_event(MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
-            column: 6,
-            row: 9,
+            column: theme_col,
+            row: theme_row,
             modifiers: KeyModifiers::NONE,
         });
     });
