@@ -335,7 +335,9 @@ ratatui = { git = "https://github.com/nornagon/ratatui", branch = "nornagon-v0.2
 inherits = "dev"
 opt-level = 1
 debug = 1
-incremental = true
+# Rust incremental builds have been flaky on macOS (missing dep-graph.part.bin).
+# dev-fast is only used by build-fast.sh; prefer reliability over incremental speed.
+incremental = false
 codegen-units = 256
 lto = "off"
 
