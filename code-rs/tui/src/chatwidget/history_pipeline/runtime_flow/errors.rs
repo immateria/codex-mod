@@ -26,6 +26,7 @@ impl ChatWidget<'_> {
         // without emitting the "Reconnected" toast (which would be misleading).
         if self.reconnect_notice_active {
             self.reconnect_notice_active = false;
+            self.reconnect_notice_started_at = None;
             self.bottom_pane.update_status_text(String::new());
             self.request_redraw();
         }
@@ -76,6 +77,7 @@ impl ChatWidget<'_> {
 
         if !self.reconnect_notice_active {
             self.reconnect_notice_active = true;
+            self.reconnect_notice_started_at = Some(std::time::Instant::now());
             self.push_background_tail(format!("Auto-retrying… ({message})"));
         }
 
@@ -88,6 +90,7 @@ impl ChatWidget<'_> {
             return;
         }
         self.reconnect_notice_active = false;
+        self.reconnect_notice_started_at = None;
         self.bottom_pane.update_status_text(String::new());
         self.bottom_pane
             .flash_footer_notice_for("Resuming".to_string(), Duration::from_secs(2));
@@ -95,5 +98,43 @@ impl ChatWidget<'_> {
         // task/stream), ensure we don't leave the spinner running forever.
         self.maybe_hide_spinner();
         self.request_redraw();
+    }
+
+    pub(crate) fn maybe_clear_stale_reconnecting_for_idle(&mut self) {
+        if !self.reconnect_notice_active {
+            return;
+        }
+
+        let any_tools_running = !self.exec.running_commands.is_empty()
+            || !self.tools_state.running_custom_tools.is_empty()
+            || !self.tools_state.web_search_sessions.is_empty();
+        let any_streaming = self.stream.is_write_cycle_active();
+        let any_agents_active = self.agents_are_actively_running();
+        let any_tasks_active = !self.active_task_ids.is_empty();
+        let terminal_running = self.terminal_is_running();
+
+        if any_tools_running
+            || any_streaming
+            || any_agents_active
+            || any_tasks_active
+            || terminal_running
+        {
+            return;
+        }
+
+        let Some(started_at) = self.reconnect_notice_started_at else {
+            self.reconnect_notice_started_at = Some(std::time::Instant::now());
+            return;
+        };
+
+        const IDLE_RECONNECT_NOTICE_TIMEOUT: Duration = Duration::from_secs(3);
+        if started_at.elapsed() < IDLE_RECONNECT_NOTICE_TIMEOUT {
+            return;
+        }
+
+        self.reconnect_notice_active = false;
+        self.reconnect_notice_started_at = None;
+        self.bottom_pane.update_status_text(String::new());
+        self.maybe_hide_spinner();
     }
 }

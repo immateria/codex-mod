@@ -16,6 +16,8 @@ impl ChatWidget<'_> {
             return;
         }
 
+        self.clear_reconnecting();
+
         // Allow a fresh lingering-exec sweep even if the per-turn guard
         // was tripped before any commands started.
         self.cleared_lingering_execs_this_turn = false;
@@ -89,6 +91,8 @@ impl ChatWidget<'_> {
             return;
         }
 
+        self.clear_reconnecting();
+
         self.ensure_lingering_execs_cleared();
 
         if self.strict_stream_ids_enabled() && id.trim().is_empty() {
@@ -141,6 +145,7 @@ impl ChatWidget<'_> {
             self.stop_spinner();
             return;
         }
+        self.clear_reconnecting();
         tracing::debug!(
             "AgentReasoning event with text: {:?}...",
             text.chars().take(100).collect::<String>()
@@ -191,6 +196,7 @@ impl ChatWidget<'_> {
             self.stop_spinner();
             return;
         }
+        self.clear_reconnecting();
         if self.strict_stream_ids_enabled() && id.trim().is_empty() {
             self.warn_missing_stream_id("assistant reasoning delta");
             return;

@@ -82,6 +82,7 @@ impl ChatWidget<'_> {
             latest_upgrade_version,
             startup_model_migration_notice,
             reconnect_notice_active: false,
+            reconnect_notice_started_at: None,
             initial_user_message: None,
             total_token_usage: TokenUsage::default(),
             last_token_usage: TokenUsage::default(),

@@ -757,6 +757,7 @@ pub(crate) struct ChatWidget<'a> {
     latest_upgrade_version: Option<String>,
     startup_model_migration_notice: Option<crate::model_migration::StartupModelMigrationNotice>,
     reconnect_notice_active: bool,
+    reconnect_notice_started_at: Option<Instant>,
     initial_user_message: Option<UserMessage>,
     total_token_usage: TokenUsage,
     last_token_usage: TokenUsage,

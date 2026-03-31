@@ -888,6 +888,59 @@
     }
 
     #[test]
+    fn warning_events_do_not_clear_reconnect_ui() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    let chat = harness.chat();
+
+    chat.on_error("stream error: retrying 1/5".to_string());
+    assert!(chat.reconnect_notice_active, "expected reconnect UI to be active");
+
+    chat.handle_code_event(Event {
+        id: "turn-1".to_string(),
+        event_seq: 1,
+        msg: EventMsg::Warning(code_core::protocol::WarningEvent {
+            message: "background warning".to_string(),
+        }),
+        order: None,
+    });
+
+    assert!(
+        chat.reconnect_notice_active,
+        "warning events should not clear reconnect UI state",
+    );
+    assert!(
+        chat.bottom_pane.is_task_running(),
+        "reconnect UI should keep the spinner running until cleared explicitly",
+    );
+    }
+
+    #[test]
+    fn reconnect_ui_is_cleared_after_idle_timeout() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+    let chat = harness.chat();
+
+    chat.on_error("stream error: retrying 1/5".to_string());
+    assert!(chat.reconnect_notice_active);
+    assert!(chat.bottom_pane.is_task_running());
+
+    // Simulate the reconnect banner being active for long enough while the UI
+    // is otherwise idle.
+    chat.reconnect_notice_started_at = Some(std::time::Instant::now() - std::time::Duration::from_secs(10));
+    chat.maybe_clear_stale_reconnecting_for_idle();
+
+    assert!(
+        !chat.reconnect_notice_active,
+        "expected reconnect UI to clear once idle timeout elapses",
+    );
+    assert!(
+        !chat.bottom_pane.is_task_running(),
+        "expected spinner to stop after reconnect UI clears in idle state",
+    );
+    }
+
+    #[test]
     fn startup_mcp_errors_do_not_push_history() {
     let mut harness = ChatWidgetHarness::new();
     let chat = harness.chat();

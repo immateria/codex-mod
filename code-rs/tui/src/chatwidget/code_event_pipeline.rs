@@ -82,13 +82,6 @@ impl ChatWidget<'_> {
         // Track provider order to anchor internal inserts at the bottom of the active request.
         self.note_order(event.order.as_ref());
 
-        // A transient stream/network error can set the footer to "Reconnecting…".
-        // Clear it as soon as we receive *any* subsequent non-error event so the
-        // UI doesn't get stuck in that state while idle or during background updates.
-        if self.reconnect_notice_active && !matches!(&event.msg, EventMsg::Error(_)) {
-            self.clear_reconnecting();
-        }
-
         let Event { id, msg, .. } = event.clone();
         match msg {
             EventMsg::EnvironmentContextFull(ev) => {
