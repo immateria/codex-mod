@@ -18,7 +18,7 @@ Completion/build step
 Optional regression checks (recommended when touching the Rust workspace):
 
 - `cargo nextest run --no-fail-fast` — runs all workspace tests with the TUI helpers automatically enabled. The suite is green after the resume fixtures/git-init fallback updates; older Git builds may print a warning when falling back from `--initial-branch`, but tests still pass.
-- Focused sweeps stay quick and green: `cargo test -p code-tui --features test-helpers`, `cargo test -p code-cloud-tasks --tests`, and `cargo test -p mcp-types --tests`.
+- Focused sweeps stay quick and green: `cargo test -p code-tui --features test-helpers --lib` (unit tests; faster than compiling all integration tests), `cargo test -p code-cloud-tasks --tests`, and `cargo test -p mcp-types --tests`.
 
 When debugging regressions or bugs, write a failing test (or targeted reproduction script) first and confirm it captures the issue before touching code—if it can’t fail, you can’t be confident the fix works.
 
