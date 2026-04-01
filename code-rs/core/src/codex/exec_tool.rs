@@ -1806,6 +1806,8 @@ pub(crate) async fn handle_container_exec_with_params(
     let tool_output_max_bytes = sess.tool_output_max_bytes;
     let managed_network_proxy = sess.managed_network_proxy();
     let network_approval = sess.network_approval();
+    let zsh_fork_exec_config = compute_zsh_fork_exec_config(sess, sandbox_type, &params.command);
+    let sess_for_escalation = sess_for_hooks.clone();
     let task_handle = tokio::spawn(async move {
         // Build stdout stream with tail capture. We cannot stamp via `Session` here,
         // but deltas will be delivered with neutral ordering which the UI tolerates.
@@ -1847,16 +1849,55 @@ pub(crate) async fn handle_container_exec_with_params(
         };
 
         let start = std::time::Instant::now();
-        let res = crate::exec::process_exec_tool_call_with_managed_network(
-            params_for_exec,
-            sandbox_type,
-            &sandbox_policy,
-            &sandbox_cwd,
-            &code_linux_sandbox_exe,
-            stdout_stream,
-            enforce_managed_network,
-        )
-        .await;
+        let res = {
+            #[cfg(unix)]
+            {
+                if let (Some(zsh_fork_exec_config), Some(sess_arc)) =
+                    (zsh_fork_exec_config, sess_for_escalation.clone())
+                {
+                    run_shell_with_zsh_fork(
+                        sess_arc,
+                        zsh_fork_exec_config,
+                        params_for_exec,
+                        sandbox_type,
+                        &sandbox_policy,
+                        &sandbox_cwd,
+                        &code_linux_sandbox_exe,
+                        stdout_stream,
+                        enforce_managed_network,
+                        sub_id_for_events.clone(),
+                        call_id_for_events.clone(),
+                    )
+                    .await
+                } else {
+                    crate::exec::process_exec_tool_call_with_managed_network(
+                        params_for_exec,
+                        sandbox_type,
+                        &sandbox_policy,
+                        &sandbox_cwd,
+                        &code_linux_sandbox_exe,
+                        stdout_stream,
+                        enforce_managed_network,
+                        None,
+                    )
+                    .await
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                crate::exec::process_exec_tool_call_with_managed_network(
+                    params_for_exec,
+                    sandbox_type,
+                    &sandbox_policy,
+                    &sandbox_cwd,
+                    &code_linux_sandbox_exe,
+                    stdout_stream,
+                    enforce_managed_network,
+                    None,
+                )
+                .await
+            }
+        };
 
         // Normalize to ExecToolCallOutput
         let (out, exit_code) = match res {
@@ -2071,6 +2112,505 @@ fn format_exec_output_with_limit(
     let final_output =
         truncate_exec_output_for_storage(cwd, sub_id, call_id, &full, max_tool_output_bytes);
     format_exec_output_payload(exec_output, &final_output)
+}
+
+#[derive(Debug, Clone)]
+struct ZshForkExecConfig {
+    shell_zsh_path: PathBuf,
+    execve_wrapper: PathBuf,
+    script: String,
+    login: bool,
+}
+
+fn compute_zsh_fork_exec_config(
+    sess: &Session,
+    sandbox_type: SandboxType,
+    argv: &[String],
+) -> Option<ZshForkExecConfig> {
+    if !cfg!(unix) {
+        return None;
+    }
+    if sandbox_type == SandboxType::None {
+        return None;
+    }
+    if !sess
+        .client
+        .config()
+        .features_effective
+        .enabled("shell_zsh_fork")
+    {
+        return None;
+    }
+    if !matches!(sess.user_shell(), crate::shell::Shell::Zsh(_)) {
+        return None;
+    }
+
+    let zsh_path = sess.client.config().zsh_path.clone()?;
+    if !zsh_path.is_absolute() {
+        tracing::warn!(
+            "ShellZshFork enabled, but config.zsh_path is not absolute: {}",
+            zsh_path.display()
+        );
+        return None;
+    }
+    if !zsh_path.is_file() {
+        tracing::warn!(
+            "ShellZshFork enabled, but config.zsh_path does not exist: {}",
+            zsh_path.display()
+        );
+        return None;
+    }
+
+    let main_execve_wrapper_exe = resolve_execve_wrapper_exe(
+        sess.client
+            .config()
+            .main_execve_wrapper_exe
+            .as_deref(),
+    )?;
+
+    // Require a zsh wrapper invocation: zsh (-lc|-c) <script>
+    let (script_index, script) = extract_shell_script_from_wrapper(argv)?;
+    if script_index != 2 {
+        return None;
+    }
+    let program = std::path::Path::new(&argv[0])
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    if program != "zsh" {
+        return None;
+    }
+    let login = argv.get(1).is_some_and(|flag| flag == "-lc");
+
+    Some(ZshForkExecConfig {
+        shell_zsh_path: zsh_path,
+        execve_wrapper: main_execve_wrapper_exe,
+        script,
+        login,
+    })
+}
+
+fn resolve_execve_wrapper_exe(override_path: Option<&Path>) -> Option<PathBuf> {
+    resolve_execve_wrapper_exe_with(
+        override_path,
+        std::env::current_exe().ok().as_deref(),
+        std::env::var_os("PATH").as_deref(),
+    )
+}
+
+fn resolve_execve_wrapper_exe_with(
+    override_path: Option<&Path>,
+    current_exe: Option<&Path>,
+    path_env: Option<&std::ffi::OsStr>,
+) -> Option<PathBuf> {
+    const WRAPPER_BASENAME: &str = "codex-execve-wrapper";
+
+    if let Some(override_path) = override_path {
+        if override_path.is_file() {
+            return Some(override_path.to_path_buf());
+        }
+        tracing::warn!(
+            "ShellZshFork enabled, but main_execve_wrapper_exe does not exist: {}",
+            override_path.display()
+        );
+        return None;
+    }
+
+    if let Some(current_exe) = current_exe
+        && let Some(parent) = current_exe.parent()
+    {
+        let sibling = parent.join(WRAPPER_BASENAME);
+        if sibling.is_file() {
+            return Some(sibling);
+        }
+    }
+
+    if let Some(path_env) = path_env {
+        for dir in std::env::split_paths(path_env) {
+            let candidate = dir.join(WRAPPER_BASENAME);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
+}
+
+#[cfg(unix)]
+async fn run_shell_with_zsh_fork(
+    sess: Arc<Session>,
+    zsh_fork_exec_config: ZshForkExecConfig,
+    params: ExecParams,
+    sandbox_type: SandboxType,
+    sandbox_policy: &crate::protocol::SandboxPolicy,
+    sandbox_cwd: &Path,
+    code_linux_sandbox_exe: &Option<PathBuf>,
+    stdout_stream: Option<StdoutStream>,
+    enforce_managed_network: bool,
+    sub_id: String,
+    call_id: String,
+) -> std::result::Result<ExecToolCallOutput, CodexErr> {
+    let stopwatch = match params.maybe_timeout_duration() {
+        Some(limit) => code_shell_escalation::Stopwatch::new(limit),
+        None => code_shell_escalation::Stopwatch::unlimited(),
+    };
+    let cancel_rx = stopwatch.cancellation_token();
+    let exec_output_cell: Arc<std::sync::Mutex<Option<ExecToolCallOutput>>> =
+        Arc::new(std::sync::Mutex::new(None));
+
+    let command_executor = Arc::new(CoreShellCommandExecutor {
+        base_env: params.env.clone(),
+        timeout_ms: params.timeout_ms,
+        sandbox_type,
+        sandbox_policy: sandbox_policy.clone(),
+        sandbox_cwd: sandbox_cwd.to_path_buf(),
+        code_linux_sandbox_exe: code_linux_sandbox_exe.clone(),
+        stdout_stream: stdout_stream.clone(),
+        enforce_managed_network,
+        exec_output_cell: Arc::clone(&exec_output_cell),
+    });
+
+    let escalation_policy = CoreShellEscalationPolicy {
+        session: Arc::clone(&sess),
+        sub_id,
+        call_id,
+        approval_policy: sess.get_approval_policy(),
+        sandbox_policy: sandbox_policy.clone(),
+        cancel_rx: cancel_rx.clone(),
+    };
+
+    let escalate_server = code_shell_escalation::EscalateServer::new(
+        zsh_fork_exec_config.shell_zsh_path,
+        zsh_fork_exec_config.execve_wrapper,
+        escalation_policy,
+    );
+
+    let exec_params = code_shell_escalation::ExecParams {
+        command: zsh_fork_exec_config.script,
+        workdir: params.cwd.to_string_lossy().to_string(),
+        timeout_ms: params.timeout_ms,
+        login: Some(zsh_fork_exec_config.login),
+    };
+
+    if let Err(err) = escalate_server
+        .exec(exec_params, cancel_rx, command_executor)
+        .await
+    {
+        return Err(CodexErr::Io(std::io::Error::other(format!(
+            "shell zsh fork execution failed: {err:#}"
+        ))));
+    }
+
+    exec_output_cell
+        .lock()
+        .ok()
+        .and_then(|slot| slot.clone())
+        .ok_or_else(|| {
+            CodexErr::Io(std::io::Error::other(
+                "shell zsh fork did not record exec output",
+            ))
+        })
+}
+
+#[cfg(unix)]
+struct CoreShellCommandExecutor {
+    base_env: std::collections::HashMap<String, String>,
+    timeout_ms: Option<u64>,
+    sandbox_type: SandboxType,
+    sandbox_policy: crate::protocol::SandboxPolicy,
+    sandbox_cwd: PathBuf,
+    code_linux_sandbox_exe: Option<PathBuf>,
+    stdout_stream: Option<StdoutStream>,
+    enforce_managed_network: bool,
+    exec_output_cell: Arc<std::sync::Mutex<Option<ExecToolCallOutput>>>,
+}
+
+#[cfg(unix)]
+#[async_trait::async_trait]
+impl code_shell_escalation::ShellCommandExecutor for CoreShellCommandExecutor {
+    async fn run(
+        &self,
+        command: Vec<String>,
+        cwd: PathBuf,
+        mut env_overlay: std::collections::HashMap<String, String>,
+        _cancel_rx: tokio_util::sync::CancellationToken,
+        after_spawn: Option<Box<dyn FnOnce() + Send>>,
+    ) -> anyhow::Result<code_shell_escalation::ExecResult> {
+        let mut env = self.base_env.clone();
+        for (k, v) in env_overlay.drain() {
+            env.insert(k, v);
+        }
+
+        let start = std::time::Instant::now();
+        let res = crate::exec::process_exec_tool_call_with_managed_network(
+            ExecParams {
+                command,
+                cwd,
+                timeout_ms: self.timeout_ms,
+                env,
+                sandbox_permissions: SandboxPermissions::UseDefault,
+                additional_permissions: None,
+                justification: None,
+            },
+            self.sandbox_type,
+            &self.sandbox_policy,
+            &self.sandbox_cwd,
+            &self.code_linux_sandbox_exe,
+            self.stdout_stream.clone(),
+            self.enforce_managed_network,
+            after_spawn,
+        )
+        .await;
+
+        let (out, exit_code) = match res {
+            Ok(o) => {
+                let exit = o.exit_code;
+                (o, exit)
+            }
+            Err(CodexErr::Sandbox(SandboxErr::Timeout { output })) => (output.as_ref().clone(), 124),
+            Err(e) => {
+                let msg = get_error_message_ui(&e);
+                (
+                    ExecToolCallOutput {
+                        exit_code: -1,
+                        stdout: StreamOutput::new(String::new()),
+                        stderr: StreamOutput::new(msg.clone()),
+                        aggregated_output: StreamOutput::new(msg),
+                        duration: start.elapsed(),
+                        timed_out: false,
+                    },
+                    -1,
+                )
+            }
+        };
+
+        if let Ok(mut slot) = self.exec_output_cell.lock() {
+            *slot = Some(out.clone());
+        }
+
+        Ok(code_shell_escalation::ExecResult {
+            exit_code,
+            stdout: out.stdout.text.clone(),
+            stderr: out.stderr.text.clone(),
+            output: out.aggregated_output.text.clone(),
+            duration: out.duration,
+            timed_out: out.timed_out,
+        })
+    }
+
+    async fn prepare_escalated_exec(
+        &self,
+        program: &code_utils_absolute_path::AbsolutePathBuf,
+        argv: &[String],
+        workdir: &code_utils_absolute_path::AbsolutePathBuf,
+        env: std::collections::HashMap<String, String>,
+        execution: code_shell_escalation::EscalationExecution,
+    ) -> anyhow::Result<code_shell_escalation::PreparedExec> {
+        let execution = match execution {
+            code_shell_escalation::EscalationExecution::Unsandboxed
+            | code_shell_escalation::EscalationExecution::TurnDefault => {
+                code_shell_escalation::EscalationExecution::Unsandboxed
+            }
+            code_shell_escalation::EscalationExecution::Permissions(permissions) => {
+                return Err(anyhow::anyhow!(
+                    "EscalationExecution::Permissions is not supported yet: {permissions:?}"
+                ));
+            }
+        };
+        let _ = execution;
+
+        Ok(code_shell_escalation::PreparedExec {
+            command: std::iter::once(program.to_string_lossy().to_string())
+                .chain(argv.iter().skip(1).cloned())
+                .collect(),
+            cwd: workdir.to_path_buf(),
+            env,
+            arg0: argv.first().cloned(),
+        })
+    }
+}
+
+#[cfg(unix)]
+struct CoreShellEscalationPolicy {
+    session: Arc<Session>,
+    sub_id: String,
+    call_id: String,
+    approval_policy: AskForApproval,
+    sandbox_policy: crate::protocol::SandboxPolicy,
+    cancel_rx: tokio_util::sync::CancellationToken,
+}
+
+#[cfg(unix)]
+#[async_trait::async_trait]
+impl code_shell_escalation::EscalationPolicy for CoreShellEscalationPolicy {
+    async fn determine_action(
+        &self,
+        _file: &code_utils_absolute_path::AbsolutePathBuf,
+        argv: &[String],
+        workdir: &code_utils_absolute_path::AbsolutePathBuf,
+    ) -> anyhow::Result<code_shell_escalation::EscalationDecision> {
+        let Some(trigger) = escalation_trigger_for_argv(&self.sandbox_policy, argv) else {
+            return Ok(code_shell_escalation::EscalationDecision::run());
+        };
+
+        // If already approved, skip prompting and escalate.
+        if self.session.is_command_approved(argv) {
+            return Ok(code_shell_escalation::EscalationDecision::escalate(
+                code_shell_escalation::EscalationExecution::Unsandboxed,
+            ));
+        }
+
+        // Respect approval policy constraints.
+        match self.approval_policy {
+            AskForApproval::Never => {
+                return Ok(code_shell_escalation::EscalationDecision::deny(Some(
+                    "approval required for shell escalation, but AskForApproval=Never".to_string(),
+                )));
+            }
+            AskForApproval::Reject(reject) if reject.rejects_sandbox_approval() => {
+                return Ok(code_shell_escalation::EscalationDecision::deny(Some(
+                    "approval required for shell escalation, but sandbox approvals are rejected by policy"
+                        .to_string(),
+                )));
+            }
+            _ => {}
+        }
+
+        let uuid = uuid::Uuid::new_v4();
+        let approval_id = Some(format!("execve:{uuid}"));
+        let suffix = match trigger {
+            EscalationTrigger::NetworkDisabled => "network disabled",
+            EscalationTrigger::GitWritesBlocked => "git writes blocked",
+        };
+        let reason = Some(format!(
+            "Shell escalation: run subcommand outside the sandbox ({suffix})"
+        ));
+
+        let rx_approve = self
+            .session
+            .request_command_approval(super::session::CommandApprovalRequest {
+                sub_id: self.sub_id.clone(),
+                call_id: self.call_id.clone(),
+                approval_id,
+                command: argv.to_vec(),
+                cwd: workdir.to_path_buf(),
+                reason,
+                network_approval_context: None,
+                additional_permissions: None,
+            })
+            .await;
+
+        let decision = tokio::select! {
+            decision = rx_approve => decision.unwrap_or_default(),
+            _ = self.cancel_rx.cancelled() => {
+                return Ok(code_shell_escalation::EscalationDecision::deny(Some(
+                    "shell escalation cancelled".to_string(),
+                )));
+            }
+        };
+
+        match decision {
+            ReviewDecision::Approved => Ok(
+                code_shell_escalation::EscalationDecision::escalate(
+                    code_shell_escalation::EscalationExecution::Unsandboxed,
+                ),
+            ),
+            ReviewDecision::ApprovedForSession => {
+                self.session.add_approved_command(ApprovedCommandPattern::new(
+                    argv.to_vec(),
+                    ApprovedCommandMatchKind::Exact,
+                    None,
+                ));
+                Ok(code_shell_escalation::EscalationDecision::escalate(
+                    code_shell_escalation::EscalationExecution::Unsandboxed,
+                ))
+            }
+            ReviewDecision::Denied | ReviewDecision::Abort => Ok(code_shell_escalation::EscalationDecision::deny(Some(
+                "rejected by user".to_string(),
+            ))),
+        }
+    }
+}
+
+#[cfg(unix)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EscalationTrigger {
+    NetworkDisabled,
+    GitWritesBlocked,
+}
+
+#[cfg(unix)]
+fn escalation_trigger_for_argv(
+    sandbox_policy: &crate::protocol::SandboxPolicy,
+    argv: &[String],
+) -> Option<EscalationTrigger> {
+    if argv.is_empty() {
+        return None;
+    }
+    if !sandbox_policy.has_full_network_access() && is_network_likely_command(argv) {
+        return Some(EscalationTrigger::NetworkDisabled);
+    }
+    if git_writes_blocked(sandbox_policy) && is_git_write_command(argv) {
+        return Some(EscalationTrigger::GitWritesBlocked);
+    }
+    None
+}
+
+#[cfg(unix)]
+fn git_writes_blocked(sandbox_policy: &crate::protocol::SandboxPolicy) -> bool {
+    match sandbox_policy {
+        crate::protocol::SandboxPolicy::ReadOnly => true,
+        crate::protocol::SandboxPolicy::WorkspaceWrite { allow_git_writes, .. } => {
+            !*allow_git_writes
+        }
+        crate::protocol::SandboxPolicy::DangerFullAccess => false,
+    }
+}
+
+#[cfg(unix)]
+fn is_network_likely_command(argv: &[String]) -> bool {
+    let program = std::path::Path::new(&argv[0])
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(&argv[0])
+        .to_ascii_lowercase();
+    let sub = argv.get(1).map(|s| s.to_ascii_lowercase());
+    match (program.as_str(), sub.as_deref()) {
+        ("git", Some("clone" | "fetch" | "pull" | "push")) => true,
+        ("npm", Some("install" | "add" | "update" | "ci")) => true,
+        ("pnpm", Some("install" | "add" | "update")) => true,
+        ("yarn", Some("install" | "add" | "upgrade")) => true,
+        ("bun", Some("install" | "add" | "update")) => true,
+        ("pip", Some("install")) => true,
+        ("pip3", Some("install")) => true,
+        ("go", Some("get" | "install")) => true,
+        ("cargo", Some("build" | "test" | "install")) => true,
+        ("curl", _) => true,
+        ("wget", _) => true,
+        _ => false,
+    }
+}
+
+#[cfg(unix)]
+fn is_git_write_command(argv: &[String]) -> bool {
+    let program = std::path::Path::new(&argv[0])
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(&argv[0])
+        .to_ascii_lowercase();
+    if program != "git" {
+        return false;
+    }
+    let sub = argv.get(1).map(|s| s.to_ascii_lowercase());
+    match sub.as_deref() {
+        Some(
+            "commit" | "checkout" | "switch" | "reset" | "revert" | "merge" | "rebase"
+            | "stash" | "cherry-pick" | "tag",
+        ) => true,
+        Some("branch") => argv.iter().any(|t| t == "-D" || t == "--delete"),
+        _ => false,
+    }
 }
 
 fn extract_shell_script_from_wrapper(argv: &[String]) -> Option<(usize, String)> {
@@ -2615,5 +3155,194 @@ mod tests {
 
         assert!(!content.contains(TRUNCATION_MARKER));
         assert!(content.contains("line"));
+    }
+}
+
+#[cfg(all(test, unix))]
+mod shell_zsh_fork_tests {
+    use super::*;
+    use crate::protocol::SandboxPolicy;
+    use std::path::Path;
+    use tempfile::TempDir;
+
+    fn touch(path: &Path) {
+        std::fs::write(path, b"").expect("touch file");
+    }
+
+    #[test]
+    fn wrapper_resolver_override_wins() {
+        let tmp = TempDir::new().expect("tempdir");
+
+        let override_path = tmp.path().join("override-wrapper");
+        touch(&override_path);
+
+        let current_dir = tmp.path().join("current");
+        std::fs::create_dir_all(&current_dir).expect("mkdir current");
+        let current_exe = current_dir.join("code");
+
+        let sibling_wrapper = current_dir.join("codex-execve-wrapper");
+        touch(&sibling_wrapper);
+
+        let path_dir = tmp.path().join("pathbin");
+        std::fs::create_dir_all(&path_dir).expect("mkdir pathbin");
+        let path_wrapper = path_dir.join("codex-execve-wrapper");
+        touch(&path_wrapper);
+
+        let joined = std::env::join_paths([&path_dir]).expect("join PATH");
+        let resolved = resolve_execve_wrapper_exe_with(
+            Some(override_path.as_path()),
+            Some(current_exe.as_path()),
+            Some(joined.as_os_str()),
+        )
+        .expect("resolved");
+
+        assert_eq!(override_path, resolved);
+    }
+
+    #[test]
+    fn wrapper_resolver_prefers_sibling_over_path() {
+        let tmp = TempDir::new().expect("tempdir");
+
+        let current_dir = tmp.path().join("current");
+        std::fs::create_dir_all(&current_dir).expect("mkdir current");
+        let current_exe = current_dir.join("code");
+
+        let sibling_wrapper = current_dir.join("codex-execve-wrapper");
+        touch(&sibling_wrapper);
+
+        let path_dir = tmp.path().join("pathbin");
+        std::fs::create_dir_all(&path_dir).expect("mkdir pathbin");
+        let path_wrapper = path_dir.join("codex-execve-wrapper");
+        touch(&path_wrapper);
+
+        let joined = std::env::join_paths([&path_dir]).expect("join PATH");
+        let resolved =
+            resolve_execve_wrapper_exe_with(None, Some(current_exe.as_path()), Some(joined.as_os_str()))
+                .expect("resolved");
+
+        assert_eq!(sibling_wrapper, resolved);
+    }
+
+    #[test]
+    fn wrapper_resolver_falls_back_to_path() {
+        let tmp = TempDir::new().expect("tempdir");
+
+        let current_dir = tmp.path().join("current");
+        std::fs::create_dir_all(&current_dir).expect("mkdir current");
+        let current_exe = current_dir.join("code");
+
+        let path_dir = tmp.path().join("pathbin");
+        std::fs::create_dir_all(&path_dir).expect("mkdir pathbin");
+        let path_wrapper = path_dir.join("codex-execve-wrapper");
+        touch(&path_wrapper);
+
+        let joined = std::env::join_paths([&path_dir]).expect("join PATH");
+        let resolved =
+            resolve_execve_wrapper_exe_with(None, Some(current_exe.as_path()), Some(joined.as_os_str()))
+                .expect("resolved");
+
+        assert_eq!(path_wrapper, resolved);
+    }
+
+    #[test]
+    fn wrapper_resolver_missing_override_disables_backend() {
+        let tmp = TempDir::new().expect("tempdir");
+
+        let override_path = tmp.path().join("missing-wrapper");
+
+        let current_dir = tmp.path().join("current");
+        std::fs::create_dir_all(&current_dir).expect("mkdir current");
+        let current_exe = current_dir.join("code");
+
+        let sibling_wrapper = current_dir.join("codex-execve-wrapper");
+        touch(&sibling_wrapper);
+
+        let joined = std::env::join_paths([&current_dir]).expect("join PATH");
+        let resolved = resolve_execve_wrapper_exe_with(
+            Some(override_path.as_path()),
+            Some(current_exe.as_path()),
+            Some(joined.as_os_str()),
+        );
+
+        assert!(resolved.is_none());
+    }
+
+    #[test]
+    fn wrapper_resolver_returns_none_when_not_found() {
+        let tmp = TempDir::new().expect("tempdir");
+
+        let current_dir = tmp.path().join("current");
+        std::fs::create_dir_all(&current_dir).expect("mkdir current");
+        let current_exe = current_dir.join("code");
+
+        let resolved = resolve_execve_wrapper_exe_with(None, Some(current_exe.as_path()), None);
+        assert!(resolved.is_none());
+    }
+
+    #[test]
+    fn escalation_trigger_network_disabled_git_pull() {
+        let sandbox_policy = SandboxPolicy::WorkspaceWrite {
+            writable_roots: Vec::new(),
+            network_access: false,
+            exclude_tmpdir_env_var: false,
+            exclude_slash_tmp: false,
+            allow_git_writes: true,
+        };
+        let argv = vec!["git".to_string(), "pull".to_string()];
+
+        assert_eq!(
+            Some(EscalationTrigger::NetworkDisabled),
+            escalation_trigger_for_argv(&sandbox_policy, &argv)
+        );
+    }
+
+    #[test]
+    fn escalation_trigger_git_writes_blocked_git_commit() {
+        let sandbox_policy = SandboxPolicy::WorkspaceWrite {
+            writable_roots: Vec::new(),
+            network_access: true,
+            exclude_tmpdir_env_var: false,
+            exclude_slash_tmp: false,
+            allow_git_writes: false,
+        };
+        let argv = vec!["git".to_string(), "commit".to_string()];
+
+        assert_eq!(
+            Some(EscalationTrigger::GitWritesBlocked),
+            escalation_trigger_for_argv(&sandbox_policy, &argv)
+        );
+    }
+
+    #[test]
+    fn escalation_trigger_allows_git_status_when_network_enabled() {
+        let sandbox_policy = SandboxPolicy::WorkspaceWrite {
+            writable_roots: Vec::new(),
+            network_access: true,
+            exclude_tmpdir_env_var: false,
+            exclude_slash_tmp: false,
+            allow_git_writes: true,
+        };
+        let argv = vec!["git".to_string(), "status".to_string()];
+
+        assert_eq!(None, escalation_trigger_for_argv(&sandbox_policy, &argv));
+    }
+
+    #[test]
+    fn extract_shell_script_from_zsh_wrapper() {
+        let argv = vec!["zsh".to_string(), "-lc".to_string(), "echo hi".to_string()];
+        let (idx, script) = extract_shell_script_from_wrapper(&argv).expect("script");
+        assert_eq!(2, idx);
+        assert_eq!("echo hi", script);
+
+        let argv = vec!["zsh".to_string(), "-c".to_string(), "echo hi".to_string()];
+        let (idx, script) = extract_shell_script_from_wrapper(&argv).expect("script");
+        assert_eq!(2, idx);
+        assert_eq!("echo hi", script);
+
+        let argv = vec!["bash".to_string(), "-lc".to_string(), "echo hi".to_string()];
+        assert!(extract_shell_script_from_wrapper(&argv).is_none());
+
+        let argv = vec!["zsh".to_string(), "-lc".to_string()];
+        assert!(extract_shell_script_from_wrapper(&argv).is_none());
     }
 }

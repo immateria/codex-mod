@@ -167,6 +167,7 @@ pub async fn process_exec_tool_call(
         code_linux_sandbox_exe,
         stdout_stream,
         false,
+        None,
     )
     .await
 }
@@ -179,14 +180,24 @@ pub async fn process_exec_tool_call_with_managed_network(
     code_linux_sandbox_exe: &Option<PathBuf>,
     stdout_stream: Option<StdoutStream>,
     enforce_managed_network: bool,
+    after_spawn: Option<Box<dyn FnOnce() + Send>>,
 ) -> Result<ExecToolCallOutput> {
     let start = Instant::now();
 
     let timeout_duration = params.maybe_timeout_duration();
+    let mut after_spawn = after_spawn;
 
     let raw_output_result: std::result::Result<RawExecToolCallOutput, CodexErr> = match sandbox_type
     {
-        SandboxType::None => exec(params, sandbox_policy, stdout_stream.clone()).await,
+        SandboxType::None => {
+            exec(
+                params,
+                sandbox_policy,
+                stdout_stream.clone(),
+                after_spawn.take(),
+            )
+            .await
+        }
         SandboxType::MacosSeatbelt => {
             let ExecParams {
                 command,
@@ -204,6 +215,9 @@ pub async fn process_exec_tool_call_with_managed_network(
                 env,
             )
             .await?;
+            if let Some(after_spawn) = after_spawn.take() {
+                after_spawn();
+            }
             consume_truncated_output(child, timeout_duration, stdout_stream.clone()).await
         }
         SandboxType::LinuxSeccomp => {
@@ -227,6 +241,9 @@ pub async fn process_exec_tool_call_with_managed_network(
                 env,
             )
             .await?;
+            if let Some(after_spawn) = after_spawn.take() {
+                after_spawn();
+            }
 
             consume_truncated_output(child, timeout_duration, stdout_stream).await
         }
@@ -373,6 +390,7 @@ async fn exec(
     params: ExecParams,
     sandbox_policy: &SandboxPolicy,
     stdout_stream: Option<StdoutStream>,
+    after_spawn: Option<Box<dyn FnOnce() + Send>>,
 ) -> Result<RawExecToolCallOutput> {
     let timeout = params.maybe_timeout_duration();
     let ExecParams {
@@ -398,6 +416,9 @@ async fn exec(
         env,
     )
     .await?;
+    if let Some(after_spawn) = after_spawn {
+        after_spawn();
+    }
     consume_truncated_output(child, timeout, stdout_stream).await
 }
 

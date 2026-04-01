@@ -1161,6 +1161,7 @@ mod tests {
     use code_protocol::models::ContentItem;
     use pretty_assertions::assert_eq;
 
+    #[cfg(feature = "browser-automation")]
     #[test]
     fn screenshot_dedup_tracks_changes() {
         let mut last = None;

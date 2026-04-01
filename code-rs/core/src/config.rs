@@ -346,6 +346,17 @@ pub struct Config {
     /// If not set, the user's default shell is detected automatically.
     pub shell: Option<ShellConfig>,
 
+    /// Absolute path to a patched `zsh` binary that supports `EXEC_WRAPPER`.
+    ///
+    /// When unset, the zsh-fork escalation backend is unavailable and Code
+    /// falls back to normal shell execution.
+    pub zsh_path: Option<PathBuf>,
+
+    /// Optional override path to the `codex-execve-wrapper` helper binary.
+    ///
+    /// When unset, Code will try to auto-discover the wrapper at runtime.
+    pub main_execve_wrapper_exe: Option<PathBuf>,
+
     /// Optional shell-style-specific resource profiles keyed by style.
     pub shell_style_profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>,
 
@@ -789,6 +800,20 @@ pub struct ConfigToml {
     /// Shell configuration for command execution.
     /// If not set, the user's default shell is detected automatically.
     pub shell: Option<ShellConfig>,
+
+    /// Absolute path to a patched `zsh` binary that supports `EXEC_WRAPPER`.
+    ///
+    /// Required for the Unix-only zsh-fork shell escalation backend
+    /// (`features.shell_zsh_fork=true`).
+    #[serde(default)]
+    pub zsh_path: Option<PathBuf>,
+
+    /// Optional override path to the `codex-execve-wrapper` helper binary.
+    ///
+    /// When unset, Code will try to auto-discover the wrapper at runtime (as a
+    /// sibling of the main executable, then via `PATH`).
+    #[serde(default)]
+    pub main_execve_wrapper_exe: Option<PathBuf>,
 
     /// Optional shell-style resource profiles keyed by style slug.
     #[serde(default)]
@@ -2208,6 +2233,8 @@ impl Config {
             lifecycle_hooks: cfg.lifecycle_hooks.unwrap_or_default(),
             shell_environment_policy,
             shell: cfg.shell,
+            zsh_path: cfg.zsh_path,
+            main_execve_wrapper_exe: cfg.main_execve_wrapper_exe,
             shell_style_profiles: cfg.shell_style_profiles,
             confirm_guard,
             disable_response_storage: config_profile
