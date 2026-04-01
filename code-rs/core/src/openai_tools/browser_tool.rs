@@ -4,7 +4,15 @@ use super::json_schema::JsonSchema;
 use super::types::{OpenAiTool, ResponsesApiTool};
 
 pub(super) fn create_browser_tool(browser_enabled: bool) -> OpenAiTool {
+    #[cfg(not(feature = "browser-automation"))]
+    let _browser_enabled = browser_enabled;
+
+    #[cfg(feature = "browser-automation")]
     let mut actions = vec!["open", "status", "fetch"];
+    #[cfg(not(feature = "browser-automation"))]
+    let actions = vec!["status", "fetch"];
+
+    #[cfg(feature = "browser-automation")]
     if browser_enabled {
         actions.extend([
             "close",

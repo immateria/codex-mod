@@ -90,6 +90,7 @@ impl ChatWidget<'_> {
         overlay.set_review_content(self.build_review_settings_content());
         overlay.set_validation_content(self.build_validation_settings_content());
         overlay.set_limits_content(self.build_limits_settings_content());
+        #[cfg(feature = "browser-automation")]
         overlay.set_chrome_content(self.build_chrome_settings_content(None));
         overlay.set_overview_rows(self.build_settings_overview_rows());
     }

@@ -1903,7 +1903,8 @@ pub(super) fn get_last_assistant_message_from_turn(responses: &[ResponseItem]) -
     })
 }
 
-/// Capture a screenshot from the browser and store it for the next model request
+/// Capture a screenshot from the browser and store it for the next model request.
+#[cfg(feature = "browser-automation")]
 pub(super) async fn capture_browser_screenshot(
     _sess: &Session,
 ) -> Result<(PathBuf, String), String> {

@@ -9,11 +9,13 @@
                         widget.apply_file_search_result(query, matches);
                     }
                 }
+                #[cfg(feature = "browser-automation")]
                 AppEvent::ShowChromeOptions(port) => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.show_chrome_options(port);
                     }
                 }
+                #[cfg(feature = "browser-automation")]
                 AppEvent::ChromeLaunchOptionSelected(option, port) => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.handle_chrome_launch_option(option, port);

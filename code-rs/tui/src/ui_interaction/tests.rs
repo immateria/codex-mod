@@ -16,7 +16,6 @@ mod tests {
         clamp_index,
         clipped_vertical_rect_with_scroll,
         contains_point,
-        hit_test_repeating_rows,
         inset_rect_right,
         next_scroll_top_with_delta,
         redraw_if,
@@ -34,9 +33,12 @@ mod tests {
         wrap_next,
         wrap_prev,
     };
+    #[cfg(feature = "browser-automation")]
+    use super::hit_test_repeating_rows;
     use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     use ratatui::buffer::Buffer;
 
+    #[cfg(feature = "browser-automation")]
     #[test]
     fn repeating_rows_skip_spacer_lines() {
         let area = Rect::new(0, 0, 80, 30);

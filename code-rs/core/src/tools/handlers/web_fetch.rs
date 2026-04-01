@@ -6,11 +6,14 @@ use crate::tools::events::execute_custom_tool;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use async_trait::async_trait;
+#[cfg(feature = "browser-automation")]
 use base64::Engine;
 use code_protocol::models::FunctionCallOutputBody;
 use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
+#[cfg(feature = "browser-automation")]
 use code_browser::BrowserConfig as CodexBrowserConfig;
+#[cfg(feature = "browser-automation")]
 use code_browser::BrowserManager;
 use std::time::Duration;
 
@@ -88,12 +91,14 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 }
             };
 
+            #[cfg(feature = "browser-automation")]
             struct BrowserFetchOutcome {
                 html: String,
                 final_url: Option<String>,
                 headless: bool,
             }
 
+            #[cfg(feature = "browser-automation")]
             async fn fetch_html_via_headless_browser(
                 url: &str,
                 timeout: Duration,
@@ -194,6 +199,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 })
             }
 
+            #[cfg(feature = "browser-automation")]
             async fn fetch_html_via_browser(
                 url: &str,
                 timeout: Duration,
@@ -270,7 +276,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         } else {
                             tracing::debug!("Global browser manager disabled; skipping UI fetch");
                         }
-                    }
+                }
 
                 match fetch_html_via_headless_browser(url, timeout, proxy_server, proxy_authorization).await {
                     Ok(outcome) => Some(outcome),
@@ -730,7 +736,9 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
             let timeout = Duration::from_millis(params.timeout_ms.unwrap_or(15000));
             let code_ua = crate::default_client::get_code_user_agent(Some("web_fetch"));
 
+            #[cfg(feature = "browser-automation")]
             let mut browser_proxy_server: Option<String> = None;
+            #[cfg(feature = "browser-automation")]
             let mut browser_proxy_authorization: Option<String> = None;
             let mut _network_attempt_guard: Option<crate::network_approval::NetworkAttemptGuard> = None;
 
@@ -771,9 +779,13 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 };
                 http_client_builder = http_client_builder.proxy(reqwest_proxy);
 
-                browser_proxy_server = Some(format!("http://{}", managed_proxy.http_addr()));
-                let encoded = base64::engine::general_purpose::STANDARD.encode(format!("{username}:"));
-                browser_proxy_authorization = Some(format!("Basic {encoded}"));
+                #[cfg(feature = "browser-automation")]
+                {
+                    browser_proxy_server = Some(format!("http://{}", managed_proxy.http_addr()));
+                    let encoded =
+                        base64::engine::general_purpose::STANDARD.encode(format!("{username}:"));
+                    browser_proxy_authorization = Some(format!("Basic {encoded}"));
+                }
             }
 
             let client = match http_client_builder.build() {
@@ -791,25 +803,48 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 }
             };
 
-            let prefer_global_browser = browser_proxy_server.is_none();
-            if matches!(params.mode.as_deref(), Some("browser"))
-                && let Some(browser_fetch) = fetch_html_via_browser(
-                    &params.url,
-                    timeout,
-                    prefer_global_browser,
-                    browser_proxy_server.as_deref(),
-                    browser_proxy_authorization.as_deref(),
-                )
-                .await {
-                    let (markdown, truncated) = match convert_html_to_markdown_trimmed(browser_fetch.html, 120_000) {
-                        Ok(t) => t,
-                        Err(e) => {
-                            return ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone,
-                                output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(format!("Markdown conversion failed: {e}")), success: Some(false) },
-                            };
-                        }
-                    };
+            #[cfg(not(feature = "browser-automation"))]
+            if matches!(params.mode.as_deref(), Some("browser")) {
+                return ResponseInputItem::FunctionCallOutput {
+                    call_id: call_id_clone,
+                    output: FunctionCallOutputPayload {
+                        body: FunctionCallOutputBody::Text(
+                            "web_fetch mode=browser requires browser automation, which is not available in this build."
+                                .to_string(),
+                        ),
+                        success: Some(false),
+                    },
+                };
+            }
+
+            #[cfg(feature = "browser-automation")]
+            {
+                let prefer_global_browser = browser_proxy_server.is_none();
+                if matches!(params.mode.as_deref(), Some("browser"))
+                    && let Some(browser_fetch) = fetch_html_via_browser(
+                        &params.url,
+                        timeout,
+                        prefer_global_browser,
+                        browser_proxy_server.as_deref(),
+                        browser_proxy_authorization.as_deref(),
+                    )
+                    .await
+                {
+                    let (markdown, truncated) =
+                        match convert_html_to_markdown_trimmed(browser_fetch.html, 120_000) {
+                            Ok(t) => t,
+                            Err(e) => {
+                                return ResponseInputItem::FunctionCallOutput {
+                                    call_id: call_id_clone,
+                                    output: FunctionCallOutputPayload {
+                                        body: FunctionCallOutputBody::Text(format!(
+                                            "Markdown conversion failed: {e}"
+                                        )),
+                                        success: Some(false),
+                                    },
+                                };
+                            }
+                        };
 
                     let body = serde_json::json!({
                         "url": params.url,
@@ -824,9 +859,13 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     });
                     return ResponseInputItem::FunctionCallOutput {
                         call_id: call_id_clone,
-                        output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(body.to_string()), success: Some(true) },
+                        output: FunctionCallOutputPayload {
+                            body: FunctionCallOutputBody::Text(body.to_string()),
+                            success: Some(true),
+                        },
                     };
                 }
+            }
             // Attempt 1: Codex UA + polite headers
             let resp = match do_request(&client, &params.url, &code_ua, None).await {
                 Ok(r) => r,
@@ -902,6 +941,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 if let Some(ra) = retry_after { diag["retry_after"] = serde_json::json!(ra); }
                 if let Some(ray) = cf_ray { diag["cf_ray"] = serde_json::json!(ray); }
 
+                #[cfg(feature = "browser-automation")]
                 if let Some(browser_fetch) = fetch_html_via_browser(
                     &params.url,
                     timeout,
@@ -1031,6 +1071,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
 
             // If the rendered markdown still looks like a challenge page, attempt browser fallback (unless http-only).
             if !matches!(params.mode.as_deref(), Some("http")) && looks_like_challenge_markdown(&markdown) {
+                #[cfg(feature = "browser-automation")]
                 if let Some(browser_fetch) = fetch_html_via_browser(
                     &params.url,
                     timeout,

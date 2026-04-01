@@ -152,6 +152,7 @@ impl ChatWidget<'_> {
             welcome_shown: false,
             test_mode: is_test_mode(),
             latest_browser_screenshot: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "browser-automation")]
             browser_autofix_requested: Arc::new(AtomicBool::new(false)),
             cached_image_protocol: RefCell::new(None),
             cached_picker: RefCell::new(terminal_info.picker.clone()),

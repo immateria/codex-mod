@@ -188,8 +188,10 @@ pub(crate) use self::terminal::{
     TerminalOverlay,
     TerminalState,
 };
+#[cfg(feature = "browser-automation")]
 use code_browser::BrowserManager;
 use code_core::config::find_code_home;
+#[cfg(feature = "browser-automation")]
 use code_core::config::resolve_code_path_for_read;
 use code_core::config::set_github_actionlint_on_patch;
 use code_core::config::set_validation_group_enabled;
@@ -226,14 +228,17 @@ use ratatui::widgets::ScrollbarOrientation;
 use ratatui::widgets::ScrollbarState;
 use ratatui::widgets::StatefulWidget;
 use serde::Deserialize;
+#[cfg(feature = "browser-automation")]
 use serde::Serialize;
 
+#[cfg(feature = "browser-automation")]
 #[derive(Debug, Serialize, Deserialize)]
 struct CachedConnection {
     port: Option<u16>,
     ws: Option<String>,
 }
 
+#[cfg(feature = "browser-automation")]
 async fn read_cached_connection() -> Option<(Option<u16>, Option<String>)> {
     let code_home = find_code_home().ok()?;
     let path = resolve_code_path_for_read(&code_home, std::path::Path::new("cache.json"));
@@ -242,6 +247,7 @@ async fn read_cached_connection() -> Option<(Option<u16>, Option<String>)> {
     Some((parsed.port, parsed.ws))
 }
 
+#[cfg(feature = "browser-automation")]
 async fn write_cached_connection(port: Option<u16>, ws: Option<String>) -> std::io::Result<()> {
     if port.is_none() && ws.is_none() {
         return Ok(());
@@ -817,6 +823,7 @@ pub(crate) struct ChatWidget<'a> {
     test_mode: bool,
     // Path to the latest browser screenshot and URL for display
     latest_browser_screenshot: Arc<Mutex<Option<(PathBuf, String)>>>,
+    #[cfg(feature = "browser-automation")]
     browser_autofix_requested: Arc<AtomicBool>,
     // Cached image protocol to avoid recreating every frame (path, area, protocol)
     cached_image_protocol:

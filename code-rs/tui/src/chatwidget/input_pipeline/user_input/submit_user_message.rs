@@ -358,6 +358,7 @@ impl ChatWidget<'_> {
         // The global browser manager ensures both TUI and agent tools use the same instance
 
         // Start async screenshot capture in background (non-blocking)
+        #[cfg(feature = "browser-automation")]
         {
             let latest_browser_screenshot_clone = Arc::clone(&self.latest_browser_screenshot);
 

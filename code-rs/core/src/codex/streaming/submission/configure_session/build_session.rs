@@ -466,6 +466,7 @@ impl Runner<'_> {
             shell_style_profile_messages,
             show_raw_agent_reasoning: config.show_raw_agent_reasoning,
             last_system_status: Mutex::new(None),
+            #[cfg(feature = "browser-automation")]
             last_screenshot_info: Mutex::new(None),
             time_budget: Mutex::new(config.max_run_seconds.map(|secs| {
                 let total = Duration::from_secs(secs);

@@ -12,7 +12,8 @@ name = "code_cli"
 path = "src/lib.rs"
 
 [features]
-default = ["managed-network-proxy"]
+default = ["managed-network-proxy", "browser-automation"]
+browser-automation = ["code-core/browser-automation", "code-login/browser-automation", "code-tui/browser-automation"]
 managed-network-proxy = ["code-core/managed-network-proxy", "code-tui/managed-network-proxy"]
 
 [lints]

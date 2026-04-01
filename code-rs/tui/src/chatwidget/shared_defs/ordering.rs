@@ -72,9 +72,11 @@ impl From<OrderKey> for OrderKeySnapshot {
 // Removed legacy turn-window logic; ordering is strictly global.
 
 // Global guard to prevent overlapping background screenshot captures and to rate-limit them
+#[cfg(feature = "browser-automation")]
 static BG_SHOT_IN_FLIGHT: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
 static BACKGROUND_REVIEW_LOCKS: Lazy<Mutex<HashMap<String, code_core::review_coord::ReviewGuard>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
+#[cfg(feature = "browser-automation")]
 static BG_SHOT_LAST_START_MS: Lazy<AtomicU64> = Lazy::new(|| AtomicU64::new(0));
 static MERGE_LOCKS: Lazy<Mutex<HashMap<PathBuf, Arc<tokio::sync::Mutex<()>>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -135,7 +137,6 @@ use self::settings_overlay::{
     AutoDriveSettingsContent,
     AgentsSettingsContent,
     LimitsSettingsContent,
-    ChromeSettingsContent,
     McpSettingsContent,
     ModelSettingsContent,
     PlanningSettingsContent,
@@ -149,6 +150,9 @@ use self::settings_overlay::{
     SettingsOverlayView,
     SettingsOverviewRow,
 };
+
+#[cfg(feature = "browser-automation")]
+use self::settings_overlay::ChromeSettingsContent;
 use ratatui::text::Line as RtLine;
 use ratatui::text::Span as RtSpan;
 
@@ -432,4 +436,3 @@ impl AsRef<str> for StreamId {
         &self.0
     }
 }
-

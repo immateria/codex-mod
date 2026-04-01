@@ -60,6 +60,7 @@ mod app_event_sender;
 mod account_label;
 mod bottom_pane;
 mod components;
+#[cfg(feature = "browser-automation")]
 mod chrome_launch;
 mod chatwidget;
 mod citation_regex;

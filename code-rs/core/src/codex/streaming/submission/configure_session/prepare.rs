@@ -133,6 +133,23 @@ impl Runner<'_> {
             }
         };
 
+        #[cfg(not(feature = "browser-automation"))]
+        {
+            if updated_config
+                .browser
+                .as_ref()
+                .is_some_and(|browser| browser.enabled)
+            {
+                self.send_warning_event(
+                    &submission_id,
+                    "Browser automation is not available in this build; ignoring `[browser]` settings."
+                        .to_string(),
+                )
+                .await;
+                updated_config.browser = None;
+            }
+        }
+
         updated_config.model_family = find_family_for_model(&updated_config.model)
             .unwrap_or_else(|| derive_default_model_family(&updated_config.model));
 

@@ -483,6 +483,9 @@ pub struct Config {
     /// Collection of settings that are specific to the TUI.
     pub tui: Tui,
 
+    /// Browser configuration for integrated screenshot capabilities.
+    pub browser: Option<BrowserConfig>,
+
     /// Shared Auto Drive defaults.
     pub auto_drive: AutoDriveSettings,
     /// Whether Auto Drive should inherit the chat model instead of a dedicated override.
@@ -1805,6 +1808,13 @@ impl Config {
             }
         };
 
+        #[cfg(not(feature = "browser-automation"))]
+        if cfg.browser.as_ref().is_some_and(|browser| browser.enabled) {
+            tracing::warn!(
+                "Browser automation is not available in this build; ignoring `[browser]` settings."
+            );
+        }
+
         let skills_enabled = features_effective.get_bool("skills").unwrap_or(true);
         let global_memories = cfg.memories.clone();
         let active_profile_memories = config_profile.memories.clone();
@@ -2242,6 +2252,7 @@ impl Config {
             history,
             file_opener: cfg.file_opener.unwrap_or(UriBasedFileOpener::VsCode),
             tui: tui_config.clone(),
+            browser: cfg.browser.clone(),
             auto_drive,
             auto_drive_use_chat_model,
             code_linux_sandbox_exe,

@@ -61,6 +61,7 @@ use mcp_convert::{
     convert_mcp_resources_by_server,
 };
 
+#[cfg(feature = "browser-automation")]
 pub(super) fn add_pending_screenshot(
     sess: &Session,
     screenshot_path: PathBuf,

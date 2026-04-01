@@ -18,6 +18,7 @@ debug-logs = []
 dev-faults = ["code-auto-drive-core/dev-faults"]
 # Fork-specific extensions layered on top of upstream history rendering.
 code-fork = []
+browser-automation = ["code-core/browser-automation", "dep:code-browser"]
 managed-network-proxy = ["code-core/managed-network-proxy"]
 test-helpers = ["code-auto-drive-core/test-helpers"]
 # Enable clipboard support (disabled on Android and for testing)
@@ -34,7 +35,7 @@ clap = { version = "4", features = ["derive"] }
 code-ansi-escape = { path = "../ansi-escape" }
 code-arg0 = { path = "../arg0" }
 code-app-server-protocol = { path = "../app-server-protocol" }
-code-browser = { path = "../browser" }
+code-browser = { path = "../browser", optional = true }
 code-chatgpt = { path = "../chatgpt" }
 code-common = { path = "../common", features = [
     "cli",

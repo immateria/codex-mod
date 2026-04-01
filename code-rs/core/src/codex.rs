@@ -11,7 +11,9 @@ use std::sync::RwLock;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
+#[cfg(feature = "browser-automation")]
 use time::format_description::well_known::Rfc3339;
+#[cfg(feature = "browser-automation")]
 use time::OffsetDateTime;
 
 use async_channel::Receiver;
@@ -100,8 +102,11 @@ pub(crate) use session::CommandApprovalRequest;
 pub(crate) use session::{Session, ToolCallCtx, WaitInterruptReason};
 use self::compact::{build_compacted_history, collect_compaction_snippets};
 use self::compact_remote::run_inline_remote_auto_compact_task;
+#[cfg(feature = "browser-automation")]
 use self::agent_tool_call::capture_browser_screenshot;
-use self::streaming::{add_pending_screenshot, submission_loop};
+#[cfg(feature = "browser-automation")]
+use self::streaming::add_pending_screenshot;
+use self::streaming::submission_loop;
 
 /// Initial submission ID for session configuration
 pub(crate) const INITIAL_SUBMIT_ID: &str = "";
@@ -516,7 +521,17 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
     let reasoning_effort = sess.client.get_reasoning_effort();
 
     // Build current system status (UI-only; not persisted)
+    #[cfg(feature = "browser-automation")]
     let mut current_status = format!(
+        r#"== System Status ==
+ [automatic message added by system]
+
+ cwd: {cwd}
+ branch: {branch}
+ reasoning: {reasoning_effort:?}"#
+    );
+    #[cfg(not(feature = "browser-automation"))]
+    let current_status = format!(
         r#"== System Status ==
  [automatic message added by system]
 
@@ -526,9 +541,16 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
     );
 
     // Prepare browser context + optional screenshot
+    #[cfg(feature = "browser-automation")]
     let mut screenshot_content: Option<ContentItem> = None;
+    #[cfg(not(feature = "browser-automation"))]
+    let screenshot_content: Option<ContentItem> = None;
+    #[cfg(feature = "browser-automation")]
     let mut include_screenshot = false;
+    #[cfg(not(feature = "browser-automation"))]
+    let include_screenshot = false;
 
+    #[cfg(feature = "browser-automation")]
     if let Some(browser_manager) = code_browser::global::get_browser_manager().await
         && browser_manager.is_enabled().await {
             if let Some((_, idle_timeout)) = browser_manager.idle_elapsed_past_timeout().await {
@@ -708,6 +730,7 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
         items.push(item);
     }
 
+    #[cfg(feature = "browser-automation")]
     if let Some(browser_manager) = code_browser::global::get_browser_manager().await
         && browser_manager.is_enabled().await {
             let browser_stream_id = {
@@ -826,6 +849,7 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
     items
 }
 
+#[cfg(feature = "browser-automation")]
 fn should_include_browser_screenshot(
     last_info: &mut Option<(PathBuf, Vec<u8>, Vec<u8>)>,
     path: &Path,
@@ -865,13 +889,14 @@ use crate::apply_patch::{self, ApplyPatchResult};
 use crate::client::ModelClient;
 use crate::client_common::{Prompt, ResponseEvent, TextFormat};
 use crate::environment_context::{
-    BrowserSnapshot,
     EnvironmentContext,
     EnvironmentContextDelta,
     EnvironmentContextSnapshot,
     EnvironmentContextTracker,
-    ViewportDimensions,
 };
+
+#[cfg(feature = "browser-automation")]
+use crate::environment_context::{BrowserSnapshot, ViewportDimensions};
 
 pub(super) type ContextTimeline =
     code_context_timeline::ContextTimeline<EnvironmentContextSnapshot, EnvironmentContextDelta>;
@@ -926,13 +951,12 @@ use crate::protocol::AgentStatusUpdateEvent;
 use crate::protocol::ApplyPatchApprovalRequestEvent;
 use crate::protocol::AskForApproval;
 use crate::protocol::BackgroundEventEvent;
-use crate::protocol::BrowserScreenshotUpdateEvent;
 use crate::protocol::ErrorEvent;
 use crate::protocol::Event;
 use crate::protocol::EventMsg;
 use crate::protocol::ListCustomPromptsResponseEvent;
 use crate::protocol::ListSkillsResponseEvent;
-use crate::protocol::{BrowserSnapshotEvent, EnvironmentContextDeltaEvent, EnvironmentContextFullEvent};
+use crate::protocol::{EnvironmentContextDeltaEvent, EnvironmentContextFullEvent};
 use crate::protocol::ExecApprovalRequestEvent;
 use crate::protocol::ExecCommandBeginEvent;
 use crate::protocol::ExecCommandEndEvent;
@@ -953,6 +977,9 @@ use crate::protocol::SessionConfiguredEvent;
 use crate::protocol::Submission;
 use crate::protocol::TaskCompleteEvent;
 use std::sync::OnceLock;
+
+#[cfg(feature = "browser-automation")]
+use crate::protocol::{BrowserScreenshotUpdateEvent, BrowserSnapshotEvent};
 use tokio::sync::Notify;
 use crate::protocol::TurnDiffEvent;
 use crate::rollout::RolloutRecorder;

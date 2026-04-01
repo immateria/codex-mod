@@ -81,6 +81,7 @@ mod agent_tool;
 pub use agent_tool::AGENT_MANAGER;
 pub use agent_tool::AgentCreateRequest;
 mod dry_run_guard;
+#[cfg(feature = "browser-automation")]
 mod image_comparison;
 mod file_watcher;
 pub mod git_worktree;

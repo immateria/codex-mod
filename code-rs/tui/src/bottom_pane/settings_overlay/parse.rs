@@ -29,7 +29,7 @@ impl SettingsSection {
             "validation" | "validate" => Some(SettingsSection::Validation),
             "limit" | "limits" | "usage" => Some(SettingsSection::Limits),
             "plugin" | "plugins" | "marketplace" | "marketplaces" => Some(SettingsSection::Plugins),
-            #[cfg(not(target_os = "android"))]
+            #[cfg(all(feature = "browser-automation", not(target_os = "android")))]
             "chrome" | "browser" => Some(SettingsSection::Chrome),
             "mcp" => Some(SettingsSection::Mcp),
             "js" | "jsrepl" | "repl" | "js-repl" => Some(SettingsSection::JsRepl),

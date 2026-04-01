@@ -83,6 +83,7 @@ use code_git_tooling::{GhostCommit, GitToolingError};
 use code_cloud_tasks_client::{ApplyOutcome, CloudTaskError, CreatedTask, TaskSummary};
 
 use crate::app::ChatWidgetArgs;
+#[cfg(feature = "browser-automation")]
 use crate::chrome_launch::ChromeLaunchOption;
 use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
 use crate::slash_command::SlashCommand;
@@ -754,9 +755,11 @@ pub(crate) enum AppEvent {
     LoginUsingChatGptChanged { using_chatgpt_auth: bool },
 
     /// Show Chrome launch options dialog
+    #[cfg(feature = "browser-automation")]
     ShowChromeOptions(Option<u16>),
 
     /// Chrome launch option selected by user
+    #[cfg(feature = "browser-automation")]
     ChromeLaunchOptionSelected(ChromeLaunchOption, Option<u16>),
 
     /// Start a new chat session by resuming from the given rollout file

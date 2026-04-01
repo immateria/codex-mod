@@ -273,6 +273,7 @@ impl SettingsOverlayView {
                 }
                 self.render_placeholder(area, buf, SettingsSection::Limits.placeholder());
             }
+            #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => {
                 if let Some(content) = self.chrome_content.as_ref() {
                     content.render(area, buf);

@@ -21,6 +21,7 @@ pub(crate) enum SettingsSection {
     Planning,
     Validation,
     Limits,
+    #[cfg(feature = "browser-automation")]
     Chrome,
     Mcp,
     JsRepl,
@@ -52,6 +53,7 @@ impl SettingsSection {
         SettingsSection::Review,
         SettingsSection::Planning,
         SettingsSection::Validation,
+        #[cfg(feature = "browser-automation")]
         SettingsSection::Chrome,
         SettingsSection::Mcp,
         SettingsSection::JsRepl,

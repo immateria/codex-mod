@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use crate::bottom_pane::SettingsSection;
 
 mod agents;
+#[cfg(feature = "browser-automation")]
 mod chrome;
 mod contents;
 mod limits;
@@ -12,6 +13,7 @@ mod overlay_render;
 mod types;
 
 pub(crate) use self::agents::{AgentOverviewRow, AgentsSettingsContent};
+#[cfg(feature = "browser-automation")]
 pub(crate) use self::chrome::ChromeSettingsContent;
 pub(crate) use self::contents::{
     AccountsSettingsContent,
@@ -82,6 +84,7 @@ pub(crate) struct SettingsOverlayView {
     validation_content: Option<ValidationSettingsContent>,
     auto_drive_content: Option<AutoDriveSettingsContent>,
     limits_content: Option<LimitsSettingsContent>,
+    #[cfg(feature = "browser-automation")]
     chrome_content: Option<ChromeSettingsContent>,
     /// Last overlay content area for mouse calculations
     last_content_area: RefCell<Rect>,
@@ -138,6 +141,7 @@ impl SettingsOverlayView {
             validation_content: None,
             auto_drive_content: None,
             limits_content: None,
+            #[cfg(feature = "browser-automation")]
             chrome_content: None,
             last_content_area: RefCell::new(Rect::default()),
             last_sidebar_area: RefCell::new(Rect::default()),
@@ -347,6 +351,7 @@ impl SettingsOverlayView {
         self.limits_content = Some(content);
     }
 
+    #[cfg(feature = "browser-automation")]
     pub(crate) fn set_chrome_content(&mut self, content: ChromeSettingsContent) {
         self.chrome_content = Some(content);
     }
@@ -536,6 +541,7 @@ impl SettingsOverlayView {
                 .limits_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
+            #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => self
                 .chrome_content
                 .as_mut()
@@ -582,6 +588,7 @@ impl SettingsOverlayView {
                     content.on_close();
                 }
             }
+            #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => {
                 if let Some(content) = self.chrome_content.as_mut() {
                     content.on_close();

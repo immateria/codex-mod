@@ -1,3 +1,4 @@
+#[cfg(feature = "browser-automation")]
 use reqwest::header::HeaderMap;
 use reqwest::StatusCode;
 use serde::Deserialize;
@@ -9,6 +10,7 @@ use std::time::Instant;
 
 use crate::pkce::PkceCodes;
 use crate::server::{persist_tokens_async, exchange_code_for_tokens, ServerOptions};
+#[cfg(feature = "browser-automation")]
 use code_browser::global as browser_global;
 use code_core::default_client;
 use std::io::Write;
@@ -72,8 +74,12 @@ async fn request_user_code(
         .map_err(std::io::Error::other)?;
 
     let status = resp.status();
+    #[cfg(feature = "browser-automation")]
     let headers = resp.headers().clone();
     let body_text = resp.text().await.map_err(std::io::Error::other)?;
+
+    #[cfg(not(feature = "browser-automation"))]
+    let _ = base_url;
 
     if !status.is_success() {
         if status == StatusCode::NOT_FOUND {
@@ -82,6 +88,7 @@ async fn request_user_code(
             ));
         }
 
+        #[cfg(feature = "browser-automation")]
         if looks_like_cloudflare_challenge(status, &headers, &body_text)
             && let Ok(via_browser) = request_user_code_via_browser(base_url, client_id).await {
                 return Ok(via_browser);
@@ -254,6 +261,7 @@ impl DeviceCodeSession {
     }
 }
 
+#[cfg(feature = "browser-automation")]
 fn looks_like_cloudflare_challenge(
     status: StatusCode,
     headers: &HeaderMap,
@@ -288,6 +296,7 @@ fn looks_like_cloudflare_challenge(
             .unwrap_or(false)
 }
 
+#[cfg(feature = "browser-automation")]
 async fn request_user_code_via_browser(
     base_url: &str,
     client_id: &str,

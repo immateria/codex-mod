@@ -642,16 +642,39 @@
                         }
                         SlashCommand::Browser => {
                             if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.handle_browser_command(command_args);
+                                #[cfg(feature = "browser-automation")]
+                                {
+                                    widget.handle_browser_command(command_args);
+                                }
+                                #[cfg(not(feature = "browser-automation"))]
+                                {
+                                    let msg = "Browser automation is not available in this build. You can still use web_fetch (HTTP mode) for retrieval.".to_string();
+                                    widget.history_push_plain_state(
+                                        crate::history_cell::new_warning_event(msg),
+                                    );
+                                }
                             }
                         }
                         SlashCommand::Chrome => {
                             if let AppState::Chat { widget } = &mut self.app_state {
-                                tracing::info!("[cdp] /chrome invoked, args='{}'", command_args);
-                                if command_args.trim().is_empty() {
-                                    widget.show_settings_overlay(Some(SettingsSection::Chrome));
-                                } else {
-                                    widget.handle_chrome_command(command_args);
+                                #[cfg(feature = "browser-automation")]
+                                {
+                                    tracing::info!(
+                                        "[cdp] /chrome invoked, args='{}'",
+                                        command_args
+                                    );
+                                    if command_args.trim().is_empty() {
+                                        widget.show_settings_overlay(Some(SettingsSection::Chrome));
+                                    } else {
+                                        widget.handle_chrome_command(command_args);
+                                    }
+                                }
+                                #[cfg(not(feature = "browser-automation"))]
+                                {
+                                    let msg = "Browser automation is not available in this build.".to_string();
+                                    widget.history_push_plain_state(
+                                        crate::history_cell::new_warning_event(msg),
+                                    );
                                 }
                             }
                         }

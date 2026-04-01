@@ -75,6 +75,7 @@ impl SettingsOverlayView {
             SettingsSection::Review => "Review Settings",
             SettingsSection::Validation => "Validation Settings",
             SettingsSection::Limits => "Rate Limits",
+            #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => "Chrome Launch Options",
             SettingsSection::Notifications => "Notifications",
             SettingsSection::JsRepl => "JS REPL",

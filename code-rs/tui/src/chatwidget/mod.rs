@@ -10,6 +10,7 @@ use std::rc::{Rc, Weak};
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 use std::sync::Mutex;
+#[cfg(feature = "browser-automation")]
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
@@ -122,6 +123,7 @@ mod terminal_surface_render;
 mod tools;
 mod browser_sessions;
 #[cfg(not(target_os = "android"))]
+#[cfg(feature = "browser-automation")]
 mod chrome_connection;
 
 pub(crate) use plugins_shared_state::{
@@ -144,6 +146,7 @@ pub(crate) use secrets_shared_state::{
     SecretsSharedState,
 };
 #[cfg(target_os = "android")]
+#[cfg(feature = "browser-automation")]
 mod chrome_connection_android;
 mod agent_runs;
 mod web_search_sessions;

@@ -12,6 +12,7 @@ path = "src/lib.rs"
 workspace = true
 
 [features]
+browser-automation = ["dep:code-browser"]
 managed-network-proxy = ["dep:code-network-proxy"]
 
 [dependencies]
@@ -35,7 +36,7 @@ code-network-proxy = { workspace = true, optional = true }
 code-rmcp-client = { workspace = true }
 code-app-server-protocol = { workspace = true }
 code-otel = { workspace = true, features = ["otel"] }
-code-browser = { path = "../browser" }
+code-browser = { path = "../browser", optional = true }
 code-context-timeline = { workspace = true }
 code-hooks = { workspace = true }
 code-message-history = { workspace = true }

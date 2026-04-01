@@ -7,6 +7,7 @@ impl ChatWidget<'_> {
     // MCP tool call handlers now live in chatwidget::tools
 
     /// Get or create the global browser manager
+    #[cfg(feature = "browser-automation")]
     pub(in super::super::super) async fn get_browser_manager() -> Arc<BrowserManager> {
         code_browser::global::get_or_create_browser_manager().await
     }

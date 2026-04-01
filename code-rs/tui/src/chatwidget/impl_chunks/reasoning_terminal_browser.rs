@@ -109,6 +109,7 @@ impl ChatWidget<'_> {
         self.config.tui.show_reasoning
     }
 
+    #[cfg(feature = "browser-automation")]
     fn schedule_browser_autofix(
         app_event_tx: AppEventSender,
         ticket: BackgroundOrderTicket,
@@ -156,6 +157,7 @@ impl ChatWidget<'_> {
         ));
     }
 
+    #[cfg(feature = "browser-automation")]
     pub(crate) fn handle_browser_command(&mut self, command_text: String) {
         // Parse the browser subcommand
         let trimmed = command_text.trim();

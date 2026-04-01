@@ -2,6 +2,7 @@
 ///
 /// Example: `first_row=4`, `active_rows_per_group=2`, `group_stride=3`
 /// means each group starts every 3 rows and the first 2 rows are clickable.
+#[cfg(feature = "browser-automation")]
 pub(crate) fn hit_test_repeating_rows(
     area: Rect,
     x: u16,

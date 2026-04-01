@@ -21,6 +21,7 @@ impl SettingsSection {
             SettingsSection::Review => "Review",
             SettingsSection::Validation => "Validation",
             SettingsSection::Limits => "Limits",
+            #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => "Chrome",
             SettingsSection::Mcp => "MCP",
             SettingsSection::JsRepl => "JS REPL",
@@ -67,6 +68,7 @@ impl SettingsSection {
             SettingsSection::Review => "Adjust Auto Review and Auto Resolve automation for /review.",
             SettingsSection::Validation => "Toggle validation groups and tool availability.",
             SettingsSection::Limits => "Inspect API usage, rate limits, and reset windows.",
+            #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => "Connect to Chrome or switch browser integrations.",
             SettingsSection::Mcp => "Enable and manage local MCP servers for tooling.",
             SettingsSection::JsRepl => "Configure the optional js_repl tool runtime and paths.",
@@ -105,6 +107,7 @@ impl SettingsSection {
             SettingsSection::Review => "Adjust Auto Review and Auto Resolve automation for /review.",
             SettingsSection::Validation => "Toggle validation groups and tools.",
             SettingsSection::Limits => "Limits usage visualization coming soon.",
+            #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => "Chrome integration settings coming soon.",
             SettingsSection::Mcp => "MCP server management coming soon.",
             SettingsSection::JsRepl => "Configure the js_repl tool runtime and paths.",

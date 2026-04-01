@@ -14,7 +14,10 @@ pub(super) async fn run_turn(
     mut input: Vec<ResponseItem>,
 ) -> CodexResult<Vec<ProcessedResponseItem>> {
     // Check if browser is enabled
+    #[cfg(feature = "browser-automation")]
     let browser_enabled = code_browser::global::get_browser_manager().await.is_some();
+    #[cfg(not(feature = "browser-automation"))]
+    let browser_enabled = false;
 
     let tc = &**turn_context;
     let agents_active = {

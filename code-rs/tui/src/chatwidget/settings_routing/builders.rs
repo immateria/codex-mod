@@ -259,6 +259,7 @@ impl ChatWidget<'_> {
         SecretsSettingsContent::new(self.build_secrets_settings_view())
     }
 
+    #[cfg(feature = "browser-automation")]
     pub(super) fn build_chrome_settings_content(&self, port: Option<u16>) -> ChromeSettingsContent {
         ChromeSettingsContent::new(self.app_event_tx.clone(), port)
     }

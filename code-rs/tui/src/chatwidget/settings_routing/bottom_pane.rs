@@ -216,7 +216,9 @@ impl ChatWidget<'_> {
             #[cfg(feature = "managed-network-proxy")]
             SettingsSection::Network                            => self.open_network_settings_section(),
 
-            SettingsSection::Agents | SettingsSection::Limits | SettingsSection::Chrome => false,
+            SettingsSection::Agents | SettingsSection::Limits => false,
+            #[cfg(feature = "browser-automation")]
+            SettingsSection::Chrome => false,
         };
 
         if opened {
@@ -226,10 +228,16 @@ impl ChatWidget<'_> {
     }
 
     fn section_supported_in_bottom_pane(section: SettingsSection) -> bool {
-        !matches!(
-            section,
-            SettingsSection::Agents | SettingsSection::Limits | SettingsSection::Chrome
-        )
+        if matches!(section, SettingsSection::Agents | SettingsSection::Limits) {
+            return false;
+        }
+
+        #[cfg(feature = "browser-automation")]
+        if matches!(section, SettingsSection::Chrome) {
+            return false;
+        }
+
+        true
     }
 
     pub(crate) fn activate_current_settings_section(&mut self) -> bool {
@@ -252,6 +260,7 @@ impl ChatWidget<'_> {
                 self.show_limits_settings_ui();
                 false
             }
+            #[cfg(feature = "browser-automation")]
             SettingsSection::Chrome => {
                 self.show_chrome_options(None);
                 true

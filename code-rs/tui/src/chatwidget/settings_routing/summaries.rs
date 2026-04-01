@@ -25,6 +25,7 @@ impl ChatWidget<'_> {
                     SettingsSection::AutoDrive     => self.settings_summary_auto_drive(),
                     SettingsSection::Review        => self.settings_summary_review(),
                     SettingsSection::Validation    => self.settings_summary_validation(),
+                    #[cfg(feature = "browser-automation")]
                     SettingsSection::Chrome        => self.settings_summary_chrome(),
                     SettingsSection::Mcp           => self.settings_summary_mcp(),
                     SettingsSection::JsRepl        => self.settings_summary_js_repl(),
@@ -488,6 +489,7 @@ impl ChatWidget<'_> {
         }
     }
 
+    #[cfg(feature = "browser-automation")]
     pub(super) fn settings_summary_chrome(&self) -> Option<String> {
         if self.browser_is_external {
             Some("Browser: external".to_string())

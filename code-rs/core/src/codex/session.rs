@@ -90,6 +90,7 @@ pub(crate) enum WaitInterruptReason {
 #[derive(Clone, Default)]
 pub(super) struct EnvironmentContextStreamRegistry {
     env_stream_id: Option<String>,
+    #[cfg(feature = "browser-automation")]
     browser_stream_id: Option<String>,
 }
 
@@ -100,6 +101,7 @@ impl EnvironmentContextStreamRegistry {
             .clone()
     }
 
+    #[cfg(feature = "browser-automation")]
     pub(super) fn browser_stream_id(&mut self, session_id: Uuid) -> String {
         self.browser_stream_id
             .get_or_insert_with(|| format!("browser-context-{session_id}"))
@@ -243,7 +245,9 @@ pub(crate) struct McpAccessState {
     pub(crate) turn_allow_servers: HashSet<String>,
 }
 
+#[cfg(feature = "browser-automation")]
 type ScreenshotHashInfo = (PathBuf, Vec<u8>, Vec<u8>);
+#[cfg(feature = "browser-automation")]
 type LastScreenshotInfo = Option<ScreenshotHashInfo>;
 
 pub(super) fn account_usage_context(sess: &Session) -> Option<AccountUsageContext> {
@@ -414,6 +418,7 @@ pub(crate) struct Session {
     /// Track the last system status to detect changes
     pub(super) last_system_status: Mutex<Option<String>>,
     /// Track the last screenshot path and hash to detect changes
+    #[cfg(feature = "browser-automation")]
     pub(super) last_screenshot_info: Mutex<LastScreenshotInfo>, // (path, phash, dhash)
     pub(super) time_budget: Mutex<Option<RunTimeBudget>>,
     pub(super) confirm_guard: ConfirmGuardRuntime,
@@ -2218,6 +2223,7 @@ impl Session {
         }
     }
 
+    #[cfg(feature = "browser-automation")]
     pub(super) fn emit_browser_snapshot_event(&self, stream_id: &str, snapshot: &BrowserSnapshot) {
         use crate::protocol::OrderMeta;
 
