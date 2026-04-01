@@ -35,6 +35,7 @@ members = [
     "mcp-types",
     "secrets",
     "shell-command",
+    "shell-escalation",
     "skills",
     "network-proxy",
     "ollama",
@@ -91,6 +92,7 @@ code-message-history = { path = "message-history", package = "codex-message-hist
 code-memories-state = { path = "memories-state" }
 code-mcp-call-limiter = { path = "mcp-call-limiter", package = "codex-mcp-call-limiter" }
 code-shell-command = { path = "shell-command", package = "codex-shell-command" }
+code-shell-escalation = { path = "shell-escalation", package = "codex-shell-escalation" }
 code-skills = { path = "skills" }
 code-backend-client = { path = "backend-client" }
 code-backend-openapi-models = { path = "code-backend-openapi-models" }
@@ -232,6 +234,7 @@ sha1 = "0.10.6"
 sha2 = "0.10"
 shlex = "1.3.0"
 similar = "2.7.0"
+socket2 = "0.6.1"
 starlark = "0.13.0"
 strum = "0.27.2"
 strum_macros = "0.27.2"

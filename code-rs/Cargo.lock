@@ -1709,6 +1709,7 @@ dependencies = [
  "codex-network-proxy",
  "codex-secrets",
  "codex-shell-command",
+ "codex-shell-escalation",
  "codex-terminal-detection",
  "codex-utils-absolute-path",
  "codex-utils-pty",
@@ -2408,6 +2409,27 @@ dependencies = [
  "tree-sitter",
  "tree-sitter-bash",
  "url",
+]
+
+[[package]]
+name = "codex-shell-escalation"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "clap",
+ "code-protocol",
+ "codex-utils-absolute-path",
+ "libc",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "socket2 0.6.1",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

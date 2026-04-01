@@ -2,13 +2,52 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::mcp::RequestId;
+use crate::models::PermissionProfile;
 use crate::parse_command::ParsedCommand;
 use crate::protocol::FileChange;
+use crate::protocol::SandboxPolicy;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use ts_rs::TS;
+
+/// Placeholder for upstream seatbelt profile extensions used by lifecycle
+/// escalation hooks (hooks.json/zsh fork). We do not yet enforce these
+/// permissions directly in the runtime, but keep the type for upstream parity.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema, TS)]
+pub struct MacOsSeatbeltProfileExtensions {}
+
+/// Placeholder for upstream filesystem sandbox policy (granular permissions).
+/// The current runtime enforces `SandboxPolicy` directly, so this is carried
+/// only for escalation plumbing parity.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema, TS)]
+pub struct FileSystemSandboxPolicy {}
+
+/// Represents whether outbound network access is available to a sandboxed
+/// process (upstream-compatible representation for escalation plumbing).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema, TS)]
+#[serde(rename_all = "kebab-case")]
+pub enum NetworkSandboxPolicy {
+    #[default]
+    Restricted,
+    Enabled,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Permissions {
+    pub sandbox_policy: SandboxPolicy,
+    pub file_system_sandbox_policy: FileSystemSandboxPolicy,
+    pub network_sandbox_policy: NetworkSandboxPolicy,
+    pub macos_seatbelt_profile_extensions: Option<MacOsSeatbeltProfileExtensions>,
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EscalationPermissions {
+    PermissionProfile(PermissionProfile),
+    Permissions(Permissions),
+}
 
 /// Proposed execpolicy change to allow commands starting with this prefix.
 ///
