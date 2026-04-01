@@ -1,6 +1,6 @@
 # Integration Backlog
 
-Last updated: 2026-03-29
+Last updated: 2026-04-01
 
 This repo maintains two Rust workspaces:
 - `codex-rs/`: read-only mirror of `openai/codex` (upstream landing zone).
@@ -69,6 +69,17 @@ preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
   - Bun global installs are detected via both `~/.bun/bin` and custom `BUN_INSTALL` roots.
   - Commits: `9eeb5779a0`, `3064811f4e`, `1d7111b212`.
 
+- Compile-time gating for browser automation:
+  - Adds Cargo feature `browser-automation` (default enabled in `code-cli`) to compile out the
+    integrated Chrome/browser automation stack for “small builds”.
+  - When compiled without `browser-automation`:
+    - Settings UI has no **Chrome** section.
+    - `[browser] enabled=true` is ignored and Code emits a warning during session configuration.
+    - `browser` tool remains available but is restricted to HTTP-only `fetch/status`.
+    - Login “via browser” fallback is compiled out.
+  - Adds `code-rs/docs/architecture/build_features.md` and removes `phase0-baseline.md`.
+  - Commit: `a9e8eeedac`.
+
 ## Next: Upstream Intake (Selective, Bisectable)
 
 The high-level workflow:
@@ -114,9 +125,6 @@ These exist in `codex-rs/` but are not fully ported into `code-rs/`.
 
 - `codex-rs/exec-server/`
   - Out-of-process exec runner plumbing for stronger isolation and robustness.
-
-- `codex-rs/package-manager/`
-  - Package manager detection + common command helpers (useful for skills/hooks).
 
 - `codex-rs/terminal-detection/` and parts of `codex-rs/shell-escalation/`
   - Better environment detection/routing (mux/alt-screen/escalation ergonomics).
