@@ -6,8 +6,8 @@ This repo maintains two Rust workspaces:
 - `codex-rs/`: read-only mirror of `openai/codex` (upstream landing zone).
 - `code-rs/`: our fork (where all production changes land).
 
-The goal is to selectively port upstream improvements into `code-rs/` while
-preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
+The job here is to pull useful upstream work into `code-rs/` without undoing
+the fork’s modular structure, TUI-first design, or MCP work.
 
 ## Guardrails
 
@@ -16,7 +16,7 @@ preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
 - Warnings are failures. Validate with `./build-fast.sh` from repo root.
 - Prefer mechanical moves + adapters over reintroducing upstream monoliths.
 
-## Recently Completed (Local Wiring)
+## Recently Completed
 
 - Plugins UI + Settings integration (overlay + bottom pane) and `/plugins`.
   - Commits: `f5f4e554d5`, `36eafdfe12`, `ddb031a8ba`, `fbe36282d8`.
@@ -100,9 +100,17 @@ preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
   - Adds `code-rs/docs/architecture/build_features.md` and removes `phase0-baseline.md`.
   - Commit: `a9e8eeedac`.
 
-## Next: Upstream Intake (Selective, Bisectable)
+- Shell escalation (patched zsh fork + `codex-execve-wrapper`):
+  - Ports upstream `codex-shell-escalation` and wires a Unix-only zsh-fork path into the `shell` tool.
+  - Intercepts subcommands and requests interactive approvals to escalate unsandboxed for network-heavy
+    and git-write-heavy actions when sandbox policy would block them.
+  - Config surface: `features.shell_zsh_fork=true`, plus `zsh_path` and optional `main_execve_wrapper_exe`.
+  - Docs: `code-rs/docs/architecture/shell_escalation.md`.
+  - Commits: `c880c850ca`, `a7e1530e3e`, `6be0f1bc6a`.
 
-The high-level workflow:
+## How To Pull In More Upstream Work
+
+Use this flow:
 1. `git fetch upstream OpenAI_Codex`
 2. Review deltas separately:
    - `upstream/main` (just-every/code): fork-specific improvements we may want.
@@ -114,15 +122,16 @@ The high-level workflow:
    - integration shape (port verbatim vs adapt to our architecture).
 4. Port in small commits with `./build-fast.sh` green after each.
 
-## Remaining Codex-RS-Only Subsystems Worth Considering
+## What Is Still Mostly Upstream-Only
 
-These exist in `codex-rs/` but are not fully ported into `code-rs/`.
+These areas still exist mainly in `codex-rs/`, or are only partially ported in
+`code-rs/`.
 
 ### High ROI
 
 - `codex-rs/hooks/`
-  - Largely ported as `code-hooks` + lifecycle runtime + TUI rendering.
-  - Remaining work is mostly parity/polish:
+  - Most of it is already in place as `code-hooks` + lifecycle runtime + TUI rendering.
+  - What is left is mostly parity and cleanup:
     - upstream schema/method-name audit
     - edge-case review around stop/continuation behavior
     - any remaining app-server/client hook-surface gaps
@@ -132,29 +141,30 @@ These exist in `codex-rs/` but are not fully ported into `code-rs/`.
     - general encrypted local store + CLI management
     - provider credential fallback from selected env vars into the store
     - first-class TUI Secrets page for listing/deleting stored keys
-  - Remaining work is parity/polish rather than missing storage:
+  - The remaining work is mostly follow-through, not missing foundations:
     - broader audit of remaining credential env-var call sites
     - richer in-TUI creation/edit UX if desired
     - any connector/plugin-specific secret flows that still assume env-only inputs
 
 ### Medium ROI
 
-- parts of `codex-rs/shell-escalation/`
-  - Additional escalation ergonomics beyond the now-ported terminal detection pieces.
+- Shell escalation follow-ups:
+  - Support `EscalationExecution::Permissions(...)` mapping (not just unsandboxed escalation).
+  - Broaden escalation heuristics and add more focused policy tests.
 
 - `codex-rs/feedback/`
-  - Structured feedback capture/submission.
+  - Structured feedback capture and submission.
 
 - `codex-rs/artifacts/`
-  - Artifact packaging/retention plumbing beyond the transcript.
+  - Artifact packaging and retention beyond the transcript.
 
 ### Lower Priority / Mostly Tooling
 
 - `codex-rs/app-server-client/`, `codex-rs/app-server-test-client/`, `codex-rs/tui_app_server/`
-  - Useful mainly for integration testing and external client tooling.
+  - Mostly useful for integration testing and external client tooling.
 
 - `codex-rs/codex-api/` + `codex-rs/codex-client/`
-  - Only worth porting if we want to converge our backend client stack.
+  - Probably only worth it if we decide to converge the backend client stack.
 
 - `codex-rs/lmstudio/`
   - Local-model integration; optional.
