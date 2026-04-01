@@ -64,10 +64,30 @@ preserving this fork’s modular, TUI-first architecture and richer MCP tooling.
   - Port upstream managed package installer (platform detection + archive fetch/verify/extract + install locks).
   - Commit: `c0886bdb64`.
 
+- General secrets store + credential env fallback:
+  - Ported the local secrets store and CLI, plus fallback from selected credential env vars into the secrets store.
+  - TUI now has a first-class Secrets settings page for listing/deleting entries; creation remains CLI-first.
+  - Commits: `8ca315135c`, `5b2514810d`, `48d43cdc65`, `690ab7b44c`.
+
 - Managed installer upgrade detection for `/update` + Upgrade settings UI:
   - Supports `tui.upgrade_command` override and installer inference (npm, bun, Homebrew formula).
   - Bun global installs are detected via both `~/.bun/bin` and custom `BUN_INSTALL` roots.
   - Commits: `9eeb5779a0`, `3064811f4e`, `1d7111b212`.
+
+- `codex-rs/terminal-detection`:
+  - Ported into `code-rs` and wired for better shell / terminal environment detection.
+  - Commit: `ac153a300a`.
+
+- `codex-rs/exec-server`:
+  - Ported and wired for app-server `fs/*` routing.
+  - Commit: `5f21114875`.
+
+- Compile-time gating for managed network proxy:
+  - Adds Cargo feature `managed-network-proxy` (default enabled in `code-cli`) to compile out the managed proxy stack for “small builds”.
+  - When compiled without `managed-network-proxy`:
+    - Settings UI has no **Network** section and no network status segment.
+    - `[network] enabled=true` is ignored and Code emits a warning during session configuration.
+  - Commit: `88750b31fa`.
 
 - Compile-time gating for browser automation:
   - Adds Cargo feature `browser-automation` (default enabled in `code-cli`) to compile out the
@@ -102,32 +122,25 @@ These exist in `codex-rs/` but are not fully ported into `code-rs/`.
 
 - `codex-rs/hooks/`
   - Largely ported as `code-hooks` + lifecycle runtime + TUI rendering.
-  - Remaining work is mostly “parity audit” (schema/method names/edge cases) rather than missing core wiring.
+  - Remaining work is mostly parity/polish:
+    - upstream schema/method-name audit
+    - edge-case review around stop/continuation behavior
+    - any remaining app-server/client hook-surface gaps
 
 - `codex-rs/secrets/`
-  - General secret storage beyond `auth.json` (helps connectors/plugins auth).
-  - Current state in `code-rs` already covers the core “store secrets in keychain” needs for:
-    - CLI auth payload (`CODE_HOME/auth.json`) via `cli_auth_credentials_store` (`file|keyring|auto|ephemeral`):
-      - Storage backends: `code-rs/core/src/auth/storage.rs`
-      - Keyring abstraction: `code-rs/keyring-store/src/lib.rs` (macOS Keychain via `keyring` crate)
-      - TUI settings UI: `code-rs/tui/src/bottom_pane/settings_pages/accounts/account_switch_settings_view/*`
-    - Multi-account store (`auth_accounts.json`) uses the same backend modes:
-      - `code-rs/core/src/auth_accounts.rs`
-    - MCP OAuth tokens (streamable-http MCP servers) are stored separately:
-      - Store modes: `code-rs/rmcp-client/src/oauth.rs` (`auto|file|keyring`)
-      - Wiring: `code-rs/core/src/mcp_connection_manager.rs` + config fields in `code-rs/core/src/config.rs`
-  - Remaining gap vs `codex-rs/secrets/`:
-    - No general-purpose secret store for arbitrary provider keys / connector/plugin auth beyond the
-      OpenAI/ChatGPT auth payload and MCP OAuth tokens; non-OpenAI provider keys are still
-      sourced via the provider’s `env_key` in config.
+  - Core local secret storage is now ported:
+    - general encrypted local store + CLI management
+    - provider credential fallback from selected env vars into the store
+    - first-class TUI Secrets page for listing/deleting stored keys
+  - Remaining work is parity/polish rather than missing storage:
+    - broader audit of remaining credential env-var call sites
+    - richer in-TUI creation/edit UX if desired
+    - any connector/plugin-specific secret flows that still assume env-only inputs
 
 ### Medium ROI
 
-- `codex-rs/exec-server/`
-  - Out-of-process exec runner plumbing for stronger isolation and robustness.
-
-- `codex-rs/terminal-detection/` and parts of `codex-rs/shell-escalation/`
-  - Better environment detection/routing (mux/alt-screen/escalation ergonomics).
+- parts of `codex-rs/shell-escalation/`
+  - Additional escalation ergonomics beyond the now-ported terminal detection pieces.
 
 - `codex-rs/feedback/`
   - Structured feedback capture/submission.
