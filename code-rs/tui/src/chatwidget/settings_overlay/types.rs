@@ -149,6 +149,7 @@ impl SettingsHelpOverlay {
                 | SettingsSection::Memories
                 | SettingsSection::Experimental
                 | SettingsSection::Shell
+                | SettingsSection::ShellEscalation
                 | SettingsSection::ShellProfiles
                 | SettingsSection::Skills
         ) || {

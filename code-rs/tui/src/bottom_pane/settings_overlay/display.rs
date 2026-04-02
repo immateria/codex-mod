@@ -8,6 +8,7 @@ impl SettingsSection {
             SettingsSection::Interface => "Interface",
             SettingsSection::Experimental => "Experimental",
             SettingsSection::Shell => "Shell",
+            SettingsSection::ShellEscalation => "Shell escalation",
             SettingsSection::ShellProfiles => "Shell profiles",
             SettingsSection::ExecLimits => "Exec limits",
             SettingsSection::Planning => "Planning",
@@ -43,6 +44,9 @@ impl SettingsSection {
                 "Toggle experimental features (saved to config.toml and applied after session reconfigure)."
             }
             SettingsSection::Shell => "Select the shell used for tool execution.",
+            SettingsSection::ShellEscalation => {
+                "Configure zsh-fork shell escalation (interactive approvals for blocked subcommands)."
+            }
             SettingsSection::ShellProfiles => {
                 "Configure shell-style profiles (skills, references, MCP filters)."
             }
@@ -90,6 +94,9 @@ impl SettingsSection {
             SettingsSection::Interface => "Control Settings UI routing (overlay vs bottom pane).",
             SettingsSection::Experimental => "Toggle experimental features.",
             SettingsSection::Shell => "Select the shell used for tool execution.",
+            SettingsSection::ShellEscalation => {
+                "Configure zsh-fork shell escalation for sandboxed shell tool calls."
+            }
             SettingsSection::ShellProfiles => {
                 "Configure shell-style profiles (skills, references, MCP filters)."
             }

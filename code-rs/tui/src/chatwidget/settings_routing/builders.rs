@@ -66,6 +66,21 @@ impl ChatWidget<'_> {
         ShellSettingsContent::new(view)
     }
 
+    pub(super) fn build_shell_escalation_settings_view(&mut self) -> ShellEscalationSettingsView {
+        ShellEscalationSettingsView::new(
+            self.config.active_profile.clone(),
+            self.config.features_effective.enabled("shell_zsh_fork"),
+            self.config.shell.clone(),
+            self.config.zsh_path.clone(),
+            self.config.main_execve_wrapper_exe.clone(),
+            self.app_event_tx.clone(),
+        )
+    }
+
+    pub(super) fn build_shell_escalation_settings_content(&mut self) -> ShellEscalationSettingsContent {
+        ShellEscalationSettingsContent::new(self.build_shell_escalation_settings_view())
+    }
+
     pub(super) fn build_shell_profiles_settings_content(&mut self) -> ShellProfilesSettingsContent {
         let skills = self
             .bottom_pane

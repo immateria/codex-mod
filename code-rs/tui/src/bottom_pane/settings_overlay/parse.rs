@@ -11,6 +11,8 @@ impl SettingsSection {
                 Some(SettingsSection::Experimental)
             }
             "shell" | "shells" => Some(SettingsSection::Shell),
+            "shell-escalation" | "shell_escalation" | "escalation" | "zsh-fork" | "zsh_fork"
+            | "shell-zsh-fork" | "shell_zsh_fork" => Some(SettingsSection::ShellEscalation),
             "shell-profiles" | "shell-profile" | "profiles" | "profile" => {
                 Some(SettingsSection::ShellProfiles)
             }

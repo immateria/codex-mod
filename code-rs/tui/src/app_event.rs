@@ -990,6 +990,15 @@ pub(crate) enum AppEvent {
         result: Result<bool, String>,
     },
 
+    UpdateShellEscalationSettings {
+        enabled: bool,
+        zsh_path: Option<String>,
+        wrapper: Option<String>,
+    },
+    UpdateShellEscalationSettingsFinished {
+        result: Result<bool, String>,
+    },
+
     FetchAppsDirectory {
         force_refetch: bool,
     },

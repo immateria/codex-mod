@@ -33,6 +33,7 @@ pub(crate) use self::contents::{
     ReviewSettingsContent,
     SecretsSettingsContent,
     ShellSettingsContent,
+    ShellEscalationSettingsContent,
     ShellProfilesSettingsContent,
     SkillsSettingsContent,
     ThemeSettingsContent,
@@ -64,6 +65,7 @@ pub(crate) struct SettingsOverlayView {
     interface_content: Option<InterfaceSettingsContent>,
     experimental_features_content: Option<ExperimentalFeaturesSettingsContent>,
     shell_content: Option<ShellSettingsContent>,
+    shell_escalation_content: Option<ShellEscalationSettingsContent>,
     shell_profiles_content: Option<ShellProfilesSettingsContent>,
     exec_limits_content: Option<ExecLimitsSettingsContent>,
     updates_content: Option<UpdatesSettingsContent>,
@@ -121,6 +123,7 @@ impl SettingsOverlayView {
             interface_content: None,
             experimental_features_content: None,
             shell_content: None,
+            shell_escalation_content: None,
             shell_profiles_content: None,
             exec_limits_content: None,
             updates_content: None,
@@ -260,6 +263,10 @@ impl SettingsOverlayView {
 
     pub(crate) fn set_shell_content(&mut self, content: ShellSettingsContent) {
         self.shell_content = Some(content);
+    }
+
+    pub(crate) fn set_shell_escalation_content(&mut self, content: ShellEscalationSettingsContent) {
+        self.shell_escalation_content = Some(content);
     }
 
     pub(crate) fn set_shell_profiles_content(&mut self, content: ShellProfilesSettingsContent) {
@@ -471,6 +478,10 @@ impl SettingsOverlayView {
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::Shell => self
                 .shell_content
+                .as_mut()
+                .map(|content| content as &mut dyn SettingsContent),
+            SettingsSection::ShellEscalation => self
+                .shell_escalation_content
                 .as_mut()
                 .map(|content| content as &mut dyn SettingsContent),
             SettingsSection::ShellProfiles => self

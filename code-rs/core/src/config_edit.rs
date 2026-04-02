@@ -216,6 +216,222 @@ pub async fn set_feature_flags(
     Ok(true)
 }
 
+pub async fn set_shell_escalation_paths(
+    code_home: &Path,
+    zsh_path: Option<&str>,
+    main_execve_wrapper_exe: Option<&str>,
+) -> Result<bool> {
+    fn normalize(value: Option<&str>) -> Option<&str> {
+        value.map(str::trim).filter(|v| !v.is_empty())
+    }
+
+    let zsh_path = normalize(zsh_path);
+    let main_execve_wrapper_exe = normalize(main_execve_wrapper_exe);
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let read_result = tokio::fs::read_to_string(&read_path).await;
+    let mut doc = match read_result {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if zsh_path.is_none() && main_execve_wrapper_exe.is_none() {
+                return Ok(false);
+            }
+            tokio::fs::create_dir_all(code_home).await?;
+            DocumentMut::new()
+        }
+        Err(e) => return Err(e.into()),
+    };
+
+    let root = doc.as_table_mut();
+    let mut mutated = false;
+
+    match zsh_path {
+        Some(value_text) => {
+            let previous = root.get("zsh_path").and_then(|item| item.as_str());
+            if previous != Some(value_text) {
+                root["zsh_path"] = value(value_text);
+                mutated = true;
+            }
+        }
+        None => {
+            if root.remove("zsh_path").is_some() {
+                mutated = true;
+            }
+        }
+    }
+
+    match main_execve_wrapper_exe {
+        Some(value_text) => {
+            let previous = root
+                .get("main_execve_wrapper_exe")
+                .and_then(|item| item.as_str());
+            if previous != Some(value_text) {
+                root["main_execve_wrapper_exe"] = value(value_text);
+                mutated = true;
+            }
+        }
+        None => {
+            if root.remove("main_execve_wrapper_exe").is_some() {
+                mutated = true;
+            }
+        }
+    }
+
+    if !mutated {
+        return Ok(false);
+    }
+
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    tokio::fs::write(tmp_file.path(), doc.to_string()).await?;
+    tmp_file.persist(config_path)?;
+
+    Ok(true)
+}
+
+pub async fn set_shell_escalation_settings(
+    code_home: &Path,
+    profile: Option<&str>,
+    enabled: bool,
+    zsh_path: Option<&str>,
+    main_execve_wrapper_exe: Option<&str>,
+) -> Result<bool> {
+    fn normalize(value: Option<&str>) -> Option<&str> {
+        value.map(str::trim).filter(|v| !v.is_empty())
+    }
+
+    let zsh_path = normalize(zsh_path);
+    let main_execve_wrapper_exe = normalize(main_execve_wrapper_exe);
+
+    let config_path = code_home.join(CONFIG_TOML_FILE);
+    let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
+    let read_result = tokio::fs::read_to_string(&read_path).await;
+    let mut doc = match read_result {
+        Ok(contents) => contents.parse::<DocumentMut>()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            tokio::fs::create_dir_all(code_home).await?;
+            DocumentMut::new()
+        }
+        Err(e) => return Err(e.into()),
+    };
+
+    let root = doc.as_table_mut();
+    let mut mutated = false;
+
+    {
+        let target: &mut TomlTable = if let Some(profile) = profile {
+            let profiles_item = match root.get_mut("profiles") {
+                Some(item) => item,
+                None => {
+                    root.insert("profiles", TomlItem::Table(new_implicit_table()));
+                    mutated = true;
+                    root.get_mut("profiles")
+                        .ok_or_else(|| anyhow::anyhow!("missing profiles table"))?
+                }
+            };
+            if profiles_item.as_table_mut().is_none() {
+                *profiles_item = TomlItem::Table(new_implicit_table());
+                mutated = true;
+            }
+
+            let profiles_table = profiles_item
+                .as_table_mut()
+                .ok_or_else(|| anyhow::anyhow!("profiles item is not a table"))?;
+
+            let profile_item = match profiles_table.get_mut(profile) {
+                Some(item) => item,
+                None => {
+                    profiles_table.insert(profile, TomlItem::Table(new_implicit_table()));
+                    mutated = true;
+                    profiles_table
+                        .get_mut(profile)
+                        .ok_or_else(|| anyhow::anyhow!("missing profile table"))?
+                }
+            };
+
+            if profile_item.as_table_mut().is_none() {
+                *profile_item = TomlItem::Table(new_implicit_table());
+                mutated = true;
+            }
+
+            profile_item
+                .as_table_mut()
+                .ok_or_else(|| anyhow::anyhow!("profile item is not a table"))?
+        } else {
+            root
+        };
+
+        let features_item = match target.get_mut("features") {
+            Some(item) => item,
+            None => {
+                target.insert("features", TomlItem::Table(new_implicit_table()));
+                mutated = true;
+                target
+                    .get_mut("features")
+                    .ok_or_else(|| anyhow::anyhow!("missing features table"))?
+            }
+        };
+        if features_item.as_table_mut().is_none() {
+            *features_item = TomlItem::Table(new_implicit_table());
+            mutated = true;
+        }
+
+        let features_table = features_item
+            .as_table_mut()
+            .ok_or_else(|| anyhow::anyhow!("features item is not a table"))?;
+
+        let previous = features_table
+            .get("shell_zsh_fork")
+            .and_then(|value| value.as_bool());
+        if previous != Some(enabled) {
+            mutated = true;
+        }
+        features_table["shell_zsh_fork"] = value(enabled);
+    }
+
+    match zsh_path {
+        Some(value_text) => {
+            let previous = root.get("zsh_path").and_then(|item| item.as_str());
+            if previous != Some(value_text) {
+                root["zsh_path"] = value(value_text);
+                mutated = true;
+            }
+        }
+        None => {
+            if root.remove("zsh_path").is_some() {
+                mutated = true;
+            }
+        }
+    }
+
+    match main_execve_wrapper_exe {
+        Some(value_text) => {
+            let previous = root
+                .get("main_execve_wrapper_exe")
+                .and_then(|item| item.as_str());
+            if previous != Some(value_text) {
+                root["main_execve_wrapper_exe"] = value(value_text);
+                mutated = true;
+            }
+        }
+        None => {
+            if root.remove("main_execve_wrapper_exe").is_some() {
+                mutated = true;
+            }
+        }
+    }
+
+    if !mutated {
+        return Ok(false);
+    }
+
+    let tmp_file = NamedTempFile::new_in(code_home)?;
+    tokio::fs::write(tmp_file.path(), doc.to_string()).await?;
+    tmp_file.persist(config_path)?;
+
+    Ok(true)
+}
+
 /// Apply a single override onto a `toml_edit` document while preserving
 /// existing formatting/comments.
 /// The key is expressed as explicit segments to correctly handle keys that
@@ -1480,6 +1696,165 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some("high")
         );
+    }
+
+    #[tokio::test]
+    async fn set_shell_escalation_paths_sets_and_clears_keys_preserving_other_tables() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let config_path = code_home.join("config.toml");
+        tokio::fs::write(
+            &config_path,
+            r#"
+[plugins."some@plugin"]
+enabled = true
+
+[profiles.default]
+model = "gpt-5.4"
+"#,
+        )
+        .await
+        .expect("write config");
+
+        assert!(
+            set_shell_escalation_paths(code_home, Some("/opt/zsh-patched"), Some("/opt/codex-execve-wrapper"))
+                .await
+                .expect("set paths")
+        );
+
+        let after_set = tokio::fs::read_to_string(&config_path)
+            .await
+            .expect("read after set");
+        let doc = after_set.parse::<DocumentMut>().expect("parse");
+        let root = doc.as_table();
+        assert_eq!(root.get("zsh_path").and_then(|item| item.as_str()), Some("/opt/zsh-patched"));
+        assert_eq!(
+            root.get("main_execve_wrapper_exe")
+                .and_then(|item| item.as_str()),
+            Some("/opt/codex-execve-wrapper")
+        );
+        assert!(root.get("plugins").is_some(), "expected plugins table preserved");
+        assert!(root.get("profiles").is_some(), "expected profiles table preserved");
+
+        assert!(
+            set_shell_escalation_paths(code_home, Some(""), Some("   "))
+                .await
+                .expect("clear paths")
+        );
+
+        let after_clear = tokio::fs::read_to_string(&config_path)
+            .await
+            .expect("read after clear");
+        let doc = after_clear.parse::<DocumentMut>().expect("parse");
+        let root = doc.as_table();
+        assert!(root.get("zsh_path").is_none());
+        assert!(root.get("main_execve_wrapper_exe").is_none());
+        assert!(root.get("plugins").is_some(), "expected plugins table preserved");
+        assert!(root.get("profiles").is_some(), "expected profiles table preserved");
+    }
+
+    #[tokio::test]
+    async fn set_shell_escalation_settings_updates_profile_features_and_root_paths() {
+        let tmpdir = tempdir().expect("tmp");
+        let code_home = tmpdir.path();
+
+        let config_path = code_home.join("config.toml");
+        tokio::fs::write(
+            &config_path,
+            r#"
+[plugins."some@plugin"]
+enabled = true
+
+[profiles.default]
+model = "gpt-5.4"
+"#,
+        )
+        .await
+        .expect("write config");
+
+        assert!(
+            set_shell_escalation_settings(
+                code_home,
+                Some("default"),
+                true,
+                Some("/opt/zsh-patched"),
+                Some("/opt/codex-execve-wrapper"),
+            )
+            .await
+            .expect("set settings")
+        );
+
+        let after_set = tokio::fs::read_to_string(&config_path)
+            .await
+            .expect("read after set");
+        let doc = after_set.parse::<DocumentMut>().expect("parse");
+        let root = doc.as_table();
+        assert_eq!(
+            root.get("zsh_path").and_then(|item| item.as_str()),
+            Some("/opt/zsh-patched")
+        );
+        assert_eq!(
+            root.get("main_execve_wrapper_exe")
+                .and_then(|item| item.as_str()),
+            Some("/opt/codex-execve-wrapper")
+        );
+
+        let profiles = root
+            .get("profiles")
+            .and_then(|item| item.as_table())
+            .expect("profiles table");
+        let profile = profiles
+            .get("default")
+            .and_then(|item| item.as_table())
+            .expect("profile table");
+        let features = profile
+            .get("features")
+            .and_then(|item| item.as_table())
+            .expect("features table");
+        assert_eq!(
+            features
+                .get("shell_zsh_fork")
+                .and_then(|item| item.as_bool()),
+            Some(true)
+        );
+
+        assert!(root.get("plugins").is_some(), "expected plugins table preserved");
+
+        assert!(
+            set_shell_escalation_settings(code_home, Some("default"), false, Some(""), Some("   "))
+                .await
+                .expect("clear settings")
+        );
+
+        let after_clear = tokio::fs::read_to_string(&config_path)
+            .await
+            .expect("read after clear");
+        let doc = after_clear.parse::<DocumentMut>().expect("parse");
+        let root = doc.as_table();
+        assert!(root.get("zsh_path").is_none());
+        assert!(root.get("main_execve_wrapper_exe").is_none());
+
+        let profiles = root
+            .get("profiles")
+            .and_then(|item| item.as_table())
+            .expect("profiles table");
+        let profile = profiles
+            .get("default")
+            .and_then(|item| item.as_table())
+            .expect("profile table");
+        let features = profile
+            .get("features")
+            .and_then(|item| item.as_table())
+            .expect("features table");
+        assert_eq!(
+            features
+                .get("shell_zsh_fork")
+                .and_then(|item| item.as_bool()),
+            Some(false)
+        );
+
+        assert!(root.get("plugins").is_some(), "expected plugins table preserved");
     }
 
     /// Verifies values are written under the active profile when `profile` is set.

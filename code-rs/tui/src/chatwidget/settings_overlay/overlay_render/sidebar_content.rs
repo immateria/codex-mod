@@ -168,6 +168,13 @@ impl SettingsOverlayView {
                 }
                 self.render_placeholder(area, buf, SettingsSection::Shell.placeholder());
             }
+            SettingsSection::ShellEscalation => {
+                if let Some(content) = self.shell_escalation_content.as_ref() {
+                    content.render(area, buf);
+                    return;
+                }
+                self.render_placeholder(area, buf, SettingsSection::ShellEscalation.placeholder());
+            }
             SettingsSection::ShellProfiles => {
                 if let Some(content) = self.shell_profiles_content.as_ref() {
                     content.render(area, buf);

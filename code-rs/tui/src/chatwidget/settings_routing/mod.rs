@@ -12,6 +12,7 @@ use crate::bottom_pane::settings_pages::apps::AppsSettingsView;
 use crate::bottom_pane::settings_pages::plugins::PluginsSettingsView;
 use crate::bottom_pane::settings_pages::secrets::SecretsSettingsView;
 use crate::bottom_pane::settings_pages::shell::ShellSelectionView;
+use crate::bottom_pane::settings_pages::shell_escalation::ShellEscalationSettingsView;
 use crate::bottom_pane::settings_pages::shell_profiles::ShellProfilesSettingsView;
 use crate::chatwidget::settings_overlay::{
     AppsSettingsContent,
@@ -23,6 +24,7 @@ use crate::chatwidget::settings_overlay::{
     PluginsSettingsContent,
     SecretsSettingsContent,
     ShellSettingsContent,
+    ShellEscalationSettingsContent,
     ShellProfilesSettingsContent,
 };
 #[cfg(feature = "managed-network-proxy")]

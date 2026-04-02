@@ -208,6 +208,13 @@ impl<'a> BottomPane<'a> {
         self.set_other_view(view, true);
     }
 
+    pub fn show_shell_escalation_settings(
+        &mut self,
+        view: settings_pages::shell_escalation::ShellEscalationSettingsView,
+    ) {
+        self.set_other_view(view, true);
+    }
+
     pub(crate) fn apply_shell_profiles_generated_summary(
         &mut self,
         style: code_core::config_types::ShellScriptStyle,

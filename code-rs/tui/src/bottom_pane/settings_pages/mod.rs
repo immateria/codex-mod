@@ -25,6 +25,7 @@ pub(crate) mod prompts;
 pub(crate) mod review;
 pub(crate) mod secrets;
 pub(crate) mod shell;
+pub(crate) mod shell_escalation;
 pub(crate) mod shell_profiles;
 pub(crate) mod skills;
 pub(crate) mod status_line;

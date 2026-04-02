@@ -60,6 +60,7 @@ impl SettingsOverlayView {
             SettingsSection::Interface => "Interface",
             SettingsSection::Experimental => "Experimental Features",
             SettingsSection::Shell => "Shell Selection",
+            SettingsSection::ShellEscalation => "Shell Escalation",
             SettingsSection::ShellProfiles => "Shell Profiles",
             SettingsSection::ExecLimits => "Exec Limits",
             SettingsSection::Planning => "Planning Settings",

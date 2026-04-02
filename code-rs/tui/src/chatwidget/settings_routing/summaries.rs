@@ -10,6 +10,7 @@ impl ChatWidget<'_> {
                     SettingsSection::Interface     => self.settings_summary_interface(),
                     SettingsSection::Experimental  => self.settings_summary_experimental(),
                     SettingsSection::Shell         => self.settings_summary_shell(),
+                    SettingsSection::ShellEscalation => self.settings_summary_shell_escalation(),
                     SettingsSection::ShellProfiles => self.settings_summary_shell_profiles(),
                     SettingsSection::ExecLimits    => self.settings_summary_exec_limits(),
                     SettingsSection::Planning      => self.settings_summary_planning(),
@@ -57,6 +58,25 @@ impl ChatWidget<'_> {
             }
         }
         Some(format!("Enabled: {enabled}/{total}"))
+    }
+
+    pub(super) fn settings_summary_shell_escalation(&self) -> Option<String> {
+        let enabled = self
+            .config
+            .features_effective
+            .get_bool("shell_zsh_fork")
+            .unwrap_or(false);
+        if !enabled {
+            return Some("Disabled".to_string());
+        }
+
+        let zsh_path = if self.config.zsh_path.is_some() { "set" } else { "unset" };
+        let wrapper = if self.config.main_execve_wrapper_exe.is_some() {
+            "override"
+        } else {
+            "auto"
+        };
+        Some(format!("Enabled · zsh_path: {zsh_path} · wrapper: {wrapper}"))
     }
 
     pub(super) fn settings_summary_apps(&self) -> Option<String> {
