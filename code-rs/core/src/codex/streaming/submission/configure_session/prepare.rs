@@ -195,6 +195,25 @@ impl Runner<'_> {
             shell_override.as_ref().or(updated_config.shell.as_ref()),
         )
         .await;
+
+        if updated_config.features_effective.enabled("shell_zsh_fork") {
+            let reasons = crate::codex::exec_tool::shell_zsh_fork_unusable_reasons(
+                &updated_config,
+                &resolved_shell,
+            );
+            if !reasons.is_empty() {
+                let mut message =
+                    "Shell escalation (zsh-fork) is enabled but not ready:".to_string();
+                for reason in reasons {
+                    message.push_str(&format!("\n- {reason}"));
+                }
+                message.push_str(
+                    "\n\nTo enable: set zsh_path to a patched zsh, install codex-execve-wrapper (sibling or PATH) or set main_execve_wrapper_exe, and ensure the session shell is zsh.",
+                );
+                self.send_warning_event(&submission_id, message).await;
+            }
+        }
+
         let active_shell_style = resolved_shell.script_style();
         let active_shell_style_label = active_shell_style.map(|style| style.to_string());
         let mut shell_style_profile_messages: Vec<String> = Vec::new();

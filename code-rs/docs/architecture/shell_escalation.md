@@ -16,8 +16,13 @@ This is **disabled by default** and only activates when all of these are true:
   `zsh -c <script>`.
 - The execution is sandboxed (`sandbox_type != None`).
 
-When active, intercepted subcommands may request approvals to run **unsandboxed**
-("escalated") instead of running inside the sandbox.
+When active, intercepted subcommands may request approvals to rerun with:
+
+- Expanded sandbox permissions (preferred), e.g. enabling network for a single
+  subcommand while remaining sandboxed.
+- Unsandboxed execution as a fallback when the requested permissions cannot be
+  represented with the current sandbox policy surface (e.g. "network enabled"
+  under a read-only policy).
 
 ## Enabling
 
@@ -51,4 +56,3 @@ From `code-rs/`:
 ```bash
 cargo build -p codex-shell-escalation --bin codex-execve-wrapper
 ```
-

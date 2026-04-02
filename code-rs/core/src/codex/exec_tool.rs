@@ -2137,6 +2137,65 @@ fn shell_program_is_zsh(shell: &crate::shell::Shell) -> bool {
         .is_some_and(|name| name == "zsh")
 }
 
+pub(crate) fn shell_zsh_fork_unusable_reasons(
+    config: &crate::config::Config,
+    user_shell: &crate::shell::Shell,
+) -> Vec<String> {
+    shell_zsh_fork_unusable_reasons_with(
+        user_shell,
+        config.zsh_path.as_deref(),
+        config.main_execve_wrapper_exe.as_deref(),
+        std::env::current_exe().ok().as_deref(),
+        std::env::var_os("PATH").as_deref(),
+    )
+}
+
+fn shell_zsh_fork_unusable_reasons_with(
+    user_shell: &crate::shell::Shell,
+    zsh_path: Option<&Path>,
+    main_execve_wrapper_exe: Option<&Path>,
+    current_exe: Option<&Path>,
+    path_env: Option<&std::ffi::OsStr>,
+) -> Vec<String> {
+    let mut reasons = Vec::<String>::new();
+    if !cfg!(unix) {
+        reasons.push("zsh-fork escalation is Unix-only".to_string());
+    }
+    if !shell_program_is_zsh(user_shell) {
+        let name = user_shell
+            .name()
+            .unwrap_or_else(|| "(unknown)".to_string());
+        reasons.push(format!("Shell is not zsh: {name}"));
+    }
+
+    match zsh_path {
+        None => reasons.push("zsh_path is not set".to_string()),
+        Some(path) => {
+            if !path.is_absolute() {
+                reasons.push(format!("zsh_path must be absolute: {}", path.display()));
+            } else if !path.is_file() {
+                reasons.push(format!("zsh_path does not exist: {}", path.display()));
+            }
+        }
+    }
+
+    if let Some(override_path) = main_execve_wrapper_exe {
+        if !override_path.is_file() {
+            reasons.push(format!(
+                "main_execve_wrapper_exe does not exist: {}",
+                override_path.display()
+            ));
+        }
+        return reasons;
+    }
+
+    if resolve_execve_wrapper_exe_with(None, current_exe, path_env).is_none() {
+        reasons.push("codex-execve-wrapper not found (sibling or PATH)".to_string());
+    }
+
+    reasons
+}
+
 fn compute_zsh_fork_exec_config(
     sess: &Session,
     sandbox_type: SandboxType,
@@ -2162,17 +2221,9 @@ fn compute_zsh_fork_exec_config(
 
     let zsh_path = sess.client.config().zsh_path.clone()?;
     if !zsh_path.is_absolute() {
-        tracing::warn!(
-            "ShellZshFork enabled, but config.zsh_path is not absolute: {}",
-            zsh_path.display()
-        );
         return None;
     }
     if !zsh_path.is_file() {
-        tracing::warn!(
-            "ShellZshFork enabled, but config.zsh_path does not exist: {}",
-            zsh_path.display()
-        );
         return None;
     }
 
@@ -2224,10 +2275,6 @@ fn resolve_execve_wrapper_exe_with(
         if override_path.is_file() {
             return Some(override_path.to_path_buf());
         }
-        tracing::warn!(
-            "ShellZshFork enabled, but main_execve_wrapper_exe does not exist: {}",
-            override_path.display()
-        );
         return None;
     }
 
@@ -3609,6 +3656,35 @@ mod shell_zsh_fork_tests {
             },
             other => panic!("unexpected execution: {other:?}"),
         }
+    }
+
+    #[test]
+    fn zsh_fork_unusable_reasons_include_missing_paths_and_non_zsh_shell() {
+        let tmp = TempDir::new().expect("tempdir");
+        let missing_wrapper = tmp.path().join("missing-wrapper");
+
+        let reasons = shell_zsh_fork_unusable_reasons_with(
+            &crate::shell::Shell::Unknown,
+            None,
+            Some(missing_wrapper.as_path()),
+            None,
+            None,
+        );
+
+        assert!(
+            reasons.iter().any(|reason| reason.contains("Shell is not zsh")),
+            "expected shell reason, got: {reasons:?}"
+        );
+        assert!(
+            reasons.iter().any(|reason| reason.contains("zsh_path is not set")),
+            "expected zsh_path reason, got: {reasons:?}"
+        );
+        assert!(
+            reasons
+                .iter()
+                .any(|reason| reason.contains("main_execve_wrapper_exe does not exist")),
+            "expected wrapper reason, got: {reasons:?}"
+        );
     }
 
     #[tokio::test]
