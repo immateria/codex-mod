@@ -2122,6 +2122,21 @@ struct ZshForkExecConfig {
     login: bool,
 }
 
+fn shell_program_is_zsh(shell: &crate::shell::Shell) -> bool {
+    let Some(program) = shell.name() else {
+        return false;
+    };
+    let trimmed = program.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    std::path::Path::new(trimmed)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .is_some_and(|name| name == "zsh")
+}
+
 fn compute_zsh_fork_exec_config(
     sess: &Session,
     sandbox_type: SandboxType,
@@ -2141,7 +2156,7 @@ fn compute_zsh_fork_exec_config(
     {
         return None;
     }
-    if !matches!(sess.user_shell(), crate::shell::Shell::Zsh(_)) {
+    if !shell_program_is_zsh(sess.user_shell()) {
         return None;
     }
 
@@ -2407,26 +2422,131 @@ impl code_shell_escalation::ShellCommandExecutor for CoreShellCommandExecutor {
         env: std::collections::HashMap<String, String>,
         execution: code_shell_escalation::EscalationExecution,
     ) -> anyhow::Result<code_shell_escalation::PreparedExec> {
-        let execution = match execution {
-            code_shell_escalation::EscalationExecution::Unsandboxed
-            | code_shell_escalation::EscalationExecution::TurnDefault => {
-                code_shell_escalation::EscalationExecution::Unsandboxed
+        use anyhow::Context as _;
+        use code_protocol::approvals::EscalationPermissions;
+        use code_protocol::models::SandboxPermissions;
+        use code_protocol::protocol::SandboxPolicy as ProtocolSandboxPolicy;
+
+        let mut env = env;
+        let command: Vec<String> = std::iter::once(program.to_string_lossy().to_string())
+            .chain(argv.iter().skip(1).cloned())
+            .collect();
+
+        let mut needs_wrapper = true;
+        let mut effective_policy: Option<crate::protocol::SandboxPolicy> = None;
+        let mut wrapper_arg0: Option<String> = None;
+
+        match execution {
+            code_shell_escalation::EscalationExecution::Unsandboxed => {
+                needs_wrapper = false;
             }
-            code_shell_escalation::EscalationExecution::Permissions(permissions) => {
+            code_shell_escalation::EscalationExecution::TurnDefault => {
+                effective_policy = Some(self.sandbox_policy.clone());
+            }
+            code_shell_escalation::EscalationExecution::Permissions(permissions) => match permissions
+            {
+                EscalationPermissions::PermissionProfile(profile) => {
+                    effective_policy = Some(effective_sandbox_policy_for_exec(
+                        &self.sandbox_policy,
+                        SandboxPermissions::WithAdditionalPermissions,
+                        Some(&profile),
+                    ));
+                }
+                EscalationPermissions::Permissions(permissions) => {
+                    if matches!(
+                        permissions.sandbox_policy,
+                        ProtocolSandboxPolicy::ExternalSandbox { .. }
+                    ) {
+                        // Respect the upstream contract: treat ExternalSandbox as already sandboxed.
+                        needs_wrapper = false;
+                    } else {
+                        effective_policy = Some(crate::sandboxing::local_policy_from_protocol(
+                            &permissions.sandbox_policy,
+                        ));
+                    }
+                }
+            },
+        }
+
+        let Some(effective_policy) = effective_policy else {
+            return Ok(code_shell_escalation::PreparedExec {
+                command,
+                cwd: workdir.to_path_buf(),
+                env,
+                arg0: argv.first().cloned(),
+            });
+        };
+
+        // Mirror spawn_child_async: mark network-disabled spawns for shell tool processes.
+        if effective_policy.has_full_network_access() {
+            env.remove(crate::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR);
+        } else {
+            env.insert(
+                crate::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR.to_string(),
+                "1".to_string(),
+            );
+        }
+
+        if !needs_wrapper || self.sandbox_type == SandboxType::None {
+            return Ok(code_shell_escalation::PreparedExec {
+                command,
+                cwd: workdir.to_path_buf(),
+                env,
+                arg0: argv.first().cloned(),
+            });
+        }
+
+        let wrapped_command = match self.sandbox_type {
+            SandboxType::MacosSeatbelt => {
+                env.insert(
+                    crate::spawn::CODEX_SANDBOX_ENV_VAR.to_string(),
+                    "seatbelt".to_string(),
+                );
+                let args = crate::seatbelt::build_seatbelt_args(
+                    command,
+                    &effective_policy,
+                    &self.sandbox_cwd,
+                    self.enforce_managed_network,
+                    &env,
+                );
+                std::iter::once(crate::seatbelt::seatbelt_exec_path().to_string())
+                    .chain(args)
+                    .collect()
+            }
+            SandboxType::LinuxSeccomp => {
+                let sandbox_exe = self.code_linux_sandbox_exe.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("Linux sandbox executable not configured (code_linux_sandbox_exe)")
+                })?;
+                let sandbox_policy_cwd = self
+                    .sandbox_cwd
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("sandbox cwd must be valid UTF-8"))?
+                    .to_string();
+                let sandbox_policy_json = serde_json::to_string(&effective_policy)
+                    .context("failed to serialize SandboxPolicy to JSON")?;
+
+                wrapper_arg0 = Some("codex-linux-sandbox".to_string());
+                std::iter::once(sandbox_exe.to_string_lossy().to_string())
+                    .chain([
+                        sandbox_policy_cwd,
+                        sandbox_policy_json,
+                        "--".to_string(),
+                    ])
+                    .chain(command)
+                    .collect()
+            }
+            other => {
                 return Err(anyhow::anyhow!(
-                    "EscalationExecution::Permissions is not supported yet: {permissions:?}"
+                    "sandbox wrapper is not supported for {other:?}"
                 ));
             }
         };
-        let _ = execution;
 
         Ok(code_shell_escalation::PreparedExec {
-            command: std::iter::once(program.to_string_lossy().to_string())
-                .chain(argv.iter().skip(1).cloned())
-                .collect(),
+            command: wrapped_command,
             cwd: workdir.to_path_buf(),
             env,
-            arg0: argv.first().cloned(),
+            arg0: wrapper_arg0,
         })
     }
 }
@@ -2454,10 +2574,13 @@ impl code_shell_escalation::EscalationPolicy for CoreShellEscalationPolicy {
             return Ok(code_shell_escalation::EscalationDecision::run());
         };
 
+        let execution = escalation_execution_for_trigger(&self.sandbox_policy, trigger);
+        let reason = Some(escalation_reason_for_execution(&execution, trigger));
+
         // If already approved, skip prompting and escalate.
         if self.session.is_command_approved(argv) {
             return Ok(code_shell_escalation::EscalationDecision::escalate(
-                code_shell_escalation::EscalationExecution::Unsandboxed,
+                execution,
             ));
         }
 
@@ -2479,13 +2602,6 @@ impl code_shell_escalation::EscalationPolicy for CoreShellEscalationPolicy {
 
         let uuid = uuid::Uuid::new_v4();
         let approval_id = Some(format!("execve:{uuid}"));
-        let suffix = match trigger {
-            EscalationTrigger::NetworkDisabled => "network disabled",
-            EscalationTrigger::GitWritesBlocked => "git writes blocked",
-        };
-        let reason = Some(format!(
-            "Shell escalation: run subcommand outside the sandbox ({suffix})"
-        ));
 
         let rx_approve = self
             .session
@@ -2513,7 +2629,7 @@ impl code_shell_escalation::EscalationPolicy for CoreShellEscalationPolicy {
         match decision {
             ReviewDecision::Approved => Ok(
                 code_shell_escalation::EscalationDecision::escalate(
-                    code_shell_escalation::EscalationExecution::Unsandboxed,
+                    execution.clone(),
                 ),
             ),
             ReviewDecision::ApprovedForSession => {
@@ -2523,7 +2639,7 @@ impl code_shell_escalation::EscalationPolicy for CoreShellEscalationPolicy {
                     None,
                 ));
                 Ok(code_shell_escalation::EscalationDecision::escalate(
-                    code_shell_escalation::EscalationExecution::Unsandboxed,
+                    execution.clone(),
                 ))
             }
             ReviewDecision::Denied | ReviewDecision::Abort => Ok(code_shell_escalation::EscalationDecision::deny(Some(
@@ -2538,6 +2654,97 @@ impl code_shell_escalation::EscalationPolicy for CoreShellEscalationPolicy {
 enum EscalationTrigger {
     NetworkDisabled,
     GitWritesBlocked,
+}
+
+#[cfg(unix)]
+fn escalation_execution_for_trigger(
+    sandbox_policy: &crate::protocol::SandboxPolicy,
+    trigger: EscalationTrigger,
+) -> code_shell_escalation::EscalationExecution {
+    use code_protocol::approvals::EscalationPermissions;
+    use code_protocol::approvals::Permissions;
+    use code_protocol::approvals::{FileSystemSandboxPolicy, NetworkSandboxPolicy};
+    use code_protocol::models::PermissionProfile;
+
+    match trigger {
+        EscalationTrigger::NetworkDisabled => match sandbox_policy {
+            crate::protocol::SandboxPolicy::WorkspaceWrite { .. } => {
+                code_shell_escalation::EscalationExecution::Permissions(
+                    EscalationPermissions::PermissionProfile(PermissionProfile {
+                        network: Some(true),
+                        ..Default::default()
+                    }),
+                )
+            }
+            // "Network-on read-only" isn't representable with our current policy surface.
+            crate::protocol::SandboxPolicy::ReadOnly => code_shell_escalation::EscalationExecution::Unsandboxed,
+            crate::protocol::SandboxPolicy::DangerFullAccess => {
+                code_shell_escalation::EscalationExecution::Unsandboxed
+            }
+        },
+        EscalationTrigger::GitWritesBlocked => {
+            let local_policy = match sandbox_policy {
+                crate::protocol::SandboxPolicy::WorkspaceWrite {
+                    writable_roots,
+                    network_access,
+                    exclude_tmpdir_env_var,
+                    exclude_slash_tmp,
+                    allow_git_writes: _,
+                } => crate::protocol::SandboxPolicy::WorkspaceWrite {
+                    writable_roots: writable_roots.clone(),
+                    network_access: *network_access,
+                    exclude_tmpdir_env_var: *exclude_tmpdir_env_var,
+                    exclude_slash_tmp: *exclude_slash_tmp,
+                    allow_git_writes: true,
+                },
+                crate::protocol::SandboxPolicy::ReadOnly => {
+                    crate::protocol::SandboxPolicy::new_workspace_write_policy()
+                }
+                crate::protocol::SandboxPolicy::DangerFullAccess => {
+                    crate::protocol::SandboxPolicy::DangerFullAccess
+                }
+            };
+
+            let protocol_policy = crate::sandboxing::protocol_policy_from_local(&local_policy);
+            code_shell_escalation::EscalationExecution::Permissions(EscalationPermissions::Permissions(
+                Permissions {
+                    sandbox_policy: protocol_policy,
+                    file_system_sandbox_policy: FileSystemSandboxPolicy::default(),
+                    network_sandbox_policy: NetworkSandboxPolicy::default(),
+                    macos_seatbelt_profile_extensions: None,
+                },
+            ))
+        }
+    }
+}
+
+#[cfg(unix)]
+fn escalation_reason_for_execution(
+    execution: &code_shell_escalation::EscalationExecution,
+    trigger: EscalationTrigger,
+) -> String {
+    match (execution, trigger) {
+        (code_shell_escalation::EscalationExecution::Unsandboxed, EscalationTrigger::NetworkDisabled) => {
+            "Allow this subcommand to run outside the sandbox (network disabled)".to_string()
+        }
+        (code_shell_escalation::EscalationExecution::Unsandboxed, EscalationTrigger::GitWritesBlocked) => {
+            "Allow this subcommand to run outside the sandbox (git writes blocked)".to_string()
+        }
+        (code_shell_escalation::EscalationExecution::TurnDefault, _) => {
+            "Allow this subcommand to run with the turn default sandbox policy".to_string()
+        }
+        (
+            code_shell_escalation::EscalationExecution::Permissions(code_protocol::approvals::EscalationPermissions::PermissionProfile(_)),
+            EscalationTrigger::NetworkDisabled,
+        ) => "Allow this subcommand to run with network enabled (still sandboxed)".to_string(),
+        (
+            code_shell_escalation::EscalationExecution::Permissions(_),
+            EscalationTrigger::GitWritesBlocked,
+        ) => "Allow this subcommand to run with git writes enabled (still sandboxed)".to_string(),
+        (code_shell_escalation::EscalationExecution::Permissions(_), EscalationTrigger::NetworkDisabled) => {
+            "Allow this subcommand to run with additional permissions (still sandboxed)".to_string()
+        }
+    }
 }
 
 #[cfg(unix)]
@@ -3162,7 +3369,9 @@ mod tests {
 mod shell_zsh_fork_tests {
     use super::*;
     use crate::protocol::SandboxPolicy;
+    use code_shell_escalation::ShellCommandExecutor as _;
     use std::path::Path;
+    use std::sync::Arc;
     use tempfile::TempDir;
 
     fn touch(path: &Path) {
@@ -3344,5 +3553,237 @@ mod shell_zsh_fork_tests {
 
         let argv = vec!["zsh".to_string(), "-lc".to_string()];
         assert!(extract_shell_script_from_wrapper(&argv).is_none());
+    }
+
+    #[test]
+    fn escalation_execution_for_trigger_network_disabled_workspace_write_uses_permission_profile() {
+        let sandbox_policy = SandboxPolicy::WorkspaceWrite {
+            writable_roots: Vec::new(),
+            network_access: false,
+            exclude_tmpdir_env_var: false,
+            exclude_slash_tmp: false,
+            allow_git_writes: true,
+        };
+
+        let execution =
+            escalation_execution_for_trigger(&sandbox_policy, EscalationTrigger::NetworkDisabled);
+        match execution {
+            code_shell_escalation::EscalationExecution::Permissions(
+                code_protocol::approvals::EscalationPermissions::PermissionProfile(profile),
+            ) => assert_eq!(profile.network, Some(true)),
+            other => panic!("unexpected execution: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn escalation_execution_for_trigger_network_disabled_read_only_is_unsandboxed() {
+        let sandbox_policy = SandboxPolicy::ReadOnly;
+        let execution =
+            escalation_execution_for_trigger(&sandbox_policy, EscalationTrigger::NetworkDisabled);
+        assert_eq!(
+            execution,
+            code_shell_escalation::EscalationExecution::Unsandboxed
+        );
+    }
+
+    #[test]
+    fn escalation_execution_for_trigger_git_writes_blocked_sets_allow_git_writes() {
+        let sandbox_policy = SandboxPolicy::WorkspaceWrite {
+            writable_roots: Vec::new(),
+            network_access: false,
+            exclude_tmpdir_env_var: false,
+            exclude_slash_tmp: false,
+            allow_git_writes: false,
+        };
+
+        let execution =
+            escalation_execution_for_trigger(&sandbox_policy, EscalationTrigger::GitWritesBlocked);
+        match execution {
+            code_shell_escalation::EscalationExecution::Permissions(
+                code_protocol::approvals::EscalationPermissions::Permissions(permissions),
+            ) => match permissions.sandbox_policy {
+                code_protocol::protocol::SandboxPolicy::WorkspaceWrite { allow_git_writes, .. } => {
+                    assert!(allow_git_writes)
+                }
+                other => panic!("unexpected sandbox policy: {other:?}"),
+            },
+            other => panic!("unexpected execution: {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn prepare_escalated_exec_unsandboxed_returns_direct_command() {
+        let tmp = TempDir::new().expect("tempdir");
+        let program_path = tmp.path().join("prog");
+        let workdir_path = tmp.path().join("cwd");
+        std::fs::create_dir_all(&workdir_path).expect("mkdir cwd");
+
+        let program =
+            code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&program_path).expect("abs program");
+        let workdir =
+            code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&workdir_path).expect("abs workdir");
+
+        let executor = CoreShellCommandExecutor {
+            base_env: std::collections::HashMap::new(),
+            timeout_ms: None,
+            sandbox_type: SandboxType::LinuxSeccomp,
+            sandbox_policy: SandboxPolicy::new_workspace_write_policy(),
+            sandbox_cwd: tmp.path().to_path_buf(),
+            code_linux_sandbox_exe: Some(tmp.path().join("codex-linux-sandbox")),
+            stdout_stream: None,
+            enforce_managed_network: false,
+            exec_output_cell: Arc::new(std::sync::Mutex::new(None)),
+        };
+
+        let argv = vec!["prog".to_string(), "arg1".to_string()];
+        let mut env = std::collections::HashMap::new();
+        env.insert("X".to_string(), "Y".to_string());
+
+        let prepared = executor
+            .prepare_escalated_exec(
+                &program,
+                &argv,
+                &workdir,
+                env.clone(),
+                code_shell_escalation::EscalationExecution::Unsandboxed,
+            )
+            .await
+            .expect("prepared");
+
+        assert_eq!(
+            prepared.command,
+            vec![
+                program.to_string_lossy().to_string(),
+                "arg1".to_string()
+            ]
+        );
+        assert_eq!(prepared.arg0.as_deref(), Some("prog"));
+        assert_eq!(prepared.env, env);
+        assert_eq!(prepared.cwd, workdir.to_path_buf());
+    }
+
+    #[tokio::test]
+    async fn prepare_escalated_exec_permission_profile_network_clears_network_disabled_env() {
+        let tmp = TempDir::new().expect("tempdir");
+        let program_path = tmp.path().join("prog");
+        let workdir_path = tmp.path().join("cwd");
+        std::fs::create_dir_all(&workdir_path).expect("mkdir cwd");
+
+        let program =
+            code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&program_path).expect("abs program");
+        let workdir =
+            code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&workdir_path).expect("abs workdir");
+
+        let sandbox_policy = SandboxPolicy::WorkspaceWrite {
+            writable_roots: Vec::new(),
+            network_access: false,
+            exclude_tmpdir_env_var: false,
+            exclude_slash_tmp: false,
+            allow_git_writes: true,
+        };
+        let executor = CoreShellCommandExecutor {
+            base_env: std::collections::HashMap::new(),
+            timeout_ms: None,
+            sandbox_type: SandboxType::LinuxSeccomp,
+            sandbox_policy,
+            sandbox_cwd: tmp.path().to_path_buf(),
+            code_linux_sandbox_exe: Some(tmp.path().join("codex-linux-sandbox")),
+            stdout_stream: None,
+            enforce_managed_network: false,
+            exec_output_cell: Arc::new(std::sync::Mutex::new(None)),
+        };
+
+        let argv = vec!["prog".to_string(), "arg1".to_string()];
+        let mut env = std::collections::HashMap::new();
+        env.insert(
+            crate::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR.to_string(),
+            "1".to_string(),
+        );
+
+        let prepared = executor
+            .prepare_escalated_exec(
+                &program,
+                &argv,
+                &workdir,
+                env,
+                code_shell_escalation::EscalationExecution::Permissions(
+                    code_protocol::approvals::EscalationPermissions::PermissionProfile(
+                        code_protocol::models::PermissionProfile {
+                            network: Some(true),
+                            ..Default::default()
+                        },
+                    ),
+                ),
+            )
+            .await
+            .expect("prepared");
+
+        assert!(
+            !prepared
+                .env
+                .contains_key(crate::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR),
+            "expected network-disabled env var to be cleared: {:?}",
+            prepared.env
+        );
+    }
+
+    #[tokio::test]
+    async fn prepare_escalated_exec_external_sandbox_does_not_wrap() {
+        let tmp = TempDir::new().expect("tempdir");
+        let program_path = tmp.path().join("prog");
+        let workdir_path = tmp.path().join("cwd");
+        std::fs::create_dir_all(&workdir_path).expect("mkdir cwd");
+
+        let program =
+            code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&program_path).expect("abs program");
+        let workdir =
+            code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&workdir_path).expect("abs workdir");
+
+        let executor = CoreShellCommandExecutor {
+            base_env: std::collections::HashMap::new(),
+            timeout_ms: None,
+            sandbox_type: SandboxType::LinuxSeccomp,
+            sandbox_policy: SandboxPolicy::new_workspace_write_policy(),
+            sandbox_cwd: tmp.path().to_path_buf(),
+            code_linux_sandbox_exe: Some(tmp.path().join("codex-linux-sandbox")),
+            stdout_stream: None,
+            enforce_managed_network: false,
+            exec_output_cell: Arc::new(std::sync::Mutex::new(None)),
+        };
+
+        let argv = vec!["prog".to_string(), "arg1".to_string()];
+        let env = std::collections::HashMap::new();
+
+        let permissions = code_protocol::approvals::Permissions {
+            sandbox_policy: code_protocol::protocol::SandboxPolicy::ExternalSandbox {
+                network_access: code_protocol::protocol::NetworkAccess::Restricted,
+            },
+            file_system_sandbox_policy: code_protocol::approvals::FileSystemSandboxPolicy::default(),
+            network_sandbox_policy: code_protocol::approvals::NetworkSandboxPolicy::default(),
+            macos_seatbelt_profile_extensions: None,
+        };
+
+        let prepared = executor
+            .prepare_escalated_exec(
+                &program,
+                &argv,
+                &workdir,
+                env.clone(),
+                code_shell_escalation::EscalationExecution::Permissions(
+                    code_protocol::approvals::EscalationPermissions::Permissions(permissions),
+                ),
+            )
+            .await
+            .expect("prepared");
+
+        assert_eq!(
+            prepared.command,
+            vec![
+                program.to_string_lossy().to_string(),
+                "arg1".to_string()
+            ]
+        );
+        assert_eq!(prepared.env, env);
+        assert_eq!(prepared.arg0.as_deref(), Some("prog"));
     }
 }

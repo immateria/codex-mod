@@ -62,11 +62,18 @@ impl ShellEscalationSettingsView {
     }
 
     fn shell_readiness_problem(&self) -> Option<String> {
-        // Core zsh-fork execution requires `sess.user_shell()` to be `Shell::Zsh`,
-        // which today only happens for the auto-detected login shell (no override).
         if let Some(shell) = &self.shell {
+            let trimmed = shell.path.trim();
+            let is_zsh = std::path::Path::new(trimmed)
+                .file_name()
+                .and_then(|s| s.to_str())
+                .is_some_and(|name| name == "zsh");
+            if is_zsh {
+                return None;
+            }
+
             return Some(format!(
-                "Shell override is set (zsh-fork requires Shell: auto): {}",
+                "Shell override is not zsh (need zsh): {}",
                 shell.path
             ));
         }
@@ -90,7 +97,11 @@ impl ShellEscalationSettingsView {
                 let shell_path = CStr::from_ptr(shell_ptr)
                     .to_string_lossy()
                     .into_owned();
-                if shell_path.ends_with("/zsh") {
+                let is_zsh = std::path::Path::new(shell_path.trim())
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .is_some_and(|name| name == "zsh");
+                if is_zsh {
                     None
                 } else {
                     Some(format!("Default user shell is not zsh: {shell_path}"))

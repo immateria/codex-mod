@@ -99,7 +99,7 @@ fn status_includes_shell_override_problem() {
     let app_event_tx = AppEventSender::new(tx);
 
     let shell = ShellConfig {
-        path: "/bin/zsh".to_string(),
+        path: "/bin/bash".to_string(),
         args: Vec::new(),
         script_style: None,
         command_safety: Default::default(),
@@ -122,7 +122,7 @@ fn status_includes_shell_override_problem() {
         .collect::<Vec<_>>()
         .join("\n");
     assert!(
-        status_text.contains("Shell override is set"),
+        status_text.contains("Shell override is not zsh"),
         "expected shell override reason, got:\n{status_text}"
     );
 }
