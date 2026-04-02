@@ -3584,7 +3584,7 @@ mod shell_zsh_fork_tests {
     }
 
     #[test]
-    fn extract_shell_script_from_zsh_wrapper() {
+    fn extract_shell_script_from_wrapper_parses_supported_shells() {
         let argv = vec!["zsh".to_string(), "-lc".to_string(), "echo hi".to_string()];
         let (idx, script) = extract_shell_script_from_wrapper(&argv).expect("script");
         assert_eq!(2, idx);
@@ -3596,6 +3596,11 @@ mod shell_zsh_fork_tests {
         assert_eq!("echo hi", script);
 
         let argv = vec!["bash".to_string(), "-lc".to_string(), "echo hi".to_string()];
+        let (idx, script) = extract_shell_script_from_wrapper(&argv).expect("script");
+        assert_eq!(2, idx);
+        assert_eq!("echo hi", script);
+
+        let argv = vec!["fish".to_string(), "-lc".to_string(), "echo hi".to_string()];
         assert!(extract_shell_script_from_wrapper(&argv).is_none());
 
         let argv = vec!["zsh".to_string(), "-lc".to_string()];
