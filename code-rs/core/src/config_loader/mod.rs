@@ -339,10 +339,7 @@ pub fn load_config_layers_state_blocking_with_cwd(
 ) -> io::Result<ConfigLayerStack> {
     let code_home = code_home.to_path_buf();
     let cwd: Option<PathBuf> = cwd.map(resolve_cwd_for_config_layers).transpose()?;
-    let cli_overrides: Vec<(String, TomlValue)> = cli_overrides
-        .iter()
-        .map(|(path, value)| (path.clone(), value.clone()))
-        .collect();
+    let cli_overrides: Vec<(String, TomlValue)> = cli_overrides.to_vec();
 
     block_on_loader(async move {
         load_config_layers_state_with_cwd(

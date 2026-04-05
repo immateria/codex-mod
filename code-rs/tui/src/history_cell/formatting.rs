@@ -550,11 +550,9 @@ pub(crate) fn select_preview_from_lines(
         .iter()
         .rev()
         .take(tail)
-        .collect::<Vec<_>>()
-        .iter()
         .rev()
     {
-        out.push(lines[*i].clone());
+        out.push(lines[i].clone());
     }
     out
 }

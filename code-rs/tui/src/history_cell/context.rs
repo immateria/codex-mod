@@ -39,8 +39,6 @@ fn clamp_record(mut record: ContextRecord) -> ContextRecord {
             .into_iter()
             .rev()
             .take(MAX_DELTA_PREVIEW)
-            .collect::<Vec<_>>()
-            .into_iter()
             .rev()
             .collect();
     }

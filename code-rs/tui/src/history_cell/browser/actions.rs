@@ -84,13 +84,13 @@ impl BrowserSessionCell {
                 display.push(ActionDisplayLine::Entry(entry.clone()));
             }
             display.push(ActionDisplayLine::Ellipsis);
-            let tail = entries
+            for entry in entries
                 .iter()
                 .rev()
                 .take(super::ACTION_DISPLAY_TAIL)
+                .rev()
                 .cloned()
-                .collect::<Vec<_>>();
-            for entry in tail.into_iter().rev() {
+            {
                 display.push(ActionDisplayLine::Entry(entry));
             }
             display

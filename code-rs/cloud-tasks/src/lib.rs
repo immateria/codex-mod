@@ -7,6 +7,7 @@ mod ui;
 pub mod util;
 pub use cli::Cli;
 
+use std::fmt::Write as _;
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -1646,15 +1647,15 @@ async fn run_submit(args: crate::cli::SubmitArgs) -> anyhow::Result<()> {
 
                 // Build final output as plain text for the agent result
                 let mut out = String::new();
-                out.push_str(&format!("Cloud task completed: {}\n\n", task_id.0));
+                let _ = writeln!(out, "Cloud task completed: {}\n", task_id.0);
                 if let Some(p) = text.prompt.as_deref() {
-                    out.push_str(&format!("Prompt:\n{}\n\n", p.trim()));
+                    let _ = writeln!(out, "Prompt:\n{}\n", p.trim());
                 }
                 if !text.messages.is_empty() {
                     out.push_str("Assistant Messages:\n");
                     // Safe formatting of assistant messages without NULs
                     for (i, m) in text.messages.iter().enumerate() {
-                        out.push_str(&format!("{}. ", i + 1));
+                        let _ = write!(out, "{}. ", i + 1);
                         out.push_str(m.trim());
                         out.push_str("\n\n");
                     }

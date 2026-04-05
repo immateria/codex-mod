@@ -28,19 +28,13 @@ pub fn build_provider(
 
             OtelExporter::OtlpHttp {
                 endpoint: endpoint.clone(),
-                headers: headers
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.clone()))
-                    .collect(),
+                headers: headers.clone(),
                 protocol,
             }
         }
         Kind::OtlpGrpc { endpoint, headers } => OtelExporter::OtlpGrpc {
             endpoint: endpoint.clone(),
-            headers: headers
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect(),
+            headers: headers.clone(),
         },
     };
 
