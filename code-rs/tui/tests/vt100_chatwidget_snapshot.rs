@@ -2913,17 +2913,4 @@ fn tool_spam_folded_scrollback() {
     insta::assert_snapshot!("tool_spam_folded_scrollback", output);
 }
 
-#[test]
-fn startup_model_migration_notice_banner() {
-    init_tracing_once();
-    let mut harness = ChatWidgetHarness::new();
-    harness.set_startup_model_migration_notice(
-        "gpt-5.3-codex",
-        "gpt-5.4-codex",
-        "gpt-5.4-codex",
-        code_common::model_presets::HIDE_GPT_5_2_CODEX_MIGRATION_PROMPT_CONFIG,
-    );
-
-    let output = normalize_output(render_chat_widget_to_vt100(&mut harness, 100, 24));
-    insta::assert_snapshot!("startup_model_migration_notice_banner", output);
-}
+// Startup model migration banner removed (we no longer auto-surface model recommendations).
