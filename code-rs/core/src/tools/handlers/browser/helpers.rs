@@ -117,16 +117,14 @@ pub(super) async fn selector_rect_after_scroll(
         .unwrap_or(false)
     {
         let rect = value.get("rect").ok_or_else(|| "Missing rect".to_string())?;
-        let x = rect.get("x").and_then(serde_json::Value::as_f64).unwrap_or(0.0);
-        let y = rect.get("y").and_then(serde_json::Value::as_f64).unwrap_or(0.0);
-        let w = rect
-            .get("width")
-            .and_then(serde_json::Value::as_f64)
-            .unwrap_or(0.0);
-        let h = rect
-            .get("height")
-            .and_then(serde_json::Value::as_f64)
-            .unwrap_or(0.0);
+        let x = rect.get("x").and_then(serde_json::Value::as_f64)
+            .ok_or_else(|| "Missing or invalid rect.x".to_string())?;
+        let y = rect.get("y").and_then(serde_json::Value::as_f64)
+            .ok_or_else(|| "Missing or invalid rect.y".to_string())?;
+        let w = rect.get("width").and_then(serde_json::Value::as_f64)
+            .ok_or_else(|| "Missing or invalid rect.width".to_string())?;
+        let h = rect.get("height").and_then(serde_json::Value::as_f64)
+            .ok_or_else(|| "Missing or invalid rect.height".to_string())?;
         Ok((x, y, w, h))
     } else {
         let error = value

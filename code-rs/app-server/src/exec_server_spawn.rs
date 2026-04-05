@@ -55,9 +55,11 @@ impl SpawnedExecServer {
 
 impl Drop for SpawnedExecServer {
     fn drop(&mut self) {
+        // Kill the child first so it stops writing to stdout/stderr,
+        // then abort the drain tasks that were reading from those pipes.
+        let _ = self.child.start_kill();
         self._stdout_drain_task.abort();
         self._stderr_drain_task.abort();
-        let _ = self.child.start_kill();
     }
 }
 
@@ -67,6 +69,7 @@ pub(crate) async fn spawn_exec_server(binary: &Path) -> std::io::Result<SpawnedE
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+    cmd.kill_on_drop(true);
 
     let mut child = cmd.spawn()?;
     let stdout = child.stdout.take().ok_or_else(|| {
