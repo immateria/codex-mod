@@ -9,7 +9,7 @@
 emulate -L zsh
 setopt errexit nounset pipefail
 
-typeset    SCRIPT_DIR WORKSPACE_ROOT CODE_RS_DIR
+typeset    SCRIPT_DIR WORKSPACE_ROOT CODE_RS_DIR TOOLCHAIN
 typeset -l PLATFORM BUILD_MODE
 typeset -a BUILD_FLAGS CARGO_BUILD_FLAGS
 
@@ -135,58 +135,40 @@ function validate-platform
     esac
 }
 
+function resolve-toolchain
+{   emulate -L zsh
+
+    # Prefer the repo-pinned toolchain (CODE_RS_DIR/rust-toolchain.toml) so
+    # local builds do not depend on whatever "stable" happens to be.
+    TOOLCHAIN="${RUSTUP_TOOLCHAIN:-}"
+    if [[ -z "${TOOLCHAIN}" && -f "${CODE_RS_DIR}/rust-toolchain.toml" ]]; then
+        TOOLCHAIN="$(
+            awk -F'"' '/^channel[[:space:]]*=/{print $2; exit}' "${CODE_RS_DIR}/rust-toolchain.toml"
+        )"
+    fi
+    TOOLCHAIN="${TOOLCHAIN:-stable}"
+}
+
 # Setup Android environment
 function setup-android-env
 {   emulate -L zsh
 
     log-info "Setting up Android build environment..."
-    
-    # Check if OpenSSL is built
-    if [[ ! -d "/tmp/openssl-android-aarch64" ]]; then
-        log-error "OpenSSL not found at /tmp/openssl-android-aarch64"
-        log-info  "Building OpenSSL for Android with static libraries..."
-        
-        typeset OPENSSL_TMP NDK_ROOT TOOLCHAIN_PATH CC AR
-                OPENSSL_TMP="/tmp/openssl-1.1.1w"
 
-        if [[ ! -d "$OPENSSL_TMP" ]]; then
-            cd /tmp
-			curl -sSL "https://www.openssl.org/source/openssl-1.1.1w.tar.gz" ||
-			wget -qO- "https://www.openssl.org/source/openssl-1.1.1w.tar.gz"  | tar  xz
-        fi
-        
-        cd "$OPENSSL_TMP"
+    # Android builds are expected to use the "small build" feature set by
+    # default (see docs/architecture/termux_support.md).
+    CARGO_BUILD_FLAGS+=("--no-default-features")
 
-        NDK_ROOT="/opt/homebrew/share/android-ndk"
-        TOOLCHAIN_PATH="${NDK_ROOT}/toolchains/llvm/prebuilt/darwin-x86_64"
-        
-        export CC="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang"
-        export AR="${TOOLCHAIN_PATH}/bin/llvm-ar"
-        export PATH="${TOOLCHAIN_PATH}/bin:${PATH}"
-        
-        # Clean previous builds to ensure static libraries
-        make clean 2>/dev/null || true
-        
-        # Build with no-shared to create only static libraries
-        ./Configure android-arm64 --prefix=/tmp/openssl-android-aarch64 no-shared
-        make -j$(sysctl -n hw.ncpu)
-        make install
-        
-        log-success "OpenSSL built successfully with static libraries"
-    fi
-    
-    # Export Android-specific environment variables
-    export OPENSSL_DIR="/tmp/openssl-android-aarch64"
-    export OPENSSL_STATIC="1"
-    export OPENSSL_LIB_DIR="${OPENSSL_DIR}/lib"
-    export OPENSSL_INCLUDE_DIR="${OPENSSL_DIR}/include"
     export ANDROID_NDK_ROOT="/opt/homebrew/share/android-ndk"
-    
+
     typeset TOOLCHAIN_PATH
             TOOLCHAIN_PATH="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/darwin-x86_64"
-			
-    export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang"
-    export CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${TOOLCHAIN_PATH}/bin/llvm-ar"
+
+    export PATH="${TOOLCHAIN_PATH}/bin:${PATH}"
+    export CC="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang"
+    export AR="${TOOLCHAIN_PATH}/bin/llvm-ar"
+    export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC}"
+    export CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${AR}"
     
     BUILD_FLAGS+=("--target" "aarch64-linux-android")
     
@@ -222,11 +204,8 @@ function validate-env
     fi
 
     if [[ "$PLATFORM" == "android" ]]; then
-		if [[ ${(f)"$(rustup target list)"} != *$'aarch64-linux-android (installed)'* ]]; then
-            log-warn "aarch64-linux-android target not installed"
-            log-info "Installing target..."
-            rustup    target add aarch64-linux-android
-        fi
+        log-info "Ensuring rust target is installed for toolchain: ${TOOLCHAIN}"
+        rustup target add --toolchain "${TOOLCHAIN}" aarch64-linux-android
 
         if [[ ! -d "/opt/homebrew/share/android-ndk" ]]; then
             log-error "Android NDK not found at /opt/homebrew/share/android-ndk"
@@ -244,15 +223,6 @@ function perform-build
 
 	typeset OUTPUT_DIR BINARY_SIZE BINARY_TYPE
             OUTPUT_DIR="${CODE_RS_DIR}/target"
-
-    # Prefer the repo-pinned toolchain (CODE_RS_DIR/rust-toolchain.toml) so
-    # local builds do not depend on whatever "stable" happens to be.
-    typeset TOOLCHAIN
-    TOOLCHAIN="${RUSTUP_TOOLCHAIN:-}"
-    if [[ -z "${TOOLCHAIN}" && -f "${CODE_RS_DIR}/rust-toolchain.toml" ]]; then
-        TOOLCHAIN="$(sed -n 's/^channel[[:space:]]*=[[:space:]]*\"\\(.*\\)\"/\\1/p' "${CODE_RS_DIR}/rust-toolchain.toml" | head -n1)"
-    fi
-    TOOLCHAIN="${TOOLCHAIN:-stable}"
     
     if [[ "${PLATFORM}" == "android" ]]; then
         OUTPUT_DIR="${OUTPUT_DIR}/aarch64-linux-android"
@@ -270,26 +240,15 @@ function perform-build
     cd "${CODE_RS_DIR}"
     
     # Build with appropriate flags
-	    log-info "Running: rustup run ${TOOLCHAIN} cargo build --bin code ${BUILD_FLAGS} ${CARGO_BUILD_FLAGS}"
+	log-info "Running: cargo build -p code-cli --bin code ${BUILD_FLAGS} ${CARGO_BUILD_FLAGS}"
     
     # For Android, ensure all environment variables are passed to cargo
+    typeset CARGO_BIN RUSTC_BIN
+    CARGO_BIN="$(rustup which cargo --toolchain "${TOOLCHAIN}")"
+    RUSTC_BIN="$(rustup which rustc --toolchain "${TOOLCHAIN}")"
     if [[ "${PLATFORM}" == "android" ]]; then
-        typeset NDK_ROOT TOOLCHAIN_PATH
-                NDK_ROOT="/opt/homebrew/share/android-ndk"
-                TOOLCHAIN_PATH="${NDK_ROOT}/toolchains/llvm/prebuilt/darwin-x86_64"
-        
-        log-info "Using OpenSSL: ${OPENSSL_DIR}"
-        if ! env                                                                                            \
-            PATH="${TOOLCHAIN_PATH}/bin:${PATH}"                                                            \
-            CC="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang"                                        \
-            AR="${TOOLCHAIN_PATH}/bin/llvm-ar"                                                              \
-            OPENSSL_DIR="${OPENSSL_DIR}"                                                                    \
-            OPENSSL_STATIC="1"                                                                              \
-            OPENSSL_LIB_DIR="${OPENSSL_LIB_DIR}"                                                            \
-            OPENSSL_INCLUDE_DIR="${OPENSSL_INCLUDE_DIR}"                                                    \
-            CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${TOOLCHAIN_PATH}/bin/aarch64-linux-android24-clang" \
-            CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${TOOLCHAIN_PATH}/bin/llvm-ar"                           \
-	            rustup run "${TOOLCHAIN}" cargo build                                                          \
+        if ! env RUSTC="${RUSTC_BIN}" \
+            "${CARGO_BIN}" build -p code-cli \
             --bin code                                                                                      \
             $BUILD_FLAGS                                                                                    \
             $CARGO_BUILD_FLAGS; then
@@ -297,7 +256,7 @@ function perform-build
             	exit 1
         fi
     else
-	        if ! rustup run "${TOOLCHAIN}" cargo build \
+	        if ! env RUSTC="${RUSTC_BIN}" "${CARGO_BIN}" build -p code-cli \
             --bin code                     \
             $BUILD_FLAGS                   \
             $CARGO_BUILD_FLAGS; then
@@ -321,14 +280,16 @@ function perform-build
     log-info "Binary type: ${BINARY_TYPE}"
     
     # Show platform-specific next steps
-    case "${PLATFORM}" in
-        android)
-            print
-            log-info "Android binary ready for deployment to Termux:"
-            log-info "  adb push '${OUTPUT_DIR}/code' /data/data/com.termux/files/usr/bin/code"
-            log-info "  adb shell chmod +x /data/data/com.termux/files/usr/bin/code"
-            log-info "  adb shell code --version"
-            ;;
+	    case "${PLATFORM}" in
+	        android)
+	            print
+	            log-info "Android binary ready for deployment to Termux:"
+	            log-info "  adb push '${OUTPUT_DIR}/code' /sdcard/Download/code"
+	            log-info "  adb shell chmod +x /sdcard/Download/code"
+	            log-info "  # In Termux (once): termux-setup-storage"
+	            log-info "  # In Termux: cp ~/storage/downloads/code \"$PREFIX/bin/code\" && chmod +x \"$PREFIX/bin/code\""
+	            log-info "  # In Termux: code --version"
+	            ;;
 
         native)
             print
@@ -345,8 +306,10 @@ function main
     parse-args "$@"
     
     validate-platform
+    resolve-toolchain
     log-info "Platform:   ${PLATFORM}"
     log-info "Build mode: ${BUILD_MODE}"
+    log-info "Toolchain:  ${TOOLCHAIN}"
     
     validate-env
     
