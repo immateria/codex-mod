@@ -466,7 +466,10 @@ pub fn list_rate_limit_snapshots(
     for entry in entries {
         let entry = match entry {
             Ok(e) => e,
-            Err(_) => continue,
+            Err(err) => {
+                tracing::warn!("failed to read usage directory entry: {err}");
+                continue;
+            }
         };
         let path = entry.path();
         if entry
@@ -482,12 +485,18 @@ pub fn list_rate_limit_snapshots(
         {
             let contents = match fs::read_to_string(&path) {
                 Ok(text) => text,
-                Err(_) => continue,
+                Err(err) => {
+                    tracing::warn!("failed to read usage file {}: {err}", path.display());
+                    continue;
+                }
             };
             let data: AccountUsageData = match serde_json::from_str(&contents) {
                 Ok(data) => data,
-                Err(_) => continue,
-                };
+                Err(err) => {
+                    tracing::warn!("failed to parse usage file {}: {err}", path.display());
+                    continue;
+                }
+            };
             let rate = data.rate_limit.unwrap_or_default();
             let primary_next_reset_at = rate.primary_next_reset_at;
             let secondary_next_reset_at = rate

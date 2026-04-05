@@ -389,7 +389,7 @@ impl McpResourceToolHandler {
             let mcp_access = sess.mcp_access_snapshot();
             let server_names = sess.mcp_connection_manager().list_server_names();
 
-            let mut resources_by_server = HashMap::new();
+            let mut resources_by_server = HashMap::with_capacity(server_names.len());
             for server_name in server_names {
                 let Some(server_id) = McpServerId::parse(server_name.as_str()) else {
                     continue;

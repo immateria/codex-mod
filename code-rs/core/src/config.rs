@@ -1487,12 +1487,12 @@ impl ConfigToml {
     }
 
     pub fn is_cwd_trusted(&self, resolved_cwd: &Path) -> bool {
-        let projects = self.projects.clone().unwrap_or_default();
+        let projects = self.projects.as_ref();
 
         let is_path_trusted = |path: &Path| {
             let path_str = path.to_string_lossy().to_string();
             projects
-                .get(&path_str)
+                .and_then(|p| p.get(&path_str))
                 .map(|p| p.trust_level.as_deref() == Some("trusted"))
                 .unwrap_or(false)
         };
@@ -2184,8 +2184,8 @@ impl Config {
         );
 
         let mut tui_config = cfg.tui.clone().unwrap_or_default();
-        if let Some(presets_path) = tui_config.shell_presets_file.clone() {
-            match Self::load_shell_presets_from_file(&presets_path, &resolved_cwd) {
+        if let Some(presets_path) = tui_config.shell_presets_file.as_ref() {
+            match Self::load_shell_presets_from_file(presets_path, &resolved_cwd) {
                 Ok(mut file_presets) => {
                     file_presets.extend(tui_config.shell_presets.clone());
                     tui_config.shell_presets = file_presets;

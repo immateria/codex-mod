@@ -109,6 +109,6 @@ fn format_agent_word(word: &str) -> String {
 
     let mut formatted = String::new();
     formatted.extend(first.to_uppercase());
-    formatted.push_str(&chars.flat_map(char::to_lowercase).collect::<String>());
+    formatted.extend(chars.flat_map(char::to_lowercase));
     formatted
 }

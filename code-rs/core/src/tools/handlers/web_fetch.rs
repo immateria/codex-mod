@@ -985,7 +985,10 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
 
                 let (md_preview, _trunc) = match convert_html_to_markdown_trimmed(body_text, 2000) {
                     Ok(t) => t,
-                    Err(_) => (String::new(), false),
+                    Err(err) => {
+                        tracing::debug!("HTML-to-markdown conversion failed for {}: {err}", params.url);
+                        (String::new(), false)
+                    }
                 };
 
                 let body = serde_json::json!({
@@ -1026,7 +1029,10 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 // Provide a tiny, safe preview of visible text only (converted and truncated).
                 let (md_preview, _trunc) = match convert_html_to_markdown_trimmed(body_text, 2000) {
                     Ok(t) => t,
-                    Err(_) => (String::new(), false),
+                    Err(err) => {
+                        tracing::debug!("HTML-to-markdown conversion failed for {}: {err}", params.url);
+                        (String::new(), false)
+                    }
                 };
 
                 let body = serde_json::json!({

@@ -105,18 +105,12 @@ pub(super) async fn handle_browser_click_selector(
             }
 
             let action_result = match click_type.as_str() {
-                "mousedown" => match browser_manager.mouse_down_at_current().await {
-                    Ok((mx, my)) => Ok((mx, my, "Mouse down".to_string())),
-                    Err(e) => Err(e),
-                },
-                "mouseup" => match browser_manager.mouse_up_at_current().await {
-                    Ok((mx, my)) => Ok((mx, my, "Mouse up".to_string())),
-                    Err(e) => Err(e),
-                },
-                _ => match browser_manager.click_at_current().await {
-                    Ok((mx, my)) => Ok((mx, my, "Clicked".to_string())),
-                    Err(e) => Err(e),
-                },
+                "mousedown" => browser_manager.mouse_down_at_current().await
+                    .map(|(mx, my)| (mx, my, "Mouse down".to_string())),
+                "mouseup" => browser_manager.mouse_up_at_current().await
+                    .map(|(mx, my)| (mx, my, "Mouse up".to_string())),
+                _ => browser_manager.click_at_current().await
+                    .map(|(mx, my)| (mx, my, "Clicked".to_string())),
             };
 
             match action_result {

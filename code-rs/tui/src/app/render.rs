@@ -263,22 +263,13 @@ fn restore_left_half(buf: &mut Buffer, area: Rect, snapshot: &[Cell]) {
 /// Flatten a nested draw result of the form `io::Result<Result<()>>` into a
 /// single `io::Result<()>`, preserving error kinds for WouldBlock handling.
 pub(super) fn flatten_draw_result(res: std::io::Result<Result<()>>) -> std::io::Result<()> {
-    match res {
-        Ok(inner) => match inner {
-            Ok(()) => Ok(()),
-            Err(err) => {
-                // Preserve the original `io::ErrorKind` when the underlying
-                // draw failure is (or wraps) an `io::Error`. This keeps
-                // backpressure handling (WouldBlock/EAGAIN) working even though
-                // the draw path uses `color_eyre::Result`.
-                let kind = err
-                    .downcast_ref::<std::io::Error>()
-                    .or_else(|| err.root_cause().downcast_ref::<std::io::Error>())
-                    .map(std::io::Error::kind)
-                    .unwrap_or(std::io::ErrorKind::Other);
-                Err(std::io::Error::new(kind, err))
-            }
-        },
-        Err(e) => Err(e),
-    }
+    let inner = res?;
+    inner.map_err(|err| {
+        let kind = err
+            .downcast_ref::<std::io::Error>()
+            .or_else(|| err.root_cause().downcast_ref::<std::io::Error>())
+            .map(std::io::Error::kind)
+            .unwrap_or(std::io::ErrorKind::Other);
+        std::io::Error::new(kind, err)
+    })
 }

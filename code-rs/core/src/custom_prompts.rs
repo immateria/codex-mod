@@ -61,7 +61,10 @@ pub async fn discover_prompts_in_excluding(
         }
         let content = match fs::read_to_string(&path).await {
             Ok(s) => s,
-            Err(_) => continue,
+            Err(err) => {
+                tracing::warn!("failed to read custom prompt {}: {err}", path.display());
+                continue;
+            }
         };
         out.push(CustomPrompt {
             name,

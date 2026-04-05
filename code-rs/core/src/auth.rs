@@ -1909,14 +1909,11 @@ impl AuthManager {
             None => return Ok(None),
         };
 
-        match auth.refresh_token().await {
-            Ok(token) => {
-                // Reload to pick up persisted changes.
-                self.reload();
-                Ok(Some(token))
-            }
-            Err(e) => Err(e),
-        }
+        auth.refresh_token().await.map(|token| {
+            // Reload to pick up persisted changes.
+            self.reload();
+            Some(token)
+        })
     }
 
     pub async fn refresh_token(&self) -> std::io::Result<Option<String>> {

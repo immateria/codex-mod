@@ -107,7 +107,7 @@ pub fn run_patch_harness(
             }
 
     // 3) External tools (shellcheck, markdownlint, etc.).
-    let allow = cfg.tools_allowlist.clone().unwrap_or_default();
+    let allow = cfg.tools_allowlist.as_deref().unwrap_or_default();
     let timeout = cfg.timeout_seconds.unwrap_or(6);
 
     // Stage touched files into a temporary workspace so external tools can run safely.
