@@ -299,18 +299,19 @@ impl TurnDiffTracker {
             return aggregated;
         }
 
-        aggregated.push_str(&format!("diff --git a/{left_display} b/{right_display}\n"));
+        use std::fmt::Write;
+        let _ = writeln!(aggregated, "diff --git a/{left_display} b/{right_display}");
 
         let is_add = !left_present && right_bytes.is_some();
         let is_delete = left_present && right_bytes.is_none();
 
         if is_add {
-            aggregated.push_str(&format!("new file mode {current_mode}\n"));
+            let _ = writeln!(aggregated, "new file mode {current_mode}");
         } else if is_delete {
-            aggregated.push_str(&format!("deleted file mode {baseline_mode}\n"));
+            let _ = writeln!(aggregated, "deleted file mode {baseline_mode}");
         } else if baseline_mode != current_mode {
-            aggregated.push_str(&format!("old mode {baseline_mode}\n"));
-            aggregated.push_str(&format!("new mode {current_mode}\n"));
+            let _ = writeln!(aggregated, "old mode {baseline_mode}");
+            let _ = writeln!(aggregated, "new mode {current_mode}");
         }
 
         let left_text = left_bytes.and_then(|b| std::str::from_utf8(b).ok());
@@ -327,7 +328,7 @@ impl TurnDiffTracker {
             let l = left_text.unwrap_or("");
             let r = right_text.unwrap_or("");
 
-            aggregated.push_str(&format!("index {left_oid}..{right_oid}\n"));
+            let _ = writeln!(aggregated, "index {left_oid}..{right_oid}");
 
             let old_header = if left_present {
                 format!("a/{left_display}")
@@ -349,7 +350,7 @@ impl TurnDiffTracker {
 
             aggregated.push_str(&unified);
         } else {
-            aggregated.push_str(&format!("index {left_oid}..{right_oid}\n"));
+            let _ = writeln!(aggregated, "index {left_oid}..{right_oid}");
             let old_header = if left_present {
                 format!("a/{left_display}")
             } else {
@@ -360,8 +361,8 @@ impl TurnDiffTracker {
             } else {
                 DEV_NULL.to_string()
             };
-            aggregated.push_str(&format!("--- {old_header}\n"));
-            aggregated.push_str(&format!("+++ {new_header}\n"));
+            let _ = writeln!(aggregated, "--- {old_header}");
+            let _ = writeln!(aggregated, "+++ {new_header}");
             aggregated.push_str("Binary files differ\n");
         }
         aggregated

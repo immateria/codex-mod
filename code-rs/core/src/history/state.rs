@@ -1616,7 +1616,7 @@ impl HistoryState {
 
     fn rebuild_exec_stream_retained_totals(&mut self) {
         let mut total = 0usize;
-        let mut by_id: HashMap<HistoryId, usize> = HashMap::new();
+        let mut by_id: HashMap<HistoryId, usize> = HashMap::with_capacity(self.records.len());
 
         for record in &self.records {
             let HistoryRecord::Exec(exec) = record else {

@@ -466,49 +466,54 @@ struct EpochRenderView<'a> {
 }
 
 fn push_epoch_metadata_lines(body: &mut String, view: &EpochRenderView<'_>) {
-    body.push_str(&format!("thread_id: {}\n", view.id.thread_id));
-    body.push_str(&format!("epoch_index: {}\n", view.id.epoch_index));
-    body.push_str(&format!("updated_at: {}\n", view.updated_at_label));
+    use std::fmt::Write;
+    let _ = writeln!(body, "thread_id: {}", view.id.thread_id);
+    let _ = writeln!(body, "epoch_index: {}", view.id.epoch_index);
+    let _ = writeln!(body, "updated_at: {}", view.updated_at_label);
     if let Some(epoch_start_at) = view.epoch_start_at {
-        body.push_str(&format!("epoch_start_at: {}\n", iso_timestamp(epoch_start_at)));
+        let _ = writeln!(body, "epoch_start_at: {}", iso_timestamp(epoch_start_at));
     }
     if let Some(epoch_end_at) = view.epoch_end_at {
-        body.push_str(&format!("epoch_end_at: {}\n", iso_timestamp(epoch_end_at)));
+        let _ = writeln!(body, "epoch_end_at: {}", iso_timestamp(epoch_end_at));
     }
-    body.push_str(&format!(
-        "platform_family: {}\n",
+    let _ = writeln!(
+        body,
+        "platform_family: {}",
         platform_family_label(view.platform_family)
-    ));
-    body.push_str(&format!("shell_style: {}\n", shell_style_label(view.shell_style)));
+    );
+    let _ = writeln!(body, "shell_style: {}", shell_style_label(view.shell_style));
     if let Some(shell_program) = view.shell_program {
-        body.push_str(&format!("shell_program: {shell_program}\n"));
+        let _ = writeln!(body, "shell_program: {shell_program}");
     }
     if let Some(workspace_root) = view.workspace_root {
-        body.push_str(&format!("workspace_root: {workspace_root}\n"));
+        let _ = writeln!(body, "workspace_root: {workspace_root}");
     }
-    body.push_str(&format!("cwd: {}\n", view.cwd_display));
+    let _ = writeln!(body, "cwd: {}", view.cwd_display);
     if let Some(git_branch) = view.git_branch {
-        body.push_str(&format!("git_branch: {git_branch}\n"));
+        let _ = writeln!(body, "git_branch: {git_branch}");
     }
-    body.push_str(&format!("provenance: {}\n", provenance_label(view.provenance)));
+    let _ = writeln!(body, "provenance: {}", provenance_label(view.provenance));
     if let Some(rollout_path) = view.rollout_path {
-        body.push_str(&format!("rollout_path: {}\n", rollout_path.display()));
+        let _ = writeln!(body, "rollout_path: {}", rollout_path.display());
     }
     if let Some(rollout_summary_filename) = view.rollout_summary_filename {
-        body.push_str(&format!(
-            "rollout_summary_file: rollout_summaries/{rollout_summary_filename}\n"
-        ));
+        let _ = writeln!(
+            body,
+            "rollout_summary_file: rollout_summaries/{rollout_summary_filename}"
+        );
     }
 }
 
 fn render_epoch_summary_block(view: &EpochRenderView<'_>) -> String {
+    use std::fmt::Write;
     let mut entry = String::new();
-    entry.push_str(&format!(
-        "## {} | {}#{}\n",
+    let _ = writeln!(
+        entry,
+        "## {} | {}#{}",
         view.updated_at_label, view.id.thread_id, view.id.epoch_index
-    ));
+    );
     push_epoch_metadata_lines(&mut entry, view);
-    entry.push_str(&format!("last_user_request: {}", view.last_user_request));
+    let _ = write!(entry, "last_user_request: {}", view.last_user_request);
     entry
 }
 
@@ -691,10 +696,12 @@ fn render_raw_memories(selected: &[Stage1EpochRecord]) -> String {
 
     body.push_str("Catalog-derived retained memory epochs (ranked for reuse):\n\n");
     for record in selected {
-        body.push_str(&format!(
-            "## Epoch `{}#{}`\n",
+        use std::fmt::Write;
+        let _ = writeln!(
+            body,
+            "## Epoch `{}#{}`",
             record.id.thread_id, record.id.epoch_index
-        ));
+        );
         body.push_str(&record.raw_memory);
         body.push('\n');
     }

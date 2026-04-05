@@ -115,7 +115,7 @@ fn build_server_maps(
     disabled_by_server: &HashMap<String, Vec<String>>,
     failures: &HashMap<String, McpServerFailure>,
 ) -> ServerMaps {
-    let mut server_name_by_lower: HashMap<McpServerId, String> = HashMap::new();
+    let mut server_name_by_lower: HashMap<McpServerId, String> = HashMap::with_capacity(tools_by_server.len() + failures.len());
     for name in tools_by_server.keys().chain(failures.keys()) {
         let Some(server_id) = McpServerId::parse(name) else {
             continue;
@@ -125,7 +125,7 @@ fn build_server_maps(
             .or_insert_with(|| name.clone());
     }
 
-    let mut tool_names_by_server_lower: HashMap<McpServerId, HashSet<String>> = HashMap::new();
+    let mut tool_names_by_server_lower: HashMap<McpServerId, HashSet<String>> = HashMap::with_capacity(tools_by_server.len());
     for (server, tools) in tools_by_server {
         let Some(key) = McpServerId::parse(server) else {
             continue;

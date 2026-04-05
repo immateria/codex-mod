@@ -126,20 +126,23 @@ pub(super) async fn handle_browser_inspect_selector(
                 .await;
 
             let mut out = String::new();
-            out.push_str(&format!("Target: selector '{selector}'\n"));
-            out.push_str(&format!("NodeId: {node_id}\n"));
+            {
+                use std::fmt::Write;
+                let _ = writeln!(out, "Target: selector '{selector}'");
+                let _ = writeln!(out, "NodeId: {node_id}");
 
-            if let Some(arr) = attrs.get("attributes").and_then(|v| v.as_array()) {
-                out.push_str("Attributes:\n");
-                let mut it = arr.iter();
-                while let (Some(k), Some(v)) = (it.next(), it.next()) {
-                    out.push_str(&format!(
-                        "  {}=\"{}\"\n",
-                        k.as_str().unwrap_or(""),
-                        v.as_str().unwrap_or("")
-                    ));
+                if let Some(arr) = attrs.get("attributes").and_then(|v| v.as_array()) {
+                    out.push_str("Attributes:\n");
+                    let mut it = arr.iter();
+                    while let (Some(k), Some(v)) = (it.next(), it.next()) {
+                        let _ = writeln!(
+                            out,
+                            "  {}=\"{}\"",
+                            k.as_str().unwrap_or(""),
+                            v.as_str().unwrap_or("")
+                        );
+                    }
                 }
-            }
 
             if let Some(html) = outer.get("outerHTML").and_then(|v| v.as_str()) {
                 let one = html.replace('\n', " ");
@@ -157,7 +160,8 @@ pub(super) async fn handle_browser_inspect_selector(
             }
 
             if let Some(rules) = styles.get("matchedCSSRules").and_then(|v| v.as_array()) {
-                out.push_str(&format!("Matched CSS rules: {}\n", rules.len()));
+                let _ = writeln!(out, "Matched CSS rules: {}", rules.len());
+            }
             }
 
             ResponseInputItem::FunctionCallOutput {
@@ -350,24 +354,28 @@ pub(super) async fn handle_browser_inspect(
 
                     // Format output.
                     let mut out = String::new();
-                    if let (Some(ix), Some(iy)) = (x, y) {
-                        out.push_str(&format!("Target: coordinates ({ix}, {iy})\n"));
-                    }
-                    if let Some(id_attr) = id_attr {
-                        out.push_str(&format!("Target: id '#{id_attr}'\n"));
-                    }
-                    out.push_str(&format!("NodeId: {node_id}\n"));
+                    {
+                        use std::fmt::Write;
+                        if let (Some(ix), Some(iy)) = (x, y) {
+                            let _ = writeln!(out, "Target: coordinates ({ix}, {iy})");
+                        }
+                        if let Some(id_attr) = id_attr {
+                            let _ = writeln!(out, "Target: id '#{id_attr}'");
+                        }
+                        let _ = writeln!(out, "NodeId: {node_id}");
 
-                    // Attributes.
-                    if let Some(arr) = attrs.get("attributes").and_then(|v| v.as_array()) {
-                        out.push_str("Attributes:\n");
-                        let mut it = arr.iter();
-                        while let (Some(k), Some(v)) = (it.next(), it.next()) {
-                            out.push_str(&format!(
-                                "  {}=\"{}\"\n",
-                                k.as_str().unwrap_or(""),
-                                v.as_str().unwrap_or("")
-                            ));
+                        // Attributes.
+                        if let Some(arr) = attrs.get("attributes").and_then(|v| v.as_array()) {
+                            out.push_str("Attributes:\n");
+                            let mut it = arr.iter();
+                            while let (Some(k), Some(v)) = (it.next(), it.next()) {
+                                let _ = writeln!(
+                                    out,
+                                    "  {}=\"{}\"",
+                                    k.as_str().unwrap_or(""),
+                                    v.as_str().unwrap_or("")
+                                );
+                            }
                         }
                     }
 
@@ -392,7 +400,8 @@ pub(super) async fn handle_browser_inspect(
 
                     // Matched styles summary.
                     if let Some(rules) = styles.get("matchedCSSRules").and_then(|v| v.as_array()) {
-                        out.push_str(&format!("Matched CSS rules: {}\n", rules.len()));
+                        use std::fmt::Write;
+                        let _ = writeln!(out, "Matched CSS rules: {}", rules.len());
                     }
 
                     // No inline screenshot capture; result reflects DOM details only.

@@ -48,7 +48,7 @@ fn canonical_agent_key(agent: &AgentConfig) -> String {
 
 pub(crate) fn merge_with_default_agents(agents: Vec<AgentConfig>) -> Vec<AgentConfig> {
     let mut deduped: Vec<AgentConfig> = Vec::new();
-    let mut index: HashMap<String, usize> = HashMap::new();
+    let mut index: HashMap<String, usize> = HashMap::with_capacity(agents.len());
 
     for agent in agents.into_iter().map(normalize_agent) {
         let key = canonical_agent_key(&agent);
@@ -64,7 +64,7 @@ pub(crate) fn merge_with_default_agents(agents: Vec<AgentConfig>) -> Vec<AgentCo
         return default_agent_configs();
     }
 
-    let mut seen = HashSet::new();
+    let mut seen = HashSet::with_capacity(deduped.len());
     for agent in &deduped {
         seen.insert(canonical_agent_key(agent));
     }

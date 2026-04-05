@@ -282,9 +282,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                     skip_count += 1;
                 }
                 if skip_count > 1 {
-                    for _ in 0..(skip_count - 1) {
-                        newly_completed.remove(0);
-                    }
+                    newly_completed.drain(..skip_count - 1);
                 }
             }
             if !newly_completed.is_empty() {
@@ -448,9 +446,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                 skip_count += 1;
             }
             if skip_count > 1 {
-                for _ in 0..(skip_count - 1) {
-                    newly_completed.remove(0);
-                }
+                newly_completed.drain(..skip_count - 1);
             }
         }
         if !newly_completed.is_empty() {
@@ -518,9 +514,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                 skip_count += 1;
             }
             if skip_count > 1 {
-                for _ in 0..(skip_count - 1) {
-                    out_lines.remove(0);
-                }
+                out_lines.drain(..skip_count - 1);
             }
             // Apply stream-specific color to body lines
             let color = match kind {
@@ -659,9 +653,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
                     skip_count += 1;
                 }
                 if skip_count > 1 {
-                    for _ in 0..(skip_count - 1) {
-                        history.remove(0);
-                    }
+                    history.drain(..skip_count - 1);
                 }
             }
             // Apply stream-specific color to body lines while preserving modifiers
