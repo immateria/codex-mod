@@ -36,6 +36,15 @@ pub(crate) fn set_test_pick_result(path: Option<PathBuf>) {
     }
 }
 
+#[cfg(any(
+    target_os = "macos",
+    target_os = "windows",
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "dragonfly",
+    target_os = "netbsd",
+    target_os = "openbsd",
+))]
 fn normalize_title(title: &str) -> String {
     let trimmed = title.trim();
     if trimmed.is_empty() {

@@ -1,5 +1,15 @@
 use anyhow::Result;
 use std::path::Path;
+
+#[cfg(any(
+    target_os = "macos",
+    target_os = "windows",
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "dragonfly",
+    target_os = "netbsd",
+    target_os = "openbsd",
+))]
 use std::process::{Command, Stdio};
 
 #[cfg(any(
@@ -11,6 +21,15 @@ use std::process::{Command, Stdio};
 ))]
 use std::path::PathBuf;
 
+#[cfg(any(
+    target_os = "macos",
+    target_os = "windows",
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "dragonfly",
+    target_os = "netbsd",
+    target_os = "openbsd",
+))]
 fn spawn_detached(mut cmd: Command) -> Result<()> {
     // Best-effort: don't inherit the TUI stdio streams.
     cmd.stdin(Stdio::null());

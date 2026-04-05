@@ -29,6 +29,7 @@ pub enum TerminalBackgroundSource {
     Osc11,
     ColorFgBg,
     /// System appearance (e.g., macOS Dark/Light setting)
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     SystemAppearance,
 }
 
