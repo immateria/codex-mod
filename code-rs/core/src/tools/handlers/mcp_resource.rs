@@ -117,7 +117,7 @@ impl ListResourcesPayload {
             resources_by_server.into_iter().collect();
         entries.sort_by(|a, b| a.0.cmp(&b.0));
 
-        let mut resources = Vec::new();
+        let mut resources = Vec::with_capacity(entries.iter().map(|(_, v)| v.len()).sum());
         for (server, server_resources) in entries {
             for resource in server_resources {
                 resources.push(ResourceWithServer::new(server.clone(), resource));
@@ -163,7 +163,7 @@ impl ListResourceTemplatesPayload {
             templates_by_server.into_iter().collect();
         entries.sort_by(|a, b| a.0.cmp(&b.0));
 
-        let mut resource_templates = Vec::new();
+        let mut resource_templates = Vec::with_capacity(entries.iter().map(|(_, v)| v.len()).sum());
         for (server, server_templates) in entries {
             for template in server_templates {
                 resource_templates.push(ResourceTemplateWithServer::new(server.clone(), template));

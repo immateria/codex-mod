@@ -8,7 +8,7 @@ impl ChatWidget<'_> {
                 let message_id = id;
                 if role == "user"
                     && code_protocol::items::parse_hook_prompt_message(
-                        message_id.as_ref(),
+                        message_id.as_deref(),
                         content.as_slice(),
                     )
                     .is_some()

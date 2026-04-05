@@ -272,7 +272,7 @@ impl OtelEventManager {
         );
     }
 
-    pub fn sse_event_failed<T>(&self, kind: Option<&String>, duration: Duration, error: &T)
+    pub fn sse_event_failed<T>(&self, kind: Option<&str>, duration: Duration, error: &T)
     where
         T: Display,
     {

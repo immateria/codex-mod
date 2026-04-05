@@ -39,7 +39,7 @@ impl ChatWidget<'_> {
         }
 
         // 3) Special exec-scoped tools update existing exec state instead of inserting tool rows.
-        if self.try_handle_exec_scoped_custom_tool_begin(&call_id, &tool_name, params_string.as_ref())
+        if self.try_handle_exec_scoped_custom_tool_begin(&call_id, &tool_name, params_string.as_deref())
         {
             return;
         }
@@ -71,7 +71,7 @@ impl ChatWidget<'_> {
         &mut self,
         call_id: &str,
         tool_name: &str,
-        params_string: Option<&String>,
+        params_string: Option<&str>,
     ) -> bool {
         self.try_handle_wait_begin(call_id, tool_name, params_string)
             || self.try_handle_kill_begin(call_id, tool_name, params_string)
@@ -153,7 +153,7 @@ impl ChatWidget<'_> {
         &mut self,
         call_id: &str,
         tool_name: &str,
-        params_string: Option<&String>,
+        params_string: Option<&str>,
     ) -> bool {
         if tool_name != "wait" {
             return false;
@@ -199,7 +199,7 @@ impl ChatWidget<'_> {
         &mut self,
         call_id: &str,
         tool_name: &str,
-        params_string: Option<&String>,
+        params_string: Option<&str>,
     ) -> bool {
         if tool_name != "kill" {
             return false;

@@ -221,8 +221,8 @@ fn create_seatbelt_command_args(
         } else {
             let writable_roots = sandbox_policy.get_writable_roots_with_cwd(sandbox_policy_cwd);
 
-            let mut writable_folder_policies: Vec<String> = Vec::new();
-            let mut cli_args: Vec<String> = Vec::new();
+            let mut writable_folder_policies: Vec<String> = Vec::with_capacity(writable_roots.len());
+            let mut cli_args: Vec<String> = Vec::with_capacity(writable_roots.len() * 2);
 
             for (index, wr) in writable_roots.iter().enumerate() {
                 // Canonicalize to avoid mismatches like /var vs /private/var on macOS.
@@ -241,7 +241,7 @@ fn create_seatbelt_command_args(
                 } else {
                     // Add parameters for each read-only subpath and generate
                     // the `(require-not ...)` clauses.
-                    let mut require_parts: Vec<String> = Vec::new();
+                    let mut require_parts: Vec<String> = Vec::with_capacity(1 + wr.read_only_subpaths.len());
                     require_parts.push(format!("(subpath (param \"{root_param}\"))"));
                     for (subpath_index, ro) in wr.read_only_subpaths.iter().enumerate() {
                         let canonical_ro = ro.canonicalize().unwrap_or_else(|_| ro.clone());

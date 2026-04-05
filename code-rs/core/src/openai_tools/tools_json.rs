@@ -8,7 +8,7 @@ use super::types::OpenAiTool;
 pub fn create_tools_json_for_responses_api(
     tools: &[OpenAiTool],
 ) -> crate::error::Result<Vec<serde_json::Value>> {
-    let mut tools_json = Vec::new();
+    let mut tools_json = Vec::with_capacity(tools.len());
 
     for tool in tools {
         let json = serde_json::to_value(tool)?;

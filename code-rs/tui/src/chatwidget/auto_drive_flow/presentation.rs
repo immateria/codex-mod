@@ -96,14 +96,14 @@ impl ChatWidget<'_> {
         if !self.auto_state.awaiting_review() {
             self.auto_append_status_lines(
                 &mut status_lines,
-                self.auto_state.current_status_title.as_ref(),
-                self.auto_state.current_status_sent_to_user.as_ref(),
+                self.auto_state.current_status_title.as_deref(),
+                self.auto_state.current_status_sent_to_user.as_deref(),
             );
             if self.auto_state.is_waiting_for_response() && !self.auto_state.is_coordinator_waiting() {
                 let appended = self.auto_append_status_lines(
                     &mut status_lines,
-                    self.auto_state.last_decision_status_title.as_ref(),
-                    self.auto_state.last_decision_status_sent_to_user.as_ref(),
+                    self.auto_state.last_decision_status_title.as_deref(),
+                    self.auto_state.last_decision_status_sent_to_user.as_deref(),
                 );
                 if !appended
                     && let Some(summary) = self.auto_state.last_decision_summary.as_ref() {
@@ -558,8 +558,8 @@ impl ChatWidget<'_> {
     pub(crate) fn auto_append_status_lines(
         &self,
         lines: &mut Vec<String>,
-        status_title: Option<&String>,
-        status_sent_to_user: Option<&String>,
+        status_title: Option<&str>,
+        status_sent_to_user: Option<&str>,
     ) -> bool {
         let initial_len = lines.len();
         Self::append_status_line(lines, status_title);
@@ -567,7 +567,7 @@ impl ChatWidget<'_> {
         lines.len() > initial_len
     }
 
-    pub(crate) fn append_status_line(lines: &mut Vec<String>, status: Option<&String>) {
+    pub(crate) fn append_status_line(lines: &mut Vec<String>, status: Option<&str>) {
         if let Some(status) = status {
             let trimmed = status.trim();
             if trimmed.is_empty() {

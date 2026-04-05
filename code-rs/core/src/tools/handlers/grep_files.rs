@@ -230,7 +230,7 @@ async fn run_rg_search(
 }
 
 fn parse_results(stdout: &[u8], limit: usize) -> Vec<String> {
-    let mut results = Vec::new();
+    let mut results = Vec::with_capacity(limit.min(64));
     for line in stdout.split(|byte| *byte == b'\n') {
         if line.is_empty() {
             continue;

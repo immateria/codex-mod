@@ -136,7 +136,7 @@ impl ChatWidget<'_> {
         if ctx.tool_name != "wait" || !ctx.success {
             return false;
         }
-        let target = wait_target_from_params(ctx.params_string.as_ref(), &ctx.call_id);
+        let target = wait_target_from_params(ctx.params_string.as_deref(), &ctx.call_id);
         let wait_cell = history_cell::new_completed_wait_tool_call(target, ctx.duration);
         let wait_state = wait_cell.state().clone();
         if let Some(idx) = ctx.resolved_idx {

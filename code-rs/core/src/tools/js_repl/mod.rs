@@ -503,7 +503,7 @@ impl JsReplManager {
                         );
                     }
 
-                    let mut child_command: Vec<String> = Vec::new();
+                    let mut child_command: Vec<String> = Vec::with_capacity(2 + self.runtime.args.len());
                     child_command.push(self.runtime.executable.to_string_lossy().to_string());
                     child_command.extend(self.runtime.args.iter().cloned());
                     child_command.push(self.kernel_path.to_string_lossy().to_string());
@@ -861,7 +861,7 @@ async fn resolve_runtime(cfg: JsReplRuntimeConfig) -> Result<ResolvedRuntime, St
         }
     }
 
-    let mut args = Vec::new();
+    let mut args = Vec::with_capacity(cfg.runtime_args.len() + 1);
     if matches!(cfg.kind, crate::config::JsReplRuntimeKindToml::Node)
         && !cfg.runtime_args.iter().any(|arg| arg == "--experimental-vm-modules")
     {

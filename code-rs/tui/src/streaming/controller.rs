@@ -135,7 +135,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
         if !enabled || !matches!(kind, StreamKind::Reasoning) {
             return;
         }
-        let id = match self.current_stream_id() { Some(s) => s.clone(), None => return };
+        let id = match self.current_stream_id() { Some(s) => s, None => return };
         // Parse trailing #s<idx>
         let idx = id.split('#').next_back().and_then(|frag| frag.strip_prefix('s'));
         if let Some(sidx) = idx {
@@ -147,8 +147,8 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
     }
 
     /// Get the current stream ID
-    pub(crate) fn current_stream_id(&self) -> Option<&String> {
-        self.current_stream_id.as_ref()
+    pub(crate) fn current_stream_id(&self) -> Option<&str> {
+        self.current_stream_id.as_deref()
     }
 
     /// Begin a stream, flushing previously completed lines from any other

@@ -259,12 +259,12 @@ pub(crate) async fn execute_agent(agent_id: String, config: Option<AgentConfig>)
     };
 
     // Update result; if a review-output JSON was produced, prefer its contents.
-    let final_result = prefer_json_result(review_output_json_path_capture.as_ref(), result);
+    let final_result = prefer_json_result(review_output_json_path_capture.as_deref(), result);
     let mut manager = AGENT_MANAGER.write().await;
     manager.update_agent_result(&agent_id, final_result).await;
 }
 
-pub(crate) fn prefer_json_result(path: Option<&PathBuf>, fallback: Result<String, String>) -> Result<String, String> {
+pub(crate) fn prefer_json_result(path: Option<&std::path::Path>, fallback: Result<String, String>) -> Result<String, String> {
     if let Some(p) = path
         && let Ok(json) = std::fs::read_to_string(p) {
             return Ok(json);

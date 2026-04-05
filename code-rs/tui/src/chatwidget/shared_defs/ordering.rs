@@ -280,7 +280,7 @@ impl From<&str> for ExecCallId {
     }
 }
 
-fn wait_target_from_params(params: Option<&String>, call_id: &str) -> String {
+fn wait_target_from_params(params: Option<&str>, call_id: &str) -> String {
     if let Some(raw) = params
         && let Ok(json) = serde_json::from_str::<serde_json::Value>(raw) {
             if let Some(for_value) = json.get("for").and_then(|v| v.as_str()) {
@@ -296,7 +296,7 @@ fn wait_target_from_params(params: Option<&String>, call_id: &str) -> String {
     format!("call {call_id}")
 }
 
-fn wait_exec_call_id_from_params(params: Option<&String>) -> Option<ExecCallId> {
+fn wait_exec_call_id_from_params(params: Option<&str>) -> Option<ExecCallId> {
     params
         .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
         .and_then(|json| json.get("call_id").and_then(|v| v.as_str()).map(|s| ExecCallId(s.to_string())))

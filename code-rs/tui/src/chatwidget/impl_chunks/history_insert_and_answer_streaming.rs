@@ -439,7 +439,7 @@ impl ChatWidget<'_> {
     }
 
     fn update_stream_token_usage_metadata(&mut self) {
-        let Some(stream_id) = self.stream.current_stream_id().cloned() else {
+        let Some(stream_id) = self.stream.current_stream_id().map(str::to_owned) else {
             return;
         };
         let Some(preview) = self

@@ -293,7 +293,7 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
             .iter()
             .filter_map(|item| match item {
                 ResponseItem::Message { id, role, content, .. } if role == "user" => {
-                    code_protocol::items::parse_hook_prompt_message(id.as_ref(), content.as_slice())
+                    code_protocol::items::parse_hook_prompt_message(id.as_deref(), content.as_slice())
                         .is_none()
                         .then_some(content)
                 }

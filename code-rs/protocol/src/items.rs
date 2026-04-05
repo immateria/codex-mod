@@ -209,10 +209,10 @@ impl UserMessageItem {
 }
 
 impl HookPromptItem {
-    pub fn from_fragments(id: Option<&String>, fragments: Vec<HookPromptFragment>) -> Self {
+    pub fn from_fragments(id: Option<&str>, fragments: Vec<HookPromptFragment>) -> Self {
         Self {
             id: id
-                .cloned()
+                .map(str::to_string)
                 .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
             fragments,
         }
@@ -252,7 +252,7 @@ pub fn build_hook_prompt_message(fragments: &[HookPromptFragment]) -> Option<Res
 }
 
 pub fn parse_hook_prompt_message(
-    id: Option<&String>,
+    id: Option<&str>,
     content: &[ContentItem],
 ) -> Option<HookPromptItem> {
     let fragments = content
