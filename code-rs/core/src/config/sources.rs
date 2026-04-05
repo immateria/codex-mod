@@ -3726,11 +3726,11 @@ pub(crate) fn load_instructions(code_dir: Option<&Path>) -> Option<String> {
 }
 
 pub(crate) fn read_override_file(
-    path: Option<&PathBuf>,
+    path: Option<&Path>,
     cwd: &Path,
     description: &str,
 ) -> std::io::Result<Option<String>> {
-    let p = match path.as_ref() {
+    let p = match path {
         None => return Ok(None),
         Some(p) => p,
     };
@@ -3763,14 +3763,14 @@ pub(crate) fn read_override_file(
 }
 
 pub(crate) fn get_base_instructions(
-    path: Option<&PathBuf>,
+    path: Option<&Path>,
     cwd: &Path,
 ) -> std::io::Result<Option<String>> {
     read_override_file(path, cwd, "experimental instructions file")
 }
 
 pub(crate) fn get_compact_prompt_override(
-    path: Option<&PathBuf>,
+    path: Option<&Path>,
     cwd: &Path,
 ) -> std::io::Result<Option<String>> {
     read_override_file(path, cwd, "compact prompt override file")

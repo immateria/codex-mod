@@ -1944,8 +1944,8 @@ impl Config {
         // behaviour matches other path-like config values.
         let experimental_instructions_path = config_profile
             .experimental_instructions_file
-            .as_ref()
-            .or(cfg.experimental_instructions_file.as_ref());
+            .as_deref()
+            .or(cfg.experimental_instructions_file.as_deref());
         let file_base_instructions =
             Self::get_base_instructions(experimental_instructions_path, &resolved_cwd)?;
         let base_instructions = base_instructions.or(file_base_instructions);
@@ -1954,7 +1954,7 @@ impl Config {
             .or(config_profile.compact_prompt_override_file.clone())
             .or(cfg.compact_prompt_file.clone());
         let file_compact_prompt =
-            Self::get_compact_prompt_override(compact_prompt_file.as_ref(), &resolved_cwd)?;
+            Self::get_compact_prompt_override(compact_prompt_file.as_deref(), &resolved_cwd)?;
         let compact_prompt_override = compact_prompt_override
             .or(config_profile.compact_prompt_override.clone())
             .or(cfg.compact_prompt_override.clone())
@@ -2412,21 +2412,21 @@ impl Config {
     }
 
     fn get_base_instructions(
-        path: Option<&PathBuf>,
+        path: Option<&Path>,
         cwd: &Path,
     ) -> std::io::Result<Option<String>> {
         sources::get_base_instructions(path, cwd)
     }
 
     fn get_compact_prompt_override(
-        path: Option<&PathBuf>,
+        path: Option<&Path>,
         cwd: &Path,
     ) -> std::io::Result<Option<String>> {
         sources::get_compact_prompt_override(path, cwd)
     }
 
     fn load_shell_presets_from_file(
-        path: &PathBuf,
+        path: &Path,
         cwd: &Path,
     ) -> std::io::Result<Vec<ShellPresetConfig>> {
         #[derive(Deserialize)]
@@ -2438,7 +2438,7 @@ impl Config {
         let full_path = if path.is_relative() {
             cwd.join(path)
         } else {
-            path.clone()
+            path.to_path_buf()
         };
         let full_path_display = full_path.display().to_string();
 

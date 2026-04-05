@@ -3,6 +3,8 @@
 //! Kept as a separate module to keep `chatwidget.rs` lean. Pure data + helpers
 //! with no UI dependencies so it is easy to unit‑test in isolation.
 
+use std::fmt::Write as _;
+
 #[derive(Default, Clone, Debug)]
 pub struct PerfStats {
     pub frames: u64,
@@ -62,7 +64,8 @@ impl PerfStats {
         let ms_scrim = (self.ns_overlay_scrim as f64) / 1_000_000.0;
         let ms_overlay_body = (self.ns_overlay_body_bg as f64) / 1_000_000.0;
         let mut out = String::new();
-        out.push_str(&format!(
+        let _ = write!(
+            out,
             "perf: frames={}\n  prefix_rebuilds={}\n  render_requests: full={} visible={}\n  height_cache: total hits={} misses={}\n  height_cache (render): hits={} misses={}\n  time: total_height={:.2}ms render_visible={:.2}ms\n  time: widget_render_total={:.2}ms\n  paint: history_clear={:.2}ms (cells={}) gutter_bg={:.2}ms (cells={})\n  paint: overlay_scrim={:.2}ms (cells={}) overlay_body_bg={:.2}ms (cells={})",
             self.frames,
             self.prefix_rebuilds,
@@ -83,18 +86,19 @@ impl PerfStats {
             self.cells_overlay_scrim,
             ms_overlay_body,
             self.cells_overlay_body_bg,
-        ));
+        );
 
         if self.scroll_events > 0 || self.scroll_render_frames > 0 {
             let ms_scroll = (self.ns_scroll_render as f64) / 1_000_000.0;
-            out.push_str(&format!(
+            let _ = write!(
+                out,
                 "\n  scroll: events={} lines_requested={} render_frames={} lines_rendered={} render_time={:.2}ms",
                 self.scroll_events,
                 self.scroll_lines_requested,
                 self.scroll_render_frames,
                 self.scroll_lines_rendered,
                 ms_scroll,
-            ));
+            );
         }
 
         if self.undo_restore_events > 0 {
@@ -104,12 +108,13 @@ impl PerfStats {
             } else {
                 0.0
             };
-            out.push_str(&format!(
+            let _ = write!(
+                out,
                 "\n  undo_restore: events={} total={:.2}ms avg={:.2}ms",
                 self.undo_restore_events,
                 ms_total,
                 avg,
-            ));
+            );
         }
 
         // Top hotspots by (index,width)
@@ -121,26 +126,24 @@ impl PerfStats {
         if !top_total.is_empty() {
             out.push_str("\n\n  hot items (total height, cache misses):\n");
             for ((idx, w), stat) in top_total.into_iter().take(5) {
-                out.push_str(&format!(
-                    "    (idx={}, width={}) calls={} time={:.2}ms\n",
-                    idx,
-                    w,
+                let _ = write!(
+                    out,
+                    "    (idx={idx}, width={w}) calls={} time={:.2}ms\n",
                     stat.calls,
                     (stat.ns as f64) / 1_000_000.0,
-                ));
+                );
             }
         }
 
         if !top_render.is_empty() {
             out.push_str("\n  hot items (render visible, cache misses):\n");
             for ((idx, w), stat) in top_render.into_iter().take(5) {
-                out.push_str(&format!(
-                    "    (idx={}, width={}) calls={} time={:.2}ms\n",
-                    idx,
-                    w,
+                let _ = write!(
+                    out,
+                    "    (idx={idx}, width={w}) calls={} time={:.2}ms\n",
                     stat.calls,
                     (stat.ns as f64) / 1_000_000.0,
-                ));
+                );
             }
         }
 
@@ -150,12 +153,12 @@ impl PerfStats {
             v.sort_by_key(|(_, s)| std::cmp::Reverse(s.ns));
             out.push_str("\n  by kind (total height):\n");
             for (k, s) in v.into_iter().take(5) {
-                out.push_str(&format!(
-                    "    {} calls={} time={:.2}ms\n",
-                    k,
+                let _ = write!(
+                    out,
+                    "    {k} calls={} time={:.2}ms\n",
                     s.calls,
                     (s.ns as f64) / 1_000_000.0,
-                ));
+                );
             }
         }
 
@@ -164,12 +167,12 @@ impl PerfStats {
             v.sort_by_key(|(_, s)| std::cmp::Reverse(s.ns));
             out.push_str("\n  by kind (render visible):\n");
             for (k, s) in v.into_iter().take(5) {
-                out.push_str(&format!(
-                    "    {} calls={} time={:.2}ms\n",
-                    k,
+                let _ = write!(
+                    out,
+                    "    {k} calls={} time={:.2}ms\n",
                     s.calls,
                     (s.ns as f64) / 1_000_000.0,
-                ));
+                );
             }
         }
 

@@ -139,7 +139,7 @@ impl ChatWidget<'_> {
                 });
 
                 let fallback_preview = self
-                    .synthesize_stream_state_from_lines(Some(&stream_identifier), &lines, true)
+                    .synthesize_stream_state_from_lines(Some(stream_identifier.as_str()), &lines, true)
                     .preview_markdown;
                 let preview_markdown = self
                     .stream
@@ -248,7 +248,7 @@ impl ChatWidget<'_> {
 
     fn synthesize_stream_state_from_lines(
         &self,
-        stream_id: Option<&String>,
+        stream_id: Option<&str>,
         lines: &[ratatui::text::Line<'static>],
         in_progress: bool,
     ) -> AssistantStreamState {
@@ -271,7 +271,7 @@ impl ChatWidget<'_> {
             preview.push('\n');
         }
         let mut stream_id_string = stream_id
-            .cloned()
+            .map(str::to_owned)
             .unwrap_or_else(|| "stream-preview".to_string());
         if stream_id_string.is_empty() {
             stream_id_string = "stream-preview".to_string();

@@ -150,7 +150,7 @@ impl ChatWidget<'_> {
                 Span::styled(" close", label_style),
             ];
 
-            let measure = |spans: &Vec<Span>| -> usize {
+            let measure = |spans: &[Span]| -> usize {
                 spans.iter().map(|s| s.content.chars().count()).sum()
             };
             let left_len = measure(&left_spans);

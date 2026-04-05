@@ -54,7 +54,9 @@ pub(crate) async fn get_git_diff() -> io::Result<(bool, String)> {
             Ok(Ok(diff)) => untracked_diff.push_str(&diff),
             Ok(Err(err)) if err.kind() == io::ErrorKind::NotFound => {}
             Ok(Err(err)) => return Err(err),
-            Err(_) => {}
+            Err(join_err) => {
+                tracing::warn!("git diff task join error: {join_err}");
+            }
         }
     }
 

@@ -9,7 +9,7 @@ use ratatui_image::picker::Picker;
 impl ChatWidget<'_> {
     pub(in super::super) fn render_screenshot_highlevel(
         &self,
-        path: &PathBuf,
+        path: &Path,
         area: Rect,
         buf: &mut Buffer,
     ) {
@@ -69,7 +69,7 @@ impl ChatWidget<'_> {
                 }
             };
             match picker.new_protocol(dyn_img, target, Resize::Fit(Some(FilterType::Lanczos3))) {
-                Ok(protocol) => *self.cached_image_protocol.borrow_mut() = Some((path.clone(), target, protocol)),
+                Ok(protocol) => *self.cached_image_protocol.borrow_mut() = Some((path.to_path_buf(), target, protocol)),
                 Err(_) => {
                     render_image_placeholder(path, area, buf, "Browser");
                     return;

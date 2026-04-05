@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 impl ChatWidget<'_> {
     fn validation_tool_flag_mut(
         &mut self,
@@ -280,34 +282,37 @@ impl ChatWidget<'_> {
 
         let mut out = String::new();
         let enabled_count = rows.iter().filter(|row| row.enabled).count();
-        out.push_str(&format!("Enabled ({enabled_count}):\n"));
+        let _ = writeln!(out, "Enabled ({enabled_count}):");
         for row in rows.iter().filter(|row| row.enabled) {
-            out.push_str(&format!(
-                "• {} — {} · {} · Auth: {}\n",
+            let _ = writeln!(
+                out,
+                "• {} — {} · {} · Auth: {}",
                 row.name, row.transport, row.status, row.auth_status
-            ));
+            );
             if let Some(timeout) = row.startup_timeout {
-                out.push_str(&format!("  startup_timeout_sec: {:.3}\n", timeout.as_secs_f64()));
+                let _ = writeln!(out, "  startup_timeout_sec: {:.3}", timeout.as_secs_f64());
             }
             if let Some(timeout) = row.tool_timeout {
-                out.push_str(&format!("  tool_timeout_sec: {:.3}\n", timeout.as_secs_f64()));
+                let _ = writeln!(out, "  tool_timeout_sec: {:.3}", timeout.as_secs_f64());
             }
             if !row.disabled_tools.is_empty() {
-                out.push_str(&format!(
-                    "  disabled_tools ({}): {}\n",
+                let _ = writeln!(
+                    out,
+                    "  disabled_tools ({}): {}",
                     row.disabled_tools.len(),
                     row.disabled_tools.join(", ")
-                ));
+                );
             }
         }
 
         let disabled_count = rows.iter().filter(|row| !row.enabled).count();
-        out.push_str(&format!("\nDisabled ({disabled_count}):\n"));
+        let _ = write!(out, "\nDisabled ({disabled_count}):\n");
         for row in rows.iter().filter(|row| !row.enabled) {
-            out.push_str(&format!(
-                "• {} — {} · {} · Auth: {}\n",
+            let _ = writeln!(
+                out,
+                "• {} — {} · {} · Auth: {}",
                 row.name, row.transport, row.status, row.auth_status
-            ));
+            );
         }
 
         out.trim_end().to_string()
@@ -346,7 +351,7 @@ impl ChatWidget<'_> {
             .join(", ");
         if tools.len() > MAX_TOOLS {
             let remaining = tools.len().saturating_sub(MAX_TOOLS);
-            display.push_str(&format!(", +{remaining} more"));
+            let _ = write!(display, ", +{remaining} more");
         }
         Self::truncate_with_ellipsis(&display, MAX_CHARS)
     }

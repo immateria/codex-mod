@@ -792,7 +792,7 @@ pub(crate) async fn handle_container_exec_with_params(
     if !params.sandbox_permissions.requires_escalated_permissions() {
         fn merge_paths(
             dst: &mut Option<Vec<code_utils_absolute_path::AbsolutePathBuf>>,
-            src: Option<&Vec<code_utils_absolute_path::AbsolutePathBuf>>,
+            src: Option<&[code_utils_absolute_path::AbsolutePathBuf]>,
         ) {
             let Some(src) = src else {
                 return;
@@ -814,8 +814,8 @@ pub(crate) async fn handle_container_exec_with_params(
             }
             if let Some(src_fs) = src.file_system.as_ref() {
                 let fs = dst.file_system.get_or_insert_with(Default::default);
-                merge_paths(&mut fs.read, src_fs.read.as_ref());
-                merge_paths(&mut fs.write, src_fs.write.as_ref());
+                merge_paths(&mut fs.read, src_fs.read.as_deref());
+                merge_paths(&mut fs.write, src_fs.write.as_deref());
             }
             if let Some(src_macos) = src.macos.as_ref() {
                 let macos = dst.macos.get_or_insert_with(Default::default);
