@@ -1,4 +1,5 @@
 use super::super::*;
+use std::fmt::Write as _;
 use crate::history_cell::{
     HistoryCellType,
     plain_message_state_from_lines,
@@ -36,17 +37,17 @@ pub(super) fn report_missing_batch(
     if let Some(tool) = tool_name
         && !tool.is_empty()
     {
-        message.push_str(&format!(" tool={tool}"));
+        let _ = write!(message, " tool={tool}");
     }
     if let Some(cid) = call_id
         && !cid.is_empty()
     {
-        message.push_str(&format!(" call_id={cid}"));
+        let _ = write!(message, " call_id={cid}");
     }
     if let Some(detail) = extra
         && !detail.is_empty()
     {
-        message.push_str(&format!(" {detail}"));
+        let _ = write!(message, " {detail}");
     }
 
     let state = plain_message_state_from_paragraphs(

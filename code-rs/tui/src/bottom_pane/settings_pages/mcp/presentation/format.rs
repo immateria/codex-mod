@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::time::Duration;
 
 use super::super::McpSettingsView;
@@ -77,12 +78,12 @@ impl McpSettingsView {
         if let Some(mime_type) = resource.mime_type.as_deref()
             && !mime_type.trim().is_empty()
         {
-            line.push_str(&format!(" · {mime_type}"));
+            let _ = write!(line, " · {mime_type}");
         }
         if let Some(size) = resource.size
             && size > 0
         {
-            line.push_str(&format!(" · {size} bytes"));
+            let _ = write!(line, " · {size} bytes");
         }
         line
     }
@@ -100,7 +101,7 @@ impl McpSettingsView {
         if let Some(mime_type) = template.mime_type.as_deref()
             && !mime_type.trim().is_empty()
         {
-            line.push_str(&format!(" · {mime_type}"));
+            let _ = write!(line, " · {mime_type}");
         }
         line
     }

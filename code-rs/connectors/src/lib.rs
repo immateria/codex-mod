@@ -208,7 +208,7 @@ where
 }
 
 fn merge_directory_apps(apps: Vec<DirectoryApp>) -> Vec<DirectoryApp> {
-    let mut merged: HashMap<String, DirectoryApp> = HashMap::new();
+    let mut merged: HashMap<String, DirectoryApp> = HashMap::with_capacity(apps.len());
     for app in apps {
         if let Some(existing) = merged.get_mut(&app.id) {
             merge_directory_app(existing, app);
