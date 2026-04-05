@@ -401,9 +401,6 @@
                                 terminal_info: self.terminal_info.clone(),
                                 show_order_overlay: self.show_order_overlay,
                                 latest_upgrade_version: self.latest_upgrade_version.clone(),
-                                startup_model_migration_notice: self
-                                    .startup_model_migration_notice
-                                    .clone(),
                             });
                             new_widget.enable_perf(self.timing_enabled);
                             self.app_state = AppState::Chat { widget: Box::new(new_widget) };
@@ -769,9 +766,6 @@
                             terminal_info: self.terminal_info.clone(),
                             show_order_overlay: self.show_order_overlay,
                             latest_upgrade_version: self.latest_upgrade_version.clone(),
-                            startup_model_migration_notice: self
-                                .startup_model_migration_notice
-                                .clone(),
                         });
                         new_widget.enable_perf(self.timing_enabled);
                         self.app_state = AppState::Chat { widget: Box::new(new_widget) };
@@ -819,100 +813,6 @@
                 AppEvent::UpdateModelSelection { model, effort } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
                         widget.apply_model_selection(model, effort);
-                    }
-                }
-                AppEvent::AcceptStartupModelMigration(notice) => {
-                    let tx = self.app_event_tx.clone();
-                    let code_home = self.config.code_home.clone();
-                    let profile = self.config.active_profile.clone();
-                    tokio::spawn(async move {
-                        let result = crate::model_migration::persist_startup_model_migration_acceptance(
-                            &code_home,
-                            profile.as_deref(),
-                            &notice,
-                        )
-                        .await
-                        .map_err(|err| err.to_string());
-                        tx.send(AppEvent::StartupModelMigrationAcceptanceFinished {
-                            notice,
-                            result,
-                        });
-                    });
-                }
-                AppEvent::DismissStartupModelMigration(notice) => {
-                    let tx = self.app_event_tx.clone();
-                    let code_home = self.config.code_home.clone();
-                    let profile = self.config.active_profile.clone();
-                    tokio::spawn(async move {
-                        let result = crate::model_migration::persist_startup_model_migration_dismissal(
-                            &code_home,
-                            profile.as_deref(),
-                            &notice.hide_key,
-                        )
-                        .await
-                        .map_err(|err| err.to_string());
-                        tx.send(AppEvent::StartupModelMigrationDismissalFinished {
-                            notice,
-                            result,
-                        });
-                    });
-                }
-                AppEvent::StartupModelMigrationAcceptanceFinished { notice, result } => {
-                    let target_model = notice.target_model.clone();
-                    let target_model_label = notice.target_model_label.clone();
-                    match result {
-                        Ok(()) => {
-                            self.config.model = target_model.clone();
-                            if let Some(effort) = notice.new_effort {
-                                self.config.model_reasoning_effort = effort;
-                            }
-                            crate::model_migration::set_notice_flag(
-                                &mut self.config.notices,
-                                &notice.hide_key,
-                            );
-                            self.startup_model_migration_notice = None;
-                            if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.apply_model_selection(target_model, notice.new_effort);
-                                widget.set_startup_model_migration_notice(None);
-                                widget.flash_footer_notice(format!(
-                                    "Switched to {target_model_label}."
-                                ));
-                            }
-                            self.schedule_redraw();
-                        }
-                        Err(err) => {
-                            if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.flash_footer_notice(format!(
-                                    "Failed to switch models: {err}"
-                                ));
-                            }
-                        }
-                    }
-                }
-                AppEvent::StartupModelMigrationDismissalFinished { notice, result } => {
-                    let current_model_label = notice.current_model_label.clone();
-                    match result {
-                        Ok(()) => {
-                            crate::model_migration::set_notice_flag(
-                                &mut self.config.notices,
-                                &notice.hide_key,
-                            );
-                            self.startup_model_migration_notice = None;
-                            if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.set_startup_model_migration_notice(None);
-                                widget.flash_footer_notice(format!(
-                                    "Keeping {current_model_label}."
-                                ));
-                            }
-                            self.schedule_redraw();
-                        }
-                        Err(err) => {
-                            if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.flash_footer_notice(format!(
-                                    "Failed to hide model notice: {err}"
-                                ));
-                            }
-                        }
                     }
                 }
                 AppEvent::UpdateServiceTierSelection { service_tier } => {

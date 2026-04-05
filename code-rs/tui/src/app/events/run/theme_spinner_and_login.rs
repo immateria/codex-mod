@@ -301,7 +301,6 @@
                     fork_picker,
                     fork_source_path,
                     latest_upgrade_version,
-                    startup_model_migration_notice,
                 }) => {
                     let mut w = ChatWidget::new(crate::chatwidget::ChatWidgetInit {
                         config,
@@ -311,7 +310,6 @@
                         terminal_info,
                         show_order_overlay,
                         latest_upgrade_version,
-                        startup_model_migration_notice,
                     });
                     w.enable_perf(enable_perf);
                     if resume_picker {

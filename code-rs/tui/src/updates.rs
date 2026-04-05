@@ -144,10 +144,10 @@ struct ReleaseInfo {
 }
 
 const VERSION_FILENAME: &str = "version.json";
-const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/just-every/code/releases/latest";
-const CURRENT_RELEASE_REPO: &str = "just-every/code";
+const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/immateria/codex-mod/releases/latest";
+const CURRENT_RELEASE_REPO: &str = "immateria/codex-mod";
 const LEGACY_RELEASE_REPO: &str = "openai/codex";
-pub const CODE_RELEASE_URL: &str = "https://github.com/just-every/code/releases/latest";
+pub const CODE_RELEASE_URL: &str = "https://github.com/immateria/codex-mod/releases/latest";
 
 const CACHE_TTL_HOURS: i64 = 20;
 const MAX_CLOCK_SKEW_MINUTES: i64 = 5;
@@ -179,6 +179,12 @@ fn version_filepath(config: &Config) -> PathBuf {
 }
 
 pub fn resolve_upgrade_resolution(config: &Config) -> UpgradeResolution {
+    if cfg!(target_os = "android") {
+        return UpgradeResolution::Manual {
+            instructions: "On Android/Termux, upgrade by rebuilding from source and replacing the installed binary.".to_string(),
+        };
+    }
+
     match crate::update_action::detect_update_action(config) {
         Some(action) => {
             let (command, display) = action.command_and_display();

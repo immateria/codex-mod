@@ -681,8 +681,6 @@ enum ClickableAction {
     ShowDirectoryPicker,
     #[cfg(feature = "managed-network-proxy")]
     ShowNetworkSettings,
-    AcceptStartupModelMigration,
-    DismissStartupModelMigration,
     JumpToCallId(String),
     /// Toggle fold/collapse for a history cell at the given index.
     ToggleFoldAtIndex(usize),
@@ -762,7 +760,6 @@ pub(crate) struct ChatWidget<'a> {
     planning_restore: Option<(String, ReasoningEffort)>,
     history_debug_events: Option<RefCell<Vec<String>>>,
     latest_upgrade_version: Option<String>,
-    startup_model_migration_notice: Option<crate::model_migration::StartupModelMigrationNotice>,
     reconnect_notice_active: bool,
     reconnect_notice_started_at: Option<Instant>,
     /// True once we have received any model stream payload (answer or reasoning).

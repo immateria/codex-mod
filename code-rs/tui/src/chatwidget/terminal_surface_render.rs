@@ -404,21 +404,7 @@ impl ChatWidget<'_> {
 
         let mut status_lines: Vec<Line<'static>> = Vec::new();
         let mut tracked_clickable_lines: Vec<TrackedClickableLine> = Vec::new();
-        if let Some(notice) = self.startup_model_migration_notice.as_ref() {
-            let notice_line = self.render_startup_model_migration_notice_line(
-                notice,
-                header_template_ctx.hovered_action,
-                hover_style,
-            );
-            tracked_clickable_lines.push((0, notice_line.clickable_ranges, notice_line.width));
-            status_lines.push(notice_line.line);
-            tracked_clickable_lines.push((
-                1,
-                dynamic_header.clickable_ranges.clone(),
-                dynamic_header.width,
-            ));
-            status_lines.push(dynamic_header.line.clone());
-        } else if header_cfg.show_top_line {
+        if header_cfg.show_top_line {
             if let Some(custom_top) = top_text_with_regions {
                 tracked_clickable_lines.push((0, custom_top.clickable_ranges, custom_top.width));
                 status_lines.push(custom_top.line);
@@ -565,85 +551,7 @@ impl ChatWidget<'_> {
         }
     }
 
-    fn render_startup_model_migration_notice_line(
-        &self,
-        notice: &crate::model_migration::StartupModelMigrationNotice,
-        hovered_action: Option<ClickableAction>,
-        hover_style: code_core::config_types::HeaderHoverStyle,
-    ) -> super::terminal_surface_header::HeaderTemplateRender {
-        use ratatui::style::Style;
-        use ratatui::text::{Line, Span};
-
-        let mut spans: Vec<Span<'static>> = Vec::new();
-        let mut ranges: Vec<(std::ops::Range<usize>, ClickableAction)> = Vec::new();
-        let mut width = 0usize;
-
-        let push_span = |spans: &mut Vec<Span<'static>>,
-                         width: &mut usize,
-                         text: String,
-                         style: Style| {
-            *width += text.chars().count();
-            spans.push(Span::styled(text, style));
-        };
-
-        let push_clickable =
-            |spans: &mut Vec<Span<'static>>,
-             ranges: &mut Vec<(std::ops::Range<usize>, ClickableAction)>,
-             width: &mut usize,
-             text: &str,
-             action: ClickableAction,
-             hovered_action: Option<ClickableAction>,
-             hover_style: code_core::config_types::HeaderHoverStyle| {
-                let start = *width;
-                let is_hovered = hovered_action.as_ref() == Some(&action);
-                let style = super::terminal_surface_header::apply_hover_style(
-                    Style::default().fg(crate::colors::info()),
-                    hover_style,
-                    is_hovered,
-                );
-                let text_owned = text.to_string();
-                *width += text_owned.chars().count();
-                spans.push(Span::styled(text_owned, style));
-                ranges.push((start..*width, action));
-            };
-
-        push_span(
-            &mut spans,
-            &mut width,
-            format!("{}  ", notice.banner_message()),
-            Style::default().fg(crate::colors::text_dim()),
-        );
-        push_clickable(
-            &mut spans,
-            &mut ranges,
-            &mut width,
-            "[Switch now]",
-            ClickableAction::AcceptStartupModelMigration,
-            hovered_action.clone(),
-            hover_style,
-        );
-        push_span(
-            &mut spans,
-            &mut width,
-            "  ".to_string(),
-            Style::default().fg(crate::colors::text_dim()),
-        );
-        push_clickable(
-            &mut spans,
-            &mut ranges,
-            &mut width,
-            "[Keep current]",
-            ClickableAction::DismissStartupModelMigration,
-            hovered_action,
-            hover_style,
-        );
-
-        super::terminal_surface_header::HeaderTemplateRender {
-            line: Line::from(spans),
-            clickable_ranges: ranges,
-            width,
-        }
-    }
+    // (startup model migration notice removed)
 
     pub(super) fn render_bottom_status_line(&self, bottom_pane_area: Rect, buf: &mut Buffer) {
         use ratatui::layout::Alignment;

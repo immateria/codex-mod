@@ -44,7 +44,6 @@ impl App<'_> {
             fork_source_path,
             startup_footer_notice,
             latest_upgrade_version,
-            startup_model_migration_notice,
         } = args;
         let auth_manager = AuthManager::shared_with_mode_and_originator(
             config.code_home.clone(),
@@ -281,7 +280,6 @@ impl App<'_> {
                 fork_picker,
                 fork_source_path: fork_source_path.clone(),
                 latest_upgrade_version: latest_upgrade_version.clone(),
-                startup_model_migration_notice: startup_model_migration_notice.clone(),
             };
             AppState::Onboarding {
                 screen: Box::new(OnboardingScreen::new(OnboardingScreenArgs {
@@ -303,7 +301,6 @@ impl App<'_> {
                 terminal_info: terminal_info.clone(),
                 show_order_overlay,
                 latest_upgrade_version: latest_upgrade_version.clone(),
-                startup_model_migration_notice: startup_model_migration_notice.clone(),
             });
             chat_widget.enable_perf(enable_perf);
             if resume_picker {
@@ -338,7 +335,6 @@ impl App<'_> {
             cli_kv_overrides,
             config_overrides,
             latest_upgrade_version,
-            startup_model_migration_notice,
             file_search,
             pending_redraw,
             redraw_inflight,

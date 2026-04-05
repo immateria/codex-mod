@@ -99,9 +99,6 @@
                                 terminal_info: self.terminal_info.clone(),
                                 show_order_overlay: self.show_order_overlay,
                                 latest_upgrade_version: self.latest_upgrade_version.clone(),
-                                startup_model_migration_notice: self
-                                    .startup_model_migration_notice
-                                    .clone(),
                                 auth_manager,
                                 show_welcome: false,
                             });
@@ -132,9 +129,6 @@
                                 terminal_info: self.terminal_info.clone(),
                                 show_order_overlay: self.show_order_overlay,
                                 latest_upgrade_version: self.latest_upgrade_version.clone(),
-                                startup_model_migration_notice: self
-                                    .startup_model_migration_notice
-                                    .clone(),
                                 auth_manager,
                                 show_welcome: false,
                             });

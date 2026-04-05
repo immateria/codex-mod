@@ -75,7 +75,6 @@ pub(crate) enum MemoriesStatusLoadTarget {
     RefreshCacheOnly,
 }
 use crate::history::state::HistorySnapshot;
-use crate::model_migration::StartupModelMigrationNotice;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -847,16 +846,6 @@ pub(crate) enum AppEvent {
         latest_version: Option<String>,
     },
     SetAutoUpgradeEnabled(bool),
-    AcceptStartupModelMigration(StartupModelMigrationNotice),
-    StartupModelMigrationAcceptanceFinished {
-        notice: StartupModelMigrationNotice,
-        result: Result<(), String>,
-    },
-    DismissStartupModelMigration(StartupModelMigrationNotice),
-    StartupModelMigrationDismissalFinished {
-        notice: StartupModelMigrationNotice,
-        result: Result<(), String>,
-    },
     SetMemoriesSettings {
         scope: MemoriesSettingsScope,
         settings: MemoriesToml,

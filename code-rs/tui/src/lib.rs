@@ -29,7 +29,6 @@ use code_core::config_types::ThemeName;
 use regex_lite::Regex;
 use code_login::AuthMode;
 use code_login::CodexAuth;
-use model_migration::determine_startup_model_migration_notice;
 use code_ollama::DEFAULT_OSS_MODEL;
 use code_protocol::config_types::SandboxMode;
 use std::fs::OpenOptions;
@@ -103,7 +102,6 @@ mod open_url;
 pub mod onboarding;
 pub mod public_widgets;
 mod render;
-mod model_migration;
 // mod scroll_view; // Orphaned after trait-based HistoryCell migration
 mod session_log;
 mod shimmer;
@@ -646,21 +644,7 @@ pub async fn run_main(
         }
     }
 
-    let cli_model_override = cli.model.is_some()
-        || cli_kv_overrides
-            .iter()
-            .any(|(path, _)| path == "model" || path.ends_with(".model"));
     let startup_footer_notice = None;
-    let startup_model_migration_notice = if !cli_model_override && !cli.oss {
-        let auth_mode = if config.using_chatgpt_auth {
-            AuthMode::ChatGPT
-        } else {
-            AuthMode::ApiKey
-        };
-        determine_startup_model_migration_notice(&config, auth_mode)
-    } else {
-        None
-    };
 
     // we load config.toml here to determine project state.
     let (config_toml, theme_set_in_config_file) = {
@@ -765,7 +749,6 @@ pub async fn run_main(
         should_show_trust_screen,
         startup_footer_notice,
         latest_upgrade_version,
-        startup_model_migration_notice,
         theme_configured_explicitly,
     );
 
@@ -828,7 +811,6 @@ fn run_ratatui_app(
     should_show_trust_screen: bool,
     startup_footer_notice: Option<String>,
     latest_upgrade_version: Option<String>,
-    startup_model_migration_notice: Option<crate::model_migration::StartupModelMigrationNotice>,
     theme_configured_explicitly: bool,
 ) -> color_eyre::Result<ExitSummary> {
     color_eyre::install()?;
@@ -882,7 +864,6 @@ fn run_ratatui_app(
         fork_source_path,
         startup_footer_notice,
         latest_upgrade_version,
-        startup_model_migration_notice,
     });
 
     let app_result = app.run(&mut terminal);

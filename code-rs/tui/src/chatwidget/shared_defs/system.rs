@@ -24,7 +24,6 @@ pub(crate) struct ChatWidgetInit {
     pub(crate) terminal_info: crate::tui::TerminalInfo,
     pub(crate) show_order_overlay: bool,
     pub(crate) latest_upgrade_version: Option<String>,
-    pub(crate) startup_model_migration_notice: Option<crate::model_migration::StartupModelMigrationNotice>,
 }
 
 pub(crate) struct ForkedChatWidgetInit {
@@ -35,7 +34,6 @@ pub(crate) struct ForkedChatWidgetInit {
     pub(crate) terminal_info: crate::tui::TerminalInfo,
     pub(crate) show_order_overlay: bool,
     pub(crate) latest_upgrade_version: Option<String>,
-    pub(crate) startup_model_migration_notice: Option<crate::model_migration::StartupModelMigrationNotice>,
     pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) show_welcome: bool,
 }
