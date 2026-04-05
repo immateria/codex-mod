@@ -29,6 +29,7 @@ impl<M> ModeGuard<M> {
         let _ = self.restore.take();
     }
 
+    #[allow(clippy::expect_used)]
     pub(crate) fn mode_mut(&mut self) -> &mut M {
         self.restore
             .as_mut()

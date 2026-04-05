@@ -102,14 +102,12 @@ impl ModelSelectionView {
             Some(ContextMode::Auto) => "auto",
             Some(ContextMode::Disabled) | None => "disabled",
         };
-        let context_window_index = self
+        let Some(context_window_index) = self
             .data
-            .context_window_entry_index()
-            .expect("context window row");
-        let auto_compact_index = self
+            .context_window_entry_index() else { return };
+        let Some(auto_compact_index) = self
             .data
-            .auto_compact_entry_index()
-            .expect("auto compact row");
+            .auto_compact_entry_index() else { return };
         let context_available = self.data.supports_extended_context();
 
         lines.push(SelectableLineRun::plain(vec![Line::from(vec![Span::styled(

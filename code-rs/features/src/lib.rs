@@ -284,7 +284,7 @@ impl Features {
     }
 
     pub fn apps_enabled_cached(&self, auth_manager: Option<&AuthManager>) -> bool {
-        let auth = auth_manager.and_then(|manager| manager.auth());
+        let auth = auth_manager.and_then(code_login::AuthManager::auth);
         self.apps_enabled_for_auth(auth.as_ref())
     }
 

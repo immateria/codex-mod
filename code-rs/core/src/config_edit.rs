@@ -197,7 +197,7 @@ pub async fn set_feature_flags(
         for (key, value_bool) in updates {
             let previous = features_table
                 .get(key)
-                .and_then(|value| value.as_bool());
+                .and_then(toml_edit::Item::as_bool);
             if previous != Some(*value_bool) {
                 mutated = true;
             }
@@ -382,7 +382,7 @@ pub async fn set_shell_escalation_settings(
 
         let previous = features_table
             .get("shell_zsh_fork")
-            .and_then(|value| value.as_bool());
+            .and_then(toml_edit::Item::as_bool);
         if previous != Some(enabled) {
             mutated = true;
         }
@@ -660,7 +660,7 @@ pub async fn set_plugin_enabled(code_home: &Path, plugin_key: &str, enabled: boo
                 if let Some(entry) = item.as_table_mut() {
                     let previous = entry
                         .get("enabled")
-                        .and_then(|value| value.as_bool());
+                        .and_then(toml_edit::Item::as_bool);
                     if previous != Some(enabled) {
                         mutated = true;
                     }
@@ -763,7 +763,7 @@ pub async fn apply_plugin_config_updates(
                     if let Some(entry) = item.as_table_mut() {
                         let previous = entry
                             .get("enabled")
-                            .and_then(|value| value.as_bool());
+                            .and_then(toml_edit::Item::as_bool);
                         if previous != Some(true) {
                             mutated = true;
                         }

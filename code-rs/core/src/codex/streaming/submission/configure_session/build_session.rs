@@ -346,10 +346,10 @@ impl Runner<'_> {
                     .filter(|layer| layer.disabled_reason.is_none())
                     .filter_map(|layer| match &layer.name {
                         ConfigLayerSource::System { file } => {
-                            file.as_path().parent().map(|parent| parent.to_path_buf())
+                            file.as_path().parent().map(std::path::Path::to_path_buf)
                         }
                         ConfigLayerSource::User { file } => {
-                            file.as_path().parent().map(|parent| parent.to_path_buf())
+                            file.as_path().parent().map(std::path::Path::to_path_buf)
                         }
                         ConfigLayerSource::Project { dot_codex_folder } => {
                             Some(dot_codex_folder.as_path().to_path_buf())

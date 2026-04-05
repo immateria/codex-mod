@@ -937,7 +937,7 @@ pub(crate) async fn handle_container_exec_with_params(
         && params
             .additional_permissions
             .as_ref()
-            .map(|value| value.is_empty())
+            .map(code_protocol::models::PermissionProfile::is_empty)
             .unwrap_or(true)
     {
         return ResponseInputItem::FunctionCallOutput {
@@ -1192,7 +1192,6 @@ pub(crate) async fn handle_container_exec_with_params(
 
 
     // If the argv is a shell wrapper, analyze and optionally strip `confirm:`.
-    let mut params = params;
     let seq_hint_for_exec = seq_hint;
     let otel_event_manager = sess.client.get_otel_event_manager();
     let tool_name = "local_shell";
@@ -2830,20 +2829,18 @@ fn is_network_likely_command(argv: &[String]) -> bool {
         .unwrap_or(&argv[0])
         .to_ascii_lowercase();
     let sub = argv.get(1).map(|s| s.to_ascii_lowercase());
-    match (program.as_str(), sub.as_deref()) {
-        ("git", Some("clone" | "fetch" | "pull" | "push")) => true,
-        ("npm", Some("install" | "add" | "update" | "ci")) => true,
-        ("pnpm", Some("install" | "add" | "update")) => true,
-        ("yarn", Some("install" | "add" | "upgrade")) => true,
-        ("bun", Some("install" | "add" | "update")) => true,
-        ("pip", Some("install")) => true,
-        ("pip3", Some("install")) => true,
-        ("go", Some("get" | "install")) => true,
-        ("cargo", Some("build" | "test" | "install")) => true,
-        ("curl", _) => true,
-        ("wget", _) => true,
-        _ => false,
-    }
+    matches!(
+        (program.as_str(), sub.as_deref()),
+        ("git", Some("clone" | "fetch" | "pull" | "push"))
+            | ("npm", Some("install" | "add" | "update" | "ci"))
+            | ("pnpm", Some("install" | "add" | "update"))
+            | ("yarn", Some("install" | "add" | "upgrade"))
+            | ("bun", Some("install" | "add" | "update"))
+            | ("pip" | "pip3", Some("install"))
+            | ("go", Some("get" | "install"))
+            | ("cargo", Some("build" | "test" | "install"))
+            | ("curl" | "wget", _)
+    )
 }
 
 #[cfg(unix)]

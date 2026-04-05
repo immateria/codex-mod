@@ -43,18 +43,13 @@ pub struct PluginsToml {
     pub marketplace_repos: Vec<PluginMarketplaceRepoToml>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AppsSourcesModeToml {
     ActiveOnly,
+    #[default]
     ActivePlusPinned,
     PinnedOnly,
-}
-
-impl Default for AppsSourcesModeToml {
-    fn default() -> Self {
-        Self::ActivePlusPinned
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]

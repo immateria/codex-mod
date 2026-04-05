@@ -463,8 +463,7 @@
                         let manager = code_core::plugins::PluginsManager::new(code_home);
                         let result = manager
                             .sync_marketplace_sources(&config)
-                            .await
-                            .map_err(|err| err.to_string());
+                            .await;
                         tx.send(AppEvent::PluginMarketplacesSynced {
                             roots,
                             refresh_list_after,
@@ -519,10 +518,10 @@
                                         refresh_roots = widget
                                             .plugins_shared_state()
                                             .lock()
-                                            .unwrap_or_else(|err| err.into_inner())
+                                            .unwrap_or_else(std::sync::PoisonError::into_inner)
                                             .list
                                             .roots()
-                                            .map(|roots| roots.to_vec());
+                                            .map(<[_]>::to_vec);
                                     }
                                     Some(Err(err)) => {
                                         widget.flash_footer_notice(format!(
@@ -585,10 +584,10 @@
                                         refresh_roots = widget
                                             .plugins_shared_state()
                                             .lock()
-                                            .unwrap_or_else(|err| err.into_inner())
+                                            .unwrap_or_else(std::sync::PoisonError::into_inner)
                                             .list
                                             .roots()
-                                            .map(|roots| roots.to_vec());
+                                            .map(<[_]>::to_vec);
                                     }
                                     Some(Err(err)) => {
                                         widget.flash_footer_notice(format!(
@@ -651,10 +650,10 @@
                                         refresh_roots = widget
                                             .plugins_shared_state()
                                             .lock()
-                                            .unwrap_or_else(|err| err.into_inner())
+                                            .unwrap_or_else(std::sync::PoisonError::into_inner)
                                             .list
                                             .roots()
-                                            .map(|roots| roots.to_vec());
+                                            .map(<[_]>::to_vec);
                                     }
                                     Some(Err(err)) => {
                                         widget.flash_footer_notice(format!(
@@ -898,7 +897,7 @@
                             let mut entries = Vec::new();
                             entries.extend(manager.list(Some(&code_secrets::SecretScope::Global))?);
                             entries.extend(manager.list(Some(&code_secrets::SecretScope::Environment(
-                                env_id_for_list.clone(),
+                                env_id_for_list,
                             )))?);
 
                             fn scope_rank(scope: &code_secrets::SecretScope) -> u8 {

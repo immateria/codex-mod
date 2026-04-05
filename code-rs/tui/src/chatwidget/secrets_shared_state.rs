@@ -61,8 +61,8 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn secrets_mark_list_loading(&mut self, env_id: String) {
-        let mut state = self.secrets_shared_state.lock().unwrap_or_else(|err| err.into_inner());
-        state.list = SecretsListState::Loading { env_id: env_id.clone() };
+        let mut state = self.secrets_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        state.list = SecretsListState::Loading { env_id };
         state.action_error = None;
         state.action_in_progress = Some(SecretsActionInProgress::FetchList);
     }
@@ -72,7 +72,7 @@ impl ChatWidget<'_> {
         env_id: String,
         result: Result<SecretsListSnapshot, String>,
     ) {
-        let mut state = self.secrets_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.secrets_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
         if let Some(current_env_id) = state.list.env_id()
             && current_env_id != env_id
@@ -101,7 +101,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn secrets_mark_delete_in_progress(&mut self, env_id: String, entry: SecretListEntry) {
-        let mut state = self.secrets_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.secrets_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_error = None;
         state.action_in_progress = Some(SecretsActionInProgress::Delete { env_id, entry });
     }
@@ -112,7 +112,7 @@ impl ChatWidget<'_> {
         entry: SecretListEntry,
         result: Result<bool, String>,
     ) {
-        let mut state = self.secrets_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.secrets_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
         if let Some(current_env_id) = state.list.env_id()
             && current_env_id != env_id

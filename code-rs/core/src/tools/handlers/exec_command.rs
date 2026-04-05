@@ -151,7 +151,7 @@ impl ToolHandler for ExecCommandToolHandler {
                     if sandbox_permissions.uses_additional_permissions()
                         && additional_permissions
                             .as_ref()
-                            .map(|permissions| permissions.is_empty())
+                            .map(code_protocol::models::PermissionProfile::is_empty)
                             .unwrap_or(true)
                     {
                         return unsupported_tool_call_output(

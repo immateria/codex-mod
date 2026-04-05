@@ -13,7 +13,7 @@ impl SecretsSettingsView {
     fn handle_key_list(&mut self, key_event: KeyEvent) -> bool {
         let snapshot = self.shared_snapshot();
         let entry_count = Self::list_entries(&snapshot)
-            .map(|entries| entries.len())
+            .map(<[_]>::len)
             .unwrap_or(0);
         let row_count = entry_count.max(1);
 

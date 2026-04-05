@@ -279,7 +279,7 @@ impl SessionManager {
             && params
                 .additional_permissions
                 .as_ref()
-                .map(|permissions| permissions.is_empty())
+                .map(code_protocol::models::PermissionProfile::is_empty)
                 .unwrap_or(true)
         {
             return Err(

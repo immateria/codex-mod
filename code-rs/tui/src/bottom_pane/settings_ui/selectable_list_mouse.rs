@@ -41,7 +41,7 @@ pub(crate) fn route_scroll_state_mouse_with_hit_test(
 
     let mut selected = state
         .selected_idx
-        .expect("selected_idx must be Some for non-empty lists");
+        .unwrap_or(0);
     let result = route_selectable_list_mouse_with_config(
         mouse_event,
         &mut selected,
@@ -83,7 +83,7 @@ pub(crate) fn route_scroll_state_mouse_with_hit_test_no_ensure_visible(
 
     let mut selected = state
         .selected_idx
-        .expect("selected_idx must be Some for non-empty lists");
+        .unwrap_or(0);
     let result = route_selectable_list_mouse_with_config(
         mouse_event,
         &mut selected,

@@ -90,7 +90,7 @@ impl MessageProcessor {
             conversation_manager.clone(),
             outgoing.clone(),
             code_linux_sandbox_exe.clone(),
-            config_for_processor.clone(),
+            config_for_processor,
         );
         let session_map: SessionMap = Arc::new(Mutex::new(HashMap::new()));
         Self {
@@ -106,8 +106,8 @@ impl MessageProcessor {
     }
 
     pub(crate) async fn process_request(&mut self, request: JSONRPCRequest) {
-        if let Ok(request_json) = serde_json::to_value(request.clone()) {
-            if let Ok(code_request) = serde_json::from_value::<ClientRequest>(request_json) {
+        if let Ok(request_json) = serde_json::to_value(request.clone())
+            && let Ok(code_request) = serde_json::from_value::<ClientRequest>(request_json) {
                 // If the request is a Codex request, handle it with the Codex
                 // message processor.
                 self.code_message_processor
@@ -115,7 +115,6 @@ impl MessageProcessor {
                     .await;
                 return;
             }
-        }
 
         tracing::trace!("processing JSON-RPC request: {}", request.method);
         // Hold on to the ID so we can respond.
@@ -210,8 +209,8 @@ impl MessageProcessor {
 
         let mut request = request;
 
-        if request.method == mcp_types::InitializeRequest::METHOD {
-            if let Some(params) = request.params.as_mut() {
+        if request.method == mcp_types::InitializeRequest::METHOD
+            && let Some(params) = request.params.as_mut() {
                 if let Some(protocol_version) = params.get_mut("protocolVersion") {
                     if let Some(num) = protocol_version.as_i64() {
                         *protocol_version = serde_json::Value::String(num.to_string());
@@ -250,7 +249,6 @@ impl MessageProcessor {
                     });
                 }
             }
-        }
 
         let client_request = match McpClientRequest::try_from(request) {
             Ok(client_request) => client_request,
@@ -1016,14 +1014,14 @@ impl MessageProcessor {
         let Some(session_entry) = session_entry else {
             let error = JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: format!("unknown session id: {}", acp_session_id),
+                message: format!("unknown session id: {acp_session_id}"),
                 data: None,
             };
             self.outgoing.send_error(request_id, error).await;
             return;
         };
 
-        let session = session_entry.conversation.clone();
+        let session = session_entry.conversation;
 
         let outgoing = self.outgoing.clone();
         let requests_code_map = self.running_requests_id_to_code_uuid.clone();
@@ -1114,7 +1112,7 @@ impl MessageProcessor {
         let Some(entry) = entry else {
             return Err(JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: format!("unknown session id: {}", session_id),
+                message: format!("unknown session id: {session_id}"),
                 data: None,
             });
         };
@@ -1123,7 +1121,7 @@ impl MessageProcessor {
         let selection = match resolve_model_selection(&model_id, &config_guard) {
             Some(selection) => selection,
             None => {
-                let message = format!("unknown model id: {}", model_id.to_string());
+                let message = format!("unknown model id: {model_id}");
                 return Err(JSONRPCErrorError {
                     code: INVALID_REQUEST_ERROR_CODE,
                     message,
@@ -1149,15 +1147,14 @@ impl MessageProcessor {
 
         drop(config_guard);
 
-        if let Some(op) = configure_op {
-            if let Err(err) = entry.conversation.submit(op).await {
+        if let Some(op) = configure_op
+            && let Err(err) = entry.conversation.submit(op).await {
                 return Err(JSONRPCErrorError {
                     code: INTERNAL_ERROR_CODE,
                     message: err.to_string(),
                     data: None,
                 });
             }
-        }
 
         if let Some(models_meta) = models_meta_value {
             let notification = acp::SessionNotification {
@@ -1469,14 +1466,12 @@ fn convert_mcp_servers(
             }
             acp::McpServer::Http { name, .. } => {
                 return Err(anyhow!(
-                    "unsupported MCP transport for server '{}': HTTP servers are not yet supported",
-                    name
+                    "unsupported MCP transport for server '{name}': HTTP servers are not yet supported"
                 ));
             }
             acp::McpServer::Sse { name, .. } => {
                 return Err(anyhow!(
-                    "unsupported MCP transport for server '{}': SSE servers are not yet supported",
-                    name
+                    "unsupported MCP transport for server '{name}': SSE servers are not yet supported"
                 ));
             }
         }
@@ -1568,7 +1563,7 @@ fn session_models_from_config(config: &Config) -> Option<acp::SessionModelState>
     }
 
     Some(acp::SessionModelState {
-        current_model_id: current_model_id.expect("current model id set"),
+        current_model_id: current_model_id?,
         available_models,
         meta: None,
     })

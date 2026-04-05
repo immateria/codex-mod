@@ -179,7 +179,7 @@ fn detail_install_action_emits_install_event() {
     );
     shared_state
         .lock()
-        .unwrap_or_else(|err| err.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .details
         .insert(key.clone(), PluginsDetailState::Ready(outcome));
 
@@ -218,7 +218,7 @@ fn l_when_remote_sync_needs_auth_opens_accounts_then_login() {
     let root = abs("/tmp");
     let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
     {
-        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.list = PluginsListState::Ready {
             roots: vec![root.clone()],
             marketplaces: Vec::new(),
@@ -256,7 +256,7 @@ fn a_when_remote_sync_needs_auth_opens_accounts_settings() {
     let root = abs("/tmp");
     let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
     {
-        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.list = PluginsListState::Ready {
             roots: vec![root.clone()],
             marketplaces: Vec::new(),
@@ -290,7 +290,7 @@ fn l_and_a_are_ignored_when_remote_sync_does_not_need_auth() {
     let root = abs("/tmp");
     let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
     {
-        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.list = PluginsListState::Ready {
             roots: vec![root.clone()],
             marketplaces: Vec::new(),
@@ -321,7 +321,7 @@ fn sources_curated_editor_save_empty_url_clears_curated_fields() {
     let root = abs("/tmp");
     let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
     {
-        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.sources = make_sources(
             Some("https://example.com/curated.git"),
             Some("stable"),
@@ -414,7 +414,7 @@ fn sources_delete_repo_confirm_flow_emits_set_sources_with_repo_removed() {
     let root = abs("/tmp");
     let shared_state = make_shared_state_ready(vec![root.clone()], Vec::new());
     {
-        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.sources = make_sources(
             None,
             None,

@@ -51,8 +51,8 @@ impl AppsSettingsView {
         shared_state: Arc<Mutex<AppsSharedState>>,
         app_event_tx: AppEventSender,
     ) -> Self {
-        let snapshot = shared_state.lock().unwrap_or_else(|err| err.into_inner()).clone();
-        let baseline_sources = snapshot.sources_snapshot.clone();
+        let snapshot = shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+        let baseline_sources = snapshot.sources_snapshot;
         let draft_sources = baseline_sources.clone();
 
         let mut list_state = ScrollState::new();
@@ -91,7 +91,7 @@ impl AppsSettingsView {
         let snapshot = self
             .shared_state
             .lock()
-            .unwrap_or_else(|err| err.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         if self.sources_dirty {
             // If the shared snapshot caught up to our draft (save completed),

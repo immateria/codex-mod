@@ -64,8 +64,8 @@ impl PluginsSettingsView {
                 self.focused_detail_button = DetailAction::Back;
                 self.hovered_detail_button = None;
                 self.request_plugin_detail(PluginReadRequest {
-                    plugin_name: key.plugin_name.clone(),
-                    marketplace_path: key.marketplace_path.clone(),
+                    plugin_name: key.plugin_name,
+                    marketplace_path: key.marketplace_path,
                 });
                 true
             }
@@ -217,8 +217,8 @@ impl PluginsSettingsView {
             DetailAction::Install => {
                 self.request_install_plugin(
                     PluginInstallRequest {
-                        plugin_name: key.plugin_name.clone(),
-                        marketplace_path: key.marketplace_path.clone(),
+                        plugin_name: key.plugin_name,
+                        marketplace_path: key.marketplace_path,
                     },
                     /*force_remote_sync*/ false,
                 );
@@ -226,7 +226,7 @@ impl PluginsSettingsView {
             }
             DetailAction::Uninstall => {
                 self.mode = Mode::ConfirmUninstall {
-                    plugin_id_key: outcome.plugin.id.clone(),
+                    plugin_id_key: outcome.plugin.id,
                     key,
                 };
                 self.focused_confirm_button = ConfirmAction::Cancel;
@@ -234,11 +234,11 @@ impl PluginsSettingsView {
                 true
             }
             DetailAction::Enable => {
-                self.request_set_plugin_enabled(outcome.plugin.id.clone(), true);
+                self.request_set_plugin_enabled(outcome.plugin.id, true);
                 true
             }
             DetailAction::Disable => {
-                self.request_set_plugin_enabled(outcome.plugin.id.clone(), false);
+                self.request_set_plugin_enabled(outcome.plugin.id, false);
                 true
             }
         }
@@ -352,7 +352,7 @@ impl PluginsSettingsView {
                 let idx = self.selected_sources_row_index(row_count);
                 match idx {
                     0 => {
-                        let mut sources = snapshot.sources.clone();
+                        let mut sources = snapshot.sources;
                         sources.curated_repo_url = None;
                         sources.curated_repo_ref = None;
                         self.request_set_plugin_marketplace_sources(sources);
@@ -439,7 +439,7 @@ impl PluginsSettingsView {
 
     pub(super) fn save_sources_editor(&mut self, mode: SourcesMode) -> bool {
         let snapshot = self.shared_snapshot();
-        let mut sources = snapshot.sources.clone();
+        let mut sources = snapshot.sources;
         self.sources_editor.error = None;
 
         match mode {
@@ -508,7 +508,7 @@ impl PluginsSettingsView {
                 }
                 SourcesConfirmRemoveAction::Delete => {
                     let snapshot = self.shared_snapshot();
-                    let mut sources = snapshot.sources.clone();
+                    let mut sources = snapshot.sources;
                     if index < sources.marketplace_repos.len() {
                         sources.marketplace_repos.remove(index);
                         self.request_set_plugin_marketplace_sources(sources);

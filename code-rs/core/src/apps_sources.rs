@@ -36,10 +36,10 @@ pub fn effective_source_account_ids(
         AppsSourcesModeToml::ActiveOnly | AppsSourcesModeToml::ActivePlusPinned => true,
         AppsSourcesModeToml::PinnedOnly => false,
     };
-    if include_active {
-        if let Some(active) = active_account_id.map(str::trim).filter(|id| !id.is_empty()) {
-            ids.push(active.to_string());
-        }
+    if include_active
+        && let Some(active) = active_account_id.map(str::trim).filter(|id| !id.is_empty())
+    {
+        ids.push(active.to_string());
     }
 
     if !matches!(sources.mode, AppsSourcesModeToml::ActiveOnly) {

@@ -64,7 +64,7 @@ fn r_requests_status_refresh_for_effective_sources() {
 fn l_in_detail_mode_only_handles_when_needs_login() {
     let shared_state = make_shared_state();
     {
-        let mut state = shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.status_by_account_id.insert(
             "acc1".to_string(),
             AppsAccountStatusState::Failed {

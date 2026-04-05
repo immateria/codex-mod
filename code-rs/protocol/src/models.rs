@@ -66,8 +66,8 @@ pub struct FileSystemPermissions {
 
 impl FileSystemPermissions {
     pub fn is_empty(&self) -> bool {
-        self.read.as_ref().map_or(true, Vec::is_empty)
-            && self.write.as_ref().map_or(true, Vec::is_empty)
+        self.read.as_ref().is_none_or(Vec::is_empty)
+            && self.write.as_ref().is_none_or(Vec::is_empty)
     }
 }
 

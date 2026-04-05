@@ -161,6 +161,7 @@ impl MessageProcessor {
 
         // Prefer the legacy initialize params for the `opt_out_notification_methods` extension.
         if request.method == "initialize" {
+            #[allow(clippy::collapsible_match, clippy::single_match)]
             if let Ok(code_request) =
                 serde_json::from_value::<LegacyClientRequest>(request_json.clone())
             {
@@ -744,9 +745,11 @@ impl MessageProcessor {
     }
 
     fn load_effective_config(&self, cwd: Option<&str>) -> Result<Config, JSONRPCErrorError> {
-        let mut overrides = code_core::config::ConfigOverrides::default();
-        overrides.code_linux_sandbox_exe = self.base_config.code_linux_sandbox_exe.clone();
-        overrides.cwd = cwd.map(PathBuf::from);
+        let overrides = code_core::config::ConfigOverrides {
+            code_linux_sandbox_exe: self.base_config.code_linux_sandbox_exe.clone(),
+            cwd: cwd.map(PathBuf::from),
+            ..Default::default()
+        };
 
         Config::load_with_cli_overrides(self.cli_overrides.clone(), overrides).map_err(|err| {
             JSONRPCErrorError {
@@ -995,7 +998,10 @@ fn set_toml_path(root: &mut TomlValue, key_path: &str, value: TomlValue) -> Resu
         }
         let table = current
             .as_table_mut()
-            .expect("table should exist after conversion");
+            .ok_or_else(|| config_write_error(
+                ConfigWriteErrorCode::ConfigPathNotFound,
+                "internal error: expected table after conversion",
+            ))?;
         current = table
             .entry((*segment).to_string())
             .or_insert_with(|| TomlValue::Table(Default::default()));
@@ -1006,12 +1012,18 @@ fn set_toml_path(root: &mut TomlValue, key_path: &str, value: TomlValue) -> Resu
     }
     let table = current
         .as_table_mut()
-        .expect("table should exist after conversion");
+        .ok_or_else(|| config_write_error(
+            ConfigWriteErrorCode::ConfigPathNotFound,
+            "internal error: expected table after conversion",
+        ))?;
+    let key = segments
+        .last()
+        .ok_or_else(|| config_write_error(
+            ConfigWriteErrorCode::ConfigPathNotFound,
+            "Config key path must not be empty",
+        ))?;
     table.insert(
-        segments
-            .last()
-            .expect("segments cannot be empty")
-            .to_string(),
+        key.to_string(),
         value,
     );
 
@@ -1038,7 +1050,10 @@ fn upsert_toml_path(
         }
         let table = current
             .as_table_mut()
-            .expect("table should exist after conversion");
+            .ok_or_else(|| config_write_error(
+                ConfigWriteErrorCode::ConfigPathNotFound,
+                "internal error: expected table after conversion",
+            ))?;
         current = table
             .entry((*segment).to_string())
             .or_insert_with(|| TomlValue::Table(Default::default()));
@@ -1050,10 +1065,16 @@ fn upsert_toml_path(
 
     let table = current
         .as_table_mut()
-        .expect("table should exist after conversion");
+        .ok_or_else(|| config_write_error(
+            ConfigWriteErrorCode::ConfigPathNotFound,
+            "internal error: expected table after conversion",
+        ))?;
     let key = segments
         .last()
-        .expect("segments cannot be empty")
+        .ok_or_else(|| config_write_error(
+            ConfigWriteErrorCode::ConfigPathNotFound,
+            "Config key path must not be empty",
+        ))?
         .to_string();
     if let Some(existing) = table.get_mut(&key) {
         merge_toml_values(existing, value);

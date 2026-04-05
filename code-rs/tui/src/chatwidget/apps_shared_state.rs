@@ -71,13 +71,13 @@ impl ChatWidget<'_> {
         active_profile: Option<String>,
         sources: AppsSourcesToml,
     ) {
-        let mut state = self.apps_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.active_profile = active_profile;
         state.sources_snapshot = sources;
     }
 
     pub(crate) fn apps_set_accounts_snapshot(&mut self, accounts: Vec<AppsAccountSnapshot>) {
-        let mut state = self.apps_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.accounts_snapshot = accounts;
     }
 
@@ -86,7 +86,7 @@ impl ChatWidget<'_> {
         account_ids: &[String],
         force_refresh_tools: bool,
     ) {
-        let mut state = self.apps_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         for id in account_ids {
             state
                 .status_by_account_id
@@ -102,7 +102,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn apps_take_pending_status_refresh_account_ids(&mut self) -> Option<Vec<String>> {
-        let mut state = self.apps_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.pending_status_refresh_account_ids.take()
     }
 
@@ -112,7 +112,7 @@ impl ChatWidget<'_> {
         result: Result<AppsStatusSnapshot, String>,
         needs_login: bool,
     ) {
-        let mut state = self.apps_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         match result {
             Ok(snapshot) => {
                 state.status_by_account_id.insert(
@@ -147,18 +147,18 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn apps_set_action_in_progress(&mut self, action: AppsActionInProgress) {
-        let mut state = self.apps_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_in_progress = Some(action);
         state.action_error = None;
     }
 
     pub(crate) fn apps_clear_action_in_progress(&mut self) {
-        let mut state = self.apps_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_in_progress = None;
     }
 
     pub(crate) fn apps_set_action_error(&mut self, error: Option<String>) {
-        let mut state = self.apps_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.apps_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_error = error;
     }
 

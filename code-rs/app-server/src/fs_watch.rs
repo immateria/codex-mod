@@ -144,10 +144,10 @@ impl FsWatchManager {
                 Ok(mut next_watcher) => {
                     // Keep parity with upstream: if the path does not exist, the watch still
                     // succeeds but emits no notifications.
-                    if watch_root.exists() {
-                        if let Err(err) = next_watcher.watch(&watch_root, RecursiveMode::NonRecursive) {
-                            warn!("failed to watch {}: {err}", watch_root.display());
-                        }
+                    if watch_root.exists()
+                        && let Err(err) = next_watcher.watch(&watch_root, RecursiveMode::NonRecursive)
+                    {
+                        warn!("failed to watch {}: {err}", watch_root.display());
                     }
                     watcher = Some(next_watcher);
 

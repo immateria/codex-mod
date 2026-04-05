@@ -205,7 +205,7 @@ impl LocalSecretsBackend {
                                     }) =>
                             {
                                 read_passphrase_file(&passphrase_path)?
-                                    .ok_or_else(|| err)
+                                    .ok_or(err)
                             }
                             Err(err) => Err(err),
                         }

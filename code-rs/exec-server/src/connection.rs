@@ -198,7 +198,7 @@ impl JsonRpcConnection {
             while let Some(message) = outgoing_rx.recv().await {
                 match serialize_jsonrpc_message(&message) {
                     Ok(encoded) => {
-                        if let Err(err) = websocket_writer.send(Message::Text(encoded.into())).await
+                        if let Err(err) = websocket_writer.send(Message::Text(encoded)).await
                         {
                             send_disconnected(
                                 &incoming_tx,

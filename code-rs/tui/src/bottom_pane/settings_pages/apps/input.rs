@@ -22,7 +22,7 @@ impl AppsSettingsView {
         let snapshot = self
             .shared_state
             .lock()
-            .unwrap_or_else(|err| err.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         let account_count = snapshot.accounts_snapshot.len();
 
@@ -134,7 +134,7 @@ impl AppsSettingsView {
                 let snapshot = self
                     .shared_state
                     .lock()
-                    .unwrap_or_else(|err| err.into_inner())
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .clone();
                 let needs_login = match snapshot.status_by_account_id.get(&account_id) {
                     Some(crate::chatwidget::AppsAccountStatusState::Failed { needs_login, .. }) => *needs_login,

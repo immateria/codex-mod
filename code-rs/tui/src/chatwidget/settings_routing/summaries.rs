@@ -83,7 +83,7 @@ impl ChatWidget<'_> {
         let state = self
             .apps_shared_state
             .lock()
-            .unwrap_or_else(|err| err.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let pins = state.sources_snapshot.pinned_account_ids.len();
         let mode = match state.sources_snapshot.mode {
             code_core::config_types::AppsSourcesModeToml::ActiveOnly => "active_only",
@@ -97,7 +97,7 @@ impl ChatWidget<'_> {
         let state = self
             .plugins_shared_state
             .lock()
-            .unwrap_or_else(|err| err.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
 
         match &state.list {
             crate::chatwidget::PluginsListState::Uninitialized => {
@@ -364,7 +364,7 @@ impl ChatWidget<'_> {
         let state = self
             .secrets_shared_state
             .lock()
-            .unwrap_or_else(|err| err.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
 
         match &state.list {
             crate::chatwidget::SecretsListState::Uninitialized => {

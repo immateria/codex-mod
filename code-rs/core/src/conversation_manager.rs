@@ -156,7 +156,7 @@ impl ConversationManager {
     pub async fn loaded_conversation_ids(&self) -> Vec<ConversationId> {
         let conversations = self.conversations.read().await;
         let mut ids: Vec<ConversationId> = conversations.keys().copied().collect();
-        ids.sort_by_key(|id| id.to_string());
+        ids.sort_by_key(ToString::to_string);
         ids
     }
 

@@ -14,7 +14,7 @@ impl AppsSettingsView {
     pub(super) fn shared_snapshot(&self) -> AppsSharedState {
         self.shared_state
             .lock()
-            .unwrap_or_else(|err| err.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
 

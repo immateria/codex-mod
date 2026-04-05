@@ -112,28 +112,28 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn plugins_set_action_in_progress(&mut self, action: PluginsActionInProgress) {
-        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_in_progress = Some(action);
         state.action_error = None;
     }
 
     pub(crate) fn plugins_clear_action_in_progress(&mut self) {
-        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_in_progress = None;
     }
 
     pub(crate) fn plugins_set_action_error(&mut self, error: Option<String>) {
-        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.action_error = error;
     }
 
     pub(crate) fn plugins_set_sources_snapshot(&mut self, sources: PluginsToml) {
-        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.sources = sources;
     }
 
     pub(crate) fn plugins_set_sources_sync_status(&mut self, in_progress: bool, error: Option<String>) {
-        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.sources_sync_in_progress = in_progress;
         state.sources_sync_error = error;
     }
@@ -143,7 +143,7 @@ impl ChatWidget<'_> {
         roots: Vec<AbsolutePathBuf>,
         force_remote_sync: bool,
     ) {
-        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state.list = PluginsListState::Loading {
             roots,
             force_remote_sync,
@@ -157,7 +157,7 @@ impl ChatWidget<'_> {
         roots: Vec<AbsolutePathBuf>,
         result: Result<PluginListSnapshot, String>,
     ) {
-        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
         // Ignore stale responses (roots changed since request).
         if let Some(current_roots) = state.list.roots()
@@ -188,7 +188,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn plugins_mark_detail_loading(&mut self, key: PluginDetailKey) {
-        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         state
             .details
             .insert(key.clone(), PluginsDetailState::Loading);
@@ -201,7 +201,7 @@ impl ChatWidget<'_> {
         key: PluginDetailKey,
         result: Result<PluginReadOutcome, String>,
     ) {
-        let mut state = self.plugins_shared_state.lock().unwrap_or_else(|err| err.into_inner());
+        let mut state = self.plugins_shared_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
         match result {
             Ok(outcome) => {

@@ -207,8 +207,7 @@ impl InterfaceSettingsView {
             .parse()
             .map_err(|_| {
                 format!(
-                    "Enter a number ({}-{} columns), e.g. 100.",
-                    OVERLAY_MIN_WIDTH_MIN, OVERLAY_MIN_WIDTH_MAX
+                    "Enter a number ({OVERLAY_MIN_WIDTH_MIN}-{OVERLAY_MIN_WIDTH_MAX} columns), e.g. 100."
                 )
             })?;
         // Keep sane bounds so accidental paste doesn't make it unusable.

@@ -544,7 +544,6 @@ pub(super) async fn preflight_turn_skill_input(
         for path in crate::mentions::extract_tool_mentions(message.as_str())
             .paths
             .iter()
-            .copied()
         {
             if let Some(name) = path.strip_prefix("plugin://").filter(|name| !name.is_empty()) {
                 mentioned_plugins.insert(name.to_string());
@@ -557,7 +556,6 @@ pub(super) async fn preflight_turn_skill_input(
         )
         .paths
         .iter()
-        .copied()
         {
             if let Some(name) = path.strip_prefix("plugin://").filter(|name| !name.is_empty()) {
                 mentioned_plugins.insert(name.to_string());

@@ -76,7 +76,7 @@ impl SecretsSettingsView {
             let snapshot = view
                 .shared_state
                 .lock()
-                .unwrap_or_else(|err| err.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             match &snapshot.list {
                 crate::chatwidget::SecretsListState::Uninitialized => true,
                 crate::chatwidget::SecretsListState::Loading { env_id }
@@ -114,7 +114,7 @@ impl SecretsSettingsView {
     fn shared_snapshot(&self) -> SecretsSharedState {
         self.shared_state
             .lock()
-            .unwrap_or_else(|err| err.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
 

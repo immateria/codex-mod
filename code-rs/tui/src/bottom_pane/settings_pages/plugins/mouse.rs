@@ -104,8 +104,8 @@ impl PluginsSettingsView {
                 self.focused_detail_button = DetailAction::Back;
                 self.hovered_detail_button = None;
                 self.request_plugin_detail(PluginReadRequest {
-                    plugin_name: key.plugin_name.clone(),
-                    marketplace_path: key.marketplace_path.clone(),
+                    plugin_name: key.plugin_name,
+                    marketplace_path: key.marketplace_path,
                 });
                 return true;
             }

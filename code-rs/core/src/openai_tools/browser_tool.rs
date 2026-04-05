@@ -10,7 +10,7 @@ pub(super) fn create_browser_tool(browser_enabled: bool) -> OpenAiTool {
     #[cfg(feature = "browser-automation")]
     let mut actions = vec!["open", "status", "fetch"];
     #[cfg(not(feature = "browser-automation"))]
-    let actions = vec!["status", "fetch"];
+    let actions = ["status", "fetch"];
 
     #[cfg(feature = "browser-automation")]
     if browser_enabled {
