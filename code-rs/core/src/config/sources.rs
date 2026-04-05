@@ -1337,6 +1337,18 @@ pub fn set_tui_theme_name(code_home: &Path, theme: ThemeName) -> anyhow::Result<
         ThemeName::Custom => "custom",
     };
 
+    // Ensure `[tui.theme]` is a table before writing to it. Older configs may
+    // store `tui.theme = "…"`.
+    {
+        use toml_edit::Item as It;
+        if !doc["tui"].is_table() {
+            doc["tui"] = It::Table(toml_edit::Table::new());
+        }
+        if !doc["tui"]["theme"].is_table() {
+            doc["tui"]["theme"] = It::Table(toml_edit::Table::new());
+        }
+    }
+
     // Write `[tui.theme].name = "…"`
     doc["tui"]["theme"]["name"] = toml_edit::value(theme_str);
     // When switching away from the Custom theme, clear any lingering custom

@@ -2204,7 +2204,7 @@ impl Default for SettingsMenuConfig {
 #[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct Tui {
     /// Theme configuration for the TUI
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_theme_config")]
     pub theme: ThemeConfig,
 
     /// Branding text shown in the top header and intro animation.
@@ -2314,6 +2314,66 @@ pub struct Tui {
     /// Keyboard shortcut preferences (for status line quick actions).
     #[serde(default)]
     pub hotkeys: TuiHotkeysConfig,
+}
+
+fn deserialize_theme_config<'de, D>(deserializer: D) -> Result<ThemeConfig, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum ThemeConfigCompat {
+        Name(String),
+        Table(ThemeConfig),
+    }
+
+    fn parse_legacy_name(value: &str) -> Option<ThemeName> {
+        let normalized = value.trim().to_ascii_lowercase().replace('_', "-");
+        let normalized = normalized.as_str();
+        match normalized {
+            // Explicit "auto" means "use defaults" (which may be overridden by
+            // terminal background autodetect at runtime).
+            "auto" => Some(ThemeName::default()),
+            "light-photon" => Some(ThemeName::LightPhoton),
+            "light-photon-ansi16" => Some(ThemeName::LightPhotonAnsi16),
+            "light-prism-rainbow" => Some(ThemeName::LightPrismRainbow),
+            "light-vivid-triad" => Some(ThemeName::LightVividTriad),
+            "light-porcelain" => Some(ThemeName::LightPorcelain),
+            "light-sandbar" => Some(ThemeName::LightSandbar),
+            "light-glacier" => Some(ThemeName::LightGlacier),
+            "dark-carbon-night" => Some(ThemeName::DarkCarbonNight),
+            "dark-carbon-ansi16" => Some(ThemeName::DarkCarbonAnsi16),
+            "dark-shinobi-dusk" => Some(ThemeName::DarkShinobiDusk),
+            "dark-oled-black-pro" => Some(ThemeName::DarkOledBlackPro),
+            "dark-amber-terminal" => Some(ThemeName::DarkAmberTerminal),
+            "dark-aurora-flux" => Some(ThemeName::DarkAuroraFlux),
+            "dark-charcoal-rainbow" => Some(ThemeName::DarkCharcoalRainbow),
+            "dark-zen-garden" => Some(ThemeName::DarkZenGarden),
+            "dark-paper-light-pro" => Some(ThemeName::DarkPaperLightPro),
+            "custom" => Some(ThemeName::Custom),
+            _ => None,
+        }
+    }
+
+    match ThemeConfigCompat::deserialize(deserializer) {
+        Ok(ThemeConfigCompat::Table(cfg)) => Ok(cfg),
+        Ok(ThemeConfigCompat::Name(name)) => {
+            let parsed = parse_legacy_name(&name);
+            if parsed.is_none() {
+                tracing::warn!(
+                    "Ignoring invalid legacy tui.theme value `{name}`; using default theme"
+                );
+            }
+            Ok(ThemeConfig {
+                name: parsed.unwrap_or_default(),
+                ..Default::default()
+            })
+        }
+        Err(err) => {
+            tracing::warn!("Ignoring invalid tui.theme config; using default theme ({err})");
+            Ok(ThemeConfig::default())
+        }
+    }
 }
 
 /// Branding options under `[tui.branding]`.
@@ -3623,5 +3683,41 @@ mod tests {
                 .contains("oauth_resource is not supported for stdio"),
             "unexpected error: {err}"
         );
+    }
+
+    #[test]
+    fn tui_theme_accepts_legacy_string_and_falls_back_on_unknown() {
+        #[derive(serde::Deserialize)]
+        struct Wrapper {
+            #[serde(default)]
+            tui: Tui,
+        }
+
+        let cfg: Wrapper = serde_json::from_value(serde_json::json!({
+            "tui": { "theme": "dracula" }
+        }))
+        .expect("should not fail to deserialize legacy theme string");
+        assert_eq!(cfg.tui.theme.name, ThemeName::LightPhoton);
+
+        let cfg: Wrapper = serde_json::from_value(serde_json::json!({
+            "tui": { "theme": "dark-carbon-night" }
+        }))
+        .expect("should deserialize known legacy theme string");
+        assert_eq!(cfg.tui.theme.name, ThemeName::DarkCarbonNight);
+    }
+
+    #[test]
+    fn tui_theme_falls_back_on_invalid_table() {
+        #[derive(serde::Deserialize)]
+        struct Wrapper {
+            #[serde(default)]
+            tui: Tui,
+        }
+
+        let cfg: Wrapper = serde_json::from_value(serde_json::json!({
+            "tui": { "theme": { "name": "dracula" } }
+        }))
+        .expect("should not fail to deserialize invalid theme config table");
+        assert_eq!(cfg.tui.theme.name, ThemeName::LightPhoton);
     }
 }
