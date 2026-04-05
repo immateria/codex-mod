@@ -898,10 +898,8 @@ struct KillOnDrop {
 impl KillOnDrop {
     fn new(child: Child) -> Self { Self { child: Some(child) } }
     fn as_mut(&mut self) -> &mut Child {
-        match self.child.as_mut() {
-            Some(child) => child,
-            None => panic!("child present"),
-        }
+        #[allow(clippy::expect_used)]
+        self.child.as_mut().expect("KillOnDrop: child already taken via disarm()")
     }
     fn disarm(&mut self) { self.child = None; }
 }

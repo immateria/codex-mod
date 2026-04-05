@@ -232,7 +232,7 @@ pub(super) fn sanitize_json_schema(value: &mut JsonValue) {
             }
             // If we still couldn't infer, default to string
             let ty = ty.unwrap_or_else(|| "string".to_string());
-            map.insert("type".to_string(), JsonValue::String(ty.to_string()));
+            map.insert("type".to_string(), JsonValue::String(ty.clone()));
 
             // Ensure object schemas have properties map
             if ty == "object" {

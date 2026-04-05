@@ -522,10 +522,10 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     }
                 }
                 // Trim leading/trailing blank lines
-                let mut s = out.join("\n");
-                while s.starts_with('\n') { s.remove(0); }
-                while s.ends_with('\n') { s.pop(); }
-                s
+                let s = out.join("\n");
+                let s = s.trim_start_matches('\n');
+                let s = s.trim_end_matches('\n');
+                s.to_string()
             }
 
             // Domain-specific: extract rich content from GitHub issue/PR pages
@@ -659,15 +659,16 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 }
 
                 // Compose readable markdown
+                use std::fmt::Write;
                 let mut out = String::new();
-                if let Some(t) = title { out.push_str(&format!("# {t}\n\n")); }
-                if let (Some(by), Some(at)) = (opened_by, opened_at) { out.push_str(&format!("Opened by {by} on {at}\n\n")); }
-                if let (Some(s), _) = (state, state_reason) { out.push_str(&format!("State: {s}\n\n")); }
-                if let Some(body) = issue_body_md { out.push_str(&format!("{body}\n\n")); }
+                if let Some(t) = title { let _ = write!(out, "# {t}\n\n"); }
+                if let (Some(by), Some(at)) = (opened_by, opened_at) { let _ = write!(out, "Opened by {by} on {at}\n\n"); }
+                if let (Some(s), _) = (state, state_reason) { let _ = write!(out, "State: {s}\n\n"); }
+                if let Some(body) = issue_body_md { let _ = write!(out, "{body}\n\n"); }
                 if !comments.is_empty() {
                     out.push_str("## Comments\n\n");
                     for (author, created, body) in comments {
-                        out.push_str(&format!("- {author} — {created}\n\n{body}\n\n"));
+                        let _ = write!(out, "- {author} — {created}\n\n{body}\n\n");
                     }
                 }
                 Some(out)

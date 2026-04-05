@@ -79,7 +79,11 @@ impl ChatWidget<'_> {
     }
 
     fn collect_placeholder_image_items(&mut self, text: &str) -> Option<Vec<InputItem>> {
-        let placeholder_regex = regex_lite::Regex::new(r"\[image: [^\]]+\]").ok()?;
+        static PLACEHOLDER_REGEX: std::sync::OnceLock<Option<regex_lite::Regex>> =
+            std::sync::OnceLock::new();
+        let placeholder_regex = PLACEHOLDER_REGEX
+            .get_or_init(|| regex_lite::Regex::new(r"\[image: [^\]]+\]").ok())
+            .as_ref()?;
         let mut ordered_items: Vec<InputItem> = Vec::new();
         let mut cursor = 0usize;
 

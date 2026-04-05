@@ -23,17 +23,19 @@ pub fn ansi_escape(s: &str) -> Text<'static> {
     // such that it's not worth it.
     match s.into_text() {
         Ok(text) => text,
-        Err(err) => match err {
-            Error::NomError(message) => {
-                tracing::error!(
-                    "ansi_to_tui NomError docs claim should never happen when parsing `{s}`: {message}"
-                );
-                panic!();
+        Err(err) => {
+            match &err {
+                Error::NomError(message) => {
+                    tracing::error!(
+                        "ansi_to_tui NomError docs claim should never happen when parsing `{s}`: {message}"
+                    );
+                }
+                Error::Utf8Error(utf8error) => {
+                    tracing::error!("Utf8Error: {utf8error}");
+                }
             }
-            Error::Utf8Error(utf8error) => {
-                tracing::error!("Utf8Error: {utf8error}");
-                panic!();
-            }
-        },
+            // Return the raw string as plain text instead of crashing.
+            Text::raw(s.to_string())
+        }
     }
 }

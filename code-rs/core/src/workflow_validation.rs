@@ -72,11 +72,16 @@ pub fn maybe_run_actionlint(
     let temp_root = temp.path();
     let temp_github = temp_root.join(".github");
     let temp_workflows = temp_github.join("workflows");
-    let _ = fs::create_dir_all(&temp_workflows);
+    if let Err(e) = fs::create_dir_all(&temp_workflows) {
+        tracing::warn!("workflow validation: failed to create temp workflows dir: {e}");
+        return None;
+    }
 
     let source_github = cwd.join(".github");
     if source_github.exists() {
-        let _ = copy_dir_recursive(&source_github, &temp_github);
+        if let Err(e) = copy_dir_recursive(&source_github, &temp_github) {
+            tracing::warn!("workflow validation: failed to copy .github dir: {e}");
+        }
     }
 
     for (path, change) in action.changes() {
@@ -149,7 +154,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
             if let Some(parent) = target.parent() {
                 fs::create_dir_all(parent)?;
             }
-            let _ = fs::copy(entry.path(), &target);
+            fs::copy(entry.path(), &target)?;
         } else if file_type.is_symlink() {
             copy_symlink(&entry.path(), &target)?;
         }
