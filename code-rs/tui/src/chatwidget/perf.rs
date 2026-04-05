@@ -126,9 +126,9 @@ impl PerfStats {
         if !top_total.is_empty() {
             out.push_str("\n\n  hot items (total height, cache misses):\n");
             for ((idx, w), stat) in top_total.into_iter().take(5) {
-                let _ = write!(
+                let _ = writeln!(
                     out,
-                    "    (idx={idx}, width={w}) calls={} time={:.2}ms\n",
+                    "    (idx={idx}, width={w}) calls={} time={:.2}ms",
                     stat.calls,
                     (stat.ns as f64) / 1_000_000.0,
                 );
@@ -138,9 +138,9 @@ impl PerfStats {
         if !top_render.is_empty() {
             out.push_str("\n  hot items (render visible, cache misses):\n");
             for ((idx, w), stat) in top_render.into_iter().take(5) {
-                let _ = write!(
+                let _ = writeln!(
                     out,
-                    "    (idx={idx}, width={w}) calls={} time={:.2}ms\n",
+                    "    (idx={idx}, width={w}) calls={} time={:.2}ms",
                     stat.calls,
                     (stat.ns as f64) / 1_000_000.0,
                 );
@@ -153,9 +153,9 @@ impl PerfStats {
             v.sort_by_key(|(_, s)| std::cmp::Reverse(s.ns));
             out.push_str("\n  by kind (total height):\n");
             for (k, s) in v.into_iter().take(5) {
-                let _ = write!(
+                let _ = writeln!(
                     out,
-                    "    {k} calls={} time={:.2}ms\n",
+                    "    {k} calls={} time={:.2}ms",
                     s.calls,
                     (s.ns as f64) / 1_000_000.0,
                 );
@@ -167,9 +167,9 @@ impl PerfStats {
             v.sort_by_key(|(_, s)| std::cmp::Reverse(s.ns));
             out.push_str("\n  by kind (render visible):\n");
             for (k, s) in v.into_iter().take(5) {
-                let _ = write!(
+                let _ = writeln!(
                     out,
-                    "    {k} calls={} time={:.2}ms\n",
+                    "    {k} calls={} time={:.2}ms",
                     s.calls,
                     (s.ns as f64) / 1_000_000.0,
                 );

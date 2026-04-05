@@ -24,8 +24,9 @@ pub(crate) struct ConnectedAppSummary {
     pub(crate) tool_count: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) enum AppsAccountStatusState {
+    #[default]
     Uninitialized,
     Loading,
     Ready {
@@ -36,12 +37,6 @@ pub(crate) enum AppsAccountStatusState {
         error: String,
         needs_login: bool,
     },
-}
-
-impl Default for AppsAccountStatusState {
-    fn default() -> Self {
-        Self::Uninitialized
-    }
 }
 
 #[derive(Debug, Clone)]

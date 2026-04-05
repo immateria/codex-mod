@@ -6,8 +6,9 @@ use crate::app_event::SecretsListSnapshot;
 
 use super::ChatWidget;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) enum SecretsListState {
+    #[default]
     Uninitialized,
     Loading {
         env_id: String,
@@ -20,12 +21,6 @@ pub(crate) enum SecretsListState {
         env_id: String,
         error: String,
     },
-}
-
-impl Default for SecretsListState {
-    fn default() -> Self {
-        Self::Uninitialized
-    }
 }
 
 impl SecretsListState {

@@ -306,8 +306,8 @@ impl MergeRepoState {
             worktree_path = self.worktree_path.display(),
             worktree_branch = self.worktree_branch.as_str(),
         );
-        let _ = write!(preface,
-            "   - Run worktree commands as `git -C {worktree_path}` (or `cd {worktree_path} && ...`) so they execute inside the worktree.\n",
+        let _ = writeln!(preface,
+            "   - Run worktree commands as `git -C {worktree_path}` (or `cd {worktree_path} && ...`) so they execute inside the worktree.",
             worktree_path = self.worktree_path.display(),
         );
         if let Some(ref default_branch) = self.default_branch {

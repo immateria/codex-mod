@@ -24,8 +24,9 @@ impl PluginDetailKey {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) enum PluginsListState {
+    #[default]
     Uninitialized,
     Loading {
         roots: Vec<AbsolutePathBuf>,
@@ -45,12 +46,6 @@ pub(crate) enum PluginsListState {
     },
 }
 
-impl Default for PluginsListState {
-    fn default() -> Self {
-        Self::Uninitialized
-    }
-}
-
 impl PluginsListState {
     pub(crate) fn roots(&self) -> Option<&[AbsolutePathBuf]> {
         match self {
@@ -62,18 +57,13 @@ impl PluginsListState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) enum PluginsDetailState {
+    #[default]
     Uninitialized,
     Loading,
     Ready(PluginReadOutcome),
     Failed(String),
-}
-
-impl Default for PluginsDetailState {
-    fn default() -> Self {
-        Self::Uninitialized
-    }
 }
 
 #[derive(Debug, Clone)]

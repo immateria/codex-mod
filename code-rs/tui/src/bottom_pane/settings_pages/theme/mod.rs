@@ -152,18 +152,14 @@ mod render_overview;
 mod render_spinner;
 mod render_themes;
 
+#[derive(Default)]
 enum Mode {
+    #[default]
     Overview,
     Themes,
     Spinner,
     CreateSpinner(Box<CreateState>),
     CreateTheme(Box<CreateThemeState>),
-}
-
-impl Default for Mode {
-    fn default() -> Self {
-        Mode::Overview
-    }
 }
 
 struct CreateState {
