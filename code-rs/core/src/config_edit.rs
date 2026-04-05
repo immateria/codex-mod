@@ -443,12 +443,12 @@ fn apply_toml_edit_override_segments(
 ) {
     use toml_edit::Item;
 
-    if segments.is_empty() {
+    let Some((last, parents)) = segments.split_last() else {
         return;
-    }
+    };
 
     let mut current = doc.as_table_mut();
-    for seg in &segments[..segments.len() - 1] {
+    for seg in parents {
         if !current.contains_key(seg) {
             current[*seg] = Item::Table(toml_edit::Table::new());
             if let Some(t) = current[*seg].as_table_mut() {
@@ -472,8 +472,7 @@ fn apply_toml_edit_override_segments(
         current = tbl;
     }
 
-    let last = segments[segments.len() - 1];
-    current[last] = value;
+    current[*last] = value;
 }
 
 fn new_implicit_table() -> TomlTable {
@@ -1649,13 +1648,13 @@ async fn persist_root_overrides_with_behavior(
 
 fn remove_toml_edit_segments(doc: &mut DocumentMut, segments: &[&str]) -> bool {
     use toml_edit::Item;
-    if segments.is_empty() { return false; }
+    let Some((last, parents)) = segments.split_last() else { return false; };
     let mut current = doc.as_table_mut();
-    for seg in &segments[..segments.len() - 1] {
+    for seg in parents {
         let Some(item) = current.get_mut(seg) else { return false }; 
         match item { Item::Table(table) => { current = table; } _ => { return false; } }
     }
-    current.remove(segments[segments.len() - 1]).is_some()
+    current.remove(last).is_some()
 }
 
 #[cfg(test)]

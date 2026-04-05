@@ -63,7 +63,9 @@ pub(super) async fn handle_browser_javascript(
                                         output.push_str("Console logs:\n");
                                         for log in logs {
                                             if let Some(log_str) = log.as_str() {
-                                                output.push_str(&format!("  {log_str}\n"));
+                                                output.push_str("  ");
+                                                output.push_str(log_str);
+                                                output.push('\n');
                                             }
                                         }
                                         output.push('\n');
@@ -195,12 +197,14 @@ pub(super) async fn handle_browser_console(
                                         .and_then(|v| v.as_str())
                                         .unwrap_or("");
 
-                                    output.push_str(&format!(
-                                        "[{}] [{}] {}\n",
+                                    use std::fmt::Write;
+                                    let _ = writeln!(
+                                        output,
+                                        "[{}] [{}] {}",
                                         timestamp,
                                         level.to_uppercase(),
                                         message
-                                    ));
+                                    );
                                 }
                             }
                             output

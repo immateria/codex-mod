@@ -379,6 +379,7 @@ fn deterministic_summary(items: &[ResponseItem], prev_summary: Option<&str>) -> 
 }
 
 fn flatten_items(items: &[ResponseItem]) -> String {
+    use std::fmt::Write;
     let mut buf = String::new();
     for item in items {
         match item {
@@ -395,28 +396,28 @@ fn flatten_items(items: &[ResponseItem]) -> String {
                 if text.is_empty() {
                     continue;
                 }
-                buf.push_str(&format!("{role}: {text}\n"));
+                let _ = writeln!(buf, "{role}: {text}");
             }
             ResponseItem::FunctionCall { name, arguments, .. } => {
-                buf.push_str(&format!("tool_call {name}: {arguments}\n"));
+                let _ = writeln!(buf, "tool_call {name}: {arguments}");
             }
             ResponseItem::FunctionCallOutput { output, .. } => {
                 let text = output.body.to_text().unwrap_or_default();
                 if !text.trim().is_empty() {
-                    buf.push_str(&format!("tool_output: {text}\n"));
+                    let _ = writeln!(buf, "tool_output: {text}");
                 }
             }
             ResponseItem::CustomToolCall { name, input, .. } => {
-                buf.push_str(&format!("custom_tool {name}: {input}\n"));
+                let _ = writeln!(buf, "custom_tool {name}: {input}");
             }
             ResponseItem::CustomToolCallOutput { output, .. } => {
-                buf.push_str(&format!("custom_tool_output: {output}\n"));
+                let _ = writeln!(buf, "custom_tool_output: {output}");
             }
             ResponseItem::Reasoning { summary, .. } => {
                 for item in summary {
                     match item {
                         code_protocol::models::ReasoningItemReasoningSummary::SummaryText { text } => {
-                            buf.push_str(&format!("reasoning: {text}\n"));
+                            let _ = writeln!(buf, "reasoning: {text}");
                         }
                     }
                 }

@@ -168,13 +168,10 @@ fn heredoc_delimiter(token: &str) -> Option<String> {
         return None;
     }
     if delim.len() >= 2 {
-        let first = delim.chars().next();
-        let last = delim.chars().next_back();
-        if matches!(
-            (first, last),
-            (Some('"'), Some('"')) | (Some('\''), Some('\'')),
-        ) {
-            delim = delim[1..delim.len() - 1].to_string();
+        if let Some(inner) = delim.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
+            .or_else(|| delim.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
+        {
+            delim = inner.to_string();
         }
     }
     if delim.is_empty() {
