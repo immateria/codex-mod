@@ -5,7 +5,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::AtomicU32;
+#[cfg(all(test, unix))]
+use std::sync::atomic::{AtomicBool, Ordering};
 
+use anyhow::Context;
 use portable_pty::CommandBuilder;
 use portable_pty::PtySize;
 use portable_pty::native_pty_system;
@@ -28,6 +31,13 @@ use code_protocol::models::PermissionProfile;
 use code_protocol::models::SandboxPermissions;
 
 const EXEC_COMMAND_OUTPUT_MAX_BYTES: u64 = 1024 * 1024;
+#[cfg(all(test, unix))]
+static FORCE_PTY_FAILURE: AtomicBool = AtomicBool::new(false);
+
+#[cfg(all(test, unix))]
+pub(crate) fn force_pty_failure_for_tests(enabled: bool) {
+    FORCE_PTY_FAILURE.store(enabled, Ordering::SeqCst);
+}
 
 #[derive(Debug, Default)]
 pub(crate) struct SessionManager {
@@ -553,22 +563,65 @@ async fn create_exec_command_session(
         additional_permissions.as_ref(),
     );
 
+    let shell_mode_opt = if login { "-lc" } else { "-c" };
     // Use the native pty implementation for the system
     let pty_system = native_pty_system();
 
-    // Create a new pty
-    let pair = pty_system.openpty(PtySize {
-        rows: 24,
-        cols: 80,
-        pixel_width: 0,
-        pixel_height: 0,
-    })?;
-
-    let shell_mode_opt = if login { "-lc" } else { "-c" };
     let requires_escalated_permissions = sandbox_permissions.requires_escalated_permissions();
     let seatbelt_enabled = cfg!(target_os = "macos")
         && !matches!(&sandbox_policy, &SandboxPolicy::DangerFullAccess)
         && !requires_escalated_permissions;
+
+    #[cfg(all(test, unix))]
+    if FORCE_PTY_FAILURE.load(Ordering::SeqCst) {
+        tracing::warn!("forcing PTY failure for tests; using pipe fallback");
+        return spawn_pipe_exec_command_session(
+            cmd,
+            workdir,
+            shell,
+            shell_mode_opt,
+            env_overrides,
+            network_attempt_guard,
+            sandbox_policy,
+            sandbox_policy_cwd,
+            enforce_managed_network,
+            seatbelt_enabled,
+        )
+        .await;
+    }
+
+    // Create a new pty
+    let pair = match pty_system.openpty(PtySize {
+        rows: 24,
+        cols: 80,
+        pixel_width: 0,
+        pixel_height: 0,
+    }) {
+        Ok(pair) => pair,
+        Err(err) => {
+            #[cfg(unix)]
+            {
+                tracing::warn!(error = %err, "failed to open PTY; using pipe fallback");
+                return spawn_pipe_exec_command_session(
+                    cmd,
+                    workdir,
+                    shell,
+                    shell_mode_opt,
+                    env_overrides,
+                    network_attempt_guard,
+                    sandbox_policy,
+                    sandbox_policy_cwd,
+                    enforce_managed_network,
+                    seatbelt_enabled,
+                )
+                .await;
+            }
+            #[cfg(not(unix))]
+            {
+                return Err(err.into());
+            }
+        }
+    };
 
     // Spawn a shell into the pty. On macOS, apply seatbelt for parity with the
     // normal exec tool path. When managed network is enabled, seatbelt is used
@@ -710,6 +763,210 @@ async fn create_exec_command_session(
     Ok((session, initial_output_rx, exit_rx))
 }
 
+#[cfg(unix)]
+#[derive(Debug, Clone)]
+struct PipeChildKiller {
+    pid: u32,
+}
+
+#[cfg(unix)]
+impl portable_pty::ChildKiller for PipeChildKiller {
+    fn kill(&mut self) -> std::io::Result<()> {
+        let _ = crate::exec_command::process_group::kill_process_group(self.pid);
+        let result = unsafe { libc::kill(self.pid as libc::pid_t, libc::SIGKILL) };
+        if result == -1 {
+            let err = std::io::Error::last_os_error();
+            if err.kind() != ErrorKind::NotFound {
+                return Err(err);
+            }
+        }
+        Ok(())
+    }
+
+    fn clone_killer(&self) -> Box<dyn portable_pty::ChildKiller + Send + Sync + 'static> {
+        Box::new(self.clone())
+    }
+}
+
+#[cfg(unix)]
+async fn spawn_pipe_exec_command_session(
+    cmd: String,
+    workdir: Option<String>,
+    shell: String,
+    shell_mode_opt: &str,
+    env_overrides: HashMap<String, String>,
+    network_attempt_guard: Option<crate::network_approval::NetworkAttemptGuard>,
+    sandbox_policy: SandboxPolicy,
+    sandbox_policy_cwd: PathBuf,
+    enforce_managed_network: bool,
+    seatbelt_enabled: bool,
+) -> anyhow::Result<(
+    ExecCommandSession,
+    tokio::sync::broadcast::Receiver<Vec<u8>>,
+    oneshot::Receiver<i32>,
+)> {
+    use std::process::Stdio;
+
+    use tokio::io::AsyncReadExt as _;
+    use tokio::io::AsyncWriteExt as _;
+
+    let mut command = if seatbelt_enabled {
+        if enforce_managed_network && !crate::seatbelt::has_loopback_proxy_endpoints(&env_overrides)
+        {
+            return Err(anyhow::anyhow!(
+                "managed network enforcement active but no usable proxy endpoints"
+            ));
+        }
+
+        let command = vec![shell, shell_mode_opt.to_string(), cmd];
+        let seatbelt_args = crate::seatbelt::build_seatbelt_args(
+            command,
+            &sandbox_policy,
+            sandbox_policy_cwd.as_path(),
+            enforce_managed_network,
+            &env_overrides,
+        );
+        let mut builder = tokio::process::Command::new(crate::seatbelt::seatbelt_exec_path());
+        builder.args(seatbelt_args);
+        builder.env(CODEX_SANDBOX_ENV_VAR, "seatbelt");
+        builder
+    } else {
+        let mut builder = tokio::process::Command::new(shell);
+        builder.arg(shell_mode_opt);
+        builder.arg(cmd);
+        builder
+    };
+
+    if let Some(workdir) = workdir {
+        command.current_dir(PathBuf::from(workdir));
+    }
+    for (key, value) in &env_overrides {
+        command.env(key, value);
+    }
+
+    // Put the child in its own process group so we can best-effort kill
+    // descendants on drop.
+    {
+        unsafe {
+            command.pre_exec(|| {
+                let result = libc::setpgid(0, 0);
+                if result == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
+
+    command.stdin(Stdio::piped());
+    command.stdout(Stdio::piped());
+    command.stderr(Stdio::piped());
+
+    let mut child = command.spawn().context("failed to spawn pipe-backed command")?;
+    let pid = child
+        .id()
+        .context("pipe-backed command missing child pid")?;
+
+    #[cfg(target_os = "linux")]
+    {
+        let limits = crate::cgroup::ExecCgroupLimits {
+            memory_max_bytes: crate::cgroup::default_exec_memory_max_bytes(),
+            pids_max: crate::cgroup::default_exec_pids_max(),
+        };
+        if limits.memory_max_bytes.is_some() || limits.pids_max.is_some() {
+            crate::cgroup::best_effort_attach_pid_to_exec_cgroup(pid, limits);
+        }
+    }
+
+    let stdin = child
+        .stdin
+        .take()
+        .context("pipe-backed command missing stdin")?;
+    let stdout = child
+        .stdout
+        .take()
+        .context("pipe-backed command missing stdout")?;
+    let stderr = child
+        .stderr
+        .take()
+        .context("pipe-backed command missing stderr")?;
+
+    let (writer_tx, mut writer_rx) = mpsc::channel::<Vec<u8>>(128);
+    let (output_tx, _) = tokio::sync::broadcast::channel::<Vec<u8>>(256);
+
+    let output_tx_clone = output_tx.clone();
+    let reader_handle = tokio::spawn(async move {
+        let mut stdout = stdout;
+        let mut stderr = stderr;
+        let mut stdout_done = false;
+        let mut stderr_done = false;
+        let mut stdout_buf = [0u8; 8192];
+        let mut stderr_buf = [0u8; 8192];
+
+        while !stdout_done || !stderr_done {
+            tokio::select! {
+                res = stdout.read(&mut stdout_buf), if !stdout_done => {
+                    match res {
+                        Ok(0) => stdout_done = true,
+                        Ok(n) => {
+                            let _ = output_tx_clone.send(stdout_buf[..n].to_vec());
+                        }
+                        Err(_) => stdout_done = true,
+                    }
+                }
+                res = stderr.read(&mut stderr_buf), if !stderr_done => {
+                    match res {
+                        Ok(0) => stderr_done = true,
+                        Ok(n) => {
+                            let _ = output_tx_clone.send(stderr_buf[..n].to_vec());
+                        }
+                        Err(_) => stderr_done = true,
+                    }
+                }
+            }
+        }
+    });
+
+    let writer_handle = tokio::spawn(async move {
+        let mut stdin = stdin;
+        while let Some(bytes) = writer_rx.recv().await {
+            if stdin.write_all(&bytes).await.is_err() {
+                break;
+            }
+            let _ = stdin.flush().await;
+        }
+    });
+
+    let (exit_tx, exit_rx) = oneshot::channel::<i32>();
+    let exit_code = std::sync::Arc::new(StdMutex::new(None));
+    let exit_code_for_wait = exit_code.clone();
+    let wait_handle = tokio::spawn(async move {
+        let code = match child.wait().await {
+            Ok(status) => status.code().unwrap_or(-1),
+            Err(_) => -1,
+        };
+        if let Ok(mut guard) = exit_code_for_wait.lock() {
+            *guard = Some(code);
+        }
+        let _ = exit_tx.send(code);
+    });
+
+    let parts = ExecCommandSessionParts {
+        killer: Box::new(PipeChildKiller { pid }),
+        process_group_id: Some(pid),
+        #[cfg(target_os = "linux")]
+        cgroup_pid: Some(pid),
+        reader_handle,
+        writer_handle,
+        wait_handle,
+        exit_code,
+        network_attempt_guard,
+    };
+
+    let (session, initial_output_rx) = ExecCommandSession::new(writer_tx, output_tx, parts);
+    Ok((session, initial_output_rx, exit_rx))
+}
+
 /// Truncate the middle of a UTF-8 string to at most `max_bytes` bytes,
 /// preserving the beginning and the end. Returns the possibly truncated
 /// string and `Some(original_token_count)` (estimated at 4 bytes/token)
@@ -752,7 +1009,7 @@ PY"#
             yield_time_ms: 3_000,
             max_output_tokens: 1_000, // large enough to avoid truncation here
             workdir: None,
-            shell: "/bin/bash".to_string(),
+            shell: "bash".to_string(),
             login: false,
             sandbox_permissions: None,
             additional_permissions: None,
@@ -853,6 +1110,53 @@ PY"#
                 None
             })
             .collect()
+    }
+
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn session_manager_pipe_fallback_works_when_pty_is_forced_to_fail() {
+        use crate::exec_command::exec_command_params::ExecCommandParams;
+
+        struct Guard;
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                force_pty_failure_for_tests(false);
+            }
+        }
+
+        force_pty_failure_for_tests(true);
+        let _guard = Guard;
+
+        let session_manager = SessionManager::default();
+        let params = ExecCommandParams {
+            cmd: "echo hello-from-pipe".to_string(),
+            yield_time_ms: 250,
+            max_output_tokens: 256,
+            workdir: None,
+            shell: "bash".to_string(),
+            login: false,
+            sandbox_permissions: None,
+            additional_permissions: None,
+            justification: None,
+        };
+
+        let output = session_manager
+            .handle_exec_command_request(
+                params,
+                HashMap::new(),
+                None,
+                SandboxPolicy::DangerFullAccess,
+                std::env::temp_dir(),
+                false,
+            )
+            .await
+            .expect("exec request should succeed via pipe fallback");
+
+        assert!(
+            output.output.contains("hello-from-pipe"),
+            "unexpected output: {}",
+            output.output
+        );
     }
 
     #[test]

@@ -175,6 +175,10 @@ impl ShellEscalationSettingsView {
             }
             KeyEvent { code: KeyCode::Char('p'), modifiers: KeyModifiers::NONE, .. } => {
                 self.editor_notice = None;
+                if !crate::platform_caps::supports_native_picker() {
+                    self.editor_notice = Some("Not supported on Android; type the path.".to_string());
+                    return true;
+                }
                 let title = match target {
                     EditTarget::ZshPath => "Select patched zsh binary",
                     EditTarget::WrapperOverride => "Select execve wrapper binary",

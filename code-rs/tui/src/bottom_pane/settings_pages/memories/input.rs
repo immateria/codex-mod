@@ -291,6 +291,13 @@ impl MemoriesSettingsView {
     }
 
     fn open_memories_directory(&mut self) {
+        if !crate::platform_caps::supports_reveal_in_file_manager() {
+            self.set_status(
+                "Not supported on Android; copy the path manually.".to_string(),
+                true,
+            );
+            return;
+        }
         let path = self.code_home.join("memories");
         match crate::native_file_manager::reveal_path(&path) {
             Ok(()) => self.set_status(format!("Opened {}", path.display()), false),

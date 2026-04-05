@@ -527,7 +527,8 @@ impl ChatWidget<'_> {
                     Some(ClickableAction::ShowShellSelector)
                 }
                 StatusLineItem::CurrentDir | StatusLineItem::ProjectRoot => {
-                    Some(ClickableAction::ShowDirectoryPicker)
+                    crate::platform_caps::supports_native_picker()
+                        .then_some(ClickableAction::ShowDirectoryPicker)
                 }
                 #[cfg(feature = "managed-network-proxy")]
                 StatusLineItem::NetworkMediation => Some(ClickableAction::ShowNetworkSettings),

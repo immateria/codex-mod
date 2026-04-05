@@ -1,6 +1,7 @@
 mod auth_status;
 mod logging_client_handler;
 mod oauth;
+mod open_url;
 mod perform_oauth_login;
 mod program_resolver;
 mod rmcp_client;

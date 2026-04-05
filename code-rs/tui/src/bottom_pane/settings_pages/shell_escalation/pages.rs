@@ -288,7 +288,11 @@ impl ShellEscalationSettingsView {
             field_title,
             vec![
                 Line::from(vec![Span::styled(
-                    "Enter accept · Ctrl+S accept+apply · Esc cancel · p pick path",
+                    if crate::platform_caps::supports_native_picker() {
+                        "Enter accept · Ctrl+S accept+apply · Esc cancel · p pick path"
+                    } else {
+                        "Enter accept · Ctrl+S accept+apply · Esc cancel"
+                    },
                     Style::default().fg(crate::colors::text_dim()),
                 )]),
                 Line::from(vec![Span::styled(

@@ -65,6 +65,13 @@ impl ChatWidget<'_> {
                 self.set_reasoning_effort(next);
             }
             ClickableAction::ShowDirectoryPicker => {
+                if !crate::platform_caps::supports_native_picker() {
+                    self.bottom_pane.flash_footer_notice(
+                        "Directory picker is not supported on this platform; type the path."
+                            .to_string(),
+                    );
+                    return;
+                }
                 match crate::native_picker::pick_path(
                     crate::native_picker::NativePickerKind::Folder,
                     "Select working directory",

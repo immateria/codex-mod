@@ -90,7 +90,8 @@ pub(super) fn render_styled_header_template(
             "directory" => Some((
                 context.directory,
                 Style::default().fg(crate::colors::info()),
-                Some(ClickableAction::ShowDirectoryPicker),
+                crate::platform_caps::supports_native_picker()
+                    .then_some(ClickableAction::ShowDirectoryPicker),
             )),
             "branch" => Some((
                 context.branch,
@@ -186,5 +187,43 @@ pub(super) fn render_styled_header_template(
         line: Line::from(spans),
         clickable_ranges,
         width,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn directory_placeholder_not_clickable_when_picker_is_unsupported() {
+        struct Guard;
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                crate::platform_caps::set_test_force_no_picker(false);
+            }
+        }
+
+        crate::platform_caps::set_test_force_no_picker(true);
+        let _guard = Guard;
+
+        let context = HeaderTemplateContext {
+            title: "Title",
+            model: "Model",
+            service_tier: "Tier",
+            shell: "Shell",
+            reasoning: "Reasoning",
+            directory: "/tmp",
+            branch: "branch",
+            mcp: "mcp",
+            mcp_kind: None,
+            hovered_action: None,
+            hover_style: HeaderHoverStyle::None,
+        };
+        let rendered = render_styled_header_template("{directory}", &context);
+        assert!(
+            rendered.clickable_ranges.is_empty(),
+            "expected no click ranges, got: {:?}",
+            rendered.clickable_ranges
+        );
     }
 }

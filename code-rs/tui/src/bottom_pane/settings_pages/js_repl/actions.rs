@@ -109,6 +109,13 @@ impl JsReplSettingsView {
     }
 
     fn pick_runtime_path(&mut self) {
+        if !crate::platform_caps::supports_native_picker() {
+            self.app_event_tx.send_background_event_with_ticket(
+                &self.ticket,
+                "Native picker not supported on Android; type the path.".to_string(),
+            );
+            return;
+        }
         let result = pick_path(NativePickerKind::File, "Select js_repl runtime executable");
         match result {
             Ok(Some(path)) => {
@@ -131,6 +138,13 @@ impl JsReplSettingsView {
     }
 
     fn add_node_module_dir(&mut self) {
+        if !crate::platform_caps::supports_native_picker() {
+            self.app_event_tx.send_background_event_with_ticket(
+                &self.ticket,
+                "Native picker not supported on Android; type the path.".to_string(),
+            );
+            return;
+        }
         let result = pick_path(NativePickerKind::Folder, "Select node_modules folder");
         match result {
             Ok(Some(path)) => {

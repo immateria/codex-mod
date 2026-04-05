@@ -102,7 +102,7 @@ tokio = { workspace = true, features = [
     "signal",
     "test-util",
 ] }
-tokio-tungstenite = { version = "0.23", features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { workspace = true }
 tokio-util = { workspace = true }
 crc32fast = { workspace = true }
 tokio-stream = { workspace = true }
@@ -120,6 +120,12 @@ zip = { workspace = true }
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"
 
+[target.'cfg(target_os = "android")'.dependencies]
+reqwest = { workspace = true, features = ["rustls-tls-webpki-roots"] }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+reqwest = { workspace = true, features = ["rustls-tls-native-roots"] }
+
 
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = "0.4.1"
@@ -131,10 +137,6 @@ openssl-sys = { version = "*", features = ["vendored"] }
 
 # Build OpenSSL from source for musl builds.
 [target.aarch64-unknown-linux-musl.dependencies]
-openssl-sys = { version = "*", features = ["vendored"] }
-
-# Build OpenSSL from source for Android builds.
-[target.aarch64-linux-android.dependencies]
 openssl-sys = { version = "*", features = ["vendored"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]

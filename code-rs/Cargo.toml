@@ -220,7 +220,7 @@ rand = "0.9"
 ratatui = "0.29.0"
 regex = "1"
 regex-lite = "0.1.7"
-reqwest = "0.12"
+reqwest = { version = "0.12", default-features = false }
 rmcp = { version = "0.15.0", default-features = false }
 runfiles = { git = "https://github.com/dzbarsky/rules_rust", rev = "b56cbaa8465e74127f1ea216f813cd377295ad81" }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
@@ -251,7 +251,7 @@ tiny_http = "0.12"
 tokio = "1"
 tokio-stream = "0.1.17"
 tokio-test = "0.4"
-tokio-tungstenite = { version = "0.23", default-features = true, features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "0.23", default-features = false, features = ["connect", "handshake", "rustls-tls-webpki-roots"] }
 tokio-util = "0.7.16"
 toml = "0.9.5"
 toml_edit = "0.23.4"

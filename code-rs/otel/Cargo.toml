@@ -33,8 +33,6 @@ opentelemetry-otlp = { workspace = true, features = [
     "grpc-tonic",
     "http-proto",
     "http-json",
-    "reqwest",
-    "reqwest-rustls",
 ], optional = true }
 opentelemetry-semantic-conventions = { workspace = true }
 opentelemetry_sdk = { workspace = true, features = [
@@ -48,3 +46,11 @@ strum_macros = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true, optional = true }
 tracing = { workspace = true }
+
+[target.'cfg(target_os = "android")'.dependencies]
+opentelemetry-otlp = { workspace = true, features = ["reqwest-rustls-webpki-roots"], optional = true }
+reqwest = { workspace = true, features = ["rustls-tls-webpki-roots"] }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+opentelemetry-otlp = { workspace = true, features = ["reqwest-rustls"], optional = true }
+reqwest = { workspace = true, features = ["rustls-tls-native-roots"] }

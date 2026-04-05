@@ -23,6 +23,10 @@ pub(super) fn is_image_clipboard_paste_shortcut(key_event: &KeyEvent) -> bool {
         return false;
     }
 
+    if !crate::platform_caps::supports_clipboard_image_paste() {
+        return false;
+    }
+
     match key_event {
         KeyEvent {
             code: KeyCode::Char('v' | 'V'),

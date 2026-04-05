@@ -35,6 +35,7 @@ use super::keyring_service;
 
 const SECRETS_VERSION: u8 = 1;
 const LOCAL_SECRETS_FILENAME: &str = "local.age";
+const LOCAL_PASSPHRASE_FILENAME: &str = "passphrase";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 struct SecretsFile {
@@ -115,6 +116,10 @@ impl LocalSecretsBackend {
         self.secrets_dir().join(LOCAL_SECRETS_FILENAME)
     }
 
+    fn passphrase_path(&self) -> PathBuf {
+        self.secrets_dir().join(LOCAL_PASSPHRASE_FILENAME)
+    }
+
     fn load_file(&self) -> Result<SecretsFile> {
         let path = self.secrets_path();
         if !path.exists() {
@@ -157,25 +162,72 @@ impl LocalSecretsBackend {
     }
 
     fn load_or_create_passphrase(&self) -> Result<SecretString> {
+        self.load_or_create_passphrase_impl(cfg!(target_os = "android") || cfg!(test))
+    }
+
+    fn load_or_create_passphrase_impl(&self, allow_file_fallback: bool) -> Result<SecretString> {
         let account = compute_keyring_account(&self.code_home);
-        let loaded = self
-            .keyring_store
-            .load(keyring_service(), &account)
-            .map_err(|err| anyhow::anyhow!(err.message()))
-            .with_context(|| format!("failed to load secrets key from keyring for {account}"))?;
+        let passphrase_path = self.passphrase_path();
+        let loaded = self.keyring_store.load(keyring_service(), &account);
         match loaded {
-            Some(existing) => Ok(SecretString::from(existing)),
-            None => {
+            Ok(Some(existing)) => Ok(SecretString::from(existing)),
+            Ok(None) => {
                 // Generate a high-entropy key and persist it in the OS keyring.
                 // This keeps secrets out of plaintext config while remaining
                 // fully local/offline for the MVP.
                 let generated = generate_passphrase()?;
-                self.keyring_store
-                    .save(keyring_service(), &account, generated.expose_secret())
-                    .map_err(|err| anyhow::anyhow!(err.message()))
-                    .context("failed to persist secrets key in keyring")?;
+                let save = self.keyring_store.save(
+                    keyring_service(),
+                    &account,
+                    generated.expose_secret(),
+                );
+                match save {
+                    Ok(()) => Ok(generated),
+                    Err(err) if allow_file_fallback => {
+                        warn!(
+                            "failed to persist secrets key in keyring; using file fallback: {}",
+                            err.message()
+                        );
+                        // If we already have a passphrase file (previous
+                        // Android run), prefer it so we can still decrypt
+                        // existing ciphertext.
+                        if let Some(existing) = read_passphrase_file(&passphrase_path)? {
+                            return Ok(existing);
+                        }
+
+                        match write_passphrase_file(&passphrase_path, &generated) {
+                            Ok(()) => Ok(generated),
+                            Err(err)
+                                if err
+                                    .downcast_ref::<std::io::Error>()
+                                    .is_some_and(|io_err| {
+                                        io_err.kind() == std::io::ErrorKind::AlreadyExists
+                                    }) =>
+                            {
+                                read_passphrase_file(&passphrase_path)?
+                                    .ok_or_else(|| err)
+                            }
+                            Err(err) => Err(err),
+                        }
+                    }
+                    Err(err) => Err(anyhow::anyhow!(err.message()))
+                        .context("failed to persist secrets key in keyring"),
+                }
+            }
+            Err(err) if allow_file_fallback => {
+                warn!(
+                    "failed to load secrets key from keyring; using file fallback: {}",
+                    err.message()
+                );
+                if let Some(existing) = read_passphrase_file(&passphrase_path)? {
+                    return Ok(existing);
+                }
+                let generated = generate_passphrase()?;
+                write_passphrase_file(&passphrase_path, &generated)?;
                 Ok(generated)
             }
+            Err(err) => Err(anyhow::anyhow!(err.message()))
+                .with_context(|| format!("failed to load secrets key from keyring for {account}")),
         }
     }
 }
@@ -290,6 +342,62 @@ fn wipe_bytes(bytes: &mut [u8]) {
     compiler_fence(Ordering::SeqCst);
 }
 
+fn read_passphrase_file(path: &Path) -> Result<Option<SecretString>> {
+    match fs::read_to_string(path) {
+        Ok(contents) => {
+            let trimmed = contents.trim_end_matches(&['\r', '\n'][..]);
+            anyhow::ensure!(
+                !trimmed.trim().is_empty(),
+                "secrets passphrase file is empty at {}",
+                path.display()
+            );
+            Ok(Some(SecretString::from(trimmed.to_string())))
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(err).with_context(|| {
+            format!(
+                "failed to read secrets passphrase file at {}",
+                path.display()
+            )
+        }),
+    }
+}
+
+fn write_passphrase_file(path: &Path, passphrase: &SecretString) -> Result<()> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir).with_context(|| {
+            format!(
+                "failed to create secrets directory for passphrase file at {}",
+                dir.display()
+            )
+        })?;
+    }
+
+    let mut options = fs::OpenOptions::new();
+    options.create_new(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
+    }
+
+    match options.open(path) {
+        Ok(mut file) => {
+            file.write_all(passphrase.expose_secret().as_bytes())
+                .with_context(|| format!("failed to write secrets passphrase file at {}", path.display()))?;
+            file.write_all(b"\n")
+                .with_context(|| format!("failed to finish secrets passphrase file at {}", path.display()))?;
+            Ok(())
+        }
+        Err(err) => Err(err).with_context(|| {
+            format!(
+                "failed to create secrets passphrase file at {}",
+                path.display()
+            )
+        }),
+    }
+}
+
 fn encrypt_with_passphrase(plaintext: &[u8], passphrase: &SecretString) -> Result<Vec<u8>> {
     let recipient = ScryptRecipient::new(passphrase.clone());
     encrypt(&recipient, plaintext).context("failed to encrypt secrets file")
@@ -334,7 +442,7 @@ mod tests {
     use super::*;
     use code_keyring_store::tests::MockKeyringStore;
     use keyring::Error as KeyringError;
-    use pretty_assertions::assert_eq;
+    use std::io::ErrorKind;
 
     #[test]
     fn load_file_rejects_newer_schema_versions() -> Result<()> {
@@ -359,7 +467,32 @@ mod tests {
     }
 
     #[test]
-    fn set_fails_when_keyring_is_unavailable() -> Result<()> {
+    fn load_or_create_passphrase_fails_when_keyring_is_unavailable_and_fallback_disabled()
+        -> Result<()>
+    {
+        let code_home = tempfile::tempdir().expect("tempdir");
+        let keyring = Arc::new(MockKeyringStore::default());
+        let account = compute_keyring_account(code_home.path());
+        keyring.set_error(
+            &account,
+            KeyringError::Invalid("error".into(), "load".into()),
+        );
+
+        let backend = LocalSecretsBackend::new(code_home.path().to_path_buf(), keyring);
+        let error = backend
+            .load_or_create_passphrase_impl(false)
+            .expect_err("must fail when keyring load fails and fallback is disabled");
+        assert!(
+            error
+                .to_string()
+                .contains("failed to load secrets key from keyring"),
+            "unexpected error: {error:#}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn set_succeeds_with_file_fallback_when_keyring_is_unavailable() -> Result<()> {
         let code_home = tempfile::tempdir().expect("tempdir");
         let keyring = Arc::new(MockKeyringStore::default());
         let account = compute_keyring_account(code_home.path());
@@ -371,15 +504,66 @@ mod tests {
         let backend = LocalSecretsBackend::new(code_home.path().to_path_buf(), keyring);
         let scope = SecretScope::Global;
         let name = SecretName::new("TEST_SECRET")?;
-        let error = backend
-            .set(&scope, &name, "secret-value")
-            .expect_err("must fail when keyring load fails");
-        assert!(
-            error
-                .to_string()
-                .contains("failed to load secrets key from keyring"),
-            "unexpected error: {error:#}"
+        backend.set(&scope, &name, "secret-value")?;
+        assert_eq!(backend.get(&scope, &name)?, Some("secret-value".to_string()));
+        assert!(backend.passphrase_path().exists());
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+
+            let mode = fs::metadata(backend.passphrase_path())?.permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn keyring_save_failure_uses_existing_passphrase_file() -> Result<()> {
+        let code_home = tempfile::tempdir().expect("tempdir");
+        let keyring = Arc::new(MockKeyringStore::default());
+        let account = compute_keyring_account(code_home.path());
+        keyring.set_error(
+            &account,
+            KeyringError::Invalid("error".into(), "save".into()),
         );
+
+        let backend = LocalSecretsBackend::new(code_home.path().to_path_buf(), keyring);
+        let passphrase_path = backend.passphrase_path();
+
+        // Seed a passphrase file to simulate a previous Android run where the
+        // keyring save failed.
+        let seeded = SecretString::from("seeded-passphrase".to_string());
+        write_passphrase_file(&passphrase_path, &seeded)?;
+
+        let resolved = backend.load_or_create_passphrase_impl(true)?;
+        assert_eq!(resolved.expose_secret(), seeded.expose_secret());
+
+        // Ensure we didn't overwrite the file.
+        let reloaded = read_passphrase_file(&passphrase_path)?
+            .expect("passphrase file should still exist");
+        assert_eq!(reloaded.expose_secret(), seeded.expose_secret());
+
+        Ok(())
+    }
+
+    #[test]
+    fn write_passphrase_file_errors_on_existing_file() -> Result<()> {
+        let code_home = tempfile::tempdir().expect("tempdir");
+        let keyring = Arc::new(MockKeyringStore::default());
+        let backend = LocalSecretsBackend::new(code_home.path().to_path_buf(), keyring);
+        let passphrase_path = backend.passphrase_path();
+
+        let first = SecretString::from("one".to_string());
+        write_passphrase_file(&passphrase_path, &first)?;
+
+        let second = SecretString::from("two".to_string());
+        let err = write_passphrase_file(&passphrase_path, &second)
+            .expect_err("should refuse to overwrite existing passphrase file");
+        let io_err = err.downcast_ref::<std::io::Error>().expect("io error");
+        assert_eq!(io_err.kind(), ErrorKind::AlreadyExists);
+
         Ok(())
     }
 
@@ -409,4 +593,3 @@ mod tests {
         Ok(())
     }
 }
-

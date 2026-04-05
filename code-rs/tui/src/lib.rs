@@ -3,6 +3,12 @@
 // alternate‑screen mode starts; that file opts‑out locally via `allow`.
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![deny(clippy::disallowed_methods)]
+
+#[cfg(all(target_os = "android", feature = "clipboard"))]
+compile_error!(
+    "Clipboard support is not available on Android/Termux. Build without the `clipboard` feature."
+);
+
 use app::App;
 use code_core::BUILT_IN_OSS_MODEL_PROVIDER_ID;
 use code_core::config::set_cached_terminal_background;
@@ -92,6 +98,8 @@ mod markdown_stream;
 mod syntax_highlight;
 mod native_picker;
 mod native_file_manager;
+mod platform_caps;
+mod open_url;
 pub mod onboarding;
 pub mod public_widgets;
 mod render;

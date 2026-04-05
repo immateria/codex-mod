@@ -67,12 +67,17 @@ impl ShellProfilesSettingsView {
                 KeyHint::new("Ctrl+G", " generate"),
                 KeyHint::new("Esc", " cancel"),
             ],
-            ListTarget::References | ListTarget::SkillRoots => vec![
-                KeyHint::new("Ctrl+S", " save"),
-                KeyHint::new("Ctrl+O", " pick"),
-                KeyHint::new("Ctrl+V", " show"),
-                KeyHint::new("Esc", " cancel"),
-            ],
+            ListTarget::References | ListTarget::SkillRoots => {
+                let mut hints = vec![KeyHint::new("Ctrl+S", " save")];
+                if crate::platform_caps::supports_native_picker() {
+                    hints.push(KeyHint::new("Ctrl+O", " pick"));
+                }
+                if crate::platform_caps::supports_reveal_in_file_manager() {
+                    hints.push(KeyHint::new("Ctrl+V", " show"));
+                }
+                hints.push(KeyHint::new("Esc", " cancel"));
+                hints
+            }
         }
     }
 
@@ -101,18 +106,30 @@ impl ShellProfilesSettingsView {
     }
 
     fn editor_footer_actions(target: ListTarget) -> &'static [EditorFooterAction] {
+        const EDITOR_ACTIONS_WITH_PICKER: [EditorFooterAction; 4] = [
+            EditorFooterAction::Save,
+            EditorFooterAction::Pick,
+            EditorFooterAction::Show,
+            EditorFooterAction::Cancel,
+        ];
+        const EDITOR_ACTIONS_NO_PICKER: [EditorFooterAction; 2] =
+            [EditorFooterAction::Save, EditorFooterAction::Cancel];
+
         match target {
             ListTarget::Summary => &[
                 EditorFooterAction::Save,
                 EditorFooterAction::Generate,
                 EditorFooterAction::Cancel,
             ],
-            ListTarget::References | ListTarget::SkillRoots => &[
-                EditorFooterAction::Save,
-                EditorFooterAction::Pick,
-                EditorFooterAction::Show,
-                EditorFooterAction::Cancel,
-            ],
+            ListTarget::References | ListTarget::SkillRoots => {
+                if crate::platform_caps::supports_native_picker()
+                    && crate::platform_caps::supports_reveal_in_file_manager()
+                {
+                    &EDITOR_ACTIONS_WITH_PICKER
+                } else {
+                    &EDITOR_ACTIONS_NO_PICKER
+                }
+            }
         }
     }
 
@@ -156,6 +173,10 @@ impl ShellProfilesSettingsView {
             ListTarget::References => NativePickerKind::File,
             ListTarget::SkillRoots => NativePickerKind::Folder,
         };
+        if !crate::platform_caps::supports_native_picker() {
+            self.status = Some("Not supported on Android; type the path.".to_string());
+            return;
+        }
         let title = match target {
             ListTarget::Summary => "Select path",
             ListTarget::References => "Select reference file",
@@ -185,6 +206,10 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn editor_show_last_path(&mut self, target: ListTarget) {
+        if !crate::platform_caps::supports_reveal_in_file_manager() {
+            self.status = Some("Not supported on Android; copy the path manually.".to_string());
+            return;
+        }
         let text = self.editor_field_mut(target).text().to_string();
         let mut lines = text.lines().map(str::trim).filter(|line| !line.is_empty());
         let last = lines.next_back();

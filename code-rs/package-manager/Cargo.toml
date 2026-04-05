@@ -25,3 +25,9 @@ pretty_assertions = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["fs", "macros", "rt", "rt-multi-thread"] }
 wiremock = { workspace = true }
+
+[target.'cfg(target_os = "android")'.dependencies]
+reqwest = { workspace = true, features = ["rustls-tls-webpki-roots"] }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+reqwest = { workspace = true, features = ["rustls-tls-native-roots"] }

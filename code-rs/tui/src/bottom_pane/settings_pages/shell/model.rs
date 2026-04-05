@@ -6,6 +6,16 @@ use crate::native_picker::{pick_path, NativePickerKind};
 use code_core::split_command_and_args;
 
 impl ShellSelectionView {
+    pub(super) fn edit_action_items(&self) -> &'static [(EditAction, SettingsButtonKind)] {
+        if crate::platform_caps::supports_native_picker()
+            && crate::platform_caps::supports_reveal_in_file_manager()
+        {
+            &EDIT_ACTION_ITEMS
+        } else {
+            &EDIT_ACTION_ITEMS_NO_PICKER
+        }
+    }
+
     pub fn new(
         current_shell: Option<ShellConfig>,
         presets: Vec<ShellPreset>,
@@ -74,6 +84,11 @@ impl ShellSelectionView {
 
     pub(super) fn pick_shell_binary_from_dialog(&mut self) -> bool {
         self.native_picker_notice = None;
+        if !crate::platform_caps::supports_native_picker() {
+            self.native_picker_notice =
+                Some("Not supported on Android; type the path.".to_string());
+            return true;
+        }
         match pick_path(NativePickerKind::File, "Select shell binary") {
             Ok(Some(path)) => {
                 self.set_custom_path_from_picker(&path);
@@ -89,6 +104,11 @@ impl ShellSelectionView {
 
     pub(super) fn show_custom_shell_in_file_manager(&mut self) -> bool {
         self.native_picker_notice = None;
+        if !crate::platform_caps::supports_reveal_in_file_manager() {
+            self.native_picker_notice =
+                Some("Not supported on Android; copy the path manually.".to_string());
+            return true;
+        }
         let (path, _args) = split_command_and_args(self.custom_field.text());
         let trimmed = path.trim();
         if trimmed.is_empty() {

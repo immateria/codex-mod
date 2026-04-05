@@ -1,3 +1,13 @@
+#[cfg(all(
+    target_os = "android",
+    any(feature = "managed-network-proxy", feature = "browser-automation")
+))]
+compile_error!(
+    "Desktop-only features are not supported on Android/Termux (managed-network-proxy, browser-automation).\n\
+Build with:\n\
+  cargo build -p code-cli --no-default-features\n"
+);
+
 use anyhow::anyhow;
 use anyhow::Context;
 use clap::CommandFactory;

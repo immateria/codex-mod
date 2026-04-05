@@ -41,8 +41,7 @@ impl MemoriesSettingsView {
         }
     }
 
-    pub(super) fn rows() -> [RowKind; 13] {
-        [
+    const ROWS_WITH_FILE_MANAGER: [RowKind; 13] = [
             RowKind::Scope,
             RowKind::GenerateMemories,
             RowKind::UseMemories,
@@ -56,7 +55,29 @@ impl MemoriesSettingsView {
             RowKind::OpenDirectory,
             RowKind::Apply,
             RowKind::Close,
-        ]
+    ];
+
+    const ROWS_NO_FILE_MANAGER: [RowKind; 12] = [
+        RowKind::Scope,
+        RowKind::GenerateMemories,
+        RowKind::UseMemories,
+        RowKind::SkipMcpOrWebSearch,
+        RowKind::MaxRawMemories,
+        RowKind::MaxRolloutAgeDays,
+        RowKind::MaxRolloutsPerStartup,
+        RowKind::MinRolloutIdleHours,
+        RowKind::RefreshArtifacts,
+        RowKind::ClearArtifacts,
+        RowKind::Apply,
+        RowKind::Close,
+    ];
+
+    pub(super) fn rows() -> &'static [RowKind] {
+        if crate::platform_caps::supports_reveal_in_file_manager() {
+            &Self::ROWS_WITH_FILE_MANAGER
+        } else {
+            &Self::ROWS_NO_FILE_MANAGER
+        }
     }
 
     pub(super) fn app_scope(&self) -> MemoriesSettingsScope {
@@ -349,4 +370,3 @@ impl MemoriesSettingsView {
         self.is_complete
     }
 }
-

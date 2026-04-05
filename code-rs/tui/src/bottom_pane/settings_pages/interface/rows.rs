@@ -43,8 +43,28 @@ impl InterfaceSettingsView {
         }
     }
 
+    const MAIN_ROWS_NO_FILE_MANAGER: [RowKind; 13] = [
+        RowKind::OpenMode,
+        RowKind::OverlayMinWidth,
+        RowKind::HotkeyScope,
+        RowKind::ModelSelectorHotkey,
+        RowKind::ReasoningEffortHotkey,
+        RowKind::ShellSelectorHotkey,
+        RowKind::NetworkSettingsHotkey,
+        RowKind::ExecOutputFoldHotkey,
+        RowKind::JsReplCodeFoldHotkey,
+        RowKind::JumpToParentCallHotkey,
+        RowKind::JumpToLatestChildCallHotkey,
+        RowKind::Apply,
+        RowKind::Close,
+    ];
+
     pub(super) fn build_rows(&self) -> &'static [RowKind] {
-        &MAIN_ROWS
+        if crate::platform_caps::supports_reveal_in_file_manager() {
+            &MAIN_ROWS
+        } else {
+            &Self::MAIN_ROWS_NO_FILE_MANAGER
+        }
     }
 
     pub(super) fn selected_row(&self) -> RowKind {

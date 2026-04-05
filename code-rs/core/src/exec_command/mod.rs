@@ -7,6 +7,10 @@ mod session_manager;
 
 pub(crate) use exec_command_params::ExecCommandParams;
 pub(crate) use exec_command_params::WriteStdinParams;
+#[allow(unused_imports)]
+pub(crate) use exec_command_session::ExecCommandSession;
+#[allow(unused_imports)]
+pub(crate) use exec_command_session::ExecCommandSessionParts;
 pub(crate) use responses_api::EXEC_COMMAND_TOOL_NAME;
 pub(crate) use responses_api::WRITE_STDIN_TOOL_NAME;
 pub(crate) use responses_api::create_exec_command_tool_for_responses_api;

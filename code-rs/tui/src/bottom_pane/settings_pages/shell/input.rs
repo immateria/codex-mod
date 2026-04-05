@@ -71,22 +71,24 @@ impl ShellSelectionView {
                     true
                 }
                 (KeyCode::Left, _) if matches!(self.edit_focus, EditFocus::Actions) => {
-                    let len = EDIT_ACTION_ITEMS.len();
-                    let idx = EDIT_ACTION_ITEMS
+                    let items = self.edit_action_items();
+                    let len = items.len();
+                    let idx = items
                         .iter()
                         .position(|(id, _)| *id == self.selected_action)
                         .unwrap_or(0);
                     let next = if idx == 0 { len.saturating_sub(1) } else { idx - 1 };
-                    self.selected_action = EDIT_ACTION_ITEMS[next].0;
+                    self.selected_action = items[next].0;
                     true
                 }
                 (KeyCode::Right, _) if matches!(self.edit_focus, EditFocus::Actions) => {
-                    let idx = EDIT_ACTION_ITEMS
+                    let items = self.edit_action_items();
+                    let idx = items
                         .iter()
                         .position(|(id, _)| *id == self.selected_action)
                         .unwrap_or(0);
-                    let next = (idx + 1) % EDIT_ACTION_ITEMS.len();
-                    self.selected_action = EDIT_ACTION_ITEMS[next].0;
+                    let next = (idx + 1) % items.len();
+                    self.selected_action = items[next].0;
                     true
                 }
                 _ => match self.edit_focus {

@@ -7,17 +7,25 @@ use crate::bottom_pane::settings_ui::toggle;
 
 impl JsReplSettingsView {
     pub(super) fn row_count(&self) -> usize {
-        // Enabled, runtime kind, runtime path, picker action.
-        let mut count = 4;
+        // Enabled, runtime kind, runtime path.
+        let mut count = 3;
+        // Optional: runtime picker action.
+        if crate::platform_caps::supports_native_picker() {
+            count += 1;
+        }
         // Optional: clear runtime path.
         if self.settings.runtime_path.is_some() {
             count += 1;
         }
         // Runtime args.
         count += 1;
-        // Node-only: module dirs + add module dir.
+        // Node-only: module dirs.
         if matches!(self.settings.runtime, JsReplRuntimeKindToml::Node) {
-            count += 2;
+            count += 1;
+            // Optional: add module dir picker.
+            if crate::platform_caps::supports_native_picker() {
+                count += 1;
+            }
         }
         // Apply, close.
         count += 2;
@@ -39,12 +47,10 @@ impl JsReplSettingsView {
 
     pub(super) fn build_rows(&self) -> Vec<RowKind> {
         let mut rows = Vec::with_capacity(self.row_count());
-        rows.extend([
-            RowKind::Enabled,
-            RowKind::RuntimeKind,
-            RowKind::RuntimePath,
-            RowKind::PickRuntimePath,
-        ]);
+        rows.extend([RowKind::Enabled, RowKind::RuntimeKind, RowKind::RuntimePath]);
+        if crate::platform_caps::supports_native_picker() {
+            rows.push(RowKind::PickRuntimePath);
+        }
         if self.settings.runtime_path.is_some() {
             rows.push(RowKind::ClearRuntimePath);
         }
@@ -52,7 +58,9 @@ impl JsReplSettingsView {
         rows.push(RowKind::RuntimeArgs);
         if matches!(self.settings.runtime, JsReplRuntimeKindToml::Node) {
             rows.push(RowKind::NodeModuleDirs);
-            rows.push(RowKind::AddNodeModuleDir);
+            if crate::platform_caps::supports_native_picker() {
+                rows.push(RowKind::AddNodeModuleDir);
+            }
         }
 
         rows.push(RowKind::Apply);

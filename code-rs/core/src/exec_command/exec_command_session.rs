@@ -109,6 +109,11 @@ impl ExecCommandSession {
             Err(poisoned) => *poisoned.into_inner(),
         }
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn has_exited(&self) -> bool {
+        self.exit_code().is_some()
+    }
 }
 
 impl Drop for ExecCommandSession {

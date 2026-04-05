@@ -1,3 +1,10 @@
+#[cfg(target_os = "android")]
+compile_error!(
+    "Browser automation is not supported on Android/Termux.\n\
+Build the CLI with:\n\
+  cargo build -p code-cli --no-default-features\n"
+);
+
 pub mod assets;
 pub mod config;
 pub mod global;

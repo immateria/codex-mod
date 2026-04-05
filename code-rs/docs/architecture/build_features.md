@@ -32,6 +32,9 @@ TUI UI, and interactive `browser` tool actions).
 # Full build (status quo)
 cargo build -p code-cli
 
+# Termux/Android build (desktop features are compile-time disabled)
+cargo build -p code-cli --no-default-features
+
 # Small build (no managed proxy, no browser automation)
 cargo build -p code-cli --no-default-features
 
@@ -41,4 +44,3 @@ cargo build -p code-cli --no-default-features --features managed-network-proxy
 # Small build + browser automation only
 cargo build -p code-cli --no-default-features --features browser-automation
 ```
-

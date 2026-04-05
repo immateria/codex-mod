@@ -70,10 +70,16 @@ impl ExperimentalFeaturesSettingsView {
                 };
                 let value = if enabled { "on" } else { "off" };
 
+                let description = if cfg!(target_os = "android") && row.key == "prevent_idle_sleep" {
+                    format!("{} (no-op on Android)", row.description)
+                } else {
+                    row.description.to_string()
+                };
+
                 SettingsMenuRow::new(idx, row.name)
                     .with_value(StyledText::new(value.to_string(), value_style))
                     .with_detail(StyledText::new(
-                        row.description.to_string(),
+                        description,
                         Style::new().fg(colors::text_dim()),
                     ))
             })

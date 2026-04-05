@@ -157,15 +157,30 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
 
         if include_dir {
             push_separator(&mut spans, &mut width);
-            push_clickable_labeled_segment(
-                &mut spans,
-                &mut ranges,
-                &mut width,
-                "Directory: ",
-                dir_display,
-                Style::default().fg(crate::colors::info()),
-                ClickableAction::ShowDirectoryPicker,
-            );
+            if crate::platform_caps::supports_native_picker() {
+                push_clickable_labeled_segment(
+                    &mut spans,
+                    &mut ranges,
+                    &mut width,
+                    "Directory: ",
+                    dir_display,
+                    Style::default().fg(crate::colors::info()),
+                    ClickableAction::ShowDirectoryPicker,
+                );
+            } else {
+                push_text(
+                    &mut spans,
+                    &mut width,
+                    "Directory: ",
+                    Style::default().fg(crate::colors::text_dim()),
+                );
+                push_text(
+                    &mut spans,
+                    &mut width,
+                    dir_display,
+                    Style::default().fg(crate::colors::info()),
+                );
+            }
         }
 
         if include_branch

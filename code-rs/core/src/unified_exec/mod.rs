@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use anyhow::Context;
 use portable_pty::CommandBuilder;
 use portable_pty::PtySize;
 use portable_pty::native_pty_system;
@@ -8,7 +9,6 @@ use std::io::ErrorKind;
 use std::io::Read;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
 use tokio::sync::Mutex;
@@ -19,6 +19,7 @@ use tokio::time::Duration;
 use tokio::time::Instant;
 
 use crate::exec_command::ExecCommandSession;
+use crate::exec_command::ExecCommandSessionParts;
 use crate::truncate::truncate_middle;
 
 mod errors;
@@ -28,6 +29,15 @@ pub(crate) use errors::UnifiedExecError;
 const DEFAULT_TIMEOUT_MS: u64 = 1_000;
 const MAX_TIMEOUT_MS: u64 = 60_000;
 const UNIFIED_EXEC_OUTPUT_MAX_BYTES: usize = 128 * 1024; // 128 KiB
+
+#[cfg(all(test, unix))]
+static FORCE_PTY_FAILURE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(all(test, unix))]
+fn force_pty_failure_for_tests(enabled: bool) {
+    FORCE_PTY_FAILURE.store(enabled, Ordering::SeqCst);
+}
 
 #[derive(Debug)]
 pub(crate) struct UnifiedExecRequest<'a> {
@@ -312,16 +322,33 @@ async fn create_unified_exec_session(
         return Err(UnifiedExecError::MissingCommandLine);
     }
 
+    #[cfg(all(test, unix))]
+    if FORCE_PTY_FAILURE.load(Ordering::SeqCst) {
+        tracing::warn!("forcing PTY failure for tests; using pipe fallback");
+        return create_unified_exec_session_pipe(command).await;
+    }
+
     let pty_system = native_pty_system();
 
-    let pair = pty_system
-        .openpty(PtySize {
-            rows: 24,
-            cols: 80,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(UnifiedExecError::create_session)?;
+    let pair = match pty_system.openpty(PtySize {
+        rows: 24,
+        cols: 80,
+        pixel_width: 0,
+        pixel_height: 0,
+    }) {
+        Ok(pair) => pair,
+        Err(err) => {
+            #[cfg(unix)]
+            {
+                tracing::warn!(error = %err, "failed to open PTY; using pipe fallback");
+                return create_unified_exec_session_pipe(command).await;
+            }
+            #[cfg(not(unix))]
+            {
+                return Err(UnifiedExecError::create_session(err));
+            }
+        }
+    };
 
     // Safe thanks to the check at the top of the function.
     let mut command_builder = CommandBuilder::new(command[0].clone());
@@ -334,6 +361,8 @@ async fn create_unified_exec_session(
         .spawn_command(command_builder)
         .map_err(UnifiedExecError::create_session)?;
     let killer = child.clone_killer();
+    #[cfg(unix)]
+    let process_group_id = child.process_id();
 
     let (writer_tx, mut writer_rx) = mpsc::channel::<Vec<u8>>(128);
     let (output_tx, _) = tokio::sync::broadcast::channel::<Vec<u8>>(256);
@@ -383,22 +412,190 @@ async fn create_unified_exec_session(
         }
     });
 
-    let exit_status = Arc::new(AtomicBool::new(false));
-    let wait_exit_status = Arc::clone(&exit_status);
+    let exit_code = Arc::new(StdMutex::new(None));
+    let exit_code_for_wait = exit_code.clone();
     let wait_handle = tokio::task::spawn_blocking(move || {
-        let _ = child.wait();
-        wait_exit_status.store(true, Ordering::SeqCst);
+        let code = match child.wait() {
+            Ok(status) => status.exit_code() as i32,
+            Err(_) => -1,
+        };
+        if let Ok(mut guard) = exit_code_for_wait.lock() {
+            *guard = Some(code);
+        }
     });
 
-    let (session, initial_output_rx) = ExecCommandSession::new(
-        writer_tx,
-        output_tx,
+    let parts = ExecCommandSessionParts {
         killer,
+        #[cfg(unix)]
+        process_group_id,
+        #[cfg(target_os = "linux")]
+        cgroup_pid: None,
         reader_handle,
         writer_handle,
         wait_handle,
-        exit_status,
-    );
+        exit_code,
+        network_attempt_guard: None,
+    };
+    let (session, initial_output_rx) = ExecCommandSession::new(writer_tx, output_tx, parts);
+    Ok((session, initial_output_rx))
+}
+
+#[cfg(unix)]
+#[derive(Debug, Clone)]
+struct PipeChildKiller {
+    pid: u32,
+}
+
+#[cfg(unix)]
+impl portable_pty::ChildKiller for PipeChildKiller {
+    fn kill(&mut self) -> std::io::Result<()> {
+        let result = unsafe { libc::kill(self.pid as libc::pid_t, libc::SIGKILL) };
+        if result == -1 {
+            let err = std::io::Error::last_os_error();
+            if err.kind() != ErrorKind::NotFound {
+                return Err(err);
+            }
+        }
+        Ok(())
+    }
+
+    fn clone_killer(&self) -> Box<dyn portable_pty::ChildKiller + Send + Sync + 'static> {
+        Box::new(self.clone())
+    }
+}
+
+#[cfg(unix)]
+async fn create_unified_exec_session_pipe(
+    command: &[String],
+) -> Result<
+    (
+        ExecCommandSession,
+        tokio::sync::broadcast::Receiver<Vec<u8>>,
+    ),
+    UnifiedExecError,
+> {
+    use std::process::Stdio;
+
+    use tokio::io::AsyncReadExt as _;
+    use tokio::io::AsyncWriteExt as _;
+
+    let mut cmd = tokio::process::Command::new(&command[0]);
+    for arg in &command[1..] {
+        cmd.arg(arg);
+    }
+
+    // Put the child in its own process group so drop can kill descendants.
+    {
+        unsafe {
+            cmd.pre_exec(|| {
+                let result = libc::setpgid(0, 0);
+                if result == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
+
+    cmd.stdin(Stdio::piped());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let mut child = cmd
+        .spawn()
+        .context("failed to spawn pipe-backed unified exec command")
+        .map_err(UnifiedExecError::create_session)?;
+    let pid = child
+        .id()
+        .context("pipe-backed unified exec missing child pid")
+        .map_err(UnifiedExecError::create_session)?;
+
+    let stdin = child
+        .stdin
+        .take()
+        .context("pipe-backed unified exec missing stdin")
+        .map_err(UnifiedExecError::create_session)?;
+    let stdout = child
+        .stdout
+        .take()
+        .context("pipe-backed unified exec missing stdout")
+        .map_err(UnifiedExecError::create_session)?;
+    let stderr = child
+        .stderr
+        .take()
+        .context("pipe-backed unified exec missing stderr")
+        .map_err(UnifiedExecError::create_session)?;
+
+    let (writer_tx, mut writer_rx) = mpsc::channel::<Vec<u8>>(128);
+    let (output_tx, _) = tokio::sync::broadcast::channel::<Vec<u8>>(256);
+
+    let output_tx_clone = output_tx.clone();
+    let reader_handle = tokio::spawn(async move {
+        let mut stdout = stdout;
+        let mut stderr = stderr;
+        let mut stdout_done = false;
+        let mut stderr_done = false;
+        let mut stdout_buf = [0u8; 8192];
+        let mut stderr_buf = [0u8; 8192];
+
+        while !stdout_done || !stderr_done {
+            tokio::select! {
+                res = stdout.read(&mut stdout_buf), if !stdout_done => {
+                    match res {
+                        Ok(0) => stdout_done = true,
+                        Ok(n) => {
+                            let _ = output_tx_clone.send(stdout_buf[..n].to_vec());
+                        }
+                        Err(_) => stdout_done = true,
+                    }
+                }
+                res = stderr.read(&mut stderr_buf), if !stderr_done => {
+                    match res {
+                        Ok(0) => stderr_done = true,
+                        Ok(n) => {
+                            let _ = output_tx_clone.send(stderr_buf[..n].to_vec());
+                        }
+                        Err(_) => stderr_done = true,
+                    }
+                }
+            }
+        }
+    });
+
+    let writer_handle = tokio::spawn(async move {
+        let mut stdin = stdin;
+        while let Some(bytes) = writer_rx.recv().await {
+            if stdin.write_all(&bytes).await.is_err() {
+                break;
+            }
+            let _ = stdin.flush().await;
+        }
+    });
+
+    let exit_code = Arc::new(StdMutex::new(None));
+    let exit_code_for_wait = exit_code.clone();
+    let wait_handle = tokio::spawn(async move {
+        let code = match child.wait().await {
+            Ok(status) => status.code().unwrap_or(-1),
+            Err(_) => -1,
+        };
+        if let Ok(mut guard) = exit_code_for_wait.lock() {
+            *guard = Some(code);
+        }
+    });
+
+    let parts = ExecCommandSessionParts {
+        killer: Box::new(PipeChildKiller { pid }),
+        process_group_id: Some(pid),
+        #[cfg(target_os = "linux")]
+        cgroup_pid: None,
+        reader_handle,
+        writer_handle,
+        wait_handle,
+        exit_code,
+        network_attempt_guard: None,
+    };
+    let (session, initial_output_rx) = ExecCommandSession::new(writer_tx, output_tx, parts);
     Ok((session, initial_output_rx))
 }
 
@@ -421,6 +618,39 @@ mod tests {
         );
         assert_eq!(buffer.chunks.pop_back().unwrap(), vec![b'c']);
         assert_eq!(buffer.chunks.pop_back().unwrap(), vec![b'b']);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn unified_exec_pipe_fallback_emits_output() {
+        struct Guard;
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                force_pty_failure_for_tests(false);
+            }
+        }
+
+        force_pty_failure_for_tests(true);
+        let _guard = Guard;
+
+        let cmd = vec![
+            "bash".to_string(),
+            "-lc".to_string(),
+            "echo unified-pipe".to_string(),
+        ];
+        let (_session, mut rx) = create_unified_exec_session(&cmd)
+            .await
+            .expect("pipe fallback should create unified exec session");
+
+        let chunk = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+            .await
+            .expect("timeout waiting for output")
+            .expect("output channel should produce chunk");
+        let text = String::from_utf8_lossy(&chunk);
+        assert!(
+            text.contains("unified-pipe"),
+            "unexpected chunk: {text:?}"
+        );
     }
 
     #[cfg(unix)]
@@ -468,7 +698,7 @@ mod tests {
         let shell_a = manager
             .handle_request(UnifiedExecRequest {
                 session_id: None,
-                input_chunks: &["/bin/bash".to_string(), "-i".to_string()],
+                input_chunks: &["bash".to_string(), "-i".to_string()],
                 timeout_ms: Some(2_500),
             })
             .await?;
@@ -586,7 +816,7 @@ mod tests {
         let result = manager
             .handle_request(UnifiedExecRequest {
                 session_id: None,
-                input_chunks: &["/bin/echo".to_string(), "codex".to_string()],
+                input_chunks: &["echo".to_string(), "codex".to_string()],
                 timeout_ms: Some(2_500),
             })
             .await?;
@@ -607,7 +837,7 @@ mod tests {
         let open_shell = manager
             .handle_request(UnifiedExecRequest {
                 session_id: None,
-                input_chunks: &["/bin/bash".to_string(), "-i".to_string()],
+                input_chunks: &["bash".to_string(), "-i".to_string()],
                 timeout_ms: Some(2_500),
             })
             .await?;

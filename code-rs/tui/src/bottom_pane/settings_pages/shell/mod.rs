@@ -38,6 +38,13 @@ const EDIT_ACTION_ITEMS: [(EditAction, SettingsButtonKind); 6] = [
     (EditAction::Back, SettingsButtonKind::Back),
 ];
 
+const EDIT_ACTION_ITEMS_NO_PICKER: [(EditAction, SettingsButtonKind); 4] = [
+    (EditAction::Apply, SettingsButtonKind::Apply),
+    (EditAction::Resolve, SettingsButtonKind::Resolve),
+    (EditAction::Style, SettingsButtonKind::Style),
+    (EditAction::Back, SettingsButtonKind::Back),
+];
+
 /// A shell option with availability status
 #[derive(Clone, Debug)]
 struct ShellOption {

@@ -287,7 +287,7 @@ impl OauthLoginFlow {
                 "Authorize `{server_name}` by opening this URL in your browser:\n{auth_url}\n"
             );
 
-            if webbrowser::open(auth_url).is_err() {
+            if crate::open_url::open_url(auth_url).is_err() {
                 println!("(Browser launch failed; please copy the URL above manually.)");
             }
         }

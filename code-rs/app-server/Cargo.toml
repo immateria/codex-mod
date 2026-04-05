@@ -51,7 +51,7 @@ tokio = { workspace = true, features = [
     "signal",
 ] }
 tokio-util = { workspace = true, features = ["rt"] }
-tokio-tungstenite = { version = "0.23", default-features = true, features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 toml = { workspace = true }

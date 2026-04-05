@@ -153,21 +153,31 @@ impl ShellSelectionView {
             EditFocus::Field => None,
             EditFocus::Actions => Some(self.selected_action),
         };
-        standard_button_specs(&EDIT_ACTION_ITEMS, focused, self.hovered_action)
+        standard_button_specs(self.edit_action_items(), focused, self.hovered_action)
     }
 
     pub(super) fn edit_page(&self) -> SettingsActionPage<'_> {
         let status_lines = vec![self.edit_status_line()];
-        let footer_lines = vec![hints::shortcut_line(&[
+        let mut footer_hints = vec![
             KeyHint::new("Tab", " focus"),
             KeyHint::new("Enter", " apply"),
-            KeyHint::new("Ctrl+O", " pick"),
-            KeyHint::new("Ctrl+V", " show"),
             KeyHint::new("Ctrl+R", " resolve"),
             KeyHint::new("Ctrl+T", " style"),
             KeyHint::new("Ctrl+P", " profiles"),
             KeyHint::new("Esc", " back"),
-        ])];
+        ];
+        if crate::platform_caps::supports_native_picker() {
+            footer_hints.insert(2, KeyHint::new("Ctrl+O", " pick"));
+        }
+        if crate::platform_caps::supports_reveal_in_file_manager() {
+            let insert_at = if crate::platform_caps::supports_native_picker() {
+                3
+            } else {
+                2
+            };
+            footer_hints.insert(insert_at, KeyHint::new("Ctrl+V", " show"));
+        }
+        let footer_lines = vec![hints::shortcut_line(&footer_hints)];
 
         SettingsActionPage::new(
             "Edit Shell Command",

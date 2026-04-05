@@ -1,5 +1,12 @@
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 
+#[cfg(target_os = "android")]
+compile_error!(
+    "Managed network proxy is not supported on Android/Termux.\n\
+Build the CLI with:\n\
+  cargo build -p code-cli --no-default-features\n"
+);
+
 mod admin;
 mod config;
 mod http_proxy;

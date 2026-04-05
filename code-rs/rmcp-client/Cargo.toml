@@ -25,11 +25,7 @@ rmcp = { version = "0.7.0", default-features = false, features = [
 ] }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
 futures = { version = "0.3", default-features = false, features = ["std"] }
-reqwest = { version = "0.12", default-features = false, features = [
-    "json",
-    "stream",
-    "rustls-tls",
-] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream"] }
 schemars = { workspace = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -47,7 +43,6 @@ tokio = { version = "1", features = [
 tracing = { version = "0.1.41", features = ["log"] }
 url = { workspace = true }
 urlencoding = { workspace = true }
-webbrowser = { workspace = true }
 which = { workspace = true }
 
 [dev-dependencies]
@@ -55,3 +50,10 @@ pretty_assertions = "1.4.1"
 keyring = { workspace = true }
 serial_test = "3.2.0"
 tempfile = { workspace = true }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots"] }
+webbrowser = { workspace = true }
+
+[target.'cfg(target_os = "android")'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots"] }
