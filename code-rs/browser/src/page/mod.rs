@@ -7,6 +7,7 @@ use chromiumoxide::page::Page as CdpPage;
 use chromiumoxide::cdp::js_protocol::runtime as cdp_runtime;
 use chromiumoxide::cdp::browser_protocol::log as cdp_log;
 use futures::StreamExt;
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
@@ -43,7 +44,7 @@ pub struct Page {
     // Add cursor state tracking (New)
     cursor_state: Arc<Mutex<CursorState>>,
     // Buffer for CDP-captured console logs
-    console_logs: Arc<Mutex<Vec<serde_json::Value>>>,
+    console_logs: Arc<Mutex<VecDeque<serde_json::Value>>>,
     // Screenshot path preflight cache:
     // - We strongly prefer compositor captures via from_surface(false) to avoid visible flashes in the
     //   user's real Chrome window. However, that path can be flaky or unavailable when the window is not
@@ -118,7 +119,7 @@ impl Page {
             current_url: Arc::new(RwLock::new(None)),
             cursor_state: Arc::new(Mutex::new(initial_cursor)),
             preflight_cache: Arc::new(Mutex::new(None)),
-            console_logs: Arc::new(Mutex::new(Vec::new())),
+            console_logs: Arc::new(Mutex::new(VecDeque::new())),
         };
 
         // Register a unified bootstrap (runs on every new document):
@@ -162,8 +163,8 @@ impl Page {
                         "source": "cdp:runtime"
                     });
                     let mut buf = logs_buf.lock().await;
-                    buf.push(item);
-                    if buf.len() > 2000 { buf.remove(0); }
+                    buf.push_back(item);
+                    if buf.len() > 2000 { buf.pop_front(); }
                 }
             }
 
@@ -187,8 +188,8 @@ impl Page {
                         "line": entry.line_number
                     });
                     let mut buf = logs_buf.lock().await;
-                    buf.push(item);
-                    if buf.len() > 2000 { buf.remove(0); }
+                    buf.push_back(item);
+                    if buf.len() > 2000 { buf.pop_front(); }
                 }
             }
         });

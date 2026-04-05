@@ -1,5 +1,6 @@
 use super::*;
 
+use std::fmt::Write as _;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::layout::Constraint;
@@ -385,7 +386,8 @@ impl PluginsSettingsView {
             && let Some(git_ref) = sources.curated_repo_ref.as_deref()
             && !git_ref.trim().is_empty()
         {
-            curated_detail.push_str(&format!(" @ {git_ref}"));
+            curated_detail.push_str(" @ ");
+            curated_detail.push_str(git_ref);
         }
         rows.push(
             SettingsMenuRow::new(0usize, "Curated marketplace")
@@ -407,7 +409,7 @@ impl PluginsSettingsView {
             if let Some(git_ref) = repo.git_ref.as_deref()
                 && !git_ref.trim().is_empty()
             {
-                detail.push_str(&format!(" @ {git_ref}"));
+                let _ = write!(detail, " @ {git_ref}");
             }
             rows.push(
                 SettingsMenuRow::new(row_id, format!("Repo {}", idx + 1))

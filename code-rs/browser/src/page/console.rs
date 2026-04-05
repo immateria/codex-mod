@@ -24,9 +24,9 @@ impl Page {
         }
         let n = lines.unwrap_or(0);
         let slice: Vec<serde_json::Value> = if n > 0 && n < buf.len() {
-            buf[buf.len() - n..].to_vec()
+            buf.iter().skip(buf.len() - n).cloned().collect()
         } else {
-            buf.clone()
+            buf.iter().cloned().collect()
         };
         serde_json::Value::Array(slice)
     }

@@ -1,4 +1,5 @@
 use ratatui::text::Line;
+use std::fmt::Write as _;
 
 // Local helper: coalesce "<file> (lines A to B)" entries when contiguous.
 pub(crate) fn coalesce_read_ranges_in_lines_local(lines: &mut Vec<Line<'static>>) {
@@ -133,7 +134,7 @@ pub(crate) fn coalesce_read_ranges_in_lines_local(lines: &mut Vec<Line<'static>>
             if i > 0 {
                 ann.push_str(", ");
             }
-            ann.push_str(&format!("{s} to {e}"));
+            let _ = write!(ann, "{s} to {e}");
         }
         ann.push(')');
 
