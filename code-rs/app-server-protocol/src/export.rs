@@ -1593,7 +1593,7 @@ fn generate_index_ts(out_dir: &Path) -> Result<PathBuf> {
     // If this is the root out_dir and a ./v2 folder exists with TS files,
     // expose it as a namespace to avoid symbol collisions at the root.
     let v2_dir = out_dir.join("v2");
-    let has_v2_ts = ts_files_in(&v2_dir).map(|v| !v.is_empty()).unwrap_or(false);
+    let has_v2_ts = ts_files_in(&v2_dir).is_ok_and(|v| !v.is_empty());
     if has_v2_ts {
         entries.push("export * as v2 from \"./v2\";\n".to_string());
     }

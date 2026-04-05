@@ -571,7 +571,7 @@ fn style_conversation_lines(
     for (display, &src_idx) in wrapped.iter().zip(indices.iter()) {
         let raw = sd.raw_line_at(src_idx);
         let trimmed = raw.trim();
-        let is_new_raw = last_src.map(|prev| prev != src_idx).unwrap_or(true);
+        let is_new_raw = last_src.is_none_or(|prev| prev != src_idx);
 
         if trimmed.eq_ignore_ascii_case("user:") {
             speaker = Some(ConversationSpeaker::User);

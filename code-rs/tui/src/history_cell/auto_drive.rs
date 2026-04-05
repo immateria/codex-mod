@@ -1050,7 +1050,7 @@ impl AutoDriveCardCell {
                 }
             };
 
-            if active_style.map(|s| s == style_for_char).unwrap_or(false) {
+            if active_style.is_some_and(|s| s == style_for_char) {
                 buffer.push(ch);
             } else {
                 flush(&mut segments, &mut buffer, active_style);

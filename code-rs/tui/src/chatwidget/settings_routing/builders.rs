@@ -384,11 +384,11 @@ impl ChatWidget<'_> {
     pub(super) fn collect_agents_overview_rows(&self) -> (Vec<AgentOverviewRow>, Vec<String>) {
         fn command_exists(cmd: &str) -> bool {
             if cmd.contains(std::path::MAIN_SEPARATOR) || cmd.contains('/') || cmd.contains('\\') {
-                return std::fs::metadata(cmd).map(|m| m.is_file()).unwrap_or(false);
+                return std::fs::metadata(cmd).is_ok_and(|m| m.is_file());
             }
             #[cfg(target_os = "windows")]
             {
-                which::which(cmd).map(|p| p.is_file()).unwrap_or(false)
+                which::which(cmd).is_ok_and(|p| p.is_file())
             }
             #[cfg(not(target_os = "windows"))]
             {

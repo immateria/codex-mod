@@ -72,7 +72,7 @@ impl BrowserManager {
 
         // 1) Prefer CDP-captured buffer (event-based). If we have entries, return them.
         let cdp_logs = page.get_console_logs_tail(lines).await;
-        if cdp_logs.as_array().map(|a| !a.is_empty()).unwrap_or(false) {
+        if cdp_logs.as_array().is_some_and(|a| !a.is_empty()) {
             return Ok(cdp_logs);
         }
 

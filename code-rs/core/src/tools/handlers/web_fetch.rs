@@ -724,8 +724,8 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 let h = headers;
                 let has_cf_ray = h.get("cf-ray").is_some();
                 let has_cf_mitigated = h.get("cf-mitigated").is_some();
-                let has_cf_bm = h.get("set-cookie").and_then(|v| v.to_str().ok()).map(|s| s.contains("__cf_bm=")).unwrap_or(false);
-                let has_chlray = h.get("server-timing").and_then(|v| v.to_str().ok()).map(|s| s.to_lowercase().contains("chlray")).unwrap_or(false);
+                let has_cf_bm = h.get("set-cookie").and_then(|v| v.to_str().ok()).is_some_and(|s| s.contains("__cf_bm="));
+                let has_chlray = h.get("server-timing").and_then(|v| v.to_str().ok()).is_some_and(|s| s.to_lowercase().contains("chlray"));
                 has_cf_ray || has_cf_mitigated || has_cf_bm || has_chlray
             }
 

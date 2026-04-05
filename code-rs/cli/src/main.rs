@@ -1937,7 +1937,7 @@ async fn preview_main(args: PreviewArgs) -> anyhow::Result<()> {
     }
 
     // Fallback: raw 'code' file (after .zst) if present
-    if path.file_name().and_then(|s| s.to_str()).map(|n| n.ends_with(".zst")).unwrap_or(false) {
+    if path.file_name().and_then(|s| s.to_str()).is_some_and(|n| n.ends_with(".zst")) {
         // Try to decompress .zst to 'code'
         if which::which("zstd").is_ok() {
             // Derive base name from archive (e.g., code-aarch64-apple-darwin.zst -> code-aarch64-apple-darwin-<slug>.{exe?})

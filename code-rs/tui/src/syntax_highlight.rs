@@ -613,7 +613,7 @@ pub(crate) fn highlight_code_block_with_metrics(content: &str, lang: Option<&str
     }
 
     // TOML special-case: if labelled or looks like Cargo/Clear TOML and still plain, try INI.
-    if (lang.map(|l| l.eq_ignore_ascii_case("toml")).unwrap_or(false) || content.contains("[package]"))
+    if (lang.is_some_and(|l| l.eq_ignore_ascii_case("toml")) || content.contains("[package]"))
         && std::ptr::eq(syntax, ps.find_syntax_plain_text())
     {
         if let Some(sini) = ps.find_syntax_by_name("INI").or_else(|| ps.find_syntax_by_extension("ini")) { syntax = sini; }
@@ -945,7 +945,7 @@ fn autodetect_lang(content: &str) -> Option<&'static str> {
     // Strong TOML signals across first 50 lines
     let toml_signals = {
         let lines: Vec<&str> = s.lines().take(50).collect();
-        let has_dotted_keys = lines.iter().any(|l| l.trim_start().split_once('=').map(|(k, _)| k.contains('.')).unwrap_or(false));
+        let has_dotted_keys = lines.iter().any(|l| l.trim_start().split_once('=').is_some_and(|(k, _)| k.contains('.')));
         let has_inline_table = lines.iter().any(|l| l.contains("={") || l.contains(" = {"));
         let has_array = lines.iter().any(|l| l.contains("=[") || l.contains(" = ["));
         let has_quoted_assign = lines.iter().any(|l| l.contains("= \"") || l.contains("=\""));

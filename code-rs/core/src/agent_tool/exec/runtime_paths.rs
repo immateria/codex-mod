@@ -252,7 +252,7 @@ fn fallback_code_binary_path() -> Option<std::path::PathBuf> {
         .status()
         .ok();
 
-    if status.map(|s| s.success()).unwrap_or(false) {
+    if status.is_some_and(|s| s.success()) {
         candidates.retain(|p| p.exists());
         if let Some(found) = candidates.first().cloned() {
             return Some(found);

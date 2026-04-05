@@ -524,7 +524,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn terminal_is_running(&self) -> bool {
-        self.terminal.overlay().map(|o| o.running).unwrap_or(false)
+        self.terminal.overlay().is_some_and(|o| o.running)
     }
 
     pub(crate) fn ctrl_c_requests_exit(&self) -> bool {

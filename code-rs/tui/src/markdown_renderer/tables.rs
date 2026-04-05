@@ -127,7 +127,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
         for (i, align) in aligns.iter_mut().enumerate().take(cols) {
             let numeric = body
                 .iter()
-                .all(|r| r.get(i).map(|c| is_numeric(c)).unwrap_or(true));
+                .all(|r| r.get(i).is_none_or(|c| is_numeric(c)));
             if numeric {
                 *align = Align::Right;
             }

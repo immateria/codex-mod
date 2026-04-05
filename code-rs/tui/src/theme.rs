@@ -289,10 +289,10 @@ fn apply_custom_colors(theme: &mut Theme, colors: &ThemeColors) {
 ///   in modern terminals known to support it well.
 fn needs_ansi256_fallback() -> bool {
     // Hard overrides first
-    if std::env::var("CODE_FORCE_TRUECOLOR").map(|v| v == "1").unwrap_or(false) {
+    if std::env::var("CODE_FORCE_TRUECOLOR").is_ok_and(|v| v == "1") {
         return false;
     }
-    if std::env::var("CODE_FORCE_ANSI256").map(|v| v == "1").unwrap_or(false) {
+    if std::env::var("CODE_FORCE_ANSI256").is_ok_and(|v| v == "1") {
         return true;
     }
 

@@ -157,7 +157,7 @@ pub fn init(config: &Config) -> Result<(Tui, TerminalInfo)> {
     } else {
         // For other terminals, be conservative and skip unless a user opts in
         // via CODE_FORCE_FULL_BG_PAINT=1.
-        std::env::var("CODE_FORCE_FULL_BG_PAINT").map(|v| v == "1").unwrap_or(false)
+        std::env::var("CODE_FORCE_FULL_BG_PAINT").is_ok_and(|v| v == "1")
     };
 
     if should_paint_bg
@@ -362,10 +362,10 @@ fn should_enable_focus_change() -> bool {
     use std::env;
 
     // Hard overrides first
-    if env::var("CODE_DISABLE_FOCUS").map(|v| v == "1").unwrap_or(false) {
+    if env::var("CODE_DISABLE_FOCUS").is_ok_and(|v| v == "1") {
         return false;
     }
-    if env::var("CODE_ENABLE_FOCUS").map(|v| v == "1").unwrap_or(false) {
+    if env::var("CODE_ENABLE_FOCUS").is_ok_and(|v| v == "1") {
         return true;
     }
 

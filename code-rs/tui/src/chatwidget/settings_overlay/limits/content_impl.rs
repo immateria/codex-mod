@@ -163,7 +163,7 @@ impl LimitsSettingsContent {
                 let summary = Self::summary_lines_without_chart_header(&view.summary_lines);
                 left.extend(summary);
                 if !view.footer_lines.is_empty() {
-                    let left_last_is_blank = left.last().map(Self::line_is_blank).unwrap_or(true);
+                    let left_last_is_blank = left.last().is_none_or(Self::line_is_blank);
                     if !left_last_is_blank {
                         left.push(Line::from(String::new()));
                     }
@@ -175,7 +175,7 @@ impl LimitsSettingsContent {
                     right.extend(view.legend_lines.clone());
                 }
                 if !tab.extra.is_empty() {
-                    let right_last_is_blank = right.last().map(Self::line_is_blank).unwrap_or(true);
+                    let right_last_is_blank = right.last().is_none_or(Self::line_is_blank);
                     if !right_last_is_blank {
                         right.push(Line::from(String::new()));
                     }

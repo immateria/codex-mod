@@ -69,7 +69,7 @@ fn resolve_agent_read_only(
     if let Some(flag) = read_only {
         return flag;
     }
-    config.map(|c| c.read_only).unwrap_or(false)
+    config.is_some_and(|c| c.read_only)
 }
 
 #[cfg(test)]

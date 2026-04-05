@@ -298,7 +298,7 @@ impl ChatWidget<'_> {
                     return None;
                 }
                 let is_executing = self.exec.running_commands.values().any(|rc| {
-                    rc.command.first().map(|c| c == "js_repl").unwrap_or(false)
+                    rc.command.first().is_some_and(|c| c == "js_repl")
                 });
                 let suffix = if is_executing { " …" } else { "" };
                 if let Some((kind, version)) = &self.js_repl_last_runtime {

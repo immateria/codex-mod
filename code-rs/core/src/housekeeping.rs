@@ -288,7 +288,7 @@ fn cleanup_worktrees(
         }
 
         let repo_path = repo_entry.path();
-        if !repo_entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+        if !repo_entry.file_type().is_ok_and(|ft| ft.is_dir()) {
             continue;
         }
 
@@ -300,7 +300,7 @@ fn cleanup_worktrees(
         let branch_entries = list_dir_sorted(&branches_dir);
         for branch_entry in branch_entries {
             let branch_path = branch_entry.path();
-            if !branch_entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+            if !branch_entry.file_type().is_ok_and(|ft| ft.is_dir()) {
                 continue;
             }
 
@@ -470,7 +470,7 @@ fn detect_repo_root(worktree_path: &Path) -> Option<PathBuf> {
     let mut current = gitdir_path;
     let mut levels = 0;
     while levels < 5 {
-        if current.file_name().map(|f| f == ".git").unwrap_or(false) {
+        if current.file_name().is_some_and(|f| f == ".git") {
             current.pop();
             return Some(current);
         }
@@ -491,7 +491,7 @@ fn collect_active_worktrees(session_dir: &Path) -> HashSet<PathBuf> {
     };
 
     for entry in entries.flatten() {
-        if !entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
+        if !entry.file_type().is_ok_and(|ft| ft.is_file()) {
             continue;
         }
 
@@ -535,7 +535,7 @@ fn purge_session_registry(session_dir: &Path, worktree_path: &Path) {
     let worktree_str = worktree_path.to_string_lossy().to_string();
 
     for entry in entries.flatten() {
-        if !entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
+        if !entry.file_type().is_ok_and(|ft| ft.is_file()) {
             continue;
         }
         let file_path = entry.path();
@@ -690,7 +690,7 @@ fn parse_u16(name: &std::ffi::OsStr) -> Option<u16> {
 }
 
 fn dir_is_empty(path: &Path) -> bool {
-    fs::read_dir(path).map(|mut it| it.next().is_none()).unwrap_or(false)
+    fs::read_dir(path).is_ok_and(|mut it| it.next().is_none())
 }
 
 fn canonicalize_or_original(path: &Path) -> PathBuf {
@@ -944,7 +944,7 @@ mod tests {
             .current_dir(repo_root)
             .args(["show-ref", "--verify", "--quiet", &format!("refs/heads/{branch_name}")])
             .status();
-        output.map(|status| status.success()).unwrap_or(false)
+        output.is_ok_and(|status| status.success())
     }
 
     #[cfg(target_os = "linux")]

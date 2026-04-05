@@ -1231,7 +1231,7 @@ pub(crate) fn new_completed_mcp_tool_call(
                     }
                 }
             }
-            if preview_lines.last().map(|s| !s.is_empty()).unwrap_or(false) {
+            if preview_lines.last().is_some_and(|s| !s.is_empty()) {
                 preview_lines.push(String::new());
             }
         }
