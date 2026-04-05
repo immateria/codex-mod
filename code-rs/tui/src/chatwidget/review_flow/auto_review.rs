@@ -661,7 +661,7 @@ impl ChatWidget<'_> {
         summary: Option<&str>,
         findings: usize,
     ) {
-        let path_text = format!("{}", worktree_path.display());
+        let path_text = worktree_path.display().to_string();
         let has_path = !path_text.is_empty();
 
         let summary_text = summary.and_then(|text| {

@@ -234,7 +234,7 @@ impl ChatWidget<'_> {
         });
         // Insert debug info aligned with cell insert
         let ordered = "ordered";
-        let req_dbg = format!("{}", key.req);
+        let req_dbg = key.req.to_string();
         let dbg = if let Some(tdbg) = reasoning_title_dbg {
             format!(
                 "insert: {} req={} key={} {} pos={} tag={} | {}",

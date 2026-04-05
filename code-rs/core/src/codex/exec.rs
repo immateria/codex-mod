@@ -762,14 +762,14 @@ impl Session {
             ProjectHookEvent::SessionStart => json!({
                 "event": event.as_str(),
                 "cwd": self.cwd.to_string_lossy(),
-                "sandbox_policy": format!("{}", self.sandbox_policy),
-                "approval_policy": format!("{}", self.approval_policy),
+                "sandbox_policy": self.sandbox_policy.to_string(),
+                "approval_policy": self.approval_policy.to_string(),
             }),
             ProjectHookEvent::SessionEnd => json!({
                 "event": event.as_str(),
                 "cwd": self.cwd.to_string_lossy(),
-                "sandbox_policy": format!("{}", self.sandbox_policy),
-                "approval_policy": format!("{}", self.approval_policy),
+                "sandbox_policy": self.sandbox_policy.to_string(),
+                "approval_policy": self.approval_policy.to_string(),
             }),
             _ => json!({ "event": event.as_str() }),
         }

@@ -130,18 +130,19 @@ impl ContextTimeline {
     pub fn record_snapshot(&mut self, snapshot: EnvironmentContextSnapshot) -> Result<bool, TimelineError> {
         let fingerprint = snapshot.fingerprint();
 
-        if self.snapshots.contains_key(&fingerprint) {
-            return Ok(false); // Already exists, deduplicated
+        use std::collections::hash_map::Entry;
+        match self.snapshots.entry(fingerprint) {
+            Entry::Occupied(_) => Ok(false),
+            Entry::Vacant(vacant) => {
+                let fp = vacant.key().clone();
+                vacant.insert(SnapshotEntry {
+                    fingerprint: fp,
+                    snapshot,
+                    recorded_at: current_timestamp(),
+                });
+                Ok(true)
+            }
         }
-
-        let entry = SnapshotEntry {
-            fingerprint: fingerprint.clone(),
-            snapshot,
-            recorded_at: current_timestamp(),
-        };
-
-        self.snapshots.insert(fingerprint, entry);
-        Ok(true)
     }
 
     // Lookup helpers

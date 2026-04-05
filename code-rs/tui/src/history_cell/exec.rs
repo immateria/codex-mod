@@ -692,7 +692,10 @@ impl ExecCell {
             .as_ref()
             .or(self.stream_preview.as_ref());
         let mut out = output_lines(display_output, false, false);
-        let has_output = !trim_empty_lines(out.clone()).is_empty();
+        let has_output = out.iter().any(|line| {
+            if line.spans.is_empty() { return false; }
+            line.spans.iter().any(|s| !s.content.as_ref().trim().is_empty())
+        });
 
         if self.output.is_none() && has_output
             && let Some(last) = pre.last_mut() {

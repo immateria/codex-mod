@@ -141,7 +141,7 @@ pub(super) async fn handle_response_item(
 }
 
 fn web_search_query(query: &Option<String>, queries: &Option<Vec<String>>) -> Option<String> {
-    if let Some(value) = query.clone().filter(|q| !q.is_empty()) {
+    if let Some(value) = query.as_ref().filter(|q| !q.is_empty()).cloned() {
         return Some(value);
     }
 

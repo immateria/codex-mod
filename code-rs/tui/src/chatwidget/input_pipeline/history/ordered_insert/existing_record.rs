@@ -149,7 +149,7 @@ impl ChatWidget<'_> {
         });
 
         let ordered = "existing";
-        let req_dbg = format!("{}", key.req);
+        let req_dbg = key.req.to_string();
         let dbg = if let Some(tdbg) = reasoning_title_dbg {
             format!(
                 "insert: {} req={} {} pos={} tag={} | {}",

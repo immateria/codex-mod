@@ -62,7 +62,7 @@ pub(super) fn format_opt_secs_compact(duration: Option<Duration>) -> String {
 pub(super) fn format_secs_for_edit(duration: Duration) -> String {
     let secs = duration.as_secs_f64();
     if secs.fract() == 0.0 {
-        format!("{}", duration.as_secs())
+        duration.as_secs().to_string()
     } else {
         // Keep enough precision for sub-second limits without being noisy.
         format!("{secs:.3}")

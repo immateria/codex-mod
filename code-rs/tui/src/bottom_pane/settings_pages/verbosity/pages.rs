@@ -14,7 +14,7 @@ impl VerbositySelectionView {
         let header_lines = vec![Line::from(vec![
             Span::styled("Current: ", Style::new().fg(colors::text_dim())),
             Span::styled(
-                format!("{}", self.current_verbosity),
+                self.current_verbosity.to_string(),
                 Style::new().fg(colors::warning()).bold(),
             ),
         ])];

@@ -620,8 +620,9 @@ fn is_empty_line(line: &Line) -> bool {
 /// This ensures consistent spacing when cells are rendered together.
 pub(crate) fn trim_empty_lines(mut lines: Vec<Line<'static>>) -> Vec<Line<'static>> {
     // Remove ALL leading empty lines
-    while lines.first().is_some_and(is_empty_line) {
-        lines.remove(0);
+    let start = lines.iter().position(|l| !is_empty_line(l)).unwrap_or(lines.len());
+    if start > 0 {
+        lines.drain(..start);
     }
 
     // Remove ALL trailing empty lines

@@ -416,7 +416,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 {
                     (
                         format!(" in {}", format_duration(duration)),
-                        format!("{}", escape_command(&command).style(self.bold)),
+                        escape_command(&command).style(self.bold).to_string(),
                     )
                 } else {
                     ("".to_string(), format!("exec('{call_id}')"))
