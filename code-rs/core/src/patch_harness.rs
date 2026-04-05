@@ -1027,7 +1027,11 @@ impl WorkspaceOverlay {
         let original = match fs::read(path) {
             Ok(bytes) => Some(bytes),
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
-            Err(err) => return Err(err),
+            Err(err) => {
+                // Remove from seen so a retry can attempt the backup again.
+                seen.remove(path);
+                return Err(err);
+            }
         };
         self.backups.push((path.to_path_buf(), original));
         Ok(())
