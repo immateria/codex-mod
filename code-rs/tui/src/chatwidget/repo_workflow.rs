@@ -440,7 +440,7 @@ impl ChatWidget<'_> {
                 .map(|cmd| cmd.name.clone())
                 .collect();
             let suggestion = if available.is_empty() {
-                "".to_string()
+                String::new()
             } else {
                 format!(" Available commands: {}", available.join(", "))
             };

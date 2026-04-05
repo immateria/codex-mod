@@ -601,7 +601,7 @@ impl Page {
     return {{ success: false, reason: 'unsupported' }};
   }} catch (e) {{ return {{ success: false, error: String(e) }}; }}
 }})()"#,
-                text_json = serde_json::to_string(&processed_text).unwrap_or_else(|_| "".to_string())
+                text_json = serde_json::to_string(&processed_text).unwrap_or_default()
             );
 
             let _ = self.execute_javascript(&js).await;

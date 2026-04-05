@@ -72,9 +72,10 @@ pub(super) fn handle_key_event_with_slash_popup_inner(
                     SlashPopupSelection::UserPrompt(prompt_name) => {
                         if let Some(name) = prompt_name {
                             let trimmed = first_line.trim_start();
-                            let wants_prefixed = trimmed.starts_with(&format!(
-                                "/{PROMPTS_CMD_PREFIX}:{name}"
-                            )) || trimmed.starts_with(&format!("/{PROMPTS_CMD_PREFIX}:"));
+                            let prefix_with_name = format!("/{PROMPTS_CMD_PREFIX}:{name}");
+                            let prefix_bare = format!("/{PROMPTS_CMD_PREFIX}:");
+                            let wants_prefixed = trimmed.starts_with(&prefix_with_name)
+                                || trimmed.starts_with(&prefix_bare);
                             let target = if wants_prefixed {
                                 format!("/{PROMPTS_CMD_PREFIX}:{name} ")
                             } else {

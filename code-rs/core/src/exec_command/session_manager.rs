@@ -215,7 +215,7 @@ impl ExecCommandOutput {
             Some(tokens) => {
                 format!("\nWarning: truncated output (original token count: {tokens})")
             }
-            None => "".to_string(),
+            None => String::new(),
         };
         format!(
             r#"Wall time: {wall_time_secs:.3} seconds

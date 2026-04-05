@@ -423,7 +423,7 @@ impl ExperimentalEventProcessorWithJsonOutput {
 impl EventProcessor for ExperimentalEventProcessorWithJsonOutput {
     fn print_config_summary(&mut self, _: &Config, _: &str, ev: &SessionConfiguredEvent) {
         self.process_event(Event {
-            id: "".to_string(),
+            id: String::new(),
             msg: EventMsg::SessionConfigured(ev.clone()),
         });
     }

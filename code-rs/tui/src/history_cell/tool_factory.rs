@@ -373,8 +373,12 @@ fn new_completed_gh_run_wait_tool_call(success: bool, result: &str) -> ToolCallC
                 && lines[first_non_empty].trim().eq_ignore_ascii_case(title.trim()) {
                     lines.remove(first_non_empty);
                 }
-            while lines.first().is_some_and(|line| line.trim().is_empty()) {
-                lines.remove(0);
+            if let Some(skip) = lines.iter().position(|line| !line.trim().is_empty()) {
+                if skip > 0 {
+                    lines.drain(..skip);
+                }
+            } else {
+                lines.clear();
             }
             let remaining = lines.join("\n");
             if remaining.trim().is_empty() {

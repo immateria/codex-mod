@@ -113,7 +113,7 @@ fn is_safe_to_call_with_exec(command: &[String]) -> bool {
                 UNSAFE_RIPGREP_OPTIONS_WITHOUT_ARGS.contains(&arg.as_str())
                     || UNSAFE_RIPGREP_OPTIONS_WITH_ARGS
                         .iter()
-                        .any(|&opt| arg == opt || arg.starts_with(&format!("{opt}=")))
+                        .any(|&opt| arg == opt || (arg.starts_with(opt) && arg[opt.len()..].starts_with('=')))
             })
         }
 

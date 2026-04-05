@@ -120,7 +120,7 @@ pub(super) async fn handle_response_item(
         ResponseItem::WebSearchCall { id, action, .. } => {
             if let Some(WebSearchAction::Search { query, queries }) = action {
                 sess.maybe_mark_memories_polluted("web_search_call");
-                let call_id = id.unwrap_or_else(|| "".to_string());
+                let call_id = id.unwrap_or_default();
                 let query = web_search_query(&query, &queries);
                 let event = sess.make_event_with_hint(
                     sub_id,

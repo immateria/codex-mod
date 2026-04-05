@@ -696,12 +696,12 @@ pub async fn copy_uncommitted_to_worktree(src_root: &Path, worktree_path: &Path)
     let mut count = 0usize;
     for path_bytes in bytes.split(|b| *b == 0) {
         if path_bytes.is_empty() { continue; }
-        let rel = match String::from_utf8(path_bytes.to_vec()) { Ok(s) => s, Err(_) => continue };
+        let rel = match String::from_utf8(path_bytes.to_vec()) { Ok(s) => s, Err(e) => { tracing::debug!("Skipping non-UTF-8 path in ls-files: {e}"); continue } };
         // Avoid copying .git files explicitly
         if rel.starts_with(".git/") { continue; }
         let from = src_root.join(&rel);
         let to = worktree_path.join(&rel);
-        let meta = match tokio::fs::metadata(&from).await { Ok(m) => m, Err(_) => continue };
+        let meta = match tokio::fs::metadata(&from).await { Ok(m) => m, Err(e) => { tracing::debug!("Skipping {rel}: metadata error: {e}"); continue } };
         if !meta.is_file() { continue; }
         if let Some(parent) = to.parent() { tokio::fs::create_dir_all(parent).await.map_err(|e| format!("Failed to create dir {}: {}", parent.display(), e))?; }
         // Use copy for files; skip if it's a directory (shouldn't appear from ls-files)
@@ -724,7 +724,7 @@ pub async fn copy_uncommitted_to_worktree(src_root: &Path, worktree_path: &Path)
     }
     for path_bytes in deleted.stdout.split(|b| *b == 0) {
         if path_bytes.is_empty() { continue; }
-        let rel = match String::from_utf8(path_bytes.to_vec()) { Ok(s) => s, Err(_) => continue };
+        let rel = match String::from_utf8(path_bytes.to_vec()) { Ok(s) => s, Err(e) => { tracing::debug!("Skipping non-UTF-8 deleted path: {e}"); continue } };
         if rel.starts_with(".git/") { continue; }
         let target = worktree_path.join(&rel);
         match tokio::fs::remove_file(&target).await {

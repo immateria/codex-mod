@@ -183,7 +183,7 @@ impl ChatWidget<'_> {
                 if enabled { "enabled" } else { "disabled" }
             ));
         }
-        lines.push("".to_string());
+        lines.push(String::new());
         lines.push("Tools:".to_string());
         for status in crate::bottom_pane::settings_pages::validation::detect_tools() {
             let requested = self.validation_tool_requested(status.name);

@@ -84,7 +84,7 @@ pub async fn run_code_tool_session(
 
     let session_configured_event = Event {
         // Use a fake id value for now.
-        id: "".to_string(),
+        id: String::new(),
         event_seq: 0,
         msg: EventMsg::SessionConfigured(session_configured.clone()),
         order: None,

@@ -419,7 +419,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                         escape_command(&command).style(self.bold).to_string(),
                     )
                 } else {
-                    ("".to_string(), format!("exec('{call_id}')"))
+                    (String::new(), format!("exec('{call_id}')"))
                 };
 
                 let truncated_stdout = stdout

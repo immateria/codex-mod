@@ -133,7 +133,7 @@ pub(crate) fn map_response_item_to_event_messages(
 
         ResponseItem::WebSearchCall { id, action, .. } => match action {
             Some(WebSearchAction::Search { query, queries }) => {
-                let call_id = id.clone().unwrap_or_else(|| "".to_string());
+                let call_id = id.clone().unwrap_or_default();
                 let query = web_search_query(query, queries);
                 vec![EventMsg::WebSearchComplete(WebSearchCompleteEvent { call_id, query })]
             }

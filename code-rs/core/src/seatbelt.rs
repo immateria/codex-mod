@@ -256,7 +256,7 @@ fn create_seatbelt_command_args(
             }
 
             if writable_folder_policies.is_empty() {
-                ("".to_string(), Vec::<String>::new())
+                (String::new(), Vec::<String>::new())
             } else {
                 let file_write_policy = format!(
                     "(allow file-write*\n{}\n)",

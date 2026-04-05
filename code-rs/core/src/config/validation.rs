@@ -75,8 +75,8 @@ fn warn_on_unknown_cli_overrides(cli_paths: &[String], ignored_paths: &[String])
         let mut ignored = false;
         for ignored_path in ignored_paths {
             if cli_path == ignored_path
-                || cli_path.starts_with(&format!("{ignored_path}."))
-                || ignored_path.starts_with(&format!("{cli_path}."))
+                || (cli_path.starts_with(ignored_path) && cli_path[ignored_path.len()..].starts_with('.'))
+                || (ignored_path.starts_with(cli_path) && ignored_path[cli_path.len()..].starts_with('.'))
             {
                 ignored = true;
                 break;

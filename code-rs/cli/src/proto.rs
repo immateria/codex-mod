@@ -56,7 +56,7 @@ pub async fn run_main(opts: ProtoCli) -> anyhow::Result<()> {
     // Simulate streaming the session_configured event.
     let synthetic_event = Event {
         // Fake id value.
-        id: "".to_string(),
+        id: String::new(),
         event_seq: 0,
         msg: EventMsg::SessionConfigured(session_configured),
         order: None,

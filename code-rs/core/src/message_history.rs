@@ -178,7 +178,10 @@ pub(crate) async fn history_metadata(config: &Config) -> (u64, usize) {
         let meta = match fs::metadata(&path).await {
             Ok(m) => m,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return (0, 0),
-            Err(_) => return (0, 0),
+            Err(e) => {
+                tracing::debug!("Failed to read metadata for {}: {e}", path.display());
+                return (0, 0);
+            }
         };
         meta.ino()
     };
@@ -188,7 +191,10 @@ pub(crate) async fn history_metadata(config: &Config) -> (u64, usize) {
     // Open the file.
     let mut file = match fs::File::open(&path).await {
         Ok(f) => f,
-        Err(_) => return (log_id, 0),
+        Err(e) => {
+            tracing::debug!("Failed to open message history {}: {e}", path.display());
+            return (log_id, 0);
+        }
     };
 
     // Count newline bytes.
@@ -200,7 +206,10 @@ pub(crate) async fn history_metadata(config: &Config) -> (u64, usize) {
             Ok(n) => {
                 count += buf[..n].iter().filter(|&&b| b == b'\n').count();
             }
-            Err(_) => return (log_id, 0),
+            Err(e) => {
+                tracing::debug!("Read error on message history {}: {e}", path.display());
+                return (log_id, 0);
+            }
         }
     }
 

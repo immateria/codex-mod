@@ -300,7 +300,7 @@ fn is_safe_ripgrep(words: &[String]) -> bool {
         UNSAFE_RIPGREP_OPTIONS_WITHOUT_ARGS.contains(&arg_lc.as_str())
             || UNSAFE_RIPGREP_OPTIONS_WITH_ARGS
                 .iter()
-                .any(|opt| arg_lc == *opt || arg_lc.starts_with(&format!("{opt}=")))
+                .any(|opt| arg_lc == *opt || (arg_lc.starts_with(*opt) && arg_lc[opt.len()..].starts_with('=')))
     })
 }
 
