@@ -328,12 +328,8 @@ impl ModelSelectionView {
     }
 
     fn default_requested_auto_compact(&self) -> Option<i64> {
-        let Some(context_window) = self.data.current.current_context_window else {
-            return None;
-        };
-        let Some(current_auto_compact_token_limit) = self.data.current.current_auto_compact_token_limit else {
-            return None;
-        };
+        let context_window = self.data.current.current_context_window?;
+        let current_auto_compact_token_limit = self.data.current.current_auto_compact_token_limit?;
         if current_auto_compact_token_limit
             == default_auto_compact_limit_for_context_window(context_window)
         {

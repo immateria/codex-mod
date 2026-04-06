@@ -341,12 +341,10 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
 
     Paragraph::new(left_line).render(chunks[0], buf);
 
-    if right_width > 0 {
-        if let Some(&last_chunk) = chunks.last() {
-            Paragraph::new(right_line)
-                .alignment(Alignment::Right)
-                .render(last_chunk, buf);
-        }
+    if right_width > 0 && let Some(&last_chunk) = chunks.last() {
+        Paragraph::new(right_line)
+            .alignment(Alignment::Right)
+            .render(last_chunk, buf);
     }
 }
 

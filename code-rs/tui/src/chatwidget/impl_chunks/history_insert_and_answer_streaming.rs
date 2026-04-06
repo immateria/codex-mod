@@ -312,14 +312,14 @@ impl ChatWidget<'_> {
             .history_state
             .assistant_stream_state(stream_id)
             .cloned()
-            && existing.id != HistoryId::ZERO {
-                if self.cell_index_for_history_id(existing.id).is_some() {
-                    self.update_cell_from_record(
-                        existing.id,
-                        HistoryRecord::AssistantStream(existing),
-                    );
-                    self.autoscroll_if_near_bottom();
-                }
+            && existing.id != HistoryId::ZERO
+            && self.cell_index_for_history_id(existing.id).is_some()
+        {
+            self.update_cell_from_record(
+                existing.id,
+                HistoryRecord::AssistantStream(existing),
+            );
+            self.autoscroll_if_near_bottom();
         }
     }
 

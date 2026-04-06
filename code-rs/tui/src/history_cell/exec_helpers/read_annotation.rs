@@ -34,12 +34,11 @@ pub(crate) fn coalesce_read_ranges_in_lines_local(lines: &mut Vec<Line<'static>>
         if let Some(i) = rest.rfind(" (lines ") {
             let fname = rest[..i].to_string();
             let tail = &rest[i + 1..];
-            if let Some(inner) = tail.strip_prefix("(lines ").and_then(|s| s.strip_suffix(")")) {
-                if let Some((s1, s2)) = inner.split_once(" to ")
-                    && let (Ok(a), Ok(b)) = (s1.trim().parse::<u32>(), s2.trim().parse::<u32>())
-                {
-                    return Some((fname, a, b, prefix, idx));
-                }
+            if let Some(inner) = tail.strip_prefix("(lines ").and_then(|s| s.strip_suffix(")"))
+                && let Some((s1, s2)) = inner.split_once(" to ")
+                && let (Ok(a), Ok(b)) = (s1.trim().parse::<u32>(), s2.trim().parse::<u32>())
+            {
+                return Some((fname, a, b, prefix, idx));
             }
         }
         None

@@ -69,9 +69,9 @@ impl<'a> SettingsFrame<'a> {
 
         // We only show the footer when there is room for the footer gap plus at least one
         // footer line. Otherwise, a tiny viewport would yield an out-of-bounds footer rect.
-        let (footer_gap_height, footer_height) = if self.footer_lines.is_empty() {
-            (0, 0)
-        } else if remaining_after_header <= DEFAULT_FOOTER_GAP_LINES {
+        let (footer_gap_height, footer_height) = if self.footer_lines.is_empty()
+            || remaining_after_header <= DEFAULT_FOOTER_GAP_LINES
+        {
             (0, 0)
         } else {
             let footer_height = self

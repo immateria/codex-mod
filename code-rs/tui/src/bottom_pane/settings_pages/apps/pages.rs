@@ -26,7 +26,7 @@ impl AppsSettingsView {
         }
     }
 
-    fn active_account_id<'a>(snapshot: &'a AppsSharedState) -> Option<&'a str> {
+    fn active_account_id(snapshot: &AppsSharedState) -> Option<&str> {
         snapshot
             .accounts_snapshot
             .iter()
@@ -278,15 +278,13 @@ impl AppsSettingsView {
             KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())),
             KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
         ];
-        if let Some(crate::chatwidget::AppsAccountStatusState::Failed { needs_login, .. }) =
+        if let Some(crate::chatwidget::AppsAccountStatusState::Failed { needs_login: true, .. }) =
             snapshot.status_by_account_id.get(account_id)
         {
-            if *needs_login {
-                shortcuts.insert(
-                    2,
-                    KeyHint::new("l", " login").with_key_style(Style::new().fg(colors::success())),
-                );
-            }
+            shortcuts.insert(
+                2,
+                KeyHint::new("l", " login").with_key_style(Style::new().fg(colors::success())),
+            );
         }
 
         SettingsMenuPage::new(

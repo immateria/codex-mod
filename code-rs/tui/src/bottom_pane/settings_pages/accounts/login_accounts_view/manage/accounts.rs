@@ -123,18 +123,18 @@ impl LoginAccountsState {
             return;
         }
 
-        if let Some(api_key) = auth_json.openai_api_key.take() {
-            if let Err(err) = auth_accounts::upsert_api_key_account(
+        if let Some(api_key) = auth_json.openai_api_key.take()
+            && let Err(err) = auth_accounts::upsert_api_key_account(
                 &self.code_home,
                 api_key,
                 None,
                 true,
-            ) {
-                self.feedback = Some(Feedback {
-                    message: format!("Failed to record API key login: {err}"),
-                    is_error: true,
-                });
-            }
+            )
+        {
+            self.feedback = Some(Feedback {
+                message: format!("Failed to record API key login: {err}"),
+                is_error: true,
+            });
         }
     }
 
@@ -176,15 +176,15 @@ impl LoginAccountsState {
                     .active_account_id
                     .as_ref()
                     .is_some_and(|id| id == &account_id);
-                if removed_active {
-                    if let Err(err) = auth::logout_with_store_mode(
+                if removed_active
+                    && let Err(err) = auth::logout_with_store_mode(
                         &self.code_home,
                         self.auth_credentials_store_mode,
-                    ) {
-                        warn!(
-                            "login accounts: failed to logout after removing active account: {err}"
-                        );
-                    }
+                    )
+                {
+                    warn!(
+                        "login accounts: failed to logout after removing active account: {err}"
+                    );
                 }
                 self.feedback = Some(Feedback {
                     message: "Account disconnected".to_string(),

@@ -78,10 +78,8 @@ pub fn maybe_run_actionlint(
     }
 
     let source_github = cwd.join(".github");
-    if source_github.exists() {
-        if let Err(e) = copy_dir_recursive(&source_github, &temp_github) {
-            tracing::warn!("workflow validation: failed to copy .github dir: {e}");
-        }
+    if source_github.exists() && let Err(e) = copy_dir_recursive(&source_github, &temp_github) {
+        tracing::warn!("workflow validation: failed to copy .github dir: {e}");
     }
 
     for (path, change) in action.changes() {

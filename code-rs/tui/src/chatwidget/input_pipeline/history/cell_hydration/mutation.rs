@@ -20,11 +20,8 @@ impl ChatWidget<'_> {
                     || cell.as_any().is::<crate::history_cell::RunningToolCallCell>();
 
                 if existing_prefers_hydrate {
-                    if !self.hydrate_cell_from_record(cell, &record) {
-                        self.assign_history_id(cell, id);
-                    } else {
-                        self.assign_history_id(cell, id);
-                    }
+                    self.hydrate_cell_from_record(cell, &record);
+                    self.assign_history_id(cell, id);
                 } else if let Some(mut new_cell) = self.build_cell_from_record(&record) {
                     self.assign_history_id(&mut new_cell, id);
                     *cell = new_cell;
@@ -82,10 +79,8 @@ impl ChatWidget<'_> {
                     } else if let Some(mut next) = rebuilt.take() {
                         Self::assign_history_id_inner(&mut next, id);
                         *cell_slot = next;
-                    } else if !Self::hydrate_cell_from_record_inner(cell_slot, &record, &self.config)
-                    {
-                        Self::assign_history_id_inner(cell_slot, id);
                     } else {
+                        Self::hydrate_cell_from_record_inner(cell_slot, &record, &self.config);
                         Self::assign_history_id_inner(cell_slot, id);
                     }
                 }

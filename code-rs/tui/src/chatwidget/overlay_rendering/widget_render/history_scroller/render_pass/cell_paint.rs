@@ -356,11 +356,7 @@ impl ChatWidget<'_> {
                     // If the cell header is scrolled out of view (skip_top > anchor_offset),
                     // paint the gutter symbol at the first visible row so jump/fold click
                     // targets stay discoverable on tight viewports.
-                    let rel = if skip_top <= anchor_offset {
-                        anchor_offset - skip_top
-                    } else {
-                        0
-                    };
+                    let rel = anchor_offset.saturating_sub(skip_top);
                     let symbol_y = gutter_area.y.saturating_add(rel);
                     if symbol_y < gutter_area.y.saturating_add(gutter_area.height) {
                         let symbol_x = gutter_area.x;

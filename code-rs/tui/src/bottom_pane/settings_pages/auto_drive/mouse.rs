@@ -196,12 +196,10 @@ impl AutoDriveSettingsView {
                         .unwrap_or(0);
                     if idx >= self.model_routing_entries.len() {
                         self.open_routing_editor(None);
+                    } else if Self::routing_checkbox_hit_test(layout.body, mouse_event.column) {
+                        self.try_toggle_routing_entry_enabled(idx);
                     } else {
-                        if Self::routing_checkbox_hit_test(layout.body, mouse_event.column) {
-                            self.try_toggle_routing_entry_enabled(idx);
-                        } else {
-                            self.open_routing_editor(Some(idx));
-                        }
+                        self.open_routing_editor(Some(idx));
                     }
                     changed = true;
                 }

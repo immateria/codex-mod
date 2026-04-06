@@ -154,43 +154,43 @@ impl PluginsSettingsView {
                 Style::new().fg(colors::error()),
             )));
         }
-        if snapshot.action_error.is_none() {
-            if let Some(action) = snapshot.action_in_progress.as_ref() {
-                let message = match action {
-                    crate::chatwidget::PluginsActionInProgress::FetchList => None,
-                    crate::chatwidget::PluginsActionInProgress::FetchDetail(key) => Some(format!(
-                        "Loading details for {}…",
-                        key.plugin_name
-                    )),
-                    crate::chatwidget::PluginsActionInProgress::Install {
-                        marketplace_path: _marketplace_path,
-                        plugin_name,
-                        force_remote_sync,
-                    } => Some(if *force_remote_sync {
-                        format!("Installing {plugin_name} (syncing remote)…")
-                    } else {
-                        format!("Installing {plugin_name}…")
-                    }),
-                    crate::chatwidget::PluginsActionInProgress::Uninstall {
-                        plugin_id_key,
-                        force_remote_sync: _force_remote_sync,
-                    } => Some(format!("Uninstalling {plugin_id_key}…")),
-                    crate::chatwidget::PluginsActionInProgress::SetEnabled {
-                        plugin_id_key,
-                        enabled,
-                    } => Some(if *enabled {
-                        format!("Enabling {plugin_id_key}…")
-                    } else {
-                        format!("Disabling {plugin_id_key}…")
-                    }),
-                };
+        if snapshot.action_error.is_none()
+            && let Some(action) = snapshot.action_in_progress.as_ref()
+        {
+            let message = match action {
+                crate::chatwidget::PluginsActionInProgress::FetchList => None,
+                crate::chatwidget::PluginsActionInProgress::FetchDetail(key) => Some(format!(
+                    "Loading details for {}…",
+                    key.plugin_name
+                )),
+                crate::chatwidget::PluginsActionInProgress::Install {
+                    marketplace_path: _marketplace_path,
+                    plugin_name,
+                    force_remote_sync,
+                } => Some(if *force_remote_sync {
+                    format!("Installing {plugin_name} (syncing remote)…")
+                } else {
+                    format!("Installing {plugin_name}…")
+                }),
+                crate::chatwidget::PluginsActionInProgress::Uninstall {
+                    plugin_id_key,
+                    force_remote_sync: _force_remote_sync,
+                } => Some(format!("Uninstalling {plugin_id_key}…")),
+                crate::chatwidget::PluginsActionInProgress::SetEnabled {
+                    plugin_id_key,
+                    enabled,
+                } => Some(if *enabled {
+                    format!("Enabling {plugin_id_key}…")
+                } else {
+                    format!("Disabling {plugin_id_key}…")
+                }),
+            };
 
-                if let Some(message) = message {
-                    header_lines.push(Line::from(Span::styled(
-                        message,
-                        Style::new().fg(colors::function()),
-                    )));
-                }
+            if let Some(message) = message {
+                header_lines.push(Line::from(Span::styled(
+                    message,
+                    Style::new().fg(colors::function()),
+                )));
             }
         }
 

@@ -1071,12 +1071,12 @@
                     self.schedule_redraw();
                 }
                 AppEvent::OpenUrlInBrowser { url } => {
-                    if let Err(err) = crate::open_url::open_url(&url) {
-                        if let AppState::Chat { widget } = &mut self.app_state {
-                            widget.debug_notice(format!(
-                                "Failed to open browser: {err}. URL: {url}"
-                            ));
-                        }
+                    if let Err(err) = crate::open_url::open_url(&url)
+                        && let AppState::Chat { widget } = &mut self.app_state
+                    {
+                        widget.debug_notice(format!(
+                            "Failed to open browser: {err}. URL: {url}"
+                        ));
                     }
                 }
                 AppEvent::InsertText { text } => {

@@ -82,7 +82,7 @@ impl NetworkSettingsView {
                 field,
                 show_advanced: _,
             } => {
-                let handled = match mouse_event.kind {
+                match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let field_area = Self::edit_page(*target)
                             .layout_in_chrome(chrome, area)
@@ -96,8 +96,7 @@ impl NetworkSettingsView {
                     MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
                     MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
                     _ => false,
-                };
-                handled
+                }
             }
             ViewMode::Transition => {
                 self.mode = ViewMode::Main {

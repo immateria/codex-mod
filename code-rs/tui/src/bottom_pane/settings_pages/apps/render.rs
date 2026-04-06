@@ -113,10 +113,10 @@ fn build_account_detail_lines(snapshot: &AppsSharedState, account_id: &str) -> V
             let mut lines = Vec::new();
             for app in connected_apps {
                 let mut label = format!("- {} (tools: {})", app.name, app.tool_count);
-                if let Some(description) = app.description.as_ref() {
-                    if !description.is_empty() {
-                        label.push_str(&format!(" - {description}"));
-                    }
+                if let Some(description) = app.description.as_ref()
+                    && !description.is_empty()
+                {
+                    label.push_str(&format!(" - {description}"));
                 }
                 lines.push(Line::from(Span::raw(label)));
             }

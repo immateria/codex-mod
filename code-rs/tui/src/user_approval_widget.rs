@@ -141,61 +141,60 @@ impl UserApprovalWidget<'_> {
                     contents.push(Line::from(""));
                 }
 
-                if let Some(additional_permissions) = additional_permissions {
-                    if additional_permissions.network.unwrap_or(false)
+                if let Some(additional_permissions) = additional_permissions
+                    && (additional_permissions.network.unwrap_or(false)
                         || additional_permissions
                             .file_system
                             .as_ref()
                             .is_some_and(|fs| fs.read.is_some() || fs.write.is_some())
-                        || additional_permissions.macos.is_some()
-                    {
-                        contents.push(Line::from(Span::styled(
-                            "Additional sandbox permissions requested:",
-                            Style::default()
-                                .fg(crate::colors::text_dim())
-                                .add_modifier(Modifier::ITALIC),
-                        )));
+                        || additional_permissions.macos.is_some())
+                {
+                    contents.push(Line::from(Span::styled(
+                        "Additional sandbox permissions requested:",
+                        Style::default()
+                            .fg(crate::colors::text_dim())
+                            .add_modifier(Modifier::ITALIC),
+                    )));
 
-                        if additional_permissions.network.unwrap_or(false) {
-                            contents.push(Line::from(Span::raw("  - network")));
-                        }
-
-                        if let Some(fs) = additional_permissions.file_system.as_ref() {
-                            if let Some(read_roots) = fs.read.as_ref() {
-                                for root in read_roots {
-                                    contents.push(Line::from(Span::raw(format!(
-                                        "  - read {}",
-                                        root.as_ref().display()
-                                    ))));
-                                }
-                            }
-                            if let Some(write_roots) = fs.write.as_ref() {
-                                for root in write_roots {
-                                    contents.push(Line::from(Span::raw(format!(
-                                        "  - write {}",
-                                        root.as_ref().display()
-                                    ))));
-                                }
-                            }
-                        }
-
-                        if let Some(macos) = additional_permissions.macos.as_ref() {
-                            if macos.preferences.is_some() {
-                                contents.push(Line::from(Span::raw("  - macos preferences")));
-                            }
-                            if macos.automations.is_some() {
-                                contents.push(Line::from(Span::raw("  - macos automations")));
-                            }
-                            if macos.accessibility.unwrap_or(false) {
-                                contents.push(Line::from(Span::raw("  - macos accessibility")));
-                            }
-                            if macos.calendar.unwrap_or(false) {
-                                contents.push(Line::from(Span::raw("  - macos calendar")));
-                            }
-                        }
-
-                        contents.push(Line::from(""));
+                    if additional_permissions.network.unwrap_or(false) {
+                        contents.push(Line::from(Span::raw("  - network")));
                     }
+
+                    if let Some(fs) = additional_permissions.file_system.as_ref() {
+                        if let Some(read_roots) = fs.read.as_ref() {
+                            for root in read_roots {
+                                contents.push(Line::from(Span::raw(format!(
+                                    "  - read {}",
+                                    root.as_ref().display()
+                                ))));
+                            }
+                        }
+                        if let Some(write_roots) = fs.write.as_ref() {
+                            for root in write_roots {
+                                contents.push(Line::from(Span::raw(format!(
+                                    "  - write {}",
+                                    root.as_ref().display()
+                                ))));
+                            }
+                        }
+                    }
+
+                    if let Some(macos) = additional_permissions.macos.as_ref() {
+                        if macos.preferences.is_some() {
+                            contents.push(Line::from(Span::raw("  - macos preferences")));
+                        }
+                        if macos.automations.is_some() {
+                            contents.push(Line::from(Span::raw("  - macos automations")));
+                        }
+                        if macos.accessibility.unwrap_or(false) {
+                            contents.push(Line::from(Span::raw("  - macos accessibility")));
+                        }
+                        if macos.calendar.unwrap_or(false) {
+                            contents.push(Line::from(Span::raw("  - macos calendar")));
+                        }
+                    }
+
+                    contents.push(Line::from(""));
                 }
                 Paragraph::new(contents).wrap(Wrap { trim: false })
             }

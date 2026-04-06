@@ -167,12 +167,11 @@ fn heredoc_delimiter(token: &str) -> Option<String> {
     if delim.is_empty() {
         return None;
     }
-    if delim.len() >= 2 {
-        if let Some(inner) = delim.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
+    if delim.len() >= 2
+        && let Some(inner) = delim.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
             .or_else(|| delim.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
-        {
-            delim = inner.to_string();
-        }
+    {
+        delim = inner.to_string();
     }
     if delim.is_empty() {
         None

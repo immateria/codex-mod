@@ -24,7 +24,7 @@ pub(super) fn handle_mouse_event_direct_in_chrome(
                 return false;
             };
 
-            let handled = match mouse_event.kind {
+            match mouse_event.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     if let Some(action) = view.editor_footer_action_at(
                         *target,
@@ -106,8 +106,7 @@ pub(super) fn handle_mouse_event_direct_in_chrome(
                     }
                 }
                 _ => false,
-            };
-            handled
+            }
         }
         ViewMode::PickList(state) => {
             let total = state.items.len();

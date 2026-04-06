@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn ensure_file_popup<'a>(view: &'a mut ChatComposer) -> &'a mut FileSearchPopup {
+pub(super) fn ensure_file_popup(view: &mut ChatComposer) -> &mut FileSearchPopup {
     if !matches!(view.active_popup, ActivePopup::File(_)) {
         view.active_popup = ActivePopup::File(FileSearchPopup::new());
     }

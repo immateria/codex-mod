@@ -249,7 +249,7 @@ impl InterfaceSettingsView {
         match mode_guard.mode_mut() {
             ViewMode::Main => self.process_key_event_main(key_event),
             ViewMode::EditWidth { field, error } => {
-                let handled = match key_event {
+                match key_event {
                     KeyEvent { code: KeyCode::Esc, .. } => {
                         self.mode = ViewMode::Main;
                         true
@@ -284,8 +284,7 @@ impl InterfaceSettingsView {
                         }
                     },
                     _ => field.handle_key(key_event),
-                };
-                handled
+                }
             }
             ViewMode::CaptureHotkey { row, .. } => {
                 let row = *row;

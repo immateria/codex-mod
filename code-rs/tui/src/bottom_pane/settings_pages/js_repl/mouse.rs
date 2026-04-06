@@ -81,7 +81,7 @@ impl JsReplSettingsView {
                 outcome.changed
             }
             ViewMode::EditText { target, field } => {
-                let handled = match mouse_event.kind {
+                match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let page = Self::text_edit_page(*target);
                         let field_area = page.layout_in_chrome(chrome, area).map(|layout| layout.field);
@@ -94,11 +94,10 @@ impl JsReplSettingsView {
                     MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
                     MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
                     _ => false,
-                };
-                handled
+                }
             }
             ViewMode::EditList { target, field } => {
-                let handled = match mouse_event.kind {
+                match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let page = Self::list_edit_page(*target);
                         let field_area = page.layout_in_chrome(chrome, area).map(|layout| layout.field);
@@ -111,8 +110,7 @@ impl JsReplSettingsView {
                     MouseEventKind::ScrollDown => field.handle_mouse_scroll(true),
                     MouseEventKind::ScrollUp => field.handle_mouse_scroll(false),
                     _ => false,
-                };
-                handled
+                }
             }
             ViewMode::Transition => {
                 self.mode = ViewMode::Main;

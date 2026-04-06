@@ -67,7 +67,7 @@ impl HotkeyRow {
         }
     }
 
-    fn hotkey_field_mut<'a>(self, hotkeys: &'a mut TuiHotkeysConfig) -> &'a mut TuiHotkey {
+    fn hotkey_field_mut(self, hotkeys: &mut TuiHotkeysConfig) -> &mut TuiHotkey {
         match self {
             Self::ModelSelector => &mut hotkeys.model_selector,
             Self::ReasoningEffort => &mut hotkeys.reasoning_effort,
@@ -93,10 +93,10 @@ impl HotkeyRow {
         }
     }
 
-    fn override_field_mut<'a>(
+    fn override_field_mut(
         self,
-        overrides: &'a mut TuiHotkeysOverrides,
-    ) -> &'a mut Option<TuiHotkey> {
+        overrides: &mut TuiHotkeysOverrides,
+    ) -> &mut Option<TuiHotkey> {
         match self {
             Self::ModelSelector => &mut overrides.model_selector,
             Self::ReasoningEffort => &mut overrides.reasoning_effort,

@@ -178,10 +178,10 @@ impl ExecLimitsSettingsView {
                 field,
                 error,
             } => {
-                let handled = match (key_event.code, key_event.modifiers) {
+                match (key_event.code, key_event.modifiers) {
                     (KeyCode::Esc, _) => {
                         self.mode = ViewMode::Main;
-                        return true;
+                        true
                     }
                     (KeyCode::Char('s'), KeyModifiers::CONTROL) | (KeyCode::Enter, _) => {
                         let text = field.text().trim();
@@ -228,14 +228,12 @@ impl ExecLimitsSettingsView {
 
                         self.set_limit(*target, code_core::config::ExecLimitToml::Value(parsed));
                         self.mode = ViewMode::Main;
-                        return true;
+                        true
                     }
                     _ => {
                         field.handle_key(key_event)
                     }
-                };
-
-                handled
+                }
             }
             ViewMode::Transition => {
                 self.mode = ViewMode::Main;

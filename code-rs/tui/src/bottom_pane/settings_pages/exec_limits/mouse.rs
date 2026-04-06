@@ -82,7 +82,7 @@ impl ExecLimitsSettingsView {
                 outcome.changed
             }
             ViewMode::Edit { target, field, error } => {
-                let handled = match mouse_event.kind {
+                match mouse_event.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         let Some(field_area) = Self::edit_page(*target, error.as_deref())
                             .layout_in_chrome(chrome, area)
@@ -93,8 +93,7 @@ impl ExecLimitsSettingsView {
                         field.handle_mouse_click(mouse_event.column, mouse_event.row, field_area)
                     }
                     _ => false,
-                };
-                handled
+                }
             }
             ViewMode::Transition => {
                 self.mode = ViewMode::Main;
