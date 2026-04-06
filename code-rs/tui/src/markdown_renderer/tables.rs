@@ -45,9 +45,83 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
         matches!(ch as u32, 0x1F1E6..=0x1F1FF)
     }
 
+    fn is_numeric_cell(s: &str) -> bool {
+        let t = s.trim();
+        if t.is_empty() {
+            return true;
+        }
+        let mut has_digit = false;
+        for ch in t.chars() {
+            if ch.is_ascii_digit() {
+                has_digit = true;
+                continue;
+            }
+            if matches!(ch, '+' | '-' | '.' | ',') {
+                continue;
+            }
+            return false;
+        }
+        has_digit
+    }
+
     // Split a row by '|' and trim spaces; drop empty edge cells from leading/trailing '|'
     fn split_row(s: &str) -> Vec<String> {
-        let mut parts: Vec<String> = s.split('|').map(|x| x.trim().to_string()).collect();
+        // We must not split on:
+        // - escaped pipes: "\|" inside a cell
+        // - pipes inside inline code spans: "`a|b`"
+        //
+        // This is still a simplification of CommonMark tables, but it fixes the
+        // most common real-world cases without pulling in a full markdown parser.
+        fn is_escapable_punct(ch: char) -> bool {
+            matches!(
+                ch,
+                '\\' | '|' | '*' | '_' | '`' | '[' | ']' | '(' | ')' | '<' | '>' | '!' | '#'
+                    | '+' | '-' | '.' | ':' | '"' | '\''
+            )
+        }
+
+        let mut parts: Vec<String> = Vec::new();
+        let mut cur = String::new();
+        let mut in_code = false;
+        let mut it = s.chars().peekable();
+        while let Some(ch) = it.next() {
+            if in_code {
+                if ch == '`' {
+                    in_code = false;
+                }
+                cur.push(ch);
+                continue;
+            }
+
+            if ch == '`' {
+                in_code = true;
+                cur.push(ch);
+                continue;
+            }
+
+            if ch == '\\' {
+                if let Some(&next) = it.peek()
+                    && is_escapable_punct(next)
+                {
+                    // Consume the escaped char and emit it literally.
+                    it.next();
+                    cur.push(next);
+                } else {
+                    cur.push(ch);
+                }
+                continue;
+            }
+
+            if ch == '|' {
+                parts.push(cur.trim().to_string());
+                cur.clear();
+                continue;
+            }
+
+            cur.push(ch);
+        }
+        parts.push(cur.trim().to_string());
+
         // Trim empty edge cells introduced by leading/trailing '|'
         if parts.first().is_some_and(std::string::String::is_empty) {
             parts.remove(0);
@@ -161,7 +235,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
         for (i, align) in aligns.iter_mut().enumerate().take(cols) {
             let numeric = body
                 .iter()
-                .all(|r| r.get(i).is_none_or(|c| is_numeric(c)));
+                .all(|r| r.get(i).is_none_or(|c| is_numeric_cell(c)));
             if numeric {
                 *align = Align::Right;
             }

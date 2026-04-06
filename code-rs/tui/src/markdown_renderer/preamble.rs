@@ -370,6 +370,34 @@ impl MarkdownRenderer {
         let mut current_text = String::new();
 
         while i < chars.len() {
+            // Backslash escapes (CommonMark-ish):
+            // Render the escaped character literally and suppress formatting triggers.
+            if chars[i] == '\\' {
+                if i + 1 < chars.len() {
+                    let next = chars[i + 1];
+                    let escapable = matches!(
+                        next,
+                        '\\' | '|' | '*' | '_' | '`' | '[' | ']' | '(' | ')' | '<' | '>' | '!'
+                            | '#'
+                            | '+'
+                            | '-'
+                            | '.'
+                            | ':'
+                            | '"'
+                            | '\''
+                            | '~'
+                    );
+                    if escapable {
+                        current_text.push(next);
+                        i += 2;
+                        continue;
+                    }
+                }
+                current_text.push('\\');
+                i += 1;
+                continue;
+            }
+
             // Markdown image ![alt](url "title")
             if chars[i] == '!' {
                 let rest: String = chars[i..].iter().collect();
@@ -717,4 +745,3 @@ impl MarkdownRenderer {
         }
     }
 }
-

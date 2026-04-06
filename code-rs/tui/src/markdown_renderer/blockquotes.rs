@@ -1,22 +1,3 @@
-fn is_numeric(s: &str) -> bool {
-    let t = s.trim();
-    if t.is_empty() {
-        return true;
-    }
-    let mut has_digit = false;
-    for ch in t.chars() {
-        if ch.is_ascii_digit() {
-            has_digit = true;
-            continue;
-        }
-        if matches!(ch, '+' | '-' | '.' | ',') {
-            continue;
-        }
-        return false;
-    }
-    has_digit
-}
-
 // Parse consecutive blockquote lines, supporting nesting with multiple '>' markers
 // and callouts: [!NOTE], [!TIP], [!WARNING], [!IMPORTANT]
 fn parse_blockquotes(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
@@ -161,4 +142,3 @@ fn parse_blockquotes(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
     }
     if out.is_empty() { None } else { Some((i, out)) }
 }
-
