@@ -135,7 +135,9 @@ impl ToolCallCell {
         // Truncate to ~60 chars for the header
         let first_line = trimmed.lines().next().unwrap_or(&trimmed);
         if first_line.len() > 60 {
-            Some(format!("{}…", &first_line[..57]))
+            Some(crate::text_formatting::truncate_to_display_width_with_suffix(
+                first_line, 57, "…",
+            ))
         } else if trimmed.lines().count() > 1 {
             Some(format!("{first_line}…"))
         } else {

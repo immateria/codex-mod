@@ -21,9 +21,10 @@ impl McpSettingsView {
 
         if self.rows.is_empty() {
             lines.push(Line::from(vec![Span::styled(
-                crate::text_formatting::truncate_chars_with_ellipsis(
+                crate::text_formatting::truncate_to_display_width_with_suffix(
                     "No MCP servers configured.",
                     content_width,
+                    "…",
                 ),
                 dim_style,
             )]));
@@ -43,9 +44,10 @@ impl McpSettingsView {
             };
 
             let check = if row.enabled { "[on ]" } else { "[off]" };
-            let label = crate::text_formatting::truncate_chars_with_ellipsis(
+            let label = crate::text_formatting::truncate_to_display_width_with_suffix(
                 &format!("{check} {}", row.name),
                 label_width,
+                "…",
             );
             Self::push_list_row(&mut lines, is_selected, is_hovered, style, label, style);
         }
@@ -66,9 +68,10 @@ impl McpSettingsView {
             refresh_sel,
             refresh_hover,
             Style::default(),
-            crate::text_formatting::truncate_chars_with_ellipsis(
+            crate::text_formatting::truncate_to_display_width_with_suffix(
                 "Refresh tools/status",
                 label_width,
+                "…",
             ),
             refresh_style,
         );
@@ -88,9 +91,10 @@ impl McpSettingsView {
             add_sel,
             add_hover,
             Style::default(),
-            crate::text_formatting::truncate_chars_with_ellipsis(
+            crate::text_formatting::truncate_to_display_width_with_suffix(
                 "Add new server…",
                 label_width,
+                "…",
             ),
             add_style,
         );
@@ -110,7 +114,7 @@ impl McpSettingsView {
             close_sel,
             close_hover,
             Style::default(),
-            crate::text_formatting::truncate_chars_with_ellipsis("Close", label_width),
+            crate::text_formatting::truncate_to_display_width_with_suffix("Close", label_width, "…"),
             close_style,
         );
 

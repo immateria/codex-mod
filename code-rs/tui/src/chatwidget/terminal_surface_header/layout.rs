@@ -14,6 +14,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
     let mut include_branch = !input.minimal_header && input.branch.is_some();
     let mut include_dir = !input.minimal_header && !input.demo_mode;
     let mut use_short_dir = false;
+    let mut compact_labels = false;
 
     let build = |include_reasoning: bool,
                  include_model: bool,
@@ -22,7 +23,8 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                  include_mcp: bool,
                  include_branch: bool,
                  include_dir: bool,
-                 dir_display: &str| {
+                 dir_display: &str,
+                 compact: bool| {
         let mut spans: Vec<Span<'static>> = Vec::new();
         let mut ranges: Vec<(std::ops::Range<usize>, ClickableAction)> = Vec::new();
         let mut width = 0usize;
@@ -91,7 +93,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut spans,
                 &mut ranges,
                 &mut width,
-                "Model: ",
+                if compact { "" } else { "Model: " },
                 input.model,
                 Style::default().fg(crate::colors::info()),
                 ClickableAction::ShowModelSelector,
@@ -104,7 +106,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut spans,
                 &mut ranges,
                 &mut width,
-                "Speed: ",
+                if compact { "" } else { "Speed: " },
                 input.service_tier,
                 Style::default().fg(crate::colors::info()),
                 ClickableAction::ToggleServiceTier,
@@ -117,7 +119,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut spans,
                 &mut ranges,
                 &mut width,
-                "Shell: ",
+                if compact { "" } else { "Shell: " },
                 input.shell,
                 Style::default().fg(crate::colors::info()),
                 ClickableAction::ShowShellSelector,
@@ -128,12 +130,14 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             && let Some((kind, value)) = input.mcp_indicator
         {
             push_separator(&mut spans, &mut width);
-            push_text(
-                &mut spans,
-                &mut width,
-                "MCP: ",
-                Style::default().fg(crate::colors::text_dim()),
-            );
+            if !compact {
+                push_text(
+                    &mut spans,
+                    &mut width,
+                    "MCP: ",
+                    Style::default().fg(crate::colors::text_dim()),
+                );
+            }
             let value_style = match kind {
                 McpHeaderIndicatorKind::Connecting => Style::default().fg(crate::colors::info()),
                 McpHeaderIndicatorKind::Error => Style::default()
@@ -149,7 +153,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                 &mut spans,
                 &mut ranges,
                 &mut width,
-                "Reasoning: ",
+                if compact { "" } else { "Reasoning: " },
                 input.reasoning,
                 Style::default().fg(crate::colors::info()),
                 ClickableAction::ShowReasoningSelector,
@@ -163,18 +167,20 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
                     &mut spans,
                     &mut ranges,
                     &mut width,
-                    "Directory: ",
+                    if compact { "" } else { "Directory: " },
                     dir_display,
                     Style::default().fg(crate::colors::info()),
                     ClickableAction::ShowDirectoryPicker,
                 );
             } else {
-                push_text(
-                    &mut spans,
-                    &mut width,
-                    "Directory: ",
-                    Style::default().fg(crate::colors::text_dim()),
-                );
+                if !compact {
+                    push_text(
+                        &mut spans,
+                        &mut width,
+                        "Directory: ",
+                        Style::default().fg(crate::colors::text_dim()),
+                    );
+                }
                 push_text(
                     &mut spans,
                     &mut width,
@@ -188,12 +194,14 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             && let Some(branch) = input.branch
         {
             push_separator(&mut spans, &mut width);
-            push_text(
-                &mut spans,
-                &mut width,
-                "Branch: ",
-                Style::default().fg(crate::colors::text_dim()),
-            );
+            if !compact {
+                push_text(
+                    &mut spans,
+                    &mut width,
+                    "Branch: ",
+                    Style::default().fg(crate::colors::text_dim()),
+                );
+            }
             push_text(
                 &mut spans,
                 &mut width,
@@ -218,8 +226,10 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
         include_branch,
         include_dir,
         input.directory_full,
+        compact_labels,
     );
 
+    // Step 1: Try short directory name.
     if include_dir && !use_short_dir && render.width > input.inner_width {
         use_short_dir = true;
         render = build(
@@ -231,9 +241,28 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             include_branch,
             include_dir,
             input.directory_short,
+            compact_labels,
         );
     }
 
+    // Step 2: Drop labels (e.g., "Model: gpt-4o" → "gpt-4o") before
+    // removing segments entirely — keeps more information visible.
+    if !compact_labels && render.width > input.inner_width {
+        compact_labels = true;
+        render = build(
+            include_reasoning,
+            include_model,
+            include_service_tier,
+            include_shell,
+            include_mcp,
+            include_branch,
+            include_dir,
+            if use_short_dir { input.directory_short } else { input.directory_full },
+            compact_labels,
+        );
+    }
+
+    // Step 3: Remove segments one by one, least-important first.
     while render.width > input.inner_width {
         if include_reasoning {
             include_reasoning = false;
@@ -272,6 +301,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             } else {
                 input.directory_full
             },
+            compact_labels,
         );
     }
 

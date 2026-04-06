@@ -64,7 +64,7 @@ impl McpSettingsView {
             });
             let label_width = width.saturating_sub(if has_override { 12 } else { 10 });
             let label =
-                crate::text_formatting::truncate_chars_with_ellipsis(entry.name, label_width);
+                crate::text_formatting::truncate_to_display_width_with_suffix(entry.name, label_width, "…");
             let marker_style = if hover_part == Some(McpToolHoverPart::Toggle) {
                 row_style
                     .fg(crate::colors::primary())

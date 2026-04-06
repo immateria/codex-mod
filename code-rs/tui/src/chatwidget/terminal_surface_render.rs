@@ -387,10 +387,11 @@ impl ChatWidget<'_> {
         let has_selected_status_line =
             top_text_with_regions.is_none() && !top_status_line_items.is_empty();
         let selected_status_line = if has_selected_status_line {
-            Some(self.render_selected_status_line(
+            Some(self.render_selected_status_line_with_width(
                 &top_status_line_items,
                 header_template_ctx.hovered_action.clone(),
                 hover_style,
+                inner_width,
             ))
         } else {
             None
@@ -472,11 +473,46 @@ impl ChatWidget<'_> {
         ));
     }
 
-    fn render_selected_status_line(
+    fn render_selected_status_line_with_width(
         &self,
         items: &[StatusLineItem],
         hovered_action: Option<ClickableAction>,
         hover_style: code_core::config_types::HeaderHoverStyle,
+        max_width: usize,
+    ) -> super::terminal_surface_header::HeaderTemplateRender {
+        // Resolve values for all items, remembering which have values.
+        let resolved: Vec<(StatusLineItem, String)> = items
+            .iter()
+            .filter_map(|item| {
+                self.status_line_value_for_item(*item)
+                    .map(|v| (*item, v))
+            })
+            .collect();
+
+        // Try with all items first; drop from the end if it doesn't fit.
+        let mut count = resolved.len();
+        loop {
+            let render = self.build_status_line_spans(
+                &resolved[..count],
+                &hovered_action,
+                hover_style,
+                max_width,
+            );
+            if render.width <= max_width || count <= 1 {
+                return render;
+            }
+            count -= 1;
+        }
+    }
+
+    /// Build a status line from already-resolved (item, value) pairs,
+    /// truncating individual values that exceed the per-segment budget.
+    fn build_status_line_spans(
+        &self,
+        resolved: &[(StatusLineItem, String)],
+        hovered_action: &Option<ClickableAction>,
+        hover_style: code_core::config_types::HeaderHoverStyle,
+        max_width: usize,
     ) -> super::terminal_surface_header::HeaderTemplateRender {
         use ratatui::style::Style;
         use ratatui::text::{Line, Span};
@@ -486,11 +522,17 @@ impl ChatWidget<'_> {
         let mut width = 0usize;
         let mut added_any = false;
 
-        for item in items {
-            let Some(value) = self.status_line_value_for_item(*item) else {
-                continue;
-            };
+        // Compute a per-segment width budget: split available width evenly
+        // among segments, minus separator overhead.
+        let n = resolved.len();
+        let separator_overhead = if n > 1 { (n - 1) * 3 } else { 0 };
+        let per_segment_budget = if n > 0 {
+            max_width.saturating_sub(separator_overhead) / n
+        } else {
+            max_width
+        };
 
+        for (item, value) in resolved {
             if added_any {
                 spans.push(Span::styled(
                     " • ".to_string(),
@@ -522,7 +564,18 @@ impl ChatWidget<'_> {
                 _ => None,
             };
 
-            let segment_width = value.width();
+            // Truncate the value if it exceeds the per-segment budget.
+            let display_value = if value.width() > per_segment_budget && per_segment_budget > 1 {
+                crate::text_formatting::truncate_to_display_width_with_suffix(
+                    value,
+                    per_segment_budget,
+                    "…",
+                )
+            } else {
+                value.clone()
+            };
+
+            let segment_width = display_value.width();
             let mut style = Style::default().fg(crate::colors::text());
             if let Some(action) = click_action.clone() {
                 style = super::terminal_surface_header::apply_hover_style(
@@ -532,7 +585,7 @@ impl ChatWidget<'_> {
                 );
                 ranges.push((width..width + segment_width, action));
             }
-            spans.push(Span::styled(value, style));
+            spans.push(Span::styled(display_value, style));
             width += segment_width;
         }
 
@@ -586,7 +639,12 @@ impl ChatWidget<'_> {
 
         let hovered_action = self.hovered_clickable_action.borrow().clone();
         let hover_style = self.config.tui.header.hover_style;
-        let rendered = self.render_selected_status_line(&bottom_items, hovered_action, hover_style);
+        let rendered = self.render_selected_status_line_with_width(
+            &bottom_items,
+            hovered_action,
+            hover_style,
+            line_area.width as usize,
+        );
 
         // Add clickable regions for the bottom status line, in addition to any
         // regions tracked for the top status bar.
