@@ -705,7 +705,7 @@ fn parse_bullet_marker(bullet: &str) -> BulletMarker {
 
 fn strip_prefix_from_inline_spans(spans: Vec<InlineSpan>, mut chars_to_strip: usize) -> Vec<InlineSpan> {
     let mut out: Vec<InlineSpan> = Vec::new();
-    for mut span in spans.into_iter() {
+    for mut span in spans {
         if chars_to_strip == 0 {
             if !span.text.is_empty() {
                 out.push(span);

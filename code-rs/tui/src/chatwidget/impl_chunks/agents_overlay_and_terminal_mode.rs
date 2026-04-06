@@ -72,9 +72,8 @@ impl ChatWidget<'_> {
                     content.set_editor(editor_view);
                     self.request_redraw();
                     return true;
-                } else {
-                    needs_content = true;
                 }
+                needs_content = true;
             }
 
         if needs_content {
@@ -124,9 +123,8 @@ impl ChatWidget<'_> {
                     content.set_agent_editor(editor_view);
                     self.request_redraw();
                     return true;
-                } else {
-                    needs_content = true;
                 }
+                needs_content = true;
             }
 
         if needs_content {
@@ -365,7 +363,7 @@ impl ChatWidget<'_> {
         }
 
         let wrap_width = available_width.saturating_sub(6).max(12) as usize;
-        for (text, style) in bullets.into_iter() {
+        for (text, style) in bullets {
             let opts = textwrap::Options::new(wrap_width)
                 .break_words(false)
                 .word_splitter(textwrap::word_splitters::WordSplitter::NoHyphenation)

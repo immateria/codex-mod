@@ -440,9 +440,8 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                             while j < bytes.len() && bytes[j] != b'>' { j += 1; }
                             if j < bytes.len() {
                                 return Some(html[start..j+1].to_string());
-                            } else {
-                                return Some(html[start..].to_string());
                             }
+                            return Some(html[start..].to_string());
                         }
                     i += 1;
                 }

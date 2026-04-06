@@ -51,11 +51,10 @@ pub(crate) fn extract_latest_bold_title(text: &str) -> Option<String> {
                 open_start = None;
                 idx += 2;
                 continue;
-            } else {
-                open_start = Some(idx + 2);
-                idx += 2;
-                continue;
             }
+            open_start = Some(idx + 2);
+            idx += 2;
+            continue;
         }
         idx += 1;
     }

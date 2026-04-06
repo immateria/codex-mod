@@ -165,10 +165,10 @@ impl RowBuilder {
             if suffix.is_empty() {
                 // Fits entirely; keep in buffer (do not push yet) so we can append more later.
                 break;
-            } else {
-                // Prefer wrapping at word boundaries so we don't split words
-                // unless a single word exceeds the target width.
-                if let Some((ws_idx, ws_ch)) = prefix
+            }
+            // Prefer wrapping at word boundaries so we don't split words
+            // unless a single word exceeds the target width.
+            if let Some((ws_idx, ws_ch)) = prefix
                     .char_indices()
                     .rev()
                     .find(|(_, ch)| ch.is_whitespace())
@@ -212,7 +212,6 @@ impl RowBuilder {
                 // Fall back to a hard wrap (no whitespace in the visible prefix).
                 self.rows.push(make_row(prefix, false));
                 self.current_line = suffix.to_string();
-            }
         }
     }
 }

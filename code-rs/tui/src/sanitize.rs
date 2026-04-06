@@ -130,7 +130,8 @@ fn strip_specials(input: String, mode: Mode, debug_markers: bool) -> String {
                             it.next();
                             while let Some(&c) = it.peek() {
                                 let u = c as u32;
-                                if (0x40..=0x7E).contains(&u) { it.next(); break; } else { it.next(); }
+                                if (0x40..=0x7E).contains(&u) { it.next(); break; }
+                                it.next();
                             }
                         }
                     }

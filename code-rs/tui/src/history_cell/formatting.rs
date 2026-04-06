@@ -235,21 +235,19 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
                                 continue;
                             }
                         }
-                    } else {
-                        // Malformed CSI: drop it entirely by exiting the loop
-                        break;
                     }
-                } else {
-                    // Other ESC sequences (e.g., OSC): pass through verbatim without affecting cursor
-                    // Copy ESC and advance one; do not attempt to parse full OSC payload here.
-                    if !line.is_empty() {
-                        out.push_str(&line.iter().collect::<String>());
-                        line.clear();
-                        cursor = 0;
-                    }
-                    out.push(ch);
-                    i += 1;
+                    // Malformed CSI: drop it entirely by exiting the loop
+                    break;
                 }
+                // Other ESC sequences (e.g., OSC): pass through verbatim without affecting cursor
+                // Copy ESC and advance one; do not attempt to parse full OSC payload here.
+                if !line.is_empty() {
+                    out.push_str(&line.iter().collect::<String>());
+                    line.clear();
+                    cursor = 0;
+                }
+                out.push(ch);
+                i += 1;
             }
             _ => {
                 // Put visible char at cursor, expanding with spaces if needed

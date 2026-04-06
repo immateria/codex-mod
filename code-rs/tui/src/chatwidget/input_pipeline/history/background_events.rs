@@ -25,13 +25,12 @@ impl ChatWidget<'_> {
                     "missing order metadata for tail background event; dropping message"
                 );
                 return;
-            } else {
-                tracing::warn!(
-                    target: "code_order",
-                    "background event without order metadata placement={:?}",
-                    placement
-                );
             }
+            tracing::warn!(
+                target: "code_order",
+                "background event without order metadata placement={:?}",
+                placement
+            );
         }
         let system_placement = match placement {
             BackgroundPlacement::Tail => SystemPlacement::Tail,

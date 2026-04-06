@@ -371,16 +371,15 @@ pub(super) async fn perform_compaction(
                         .await;
                     tokio::time::sleep(delay).await;
                     continue;
-                } else {
-                    let event = sess.make_event(
-                        &sub_id,
-                        EventMsg::Error(ErrorEvent {
-                            message: e.to_string(),
-                        }),
-                    );
-                    sess.send_event(event).await;
-                    return Err(e);
                 }
+                let event = sess.make_event(
+                    &sub_id,
+                    EventMsg::Error(ErrorEvent {
+                        message: e.to_string(),
+                    }),
+                );
+                sess.send_event(event).await;
+                return Err(e);
             }
         }
     }
@@ -541,16 +540,15 @@ async fn run_compact_task_inner_inline(
                         .await;
                     tokio::time::sleep(delay).await;
                     continue;
-                } else {
-                    let event = sess.make_event(
-                        &sub_id,
-                        EventMsg::Error(ErrorEvent {
-                            message: e.to_string(),
-                        }),
-                    );
-                    sess.send_event(event).await;
-                    return Vec::new();
                 }
+                let event = sess.make_event(
+                    &sub_id,
+                    EventMsg::Error(ErrorEvent {
+                        message: e.to_string(),
+                    }),
+                );
+                sess.send_event(event).await;
+                return Vec::new();
             }
         }
     }

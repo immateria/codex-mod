@@ -1650,7 +1650,7 @@ impl Config {
 
         let mut model_providers = built_in_model_providers();
         // Merge user-defined providers into the built-in list.
-        for (key, provider) in cfg.model_providers.into_iter() {
+        for (key, provider) in cfg.model_providers {
             model_providers.entry(key).or_insert(provider);
         }
 

@@ -547,16 +547,15 @@ pub(super) async fn run_agent(sess: Arc<Session>, turn_context: Arc<TurnContext>
                             }
                             stop_hook_active = true;
                             continue;
-                        } else {
-                            let event = sess.make_event(
-                                &sub_id,
-                                EventMsg::Warning(crate::protocol::WarningEvent {
-                                    message: "Stop hook requested continuation without a prompt; ignoring the block."
-                                        .to_string(),
-                                }),
-                            );
-                            let _ = sess.tx_event.send(event).await;
                         }
+                        let event = sess.make_event(
+                            &sub_id,
+                            EventMsg::Warning(crate::protocol::WarningEvent {
+                                message: "Stop hook requested continuation without a prompt; ignoring the block."
+                                    .to_string(),
+                            }),
+                        );
+                        let _ = sess.tx_event.send(event).await;
                     }
                     if stop_outcome.should_stop {
                         break;

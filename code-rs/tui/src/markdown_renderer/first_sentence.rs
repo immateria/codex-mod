@@ -58,7 +58,7 @@ fn apply_first_sentence_style(spans: &mut Vec<Span<'static>>) -> bool {
     let original = std::mem::take(spans);
     let mut out: Vec<Span<'static>> = Vec::with_capacity(original.len() + 2);
     let mut consumed = 0usize; // chars consumed across spans
-    for sp in original.into_iter() {
+    for sp in original {
         if consumed >= limit {
             out.push(sp);
             continue;

@@ -56,25 +56,23 @@ pub fn strip_empty_fenced_code_blocks(source: &str) -> String {
                     }
                     // Do not emit the original fences.
                     continue;
-                } else {
-                    // Not empty: re-emit the original block faithfully.
-                    out.push_str(line);
-                    out.push('\n');
-                    for l in inner {
-                        out.push_str(l);
-                        out.push('\n');
-                    }
-                    out.push_str("```");
-                    out.push('\n');
-                    continue;
                 }
-            } else {
-                // Unclosed fence: re-emit what we consumed (opening line only)
-                // and let the caller's is_inside_unclosed_fence handle holdback.
+                // Not empty: re-emit the original block faithfully.
                 out.push_str(line);
+                out.push('\n');
+                for l in inner {
+                    out.push_str(l);
+                    out.push('\n');
+                }
+                out.push_str("```");
                 out.push('\n');
                 continue;
             }
+            // Unclosed fence: re-emit what we consumed (opening line only)
+            // and let the caller's is_inside_unclosed_fence handle holdback.
+            out.push_str(line);
+            out.push('\n');
+            continue;
         }
 
         // Normal line passthrough.

@@ -2051,11 +2051,10 @@ pub(crate) async fn handle_container_exec_with_params(
                     success: Some(is_success),
                 },
             };
-        } else {
-            // Fallback (should not happen): indicate completion without detail
-            let msg = "Command completed.".to_string();
-            return ResponseInputItem::FunctionCallOutput { call_id: call_id.clone(), output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(msg), success: Some(true) } };
         }
+        // Fallback (should not happen): indicate completion without detail
+        let msg = "Command completed.".to_string();
+        return ResponseInputItem::FunctionCallOutput { call_id: call_id.clone(), output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(msg), success: Some(true) } };
     }
 
     // Still running: mark as backgrounded and return background notice + tail and instructions

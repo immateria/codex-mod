@@ -456,7 +456,7 @@ impl ChatWidget<'_> {
                             );
                             last_kind = Some(log.kind);
                         }
-                        for mut line in log_lines.into_iter() {
+                        for mut line in log_lines {
                             line.spans.insert(0, Span::raw("│   "));
                             lines.push(line);
                         }

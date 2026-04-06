@@ -1309,7 +1309,7 @@ impl Session {
         let mut marker_inserted = false;
         let mut last_text_idx: Option<usize> = None;
 
-        for item in original.into_iter() {
+        for item in original {
             match item {
                 ContentItem::InputText { text } => {
                     if let Some((seg_start, seg_end)) = segment_iter.next() {

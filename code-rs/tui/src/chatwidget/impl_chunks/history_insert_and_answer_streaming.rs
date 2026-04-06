@@ -765,7 +765,7 @@ impl ChatWidget<'_> {
                         self.auto_stop(pending);
                         self.stop_spinner();
                         return;
-                    } else {
+                    }
                         self.auto_state.last_completion_explanation = None;
                         let goal = self
                             .auto_state
@@ -789,7 +789,6 @@ impl ChatWidget<'_> {
                     self.auto_send_conversation_force();
                     self.stop_spinner();
                     return;
-                }
                 }
                 Err(err) => {
                     tracing::warn!(

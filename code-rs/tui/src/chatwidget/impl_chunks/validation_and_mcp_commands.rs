@@ -535,7 +535,7 @@ impl ChatWidget<'_> {
                 let mut args: Vec<String> = Vec::new();
                 let mut env: std::collections::HashMap<String, String> =
                     std::collections::HashMap::new();
-                for tok in rest_tokens.into_iter() {
+                for tok in rest_tokens {
                     if let Some((k, v)) = tok.split_once('=') {
                         if !k.is_empty() {
                             env.insert(k.to_string(), v.to_string());

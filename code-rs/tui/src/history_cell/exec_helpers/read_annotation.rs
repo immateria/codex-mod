@@ -123,7 +123,7 @@ pub(crate) fn coalesce_read_ranges_in_lines_local(lines: &mut Vec<Line<'static>>
     // Sort files by their first appearance index to keep stable ordering with other files.
     files.sort_by_key(|(_n, fr)| fr.first_index);
 
-    for (name, mut fr) in files.into_iter() {
+    for (name, mut fr) in files {
         fr.ranges = merge_and_sort(fr.ranges);
         // Build range annotation: " (lines S1 to E1, S2 to E2, ...)"
         let mut ann = String::new();

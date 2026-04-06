@@ -91,9 +91,8 @@ impl ChatWidget<'_> {
                     // Force immediate redraw to reflect input growth/wrap
                     self.request_redraw();
                     return;
-                } else {
-                    tracing::warn!("Image path does not exist: {:?}", path);
                 }
+                tracing::warn!("Image path does not exist: {:?}", path);
             } else {
                 // For non-image files, paste the decoded path as plain text.
                 let path = PathBuf::from(&path_str);

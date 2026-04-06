@@ -266,7 +266,7 @@ impl MergedExecCell {
             if !pre.is_empty() {
                 pre.remove(0);
             }
-            for line in pre.into_iter() {
+            for line in pre {
                 if is_search_like(&line) {
                     continue;
                 }

@@ -184,7 +184,7 @@ async fn traverse_directories_for_paths(
                 })
                 .await?;
                 let mut day_entries = Vec::with_capacity(day_files.len());
-                for (ts, sid, _name_str, path) in day_files.into_iter() {
+                for (ts, sid, _name_str, path) in day_files {
                     let modified = tokio::fs::metadata(&path)
                         .await
                         .ok()
@@ -196,7 +196,7 @@ async fn traverse_directories_for_paths(
                 day_entries.sort_by_key(|(modified, ts, sid, _)| {
                     (Reverse(*modified), Reverse(*ts), Reverse(*sid))
                 });
-                for (modified, ts, sid, path) in day_entries.into_iter() {
+                for (modified, ts, sid, path) in day_entries {
                     scanned_files += 1;
                     if scanned_files >= MAX_SCAN_FILES {
                         break 'outer;

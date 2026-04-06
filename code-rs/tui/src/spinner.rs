@@ -44,7 +44,7 @@ lazy_static! {
         let val: Value = serde_json::from_str(SPINNERS_JSON).unwrap_or(Value::Object(Default::default()));
         if let Value::Object(map) = val {
             // Mixed-mode tolerant parse: for each top-level entry
-            for (k, v) in map.into_iter() {
+            for (k, v) in map {
                 // If this is the pointer entry (Default: "name"), skip it;
                 // but allow a group actually named "Default" (object).
                 if k == "Default" {
@@ -58,7 +58,7 @@ lazy_static! {
                         }
                     } else {
                         // Group container
-                        for (name, val_entry) in inner.into_iter() {
+                        for (name, val_entry) in inner {
                             if let Ok(sj) = serde_json::from_value::<SpinnerJson>(val_entry) {
                                 vpush(&mut list, &name, sj);
                             }
