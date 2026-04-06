@@ -643,7 +643,7 @@ fn summarize_action_result(result: &Result<String, String>) -> (Option<String>, 
                     .get("status_code")
                     .and_then(|value| match value {
                         Value::Number(num) => num.as_u64().map(|n| n.to_string()),
-                        Value::String(s) => Some(s.to_string()),
+                        Value::String(s) => Some(s.clone()),
                         _ => None,
                     });
 

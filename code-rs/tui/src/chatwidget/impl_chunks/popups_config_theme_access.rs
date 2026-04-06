@@ -280,7 +280,7 @@ impl ChatWidget<'_> {
             lines.push(RtLine::from(vec![
                 RtSpan::styled(format!("/{cmd_str:<12}"), t_fg),
                 RtSpan::raw("  —  "),
-                RtSpan::styled(desc.to_string(), t_dim),
+                RtSpan::styled(desc.clone(), t_dim),
             ]));
         }
 

@@ -163,11 +163,11 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                         (String::new(), String::new())
                     } else {
                         let display_p = if p.ends_with('/') {
-                            p.to_string()
+                            p.clone()
                         } else {
                             format!("{p}/")
                         };
-                        ("List".to_string(), display_p.to_string())
+                        ("List".to_string(), display_p.clone())
                     }
                 }
                 None => ("List".to_string(), "./".to_string()),
@@ -229,7 +229,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                 match (query, path) {
                     (Some(q), Some(p)) => {
                         let display_p = if p.ends_with('/') {
-                            p.to_string()
+                            p.clone()
                         } else {
                             format!("{p}/")
                         };
@@ -238,10 +238,10 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                             format!("{} in {}", fmt_query(q), display_p),
                         )
                     }
-                    (Some(q), None) => ("Search".to_string(), fmt_query(q).to_string()),
+                    (Some(q), None) => ("Search".to_string(), fmt_query(q).clone()),
                     (None, Some(p)) => {
                         let display_p = if p.ends_with('/') {
-                            p.to_string()
+                            p.clone()
                         } else {
                             format!("{p}/")
                         };
@@ -349,13 +349,13 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                                 ));
                             } else {
                                 spans.push(Span::styled(
-                                    chunk.to_string(),
+                                    chunk.clone(),
                                     Style::default().fg(crate::colors::text()),
                                 ));
                             }
                         } else {
                             spans.push(Span::styled(
-                                chunk.to_string(),
+                                chunk.clone(),
                                 Style::default().fg(crate::colors::text()),
                             ));
                         }
@@ -621,11 +621,11 @@ fn new_parsed_command(
                         (String::new(), String::new()) // suppressed
                     } else {
                         let display_p = if p.ends_with('/') {
-                            p.to_string()
+                            p.clone()
                         } else {
                             format!("{p}/")
                         };
-                        ("List".to_string(), display_p.to_string())
+                        ("List".to_string(), display_p.clone())
                     }
                 }
                 None => ("List".to_string(), "./".to_string()),
@@ -682,7 +682,7 @@ fn new_parsed_command(
                 match (query, path) {
                     (Some(q), Some(p)) => {
                         let display_p = if p.ends_with('/') {
-                            p.to_string()
+                            p.clone()
                         } else {
                             format!("{p}/")
                         };
@@ -691,10 +691,10 @@ fn new_parsed_command(
                             format!("{} in {}", fmt_query(q), display_p),
                         )
                     }
-                    (Some(q), None) => ("Search".to_string(), fmt_query(q).to_string()),
+                    (Some(q), None) => ("Search".to_string(), fmt_query(q).clone()),
                     (None, Some(p)) => {
                         let display_p = if p.ends_with('/') {
-                            p.to_string()
+                            p.clone()
                         } else {
                             format!("{p}/")
                         };
@@ -811,13 +811,13 @@ fn new_parsed_command(
                                 ));
                             } else {
                                 spans.push(Span::styled(
-                                    chunk.to_string(),
+                                    chunk.clone(),
                                     Style::default().fg(crate::colors::text()),
                                 ));
                             }
                         } else {
                             spans.push(Span::styled(
-                                chunk.to_string(),
+                                chunk.clone(),
                                 Style::default().fg(crate::colors::text()),
                             ));
                         }

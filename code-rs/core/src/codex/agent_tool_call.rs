@@ -672,7 +672,7 @@ pub(crate) async fn handle_run_agent(
                         } else if multi_model {
                             Some(format!("{value} ({model})"))
                         } else {
-                            Some(value.to_string())
+                            Some(value.clone())
                         }
                     })
                     .unwrap_or_else(|| model.to_string())

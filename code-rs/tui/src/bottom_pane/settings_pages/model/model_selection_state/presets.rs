@@ -24,12 +24,12 @@ impl FlatPreset {
             .map(|effort_preset| {
                 let effort_label = reasoning_effort_label(effort_preset.effort.into());
                 FlatPreset {
-                    model: preset.model.to_string(),
-                    display_name: preset.display_name.to_string(),
+                    model: preset.model.clone(),
+                    display_name: preset.display_name.clone(),
                     effort: effort_preset.effort.into(),
                     label: format!("{} {}", preset.display_name, effort_label.to_lowercase()),
-                    description: effort_preset.description.to_string(),
-                    model_description: preset.description.to_string(),
+                    description: effort_preset.description.clone(),
+                    model_description: preset.description.clone(),
                     picker_rank: picker_rank_for_model(&preset.model),
                 }
             })

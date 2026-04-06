@@ -131,7 +131,7 @@ fn update_origins_for_value(
             }
             for (key, child) in table {
                 let next = if prefix.is_empty() {
-                    key.to_string()
+                    key.clone()
                 } else {
                     format!("{prefix}.{key}")
                 };

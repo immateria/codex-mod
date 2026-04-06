@@ -42,7 +42,7 @@ pub fn build_provider(
         service_name: config.responses_originator_header.clone(),
         service_version: service_version.to_string(),
         code_home: config.code_home.clone(),
-        environment: config.otel.environment.to_string(),
+        environment: config.otel.environment.clone(),
         exporter,
     })
 }

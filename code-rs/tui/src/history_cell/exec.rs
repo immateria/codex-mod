@@ -98,7 +98,7 @@ impl ParsedExecMetadata {
         let mut search_paths: HashSet<String> = HashSet::new();
         for pc in parsed {
             if let ParsedCommand::Search { path: Some(p), .. } = pc {
-                search_paths.insert(p.to_string());
+                search_paths.insert(p.clone());
             }
         }
         Self {

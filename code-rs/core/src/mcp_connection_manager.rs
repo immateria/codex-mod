@@ -1288,7 +1288,7 @@ impl McpConnectionManager {
             let mut scheduling = self.tool_scheduling_write();
             let mut limiters = self.tool_limiters_write();
             for (tool_name, override_cfg) in &cfg.tool_scheduling {
-                let key = (server_name.to_string(), tool_name.to_string());
+                let key = (server_name.to_string(), tool_name.clone());
                 if override_cfg.is_empty() {
                     scheduling.remove(&key);
                     limiters.remove(&key);

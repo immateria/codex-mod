@@ -1623,7 +1623,7 @@ impl Config {
                             )
                         })?
                         .clone();
-                    (Some(key.to_string()), profile)
+                    (Some(key.clone()), profile)
                 }
                 None => (None, ConfigProfile::default()),
             };

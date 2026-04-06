@@ -82,7 +82,7 @@ fn parse_blockquotes(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
                         // Eagerly emit the label so the block never returns None
                         // even if there are no subsequent quoted lines.
                         if out.is_empty() {
-                            let label = k.to_string();
+                            let label = k.clone();
                             out.push(Line::from(vec![Span::styled(
                                 label,
                                 Style::default()
@@ -100,7 +100,7 @@ fn parse_blockquotes(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
         // For callouts, render a label line once
         if let Some(ref kind) = callout_kind
             && out.is_empty() {
-                let label = kind.to_string();
+                let label = kind.clone();
                 out.push(Line::from(vec![Span::styled(
                     label,
                     Style::default()

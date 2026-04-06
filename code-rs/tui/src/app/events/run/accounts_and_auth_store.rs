@@ -525,7 +525,7 @@
                         }
                         SlashCommand::Shell => {
                             if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.handle_shell_command(command_args.to_string());
+                                widget.handle_shell_command(command_args.clone());
                             }
                         }
                         SlashCommand::Notifications => {

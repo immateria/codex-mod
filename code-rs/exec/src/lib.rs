@@ -348,7 +348,7 @@ pub async fn run_main(cli: Cli, code_linux_sandbox_exe: Option<PathBuf>) -> anyh
 
     // Print the effective configuration and prompt so users can see what Codex
     // is using.
-    let default_cwd = config.cwd.to_path_buf();
+    let default_cwd = config.cwd.clone();
     let _default_approval_policy = config.approval_policy;
     let _default_sandbox_policy = config.sandbox_policy.clone();
     let _default_model = config.model.clone();

@@ -25,7 +25,7 @@ pub(super) fn build_previews(
             tracker.batch_id.get_or_insert(agent_batch.clone());
         }
         if let Some(model) = agent.model.as_ref() {
-            tracker.merge_models([model.to_string()]);
+            tracker.merge_models([model.clone()]);
         }
         if tracker
             .batch_label

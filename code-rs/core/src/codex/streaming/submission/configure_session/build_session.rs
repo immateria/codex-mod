@@ -150,7 +150,7 @@ impl Runner<'_> {
             .into_iter()
             .flatten()
             {
-                excluded_tools.insert((tool.mcp_server.to_string(), tool.tool_name.to_string()));
+                excluded_tools.insert((tool.mcp_server.clone(), tool.tool_name.clone()));
             }
         }
         for (server_name, server_cfg) in &config.mcp_servers {
