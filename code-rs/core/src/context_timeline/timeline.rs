@@ -243,13 +243,12 @@ impl ContextTimeline {
 
 /// Rough estimate of snapshot size in bytes.
 fn estimate_snapshot_bytes(snapshot: &EnvironmentContextSnapshot) -> usize {
-    // Very rough estimate based on JSON serialization
-    serde_json::to_string(snapshot).map(|s| s.len()).unwrap_or(0)
+    serde_json::to_string(snapshot).map_or(0, |s| s.len())
 }
 
 /// Rough estimate of delta entry size in bytes.
 fn estimate_delta_bytes(entry: &DeltaEntry) -> usize {
-    serde_json::to_string(&entry.delta).map(|s| s.len()).unwrap_or(0)
+    serde_json::to_string(&entry.delta).map_or(0, |s| s.len())
         + entry.recorded_at.len()
         + 8 // sequence u64
 }

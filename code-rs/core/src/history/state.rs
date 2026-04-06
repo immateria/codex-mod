@@ -689,7 +689,7 @@ fn retained_stream_len(chunks: &[ExecStreamChunk]) -> usize {
     if chunks.is_empty() {
         return 0;
     }
-    let first_offset = chunks.first().map(|chunk| chunk.offset).unwrap_or(0);
+    let first_offset = chunks.first().map_or(0, |chunk| chunk.offset);
     stream_len(chunks).saturating_sub(first_offset)
 }
 
@@ -698,7 +698,7 @@ fn retained_exec_record_bytes(record: &ExecRecord) -> usize {
 }
 
 fn truncated_prefix_len(chunks: &[ExecStreamChunk]) -> usize {
-    chunks.first().map(|chunk| chunk.offset).unwrap_or(0)
+    chunks.first().map_or(0, |chunk| chunk.offset)
 }
 
 fn truncate_exec_stream(chunks: &mut Vec<ExecStreamChunk>, truncate_at: usize) {

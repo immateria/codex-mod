@@ -405,10 +405,10 @@ pub fn parse_git_apply_output(
 
         // === 3-way failed entirely; attribute to last_seen_path ===
         if THREE_WAY_FAILED.is_match(line) || LACKS_BLOB.is_match(line) {
-            if let Some(p) = last_seen_path.clone() {
-                add(&mut skipped, &p);
-                applied.remove(&p);
-                conflicted.remove(&p);
+            if let Some(p) = last_seen_path.as_ref() {
+                add(&mut skipped, p);
+                applied.remove(p);
+                conflicted.remove(p);
             }
             continue;
         }

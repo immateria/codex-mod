@@ -173,7 +173,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
             if i > 0 {
                 spans.push(Span::raw("  "));
             }
-            spans.push(Span::raw("─".repeat(width).clone()));
+            spans.push(Span::raw("─".repeat(width)));
         }
         out.push(Line::from(spans));
     }

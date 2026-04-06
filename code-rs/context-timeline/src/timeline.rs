@@ -227,7 +227,7 @@ impl<S, D> ContextTimeline<S, D> {
 }
 
 fn estimate_serialized_bytes<T: Serialize>(value: &T) -> usize {
-    serde_json::to_string(value).map(|s| s.len()).unwrap_or(0)
+    serde_json::to_string(value).map_or(0, |s| s.len())
 }
 
 fn estimate_delta_bytes<D: Serialize>(entry: &DeltaEntry<D>) -> usize {

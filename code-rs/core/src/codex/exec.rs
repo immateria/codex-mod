@@ -861,7 +861,7 @@ impl Session {
             let hook_label = hook
                 .name
                 .as_deref()
-                .unwrap_or_else(|| hook.command.first().map(String::as_str).unwrap_or("hook"));
+                .unwrap_or_else(|| hook.command.first().map_or("hook", String::as_str));
             let order = self.next_background_order(&sub_id, attempt_req, None);
             self
                 .notify_background_event_with_order(
