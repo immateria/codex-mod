@@ -167,7 +167,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                         } else {
                             format!("{p}/")
                         };
-                        ("List".to_string(), display_p.clone())
+                        ("List".to_string(), display_p)
                     }
                 }
                 None => ("List".to_string(), "./".to_string()),
@@ -625,7 +625,7 @@ fn new_parsed_command(
                         } else {
                             format!("{p}/")
                         };
-                        ("List".to_string(), display_p.clone())
+                        ("List".to_string(), display_p)
                     }
                 }
                 None => ("List".to_string(), "./".to_string()),

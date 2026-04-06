@@ -6,7 +6,7 @@ use textwrap::Options as TwOptions;
 
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_nav, status_and_shortcuts, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, status_and_shortcuts, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::message_page::SettingsMessagePage;
@@ -57,8 +57,7 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
             let footer_lines = footer_status_and_shortcuts(state, &[
                 hint_nav(" navigate"),
                 hint_enter(" select"),
-                KeyHint::new("Esc", " back")
-                    .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+                hint_esc(" back"),
             ]);
             let page = SettingsMenuPage::new(
                 "Add Account",
@@ -76,8 +75,7 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
             let pre_lines = vec![Line::from("Paste your OpenAI API key:")];
             let post_lines = footer_status_and_shortcuts(state, &[
                 hint_enter(" save"),
-                KeyHint::new("Esc", " cancel")
-                    .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+                hint_esc(" cancel"),
             ]);
             let page = SettingsEditorPage::new(
                 "Add Account",
@@ -90,8 +88,7 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
         }
         AddStep::Waiting { auth_url } => {
             let footer_lines = footer_status_and_shortcuts(state, &[
-                KeyHint::new("Esc", " cancel login")
-                    .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+                hint_esc(" cancel login"),
             ]);
             let content_width = auth_progress_body_width(state, area);
             let mut body_lines = vec![
@@ -120,8 +117,7 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
         }
         AddStep::DeviceCode(step) => {
             let footer_lines = footer_status_and_shortcuts(state, &[
-                KeyHint::new("Esc", " cancel login")
-                    .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+                hint_esc(" cancel login"),
             ]);
             let content_width = auth_progress_body_width(state, area);
             let mut body_lines = vec![Line::from("Complete sign-in using a verification code.")];

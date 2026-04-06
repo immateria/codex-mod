@@ -2,7 +2,7 @@ use super::*;
 
 use crate::colors;
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
-use crate::bottom_pane::settings_ui::hints::{status_and_shortcuts, status_and_shortcuts_split, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, status_and_shortcuts, status_and_shortcuts_split, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -58,8 +58,8 @@ impl AutoDriveSettingsView {
             &[
                 KeyHint::new("Tab", " next field"),
                 KeyHint::new("Space", " toggle"),
-                KeyHint::new("Enter", " save/activate"),
-                KeyHint::new("Esc", " back"),
+                hint_enter(" save/activate"),
+                hint_esc(" back"),
             ],
         );
         SettingsActionPage::new(
@@ -84,9 +84,9 @@ impl AutoDriveSettingsView {
                 .as_deref()
                 .map(|message| crate::bottom_pane::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
             &[
-                KeyHint::new("Enter", " select/toggle"),
+                hint_enter(" select/toggle"),
                 KeyHint::new("←/→", " adjust delay"),
-                KeyHint::new("Esc", " close"),
+                hint_esc(" close"),
                 KeyHint::new("Ctrl+S", " close"),
             ],
         )
@@ -98,10 +98,10 @@ impl AutoDriveSettingsView {
                 .as_deref()
                 .map(|message| crate::bottom_pane::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
             &[
-                KeyHint::new("Enter", " edit/add"),
+                hint_enter(" edit/add"),
                 KeyHint::new("Space", " toggle enabled"),
                 KeyHint::new("D", " remove"),
-                KeyHint::new("Esc", " back"),
+                hint_esc(" back"),
             ],
         )
     }

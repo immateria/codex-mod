@@ -127,7 +127,7 @@ impl ChatWidget<'_> {
                     .await;
                 }
                 Err(e) => {
-                    let err_msg = format!("{e}");
+                    let err_msg = e.to_string();
                     // If we attempted via a cached WS, clear it and fallback to port-based discovery once.
                     if attempted_via_cached_ws {
                         tracing::warn!(

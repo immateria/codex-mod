@@ -2,7 +2,7 @@ use ratatui::layout::Margin;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::colors;
@@ -13,9 +13,9 @@ impl UpdateSettingsView {
     pub(super) fn footer_lines() -> Vec<Line<'static>> {
         vec![shortcut_line(&[
             KeyHint::new("Up/Down", " move"),
-            KeyHint::new("Enter", " activate"),
+            hint_enter(" activate"),
             KeyHint::new("Space", " toggle"),
-            KeyHint::new("Esc", " close"),
+            hint_esc(" close"),
         ])]
     }
 

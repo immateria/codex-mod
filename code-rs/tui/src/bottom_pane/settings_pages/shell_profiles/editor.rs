@@ -10,7 +10,7 @@ use crate::bottom_pane::settings_ui::form_page::{
     SettingsFormSection,
 };
 use crate::bottom_pane::settings_ui::hints::{
-    status_and_shortcuts_split, title_line, KeyHint,
+    hint_esc, status_and_shortcuts_split, title_line, KeyHint,
 };
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use ratatui::layout::Constraint;
@@ -65,7 +65,7 @@ impl ShellProfilesSettingsView {
             ListTarget::Summary => vec![
                 KeyHint::new("Ctrl+S", " save"),
                 KeyHint::new("Ctrl+G", " generate"),
-                KeyHint::new("Esc", " cancel"),
+                hint_esc(" cancel"),
             ],
             ListTarget::References | ListTarget::SkillRoots => {
                 let mut hints = vec![KeyHint::new("Ctrl+S", " save")];
@@ -75,7 +75,7 @@ impl ShellProfilesSettingsView {
                 if crate::platform_caps::supports_reveal_in_file_manager() {
                     hints.push(KeyHint::new("Ctrl+V", " show"));
                 }
-                hints.push(KeyHint::new("Esc", " cancel"));
+                hints.push(hint_esc(" cancel"));
                 hints
             }
         }

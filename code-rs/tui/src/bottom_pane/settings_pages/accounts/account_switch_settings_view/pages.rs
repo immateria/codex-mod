@@ -1,6 +1,6 @@
 use super::AccountSwitchSettingsView;
 
-use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::line_runs::SelectableLineRun;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
@@ -24,7 +24,7 @@ impl AccountSwitchSettingsView {
                     .with_key_style(Style::new().fg(colors::function())),
                 KeyHint::new("Enter/Space", " activate")
                     .with_key_style(Style::new().fg(colors::success())),
-                KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error()).bold()),
+                hint_esc(" close"),
             ])],
         )
     }
@@ -135,7 +135,7 @@ impl AccountSwitchSettingsView {
         let footer_lines = vec![shortcut_line(&[
             KeyHint::new("↑↓/Tab", " select").with_key_style(Style::new().fg(colors::function())),
             KeyHint::new("Enter/Space", " apply").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error()).bold()),
+            hint_esc(" back"),
         ])];
 
         SettingsMenuPage::new(

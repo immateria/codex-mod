@@ -95,7 +95,7 @@ impl ChatWidget<'_> {
                 let modified = human_ago(&c.modified_ts.unwrap_or_default());
                 let created = human_ago(&c.created_ts.unwrap_or_default());
                 let user_message_count = c.user_message_count;
-                let user_msgs = format!("{user_message_count}");
+                let user_msgs = user_message_count.to_string();
                 let branch = c.branch.unwrap_or_else(|| "-".to_string());
                 let nickname = c
                     .nickname

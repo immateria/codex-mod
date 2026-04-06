@@ -11,7 +11,7 @@ use crate::bottom_pane::settings_ui::buttons::{
     standard_button_specs, SettingsButtonKind, StandardButtonSpec,
 };
 use crate::bottom_pane::settings_ui::form_page::{SettingsFormPage, SettingsFormSection};
-use crate::bottom_pane::settings_ui::hints::{status_and_shortcuts_split, title_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, status_and_shortcuts_split, title_line, KeyHint};
 use crate::bottom_pane::settings_ui::rows::StyledText;
 use crate::components::form_text_field::FormTextField;
 
@@ -222,8 +222,7 @@ impl LoginAccountsState {
                 KeyHint::new("Tab", " next"),
                 KeyHint::new("S", " save")
                     .with_key_style(Style::new().fg(crate::colors::success()).bold()),
-                KeyHint::new("Esc", " back")
-                    .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+                hint_esc(" back"),
             ],
         );
 

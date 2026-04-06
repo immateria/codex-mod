@@ -2,7 +2,7 @@ use super::*;
 
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
 use crate::bottom_pane::settings_ui::buttons::{standard_button_specs, StandardButtonSpec};
-use crate::bottom_pane::settings_ui::hints::{self, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{self, hint_enter, hint_esc, hint_nav, KeyHint};
 use crate::bottom_pane::settings_ui::line_runs::SelectableLineRun;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
@@ -40,12 +40,12 @@ impl ShellSelectionView {
         ];
 
         let footer_lines = vec![hints::shortcut_line(&[
-            KeyHint::new("↑↓", " select"),
-            KeyHint::new("Enter", " apply"),
+            hint_nav(" select"),
+            hint_enter(" apply"),
             KeyHint::new("e/→", " edit"),
             KeyHint::new("p", " pin"),
             KeyHint::new("Ctrl+P", " profiles"),
-            KeyHint::new("Esc", " close"),
+            hint_esc(" close"),
         ])];
 
         SettingsMenuPage::new(
@@ -160,11 +160,11 @@ impl ShellSelectionView {
         let status_lines = vec![self.edit_status_line()];
         let mut footer_hints = vec![
             KeyHint::new("Tab", " focus"),
-            KeyHint::new("Enter", " apply"),
+            hint_enter(" apply"),
             KeyHint::new("Ctrl+R", " resolve"),
             KeyHint::new("Ctrl+T", " style"),
             KeyHint::new("Ctrl+P", " profiles"),
-            KeyHint::new("Esc", " back"),
+            hint_esc(" back"),
         ];
         if crate::platform_caps::supports_native_picker() {
             footer_hints.insert(2, KeyHint::new("Ctrl+O", " pick"));

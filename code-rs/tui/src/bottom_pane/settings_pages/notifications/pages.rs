@@ -2,7 +2,7 @@ use ratatui::layout::Margin;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_nav, shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::toggle;
@@ -44,8 +44,7 @@ impl NotificationsSettingsView {
                 KeyHint::new("←→/Space", " toggle")
                     .with_key_style(Style::new().fg(colors::success())),
                 hint_enter(" toggle/close"),
-                KeyHint::new("Esc", " close")
-                    .with_key_style(Style::new().fg(colors::error()).bold()),
+                hint_esc(" close"),
             ])],
             NotificationsMode::Custom { .. } => vec![Line::from(vec![
                 Span::styled("Edit ", Style::new().fg(colors::text_dim())),
