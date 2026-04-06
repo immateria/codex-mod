@@ -176,7 +176,7 @@ impl ChatWidget<'_> {
                     if !overlay.command_display.is_empty() && width_limit > consumed_width + 5 {
                         let remaining = width_limit.saturating_sub(consumed_width + 5);
                         if remaining > 0 {
-                            let truncated = ChatWidget::truncate_with_ellipsis(
+                            let truncated = crate::text_formatting::truncate_chars_with_ellipsis(
                                 &overlay.command_display,
                                 remaining,
                             );

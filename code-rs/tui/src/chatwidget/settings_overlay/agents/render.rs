@@ -88,7 +88,7 @@ impl AgentsSettingsContent {
                 if width > prefix_width + 3 {
                     let desc_width = width - prefix_width - 3;
                     if desc_width > 0 {
-                        let truncated = Self::truncate_to_width(desc, desc_width);
+                        let truncated = crate::text_formatting::truncate_to_display_width(desc, desc_width);
                         if !truncated.is_empty() {
                             spans.push(Span::raw("  "));
                             spans.push(Span::styled(
@@ -225,10 +225,6 @@ impl AgentsSettingsContent {
         ]));
 
         lines
-    }
-
-    fn truncate_to_width(text: &str, max_width: usize) -> String {
-        crate::text_formatting::truncate_to_display_width(text, max_width)
     }
 }
 

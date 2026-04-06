@@ -22,7 +22,7 @@ impl AutoCoordinatorView {
                     current = String::new();
                     current_width = 0;
                 }
-                lines.push(Self::truncate_to_width(word, width));
+                lines.push(crate::text_formatting::truncate_to_display_width(word, width));
                 continue;
             }
 
@@ -54,17 +54,8 @@ impl AutoCoordinatorView {
         lines
     }
 
-    pub(super) fn truncate_to_width(text: &str, width: usize) -> String {
-        crate::text_formatting::truncate_to_display_width(text, width)
-    }
-
     pub(super) fn pad_to_width(text: &str, width: usize) -> String {
-        let mut truncated = Self::truncate_to_width(text, width);
-        let current_width = UnicodeWidthStr::width(truncated.as_str());
-        if current_width < width {
-            truncated.push_str(&" ".repeat(width - current_width));
-        }
-        truncated
+        crate::text_formatting::pad_to_display_width(text, width)
     }
 
     pub(super) fn wrap_count(text: &str, width: u16) -> usize {

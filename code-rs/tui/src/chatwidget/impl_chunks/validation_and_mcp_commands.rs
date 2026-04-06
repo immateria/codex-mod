@@ -353,14 +353,14 @@ impl ChatWidget<'_> {
             let remaining = tools.len().saturating_sub(MAX_TOOLS);
             let _ = write!(display, ", +{remaining} more");
         }
-        Self::truncate_with_ellipsis(&display, MAX_CHARS)
+        crate::text_formatting::truncate_chars_with_ellipsis(&display, MAX_CHARS)
     }
 
     fn format_mcp_failure(&self, failure: &McpServerFailure) -> String {
         const MAX_CHARS: usize = 160;
 
         let summary = code_core::mcp_snapshot::format_failure_summary(failure);
-        Self::truncate_with_ellipsis(&summary, MAX_CHARS)
+        crate::text_formatting::truncate_chars_with_ellipsis(&summary, MAX_CHARS)
     }
 
     /// Handle `/mcp` command: manage MCP servers (status/on/off/add).

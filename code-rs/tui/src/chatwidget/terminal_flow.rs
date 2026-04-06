@@ -41,7 +41,7 @@ impl ChatWidget<'_> {
 
         let (controller_tx, controller_rx) = mpsc::channel();
         let controller = TerminalRunController { tx: controller_tx };
-        let display_label = Self::truncate_with_ellipsis(&format!("Guided: {command_text}"), 128);
+        let display_label = crate::text_formatting::truncate_chars_with_ellipsis(&format!("Guided: {command_text}"), 128);
 
         let launch = TerminalLaunch {
             id,

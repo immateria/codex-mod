@@ -963,26 +963,7 @@ impl AutoDriveCardCell {
     }
 
     fn pad_to_width(text: &str, width: usize) -> String {
-        if width == 0 {
-            return String::new();
-        }
-
-        let mut output = String::new();
-        let mut accumulated = 0usize;
-        for ch in text.chars() {
-            let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
-            if accumulated + ch_width > width {
-                break;
-            }
-            output.push(ch);
-            accumulated += ch_width;
-        }
-
-        if accumulated < width {
-            output.push_str(&" ".repeat(width - accumulated));
-        }
-
-        output
+        crate::text_formatting::pad_to_display_width(text, width)
     }
 
     fn pad_line_for_block(

@@ -1178,7 +1178,7 @@ fi\n\
         }
 
         let id = self.terminal.alloc_id();
-        let display = Self::truncate_with_ellipsis(trimmed, 128);
+        let display = crate::text_formatting::truncate_chars_with_ellipsis(trimmed, 128);
         let launch = TerminalLaunch {
             id,
             title: format!("Install {tool_name}"),
@@ -1245,8 +1245,8 @@ fi\n\
         }
 
         let id = self.terminal.alloc_id();
-        let title = Self::truncate_with_ellipsis(&format!("Shell: {command}"), 64);
-        let display = Self::truncate_with_ellipsis(command, 128);
+        let title = crate::text_formatting::truncate_chars_with_ellipsis(&format!("Shell: {command}"), 64);
+        let display = crate::text_formatting::truncate_chars_with_ellipsis(command, 128);
         let (controller_tx, controller_rx) = mpsc::channel();
         let controller = TerminalRunController { tx: controller_tx };
         let launch = TerminalLaunch {
@@ -1279,8 +1279,8 @@ fi\n\
         let (controller_tx, controller_rx) = mpsc::channel();
         let controller = TerminalRunController { tx: controller_tx };
         let cwd = self.config.cwd.to_string_lossy().to_string();
-        let title = Self::truncate_with_ellipsis(&format!("Guided: {prompt}"), 64);
-        let display = Self::truncate_with_ellipsis(prompt, 128);
+        let title = crate::text_formatting::truncate_chars_with_ellipsis(&format!("Guided: {prompt}"), 64);
+        let display = crate::text_formatting::truncate_chars_with_ellipsis(prompt, 128);
 
         let launch = TerminalLaunch {
             id,

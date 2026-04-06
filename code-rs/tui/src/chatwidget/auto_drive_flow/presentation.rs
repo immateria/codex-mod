@@ -119,7 +119,7 @@ impl ChatWidget<'_> {
                                     .map(|line| line.trim_end_matches('…').trim())
                                     .unwrap_or("");
                                 if collapsed != current_line {
-                                    let display = Self::truncate_with_ellipsis(&collapsed, 160);
+                                    let display = crate::text_formatting::truncate_chars_with_ellipsis(&collapsed, 160);
                                     status_lines.push(display);
                                 }
                             }
@@ -358,7 +358,7 @@ impl ChatWidget<'_> {
 
         let display = summary.lines().find_map(|line| {
             let trimmed = line.trim();
-            (!trimmed.is_empty()).then(|| Self::truncate_with_ellipsis(trimmed, 160))
+            (!trimmed.is_empty()).then(|| crate::text_formatting::truncate_chars_with_ellipsis(trimmed, 160))
         });
 
         let Some(display) = display else {
@@ -513,10 +513,6 @@ impl ChatWidget<'_> {
         }
     }
 
-    pub(crate) fn truncate_with_ellipsis(text: &str, max_chars: usize) -> String {
-        crate::text_formatting::truncate_chars_with_ellipsis(text, max_chars)
-    }
-
     pub(crate) fn normalize_status_field(field: Option<String>) -> Option<String> {
         field.and_then(|value| {
             let trimmed = value.trim();
@@ -573,7 +569,7 @@ impl ChatWidget<'_> {
             if trimmed.is_empty() {
                 return;
             }
-            let display = Self::truncate_with_ellipsis(trimmed, 160);
+            let display = crate::text_formatting::truncate_chars_with_ellipsis(trimmed, 160);
             if !lines.iter().any(|existing| existing.trim() == display) {
                 lines.push(display);
             }
