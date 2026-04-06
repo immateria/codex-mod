@@ -24,7 +24,7 @@ use code_core::model_family::{derive_default_model_family, find_family_for_model
 use code_core::project_doc::read_auto_drive_docs;
 use code_core::protocol::SandboxPolicy;
 use code_core::slash_commands::get_enabled_agents;
-use code_core::{AuthManager, ModelClient, ModelClientInit, Prompt, ResponseEvent, TextFormat};
+use code_core::{AuthManager, ModelClient, Prompt, ResponseEvent, TextFormat};
 use code_core::{
     RateLimitSwitchState, SwitchActiveAccountOnRateLimitParams, switch_active_account_on_rate_limit,
 };
@@ -1942,7 +1942,6 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
         code_home,
         preferred_auth,
         responses_originator_header,
-        config.cli_auth_credentials_store_mode,
     );
     let auth_mode_for_model_access = auth_mgr
         .auth()
@@ -1990,21 +1989,21 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
         .map(|spec| spec.slug.to_string())
         .collect();
     }
-    let client = Arc::new(ModelClient::new(ModelClientInit {
-        config: Arc::clone(&config),
-        auth_manager: Some(auth_mgr),
-        otel_event_manager: None,
-        provider: model_provider,
-        effort: config.model_reasoning_effort,
-        summary: model_reasoning_summary,
-        verbosity: model_text_verbosity,
-        session_id: Uuid::new_v4(),
-        debug_logger: Arc::new(Mutex::new(
+    let client = Arc::new(ModelClient::new(
+        Arc::clone(&config),
+        Some(auth_mgr),
+        None,
+        model_provider,
+        config.model_reasoning_effort,
+        model_reasoning_summary,
+        model_text_verbosity,
+        Uuid::new_v4(),
+        Arc::new(Mutex::new(
             DebugLogger::new(debug_enabled).unwrap_or_else(|_| {
                 DebugLogger::new(false).unwrap_or_else(|err| panic!("debug logger: {err}"))
             }),
         )),
-    }));
+    ));
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -3603,7 +3602,7 @@ fn classify_model_error_with_auto_switch(
     if let Some(code_err) = find_in_chain::<CodexErr>(error)
         && let CodexErr::UsageLimitReached(limit) = code_err
             && client.auto_switch_accounts_on_rate_limit()
-                && auth::read_code_api_key_from_env_or_secrets(client.code_home(), &client.config().cwd).is_none()
+                && auth::read_code_api_key_from_env_or_secrets(client.code_home(), client.cwd()).is_none()
                 && let Some(auth_manager) = client.get_auth_manager() {
                     let auth = auth_manager.auth();
                     let current_account_id = auth

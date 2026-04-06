@@ -887,6 +887,7 @@ pub struct ConfigToml {
 
     /// User-defined provider entries that extend/override the built-in list.
     #[serde(default)]
+    #[schemars(skip)]
     pub model_providers: HashMap<String, ModelProviderInfo>,
 
     /// Maximum number of bytes to include from an AGENTS.md project doc file.
@@ -1648,7 +1649,7 @@ impl Config {
 
         // (removed placeholder) sandbox_policy computed below after resolving project overrides.
 
-        let mut model_providers = built_in_model_providers();
+        let mut model_providers = built_in_model_providers(None);
         // Merge user-defined providers into the built-in list.
         for (key, provider) in cfg.model_providers {
             model_providers.entry(key).or_insert(provider);
@@ -3107,17 +3108,19 @@ model_verbosity = "high"
             wire_api: crate::WireApi::Chat,
             env_key_instructions: None,
             experimental_bearer_token: None,
+            auth: None,
             query_params: None,
             http_headers: None,
             env_http_headers: None,
             request_max_retries: Some(4),
             stream_max_retries: Some(10),
             stream_idle_timeout_ms: Some(300_000),
+            websocket_connect_timeout_ms: None,
             requires_openai_auth: false,
             openrouter: None,
         };
         let model_provider_map = {
-            let mut model_provider_map = built_in_model_providers();
+            let mut model_provider_map = built_in_model_providers(None);
             model_provider_map.insert(
                 "openai-chat-completions".to_string(),
                 openai_chat_completions_provider.clone(),

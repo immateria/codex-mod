@@ -9,12 +9,12 @@ use std::collections::HashSet;
 use crate::codex::PreviousTurnSettings;
 use crate::codex::SessionConfiguration;
 use crate::context_manager::ContextManager;
-use crate::protocol::RateLimitSnapshot;
-use crate::protocol::TokenUsage;
-use crate::protocol::TokenUsageInfo;
 use crate::session_startup_prewarm::SessionStartupPrewarmHandle;
-use crate::truncate::TruncationPolicy;
+use codex_protocol::protocol::RateLimitSnapshot;
+use codex_protocol::protocol::TokenUsage;
+use codex_protocol::protocol::TokenUsageInfo;
 use codex_protocol::protocol::TurnContextItem;
+use codex_utils_output_truncation::TruncationPolicy;
 
 /// Persistent, session-scoped state previously stored directly on `Session`.
 pub(crate) struct SessionState {

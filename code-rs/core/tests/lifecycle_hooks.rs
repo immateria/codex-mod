@@ -86,7 +86,7 @@ async fn lifecycle_hooks_session_start_injects_context_before_user_prompt() {
     config.sandbox_policy = SandboxPolicy::DangerFullAccess;
     config.model_provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers()["openai"].clone()
+        ..built_in_model_providers(None)["openai"].clone()
     };
     config.model = "gpt-5.1-codex".to_string();
 
@@ -155,7 +155,7 @@ async fn lifecycle_hooks_user_prompt_submit_blocking_prevents_model_call_and_pro
     config.sandbox_policy = SandboxPolicy::DangerFullAccess;
     config.model_provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers()["openai"].clone()
+        ..built_in_model_providers(None)["openai"].clone()
     };
     config.model = "gpt-5.1-codex".to_string();
 
@@ -334,7 +334,7 @@ event: response.completed\ndata: {completed_one}\n\n"
 
     config.model_provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers()["openai"].clone()
+        ..built_in_model_providers(None)["openai"].clone()
     };
     config.model = "gpt-5.1-codex".to_string();
 
@@ -414,7 +414,7 @@ async fn lifecycle_hooks_stop_hook_blocking_injects_continuation_prompt_and_retr
     config.sandbox_policy = SandboxPolicy::DangerFullAccess;
     config.model_provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers()["openai"].clone()
+        ..built_in_model_providers(None)["openai"].clone()
     };
     config.model = "gpt-5.1-codex".to_string();
 
@@ -575,7 +575,7 @@ event: response.completed\ndata: {completed_two}\n\n"
     config.sandbox_policy = SandboxPolicy::DangerFullAccess;
     config.model_provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers()["openai"].clone()
+        ..built_in_model_providers(None)["openai"].clone()
     };
     config.model = "gpt-5.1-codex".to_string();
 

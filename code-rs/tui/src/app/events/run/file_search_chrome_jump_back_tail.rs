@@ -122,7 +122,6 @@
                             cfg.code_home.clone(),
                             AuthMode::ApiKey,
                             cfg.responses_originator_header.clone(),
-                            cfg.cli_auth_credentials_store_mode,
                         );
                         let mut new_widget =
                             ChatWidget::new_from_existing(crate::chatwidget::ForkedChatWidgetInit {

@@ -23,23 +23,22 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
         cfg.code_home.clone(),
         preferred_auth,
         cfg.responses_originator_header.clone(),
-        cfg.cli_auth_credentials_store_mode,
     );
     let debug_logger = DebugLogger::new(debug_enabled)
         .or_else(|_| DebugLogger::new(false))
         .context("creating debug logger")?;
 
-    let client = ModelClient::new(code_core::ModelClientInit {
-        config: Arc::new(cfg.clone()),
-        auth_manager: Some(auth_mgr),
-        otel_event_manager: None,
-        provider: cfg.model_provider.clone(),
-        effort: ReasoningEffort::Low,
-        summary: cfg.model_reasoning_summary,
-        verbosity: cfg.model_text_verbosity,
-        session_id: Uuid::new_v4(),
-        debug_logger: Arc::new(Mutex::new(debug_logger)),
-    });
+    let client = ModelClient::new(
+        Arc::new(cfg.clone()),
+        Some(auth_mgr),
+        None,
+        cfg.model_provider.clone(),
+        ReasoningEffort::Low,
+        cfg.model_reasoning_summary,
+        cfg.model_text_verbosity,
+        Uuid::new_v4(),
+        Arc::new(Mutex::new(debug_logger)),
+    );
 
     let platform = std::env::consts::OS;
     let sandbox = if matches!(cfg.sandbox_policy, SandboxPolicy::DangerFullAccess) {

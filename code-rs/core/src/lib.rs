@@ -187,7 +187,6 @@ pub use code_protocol::config_types as protocol_config_types;
 pub use code_protocol::models as models;
 
 pub use client::ModelClient;
-pub use client::ModelClientInit;
 pub use client_common::Prompt;
 pub use client_common::TextFormat;
 pub use client_common::REVIEW_PROMPT;

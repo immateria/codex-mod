@@ -216,7 +216,7 @@ async fn load_config() -> Result<CloudTasksConfig> {
 
     let code_home = code_core::config::find_code_home()
         .context("determine codex home directory")?;
-    let auth_credentials_store_mode = code_core::config::Config::load_with_cli_overrides(
+    let _auth_credentials_store_mode = code_core::config::Config::load_with_cli_overrides(
         Vec::new(),
         code_core::config::ConfigOverrides::default(),
     )
@@ -226,7 +226,6 @@ async fn load_config() -> Result<CloudTasksConfig> {
         code_home,
         AuthMode::ChatGPT,
         code_core::default_client::DEFAULT_ORIGINATOR.to_string(),
-        auth_credentials_store_mode,
     );
     let auth = auth_manager
         .auth()

@@ -31,7 +31,6 @@ use tracing::trace;
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::client_common::tools::ToolSpec;
 use crate::codex::Session;
 use crate::codex::TurnContext;
 use crate::exec::ExecCapturePolicy;
@@ -40,15 +39,15 @@ use crate::exec_env::create_env;
 use crate::function_tool::FunctionCallError;
 use crate::original_image_detail::normalize_output_image_detail;
 use crate::sandboxing::ExecOptions;
-use crate::sandboxing::SandboxPermissions;
 use crate::tools::ToolRouter;
 use crate::tools::context::SharedTurnDiffTracker;
-use crate::truncate::TruncationPolicy;
-use crate::truncate::truncate_text;
 use codex_sandboxing::SandboxCommand;
 use codex_sandboxing::SandboxManager;
 use codex_sandboxing::SandboxTransformRequest;
 use codex_sandboxing::SandboxablePreference;
+use codex_tools::ToolSpec;
+use codex_utils_output_truncation::TruncationPolicy;
+use codex_utils_output_truncation::truncate_text;
 
 pub(crate) const JS_REPL_PRAGMA_PREFIX: &str = "// codex-js-repl:";
 const KERNEL_SOURCE: &str = include_str!("kernel.js");
@@ -1046,20 +1045,18 @@ impl JsReplManager {
             has_managed_network_requirements,
         );
         let command = SandboxCommand {
-            program: node_path.to_string_lossy().to_string(),
+            program: node_path.into_os_string(),
             args: vec![
                 "--experimental-vm-modules".to_string(),
                 kernel_path.to_string_lossy().to_string(),
             ],
-            cwd: turn.cwd.clone(),
+            cwd: turn.cwd.to_path_buf(),
             env,
             additional_permissions: None,
         };
         let options = ExecOptions {
             expiration: ExecExpiration::DefaultTimeout,
             capture_policy: ExecCapturePolicy::ShellTool,
-            sandbox_permissions: SandboxPermissions::UseDefault,
-            justification: None,
         };
         let exec_env = sandbox
             .transform(SandboxTransformRequest {
@@ -1071,8 +1068,6 @@ impl JsReplManager {
                 enforce_managed_network: has_managed_network_requirements,
                 network: None,
                 sandbox_policy_cwd: &turn.cwd,
-                #[cfg(target_os = "macos")]
-                macos_seatbelt_profile_extensions: None,
                 codex_linux_sandbox_exe: turn.codex_linux_sandbox_exe.as_ref(),
                 use_legacy_landlock: turn.features.use_legacy_landlock(),
                 windows_sandbox_level: turn.windows_sandbox_level,

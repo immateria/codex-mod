@@ -54,17 +54,17 @@ pub(super) async fn spawn_review_thread(
         .get_otel_event_manager()
         .map(|mgr| mgr.with_model(review_config.model.as_str(), review_config.model_family.slug.as_str()));
 
-    let review_client = ModelClient::new(crate::client::ModelClientInit {
-        config: review_config.clone(),
-        auth_manager: parent_turn_context.client.get_auth_manager(),
-        otel_event_manager: review_otel,
-        provider: parent_turn_context.client.get_provider(),
-        effort: review_config.model_reasoning_effort,
-        summary: review_config.model_reasoning_summary,
-        verbosity: review_config.model_text_verbosity,
-        session_id: sess.session_uuid(),
-        debug_logger: review_debug_logger,
-    });
+    let review_client = ModelClient::new(
+        review_config.clone(),
+        parent_turn_context.client.get_auth_manager(),
+        review_otel,
+        parent_turn_context.client.get_provider(),
+        review_config.model_reasoning_effort,
+        review_config.model_reasoning_summary,
+        review_config.model_text_verbosity,
+        sess.session_uuid(),
+        review_debug_logger,
+    );
 
     let review_demo_message = if config.timeboxed_exec_mode {
         build_timeboxed_review_message(parent_turn_context.demo_developer_message.clone())

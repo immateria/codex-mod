@@ -99,6 +99,7 @@ async fn responses_request_uses_beta_header_for_public_openai() {
         env_key: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -106,6 +107,7 @@ async fn responses_request_uses_beta_header_for_public_openai() {
         request_max_retries: Some(0),
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -116,7 +118,7 @@ async fn responses_request_uses_beta_header_for_public_openai() {
         .or_panic("client");
 
     let mut builder = provider
-        .create_request_builder(&client, &None, None, std::path::Path::new("."))
+        .create_request_builder(&client, &None)
         .await
         .or_panic("builder");
     let has_beta = builder
@@ -147,6 +149,7 @@ async fn responses_request_uses_experimental_for_backend() {
         env_key: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -154,6 +157,7 @@ async fn responses_request_uses_experimental_for_backend() {
         request_max_retries: Some(0),
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -164,7 +168,7 @@ async fn responses_request_uses_experimental_for_backend() {
         .or_panic("client");
 
     let mut builder = provider
-        .create_request_builder(&client, &None, None, std::path::Path::new("."))
+        .create_request_builder(&client, &None)
         .await
         .or_panic("builder");
     let has_beta = builder
@@ -197,6 +201,7 @@ async fn responses_request_respects_preexisting_beta_header() {
         env_key: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: Some(headers),
@@ -204,6 +209,7 @@ async fn responses_request_respects_preexisting_beta_header() {
         request_max_retries: Some(0),
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -214,7 +220,7 @@ async fn responses_request_respects_preexisting_beta_header() {
         .or_panic("client");
 
     let request = provider
-        .create_request_builder(&client, &None, None, std::path::Path::new("."))
+        .create_request_builder(&client, &None)
         .await
         .or_panic("builder")
         .try_clone()
@@ -244,8 +250,8 @@ async fn collect_events(
     let stream = ReaderStream::new(reader).map_err(CodexErr::Io);
     let (tx, mut rx) = mpsc::channel::<Result<ResponseEvent>>(16);
     let debug_logger = disabled_debug_logger();
-    let checkpoint = Arc::new(RwLock::new(sse::StreamCheckpoint::default()));
-    tokio::spawn(sse::process_sse(
+    let checkpoint = Arc::new(RwLock::new(super::StreamCheckpoint::default()));
+    tokio::spawn(super::process_sse(
         stream,
         tx,
         provider.stream_idle_timeout(),
@@ -284,8 +290,8 @@ async fn run_sse(
     let (tx, mut rx) = mpsc::channel::<Result<ResponseEvent>>(8);
     let stream = ReaderStream::new(std::io::Cursor::new(body)).map_err(CodexErr::Io);
     let debug_logger = disabled_debug_logger();
-    let checkpoint = Arc::new(RwLock::new(sse::StreamCheckpoint::default()));
-    tokio::spawn(sse::process_sse(
+    let checkpoint = Arc::new(RwLock::new(super::StreamCheckpoint::default()));
+    tokio::spawn(super::process_sse(
         stream,
         tx,
         provider.stream_idle_timeout(),
@@ -344,6 +350,7 @@ async fn parses_items_and_completed() {
         env_key: Some("TEST_API_KEY".to_string()),
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -351,6 +358,7 @@ async fn parses_items_and_completed() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(1000),
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -410,6 +418,7 @@ async fn error_when_missing_completed() {
         env_key: Some("TEST_API_KEY".to_string()),
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -417,6 +426,7 @@ async fn error_when_missing_completed() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(1000),
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -462,6 +472,7 @@ async fn response_done_emits_completed() {
         env_key: Some("TEST_API_KEY".to_string()),
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -469,6 +480,7 @@ async fn response_done_emits_completed() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(1000),
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -514,9 +526,9 @@ async fn response_completed_does_not_wait_for_stream_close() {
     let stream = ReceiverStream::new(rx_bytes);
     let (tx, mut rx) = mpsc::channel::<Result<ResponseEvent>>(8);
     let debug_logger = disabled_debug_logger();
-    let checkpoint = Arc::new(RwLock::new(sse::StreamCheckpoint::default()));
+    let checkpoint = Arc::new(RwLock::new(super::StreamCheckpoint::default()));
 
-    tokio::spawn(sse::process_sse(
+    tokio::spawn(super::process_sse(
         stream,
         tx,
         Duration::from_secs(60),
@@ -557,6 +569,7 @@ async fn error_when_error_event() {
         env_key: Some("TEST_API_KEY".to_string()),
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -564,6 +577,7 @@ async fn error_when_error_event() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(1000),
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -664,6 +678,7 @@ async fn table_driven_event_kinds() {
             env_key: Some("TEST_API_KEY".to_string()),
             env_key_instructions: None,
             experimental_bearer_token: None,
+        auth: None,
             wire_api: WireApi::Responses,
             query_params: None,
             http_headers: None,
@@ -671,6 +686,7 @@ async fn table_driven_event_kinds() {
             request_max_retries: Some(0),
             stream_max_retries: Some(0),
             stream_idle_timeout_ms: Some(1000),
+            websocket_connect_timeout_ms: None,
             requires_openai_auth: false,
             openrouter: None,
         };
@@ -754,7 +770,7 @@ fn test_try_parse_retry_after_none_when_missing() {
 #[test]
 fn parse_retry_after_header_parses_seconds() {
     let now = fixed_now();
-    let retry = sse::parse_retry_after_header("42", now).or_panic("header");
+    let retry = super::parse_retry_after_header("42", now).or_panic("header");
     assert_eq!(retry.delay, Duration::from_secs(42));
     assert_eq!(retry.resume_at, now + ChronoDuration::seconds(42));
 }
@@ -762,7 +778,7 @@ fn parse_retry_after_header_parses_seconds() {
 #[test]
 fn parse_retry_after_header_parses_rfc7231_date() {
     let now = utc_ymd_hms_or_panic(1994, 11, 15, 8, 0, 0);
-    let retry = sse::parse_retry_after_header("Tue, 15 Nov 1994 08:12:31 GMT", now)
+    let retry = super::parse_retry_after_header("Tue, 15 Nov 1994 08:12:31 GMT", now)
         .or_panic("header");
     assert_eq!(
         retry.resume_at,
@@ -773,7 +789,7 @@ fn parse_retry_after_header_parses_rfc7231_date() {
 #[test]
 fn parse_retry_after_header_clamps_past_date() {
     let now = utc_ymd_hms_or_panic(2025, 1, 1, 0, 0, 0);
-    let retry = sse::parse_retry_after_header("Tue, 15 Nov 1994 08:12:31 GMT", now)
+    let retry = super::parse_retry_after_header("Tue, 15 Nov 1994 08:12:31 GMT", now)
         .or_panic("header");
     assert_eq!(retry.delay, Duration::ZERO);
     assert_eq!(retry.resume_at, now);
@@ -782,14 +798,14 @@ fn parse_retry_after_header_clamps_past_date() {
 #[test]
 fn parse_retry_after_header_strips_wrappers() {
     let now = fixed_now();
-    let retry = sse::parse_retry_after_header(" \"17\" ", now).or_panic("header");
+    let retry = super::parse_retry_after_header(" \"17\" ", now).or_panic("header");
     assert_eq!(retry.delay, Duration::from_secs(17));
 }
 
 #[test]
 fn retry_after_prefers_header_over_body_hint() {
     let now = fixed_now();
-    let header_retry = sse::parse_retry_after_header("5", now);
+    let header_retry = super::parse_retry_after_header("5", now);
     let mut chosen = header_retry;
     if chosen.is_none() {
         let err = Error {
@@ -811,7 +827,7 @@ fn retry_after_prefers_header_over_body_hint() {
 #[test]
 fn parse_retry_after_header_handles_timezones() {
     let now = utc_ymd_hms_or_panic(2025, 3, 9, 5, 0, 0);
-    let retry = sse::parse_retry_after_header("Sun, 09 Mar 2025 01:30:00 -0500", now)
+    let retry = super::parse_retry_after_header("Sun, 09 Mar 2025 01:30:00 -0500", now)
         .or_panic("header");
     assert_eq!(
         retry.resume_at,
@@ -907,6 +923,7 @@ async fn quota_exceeded_error_is_fatal() {
         env_key: Some("TEST_API_KEY".to_string()),
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -914,6 +931,7 @@ async fn quota_exceeded_error_is_fatal() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(1000),
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -938,6 +956,7 @@ async fn response_failed_usage_limit_maps_to_typed_error() {
         env_key: Some("TEST_API_KEY".to_string()),
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -945,6 +964,7 @@ async fn response_failed_usage_limit_maps_to_typed_error() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(1000),
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -972,6 +992,7 @@ async fn response_failed_usage_not_included_maps_to_typed_error() {
         env_key: Some("TEST_API_KEY".to_string()),
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -979,6 +1000,7 @@ async fn response_failed_usage_not_included_maps_to_typed_error() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(1000),
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -1003,6 +1025,7 @@ async fn server_overloaded_error_is_typed() {
         env_key: Some("TEST_API_KEY".to_string()),
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -1010,6 +1033,7 @@ async fn server_overloaded_error_is_typed() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(1000),
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -1034,6 +1058,7 @@ async fn response_incomplete_surfaces_stream_error_reason() {
         env_key: Some("TEST_API_KEY".to_string()),
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Responses,
         query_params: None,
         http_headers: None,
@@ -1041,6 +1066,7 @@ async fn response_incomplete_surfaces_stream_error_reason() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(1000),
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     };
@@ -1062,10 +1088,10 @@ async fn response_incomplete_surfaces_stream_error_reason() {
 #[test]
 fn websocket_error_without_status_surfaces_stream_message() {
     let payload = r#"{"type":"error","error":{"type":"invalid_request_error","message":"The requested model 'gpt-5.3-codex-spark' does not exist."}}"#;
-    let wrapped = transport::parse_wrapped_websocket_error_event(payload)
+    let wrapped = super::parse_wrapped_websocket_error_event(payload)
         .or_panic("wrapped websocket error should parse");
     let mapped =
-        transport::map_wrapped_websocket_error_event(wrapped).or_panic("error should map without status");
+        super::map_wrapped_websocket_error_event(wrapped).or_panic("error should map without status");
     match mapped {
         CodexErr::Stream(message, None, None) => {
             assert_eq!(

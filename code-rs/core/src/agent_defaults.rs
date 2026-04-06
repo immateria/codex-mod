@@ -25,6 +25,10 @@ const GEMINI_PRO_READ_ONLY:       &[&str] = &[];
 const GEMINI_PRO_WRITE:           &[&str] = &["-y"];
 const GEMINI_FLASH_READ_ONLY:     &[&str] = &[];
 const GEMINI_FLASH_WRITE:         &[&str] = &["-y"];
+#[allow(dead_code)]
+const COPILOT_READ_ONLY:          &[&str] = &["--autopilot", "--allow-all-tools", "--no-ask-user", "-s"];
+#[allow(dead_code)]
+const COPILOT_WRITE:              &[&str] = &["--autopilot", "--yolo", "--no-ask-user", "-s"];
 const QWEN_3_CODER_READ_ONLY:     &[&str] = &[];
 const QWEN_3_CODER_WRITE:         &[&str] = &["-y"];
 const CLOUD_GPT5_CODEX_READ_ONLY: &[&str] = &[];
@@ -36,12 +40,12 @@ const CLOUD_GPT5_CODEX_WRITE:     &[&str] = &[];
 pub const DEFAULT_AGENT_NAMES: &[&str] = &[
     // Frontline for moderate/challenging tasks
     "code-gpt-5.4",
+    "code-gpt-5.4-mini",
     "code-gpt-5.3-codex",
     "code-gpt-5.3-codex-spark",
     "claude-opus-4.6",
     "gemini-3-pro",
     // Straightforward / cost-aware
-    "code-gpt-5.1-codex-mini",
     "claude-sonnet-4.5",
     "gemini-3-flash",
     // Mixed/general and alternates
@@ -112,6 +116,28 @@ const AGENT_MODEL_SPECS: &[AgentModelSpec] = &[
         pro_only: false,
     },
     AgentModelSpec {
+        slug: "code-gpt-5.4-mini",
+        family: "code",
+        cli: "coder",
+        read_only_args: CODE_GPT5_CODEX_READ_ONLY,
+        write_args: CODE_GPT5_CODEX_WRITE,
+        model_args: &["--model", "gpt-5.4-mini"],
+        description: "Budget coding agent for small changes and quick refactors; use when speed and cost matter.",
+        enabled_by_default: true,
+        aliases: &[
+            "gpt-5.4-mini",
+            "code-gpt-5.1-codex-mini",
+            "code-gpt-5-codex-mini",
+            "gpt-5.1-codex-mini",
+            "gpt-5-codex-mini",
+            "codex-mini",
+            "coder-mini",
+        ],
+        gating_env: None,
+        is_frontline: false,
+        pro_only: false,
+    },
+    AgentModelSpec {
         slug: "code-gpt-5.3-codex",
         family: "code",
         cli: "coder",
@@ -151,26 +177,6 @@ const AGENT_MODEL_SPECS: &[AgentModelSpec] = &[
         gating_env: None,
         is_frontline: false,
         pro_only: true,
-    },
-    AgentModelSpec {
-        slug: "code-gpt-5.1-codex-mini",
-        family: "code",
-        cli: "coder",
-        read_only_args: CODE_GPT5_CODEX_READ_ONLY,
-        write_args: CODE_GPT5_CODEX_WRITE,
-        model_args: &["--model", "gpt-5.1-codex-mini"],
-        description: "Budget coding agent for small changes and quick refactors; use when speed and cost matter.",
-        enabled_by_default: true,
-        aliases: &[
-            "code-gpt-5-codex-mini",
-            "gpt-5.1-codex-mini",
-            "gpt-5-codex-mini",
-            "codex-mini",
-            "coder-mini",
-        ],
-        gating_env: None,
-        is_frontline: false,
-        pro_only: false,
     },
     AgentModelSpec {
         slug: "claude-opus-4.6",
@@ -508,6 +514,21 @@ mod tests {
     }
 
     #[test]
+    fn github_copilot_defaults_match_cli_contract() {
+        assert_eq!(
+            default_params_for("github-copilot", true),
+            vec!["--autopilot", "--allow-all-tools", "--no-ask-user", "-s"]
+        );
+        assert_eq!(
+            default_params_for("github-copilot", false),
+            vec!["--autopilot", "--yolo", "--no-ask-user", "-s"]
+        );
+
+        let spec = agent_model_spec("copilot").expect("copilot alias should resolve");
+        assert_eq!(spec.slug, "github-copilot");
+    }
+
+    #[test]
     fn gpt_codex_aliases_resolve() {
         let codex = agent_model_spec("gpt-5.1-codex").expect("alias for codex present");
         assert_eq!(codex.slug, "code-gpt-5.3-codex");
@@ -527,7 +548,10 @@ mod tests {
         assert_eq!(spark.slug, "code-gpt-5.3-codex-spark");
 
         let mini = agent_model_spec("gpt-5.1-codex-mini").expect("mini alias present");
-        assert_eq!(mini.slug, "code-gpt-5.1-codex-mini");
+        assert_eq!(mini.slug, "code-gpt-5.4-mini");
+
+        let mini_direct = agent_model_spec("gpt-5.4-mini").expect("mini direct alias present");
+        assert_eq!(mini_direct.slug, "code-gpt-5.4-mini");
 
         let mid = agent_model_spec("gpt-5.1").expect("mid alias present");
         assert_eq!(mid.slug, "code-gpt-5.4");

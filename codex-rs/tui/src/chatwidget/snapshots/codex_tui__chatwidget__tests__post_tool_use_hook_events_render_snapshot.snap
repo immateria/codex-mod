@@ -1,0 +1,15 @@
+---
+source: tui/src/chatwidget/tests.rs
+expression: combined
+---
+<<<<<<<< HEAD:codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__pre_tool_use_hook_events_render_snapshot.snap
+• Running PreToolUse hook: warming the shell
+
+PreToolUse hook (completed)
+========
+• Running PostToolUse hook: warming the shell
+
+PostToolUse hook (completed)
+>>>>>>>> every-code/main:codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__post_tool_use_hook_events_render_snapshot.snap
+  warning: Heads up from the hook
+  hook context: Remember the startup checklist.

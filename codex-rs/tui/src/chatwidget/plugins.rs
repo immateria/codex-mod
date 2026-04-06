@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+use std::time::Duration;
+use std::time::Instant;
 
 use super::ChatWidget;
 use crate::app_event::AppEvent;
@@ -6,7 +8,11 @@ use crate::bottom_pane::ColumnWidthMode;
 use crate::bottom_pane::SelectionItem;
 use crate::bottom_pane::SelectionViewParams;
 use crate::history_cell;
+use crate::onboarding::mark_url_hyperlink;
 use crate::render::renderable::ColumnRenderable;
+use crate::render::renderable::Renderable;
+use crate::shimmer::shimmer_spans;
+use crate::tui::FrameRequester;
 use codex_app_server_protocol::PluginDetail;
 use codex_app_server_protocol::PluginInstallPolicy;
 use codex_app_server_protocol::PluginInstallResponse;
@@ -17,10 +23,101 @@ use codex_app_server_protocol::PluginSummary;
 use codex_app_server_protocol::PluginUninstallResponse;
 use codex_features::Feature;
 use codex_utils_absolute_path::AbsolutePathBuf;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::prelude::Widget;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::WidgetRef;
+use ratatui::widgets::Wrap;
 
 const PLUGINS_SELECTION_VIEW_ID: &str = "plugins-selection";
+const LOADING_ANIMATION_DELAY: Duration = Duration::from_secs(1);
+const LOADING_ANIMATION_INTERVAL: Duration = Duration::from_millis(100);
+
+struct DelayedLoadingHeader {
+    started_at: Instant,
+    frame_requester: FrameRequester,
+    animations_enabled: bool,
+    loading_text: String,
+    note: Option<String>,
+}
+
+impl DelayedLoadingHeader {
+    fn new(
+        frame_requester: FrameRequester,
+        animations_enabled: bool,
+        loading_text: String,
+        note: Option<String>,
+    ) -> Self {
+        Self {
+            started_at: Instant::now(),
+            frame_requester,
+            animations_enabled,
+            loading_text,
+            note,
+        }
+    }
+}
+
+impl Renderable for DelayedLoadingHeader {
+    fn render(&self, area: Rect, buf: &mut Buffer) {
+        if area.is_empty() {
+            return;
+        }
+
+        let mut lines = Vec::with_capacity(3);
+        lines.push(Line::from("Plugins".bold()));
+
+        let now = Instant::now();
+        let elapsed = now.saturating_duration_since(self.started_at);
+        if elapsed < LOADING_ANIMATION_DELAY {
+            self.frame_requester
+                .schedule_frame_in(LOADING_ANIMATION_DELAY - elapsed);
+            lines.push(Line::from(self.loading_text.as_str().dim()));
+        } else if self.animations_enabled {
+            self.frame_requester
+                .schedule_frame_in(LOADING_ANIMATION_INTERVAL);
+            lines.push(Line::from(shimmer_spans(self.loading_text.as_str())));
+        } else {
+            lines.push(Line::from(self.loading_text.as_str().dim()));
+        }
+
+        if let Some(note) = &self.note {
+            lines.push(Line::from(note.as_str().dim()));
+        }
+
+        Paragraph::new(lines).render_ref(area, buf);
+    }
+
+    fn desired_height(&self, _width: u16) -> u16 {
+        2 + u16::from(self.note.is_some())
+    }
+}
+
+const APPS_HELP_ARTICLE_URL: &str = "https://help.openai.com/en/articles/11487775-apps-in-chatgpt";
+
+struct PluginDisclosureLine {
+    line: Line<'static>,
+}
+
+impl Renderable for PluginDisclosureLine {
+    fn render(&self, area: Rect, buf: &mut Buffer) {
+        Paragraph::new(self.line.clone())
+            .wrap(Wrap { trim: false })
+            .render(area, buf);
+        mark_url_hyperlink(buf, area, APPS_HELP_ARTICLE_URL);
+    }
+
+    fn desired_height(&self, width: u16) -> u16 {
+        Paragraph::new(self.line.clone())
+            .wrap(Wrap { trim: false })
+            .line_count(width)
+            .try_into()
+            .unwrap_or(u16::MAX)
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub(super) enum PluginsCacheState {
@@ -62,11 +159,11 @@ impl ChatWidget {
         cwd: PathBuf,
         result: Result<PluginListResponse, String>,
     ) {
-        if self.plugins_fetch_state.in_flight_cwd.as_ref() == Some(&cwd) {
+        if self.plugins_fetch_state.in_flight_cwd.as_deref() == Some(cwd.as_path()) {
             self.plugins_fetch_state.in_flight_cwd = None;
         }
 
-        if self.config.cwd != cwd {
+        if self.config.cwd.as_path() != cwd.as_path() {
             return;
         }
 
@@ -94,13 +191,13 @@ impl ChatWidget {
     }
 
     fn prefetch_plugins(&mut self) {
-        let cwd = self.config.cwd.clone();
-        if self.plugins_fetch_state.in_flight_cwd.as_ref() == Some(&cwd) {
+        let cwd = self.config.cwd.to_path_buf();
+        if self.plugins_fetch_state.in_flight_cwd.as_deref() == Some(cwd.as_path()) {
             return;
         }
 
         self.plugins_fetch_state.in_flight_cwd = Some(cwd.clone());
-        if self.plugins_fetch_state.cache_cwd.as_ref() != Some(&cwd) {
+        if self.plugins_fetch_state.cache_cwd.as_deref() != Some(cwd.as_path()) {
             self.plugins_cache = PluginsCacheState::Loading;
         }
 
@@ -108,7 +205,7 @@ impl ChatWidget {
     }
 
     fn plugins_cache_for_current_cwd(&self) -> PluginsCacheState {
-        if self.plugins_fetch_state.cache_cwd.as_ref() == Some(&self.config.cwd) {
+        if self.plugins_fetch_state.cache_cwd.as_deref() == Some(self.config.cwd.as_path()) {
             self.plugins_cache.clone()
         } else {
             PluginsCacheState::Uninitialized
@@ -156,7 +253,7 @@ impl ChatWidget {
         cwd: PathBuf,
         result: Result<PluginReadResponse, String>,
     ) {
-        if self.config.cwd != cwd {
+        if self.config.cwd.as_path() != cwd.as_path() {
             return;
         }
 
@@ -191,7 +288,7 @@ impl ChatWidget {
         plugin_display_name: String,
         result: Result<PluginInstallResponse, String>,
     ) -> bool {
-        if self.config.cwd != cwd {
+        if self.config.cwd.as_path() != cwd.as_path() {
             return true;
         }
 
@@ -249,7 +346,7 @@ impl ChatWidget {
         plugin_display_name: String,
         result: Result<PluginUninstallResponse, String>,
     ) {
-        if self.config.cwd != cwd {
+        if self.config.cwd.as_path() != cwd.as_path() {
             return;
         }
 
@@ -321,15 +418,8 @@ impl ChatWidget {
         let status_label = if is_installed {
             "Already installed in this session."
         } else {
-            "Not installed yet."
+            "Install the required Apps in ChatGPT to continue:"
         };
-        let description = app
-            .description
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_string);
-
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Plugins".bold()));
         header.push(Line::from(
@@ -340,12 +430,7 @@ impl ChatWidget {
         ));
         header.push(Line::from(status_label.dim()));
 
-        let mut items = vec![SelectionItem {
-            name: app.name.clone(),
-            description,
-            is_disabled: true,
-            ..Default::default()
-        }];
+        let mut items = Vec::new();
 
         if let Some(install_url) = app.install_url.clone() {
             let install_label = if is_installed {
@@ -474,16 +559,14 @@ impl ChatWidget {
     }
 
     fn plugins_loading_popup_params(&self) -> SelectionViewParams {
-        let mut header = ColumnRenderable::new();
-        header.push(Line::from("Plugins".bold()));
-        header.push(Line::from("Loading available plugins...".dim()));
-        header.push(Line::from(
-            "Available marketplaces will appear here when ready.".dim(),
-        ));
-
         SelectionViewParams {
             view_id: Some(PLUGINS_SELECTION_VIEW_ID),
-            header: Box::new(header),
+            header: Box::new(DelayedLoadingHeader::new(
+                self.frame_requester.clone(),
+                self.config.animations,
+                "Loading available plugins...".to_string(),
+                Some("This first pass shows the ChatGPT marketplace only.".to_string()),
+            )),
             items: vec![SelectionItem {
                 name: "Loading plugins...".to_string(),
                 description: Some("This updates when the marketplace list is ready.".to_string()),
@@ -495,15 +578,14 @@ impl ChatWidget {
     }
 
     fn plugin_detail_loading_popup_params(&self, plugin_display_name: &str) -> SelectionViewParams {
-        let mut header = ColumnRenderable::new();
-        header.push(Line::from("Plugins".bold()));
-        header.push(Line::from(
-            format!("Loading details for {plugin_display_name}...").dim(),
-        ));
-
         SelectionViewParams {
             view_id: Some(PLUGINS_SELECTION_VIEW_ID),
-            header: Box::new(header),
+            header: Box::new(DelayedLoadingHeader::new(
+                self.frame_requester.clone(),
+                self.config.animations,
+                format!("Loading details for {plugin_display_name}..."),
+                /*note*/ None,
+            )),
             items: vec![SelectionItem {
                 name: "Loading plugin details...".to_string(),
                 description: Some("This updates when plugin details load.".to_string()),
@@ -594,7 +676,7 @@ impl ChatWidget {
             ..Default::default()
         }];
         if let Some(plugins_response) = plugins_response.cloned() {
-            let cwd = self.config.cwd.clone();
+            let cwd = self.config.cwd.to_path_buf();
             items.push(SelectionItem {
                 name: "Back to plugins".to_string(),
                 description: Some("Return to the plugin list.".to_string()),
@@ -688,7 +770,7 @@ impl ChatWidget {
                 "{display_name} {} {} {}",
                 plugin.id, plugin.name, marketplace_label
             );
-            let cwd = self.config.cwd.clone();
+            let cwd = self.config.cwd.to_path_buf();
             let plugin_display_name = display_name.clone();
             let marketplace_path = marketplace.path.clone();
             let plugin_name = plugin.name.clone();
@@ -744,18 +826,42 @@ impl ChatWidget {
     ) -> SelectionViewParams {
         let marketplace_label = plugin.marketplace_name.clone();
         let display_name = plugin_display_name(&plugin.summary);
-        let status_label = plugin_status_label(&plugin.summary);
+        let detail_status_label = if plugin.summary.installed {
+            if plugin.summary.enabled {
+                "Installed"
+            } else {
+                "Installed · Disabled"
+            }
+        } else {
+            match plugin.summary.install_policy {
+                PluginInstallPolicy::NotAvailable => "Not installable",
+                PluginInstallPolicy::Available => "Can be installed",
+                PluginInstallPolicy::InstalledByDefault => "Available by default",
+            }
+        };
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Plugins".bold()));
         header.push(Line::from(
-            format!("{display_name} · {marketplace_label}").bold(),
+            format!("{display_name} · {detail_status_label} · {marketplace_label}").bold(),
         ));
-        header.push(Line::from(status_label.dim()));
+        if !plugin.summary.installed {
+            header.push(PluginDisclosureLine {
+                line: Line::from(vec![
+                    "Data shared with this app is subject to the app's ".into(),
+                    "terms of service".bold(),
+                    " and ".into(),
+                    "privacy policy".bold(),
+                    ". ".into(),
+                    "Learn more".cyan().underlined(),
+                    ".".into(),
+                ]),
+            });
+        }
         if let Some(description) = plugin_detail_description(plugin) {
             header.push(Line::from(description.dim()));
         }
 
-        let cwd = self.config.cwd.clone();
+        let cwd = self.config.cwd.to_path_buf();
         let plugins_response = plugins_response.clone();
         let mut items = vec![SelectionItem {
             name: "Back to plugins".to_string(),
@@ -771,7 +877,7 @@ impl ChatWidget {
         }];
 
         if plugin.summary.installed {
-            let uninstall_cwd = self.config.cwd.clone();
+            let uninstall_cwd = self.config.cwd.to_path_buf();
             let plugin_id = plugin.summary.id.clone();
             let plugin_display_name = display_name;
             items.push(SelectionItem {
@@ -800,7 +906,7 @@ impl ChatWidget {
                 ..Default::default()
             });
         } else {
-            let install_cwd = self.config.cwd.clone();
+            let install_cwd = self.config.cwd.to_path_buf();
             let marketplace_path = plugin.marketplace_path.clone();
             let plugin_name = plugin.summary.name.clone();
             let plugin_display_name = display_name;

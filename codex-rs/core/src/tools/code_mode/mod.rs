@@ -14,12 +14,10 @@ use codex_protocol::models::ResponseInputItem;
 use serde_json::Value as JsonValue;
 use tokio_util::sync::CancellationToken;
 
-use crate::client_common::tools::ToolSpec;
 use crate::codex::Session;
 use crate::codex::TurnContext;
 use crate::function_tool::FunctionCallError;
 use crate::tools::ToolRouter;
-use crate::tools::code_mode_description::augment_tool_spec_for_code_mode;
 use crate::tools::context::FunctionToolOutput;
 use crate::tools::context::SharedTurnDiffTracker;
 use crate::tools::context::ToolPayload;
@@ -27,11 +25,13 @@ use crate::tools::parallel::ToolCallRuntime;
 use crate::tools::router::ToolCall;
 use crate::tools::router::ToolCallSource;
 use crate::tools::router::ToolRouterParams;
-use crate::truncate::TruncationPolicy;
-use crate::truncate::formatted_truncate_text_content_items_with_policy;
-use crate::truncate::truncate_function_output_items_with_policy;
 use crate::unified_exec::resolve_max_tokens;
 use codex_features::Feature;
+use codex_tools::ToolSpec;
+use codex_tools::collect_code_mode_tool_definitions;
+use codex_utils_output_truncation::TruncationPolicy;
+use codex_utils_output_truncation::formatted_truncate_text_content_items_with_policy;
+use codex_utils_output_truncation::truncate_function_output_items_with_policy;
 
 pub(crate) use execute_handler::CodeModeExecuteHandler;
 use response_adapter::into_function_call_output_content_items;
@@ -244,43 +244,8 @@ pub(super) async fn build_enabled_tools(
     exec: &ExecContext,
 ) -> Vec<codex_code_mode::ToolDefinition> {
     let router = build_nested_router(exec).await;
-    let mut out = router
-        .specs()
-        .into_iter()
-        .map(|spec| augment_tool_spec_for_code_mode(spec, /*code_mode_enabled*/ true))
-        .filter_map(enabled_tool_from_spec)
-        .collect::<Vec<_>>();
-    out.sort_by(|left, right| left.name.cmp(&right.name));
-    out.dedup_by(|left, right| left.name == right.name);
-    out
-}
-
-fn enabled_tool_from_spec(spec: ToolSpec) -> Option<codex_code_mode::ToolDefinition> {
-    let tool_name = spec.name().to_string();
-    if !codex_code_mode::is_code_mode_nested_tool(&tool_name) {
-        return None;
-    }
-
-    match spec {
-        ToolSpec::Function(tool) => Some(codex_code_mode::ToolDefinition {
-            name: tool_name,
-            description: tool.description,
-            kind: codex_code_mode::CodeModeToolKind::Function,
-            input_schema: serde_json::to_value(&tool.parameters).ok(),
-            output_schema: tool.output_schema,
-        }),
-        ToolSpec::Freeform(tool) => Some(codex_code_mode::ToolDefinition {
-            name: tool_name,
-            description: tool.description,
-            kind: codex_code_mode::CodeModeToolKind::Freeform,
-            input_schema: None,
-            output_schema: None,
-        }),
-        ToolSpec::LocalShell {}
-        | ToolSpec::ImageGeneration { .. }
-        | ToolSpec::ToolSearch { .. }
-        | ToolSpec::WebSearch { .. } => None,
-    }
+    let specs = router.specs();
+    collect_code_mode_tool_definitions(&specs)
 }
 
 async fn build_nested_router(exec: &ExecContext) -> ToolRouter {

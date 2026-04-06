@@ -1,11 +1,14 @@
-## @just-every/code v0.6.83
+## @just-every/code v0.6.92
 
-This release improves release pipeline reliability when BuildBuddy credentials are unavailable.
+This release improves cross-platform reliability, remote session behavior, and core model/tooling correctness.
 
 ### Changes
 
-- CI: fall back to local Bazel execution when the BuildBuddy API key is unavailable, keeping release jobs running in restricted environments.
-- Release Workflows: apply the BuildBuddy fallback path to both `rusty-v8-release` and `v8-canary` for consistent publish reliability.
+- TUI: enable Wayland clipboard image paste so screenshot paste works reliably on Linux Wayland sessions.
+- Core: align model/provider behavior by syncing remote model parity and updating Copilot/GPT-5.4 mini agent flags.
+- Remote: forward `--cd` consistently across remote start/resume/fork/list flows so session directory targeting works as expected.
+- Core/TUI: fix MCP tool listing for hyphenated server names and prevent stale `/copy` output after commentary-only turns.
+- Platform: improve macOS stability by preventing sandbox HTTP-client panics and filtering malloc diagnostics from composer input.
 
 ### Install
 
@@ -14,4 +17,4 @@ npm install -g @just-every/code@latest
 code
 ```
 
-Compare: https://github.com/just-every/code/compare/v0.6.82...v0.6.83
+Compare: https://github.com/just-every/code/compare/v0.6.91...v0.6.92

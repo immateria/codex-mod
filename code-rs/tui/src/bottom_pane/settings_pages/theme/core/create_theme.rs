@@ -118,7 +118,6 @@ impl ThemeSelectionView {
                     cfg.code_home.clone(),
                     AuthMode::ApiKey,
                     cfg.responses_originator_header.clone(),
-                    cfg.cli_auth_credentials_store_mode,
                 );
                 let debug_logger = match code_core::debug_logger::DebugLogger::new(false) {
                     Ok(logger) => logger,
@@ -138,17 +137,17 @@ impl ThemeSelectionView {
                         }
                     }
                 };
-                let client = code_core::ModelClient::new(code_core::ModelClientInit {
-                    config: std::sync::Arc::new(cfg.clone()),
-                    auth_manager: Some(auth_mgr),
-                    otel_event_manager: None,
-                    provider: cfg.model_provider.clone(),
-                    effort: cfg.model_reasoning_effort,
-                    summary: cfg.model_reasoning_summary,
-                    verbosity: cfg.model_text_verbosity,
-                    session_id: uuid::Uuid::new_v4(),
-                    debug_logger: std::sync::Arc::new(std::sync::Mutex::new(debug_logger)),
-                });
+                let client = code_core::ModelClient::new(
+                    std::sync::Arc::new(cfg.clone()),
+                    Some(auth_mgr),
+                    None,
+                    cfg.model_provider.clone(),
+                    cfg.model_reasoning_effort,
+                    cfg.model_reasoning_summary,
+                    cfg.model_text_verbosity,
+                    uuid::Uuid::new_v4(),
+                    std::sync::Arc::new(std::sync::Mutex::new(debug_logger)),
+                );
 
                 // Prompt with example and detailed field usage to help the model choose appropriate colors
                 let developer = format!(

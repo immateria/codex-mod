@@ -7,8 +7,9 @@ use crate::protocol::common::AuthMode;
 use codex_experimental_api_macros::ExperimentalApi;
 use codex_protocol::account::PlanType;
 use codex_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
-use codex_protocol::approvals::ExecApprovalRequestSkillMetadata as CoreExecApprovalRequestSkillMetadata;
 use codex_protocol::approvals::ExecPolicyAmendment as CoreExecPolicyAmendment;
+use codex_protocol::approvals::GuardianAssessmentAction as CoreGuardianAssessmentAction;
+use codex_protocol::approvals::GuardianCommandSource as CoreGuardianCommandSource;
 use codex_protocol::approvals::NetworkApprovalContext as CoreNetworkApprovalContext;
 use codex_protocol::approvals::NetworkApprovalProtocol as CoreNetworkApprovalProtocol;
 use codex_protocol::approvals::NetworkPolicyAmendment as CoreNetworkPolicyAmendment;
@@ -33,10 +34,6 @@ use codex_protocol::mcp::Tool as McpTool;
 use codex_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
 use codex_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
 use codex_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
-use codex_protocol::models::MacOsAutomationPermission as CoreMacOsAutomationPermission;
-use codex_protocol::models::MacOsContactsPermission as CoreMacOsContactsPermission;
-use codex_protocol::models::MacOsPreferencesPermission as CoreMacOsPreferencesPermission;
-use codex_protocol::models::MacOsSeatbeltProfileExtensions as CoreMacOsSeatbeltProfileExtensions;
 use codex_protocol::models::MessagePhase;
 use codex_protocol::models::NetworkPermissions as CoreNetworkPermissions;
 use codex_protocol::models::PermissionProfile as CorePermissionProfile;
@@ -377,7 +374,7 @@ v2_enum_from_core!(
 
 v2_enum_from_core!(
     pub enum HookEventName from CoreHookEventName {
-        PreToolUse, SessionStart, UserPromptSubmit, Stop
+        PreToolUse, PostToolUse, SessionStart, UserPromptSubmit, Stop
     }
 );
 
@@ -871,10 +868,36 @@ pub struct NetworkRequirements {
     pub allow_upstream_proxy: Option<bool>,
     pub dangerously_allow_non_loopback_proxy: Option<bool>,
     pub dangerously_allow_all_unix_sockets: Option<bool>,
+    /// Canonical network permission map for `experimental_network`.
+    pub domains: Option<BTreeMap<String, NetworkDomainPermission>>,
+    /// When true, only managed allowlist entries are respected while managed
+    /// network enforcement is active.
+    pub managed_allowed_domains_only: Option<bool>,
+    /// Legacy compatibility view derived from `domains`.
     pub allowed_domains: Option<Vec<String>>,
+    /// Legacy compatibility view derived from `domains`.
     pub denied_domains: Option<Vec<String>>,
+    /// Canonical unix socket permission map for `experimental_network`.
+    pub unix_sockets: Option<BTreeMap<String, NetworkUnixSocketPermission>>,
+    /// Legacy compatibility view derived from `unix_sockets`.
     pub allow_unix_sockets: Option<Vec<String>>,
     pub allow_local_binding: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export_to = "v2/")]
+pub enum NetworkDomainPermission {
+    Allow,
+    Deny,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export_to = "v2/")]
+pub enum NetworkUnixSocketPermission {
+    Allow,
+    None,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
@@ -1089,47 +1112,6 @@ impl From<AdditionalFileSystemPermissions> for CoreFileSystemPermissions {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct AdditionalMacOsPermissions {
-    pub preferences: CoreMacOsPreferencesPermission,
-    pub automations: CoreMacOsAutomationPermission,
-    pub launch_services: bool,
-    pub accessibility: bool,
-    pub calendar: bool,
-    pub reminders: bool,
-    pub contacts: CoreMacOsContactsPermission,
-}
-
-impl From<CoreMacOsSeatbeltProfileExtensions> for AdditionalMacOsPermissions {
-    fn from(value: CoreMacOsSeatbeltProfileExtensions) -> Self {
-        Self {
-            preferences: value.macos_preferences,
-            automations: value.macos_automation,
-            launch_services: value.macos_launch_services,
-            accessibility: value.macos_accessibility,
-            calendar: value.macos_calendar,
-            reminders: value.macos_reminders,
-            contacts: value.macos_contacts,
-        }
-    }
-}
-
-impl From<AdditionalMacOsPermissions> for CoreMacOsSeatbeltProfileExtensions {
-    fn from(value: AdditionalMacOsPermissions) -> Self {
-        Self {
-            macos_preferences: value.preferences,
-            macos_automation: value.automations,
-            macos_launch_services: value.launch_services,
-            macos_accessibility: value.accessibility,
-            macos_calendar: value.calendar,
-            macos_reminders: value.reminders,
-            macos_contacts: value.contacts,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
 pub struct AdditionalNetworkPermissions {
     pub enabled: Option<bool>,
 }
@@ -1183,7 +1165,6 @@ impl From<RequestPermissionProfile> for CoreRequestPermissionProfile {
 pub struct AdditionalPermissionProfile {
     pub network: Option<AdditionalNetworkPermissions>,
     pub file_system: Option<AdditionalFileSystemPermissions>,
-    pub macos: Option<AdditionalMacOsPermissions>,
 }
 
 impl From<CorePermissionProfile> for AdditionalPermissionProfile {
@@ -1191,7 +1172,6 @@ impl From<CorePermissionProfile> for AdditionalPermissionProfile {
         Self {
             network: value.network.map(AdditionalNetworkPermissions::from),
             file_system: value.file_system.map(AdditionalFileSystemPermissions::from),
-            macos: value.macos.map(AdditionalMacOsPermissions::from),
         }
     }
 }
@@ -1201,7 +1181,6 @@ impl From<AdditionalPermissionProfile> for CorePermissionProfile {
         Self {
             network: value.network.map(CoreNetworkPermissions::from),
             file_system: value.file_system.map(CoreFileSystemPermissions::from),
-            macos: value.macos.map(CoreMacOsSeatbeltProfileExtensions::from),
         }
     }
 }
@@ -1223,7 +1202,6 @@ impl From<GrantedPermissionProfile> for CorePermissionProfile {
         Self {
             network: value.network.map(CoreNetworkPermissions::from),
             file_system: value.file_system.map(CoreFileSystemPermissions::from),
-            macos: None,
         }
     }
 }
@@ -1613,6 +1591,9 @@ pub enum LoginAccountParams {
     #[serde(rename = "chatgpt")]
     #[ts(rename = "chatgpt")]
     Chatgpt,
+    #[serde(rename = "chatgptDeviceCode")]
+    #[ts(rename = "chatgptDeviceCode")]
+    ChatgptDeviceCode,
     /// [UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.
     /// The access token must contain the same scopes that Codex-managed ChatGPT auth tokens have.
     #[experimental("account/login/start.chatgptAuthTokens")]
@@ -1649,6 +1630,17 @@ pub enum LoginAccountResponse {
         login_id: String,
         /// URL the client should open in a browser to initiate the OAuth flow.
         auth_url: String,
+    },
+    #[serde(rename = "chatgptDeviceCode", rename_all = "camelCase")]
+    #[ts(rename = "chatgptDeviceCode", rename_all = "camelCase")]
+    ChatgptDeviceCode {
+        // Use plain String for identifiers to avoid TS/JSON Schema quirks around uuid-specific types.
+        // Convert to/from UUIDs at the application layer as needed.
+        login_id: String,
+        /// URL the client should open in a browser to complete device code authorization.
+        verification_url: String,
+        /// One-time code the user must enter after signing in.
+        user_code: String,
     },
     #[serde(rename = "chatgptAuthTokens", rename_all = "camelCase")]
     #[ts(rename = "chatgptAuthTokens", rename_all = "camelCase")]
@@ -1924,6 +1916,25 @@ pub struct ExperimentalFeatureListResponse {
     /// Opaque cursor to pass to the next call to continue after the last item.
     /// If None, there are no more items to return.
     pub next_cursor: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct ExperimentalFeatureEnablementSetParams {
+    /// Process-wide runtime feature enablement keyed by canonical feature name.
+    ///
+    /// Only named features are updated. Omitted features are left unchanged.
+    /// Send an empty map for a no-op.
+    pub enablement: std::collections::BTreeMap<String, bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct ExperimentalFeatureEnablementSetResponse {
+    /// Feature enablement entries updated by this request.
+    pub enablement: std::collections::BTreeMap<String, bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -2300,6 +2311,52 @@ pub struct FsCopyParams {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct FsCopyResponse {}
+
+/// Start filesystem watch notifications for an absolute path.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct FsWatchParams {
+    /// Absolute file or directory path to watch.
+    pub path: AbsolutePathBuf,
+}
+
+/// Created watch handle returned by `fs/watch`.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct FsWatchResponse {
+    /// Connection-scoped watch identifier used for `fs/unwatch` and `fs/changed`.
+    pub watch_id: String,
+    /// Canonicalized path associated with the watch.
+    pub path: AbsolutePathBuf,
+}
+
+/// Stop filesystem watch notifications for a prior `fs/watch`.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct FsUnwatchParams {
+    /// Watch identifier returned by `fs/watch`.
+    pub watch_id: String,
+}
+
+/// Successful response for `fs/unwatch`.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct FsUnwatchResponse {}
+
+/// Filesystem watch notification emitted for `fs/watch` subscribers.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct FsChangedNotification {
+    /// Watch identifier returned by `fs/watch`.
+    pub watch_id: String,
+    /// File or directory paths associated with this event.
+    pub changed_paths: Vec<AbsolutePathBuf>,
+}
 
 /// PTY size in character cells for `command/exec` PTY sessions.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
@@ -3454,14 +3511,6 @@ impl From<CoreSkillMetadata> for SkillMetadata {
     }
 }
 
-impl From<CoreExecApprovalRequestSkillMetadata> for CommandExecutionRequestApprovalSkillMetadata {
-    fn from(value: CoreExecApprovalRequestSkillMetadata) -> Self {
-        Self {
-            path_to_skills_md: value.path_to_skills_md,
-        }
-    }
-}
-
 impl From<CoreSkillInterface> for SkillInterface {
     fn from(value: CoreSkillInterface) -> Self {
         Self {
@@ -3525,6 +3574,8 @@ impl From<CoreSkillErrorInfo> for SkillErrorInfo {
 #[ts(export_to = "v2/")]
 pub struct Thread {
     pub id: String,
+    /// Source thread id when this thread was created by forking another thread.
+    pub forked_from_id: Option<String>,
     /// Usually the first user message in the thread, if available.
     pub preview: String,
     /// Whether the thread is ephemeral and should not be materialized on disk.
@@ -4398,12 +4449,235 @@ impl From<CoreGuardianRiskLevel> for GuardianRiskLevel {
 #[ts(export_to = "v2/")]
 pub struct GuardianApprovalReview {
     pub status: GuardianApprovalReviewStatus,
-    #[serde(alias = "risk_score")]
     #[ts(type = "number | null")]
     pub risk_score: Option<u8>,
-    #[serde(alias = "risk_level")]
     pub risk_level: Option<GuardianRiskLevel>,
     pub rationale: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub enum GuardianCommandSource {
+    Shell,
+    UnifiedExec,
+}
+
+impl From<CoreGuardianCommandSource> for GuardianCommandSource {
+    fn from(value: CoreGuardianCommandSource) -> Self {
+        match value {
+            CoreGuardianCommandSource::Shell => Self::Shell,
+            CoreGuardianCommandSource::UnifiedExec => Self::UnifiedExec,
+        }
+    }
+}
+
+impl From<GuardianCommandSource> for CoreGuardianCommandSource {
+    fn from(value: GuardianCommandSource) -> Self {
+        match value {
+            GuardianCommandSource::Shell => Self::Shell,
+            GuardianCommandSource::UnifiedExec => Self::UnifiedExec,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct GuardianCommandReviewAction {
+    pub source: GuardianCommandSource,
+    pub command: String,
+    pub cwd: PathBuf,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct GuardianExecveReviewAction {
+    pub source: GuardianCommandSource,
+    pub program: String,
+    pub argv: Vec<String>,
+    pub cwd: PathBuf,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct GuardianApplyPatchReviewAction {
+    pub cwd: PathBuf,
+    pub files: Vec<PathBuf>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct GuardianNetworkAccessReviewAction {
+    pub target: String,
+    pub host: String,
+    pub protocol: NetworkApprovalProtocol,
+    pub port: u16,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct GuardianMcpToolCallReviewAction {
+    pub server: String,
+    pub tool_name: String,
+    pub connector_id: Option<String>,
+    pub connector_name: Option<String>,
+    pub tool_title: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[serde(tag = "type", rename_all = "camelCase")]
+#[ts(tag = "type", rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub enum GuardianApprovalReviewAction {
+    #[serde(rename_all = "camelCase")]
+    #[ts(rename_all = "camelCase")]
+    Command {
+        source: GuardianCommandSource,
+        command: String,
+        cwd: PathBuf,
+    },
+    #[serde(rename_all = "camelCase")]
+    #[ts(rename_all = "camelCase")]
+    Execve {
+        source: GuardianCommandSource,
+        program: String,
+        argv: Vec<String>,
+        cwd: PathBuf,
+    },
+    #[serde(rename_all = "camelCase")]
+    #[ts(rename_all = "camelCase")]
+    ApplyPatch { cwd: PathBuf, files: Vec<PathBuf> },
+    #[serde(rename_all = "camelCase")]
+    #[ts(rename_all = "camelCase")]
+    NetworkAccess {
+        target: String,
+        host: String,
+        protocol: NetworkApprovalProtocol,
+        port: u16,
+    },
+    #[serde(rename_all = "camelCase")]
+    #[ts(rename_all = "camelCase")]
+    McpToolCall {
+        server: String,
+        tool_name: String,
+        connector_id: Option<String>,
+        connector_name: Option<String>,
+        tool_title: Option<String>,
+    },
+}
+
+impl From<CoreGuardianAssessmentAction> for GuardianApprovalReviewAction {
+    fn from(value: CoreGuardianAssessmentAction) -> Self {
+        match value {
+            CoreGuardianAssessmentAction::Command {
+                source,
+                command,
+                cwd,
+            } => Self::Command {
+                source: source.into(),
+                command,
+                cwd,
+            },
+            CoreGuardianAssessmentAction::Execve {
+                source,
+                program,
+                argv,
+                cwd,
+            } => Self::Execve {
+                source: source.into(),
+                program,
+                argv,
+                cwd,
+            },
+            CoreGuardianAssessmentAction::ApplyPatch { cwd, files } => {
+                Self::ApplyPatch { cwd, files }
+            }
+            CoreGuardianAssessmentAction::NetworkAccess {
+                target,
+                host,
+                protocol,
+                port,
+            } => Self::NetworkAccess {
+                target,
+                host,
+                protocol: protocol.into(),
+                port,
+            },
+            CoreGuardianAssessmentAction::McpToolCall {
+                server,
+                tool_name,
+                connector_id,
+                connector_name,
+                tool_title,
+            } => Self::McpToolCall {
+                server,
+                tool_name,
+                connector_id,
+                connector_name,
+                tool_title,
+            },
+        }
+    }
+}
+
+impl From<GuardianApprovalReviewAction> for CoreGuardianAssessmentAction {
+    fn from(value: GuardianApprovalReviewAction) -> Self {
+        match value {
+            GuardianApprovalReviewAction::Command {
+                source,
+                command,
+                cwd,
+            } => Self::Command {
+                source: source.into(),
+                command,
+                cwd,
+            },
+            GuardianApprovalReviewAction::Execve {
+                source,
+                program,
+                argv,
+                cwd,
+            } => Self::Execve {
+                source: source.into(),
+                program,
+                argv,
+                cwd,
+            },
+            GuardianApprovalReviewAction::ApplyPatch { cwd, files } => {
+                Self::ApplyPatch { cwd, files }
+            }
+            GuardianApprovalReviewAction::NetworkAccess {
+                target,
+                host,
+                protocol,
+                port,
+            } => Self::NetworkAccess {
+                target,
+                host,
+                protocol: protocol.to_core(),
+                port,
+            },
+            GuardianApprovalReviewAction::McpToolCall {
+                server,
+                tool_name,
+                connector_id,
+                connector_name,
+                tool_title,
+            } => Self::McpToolCall {
+                server,
+                tool_name,
+                connector_id,
+                connector_name,
+                tool_title,
+            },
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -4886,7 +5160,7 @@ pub struct ItemGuardianApprovalReviewStartedNotification {
     pub turn_id: String,
     pub target_item_id: String,
     pub review: GuardianApprovalReview,
-    pub action: Option<JsonValue>,
+    pub action: GuardianApprovalReviewAction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -4903,7 +5177,7 @@ pub struct ItemGuardianApprovalReviewCompletedNotification {
     pub turn_id: String,
     pub target_item_id: String,
     pub review: GuardianApprovalReview,
-    pub action: Option<JsonValue>,
+    pub action: GuardianApprovalReviewAction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -5175,11 +5449,6 @@ pub struct CommandExecutionRequestApprovalParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
     pub additional_permissions: Option<AdditionalPermissionProfile>,
-    /// Optional skill metadata when the approval was triggered by a skill script.
-    #[experimental("item/commandExecution/requestApproval.skillMetadata")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional = nullable)]
-    pub skill_metadata: Option<CommandExecutionRequestApprovalSkillMetadata>,
     /// Optional proposed execpolicy amendment to allow similar commands without prompting.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
@@ -5201,15 +5470,7 @@ impl CommandExecutionRequestApprovalParams {
         // We need a generic outbound compatibility design for stripping or
         // otherwise handling experimental server->client payloads.
         self.additional_permissions = None;
-        self.skill_metadata = None;
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct CommandExecutionRequestApprovalSkillMetadata {
-    pub path_to_skills_md: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -6032,10 +6293,8 @@ mod tests {
                 "fileSystem": {
                     "read": ["relative/path"],
                     "write": null
-                },
-                "macos": null
+                }
             },
-            "skillMetadata": null,
             "proposedExecpolicyAmendment": null,
             "proposedNetworkPolicyAmendments": null,
             "availableDecisions": null
@@ -6045,121 +6304,6 @@ mod tests {
             err.to_string()
                 .contains("AbsolutePathBuf deserialized without a base path"),
             "unexpected error: {err}"
-        );
-    }
-
-    #[test]
-    fn command_execution_request_approval_accepts_macos_automation_bundle_ids_object() {
-        let params = serde_json::from_value::<CommandExecutionRequestApprovalParams>(json!({
-            "threadId": "thr_123",
-            "turnId": "turn_123",
-            "itemId": "call_123",
-            "command": "cat file",
-            "cwd": "/tmp",
-            "commandActions": null,
-            "reason": null,
-            "networkApprovalContext": null,
-            "additionalPermissions": {
-                "network": null,
-                "fileSystem": null,
-                "macos": {
-                    "preferences": "read_only",
-                    "automations": {
-                        "bundle_ids": ["com.apple.Notes"]
-                    },
-                    "launchServices": false,
-                    "accessibility": false,
-                    "calendar": false,
-                    "reminders": false,
-                    "contacts": "read_only"
-                }
-            },
-            "skillMetadata": null,
-            "proposedExecpolicyAmendment": null,
-            "proposedNetworkPolicyAmendments": null,
-            "availableDecisions": null
-        }))
-        .expect("bundle_ids object should deserialize");
-
-        assert_eq!(
-            params
-                .additional_permissions
-                .and_then(|permissions| permissions.macos)
-                .map(|macos| (macos.automations, macos.launch_services, macos.contacts)),
-            Some((
-                CoreMacOsAutomationPermission::BundleIds(vec!["com.apple.Notes".to_string(),]),
-                false,
-                CoreMacOsContactsPermission::ReadOnly,
-            ))
-        );
-    }
-
-    #[test]
-    fn command_execution_request_approval_accepts_macos_reminders_permission() {
-        let params = serde_json::from_value::<CommandExecutionRequestApprovalParams>(json!({
-            "threadId": "thr_123",
-            "turnId": "turn_123",
-            "itemId": "call_123",
-            "command": "cat file",
-            "cwd": "/tmp",
-            "commandActions": null,
-            "reason": null,
-            "networkApprovalContext": null,
-            "additionalPermissions": {
-                "network": null,
-                "fileSystem": null,
-                "macos": {
-                    "preferences": "read_only",
-                    "automations": "none",
-                    "launchServices": false,
-                    "accessibility": false,
-                    "calendar": false,
-                    "reminders": true,
-                    "contacts": "none"
-                }
-            },
-            "skillMetadata": null,
-            "proposedExecpolicyAmendment": null,
-            "proposedNetworkPolicyAmendments": null,
-            "availableDecisions": null
-        }))
-        .expect("reminders permission should deserialize");
-
-        assert_eq!(
-            params
-                .additional_permissions
-                .and_then(|permissions| permissions.macos)
-                .map(|macos| macos.reminders),
-            Some(true)
-        );
-    }
-
-    #[test]
-    fn command_execution_request_approval_accepts_skill_metadata() {
-        let params = serde_json::from_value::<CommandExecutionRequestApprovalParams>(json!({
-            "threadId": "thr_123",
-            "turnId": "turn_123",
-            "itemId": "call_123",
-            "command": "cat file",
-            "cwd": "/tmp",
-            "commandActions": null,
-            "reason": null,
-            "networkApprovalContext": null,
-            "additionalPermissions": null,
-            "skillMetadata": {
-                "pathToSkillsMd": "/tmp/SKILLS.md"
-            },
-            "proposedExecpolicyAmendment": null,
-            "proposedNetworkPolicyAmendments": null,
-            "availableDecisions": null
-        }))
-        .expect("skill metadata should deserialize");
-
-        assert_eq!(
-            params.skill_metadata,
-            Some(CommandExecutionRequestApprovalSkillMetadata {
-                path_to_skills_md: PathBuf::from("/tmp/SKILLS.md"),
-            })
         );
     }
 
@@ -6320,7 +6464,6 @@ mod tests {
                             .expect("path must be absolute"),
                     ]),
                 }),
-                macos: None,
             }
         );
     }
@@ -6495,6 +6638,33 @@ mod tests {
         let decoded = serde_json::from_value::<ThreadShellCommandResponse>(value)
             .expect("deserialize thread/shellCommand response");
         assert_eq!(decoded, response);
+    }
+
+    #[test]
+    fn fs_changed_notification_round_trips() {
+        let notification = FsChangedNotification {
+            watch_id: "0195ec6b-1d6f-7c2e-8c7a-56f2c4a8b9d1".to_string(),
+            changed_paths: vec![
+                absolute_path("tmp/repo/.git/HEAD"),
+                absolute_path("tmp/repo/.git/FETCH_HEAD"),
+            ],
+        };
+
+        let value = serde_json::to_value(&notification).expect("serialize fs/changed notification");
+        assert_eq!(
+            value,
+            json!({
+                "watchId": "0195ec6b-1d6f-7c2e-8c7a-56f2c4a8b9d1",
+                "changedPaths": [
+                    absolute_path_string("tmp/repo/.git/HEAD"),
+                    absolute_path_string("tmp/repo/.git/FETCH_HEAD"),
+                ],
+            })
+        );
+
+        let decoded = serde_json::from_value::<FsChangedNotification>(value)
+            .expect("deserialize fs/changed notification");
+        assert_eq!(decoded, notification);
     }
 
     #[test]
@@ -7545,26 +7715,6 @@ mod tests {
     }
 
     #[test]
-    fn automatic_approval_review_deserializes_legacy_snake_case_risk_fields() {
-        let review: GuardianApprovalReview = serde_json::from_value(json!({
-            "status": "denied",
-            "risk_score": 91,
-            "risk_level": "high",
-            "rationale": "too risky"
-        }))
-        .expect("legacy snake_case automatic review should deserialize");
-        assert_eq!(
-            review,
-            GuardianApprovalReview {
-                status: GuardianApprovalReviewStatus::Denied,
-                risk_score: Some(91),
-                risk_level: Some(GuardianRiskLevel::High),
-                rationale: Some("too risky".to_string()),
-            }
-        );
-    }
-
-    #[test]
     fn automatic_approval_review_deserializes_aborted_status() {
         let review: GuardianApprovalReview = serde_json::from_value(json!({
             "status": "aborted",
@@ -7581,6 +7731,119 @@ mod tests {
                 risk_level: None,
                 rationale: None,
             }
+        );
+    }
+
+    #[test]
+    fn guardian_approval_review_action_round_trips_command_shape() {
+        let value = json!({
+            "type": "command",
+            "source": "shell",
+            "command": "rm -rf /tmp/example.sqlite",
+            "cwd": "/tmp",
+        });
+        let action: GuardianApprovalReviewAction =
+            serde_json::from_value(value.clone()).expect("guardian review action");
+
+        assert_eq!(
+            action,
+            GuardianApprovalReviewAction::Command {
+                source: GuardianCommandSource::Shell,
+                command: "rm -rf /tmp/example.sqlite".to_string(),
+                cwd: "/tmp".into(),
+            }
+        );
+        assert_eq!(
+            serde_json::to_value(&action).expect("serialize guardian review action"),
+            value
+        );
+    }
+
+    #[test]
+    fn network_requirements_deserializes_legacy_fields() {
+        let requirements: NetworkRequirements = serde_json::from_value(json!({
+            "allowedDomains": ["api.openai.com"],
+            "deniedDomains": ["blocked.example.com"],
+            "allowUnixSockets": ["/tmp/proxy.sock"]
+        }))
+        .expect("legacy network requirements should deserialize");
+
+        assert_eq!(
+            requirements,
+            NetworkRequirements {
+                enabled: None,
+                http_port: None,
+                socks_port: None,
+                allow_upstream_proxy: None,
+                dangerously_allow_non_loopback_proxy: None,
+                dangerously_allow_all_unix_sockets: None,
+                domains: None,
+                managed_allowed_domains_only: None,
+                allowed_domains: Some(vec!["api.openai.com".to_string()]),
+                denied_domains: Some(vec!["blocked.example.com".to_string()]),
+                unix_sockets: None,
+                allow_unix_sockets: Some(vec!["/tmp/proxy.sock".to_string()]),
+                allow_local_binding: None,
+            }
+        );
+    }
+
+    #[test]
+    fn network_requirements_serializes_canonical_and_legacy_fields() {
+        let requirements = NetworkRequirements {
+            enabled: Some(true),
+            http_port: Some(8080),
+            socks_port: Some(1080),
+            allow_upstream_proxy: Some(false),
+            dangerously_allow_non_loopback_proxy: Some(false),
+            dangerously_allow_all_unix_sockets: Some(true),
+            domains: Some(BTreeMap::from([
+                ("api.openai.com".to_string(), NetworkDomainPermission::Allow),
+                (
+                    "blocked.example.com".to_string(),
+                    NetworkDomainPermission::Deny,
+                ),
+            ])),
+            managed_allowed_domains_only: Some(true),
+            allowed_domains: Some(vec!["api.openai.com".to_string()]),
+            denied_domains: Some(vec!["blocked.example.com".to_string()]),
+            unix_sockets: Some(BTreeMap::from([
+                (
+                    "/tmp/proxy.sock".to_string(),
+                    NetworkUnixSocketPermission::Allow,
+                ),
+                (
+                    "/tmp/ignored.sock".to_string(),
+                    NetworkUnixSocketPermission::None,
+                ),
+            ])),
+            allow_unix_sockets: Some(vec!["/tmp/proxy.sock".to_string()]),
+            allow_local_binding: Some(true),
+        };
+
+        assert_eq!(
+            serde_json::to_value(requirements).expect("network requirements should serialize"),
+            json!({
+                "enabled": true,
+                "httpPort": 8080,
+                "socksPort": 1080,
+                "allowUpstreamProxy": false,
+                "dangerouslyAllowNonLoopbackProxy": false,
+                "dangerouslyAllowAllUnixSockets": true,
+                "domains": {
+                    "api.openai.com": "allow",
+                    "blocked.example.com": "deny"
+                },
+                "managedAllowedDomainsOnly": true,
+                "allowedDomains": ["api.openai.com"],
+                "deniedDomains": ["blocked.example.com"],
+                "unixSockets": {
+                    "/tmp/ignored.sock": "none",
+                    "/tmp/proxy.sock": "allow"
+                },
+                "allowUnixSockets": ["/tmp/proxy.sock"],
+                "allowLocalBinding": true
+            })
         );
     }
 

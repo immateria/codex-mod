@@ -109,17 +109,17 @@ impl Runner<'_> {
         };
 
         // Wrap provided auth (if any) in a minimal AuthManager for client usage.
-        let client = ModelClient::new(crate::client::ModelClientInit {
-            config: config.clone(),
-            auth_manager: self.auth_manager.clone(),
-            otel_event_manager: Some(otel_event_manager.clone()),
-            provider: provider.clone(),
-            effort: model_reasoning_effort,
-            summary: model_reasoning_summary,
-            verbosity: model_text_verbosity,
-            session_id: self.session_id,
+        let client = ModelClient::new(
+            config.clone(),
+            self.auth_manager.clone(),
+            Some(otel_event_manager.clone()),
+            provider.clone(),
+            model_reasoning_effort,
+            model_reasoning_summary,
+            model_text_verbosity,
+            self.session_id,
             debug_logger,
-        });
+        );
 
         // abort any current running session and clone its state
         let old_session = self.sess.take();

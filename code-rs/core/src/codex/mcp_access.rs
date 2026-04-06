@@ -518,7 +518,7 @@ pub(super) async fn preflight_turn_skill_input(
         ensure_skill_mcp_access_for_turn(
             sess,
             turn_id,
-            config_snapshot.as_ref(),
+            config_snapshot,
             injections.mcp_dependencies.as_slice(),
         )
         .await;

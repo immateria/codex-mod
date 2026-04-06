@@ -78,7 +78,6 @@ impl MessageProcessor {
             config.code_home.clone(),
             AuthMode::ApiKey,
             config.responses_originator_header.clone(),
-            config.cli_auth_credentials_store_mode,
         );
         let conversation_manager = Arc::new(ConversationManager::new(
             auth_manager.clone(),
@@ -1496,7 +1495,6 @@ fn model_picker_auth_state(config: &Config) -> (Option<AuthMode>, bool) {
         config.code_home.clone(),
         preferred_auth_mode,
         config.responses_originator_header.clone(),
-        config.cli_auth_credentials_store_mode,
     );
     let auth_mode = auth_manager
         .auth()

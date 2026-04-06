@@ -1,8 +1,6 @@
 pub(crate) mod agent_jobs;
 pub mod apply_patch;
-mod artifacts;
 mod dynamic;
-mod grep_files;
 mod js_repl;
 mod list_dir;
 mod mcp;
@@ -11,7 +9,6 @@ pub(crate) mod multi_agents;
 pub(crate) mod multi_agents_common;
 pub(crate) mod multi_agents_v2;
 mod plan;
-mod read_file;
 mod request_permissions;
 mod request_user_input;
 mod shell;
@@ -25,7 +22,6 @@ use codex_sandboxing::policy_transforms::intersect_permission_profiles;
 use codex_sandboxing::policy_transforms::merge_permission_profiles;
 use codex_sandboxing::policy_transforms::normalize_additional_permissions;
 use codex_utils_absolute_path::AbsolutePathBufGuard;
-pub use plan::PLAN_TOOL;
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::Path;
@@ -37,29 +33,21 @@ use crate::sandboxing::SandboxPermissions;
 pub(crate) use crate::tools::code_mode::CodeModeExecuteHandler;
 pub(crate) use crate::tools::code_mode::CodeModeWaitHandler;
 pub use apply_patch::ApplyPatchHandler;
-pub use artifacts::ArtifactsHandler;
 use codex_protocol::models::PermissionProfile;
 use codex_protocol::protocol::AskForApproval;
 pub use dynamic::DynamicToolHandler;
-pub use grep_files::GrepFilesHandler;
 pub use js_repl::JsReplHandler;
 pub use js_repl::JsReplResetHandler;
 pub use list_dir::ListDirHandler;
 pub use mcp::McpHandler;
 pub use mcp_resource::McpResourceHandler;
 pub use plan::PlanHandler;
-pub use read_file::ReadFileHandler;
 pub use request_permissions::RequestPermissionsHandler;
-pub(crate) use request_permissions::request_permissions_tool_description;
 pub use request_user_input::RequestUserInputHandler;
-pub(crate) use request_user_input::request_user_input_tool_description;
 pub use shell::ShellCommandHandler;
 pub use shell::ShellHandler;
 pub use test_sync::TestSyncHandler;
-pub(crate) use tool_search::DEFAULT_LIMIT as TOOL_SEARCH_DEFAULT_LIMIT;
-pub(crate) use tool_search::TOOL_SEARCH_TOOL_NAME;
 pub use tool_search::ToolSearchHandler;
-pub(crate) use tool_suggest::TOOL_SUGGEST_TOOL_NAME;
 pub use tool_suggest::ToolSuggestHandler;
 pub use unified_exec::UnifiedExecHandler;
 pub use view_image::ViewImageHandler;
@@ -133,18 +121,14 @@ pub(crate) fn normalize_and_validate_additional_permissions(
         }
         let Some(additional_permissions) = additional_permissions else {
             return Err(
-                "missing `additional_permissions`; provide at least one of `network`, `file_system`, or `macos` when using `with_additional_permissions`"
+                "missing `additional_permissions`; provide at least one of `network` or `file_system` when using `with_additional_permissions`"
                     .to_string(),
             );
         };
-        #[cfg(not(target_os = "macos"))]
-        if additional_permissions.macos.is_some() {
-            return Err("`additional_permissions.macos` is only supported on macOS".to_string());
-        }
         let normalized = normalize_additional_permissions(additional_permissions)?;
         if normalized.is_empty() {
             return Err(
-                "`additional_permissions` must include at least one requested permission in `network`, `file_system`, or `macos`"
+                "`additional_permissions` must include at least one requested permission in `network` or `file_system`"
                     .to_string(),
             );
         }
@@ -271,7 +255,7 @@ mod tests {
         let cwd = tempdir().expect("tempdir");
 
         let normalized = normalize_and_validate_additional_permissions(
-            false,
+            /*additional_permissions_allowed*/ false,
             AskForApproval::Granular(GranularApprovalConfig {
                 sandbox_approval: true,
                 rules: true,
@@ -281,7 +265,7 @@ mod tests {
             }),
             SandboxPermissions::WithAdditionalPermissions,
             Some(network_permissions()),
-            true,
+            /*permissions_preapproved*/ true,
             cwd.path(),
         )
         .expect("preapproved permissions should be allowed");
@@ -294,11 +278,11 @@ mod tests {
         let cwd = tempdir().expect("tempdir");
 
         let err = normalize_and_validate_additional_permissions(
-            false,
+            /*additional_permissions_allowed*/ false,
             AskForApproval::OnRequest,
             SandboxPermissions::WithAdditionalPermissions,
             Some(network_permissions()),
-            false,
+            /*permissions_preapproved*/ false,
             cwd.path(),
         )
         .expect_err("fresh inline permission requests should remain disabled");
@@ -315,7 +299,7 @@ mod tests {
         let granted_permissions = file_system_permissions(cwd.path());
         let implicit_permissions = implicit_granted_permissions(
             SandboxPermissions::UseDefault,
-            None,
+            /*additional_permissions*/ None,
             &EffectiveAdditionalPermissions {
                 sandbox_permissions: SandboxPermissions::WithAdditionalPermissions,
                 additional_permissions: Some(granted_permissions.clone()),

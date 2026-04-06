@@ -12,8 +12,6 @@ use code_app_server_protocol::GetAccountResponse;
 use code_app_server_protocol::LoginAccountParams;
 use code_app_server_protocol::LoginAccountResponse;
 use code_app_server_protocol::LogoutAccountResponse;
-use code_app_server_protocol::PermissionsRequestApprovalParams;
-use code_app_server_protocol::PermissionsRequestApprovalResponse;
 use code_app_server_protocol::ToolRequestUserInputOption;
 use code_app_server_protocol::ToolRequestUserInputParams;
 use code_app_server_protocol::ToolRequestUserInputQuestion;
@@ -38,12 +36,6 @@ use code_core::protocol::EventMsg;
 use code_core::protocol::ExecApprovalRequestEvent;
 use code_protocol::mcp_protocol::FuzzyFileSearchParams;
 use code_protocol::mcp_protocol::FuzzyFileSearchResponse;
-use code_protocol::mcp_protocol::FuzzyFileSearchSessionStartParams;
-use code_protocol::mcp_protocol::FuzzyFileSearchSessionStartResponse;
-use code_protocol::mcp_protocol::FuzzyFileSearchSessionStopParams;
-use code_protocol::mcp_protocol::FuzzyFileSearchSessionStopResponse;
-use code_protocol::mcp_protocol::FuzzyFileSearchSessionUpdateParams;
-use code_protocol::mcp_protocol::FuzzyFileSearchSessionUpdateResponse;
 use code_protocol::protocol::ReviewDecision;
 use mcp_types::JSONRPCErrorError;
 use mcp_types::RequestId;
@@ -64,9 +56,7 @@ use code_utils_json_to_toml::json_to_toml;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::OutgoingNotification;
-use crate::fuzzy_file_search::FuzzyFileSearchSession;
 use crate::fuzzy_file_search::run_fuzzy_file_search;
-use crate::fuzzy_file_search::start_fuzzy_file_search_session;
 use code_protocol::protocol::TurnAbortReason;
 use code_protocol::dynamic_tools::DynamicToolResponse as CoreDynamicToolResponse;
 use code_core::protocol::InputItem as CoreInputItem;
@@ -133,7 +123,6 @@ use code_protocol::protocol::RateLimitWindow as CoreRateLimitWindow;
 // Removed deprecated ChatGPT login support scaffolding
 
 const TOOL_REQUEST_USER_INPUT_METHOD: &str = "item/tool/requestUserInput";
-const PERMISSIONS_REQUEST_APPROVAL_METHOD: &str = "item/permissions/requestApproval";
 
 struct ConversationListenerRegistration {
     owner_connection_id: ConnectionId,
@@ -156,8 +145,8 @@ pub struct CodexMessageProcessor {
     active_login: Arc<Mutex<Option<ActiveLogin>>>,
     // Queue of pending interrupt requests per conversation. We reply when TurnAborted arrives.
     pending_interrupts: Arc<Mutex<HashMap<Uuid, Vec<RequestId>>>>,
+    #[allow(dead_code)]
     pending_fuzzy_searches: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
-    fuzzy_search_sessions: Arc<Mutex<HashMap<String, Arc<FuzzyFileSearchSession>>>>,
 }
 
 impl CodexMessageProcessor {
@@ -178,7 +167,6 @@ impl CodexMessageProcessor {
             active_login: Arc::new(Mutex::new(None)),
             pending_interrupts: Arc::new(Mutex::new(HashMap::new())),
             pending_fuzzy_searches: Arc::new(Mutex::new(HashMap::new())),
-            fuzzy_search_sessions: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -236,15 +224,6 @@ impl CodexMessageProcessor {
             ClientRequest::FuzzyFileSearch { request_id, params } => {
                 self.fuzzy_file_search(request_id, params).await;
             }
-            ClientRequest::FuzzyFileSearchSessionStart { request_id, params } => {
-                self.fuzzy_file_search_session_start(request_id, params).await;
-            }
-            ClientRequest::FuzzyFileSearchSessionUpdate { request_id, params } => {
-                self.fuzzy_file_search_session_update(request_id, params).await;
-            }
-            ClientRequest::FuzzyFileSearchSessionStop { request_id, params } => {
-                self.fuzzy_file_search_session_stop(request_id, params).await;
-            }
             ClientRequest::LoginChatGpt { request_id, .. } => {
                 self.login_chatgpt_v1(request_id).await;
             }
@@ -278,6 +257,10 @@ impl CodexMessageProcessor {
             ClientRequest::ExecOneOffCommand { request_id, params } => {
                 self.exec_one_off_command(request_id, params).await;
             }
+            // New file-search session variants added upstream — not yet implemented.
+            ClientRequest::FuzzyFileSearchSessionStart { .. }
+            | ClientRequest::FuzzyFileSearchSessionUpdate { .. }
+            | ClientRequest::FuzzyFileSearchSessionStop { .. } => {}
         }
     }
 
@@ -307,9 +290,7 @@ impl CodexMessageProcessor {
     ) -> Result<GetAccountResponse, JSONRPCErrorError> {
         let requires_openai_auth = self.config.model_provider.requires_openai_auth;
 
-        if refresh_token {
-            let _ = self.auth_manager.refresh_token().await;
-        }
+        self.refresh_token_if_requested(refresh_token).await;
 
         if !requires_openai_auth {
             return Ok(GetAccountResponse {
@@ -350,6 +331,23 @@ impl CodexMessageProcessor {
         })
     }
 
+    async fn refresh_token_if_requested(&self, refresh_token: bool) {
+        if !refresh_token {
+            return;
+        }
+
+        if self
+            .auth_manager
+            .auth()
+            .as_ref()
+            .is_some_and(|auth| auth.mode == code_app_server_protocol::AuthMode::ChatgptAuthTokens)
+        {
+            return;
+        }
+
+        let _ = self.auth_manager.refresh_token_classified().await;
+    }
+
     pub(crate) async fn login_account_v2(
         &self,
         params: LoginAccountParams,
@@ -365,11 +363,7 @@ impl CodexMessageProcessor {
                     });
                 }
 
-                if let Err(err) = code_core::auth::login_with_api_key_with_store_mode(
-                    &self.config.code_home,
-                    api_key,
-                    self.config.cli_auth_credentials_store_mode,
-                ) {
+                if let Err(err) = code_core::auth::login_with_api_key(&self.config.code_home, api_key) {
                     return Err(JSONRPCErrorError {
                         code: INTERNAL_ERROR_CODE,
                         message: format!("failed to persist api key: {err}"),
@@ -409,7 +403,7 @@ impl CodexMessageProcessor {
             self.config.code_home.clone(),
             CLIENT_ID.to_string(),
             self.config.responses_originator_header.clone(),
-            self.config.cli_auth_credentials_store_mode,
+            code_core::auth::AuthCredentialsStoreMode::File,
         );
         options.open_browser = false;
 
@@ -637,6 +631,56 @@ impl CodexMessageProcessor {
             .await;
     }
 
+    #[allow(dead_code)]
+    async fn send_user_turn(&self, request_id: RequestId, params: SendUserTurnParams) {
+        let SendUserTurnParams {
+            conversation_id,
+            items,
+            cwd: _,
+            approval_policy: _,
+            sandbox_policy: _,
+            model: _,
+            effort: _,
+            summary: _,
+        } = params;
+
+        let Ok(conversation) = self
+            .conversation_manager
+            .get_conversation(conversation_id)
+            .await
+        else {
+            let error = JSONRPCErrorError {
+                code: INVALID_REQUEST_ERROR_CODE,
+                message: format!("conversation not found: {conversation_id}"),
+                data: None,
+            };
+            self.outgoing.send_error(request_id, error).await;
+            return;
+        };
+
+        let mapped_items: Vec<CoreInputItem> = items
+            .into_iter()
+            .map(|item| match item {
+                WireInputItem::Text { text } => CoreInputItem::Text { text },
+                WireInputItem::Image { image_url } => CoreInputItem::Image { image_url },
+                WireInputItem::LocalImage { path } => CoreInputItem::LocalImage { path },
+            })
+            .collect();
+
+        // Core protocol compatibility: older cores do not support per-turn overrides.
+        // Submit only the user input items.
+        let _ = conversation
+            .submit(Op::UserInput {
+                items: mapped_items,
+                final_output_json_schema: None,
+            })
+            .await;
+
+        self.outgoing
+            .send_response(request_id, SendUserTurnResponse {})
+            .await;
+    }
+
     async fn interrupt_conversation(
         &mut self,
         request_id: RequestId,
@@ -850,7 +894,7 @@ impl CodexMessageProcessor {
         let next_cursor = page.next_cursor.and_then(|cursor| {
             serde_json::to_value(cursor)
                 .ok()
-                .and_then(|v| v.as_str().map(str::to_owned))
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
         });
 
         self.outgoing
@@ -1051,11 +1095,7 @@ impl CodexMessageProcessor {
             return;
         }
 
-        if let Err(err) = code_core::auth::login_with_api_key_with_store_mode(
-            &self.config.code_home,
-            api_key,
-            self.config.cli_auth_credentials_store_mode,
-        ) {
+        if let Err(err) = code_core::auth::login_with_api_key(&self.config.code_home, api_key) {
             let error = JSONRPCErrorError {
                 code: INTERNAL_ERROR_CODE,
                 message: format!("failed to persist api key: {err}"),
@@ -1073,10 +1113,10 @@ impl CodexMessageProcessor {
 
     async fn get_auth_status(&self, request_id: RequestId, params: GetAuthStatusParams) {
         let requires_openai_auth = self.config.model_provider.requires_openai_auth;
+        let include_token = params.include_token.unwrap_or(false);
 
-        if params.refresh_token.unwrap_or(false) {
-            let _ = self.auth_manager.refresh_token().await;
-        }
+        self.refresh_token_if_requested(params.refresh_token.unwrap_or(false))
+            .await;
 
         let auth = self.auth_manager.auth();
         let mut auth_method = auth.as_ref().map(|a| map_auth_mode_to_wire(a.mode));
@@ -1084,12 +1124,16 @@ impl CodexMessageProcessor {
 
         if !requires_openai_auth {
             auth_method = None;
-        } else if params.include_token.unwrap_or(false)
-            && let Some(auth) = auth.as_ref()
-            && let Ok(token) = auth.get_token().await
-            && !token.trim().is_empty()
-        {
-            auth_token = Some(token);
+        } else if include_token {
+            if let Some(auth) = auth.as_ref() {
+                let permanent_refresh_failure =
+                    self.auth_manager.refresh_failure_for_auth(auth).is_some();
+                if !permanent_refresh_failure && let Ok(token) = auth.get_token().await {
+                    if !token.trim().is_empty() {
+                        auth_token = Some(token);
+                    }
+                }
+            }
         }
 
         self.outgoing
@@ -1224,12 +1268,14 @@ impl CodexMessageProcessor {
 
     async fn user_info(&self, request_id: RequestId) {
         let mut alleged_user_email = None;
-        if let Some(auth) = self.auth_manager.auth() && auth.mode.is_chatgpt() {
-            alleged_user_email = auth
-                .get_token_data()
-                .await
-                .ok()
-                .and_then(|t| t.id_token.email);
+        if let Some(auth) = self.auth_manager.auth() {
+            if auth.mode.is_chatgpt() {
+                alleged_user_email = auth
+                    .get_token_data()
+                    .await
+                    .ok()
+                    .and_then(|t| t.id_token.email);
+            }
         }
         self.outgoing
             .send_response(request_id, UserInfoResponse { alleged_user_email })
@@ -1265,7 +1311,7 @@ impl CodexMessageProcessor {
             cwd,
             timeout_ms: params.timeout_ms,
             env,
-            sandbox_permissions: Default::default(),
+            sandbox_permissions: code_protocol::models::SandboxPermissions::default(),
             additional_permissions: None,
             justification: None,
         };
@@ -1331,6 +1377,7 @@ impl CodexMessageProcessor {
         }
     }
 
+    #[allow(dead_code)]
     async fn fuzzy_file_search(&mut self, request_id: RequestId, params: FuzzyFileSearchParams) {
         let FuzzyFileSearchParams {
             query,
@@ -1369,82 +1416,6 @@ impl CodexMessageProcessor {
 
         let response = FuzzyFileSearchResponse { files: results };
         self.outgoing.send_response(request_id, response).await;
-    }
-
-    async fn fuzzy_file_search_session_start(
-        &mut self,
-        request_id: RequestId,
-        params: FuzzyFileSearchSessionStartParams,
-    ) {
-        let FuzzyFileSearchSessionStartParams { session_id, roots } = params;
-        if session_id.is_empty() {
-            let error = JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: "sessionId must not be empty".to_string(),
-                data: None,
-            };
-            self.outgoing.send_error(request_id, error).await;
-            return;
-        }
-
-        match start_fuzzy_file_search_session(session_id.clone(), roots, self.outgoing.clone()) {
-            Ok(session) => {
-                let mut sessions = self.fuzzy_search_sessions.lock().await;
-                sessions.insert(session_id, Arc::new(session));
-                self.outgoing
-                    .send_response(request_id, FuzzyFileSearchSessionStartResponse {})
-                    .await;
-            }
-            Err(err) => {
-                let error = JSONRPCErrorError {
-                    code: INTERNAL_ERROR_CODE,
-                    message: format!("failed to start fuzzy file search session: {err}"),
-                    data: None,
-                };
-                self.outgoing.send_error(request_id, error).await;
-            }
-        }
-    }
-
-    async fn fuzzy_file_search_session_update(
-        &mut self,
-        request_id: RequestId,
-        params: FuzzyFileSearchSessionUpdateParams,
-    ) {
-        let FuzzyFileSearchSessionUpdateParams { session_id, query } = params;
-        let session = {
-            let sessions = self.fuzzy_search_sessions.lock().await;
-            sessions.get(&session_id).cloned()
-        };
-
-        let Some(session) = session else {
-            let error = JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: format!("fuzzy file search session not found: {session_id}"),
-                data: None,
-            };
-            self.outgoing.send_error(request_id, error).await;
-            return;
-        };
-
-        session.update_query(query).await;
-        self.outgoing
-            .send_response(request_id, FuzzyFileSearchSessionUpdateResponse {})
-            .await;
-    }
-
-    async fn fuzzy_file_search_session_stop(
-        &mut self,
-        request_id: RequestId,
-        params: FuzzyFileSearchSessionStopParams,
-    ) {
-        let FuzzyFileSearchSessionStopParams { session_id } = params;
-        if let Some(session) = self.fuzzy_search_sessions.lock().await.remove(&session_id) {
-            session.stop().await;
-        }
-        self.outgoing
-            .send_response(request_id, FuzzyFileSearchSessionStopResponse {})
-            .await;
     }
 }
 
@@ -1649,29 +1620,6 @@ async fn apply_bespoke_event_handling(
 
             tokio::spawn(async move {
                 on_request_user_input_response(request_turn_id, rx, conversation).await;
-            });
-        }
-        EventMsg::RequestPermissions(request) => {
-            let request_turn_id = request.turn_id;
-            let request_call_id = request.call_id;
-            let params = PermissionsRequestApprovalParams {
-                thread_id: conversation_id.to_string(),
-                turn_id: request_turn_id,
-                item_id: request_call_id.clone(),
-                reason: request.reason,
-                permissions: request.permissions.into(),
-            };
-            let value = serde_json::to_value(&params).unwrap_or_default();
-            let rx = outgoing
-                .send_request_to_connection(
-                    owner_connection_id,
-                    PERMISSIONS_REQUEST_APPROVAL_METHOD,
-                    Some(value),
-                )
-                .await;
-
-            tokio::spawn(async move {
-                on_request_permissions_approval_response(request_call_id, rx, conversation).await;
             });
         }
         // No special handling needed for interrupts; responses are sent immediately.
@@ -1892,61 +1840,6 @@ fn map_tool_request_user_input_response(
     }
 }
 
-async fn on_request_permissions_approval_response(
-    call_id: String,
-    receiver: tokio::sync::oneshot::Receiver<mcp_types::Result>,
-    conversation: Arc<CodexConversation>,
-) {
-    let response = receiver.await;
-    let value = match response {
-        Ok(value) => value,
-        Err(err) => {
-            error!("request failed: {err:?}");
-            let empty = core_protocol::RequestPermissionsResponse {
-                permissions: code_protocol::request_permissions::RequestPermissionProfile::default(),
-                scope: code_protocol::request_permissions::PermissionGrantScope::Turn,
-            };
-            if let Err(err) = conversation
-                .submit(Op::RequestPermissionsResponse {
-                    id: call_id.clone(),
-                    response: empty,
-                })
-                .await
-            {
-                error!("failed to submit RequestPermissionsResponse: {err}");
-            }
-            return;
-        }
-    };
-
-    let response =
-        serde_json::from_value::<PermissionsRequestApprovalResponse>(value).unwrap_or_else(|err| {
-            error!("failed to deserialize PermissionsRequestApprovalResponse: {err}");
-            PermissionsRequestApprovalResponse {
-                permissions: code_app_server_protocol::RequestPermissionProfile {
-                    network: None,
-                    file_system: None,
-                },
-                scope: code_app_server_protocol::PermissionGrantScope::default(),
-            }
-        });
-
-    let response = core_protocol::RequestPermissionsResponse {
-        permissions: response.permissions.into(),
-        scope: response.scope.to_core(),
-    };
-
-    if let Err(err) = conversation
-        .submit(Op::RequestPermissionsResponse {
-            id: call_id,
-            response,
-        })
-        .await
-    {
-        error!("failed to submit RequestPermissionsResponse: {err}");
-    }
-}
-
 async fn on_exec_approval_response(
     approval_id: String,
     approval_turn_id: Option<String>,
@@ -2026,6 +1919,271 @@ impl IntoWireAuthMode for code_app_server_protocol::AuthMode {
                 code_protocol::mcp_protocol::AuthMode::ChatgptAuthTokens
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use code_app_server_protocol::AuthMode;
+    use code_core::auth::CodexAuth;
+    use code_core::auth::RefreshTokenError;
+    use code_core::config::ConfigOverrides;
+    use code_protocol::mcp_protocol::RemoveConversationListenerParams;
+    use code_protocol::protocol::SessionSource;
+    use mcp_types::RequestId;
+    use serde_json::from_value;
+    use tokio::sync::mpsc;
+
+    fn make_processor_for_tests() -> (CodexMessageProcessor, mpsc::UnboundedReceiver<crate::outgoing_message::OutgoingMessage>) {
+        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
+        let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
+        let config = Arc::new(
+            Config::load_with_cli_overrides(Vec::new(), ConfigOverrides::default())
+                .expect("load default config"),
+        );
+        let auth_manager = AuthManager::shared_with_mode_and_originator(
+            config.code_home.clone(),
+            AuthMode::ApiKey,
+            config.responses_originator_header.clone(),
+        );
+        let conversation_manager = Arc::new(ConversationManager::new(
+            auth_manager.clone(),
+            SessionSource::Mcp,
+        ));
+
+        (
+            CodexMessageProcessor::new(
+                auth_manager,
+                conversation_manager,
+                outgoing,
+                None,
+                config,
+            ),
+            outgoing_rx,
+        )
+    }
+
+    fn make_processor_with_auth_for_tests(
+        auth_manager: Arc<AuthManager>,
+    ) -> (
+        CodexMessageProcessor,
+        mpsc::UnboundedReceiver<crate::outgoing_message::OutgoingMessage>,
+    ) {
+        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
+        let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
+        let config = Arc::new(
+            Config::load_with_cli_overrides(Vec::new(), ConfigOverrides::default())
+                .expect("load default config"),
+        );
+        let conversation_manager = Arc::new(ConversationManager::new(
+            auth_manager.clone(),
+            SessionSource::Mcp,
+        ));
+
+        (
+            CodexMessageProcessor::new(
+                auth_manager,
+                conversation_manager,
+                outgoing,
+                None,
+                config,
+            ),
+            outgoing_rx,
+        )
+    }
+
+    #[tokio::test]
+    async fn remove_conversation_listener_enforces_owner_connection() {
+        let (mut processor, mut outgoing_rx) = make_processor_for_tests();
+
+        let subscription_id = Uuid::new_v4();
+        let (cancel_tx, mut cancel_rx) = oneshot::channel();
+        processor.conversation_listeners.insert(
+            subscription_id,
+            ConversationListenerRegistration {
+                owner_connection_id: ConnectionId(1),
+                cancel_tx,
+            },
+        );
+
+        processor
+            .remove_conversation_listener(
+                ConnectionId(2),
+                RequestId::Integer(10),
+                RemoveConversationListenerParams { subscription_id },
+            )
+            .await;
+
+        let message = outgoing_rx
+            .recv()
+            .await
+            .expect("error response should be sent");
+        match message {
+            crate::outgoing_message::OutgoingMessage::Error(err) => {
+                assert_eq!(err.id, RequestId::Integer(10));
+                assert!(err.error.message.contains("subscription not found"));
+            }
+            _ => panic!("expected error response"),
+        }
+
+        assert!(
+            processor.conversation_listeners.contains_key(&subscription_id),
+            "listener should remain registered for original owner"
+        );
+
+        processor
+            .remove_conversation_listener(
+                ConnectionId(1),
+                RequestId::Integer(11),
+                RemoveConversationListenerParams { subscription_id },
+            )
+            .await;
+
+        let message = outgoing_rx
+            .recv()
+            .await
+            .expect("success response should be sent");
+        match message {
+            crate::outgoing_message::OutgoingMessage::Response(response) => {
+                assert_eq!(response.id, RequestId::Integer(11));
+            }
+            _ => panic!("expected success response"),
+        }
+
+        assert!(
+            processor.conversation_listeners.get(&subscription_id).is_none(),
+            "listener should be removed by owner"
+        );
+        assert_eq!(cancel_rx.try_recv(), Ok(()));
+    }
+
+    #[tokio::test]
+    async fn get_auth_status_omits_token_after_permanent_refresh_failure() {
+        let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
+        let auth_manager = AuthManager::from_auth_for_testing(auth.clone());
+        auth_manager.seed_refresh_failure_for_testing(
+            &auth,
+            RefreshTokenError::permanent("refresh token already used"),
+        );
+
+        let (processor, mut outgoing_rx) = make_processor_with_auth_for_tests(auth_manager);
+        processor
+            .get_auth_status(
+                RequestId::Integer(42),
+                GetAuthStatusParams {
+                    include_token: Some(true),
+                    refresh_token: Some(false),
+                },
+            )
+            .await;
+
+        let message = outgoing_rx
+            .recv()
+            .await
+            .expect("auth status response should be sent");
+        let response = match message {
+            crate::outgoing_message::OutgoingMessage::Response(response) => response,
+            _ => panic!("expected response message"),
+        };
+        let status: GetAuthStatusResponse =
+            from_value(response.result).expect("valid getAuthStatus payload");
+        assert_eq!(
+            status,
+            GetAuthStatusResponse {
+                auth_method: Some(code_protocol::mcp_protocol::AuthMode::ChatGPT),
+                auth_token: None,
+                requires_openai_auth: Some(true),
+            }
+        );
+    }
+
+    #[test]
+    fn parse_plan_type_is_case_insensitive() {
+        assert_eq!(parse_plan_type(Some("Pro".to_string())), PlanType::Pro);
+        assert_eq!(
+            parse_plan_type(Some("BUSINESS".to_string())),
+            PlanType::Business
+        );
+        assert_eq!(parse_plan_type(Some("mystery".to_string())), PlanType::Unknown);
+        assert_eq!(parse_plan_type(None), PlanType::Unknown);
+    }
+
+    #[test]
+    fn select_rate_limit_snapshot_prefers_matching_account() {
+        let snapshots = vec![
+            code_core::account_usage::StoredRateLimitSnapshot {
+                account_id: "acct-a".to_string(),
+                plan: Some("pro".to_string()),
+                snapshot: None,
+                observed_at: None,
+                primary_next_reset_at: None,
+                secondary_next_reset_at: None,
+                last_usage_limit_hit_at: None,
+            },
+            code_core::account_usage::StoredRateLimitSnapshot {
+                account_id: "acct-b".to_string(),
+                plan: Some("plus".to_string()),
+                snapshot: None,
+                observed_at: None,
+                primary_next_reset_at: None,
+                secondary_next_reset_at: None,
+                last_usage_limit_hit_at: None,
+            },
+        ];
+
+        let selected = select_rate_limit_snapshot(Some("acct-b".to_string()), snapshots)
+            .expect("snapshot should be selected");
+        assert_eq!(selected.account_id, "acct-b");
+    }
+
+    #[test]
+    fn rate_limit_snapshot_from_event_maps_windows() {
+        let event = code_core::protocol::RateLimitSnapshotEvent {
+            primary_used_percent: 11.0,
+            secondary_used_percent: 22.0,
+            primary_to_secondary_ratio_percent: 50.0,
+            primary_window_minutes: 60,
+            secondary_window_minutes: 1440,
+            primary_reset_after_seconds: Some(12),
+            secondary_reset_after_seconds: Some(34),
+        };
+
+        let snapshot = rate_limit_snapshot_from_event(&event, Some(PlanType::Pro));
+        assert_eq!(snapshot.plan_type, Some(PlanType::Pro));
+        assert_eq!(
+            snapshot.primary.as_ref().and_then(|window| window.window_minutes),
+            Some(60)
+        );
+        assert_eq!(
+            snapshot
+                .secondary
+                .as_ref()
+                .and_then(|window| window.window_minutes),
+            Some(1440)
+        );
+    }
+
+    #[test]
+    fn map_tool_request_user_input_response_preserves_answers() {
+        let response = ToolRequestUserInputResponse {
+            answers: std::collections::HashMap::from([(
+                "question_id".to_string(),
+                code_app_server_protocol::ToolRequestUserInputAnswer {
+                    answers: vec!["selected".to_string()],
+                },
+            )]),
+        };
+
+        let mapped = map_tool_request_user_input_response(response);
+        assert_eq!(
+            mapped
+                .answers
+                .get("question_id")
+                .expect("question_id should exist")
+                .answers,
+            vec!["selected".to_string()]
+        );
     }
 }
 
@@ -2203,10 +2361,12 @@ fn snippet_from_rollout_tail(tail: &[serde_json::Value]) -> Option<String> {
             code_protocol::models::ResponseItem::Message { role, content, .. },
         ) = item
             && role.eq_ignore_ascii_case("user")
-            && let Some(snippet) = snippet_from_content(&content)
-            && !snippet.starts_with("== System Status ==")
         {
-            return Some(snippet);
+            if let Some(snippet) = snippet_from_content(&content)
+                && !snippet.starts_with("== System Status ==")
+            {
+                return Some(snippet);
+            }
         }
     }
     None
@@ -2227,199 +2387,3 @@ fn snippet_from_content(content: &[code_protocol::models::ContentItem]) -> Optio
 }
 
 // Unused legacy mappers removed to avoid warnings.
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use code_app_server_protocol::AuthMode;
-    use code_core::config::ConfigOverrides;
-    use code_protocol::mcp_protocol::RemoveConversationListenerParams;
-    use code_protocol::protocol::SessionSource;
-    use mcp_types::RequestId;
-    use tokio::sync::mpsc;
-
-    fn make_processor_for_tests(
-    ) -> (
-        CodexMessageProcessor,
-        mpsc::UnboundedReceiver<crate::outgoing_message::OutgoingMessage>,
-    ) {
-        let (outgoing_tx, outgoing_rx) = mpsc::unbounded_channel();
-        let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
-        let config = Arc::new(
-            Config::load_with_cli_overrides(Vec::new(), ConfigOverrides::default())
-                .expect("load default config"),
-        );
-        let auth_manager = AuthManager::shared_with_mode_and_originator(
-            config.code_home.clone(),
-            AuthMode::ApiKey,
-            config.responses_originator_header.clone(),
-            config.cli_auth_credentials_store_mode,
-        );
-        let conversation_manager =
-            Arc::new(ConversationManager::new(auth_manager.clone(), SessionSource::Mcp));
-
-        (
-            CodexMessageProcessor::new(
-                auth_manager,
-                conversation_manager,
-                outgoing,
-                None,
-                config,
-            ),
-            outgoing_rx,
-        )
-    }
-
-    #[tokio::test]
-    async fn remove_conversation_listener_enforces_owner_connection() {
-        let (mut processor, mut outgoing_rx) = make_processor_for_tests();
-
-        let subscription_id = Uuid::new_v4();
-        let (cancel_tx, mut cancel_rx) = oneshot::channel();
-        processor.conversation_listeners.insert(
-            subscription_id,
-            ConversationListenerRegistration {
-                owner_connection_id: ConnectionId(1),
-                cancel_tx,
-            },
-        );
-
-        processor
-            .remove_conversation_listener(
-                ConnectionId(2),
-                RequestId::Integer(10),
-                RemoveConversationListenerParams { subscription_id },
-            )
-            .await;
-
-        let message = outgoing_rx
-            .recv()
-            .await
-            .expect("error response should be sent");
-        match message {
-            crate::outgoing_message::OutgoingMessage::Error(err) => {
-                assert_eq!(err.id, RequestId::Integer(10));
-                assert!(err.error.message.contains("subscription not found"));
-            }
-            _ => panic!("expected error response"),
-        }
-
-        assert!(
-            processor.conversation_listeners.contains_key(&subscription_id),
-            "listener should remain registered for original owner"
-        );
-
-        processor
-            .remove_conversation_listener(
-                ConnectionId(1),
-                RequestId::Integer(11),
-                RemoveConversationListenerParams { subscription_id },
-            )
-            .await;
-
-        let message = outgoing_rx
-            .recv()
-            .await
-            .expect("success response should be sent");
-        match message {
-            crate::outgoing_message::OutgoingMessage::Response(response) => {
-                assert_eq!(response.id, RequestId::Integer(11));
-            }
-            _ => panic!("expected success response"),
-        }
-
-        assert!(
-            !processor.conversation_listeners.contains_key(&subscription_id),
-            "listener should be removed by owner"
-        );
-        assert_eq!(cancel_rx.try_recv(), Ok(()));
-    }
-
-    #[test]
-    fn parse_plan_type_is_case_insensitive() {
-        assert_eq!(parse_plan_type(Some("Pro".to_string())), PlanType::Pro);
-        assert_eq!(
-            parse_plan_type(Some("BUSINESS".to_string())),
-            PlanType::Business
-        );
-        assert_eq!(parse_plan_type(Some("mystery".to_string())), PlanType::Unknown);
-        assert_eq!(parse_plan_type(None), PlanType::Unknown);
-    }
-
-    #[test]
-    fn select_rate_limit_snapshot_prefers_matching_account() {
-        let snapshots = vec![
-            code_core::account_usage::StoredRateLimitSnapshot {
-                account_id: "acct-a".to_string(),
-                plan: Some("pro".to_string()),
-                snapshot: None,
-                observed_at: None,
-                primary_next_reset_at: None,
-                secondary_next_reset_at: None,
-                last_usage_limit_hit_at: None,
-            },
-            code_core::account_usage::StoredRateLimitSnapshot {
-                account_id: "acct-b".to_string(),
-                plan: Some("plus".to_string()),
-                snapshot: None,
-                observed_at: None,
-                primary_next_reset_at: None,
-                secondary_next_reset_at: None,
-                last_usage_limit_hit_at: None,
-            },
-        ];
-
-        let selected = select_rate_limit_snapshot(Some("acct-b".to_string()), snapshots)
-            .expect("snapshot should be selected");
-        assert_eq!(selected.account_id, "acct-b");
-    }
-
-    #[test]
-    fn rate_limit_snapshot_from_event_maps_windows() {
-        let event = code_core::protocol::RateLimitSnapshotEvent {
-            primary_used_percent: 11.0,
-            secondary_used_percent: 22.0,
-            primary_to_secondary_ratio_percent: 50.0,
-            primary_window_minutes: 60,
-            secondary_window_minutes: 1440,
-            primary_reset_after_seconds: Some(12),
-            secondary_reset_after_seconds: Some(34),
-        };
-
-        let snapshot = rate_limit_snapshot_from_event(&event, Some(PlanType::Pro));
-        assert_eq!(snapshot.plan_type, Some(PlanType::Pro));
-        assert_eq!(
-            snapshot.primary.as_ref().and_then(|window| window.window_minutes),
-            Some(60)
-        );
-        assert_eq!(
-            snapshot
-                .secondary
-                .as_ref()
-                .and_then(|window| window.window_minutes),
-            Some(1440)
-        );
-    }
-
-    #[test]
-    fn map_tool_request_user_input_response_preserves_answers() {
-        let response = ToolRequestUserInputResponse {
-            answers: std::collections::HashMap::from([(
-                "question_id".to_string(),
-                code_app_server_protocol::ToolRequestUserInputAnswer {
-                    answers: vec!["selected".to_string()],
-                },
-            )]),
-        };
-
-        let mapped = map_tool_request_user_input_response(response);
-        assert_eq!(
-            mapped
-                .answers
-                .get("question_id")
-                .expect("question_id should exist")
-                .answers,
-            vec!["selected".to_string()]
-        );
-    }
-}

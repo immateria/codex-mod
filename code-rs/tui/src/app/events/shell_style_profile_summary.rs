@@ -13,17 +13,17 @@ pub(super) async fn generate_shell_style_profile_summary(
     )?));
     let session_id = uuid::Uuid::new_v4();
 
-    let client = code_core::ModelClient::new(code_core::ModelClientInit {
-        config: config.clone(),
-        auth_manager: Some(auth_manager),
-        otel_event_manager: None,
-        provider: config.model_provider.clone(),
-        effort: code_core::config_types::ReasoningEffort::Minimal,
-        summary: code_core::config_types::ReasoningSummary::None,
-        verbosity: code_core::config_types::TextVerbosity::Low,
+    let client = code_core::ModelClient::new(
+        config.clone(),
+        Some(auth_manager),
+        None,
+        config.model_provider.clone(),
+        code_core::config_types::ReasoningEffort::Minimal,
+        code_core::config_types::ReasoningSummary::None,
+        code_core::config_types::TextVerbosity::Low,
         session_id,
         debug_logger,
-    });
+    );
 
     let mut prompt = code_core::Prompt::default();
     prompt.include_additional_instructions = false;

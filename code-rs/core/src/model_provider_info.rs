@@ -8,16 +8,24 @@
 
 use crate::CodexAuth;
 use crate::error::CodexErr;
-use crate::error::EnvVarError;
-use schemars::JsonSchema;
+use code_protocol::config_types::ModelProviderAuthInfo;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::env::VarError;
+use std::io;
 use std::path::Path;
+use std::path::PathBuf;
+use std::process::Stdio;
+use std::sync::Mutex;
+use std::sync::OnceLock;
 use std::time::Duration;
+use std::time::Instant;
+use tokio::process::Command;
+use crate::error::EnvVarError;
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS: u64 = 300_000;
+pub(crate) const DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS: u64 = 15_000;
 const DEFAULT_STREAM_MAX_RETRIES: u64 = 5;
 const DEFAULT_REQUEST_MAX_RETRIES: u64 = 4;
 /// Hard cap for user-configured `stream_max_retries`.
@@ -25,13 +33,42 @@ const MAX_STREAM_MAX_RETRIES: u64 = 100;
 /// Hard cap for user-configured `request_max_retries`.
 const MAX_REQUEST_MAX_RETRIES: u64 = 100;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ProviderAuthCacheKey {
+    command: String,
+    args: Vec<String>,
+    cwd: PathBuf,
+}
+
+impl From<&ModelProviderAuthInfo> for ProviderAuthCacheKey {
+    fn from(value: &ModelProviderAuthInfo) -> Self {
+        Self {
+            command: value.command.clone(),
+            args: value.args.clone(),
+            cwd: value.cwd.as_path().to_path_buf(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CachedProviderAuthToken {
+    access_token: String,
+    fetched_at: Instant,
+}
+
+fn provider_auth_cache() -> &'static Mutex<HashMap<ProviderAuthCacheKey, CachedProviderAuthToken>> {
+    static CACHE: OnceLock<Mutex<HashMap<ProviderAuthCacheKey, CachedProviderAuthToken>>> =
+        OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 /// Wire protocol that the provider speaks. Most third-party services only
 /// implement the classic OpenAI Chat Completions JSON schema, whereas OpenAI
 /// itself (and a handful of others) additionally expose the more modern
 /// *Responses* API. The two protocols use different request/response shapes
 /// and *cannot* be auto-detected at runtime, therefore each provider entry
 /// must declare which one it expects.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WireApi {
     /// The Responses API exposed by OpenAI at `/v1/responses`.
@@ -47,7 +84,7 @@ pub enum WireApi {
 }
 
 /// Serializable representation of a provider definition.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct ModelProviderInfo {
     /// Friendly display name.
     pub name: String,
@@ -64,6 +101,9 @@ pub struct ModelProviderInfo {
     /// config is discouraged in favor of `env_key` for security reasons, but
     /// this may be necessary when using this programmatically.
     pub experimental_bearer_token: Option<String>,
+
+    /// Command-backed bearer-token configuration for this provider.
+    pub auth: Option<ModelProviderAuthInfo>,
 
     /// Which wire protocol this provider expects.
     #[serde(default)]
@@ -92,6 +132,9 @@ pub struct ModelProviderInfo {
     /// the connection as lost.
     pub stream_idle_timeout_ms: Option<u64>,
 
+    /// Timeout (in milliseconds) when establishing a websocket transport connection.
+    pub websocket_connect_timeout_ms: Option<u64>,
+
     /// Whether this provider requires some form of standard authentication (API key, ChatGPT token).
     #[serde(default)]
     pub requires_openai_auth: bool,
@@ -102,7 +145,7 @@ pub struct ModelProviderInfo {
 }
 
 /// OpenRouter-specific configuration, allowing users to control routing and pricing metadata.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(default)]
 pub struct OpenRouterConfig {
     /// Provider-level routing preferences forwarded to OpenRouter.
@@ -119,7 +162,7 @@ pub struct OpenRouterConfig {
 }
 
 /// Provider routing preferences supported by OpenRouter.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(default)]
 pub struct OpenRouterProviderConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -148,27 +191,35 @@ pub struct OpenRouterProviderConfig {
     pub extra: BTreeMap<String, Value>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum OpenRouterDataCollectionPolicy {
-    #[default]
     Allow,
     Deny,
 }
 
+impl Default for OpenRouterDataCollectionPolicy {
+    fn default() -> Self {
+        OpenRouterDataCollectionPolicy::Allow
+    }
+}
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum OpenRouterProviderSort {
-    #[default]
     Price,
     Throughput,
     Latency,
 }
 
+impl Default for OpenRouterProviderSort {
+    fn default() -> Self {
+        OpenRouterProviderSort::Price
+    }
+}
 
 /// `max_price` envelope for OpenRouter provider routing controls.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(default)]
 pub struct OpenRouterMaxPrice {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -183,6 +234,50 @@ pub struct OpenRouterMaxPrice {
 }
 
 impl ModelProviderInfo {
+    #[allow(dead_code)]
+    pub(crate) fn validate(&self) -> std::result::Result<(), String> {
+        let Some(auth) = self.auth.as_ref() else {
+            return Ok(());
+        };
+
+        if auth.command.trim().is_empty() {
+            return Err("provider auth.command must not be empty".to_string());
+        }
+
+        let mut conflicts = Vec::new();
+        if self.env_key.is_some() {
+            conflicts.push("env_key");
+        }
+        if self.experimental_bearer_token.is_some() {
+            conflicts.push("experimental_bearer_token");
+        }
+        if self.requires_openai_auth {
+            conflicts.push("requires_openai_auth");
+        }
+
+        if conflicts.is_empty() {
+            Ok(())
+        } else {
+            Err(format!(
+                "provider auth cannot be combined with {}",
+                conflicts.join(", ")
+            ))
+        }
+    }
+
+    pub(crate) fn has_command_auth(&self) -> bool {
+        self.auth.is_some()
+    }
+
+    pub(crate) fn invalidate_cached_auth_token(&self) {
+        if let Some(auth) = self.auth.as_ref() {
+            provider_auth_cache()
+                .lock()
+                .unwrap()
+                .remove(&ProviderAuthCacheKey::from(auth));
+        }
+    }
+
     /// Construct a `POST` RequestBuilder for the given URL using the provided
     /// reqwest Client applying:
     ///   • provider-specific headers (static + env based)
@@ -195,16 +290,23 @@ impl ModelProviderInfo {
         &'a self,
         client: &'a reqwest::Client,
         auth: &Option<CodexAuth>,
-        secrets: Option<&code_secrets::SecretsManager>,
-        cwd: &Path,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
-        let effective_auth = self.effective_auth(auth, secrets, cwd)?;
+        let effective_auth = self.effective_auth(auth).await?;
 
-        let url = self.get_full_url(&effective_auth);
+        self.create_request_builder_with_auth(client, &effective_auth)
+            .await
+    }
+
+    pub async fn create_request_builder_with_auth<'a>(
+        &'a self,
+        client: &'a reqwest::Client,
+        auth: &Option<CodexAuth>,
+    ) -> crate::error::Result<reqwest::RequestBuilder> {
+        let url = self.get_full_url(auth);
 
         let mut builder = client.post(&url);
 
-        if let Some(auth) = effective_auth.as_ref() {
+        if let Some(auth) = auth.as_ref() {
             builder = builder.bearer_auth(auth.get_token().await?);
         }
 
@@ -217,16 +319,26 @@ impl ModelProviderInfo {
         &'a self,
         client: &'a reqwest::Client,
         auth: &Option<CodexAuth>,
-        secrets: Option<&code_secrets::SecretsManager>,
-        cwd: &Path,
         method: reqwest::Method,
         url: reqwest::Url,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
-        let effective_auth = self.effective_auth(auth, secrets, cwd)?;
+        let effective_auth = self.effective_auth(auth).await?;
+
+        self.create_request_builder_for_url_with_auth(client, &effective_auth, method, url)
+            .await
+    }
+
+    pub async fn create_request_builder_for_url_with_auth<'a>(
+        &'a self,
+        client: &'a reqwest::Client,
+        auth: &Option<CodexAuth>,
+        method: reqwest::Method,
+        url: reqwest::Url,
+    ) -> crate::error::Result<reqwest::RequestBuilder> {
 
         let mut builder = client.request(method, url);
 
-        if let Some(auth) = effective_auth.as_ref() {
+        if let Some(auth) = auth.as_ref() {
             builder = builder.bearer_auth(auth.get_token().await?);
         }
 
@@ -237,34 +349,39 @@ impl ModelProviderInfo {
         &'a self,
         client: &'a reqwest::Client,
         auth: &Option<CodexAuth>,
-        secrets: Option<&code_secrets::SecretsManager>,
-        cwd: &Path,
+    ) -> crate::error::Result<reqwest::RequestBuilder> {
+        let effective_auth = self.effective_auth(auth).await?;
+        self.create_compact_request_builder_with_auth(client, &effective_auth)
+            .await
+    }
+
+    pub async fn create_compact_request_builder_with_auth<'a>(
+        &'a self,
+        client: &'a reqwest::Client,
+        auth: &Option<CodexAuth>,
     ) -> crate::error::Result<reqwest::RequestBuilder> {
         if !matches!(self.wire_api, WireApi::Responses | WireApi::ResponsesWebsocket) {
             return Err(CodexErr::UnsupportedOperation(
                 "Compaction endpoint requires Responses API providers".to_string(),
             ));
         }
-        let effective_auth = self.effective_auth(auth, secrets, cwd)?;
-        let url = self.get_compact_url(&effective_auth).ok_or_else(|| {
+        let url = self.get_compact_url(auth).ok_or_else(|| {
             CodexErr::UnsupportedOperation(
                 "Compaction endpoint requires Responses API providers".to_string(),
             )
         })?;
 
         let mut builder = client.post(url);
-        if let Some(auth) = effective_auth.as_ref() {
+        if let Some(auth) = auth.as_ref() {
             builder = builder.bearer_auth(auth.get_token().await?);
         }
 
         Ok(self.apply_http_headers(builder))
     }
 
-    fn effective_auth(
+    pub(crate) async fn effective_auth(
         &self,
         auth: &Option<CodexAuth>,
-        secrets: Option<&code_secrets::SecretsManager>,
-        cwd: &Path,
     ) -> crate::error::Result<Option<CodexAuth>> {
         if let Some(token) = self
             .experimental_bearer_token
@@ -275,7 +392,14 @@ impl ModelProviderInfo {
             return Ok(Some(CodexAuth::from_api_key(token)));
         }
 
-        match self.api_key_from_env_or_secrets(secrets, cwd) {
+        if let Some(provider_auth) = self.auth.as_ref() {
+            let token = resolve_provider_auth_token(provider_auth)
+                .await
+                .map_err(|err| CodexErr::UnsupportedOperation(err.to_string()))?;
+            return Ok(Some(CodexAuth::from_api_key(&token)));
+        }
+
+        match self.api_key() {
             Ok(Some(key)) => Ok(Some(CodexAuth::from_api_key(&key))),
             Ok(None) => Ok(auth.clone()),
             Err(err) => {
@@ -286,54 +410,6 @@ impl ModelProviderInfo {
                 }
             }
         }
-    }
-
-    fn env_var_error_with_secrets_hint(
-        &self,
-        env_key: &str,
-        secrets_error: Option<&str>,
-    ) -> CodexErr {
-        let mut instructions = format!(
-            "Set `{env_key}` in the environment, or run `code secrets set {env_key}` to store it in CODE_HOME."
-        );
-        if let Some(extra) = self.env_key_instructions.as_deref() {
-            let extra = extra.trim();
-            if !extra.is_empty() {
-                instructions.push(' ');
-                instructions.push_str(extra);
-            }
-        }
-        if let Some(err) = secrets_error {
-            let err = err.trim();
-            if !err.is_empty() {
-                instructions.push(' ');
-                instructions.push_str(&format!("(secrets store error: {err})"));
-            }
-        }
-        CodexErr::EnvVar(EnvVarError {
-            var: env_key.to_string(),
-            instructions: Some(instructions),
-        })
-    }
-
-    fn api_key_from_env_or_secrets(
-        &self,
-        secrets: Option<&code_secrets::SecretsManager>,
-        cwd: &Path,
-    ) -> crate::error::Result<Option<String>> {
-        let Some(env_key) = self.env_key.as_deref() else {
-            return Ok(None);
-        };
-
-        let outcome = crate::secrets_resolver::resolve_secret_env_or_store(env_key, cwd, secrets);
-        if let Some(resolved) = outcome.resolved {
-            return Ok(Some(resolved.value));
-        }
-        if let Some(err) = outcome.error.as_deref() {
-            return Err(self.env_var_error_with_secrets_hint(env_key, Some(err)));
-        }
-
-        Err(self.env_var_error_with_secrets_hint(env_key, None))
     }
 
     /// Returns the OpenRouter-specific configuration, if this provider declares one.
@@ -415,7 +491,7 @@ impl ModelProviderInfo {
 
         self.base_url
             .as_ref()
-            .is_some_and(|base| base.contains("/backend-api"))
+            .map_or(false, |base| base.contains("/backend-api"))
     }
 
     pub(crate) fn is_public_openai_responses_endpoint(&self) -> bool {
@@ -445,10 +521,11 @@ impl ModelProviderInfo {
 
         if let Some(env_headers) = &self.env_http_headers {
             for (header, env_var) in env_headers {
-                if let Ok(val) = std::env::var(env_var)
-                    && !val.trim().is_empty() {
+                if let Ok(val) = std::env::var(env_var) {
+                    if !val.trim().is_empty() {
                         builder = builder.header(header, val);
                     }
+                }
             }
         }
         builder
@@ -501,11 +578,111 @@ impl ModelProviderInfo {
             .unwrap_or(Duration::from_millis(DEFAULT_STREAM_IDLE_TIMEOUT_MS))
     }
 
+    pub fn websocket_connect_timeout(&self) -> Duration {
+        self.websocket_connect_timeout_ms
+            .map(Duration::from_millis)
+            .unwrap_or(Duration::from_millis(DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS))
+    }
+
     pub fn base_url_for_probe(&self) -> String {
         self.base_url
             .clone()
             .unwrap_or_else(|| "https://api.openai.com".to_string())
     }
+}
+
+async fn resolve_provider_auth_token(config: &ModelProviderAuthInfo) -> io::Result<String> {
+    let cache_key = ProviderAuthCacheKey::from(config);
+    if let Some(cached_token) = provider_auth_cache().lock().unwrap().get(&cache_key).cloned() {
+        let should_use_cached_token = match config.refresh_interval() {
+            Some(refresh_interval) => cached_token.fetched_at.elapsed() < refresh_interval,
+            None => true,
+        };
+        if should_use_cached_token {
+            return Ok(cached_token.access_token);
+        }
+    }
+
+    let access_token = run_provider_auth_command(config).await?;
+    provider_auth_cache().lock().unwrap().insert(
+        cache_key,
+        CachedProviderAuthToken {
+            access_token: access_token.clone(),
+            fetched_at: Instant::now(),
+        },
+    );
+    Ok(access_token)
+}
+
+async fn run_provider_auth_command(config: &ModelProviderAuthInfo) -> io::Result<String> {
+    let program = resolve_provider_auth_program(&config.command, config.cwd.as_path())?;
+    let mut command = Command::new(&program);
+    command
+        .args(&config.args)
+        .current_dir(config.cwd.as_path())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+
+    let output = tokio::time::timeout(config.timeout(), command.output())
+        .await
+        .map_err(|_| {
+            io::Error::other(format!(
+                "provider auth command `{}` timed out after {} ms",
+                config.command,
+                config.timeout_ms.get()
+            ))
+        })?
+        .map_err(|err| {
+            io::Error::other(format!(
+                "provider auth command `{}` failed to start: {err}",
+                config.command
+            ))
+        })?;
+
+    if !output.status.success() {
+        let status = output.status;
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stderr_suffix = if stderr.is_empty() {
+            String::new()
+        } else {
+            format!(": {stderr}")
+        };
+        return Err(io::Error::other(format!(
+            "provider auth command `{}` exited with status {status}{stderr_suffix}",
+            config.command
+        )));
+    }
+
+    let stdout = String::from_utf8(output.stdout).map_err(|_| {
+        io::Error::other(format!(
+            "provider auth command `{}` wrote non-UTF-8 data to stdout",
+            config.command
+        ))
+    })?;
+    let access_token = stdout.trim().to_string();
+    if access_token.is_empty() {
+        return Err(io::Error::other(format!(
+            "provider auth command `{}` produced an empty token",
+            config.command
+        )));
+    }
+
+    Ok(access_token)
+}
+
+fn resolve_provider_auth_program(command: &str, cwd: &Path) -> io::Result<PathBuf> {
+    let path = Path::new(command);
+    if path.is_absolute() {
+        return Ok(path.to_path_buf());
+    }
+
+    if path.components().count() > 1 {
+        return Ok(cwd.join(path));
+    }
+
+    Ok(PathBuf::from(command))
 }
 
 const DEFAULT_OLLAMA_PORT: u32 = 11434;
@@ -531,7 +708,9 @@ fn wire_api_override_from_env(env_key: &str) -> Option<WireApi> {
     }
 }
 
-pub fn built_in_model_providers() -> HashMap<String, ModelProviderInfo> {
+pub fn built_in_model_providers(
+    openai_base_url: Option<String>,
+) -> HashMap<String, ModelProviderInfo> {
     use ModelProviderInfo as P;
 
     // We do not want to be in the business of adjucating which third-party
@@ -543,17 +722,11 @@ pub fn built_in_model_providers() -> HashMap<String, ModelProviderInfo> {
             "openai",
             P {
                 name: "OpenAI".into(),
-                // Allow users to override the default OpenAI endpoint by
-                // exporting `OPENAI_BASE_URL`. This is useful when pointing
-                // Codex at a proxy, mock server, or Azure-style deployment
-                // without requiring a full TOML override for the built-in
-                // OpenAI provider.
-                base_url: std::env::var("OPENAI_BASE_URL")
-                    .ok()
-                    .filter(|v| !v.trim().is_empty()),
+                base_url: openai_base_url,
                 env_key: None,
                 env_key_instructions: None,
                 experimental_bearer_token: None,
+                auth: None,
                 wire_api: wire_api_override_from_env("OPENAI_WIRE_API")
                     .unwrap_or(WireApi::Responses),
                 query_params: None,
@@ -582,6 +755,7 @@ pub fn built_in_model_providers() -> HashMap<String, ModelProviderInfo> {
                 request_max_retries: None,
                 stream_max_retries: None,
                 stream_idle_timeout_ms: None,
+                websocket_connect_timeout_ms: None,
                 requires_openai_auth: true,
                 openrouter: None,
             },
@@ -621,6 +795,7 @@ pub fn create_oss_provider_with_base_url(base_url: &str) -> ModelProviderInfo {
         env_key: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
+        auth: None,
         wire_api: WireApi::Chat,
         query_params: None,
         http_headers: None,
@@ -628,6 +803,7 @@ pub fn create_oss_provider_with_base_url(base_url: &str) -> ModelProviderInfo {
         request_max_retries: None,
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
+        websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         openrouter: None,
     }
@@ -648,8 +824,11 @@ fn matches_azure_responses_base_url(base_url: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use code_utils_absolute_path::AbsolutePathBuf;
+    use code_utils_absolute_path::AbsolutePathBufGuard;
     use pretty_assertions::assert_eq;
-    use std::sync::Arc;
+    use std::num::NonZeroU64;
+    use tempfile::tempdir;
 
     #[test]
     fn test_deserialize_ollama_model_provider_toml() {
@@ -663,6 +842,7 @@ base_url = "http://localhost:11434/v1"
             env_key: None,
             env_key_instructions: None,
             experimental_bearer_token: None,
+            auth: None,
             wire_api: WireApi::Chat,
             query_params: None,
             http_headers: None,
@@ -670,6 +850,7 @@ base_url = "http://localhost:11434/v1"
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
             requires_openai_auth: false,
             openrouter: None,
         };
@@ -692,6 +873,7 @@ query_params = { api-version = "2025-04-01-preview" }
             env_key: Some("AZURE_OPENAI_API_KEY".into()),
             env_key_instructions: None,
             experimental_bearer_token: None,
+            auth: None,
             wire_api: WireApi::Chat,
             query_params: Some(maplit::hashmap! {
                 "api-version".to_string() => "2025-04-01-preview".to_string(),
@@ -701,6 +883,7 @@ query_params = { api-version = "2025-04-01-preview" }
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
             requires_openai_auth: false,
             openrouter: None,
         };
@@ -724,6 +907,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
             env_key: Some("API_KEY".into()),
             env_key_instructions: None,
             experimental_bearer_token: None,
+            auth: None,
             wire_api: WireApi::Chat,
             query_params: None,
             http_headers: Some(maplit::hashmap! {
@@ -735,6 +919,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
             requires_openai_auth: false,
             openrouter: None,
         };
@@ -752,6 +937,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
                 env_key: None,
                 env_key_instructions: None,
                 experimental_bearer_token: None,
+                auth: None,
                 wire_api: WireApi::Responses,
                 query_params: None,
                 http_headers: None,
@@ -759,6 +945,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
                 request_max_retries: None,
                 stream_max_retries: None,
                 stream_idle_timeout_ms: None,
+                websocket_connect_timeout_ms: None,
                 requires_openai_auth: false,
                 openrouter: None,
             }
@@ -786,6 +973,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
             env_key: None,
             env_key_instructions: None,
             experimental_bearer_token: None,
+            auth: None,
             wire_api: WireApi::Responses,
             query_params: None,
             http_headers: None,
@@ -793,6 +981,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
             requires_openai_auth: false,
             openrouter: None,
         };
@@ -814,7 +1003,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
 
     #[test]
     fn openai_provider_version_header_uses_wire_compatible_version() {
-        let providers = built_in_model_providers();
+        let providers = built_in_model_providers(None);
         let openai = providers.get("openai").expect("openai provider should exist");
         let headers = openai.http_headers.as_ref().expect("openai provider should set headers");
         let version = headers
@@ -824,200 +1013,85 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
         assert_eq!(version, code_version::wire_compatible_version());
     }
 
-    struct EnvVarGuard {
-        key: &'static str,
-        previous: Option<String>,
-    }
+    #[test]
+    fn test_deserialize_provider_auth_config_defaults() {
+        let base_dir = tempdir().unwrap();
+        let provider_toml = r#"
+name = "Corp"
 
-    impl EnvVarGuard {
-        fn new(key: &'static str) -> Self {
-            let previous = std::env::var(key).ok();
-            Self { key, previous }
-        }
-    }
+[auth]
+command = "./scripts/print-token"
+args = ["--format=text"]
+        "#;
 
-    impl Drop for EnvVarGuard {
-        fn drop(&mut self) {
-            match &self.previous {
-                Some(value) => unsafe {
-                    std::env::set_var(self.key, value);
-                },
-                None => unsafe {
-                    std::env::remove_var(self.key);
-                },
-            }
-        }
-    }
+        let provider: ModelProviderInfo = {
+            let _guard = AbsolutePathBufGuard::new(base_dir.path());
+            toml::from_str(provider_toml).unwrap()
+        };
 
-    #[tokio::test]
-    async fn env_key_uses_env_var_over_secrets() {
-        let _guard = EnvVarGuard::new("OPENAI_API_KEY");
-        unsafe {
-            std::env::set_var("OPENAI_API_KEY", "env-token");
-        }
-
-        let code_home = tempfile::tempdir().expect("tempdir");
-        let keyring = Arc::new(code_keyring_store::tests::MockKeyringStore::default());
-        let secrets = code_secrets::SecretsManager::new_with_keyring_store(
-            code_home.path().to_path_buf(),
-            code_secrets::SecretsBackendKind::Local,
-            keyring,
+        assert_eq!(
+            provider.auth,
+            Some(ModelProviderAuthInfo {
+                command: "./scripts/print-token".to_string(),
+                args: vec!["--format=text".to_string()],
+                timeout_ms: NonZeroU64::new(5_000).unwrap(),
+                refresh_interval_ms: 300_000,
+                cwd: AbsolutePathBuf::resolve_path_against_base(".", base_dir.path()).unwrap(),
+            })
         );
+    }
 
-        secrets
-            .set(
-                &code_secrets::SecretScope::Global,
-                &code_secrets::SecretName::new("OPENAI_API_KEY").expect("secret name"),
-                "secret-token",
-            )
-            .expect("seed secret");
+    #[test]
+    fn test_deserialize_provider_auth_config_allows_zero_refresh_interval() {
+        let base_dir = tempdir().unwrap();
+        let provider_toml = r#"
+name = "Corp"
 
+[auth]
+command = "./scripts/print-token"
+refresh_interval_ms = 0
+        "#;
+
+        let provider: ModelProviderInfo = {
+            let _guard = AbsolutePathBufGuard::new(base_dir.path());
+            toml::from_str(provider_toml).unwrap()
+        };
+
+        let auth = provider.auth.expect("auth config should deserialize");
+        assert_eq!(auth.refresh_interval_ms, 0);
+        assert_eq!(auth.refresh_interval(), None);
+    }
+
+    #[test]
+    fn provider_auth_validation_rejects_conflicting_fields() {
         let provider = ModelProviderInfo {
-            name: "example".into(),
+            name: "Corp".into(),
             base_url: Some("https://example.com".into()),
-            env_key: Some("OPENAI_API_KEY".into()),
+            env_key: Some("CORP_API_KEY".into()),
             env_key_instructions: None,
             experimental_bearer_token: None,
-            wire_api: WireApi::Chat,
+            auth: Some(ModelProviderAuthInfo {
+                command: "./print-token".to_string(),
+                args: Vec::new(),
+                timeout_ms: NonZeroU64::new(5_000).unwrap(),
+                refresh_interval_ms: 300_000,
+                cwd: AbsolutePathBuf::current_dir().unwrap(),
+            }),
+            wire_api: WireApi::Responses,
             query_params: None,
             http_headers: None,
             env_http_headers: None,
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
             requires_openai_auth: false,
             openrouter: None,
         };
 
-        let client = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .expect("client");
-
-        let request = provider
-            .create_request_builder(
-                &client,
-                &None,
-                Some(&secrets),
-                std::path::Path::new("."),
-            )
-            .await
-            .expect("builder")
-            .build()
-            .expect("request");
-
-        let auth = request
-            .headers()
-            .get(reqwest::header::AUTHORIZATION)
-            .expect("authorization header");
-        assert_eq!(auth.to_str().expect("utf8"), "Bearer env-token");
-    }
-
-    #[tokio::test]
-    async fn env_key_falls_back_to_secrets() {
-        let _guard = EnvVarGuard::new("OPENAI_API_KEY");
-        unsafe {
-            std::env::remove_var("OPENAI_API_KEY");
-        }
-
-        let code_home = tempfile::tempdir().expect("tempdir");
-        let keyring = Arc::new(code_keyring_store::tests::MockKeyringStore::default());
-        let secrets = code_secrets::SecretsManager::new_with_keyring_store(
-            code_home.path().to_path_buf(),
-            code_secrets::SecretsBackendKind::Local,
-            keyring,
-        );
-
-        let cwd = tempfile::tempdir().expect("cwd");
-        std::fs::create_dir_all(cwd.path().join(".git")).expect("create git dir");
-        let env_id = code_secrets::environment_id_from_cwd(cwd.path());
-        let scope = code_secrets::SecretScope::Environment(env_id);
-        secrets
-            .set(
-                &scope,
-                &code_secrets::SecretName::new("OPENAI_API_KEY").expect("secret name"),
-                "secret-token",
-            )
-            .expect("seed secret");
-
-        let provider = ModelProviderInfo {
-            name: "example".into(),
-            base_url: Some("https://example.com".into()),
-            env_key: Some("OPENAI_API_KEY".into()),
-            env_key_instructions: None,
-            experimental_bearer_token: None,
-            wire_api: WireApi::Chat,
-            query_params: None,
-            http_headers: None,
-            env_http_headers: None,
-            request_max_retries: None,
-            stream_max_retries: None,
-            stream_idle_timeout_ms: None,
-            requires_openai_auth: false,
-            openrouter: None,
-        };
-
-        let client = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .expect("client");
-
-        let request = provider
-            .create_request_builder(&client, &None, Some(&secrets), cwd.path())
-            .await
-            .expect("builder")
-            .build()
-            .expect("request");
-
-        let auth = request
-            .headers()
-            .get(reqwest::header::AUTHORIZATION)
-            .expect("authorization header");
-        assert_eq!(auth.to_str().expect("utf8"), "Bearer secret-token");
-    }
-
-    #[tokio::test]
-    async fn env_key_error_mentions_secrets_command() {
-        let _guard = EnvVarGuard::new("OPENAI_API_KEY");
-        unsafe {
-            std::env::remove_var("OPENAI_API_KEY");
-        }
-
-        let provider = ModelProviderInfo {
-            name: "example".into(),
-            base_url: Some("https://example.com".into()),
-            env_key: Some("OPENAI_API_KEY".into()),
-            env_key_instructions: Some("Get a key from your provider.".to_string()),
-            experimental_bearer_token: None,
-            wire_api: WireApi::Chat,
-            query_params: None,
-            http_headers: None,
-            env_http_headers: None,
-            request_max_retries: None,
-            stream_max_retries: None,
-            stream_idle_timeout_ms: None,
-            requires_openai_auth: false,
-            openrouter: None,
-        };
-
-        let client = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .expect("client");
-
-        let err = provider
-            .create_request_builder(&client, &None, None, std::path::Path::new("."))
-            .await
-            .expect_err("missing env var must error");
-        let message = err.to_string();
-        assert!(message.contains("OPENAI_API_KEY"), "message was: {message}");
-        assert!(
-            message.contains("code secrets set OPENAI_API_KEY"),
-            "message was: {message}"
-        );
-        assert!(
-            message.contains("Get a key from your provider."),
-            "message was: {message}"
+        assert_eq!(
+            provider.validate(),
+            Err("provider auth cannot be combined with env_key".to_string())
         );
     }
 }

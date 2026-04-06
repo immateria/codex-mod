@@ -1,9 +1,9 @@
 use base64::Engine;
 use chrono::DateTime;
 use chrono::Utc;
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
-use serde::de::DeserializeOwned;
 use thiserror::Error;
 use tracing::Level;
 
@@ -41,8 +41,8 @@ pub struct IdTokenInfo {
     /// The ChatGPT subscription plan type
     /// (e.g., "free", "plus", "pro", "business", "enterprise", "edu").
     /// (Note: values may vary by backend.)
-    pub chatgpt_plan_type: Option<PlanType>,
-    /// ChatGPT user identifier associated with the token, if present.
+    pub(crate) chatgpt_plan_type: Option<PlanType>,
+    /// ChatGPT user identifier, if present in the id_token.
     pub chatgpt_user_id: Option<String>,
     /// Organization/workspace identifier associated with the token, if present.
     pub chatgpt_account_id: Option<String>,
@@ -61,7 +61,7 @@ impl IdTokenInfo {
         matches!(
             self.chatgpt_plan_type,
             Some(PlanType::Known(
-                KnownPlan::Team | KnownPlan::Business | KnownPlan::Enterprise | KnownPlan::Edu
+                KnownPlan::Business | KnownPlan::Enterprise | KnownPlan::Edu
             ))
         )
     }
@@ -69,7 +69,7 @@ impl IdTokenInfo {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum PlanType {
+pub(crate) enum PlanType {
     Known(KnownPlan),
     Unknown(String),
 }
@@ -85,9 +85,8 @@ impl PlanType {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum KnownPlan {
+pub(crate) enum KnownPlan {
     Free,
-    Go,
     Plus,
     Pro,
     Team,
@@ -100,16 +99,8 @@ pub enum KnownPlan {
 struct IdClaims {
     #[serde(default)]
     email: Option<String>,
-    #[serde(rename = "https://api.openai.com/profile", default)]
-    profile: Option<ProfileClaims>,
     #[serde(rename = "https://api.openai.com/auth", default)]
     auth: Option<AuthClaims>,
-}
-
-#[derive(Deserialize)]
-struct ProfileClaims {
-    #[serde(default)]
-    email: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -167,31 +158,22 @@ pub fn parse_id_token(id_token: &str) -> Result<IdTokenInfo, IdTokenInfoError> {
             .auth
             .as_ref()
             .and_then(|a| a.chatgpt_plan_type.as_ref())
-            .map(PlanType::as_string);
+            .map(|plan| plan.as_string());
         tracing::debug!(
             email = claims.email.as_deref().unwrap_or("<missing>"),
             chatgpt_plan_type = plan.as_deref().unwrap_or("unknown"),
             "decoded ChatGPT id_token claims"
         );
     }
-    let email = claims.email.or_else(|| claims.profile.and_then(|profile| profile.email));
+    let IdClaims { email, auth } = claims;
 
-    match claims.auth {
-        Some(auth) => Ok(IdTokenInfo {
-            email,
-            raw_jwt: id_token.to_string(),
-            chatgpt_plan_type: auth.chatgpt_plan_type,
-            chatgpt_user_id: auth.chatgpt_user_id.or(auth.user_id),
-            chatgpt_account_id: auth.chatgpt_account_id,
-        }),
-        None => Ok(IdTokenInfo {
-            email,
-            raw_jwt: id_token.to_string(),
-            chatgpt_plan_type: None,
-            chatgpt_user_id: None,
-            chatgpt_account_id: None,
-        }),
-    }
+    Ok(IdTokenInfo {
+        email,
+        chatgpt_plan_type: auth.as_ref().and_then(|a| a.chatgpt_plan_type.clone()),
+        chatgpt_user_id: auth.as_ref().and_then(|a| a.chatgpt_user_id.clone().or(a.user_id.clone())),
+        chatgpt_account_id: auth.as_ref().and_then(|a| a.chatgpt_account_id.clone()),
+        raw_jwt: id_token.to_string(),
+    })
 }
 
 fn deserialize_id_token<'de, D>(deserializer: D) -> Result<IdTokenInfo, D::Error>
@@ -271,5 +253,34 @@ mod tests {
         let info = parse_id_token(&fake_jwt).expect("should parse");
         assert!(info.email.is_none());
         assert!(info.get_chatgpt_plan_type().is_none());
+    }
+
+    #[test]
+    fn parse_jwt_expiration_reads_exp_claim() {
+        #[derive(Serialize)]
+        struct Header {
+            alg: &'static str,
+            typ: &'static str,
+        }
+
+        fn b64url_no_pad(bytes: &[u8]) -> String {
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
+        }
+
+        let header = Header {
+            alg: "none",
+            typ: "JWT",
+        };
+        let exp = Utc::now().timestamp() + 3600;
+        let payload = serde_json::json!({ "exp": exp });
+        let fake_jwt = format!(
+            "{}.{}.{}",
+            b64url_no_pad(&serde_json::to_vec(&header).unwrap()),
+            b64url_no_pad(&serde_json::to_vec(&payload).unwrap()),
+            b64url_no_pad(b"sig")
+        );
+
+        let parsed = parse_jwt_expiration(&fake_jwt).expect("expiration should parse");
+        assert_eq!(parsed.map(|value| value.timestamp()), Some(exp));
     }
 }

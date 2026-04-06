@@ -51,7 +51,6 @@ impl ThemeSelectionView {
                     cfg.code_home.clone(),
                     preferred_auth,
                     cfg.responses_originator_header.clone(),
-                    cfg.cli_auth_credentials_store_mode,
                 );
                 let debug_logger = match code_core::debug_logger::DebugLogger::new(true) {
                     Ok(logger) => logger,
@@ -71,18 +70,17 @@ impl ThemeSelectionView {
                         }
                     }
                 };
-                let client = code_core::ModelClient::new(code_core::ModelClientInit {
-                    config: std::sync::Arc::new(cfg.clone()),
-                    auth_manager: Some(auth_mgr),
-                    otel_event_manager: None,
-                    provider: cfg.model_provider.clone(),
-                    effort: code_core::config_types::ReasoningEffort::Low,
-                    summary: cfg.model_reasoning_summary,
-                    verbosity: cfg.model_text_verbosity,
-                    session_id: uuid::Uuid::new_v4(),
-                    // Enable debug logs for targeted triage of stream issues
-                    debug_logger: std::sync::Arc::new(std::sync::Mutex::new(debug_logger)),
-                });
+                let client = code_core::ModelClient::new(
+                    std::sync::Arc::new(cfg.clone()),
+                    Some(auth_mgr),
+                    None,
+                    cfg.model_provider.clone(),
+                    code_core::config_types::ReasoningEffort::Low,
+                    cfg.model_reasoning_summary,
+                    cfg.model_text_verbosity,
+                    uuid::Uuid::new_v4(),
+                    std::sync::Arc::new(std::sync::Mutex::new(debug_logger)),
+                );
 
                 // Build developer guidance and input
                 let developer = "You are performing a custom task to create a terminal spinner.\n\nRequirements:\n- Output JSON ONLY, no prose.\n- `interval` is the delay in milliseconds between frames; MUST be between 50 and 300 inclusive.\n- `frames` is an array of strings; each element is a frame displayed sequentially at the given interval.\n- The spinner SHOULD have between 2 and 60 frames.\n- Each frame SHOULD be between 1 and 30 characters wide. ALL frames MUST be the SAME width (same number of characters). If you propose frames with varying widths, PAD THEM ON THE LEFT with spaces so they are uniform.\n- You MAY use both ASCII and Unicode characters (e.g., box drawing, braille, arrows). Use EMOJIS ONLY if the user explicitly requests emojis in their prompt.\n- Be creative! You have the full range of Unicode to play with!\n".to_string();

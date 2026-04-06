@@ -14,6 +14,11 @@ codex *args:
 exec *args:
     cargo run --bin codex -- exec "$@"
 
+# Start codex-exec-server and run codex-tui.
+[no-cd]
+tui-with-exec-server *args:
+    ./scripts/run_tui_with_exec_server.sh "$@"
+
 # Run the CLI version of the file-search crate.
 file-search *args:
     cargo run --bin code-file-search -- "$@"
@@ -36,8 +41,8 @@ install:
 # --no-fail-fast is important to ensure all tests are run.
 #
 # Run `cargo install cargo-nextest` if you don't have it installed.
-# Prefer this for routine local runs; use explicit `cargo test --all-features`
-# only when you specifically need full feature coverage.
+# Prefer this for routine local runs. Workspace crate features are banned, so
+# there should be no need to add `--all-features`.
 test:
     cargo nextest run --no-fail-fast
 
@@ -57,10 +62,18 @@ bazel-lock-check:
     ./scripts/check-module-bazel-lock.sh
 
 bazel-test:
-    bazel test //... --keep_going
+    bazel test --test_tag_filters=-argument-comment-lint //... --keep_going
+
+[no-cd]
+bazel-clippy:
+    bazel_targets="$(./scripts/list-bazel-clippy-targets.sh)" && bazel build --config=clippy -- ${bazel_targets}
+
+[no-cd]
+bazel-argument-comment-lint:
+    bazel build --config=argument-comment-lint -- $(./tools/argument-comment-lint/list-bazel-targets.sh)
 
 bazel-remote-test:
-    bazel test //... --config=remote --platforms=//:rbe --keep_going
+    bazel test --test_tag_filters=-argument-comment-lint //... --config=remote --platforms=//:rbe --keep_going
 
 build-for-release:
     bazel build //codex-rs/cli:release_binaries --config=remote

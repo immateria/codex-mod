@@ -135,7 +135,6 @@ fn run_refresh(
                         config.code_home.clone(),
                         auth_mode,
                         config.responses_originator_header.clone(),
-                        config.cli_auth_credentials_store_mode,
                     ),
                     None,
                 )
@@ -261,17 +260,17 @@ fn build_model_client(
         })
         .context("initializing debug logger")?;
 
-    let client = ModelClient::new(code_core::ModelClientInit {
-        config: Arc::new(config.clone()),
-        auth_manager: Some(auth_mgr),
-        otel_event_manager: None,
-        provider: config.model_provider.clone(),
-        effort: ReasoningEffort::Low,
-        summary: config.model_reasoning_summary,
-        verbosity: config.model_text_verbosity,
-        session_id: Uuid::new_v4(),
-        debug_logger: Arc::new(Mutex::new(debug_logger)),
-    });
+    let client = ModelClient::new(
+        Arc::new(config.clone()),
+        Some(auth_mgr),
+        None,
+        config.model_provider.clone(),
+        ReasoningEffort::Low,
+        config.model_reasoning_summary,
+        config.model_text_verbosity,
+        Uuid::new_v4(),
+        Arc::new(Mutex::new(debug_logger)),
+    );
 
     Ok(client)
 }

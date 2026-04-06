@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+use std::io::BufRead;
 use std::path::Path;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,14 +13,19 @@ use crate::auth_accounts;
 use bytes::Bytes;
 use code_app_server_protocol::AuthMode;
 use code_protocol::models::ResponseItem;
+use eventsource_stream::Eventsource;
 use futures::prelude::*;
+use httpdate::parse_http_date;
 use regex_lite::Regex;
 use reqwest::StatusCode;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::Value;
 use tokio::sync::mpsc;
+use tokio::time::timeout;
+use tokio_util::io::ReaderStream;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::debug;
 use tracing::trace;
@@ -26,6 +33,7 @@ use tracing::warn;
 use uuid::Uuid;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::Error as WsError;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 const AUTH_REQUIRED_MESSAGE: &str = "Authentication required. Run `code login` to continue.";
@@ -36,7 +44,6 @@ use crate::agent_defaults::{
     filter_agent_model_names_for_auth,
 };
 use crate::chat_completions::AggregateStreamExt;
-use crate::chat_completions::ChatCompletionsRequest;
 use crate::chat_completions::stream_chat_completions;
 use crate::client_common::Prompt;
 use crate::client_common::ResponseEvent;
@@ -44,9 +51,11 @@ use crate::client_common::ResponseStream;
 use crate::client_common::ResponsesApiRequest;
 use crate::client_common::create_reasoning_param_for_request;
 use crate::client_common::replace_image_payloads_for_model;
+use crate::client_common::rewrite_image_generation_calls_for_input;
 use crate::config::Config;
 use crate::config_types::ReasoningEffort as ReasoningEffortConfig;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use crate::config_types::ContextMode;
 use crate::config_types::ServiceTier;
 use crate::config_types::TextVerbosity as TextVerbosityConfig;
 use crate::debug_logger::DebugLogger;
@@ -64,7 +73,10 @@ use crate::model_provider_info::WireApi;
 use crate::openai_tools::create_tools_json_for_responses_api;
 use crate::openai_tools::ConfigShellToolType;
 use crate::openai_tools::ToolsConfig;
+use crate::tools::spec::ToolsConfigParams;
+use crate::protocol::RateLimitSnapshotEvent;
 use crate::protocol::SandboxPolicy;
+use crate::protocol::TokenUsage;
 use crate::reasoning::clamp_reasoning_effort_for_model;
 use crate::slash_commands::get_enabled_agents;
 use crate::util::backoff;
@@ -78,17 +90,6 @@ const RESPONSES_BETA_HEADER_EXPERIMENTAL: &str = "responses=experimental";
 const RESPONSES_WEBSOCKETS_BETA_HEADER_V1: &str = "responses_websockets=2026-02-04";
 const RESPONSES_WEBSOCKETS_BETA_HEADER_V2: &str = "responses_websockets=2026-02-06";
 const RESPONSES_WEBSOCKET_INGRESS_BUFFER: usize = 256;
-
-fn configured_service_tier(config: &Config) -> Option<String> {
-    match config.service_tier {
-        Some(ServiceTier::Fast) => Some("priority".to_string()),
-        Some(ServiceTier::Standard) => Some("standard".to_string()),
-        None => None,
-    }
-}
-
-mod sse;
-mod transport;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ResponsesWebsocketVersion {
@@ -107,9 +108,18 @@ fn preferred_ws_version_from_env() -> ResponsesWebsocketVersion {
 // be replayed on every subsequent request within the same turn (retries,
 // continuations, websocket reconnects).
 const X_CODEX_TURN_STATE_HEADER: &str = "x-codex-turn-state";
+const X_CODEX_WINDOW_ID_HEADER: &str = "x-codex-window-id";
 
 const MODEL_CAP_MODEL_HEADER: &str = "x-codex-model-cap-model";
 const MODEL_CAP_RESET_AFTER_HEADER: &str = "x-codex-model-cap-reset-after-seconds";
+
+const CODE_OPENAI_SUBAGENT_ENV: &str = "CODE_OPENAI_SUBAGENT";
+
+#[derive(Default, Debug)]
+struct StreamCheckpoint {
+    /// Highest sequence_number observed across attempts. Used to drop replayed deltas.
+    last_sequence: Option<u64>,
+}
 
 #[derive(Debug, Deserialize)]
 struct ErrorResponse {
@@ -117,10 +127,22 @@ struct ErrorResponse {
 }
 
 #[derive(Debug, Deserialize)]
+struct WrappedWebsocketErrorEvent {
+    #[serde(rename = "type")]
+    kind: String,
+    #[serde(alias = "status_code")]
+    status: Option<u16>,
+    #[serde(default)]
+    error: Option<Error>,
+}
+
+#[derive(Debug, Deserialize)]
 struct Error {
     r#type: Option<String>,
+    #[allow(dead_code)]
     code: Option<String>,
     /// Optional parameter that triggered the error (e.g. "reasoning.summary").
+    #[allow(dead_code)]
     param: Option<String>,
     message: Option<String>,
 
@@ -148,7 +170,7 @@ fn rate_limit_regex() -> &'static Regex {
         Regex::new(
             r"(?i)(?:please\s+try\s+again|try\s+again|please\s+retry|retry|try)\s+(?:in|after)\s*(\d+(?:\.\d+)?)\s*(ms|milliseconds?|s|sec|secs|seconds?)"
         )
-            .unwrap_or_else(|err| panic!("valid rate limit regex: {err}"))
+            .expect("valid rate limit regex")
     })
 }
 
@@ -177,7 +199,7 @@ fn try_parse_retry_after(err: &Error, now: DateTime<Utc>) -> Option<RetryAfter> 
 
 fn is_quota_exceeded_error(error: &Error) -> bool {
     matches!(
-        error.code.as_deref().or(error.r#type.as_deref()),
+        error.code.as_deref().or_else(|| error.r#type.as_deref()),
         Some("insufficient_quota")
     )
 }
@@ -209,7 +231,7 @@ fn is_reasoning_summary_rejected(error: &Error) -> bool {
     // Only treat as rejection if it's specifically an "unsupported_value" error
     // for the reasoning.summary parameter, or if the message explicitly says
     // the organization must be verified for reasoning summaries.
-    code_matches && (param_matches || message_matches)
+    (param_matches && code_matches) || (code_matches && message_matches)
 }
 
 fn map_unauthorized_outcome(
@@ -239,7 +261,6 @@ pub struct ModelClient {
     otel_event_manager: Option<OtelEventManager>,
     client: reqwest::Client,
     provider: ModelProviderInfo,
-    secrets_manager: code_secrets::SecretsManager,
     session_id: Uuid,
     effort: ReasoningEffortConfig,
     summary: ReasoningSummaryConfig,
@@ -247,18 +268,6 @@ pub struct ModelClient {
     websockets_disabled: AtomicBool,
     verbosity: TextVerbosityConfig,
     debug_logger: Arc<Mutex<DebugLogger>>,
-}
-
-pub struct ModelClientInit {
-    pub config: Arc<Config>,
-    pub auth_manager: Option<Arc<AuthManager>>,
-    pub otel_event_manager: Option<OtelEventManager>,
-    pub provider: ModelProviderInfo,
-    pub effort: ReasoningEffortConfig,
-    pub summary: ReasoningSummaryConfig,
-    pub verbosity: TextVerbosityConfig,
-    pub session_id: Uuid,
-    pub debug_logger: Arc<Mutex<DebugLogger>>,
 }
 
 impl Clone for ModelClient {
@@ -269,7 +278,6 @@ impl Clone for ModelClient {
             otel_event_manager: self.otel_event_manager.clone(),
             client: self.client.clone(),
             provider: self.provider.clone(),
-            secrets_manager: self.secrets_manager.clone(),
             session_id: self.session_id,
             effort: self.effort,
             summary: self.summary,
@@ -286,24 +294,20 @@ impl Clone for ModelClient {
 }
 
 impl ModelClient {
-    pub fn new(init: ModelClientInit) -> Self {
-        let ModelClientInit {
-            config,
-            auth_manager,
-            otel_event_manager,
-            provider,
-            effort,
-            summary,
-            verbosity,
-            session_id,
-            debug_logger,
-        } = init;
-        let effective_verbosity =
-            transport::clamp_text_verbosity_for_model(config.model.as_str(), verbosity);
+    pub fn new(
+        config: Arc<Config>,
+        auth_manager: Option<Arc<AuthManager>>,
+        otel_event_manager: Option<OtelEventManager>,
+        provider: ModelProviderInfo,
+        effort: ReasoningEffortConfig,
+        summary: ReasoningSummaryConfig,
+        verbosity: TextVerbosityConfig,
+        session_id: Uuid,
+        debug_logger: Arc<Mutex<DebugLogger>>,
+    ) -> Self {
+        let effective_verbosity = clamp_text_verbosity_for_model(config.model.as_str(), verbosity);
         let clamped_effort = clamp_reasoning_effort_for_model(config.model.as_str(), effort);
         let client = create_client(&config.responses_originator_header);
-        let secrets_manager =
-            code_secrets::SecretsManager::new(config.code_home.clone(), code_secrets::SecretsBackendKind::Local);
 
         Self {
             config,
@@ -311,7 +315,6 @@ impl ModelClient {
             otel_event_manager,
             client,
             provider,
-            secrets_manager,
             session_id,
             effort: clamped_effort,
             summary,
@@ -320,10 +323,6 @@ impl ModelClient {
             verbosity: effective_verbosity,
             debug_logger,
         }
-    }
-
-    pub fn config(&self) -> Arc<Config> {
-        Arc::clone(&self.config)
     }
 
     fn active_ws_version_for_prompt(&self, prompt: &Prompt) -> Option<ResponsesWebsocketVersion> {
@@ -389,6 +388,12 @@ impl ModelClient {
         }
     }
 
+    /// Get the text verbosity configuration
+    #[allow(dead_code)]
+    pub fn get_text_verbosity(&self) -> TextVerbosityConfig {
+        self.verbosity
+    }
+
     pub fn get_otel_event_manager(&self) -> Option<OtelEventManager> {
         self.otel_event_manager.clone()
     }
@@ -401,6 +406,18 @@ impl ModelClient {
 
     pub fn code_home(&self) -> &Path {
         &self.config.code_home
+    }
+
+    pub fn cwd(&self) -> &Path {
+        &self.config.cwd
+    }
+
+    fn current_window_id(&self, session_id: Uuid) -> String {
+        format!("{session_id}:0")
+    }
+
+    pub(crate) fn config(&self) -> &crate::config::Config {
+        &self.config
     }
 
     pub fn auth_credentials_store_mode(&self) -> crate::config_types::AuthCredentialsStoreMode {
@@ -419,6 +436,18 @@ impl ModelClient {
         self.config.api_key_fallback_on_all_accounts_limited
     }
 
+    pub fn memories_enabled(&self) -> bool {
+        self.config.memories.use_memories
+    }
+
+    pub fn memories_generate_enabled(&self) -> bool {
+        self.config.memories.generate_memories
+    }
+
+    pub fn memories_use_enabled(&self) -> bool {
+        self.config.memories.use_memories
+    }
+
     pub fn build_tools_config_with_sandbox(
         &self,
         sandbox_policy: SandboxPolicy,
@@ -431,7 +460,7 @@ impl ModelClient {
         sandbox_policy: SandboxPolicy,
         model_family: &ModelFamily,
     ) -> ToolsConfig {
-        let mut tools_config = ToolsConfig::new(crate::openai_tools::ToolsConfigParams {
+        let mut tools_config = ToolsConfig::new(ToolsConfigParams {
             model_family,
             approval_policy: self.config.approval_policy,
             sandbox_policy: sandbox_policy.clone(),
@@ -444,7 +473,6 @@ impl ModelClient {
         tools_config.web_search_allowed_domains = self.config.tools_web_search_allowed_domains.clone();
         tools_config.web_search_external = self.config.tools_web_search_external;
         tools_config.search_tool = self.config.tools_search_tool;
-        tools_config.js_repl = self.config.tools_js_repl;
 
         let auth_mode = self
             .auth_manager
@@ -480,7 +508,7 @@ impl ModelClient {
                 .map(|spec| spec.slug.to_string())
                 .collect();
         }
-        agent_models.sort_by_key(|a| a.to_ascii_lowercase());
+        agent_models.sort_by(|a, b| a.to_ascii_lowercase().cmp(&b.to_ascii_lowercase()));
         agent_models.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
         tools_config.set_agent_models(agent_models);
 
@@ -490,10 +518,10 @@ impl ModelClient {
             ConfigShellToolType::LocalShell | ConfigShellToolType::StreamableShell
         );
 
-        tools_config.shell_type = match sandbox_policy {
+        tools_config.shell_type = match sandbox_policy.clone() {
             SandboxPolicy::ReadOnly => {
                 if base_uses_native_shell {
-                    base_shell_type
+                    base_shell_type.clone()
                 } else {
                     ConfigShellToolType::ShellWithRequest {
                         sandbox_policy: SandboxPolicy::ReadOnly,
@@ -502,7 +530,7 @@ impl ModelClient {
             }
             sp @ SandboxPolicy::WorkspaceWrite { .. } => {
                 if base_uses_native_shell {
-                    base_shell_type
+                    base_shell_type.clone()
                 } else {
                     ConfigShellToolType::ShellWithRequest { sandbox_policy: sp }
                 }
@@ -521,6 +549,10 @@ impl ModelClient {
         self.config
             .model_auto_compact_token_limit
             .or_else(|| self.config.model_family.auto_compact_token_limit())
+    }
+
+    pub fn get_context_mode(&self) -> Option<ContextMode> {
+        self.config.context_mode
     }
 
     pub fn default_model_slug(&self) -> &str {
@@ -593,19 +625,17 @@ impl ModelClient {
                     .as_deref()
                     .unwrap_or(self.config.model.as_str());
                 // Create the raw streaming connection first.
-                let response_stream = stream_chat_completions(ChatCompletionsRequest {
+                let response_stream = stream_chat_completions(
                     prompt,
-                    model_family: effective_family,
+                    effective_family,
                     model_slug,
-                    client: &self.client,
-                    provider: &self.provider,
-                    secrets: Some(&self.secrets_manager),
-                    cwd: self.config.cwd.as_path(),
-                    debug_logger: &self.debug_logger,
-                    auth_manager: self.auth_manager.clone(),
-                    otel_event_manager: self.otel_event_manager.clone(),
+                    &self.client,
+                    &self.provider,
+                    &self.debug_logger,
+                    self.auth_manager.clone(),
+                    self.otel_event_manager.clone(),
                     log_tag,
-                })
+                )
                 .await?;
 
                 // Wrap it with the aggregation adapter so callers see *only*
@@ -675,6 +705,7 @@ impl ModelClient {
         }
 
         let mut input_with_instructions = prompt.get_formatted_input();
+        rewrite_image_generation_calls_for_input(&mut input_with_instructions);
         replace_image_payloads_for_model(&mut input_with_instructions, request_model);
 
         let want_format = prompt.text_format.clone().or_else(|| {
@@ -686,8 +717,7 @@ impl ModelClient {
             })
         });
 
-        let effective_verbosity =
-            transport::clamp_text_verbosity_for_model(request_model, self.verbosity);
+        let effective_verbosity = clamp_text_verbosity_for_model(request_model, self.verbosity);
         let verbosity = match &request_family.family {
             family if family == "gpt-5" || family == "gpt-5.1" => Some(effective_verbosity),
             _ => None,
@@ -736,7 +766,10 @@ impl ModelClient {
                 store: self.provider.is_azure_responses_endpoint(),
                 stream: true,
                 include,
-                service_tier: configured_service_tier(&self.config),
+                service_tier: match self.config.service_tier {
+                    Some(ServiceTier::Fast) => Some("priority".to_string()),
+                    _ => None,
+                },
                 prompt_cache_key: Some(session_id_str.clone()),
             };
 
@@ -745,10 +778,10 @@ impl ModelClient {
                 *model_value = serde_json::Value::String(model_slug.to_string());
             }
             if self.provider.is_azure_responses_endpoint() {
-                sse::attach_item_ids(&mut payload_json, &input_with_instructions);
+                attach_item_ids(&mut payload_json, &input_with_instructions);
             }
-            if let Some(openrouter_cfg) = self.provider.openrouter_config()
-                && let Some(obj) = payload_json.as_object_mut() {
+            if let Some(openrouter_cfg) = self.provider.openrouter_config() {
+                if let Some(obj) = payload_json.as_object_mut() {
                     if let Some(provider) = &openrouter_cfg.provider {
                         obj.insert("provider".to_string(), serde_json::to_value(provider)?);
                     }
@@ -759,8 +792,10 @@ impl ModelClient {
                         obj.entry(key.clone()).or_insert(value.clone());
                     }
                 }
+            }
 
-            let auth = auth_manager.as_ref().and_then(|m| m.auth());
+            let base_auth = auth_manager.as_ref().and_then(|m| m.auth());
+            let auth = self.provider.effective_auth(&base_auth).await?;
             let endpoint = self.provider.get_full_url(&auth);
 
             let url = reqwest::Url::parse(&endpoint).map_err(|err| {
@@ -778,11 +813,9 @@ impl ModelClient {
             };
             let mut req_builder = self
                 .provider
-                .create_request_builder_for_url(
+                .create_request_builder_for_url_with_auth(
                     &self.client,
                     &auth,
-                    Some(&self.secrets_manager),
-                    self.config.cwd.as_path(),
                     reqwest::Method::GET,
                     url,
                 )
@@ -791,7 +824,7 @@ impl ModelClient {
             let has_beta_header = req_builder
                 .try_clone()
                 .and_then(|builder| builder.build().ok())
-                .is_some_and(|req| req.headers().contains_key("OpenAI-Beta"));
+                .map_or(false, |req| req.headers().contains_key("OpenAI-Beta"));
 
             if !has_beta_header {
                 let beta_value = if self.provider.is_public_openai_responses_endpoint() {
@@ -802,15 +835,17 @@ impl ModelClient {
                 req_builder = req_builder.header("OpenAI-Beta", beta_value);
             }
 
-            req_builder = transport::attach_openai_subagent_header(req_builder);
-            req_builder = transport::attach_codex_beta_features_header(req_builder, &self.config);
-            req_builder = transport::attach_web_search_eligible_header(req_builder, &self.config);
+            req_builder = attach_openai_subagent_header(req_builder);
+            req_builder = attach_codex_beta_features_header(req_builder, &self.config);
             if let Some(state) = turn_state.get() {
                 req_builder = req_builder.header(X_CODEX_TURN_STATE_HEADER, state);
             }
             req_builder = req_builder
                 .header("conversation_id", session_id_str.clone())
                 .header("session_id", session_id_str.clone());
+            if let Ok(window_id) = HeaderValue::from_str(&self.current_window_id(session_id)) {
+                req_builder = req_builder.header(X_CODEX_WINDOW_ID_HEADER, window_id);
+            }
 
             if let Some(auth) = auth.as_ref()
                 && auth.mode.is_chatgpt()
@@ -822,14 +857,15 @@ impl ModelClient {
             let header_snapshot = req_builder
                 .try_clone()
                 .and_then(|builder| builder.build().ok())
-                .map(|req| sse::header_map_to_json(req.headers()));
+                .map(|req| header_map_to_json(req.headers()));
 
-            if request_id.is_empty()
-                && let Ok(logger) = self.debug_logger.lock() {
+            if request_id.is_empty() {
+                if let Ok(logger) = self.debug_logger.lock() {
                     request_id = logger
                         .start_request_log(&endpoint, &payload_json, header_snapshot.as_ref(), log_tag)
                         .unwrap_or_default();
                 }
+            }
 
             let ws_headers = req_builder
                 .try_clone()
@@ -870,9 +906,13 @@ impl ModelClient {
             }
             let ws_payload_text = serde_json::to_string(&serde_json::Value::Object(ws_payload))?;
 
-            let connect = tokio_tungstenite::connect_async(ws_request).await;
+            let connect = timeout(
+                self.provider.websocket_connect_timeout(),
+                tokio_tungstenite::connect_async(ws_request),
+            )
+            .await;
             match connect {
-                Ok((mut ws_stream, response)) => {
+                Ok(Ok((mut ws_stream, response))) => {
                     let (tx_event, rx_event) = mpsc::channel::<Result<ResponseEvent>>(1600);
 
                     if let Some(value) = response
@@ -893,10 +933,10 @@ impl ModelClient {
                         }
                     }
 
-                    if let Some(snapshot) = sse::parse_rate_limit_snapshot(response.headers()) {
+                    if let Some(snapshot) = parse_rate_limit_snapshot(response.headers()) {
                         debug!(
                             "rate limit headers:\n{}",
-                            sse::format_rate_limit_headers(response.headers())
+                            format_rate_limit_headers(response.headers())
                         );
                         if tx_event
                             .send(Ok(ResponseEvent::RateLimits(snapshot)))
@@ -912,23 +952,25 @@ impl ModelClient {
                         .get("X-Models-Etag")
                         .and_then(|value| value.to_str().ok())
                         .map(ToString::to_string);
-                    if let Some(etag) = models_etag
-                        && tx_event
+                    if let Some(etag) = models_etag {
+                        if tx_event
                             .send(Ok(ResponseEvent::ModelsEtag(etag)))
                             .await
                             .is_err()
                         {
                             debug!("receiver dropped models etag event");
                         }
+                    }
 
-                    if response.headers().contains_key("x-reasoning-included")
-                        && tx_event
+                    if response.headers().contains_key("x-reasoning-included") {
+                        if tx_event
                             .send(Ok(ResponseEvent::ServerReasoningIncluded(true)))
                             .await
                             .is_err()
                         {
                             debug!("receiver dropped server reasoning included event");
                         }
+                    }
 
                     ws_stream
                         .send(Message::Text(ws_payload_text))
@@ -953,8 +995,8 @@ impl ModelClient {
                             };
                             match next {
                                 Ok(Message::Text(text)) => {
-                                    if let Some(error) = transport::parse_wrapped_websocket_error_event(&text)
-                                        .and_then(transport::map_wrapped_websocket_error_event)
+                                    if let Some(error) = parse_wrapped_websocket_error_event(&text)
+                                        .and_then(map_wrapped_websocket_error_event)
                                     {
                                         let _ = tx_bytes.send(Err(error)).await;
                                         break;
@@ -1003,14 +1045,14 @@ impl ModelClient {
                     let otel_event_manager = self.otel_event_manager.clone();
                     let stream_idle_timeout = self.provider.stream_idle_timeout();
                     tokio::spawn(async move {
-                        sse::process_sse(
+                        process_sse(
                             stream,
                             tx_event,
                             stream_idle_timeout,
                             debug_logger,
                             request_id_clone,
                             otel_event_manager,
-                            Arc::new(RwLock::new(sse::StreamCheckpoint::default())),
+                            Arc::new(RwLock::new(StreamCheckpoint::default())),
                         )
                         .await;
                         // process_sse may finish before the server closes the websocket.
@@ -1020,8 +1062,8 @@ impl ModelClient {
 
                     return Ok(ResponseStream { rx_event });
                 }
-                Err(err) => {
-                    if transport::websocket_connect_is_upgrade_required(&err) {
+                Ok(Err(err)) => {
+                    if websocket_connect_is_upgrade_required(&err) {
                         self.websockets_disabled.store(true, Ordering::Relaxed);
                         warn!("responses websocket upgrade required; falling back to HTTP responses transport");
                         return self.stream_responses(prompt, log_tag).await;
@@ -1029,6 +1071,22 @@ impl ModelClient {
 
                     let err = CodexErr::Stream(
                         format!("[ws] failed to connect: {err}"),
+                        None,
+                        Some(request_id.clone()),
+                    );
+                    if (attempt as u64) < max_retries {
+                        tokio::time::sleep(backoff(attempt as u64)).await;
+                        continue;
+                    }
+                    self.websockets_disabled.store(true, Ordering::Relaxed);
+                    return Err(err);
+                }
+                Err(_) => {
+                    let err = CodexErr::Stream(
+                        format!(
+                            "[ws] timed out connecting after {} ms",
+                            self.provider.websocket_connect_timeout().as_millis()
+                        ),
                         None,
                         Some(request_id.clone()),
                     );
@@ -1048,7 +1106,7 @@ impl ModelClient {
         if let Some(path) = &*CODEX_RS_SSE_FIXTURE {
             // short circuit for tests
             warn!(path, "Streaming from fixture");
-            return sse::stream_from_fixture(path, self.provider.clone(), self.otel_event_manager.clone())
+            return stream_from_fixture(path, self.provider.clone(), self.otel_event_manager.clone())
                 .await;
         }
 
@@ -1087,6 +1145,7 @@ impl ModelClient {
         }
 
         let mut input_with_instructions = prompt.get_formatted_input();
+        rewrite_image_generation_calls_for_input(&mut input_with_instructions);
         replace_image_payloads_for_model(&mut input_with_instructions, request_model);
 
         // Build `text` parameter with conditional verbosity and optional format.
@@ -1102,8 +1161,7 @@ impl ModelClient {
             })
         });
 
-        let effective_verbosity =
-            transport::clamp_text_verbosity_for_model(request_model, self.verbosity);
+        let effective_verbosity = clamp_text_verbosity_for_model(request_model, self.verbosity);
 
         let verbosity = match &request_family.family {
             family if family == "gpt-5" || family == "gpt-5.1" => Some(effective_verbosity),
@@ -1175,7 +1233,10 @@ impl ModelClient {
                 store: azure_workaround,
                 stream: true,
                 include,
-                service_tier: configured_service_tier(&self.config),
+                service_tier: match self.config.service_tier {
+                    Some(ServiceTier::Fast) => Some("priority".to_string()),
+                    _ => None,
+                },
                 // Use a stable per-process cache key (session id). With store=false this is inert.
                 prompt_cache_key: Some(session_id_str.clone()),
             };
@@ -1185,10 +1246,10 @@ impl ModelClient {
                 *model_value = serde_json::Value::String(model_slug.to_string());
             }
             if azure_workaround {
-                sse::attach_item_ids(&mut payload_json, &input_with_instructions);
+                attach_item_ids(&mut payload_json, &input_with_instructions);
             }
-            if let Some(openrouter_cfg) = self.provider.openrouter_config()
-                && let Some(obj) = payload_json.as_object_mut() {
+            if let Some(openrouter_cfg) = self.provider.openrouter_config() {
+                if let Some(obj) = payload_json.as_object_mut() {
                     if let Some(provider) = &openrouter_cfg.provider {
                         obj.insert(
                             "provider".to_string(),
@@ -1202,12 +1263,14 @@ impl ModelClient {
                         obj.entry(key.clone()).or_insert(value.clone());
                     }
                 }
+            }
             let payload_body = serde_json::to_string(&payload_json)?;
 
             let mut auth_refresh_error: Option<RefreshTokenError> = None;
 
             // Always fetch the latest auth in case a prior attempt refreshed the token.
-            let auth = auth_manager.as_ref().and_then(|m| m.auth());
+            let base_auth = auth_manager.as_ref().and_then(|m| m.auth());
+            let auth = self.provider.effective_auth(&base_auth).await?;
 
             trace!(
                 "POST to {}: {}",
@@ -1217,18 +1280,13 @@ impl ModelClient {
 
             let mut req_builder = self
                 .provider
-                .create_request_builder(
-                    &self.client,
-                    &auth,
-                    Some(&self.secrets_manager),
-                    self.config.cwd.as_path(),
-                )
+                .create_request_builder_with_auth(&self.client, &auth)
                 .await?;
 
             let has_beta_header = req_builder
                 .try_clone()
                 .and_then(|builder| builder.build().ok())
-                .is_some_and(|req| req.headers().contains_key("OpenAI-Beta"));
+                .map_or(false, |req| req.headers().contains_key("OpenAI-Beta"));
 
             if !has_beta_header {
                 let beta_value = if self.provider.is_public_openai_responses_endpoint() {
@@ -1239,9 +1297,8 @@ impl ModelClient {
                 req_builder = req_builder.header("OpenAI-Beta", beta_value);
             }
 
-            req_builder = transport::attach_openai_subagent_header(req_builder);
-            req_builder = transport::attach_codex_beta_features_header(req_builder, &self.config);
-            req_builder = transport::attach_web_search_eligible_header(req_builder, &self.config);
+            req_builder = attach_openai_subagent_header(req_builder);
+            req_builder = attach_codex_beta_features_header(req_builder, &self.config);
             if let Some(state) = turn_state.get() {
                 req_builder = req_builder.header(X_CODEX_TURN_STATE_HEADER, state);
             }
@@ -1252,6 +1309,9 @@ impl ModelClient {
                 .header("session_id", session_id_str.clone())
                 .header(reqwest::header::ACCEPT, "text/event-stream")
                 .json(&payload_json);
+            if let Ok(window_id) = HeaderValue::from_str(&self.current_window_id(session_id)) {
+                req_builder = req_builder.header(X_CODEX_WINDOW_ID_HEADER, window_id);
+            }
 
             if let Some(auth) = auth.as_ref()
                 && auth.mode.is_chatgpt()
@@ -1265,7 +1325,7 @@ impl ModelClient {
                 let header_snapshot = req_builder
                     .try_clone()
                     .and_then(|builder| builder.build().ok())
-                    .map(|req| sse::header_map_to_json(req.headers()));
+                    .map(|req| header_map_to_json(req.headers()));
 
                 if let Ok(logger) = self.debug_logger.lock() {
                     request_id = logger
@@ -1332,10 +1392,10 @@ impl ModelClient {
                     }
                     let (tx_event, rx_event) = mpsc::channel::<Result<ResponseEvent>>(1600);
 
-                    if let Some(snapshot) = sse::parse_rate_limit_snapshot(resp.headers()) {
+                    if let Some(snapshot) = parse_rate_limit_snapshot(resp.headers()) {
                         debug!(
                             "rate limit headers:\n{}",
-                            sse::format_rate_limit_headers(resp.headers())
+                            format_rate_limit_headers(resp.headers())
                         );
 
                         if tx_event
@@ -1352,28 +1412,29 @@ impl ModelClient {
                         .get("X-Models-Etag")
                         .and_then(|value| value.to_str().ok())
                         .map(ToString::to_string);
-                    if let Some(etag) = models_etag
-                        && tx_event
+                    if let Some(etag) = models_etag {
+                        if tx_event
                             .send(Ok(ResponseEvent::ModelsEtag(etag)))
                             .await
                             .is_err()
                         {
                             debug!("receiver dropped models etag event");
                         }
+                    }
 
                     // spawn task to process SSE
                     let stream = resp.bytes_stream().map_err(CodexErr::Reqwest);
                     let debug_logger = Arc::clone(&self.debug_logger);
                     let request_id_clone = request_id.clone();
                     let otel_event_manager = self.otel_event_manager.clone();
-                    tokio::spawn(sse::process_sse(
+                    tokio::spawn(process_sse(
                         stream,
                         tx_event,
                         self.provider.stream_idle_timeout(),
                         debug_logger,
                         request_id_clone,
                         otel_event_manager,
-                        Arc::new(RwLock::new(sse::StreamCheckpoint::default())),
+                        Arc::new(RwLock::new(StreamCheckpoint::default())),
                     ));
 
                     return Ok(ResponseStream { rx_event });
@@ -1401,17 +1462,19 @@ impl ModelClient {
                     let x_request_id = headers
                         .get("x-request-id")
                         .and_then(|v| v.to_str().ok())
-                        .map(ToString::to_string);
+                        .map(|s| s.to_string());
                     let now = Utc::now();
 
                     // Pull out Retry‑After header if present.
                     let retry_after_hint = headers
                         .get(reqwest::header::RETRY_AFTER)
                         .and_then(|v| v.to_str().ok())
-                        .and_then(|raw| sse::parse_retry_after_header(raw, now));
+                        .and_then(|raw| parse_retry_after_header(raw, now));
 
                     if status == StatusCode::UNAUTHORIZED {
-                        if let Some(manager) = auth_manager.as_ref() {
+                        if self.provider.has_command_auth() {
+                            self.provider.invalidate_cached_auth_token();
+                        } else if let Some(manager) = auth_manager.as_ref() {
                             match manager.refresh_token_classified().await {
                                 Ok(Some(_)) => {}
                                 Ok(None) => {
@@ -1423,7 +1486,7 @@ impl ModelClient {
                                     auth_refresh_error = Some(err);
                                 }
                             }
-                        } else {
+                        } else if auth.is_none() {
                             auth_refresh_error = Some(RefreshTokenError::permanent(
                                 "Authentication manager unavailable; please log in again.",
                             ));
@@ -1434,8 +1497,8 @@ impl ModelClient {
                     let body_text = res.text().await.unwrap_or_default();
                     let body = serde_json::from_str::<ErrorResponse>(&body_text).ok();
 
-                    if status == StatusCode::TOO_MANY_REQUESTS
-                        && let Some(model) = headers
+                    if status == StatusCode::TOO_MANY_REQUESTS {
+                        if let Some(model) = headers
                             .get(MODEL_CAP_MODEL_HEADER)
                             .and_then(|value| value.to_str().ok())
                             .map(str::to_string)
@@ -1449,19 +1512,16 @@ impl ModelClient {
                                 reset_after_seconds,
                             }));
                         }
+                    }
 
                     if status == StatusCode::TOO_MANY_REQUESTS
                         && self.config.auto_switch_accounts_on_rate_limit
                         && auth_manager.is_some()
-                        && auth::read_code_api_key_from_env_or_secrets(
-                            self.code_home(),
-                            self.config.cwd.as_path(),
-                        )
-                        .is_none()
+                        && auth::read_code_api_key_from_env().is_none()
                     {
                         let current_account_id = auth
                             .as_ref()
-                            .and_then(super::auth::CodexAuth::get_account_id)
+                            .and_then(|current| current.get_account_id())
                             .or_else(|| {
                                 auth_accounts::get_active_account_id(self.code_home())
                                     .ok()
@@ -1469,10 +1529,11 @@ impl ModelClient {
                             });
                         if let Some(current_account_id) = current_account_id {
                             let mut retry_after_delay = retry_after_hint.clone();
-                            if retry_after_delay.is_none()
-                                && let Some(ErrorResponse { ref error }) = body {
+                            if retry_after_delay.is_none() {
+                                if let Some(ErrorResponse { ref error }) = body {
                                     retry_after_delay = try_parse_retry_after(error, now);
                                 }
+                            }
 
                             let current_auth_mode = auth
                                 .as_ref()
@@ -1521,7 +1582,7 @@ impl ModelClient {
                                     let plan_type = body
                                         .as_ref()
                                         .and_then(|err| err.error.plan_type.as_deref())
-                                        .map(ToString::to_string);
+                                        .map(|s| s.to_string());
                                     let resets_in_seconds =
                                         body.as_ref().and_then(|err| err.error.resets_in_seconds);
                                     let code_home = self.code_home().to_path_buf();
@@ -1560,11 +1621,9 @@ impl ModelClient {
                                     );
                                 }
 
-                                if let Err(err) = auth::activate_account_with_store_mode(
-                                    self.code_home(),
-                                    &next_account_id,
-                                    self.auth_credentials_store_mode(),
-                                ) {
+                                if let Err(err) =
+                                    auth::activate_account(self.code_home(), &next_account_id)
+                                {
                                     tracing::warn!(
                                         from_account_id = %current_account_id,
                                         to_account_id = %next_account_id,
@@ -1582,9 +1641,9 @@ impl ModelClient {
                         }
                     }
 
-                    if status == StatusCode::BAD_REQUEST
-                        && let Some(ErrorResponse { ref error }) = body
-                            && !self.reasoning_summary_disabled.load(Ordering::Relaxed)
+                    if status == StatusCode::BAD_REQUEST {
+                        if let Some(ErrorResponse { ref error }) = body {
+                            if !self.reasoning_summary_disabled.load(Ordering::Relaxed)
                                 && is_reasoning_summary_rejected(error)
                             {
                                 self.disable_reasoning_summary();
@@ -1606,6 +1665,8 @@ impl ModelClient {
                                 attempt = 0;
                                 continue;
                             }
+                        }
+                    }
 
                     // The OpenAI Responses endpoint returns structured JSON bodies even for 4xx/5xx
                     // errors. When we bubble early with only the HTTP status the caller sees an opaque
@@ -1637,20 +1698,22 @@ impl ModelClient {
                         }));
                     }
 
-                    if let Some(ErrorResponse { ref error }) = body
-                        && is_quota_exceeded_http_error(status, error) {
+                    if let Some(ErrorResponse { ref error }) = body {
+                        if is_quota_exceeded_http_error(status, error) {
                             return Err(CodexErr::QuotaExceeded);
                         }
+                    }
 
-                    if status == StatusCode::UNAUTHORIZED
-                        && let Some(error) =
+                    if status == StatusCode::UNAUTHORIZED {
+                        if let Some(error) =
                             map_unauthorized_outcome(auth.is_some(), auth_refresh_error.as_ref())
                         {
                             return Err(error);
                         }
+                    }
 
-                    if status == StatusCode::TOO_MANY_REQUESTS
-                        && let Some(ErrorResponse { ref error }) = body {
+                    if status == StatusCode::TOO_MANY_REQUESTS {
+                        if let Some(ErrorResponse { ref error }) = body {
                             if error.r#type.as_deref() == Some("usage_limit_reached") {
                                 // Prefer the plan_type provided in the error message if present
                                 // because it's more up to date than the one encoded in the auth
@@ -1668,6 +1731,7 @@ impl ModelClient {
                                 return Err(CodexErr::UsageNotIncluded);
                             }
                         }
+                    }
 
                     if attempt > max_retries {
                         // On final attempt, surface rich diagnostics for server errors.
@@ -1733,10 +1797,11 @@ impl ModelClient {
                     }
 
                     let mut retry_after_delay = retry_after_hint;
-                    if retry_after_delay.is_none()
-                        && let Some(ErrorResponse { ref error }) = body {
+                    if retry_after_delay.is_none() {
+                        if let Some(ErrorResponse { ref error }) = body {
                             retry_after_delay = try_parse_retry_after(error, now);
                         }
+                    }
 
                     let delay = retry_after_delay
                         .as_ref()
@@ -1749,7 +1814,7 @@ impl ModelClient {
                     if attempt > max_retries {
                         // Log network error before surfacing.
                         if let Ok(logger) = self.debug_logger.lock() {
-                            let _ = logger.log_error(&endpoint, &format!("Network error: {e}"), log_tag);
+                            let _ = logger.log_error(&endpoint, &format!("Network error: {}", e), log_tag);
                         }
                         if is_connectivity {
                             let req_id = (!request_id.is_empty()).then(|| request_id.clone());
@@ -1773,6 +1838,7 @@ impl ModelClient {
     }
 
     /// Returns the currently configured model slug.
+    #[allow(dead_code)]
     pub fn get_model(&self) -> String {
         self.config.model.clone()
     }
@@ -1785,10 +1851,18 @@ impl ModelClient {
         self.config.model_personality
     }
 
+    /// Returns the currently configured model family.
+    #[allow(dead_code)]
+    pub fn get_model_family(&self) -> ModelFamily {
+        self.config.model_family.clone()
+    }
+
+    #[allow(dead_code)]
     pub fn get_model_context_window(&self) -> Option<u64> {
         self.config.model_context_window
     }
 
+    #[allow(dead_code)]
     pub fn get_auth_manager(&self) -> Option<Arc<AuthManager>> {
         self.auth_manager.clone()
     }
@@ -1810,6 +1884,7 @@ impl ModelClient {
             .clone()
             .or_else(|| find_family_for_model(model_slug))
             .unwrap_or_else(|| self.config.model_family.clone());
+        let session_id = prompt.session_id_override.unwrap_or(self.session_id);
         let instructions = prompt.get_full_instructions(&family).into_owned();
         let payload = CompactHistoryRequest {
             model: model_slug,
@@ -1824,15 +1899,11 @@ impl ModelClient {
         let mut request_id = String::new();
 
         loop {
-            let auth = auth_manager.as_ref().and_then(|m| m.auth());
+            let base_auth = auth_manager.as_ref().and_then(|m| m.auth());
+            let auth = self.provider.effective_auth(&base_auth).await?;
             let mut request = self
                 .provider
-                .create_compact_request_builder(
-                    &self.client,
-                    &auth,
-                    Some(&self.secrets_manager),
-                    self.config.cwd.as_path(),
-                )
+                .create_compact_request_builder_with_auth(&self.client, &auth)
                 .await?;
 
             // Ensure Responses API beta header is present for compact calls. Mirror the
@@ -1841,7 +1912,7 @@ impl ModelClient {
             let has_beta_header = request
                 .try_clone()
                 .and_then(|builder| builder.build().ok())
-                .is_some_and(|req| req.headers().contains_key("OpenAI-Beta"));
+                .map_or(false, |req| req.headers().contains_key("OpenAI-Beta"));
 
             if !has_beta_header {
                 let beta_value = if self.provider.is_public_openai_responses_endpoint() {
@@ -1852,9 +1923,11 @@ impl ModelClient {
                 request = request.header("OpenAI-Beta", beta_value);
             }
 
-            request = transport::attach_openai_subagent_header(request);
-            request = transport::attach_codex_beta_features_header(request, &self.config);
-            request = transport::attach_web_search_eligible_header(request, &self.config);
+            request = attach_openai_subagent_header(request);
+            request = attach_codex_beta_features_header(request, &self.config);
+            if let Ok(window_id) = HeaderValue::from_str(&self.current_window_id(session_id)) {
+                request = request.header(X_CODEX_WINDOW_ID_HEADER, window_id);
+            }
 
             if let Some(auth) = auth.as_ref()
                 && auth.mode.is_chatgpt()
@@ -1868,10 +1941,10 @@ impl ModelClient {
             let header_snapshot = request
                 .try_clone()
                 .and_then(|builder| builder.build().ok())
-                .map(|req| sse::header_map_to_json(req.headers()));
+                .map(|req| header_map_to_json(req.headers()));
 
-            if request_id.is_empty()
-                && let Ok(logger) = self.debug_logger.lock() {
+            if request_id.is_empty() {
+                if let Ok(logger) = self.debug_logger.lock() {
                     let endpoint = self
                         .provider
                         .get_compact_url(&auth)
@@ -1885,6 +1958,7 @@ impl ModelClient {
                         )
                         .unwrap_or_default();
                 }
+            }
 
             let response = request.send().await?;
             let status = response.status();
@@ -1893,16 +1967,12 @@ impl ModelClient {
             if status == StatusCode::TOO_MANY_REQUESTS
                 && self.config.auto_switch_accounts_on_rate_limit
                 && auth_manager.is_some()
-                && auth::read_code_api_key_from_env_or_secrets(
-                    self.code_home(),
-                    self.config.cwd.as_path(),
-                )
-                .is_none()
+                && auth::read_code_api_key_from_env().is_none()
             {
                 let now = Utc::now();
                 let current_account_id = auth
                     .as_ref()
-                    .and_then(super::auth::CodexAuth::get_account_id)
+                    .and_then(|current| current.get_account_id())
                     .or_else(|| {
                         auth_accounts::get_active_account_id(self.code_home())
                             .ok()
@@ -1932,11 +2002,7 @@ impl ModelClient {
                             to_account_id = %next_account_id,
                             "rate limit hit during compact; auto-switching active account"
                         );
-                        if let Err(err) = auth::activate_account_with_store_mode(
-                            self.code_home(),
-                            &next_account_id,
-                            self.auth_credentials_store_mode(),
-                        ) {
+                        if let Err(err) = auth::activate_account(self.code_home(), &next_account_id) {
                             tracing::warn!(
                                 from_account_id = %current_account_id,
                                 to_account_id = %next_account_id,
@@ -1980,6 +2046,946 @@ impl ModelClient {
         }
     }
 }
+
+fn attach_codex_beta_features_header(
+    builder: reqwest::RequestBuilder,
+    config: &Config,
+) -> reqwest::RequestBuilder {
+    let Some(value) = codex_beta_features_header_value(config) else {
+        return builder;
+    };
+
+    let has_header = builder
+        .try_clone()
+        .and_then(|builder| builder.build().ok())
+        .map_or(false, |req| req.headers().contains_key("x-codex-beta-features"));
+    if has_header {
+        return builder;
+    }
+
+    builder.header("x-codex-beta-features", value)
+}
+
+fn parse_wrapped_websocket_error_event(payload: &str) -> Option<WrappedWebsocketErrorEvent> {
+    let event: WrappedWebsocketErrorEvent = serde_json::from_str(payload).ok()?;
+    if event.kind != "error" {
+        return None;
+    }
+    Some(event)
+}
+
+fn map_wrapped_websocket_error_event(event: WrappedWebsocketErrorEvent) -> Option<CodexErr> {
+    let status = match event.status.and_then(|value| StatusCode::from_u16(value).ok()) {
+        Some(status) => status,
+        None => {
+            if let Some(error) = event.error {
+                let message = error
+                    .message
+                    .unwrap_or_else(|| "websocket returned an error event".to_string());
+                return Some(CodexErr::Stream(message, None, None));
+            }
+            return Some(CodexErr::Stream(
+                "websocket returned an error event".to_string(),
+                None,
+                None,
+            ));
+        }
+    };
+    if status.is_success() {
+        return None;
+    }
+
+    let body = if let Some(error) = event.error {
+        if status == StatusCode::TOO_MANY_REQUESTS {
+            if error.r#type.as_deref() == Some("usage_limit_reached") {
+                return Some(CodexErr::UsageLimitReached(UsageLimitReachedError {
+                    plan_type: error.plan_type,
+                    resets_in_seconds: error.resets_in_seconds,
+                }));
+            }
+
+            if error.r#type.as_deref() == Some("usage_not_included") {
+                return Some(CodexErr::UsageNotIncluded);
+            }
+        }
+
+        if is_quota_exceeded_error(&error) {
+            return Some(CodexErr::QuotaExceeded);
+        }
+
+        if is_server_overloaded_error(&error) {
+            return Some(CodexErr::ServerOverloaded);
+        }
+
+        serde_json::json!({
+            "error": {
+                "type": error.r#type,
+                "code": error.code,
+                "param": error.param,
+                "message": error.message,
+                "plan_type": error.plan_type,
+                "resets_in_seconds": error.resets_in_seconds,
+            }
+        })
+        .to_string()
+    } else {
+        serde_json::json!({
+            "error": {
+                "message": "websocket returned an error event"
+            }
+        })
+        .to_string()
+    };
+
+    Some(CodexErr::UnexpectedStatus(UnexpectedResponseError {
+        status,
+        body,
+        request_id: None,
+    }))
+}
+
+fn websocket_connect_is_upgrade_required(error: &WsError) -> bool {
+    matches!(
+        error,
+        WsError::Http(response)
+            if response.status().as_u16() == 426
+    )
+}
+
+fn codex_beta_features_header_value(config: &Config) -> Option<HeaderValue> {
+    let mut enabled: Vec<&'static str> = Vec::new();
+
+    if config.skills_enabled {
+        enabled.push("skills");
+    }
+    if config.tools_web_search_request {
+        enabled.push("web_search_request");
+    }
+
+    let value = enabled.join(",");
+    if value.is_empty() {
+        return None;
+    }
+
+    HeaderValue::from_str(value.as_str()).ok()
+}
+
+fn attach_openai_subagent_header(builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    let Some(value) = openai_subagent_header_value() else {
+        return builder;
+    };
+
+    let has_header = builder
+        .try_clone()
+        .and_then(|builder| builder.build().ok())
+        .map_or(false, |req| req.headers().contains_key("x-openai-subagent"));
+    if has_header {
+        return builder;
+    }
+
+    builder.header("x-openai-subagent", value)
+}
+
+fn openai_subagent_header_value() -> Option<HeaderValue> {
+    let subagent = std::env::var(CODE_OPENAI_SUBAGENT_ENV).ok()?;
+    let subagent = subagent.trim();
+    if subagent.is_empty() {
+        return None;
+    }
+    HeaderValue::from_str(subagent).ok()
+}
+
+fn clamp_text_verbosity_for_model(
+    model: &str,
+    requested: TextVerbosityConfig,
+) -> TextVerbosityConfig {
+    let allowed = supported_text_verbosity_for_model(model);
+    if allowed.iter().any(|v| v == &requested) {
+        return requested;
+    }
+
+    if let Some(medium) = allowed.iter().find(|v| matches!(v, TextVerbosityConfig::Medium)) {
+        tracing::debug!(
+            model,
+            requested = ?requested,
+            fallback = ?medium,
+            "text verbosity clamped to supported value for model",
+        );
+        return *medium;
+    }
+
+    let fallback = *allowed.first().unwrap_or(&TextVerbosityConfig::Medium);
+    tracing::debug!(
+        model,
+        requested = ?requested,
+        fallback = ?fallback,
+        "text verbosity clamped to first supported value for model",
+    );
+    fallback
+}
+
+fn supported_text_verbosity_for_model(model: &str) -> &'static [TextVerbosityConfig] {
+    if model.eq_ignore_ascii_case("gpt-5.1-codex-max") {
+        return &[TextVerbosityConfig::Medium];
+    }
+
+    const ALL: &[TextVerbosityConfig] = &[TextVerbosityConfig::Low, TextVerbosityConfig::Medium, TextVerbosityConfig::High];
+    ALL
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct SseEvent {
+    #[serde(rename = "type")]
+    kind: String,
+    response: Option<Value>,
+    item: Option<Value>,
+    delta: Option<String>,
+    // Present on delta events from the Responses API; used to correlate
+    // streaming chunks with the final OutputItemDone.
+    item_id: Option<String>,
+    // Optional ordering metadata from the Responses API; used to filter
+    // duplicates and out‑of‑order reasoning deltas.
+    sequence_number: Option<u64>,
+    output_index: Option<u32>,
+    content_index: Option<u32>,
+    summary_index: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponseCompleted {
+    id: String,
+    usage: Option<ResponseCompletedUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponseDone {
+    id: Option<String>,
+    usage: Option<ResponseCompletedUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponseCompletedUsage {
+    input_tokens: u64,
+    input_tokens_details: Option<ResponseCompletedInputTokensDetails>,
+    output_tokens: u64,
+    output_tokens_details: Option<ResponseCompletedOutputTokensDetails>,
+    total_tokens: u64,
+}
+
+impl From<ResponseCompletedUsage> for TokenUsage {
+    fn from(val: ResponseCompletedUsage) -> Self {
+        TokenUsage {
+            input_tokens: val.input_tokens,
+            cached_input_tokens: val
+                .input_tokens_details
+                .map(|d| d.cached_tokens)
+                .unwrap_or(0),
+            output_tokens: val.output_tokens,
+            reasoning_output_tokens: val
+                .output_tokens_details
+                .map(|d| d.reasoning_tokens)
+                .unwrap_or(0),
+            total_tokens: val.total_tokens,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponseCompletedInputTokensDetails {
+    cached_tokens: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponseCompletedOutputTokensDetails {
+    reasoning_tokens: u64,
+}
+
+fn attach_item_ids(payload_json: &mut Value, original_items: &[ResponseItem]) {
+    let Some(input_value) = payload_json.get_mut("input") else {
+        return;
+    };
+    let serde_json::Value::Array(items) = input_value else {
+        return;
+    };
+
+    for (value, item) in items.iter_mut().zip(original_items.iter()) {
+        if let ResponseItem::Reasoning { id, .. }
+        | ResponseItem::Message { id: Some(id), .. }
+        | ResponseItem::WebSearchCall { id: Some(id), .. }
+        | ResponseItem::ImageGenerationCall { id, .. }
+        | ResponseItem::FunctionCall { id: Some(id), .. }
+        | ResponseItem::LocalShellCall { id: Some(id), .. }
+        | ResponseItem::CustomToolCall { id: Some(id), .. } = item
+        {
+            if id.is_empty() {
+                continue;
+            }
+
+            if let Some(obj) = value.as_object_mut() {
+                obj.insert("id".to_string(), Value::String(id.clone()));
+            }
+        }
+    }
+}
+
+fn parse_rate_limit_snapshot(headers: &HeaderMap) -> Option<RateLimitSnapshotEvent> {
+    let primary_used_percent = parse_header_f64(headers, "x-codex-primary-used-percent")?;
+    let secondary_used_percent = parse_header_f64(headers, "x-codex-secondary-used-percent")?;
+    let primary_to_secondary_ratio_percent =
+        parse_header_f64(headers, "x-codex-primary-over-secondary-limit-percent")?;
+    let primary_window_minutes = parse_header_u64(headers, "x-codex-primary-window-minutes")?;
+    let secondary_window_minutes = parse_header_u64(headers, "x-codex-secondary-window-minutes")?;
+    let primary_reset_after_seconds =
+        parse_header_u64(headers, "x-codex-primary-reset-after-seconds");
+    let secondary_reset_after_seconds =
+        parse_header_u64(headers, "x-codex-secondary-reset-after-seconds");
+
+    Some(RateLimitSnapshotEvent {
+        primary_used_percent,
+        secondary_used_percent,
+        primary_to_secondary_ratio_percent,
+        primary_window_minutes,
+        secondary_window_minutes,
+        primary_reset_after_seconds,
+        secondary_reset_after_seconds,
+    })
+}
+
+fn format_rate_limit_headers(headers: &HeaderMap) -> String {
+    let mut pairs: Vec<String> = headers
+        .iter()
+        .map(|(name, value)| {
+            let value_str = value.to_str().unwrap_or("<invalid>");
+            format!("{}: {}", name, value_str)
+        })
+        .collect();
+    pairs.sort();
+    pairs.join("\n")
+}
+
+fn parse_header_f64(headers: &HeaderMap, name: &str) -> Option<f64> {
+    parse_header_str(headers, name)?
+        .parse::<f64>()
+        .ok()
+        .filter(|v| v.is_finite())
+}
+
+fn parse_header_u64(headers: &HeaderMap, name: &str) -> Option<u64> {
+    parse_header_str(headers, name)?.parse::<u64>().ok()
+}
+
+fn parse_header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+    headers.get(name)?.to_str().ok()
+}
+
+fn parse_retry_after_header(value: &str, now: DateTime<Utc>) -> Option<RetryAfter> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let normalized = trimmed
+        .trim_matches(|c: char| matches!(c, '"' | '\'' | '<' | '>'))
+        .trim();
+    if normalized.is_empty() {
+        return None;
+    }
+
+    if let Ok(secs) = normalized.parse::<u64>() {
+        return Some(RetryAfter::from_duration(Duration::from_secs(secs), now));
+    }
+    if let Ok(float_secs) = normalized.parse::<f64>() {
+        if !float_secs.is_sign_negative() {
+            return Some(RetryAfter::from_duration(Duration::from_secs_f64(float_secs), now));
+        }
+    }
+    if let Ok(system_time) = parse_http_date(normalized) {
+        let resume_at: DateTime<Utc> = system_time.into();
+        return Some(RetryAfter::from_resume_at(resume_at, now));
+    }
+    if let Ok(dt) = DateTime::parse_from_rfc3339(normalized) {
+        return Some(RetryAfter::from_resume_at(dt.with_timezone(&Utc), now));
+    }
+    if let Ok(dt) = DateTime::parse_from_rfc2822(normalized) {
+        return Some(RetryAfter::from_resume_at(dt.with_timezone(&Utc), now));
+    }
+    if let Ok(dt) = DateTime::parse_from_str(normalized, "%a, %d %b %Y %H:%M:%S %z") {
+        return Some(RetryAfter::from_resume_at(dt.with_timezone(&Utc), now));
+    }
+
+    None
+}
+
+fn header_map_to_json(headers: &HeaderMap) -> Value {
+    let mut ordered: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for (name, value) in headers.iter() {
+        let entry = ordered.entry(name.as_str().to_string()).or_default();
+        entry.push(value.to_str().unwrap_or_default().to_string());
+    }
+
+    serde_json::to_value(ordered).unwrap_or(Value::Null)
+}
+
+async fn emit_completed_event(
+    completed: ResponseCompleted,
+    tx_event: &mpsc::Sender<Result<ResponseEvent>>,
+    otel_event_manager: Option<&OtelEventManager>,
+    debug_logger: &Arc<Mutex<DebugLogger>>,
+    request_id: &str,
+) {
+    let ResponseCompleted { id, usage } = completed;
+    if let (Some(usage), Some(manager)) = (&usage, otel_event_manager) {
+        manager.sse_event_completed(
+            usage.input_tokens,
+            usage.output_tokens,
+            usage.input_tokens_details.as_ref().map(|d| d.cached_tokens),
+            usage.output_tokens_details.as_ref().map(|d| d.reasoning_tokens),
+            usage.total_tokens,
+        );
+    }
+
+    let event = ResponseEvent::Completed {
+        response_id: id,
+        token_usage: usage.map(Into::into),
+    };
+    let _ = tx_event.send(Ok(event)).await;
+
+    if let Ok(logger) = debug_logger.lock() {
+        let _ = logger.end_request_log(request_id);
+    }
+}
+
+async fn process_sse<S>(
+    stream: S,
+    tx_event: mpsc::Sender<Result<ResponseEvent>>,
+    idle_timeout: Duration,
+    debug_logger: Arc<Mutex<DebugLogger>>,
+    request_id: String,
+    otel_event_manager: Option<OtelEventManager>,
+    checkpoint: Arc<RwLock<StreamCheckpoint>>,
+) where
+    S: Stream<Item = Result<Bytes>> + Unpin,
+{
+    let mut stream = stream.eventsource();
+
+    // If the stream stays completely silent for an extended period treat it as disconnected.
+    // The response id returned from the "complete" message.
+    let mut response_completed: Option<ResponseCompleted> = None;
+    let mut response_error: Option<CodexErr> = None;
+    // Track the current item_id to include with delta events
+    let mut current_item_id: Option<String> = None;
+
+    // Monotonic sequence guards to drop duplicate/out‑of‑order deltas.
+    // Keys are item_id strings.
+    use std::collections::HashMap;
+    // Track last sequence_number per (item_id, output_index[, content_index])
+    // Default indices to 0 when absent for robustness across providers.
+    let mut last_seq_reasoning_summary: HashMap<(String, u32, u32), u64> = HashMap::new();
+    let mut last_seq_reasoning_content: HashMap<(String, u32, u32), u64> = HashMap::new();
+    // Best-effort duplicate text guard when sequence_number is unavailable.
+    let mut last_text_reasoning_summary: HashMap<(String, u32, u32), String> = HashMap::new();
+    let mut last_text_reasoning_content: HashMap<(String, u32, u32), String> = HashMap::new();
+    let mut global_last_seq: Option<u64> = checkpoint.read().ok().and_then(|c| c.last_sequence);
+
+    loop {
+        let next_event = if let Some(manager) = otel_event_manager.as_ref() {
+            manager
+                .log_sse_event(|| timeout(idle_timeout, stream.next()))
+                .await
+        } else {
+            timeout(idle_timeout, stream.next()).await
+        };
+
+        let sse = match next_event {
+            Ok(Some(Ok(sse))) => sse,
+            Ok(Some(Err(e))) => {
+                debug!("SSE Error: {e:#}");
+                let event = CodexErr::Stream(
+                    format!("[transport] {e}"),
+                    None,
+                    Some(request_id.clone()),
+                );
+                let _ = tx_event.send(Err(event)).await;
+                return;
+            }
+            Ok(None) => {
+                match response_completed {
+                    Some(completed) => {
+                        emit_completed_event(
+                            completed,
+                            &tx_event,
+                            otel_event_manager.as_ref(),
+                            &debug_logger,
+                            &request_id,
+                        )
+                        .await;
+                    }
+                    None => {
+                        let error = response_error.unwrap_or(CodexErr::Stream(
+                            "stream closed before response.completed".into(),
+                            None,
+                            Some(request_id.clone()),
+                        ));
+                        if let Some(manager) = otel_event_manager.as_ref() {
+                            manager.see_event_completed_failed(&error);
+                        }
+                        let _ = tx_event.send(Err(error)).await;
+                    }
+                }
+                // Mark the request log as complete
+                if let Ok(logger) = debug_logger.lock() {
+                    let _ = logger.end_request_log(&request_id);
+                }
+                return;
+            }
+            Err(_) => {
+                let _ = tx_event
+                    .send(Err(CodexErr::Stream(
+                        "[idle] timeout waiting for SSE".into(),
+                        None,
+                        Some(request_id.clone()),
+                    )))
+                    .await;
+                return;
+            }
+        };
+
+        let raw = sse.data.clone();
+        trace!("SSE event: {}", raw);
+
+        // Log the raw SSE event data
+        if let Ok(logger) = debug_logger.lock() {
+            if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&sse.data) {
+                let _ = logger.append_response_event(&request_id, "sse_event", &json_value);
+            }
+        }
+
+        let event: SseEvent = match serde_json::from_str(&sse.data) {
+            Ok(event) => event,
+            Err(e) => {
+                // Log parse error with data excerpt, and record it in the debug logger as well.
+                let mut excerpt = sse.data.clone();
+                const MAX: usize = 600;
+                if excerpt.len() > MAX {
+                    excerpt.truncate(MAX);
+                }
+                debug!("Failed to parse SSE event: {e}, data: {excerpt}");
+                if let Ok(logger) = debug_logger.lock() {
+                    let _ = logger.append_response_event(
+                        &request_id,
+                        "sse_parse_error",
+                        &serde_json::json!({
+                            "error": e.to_string(),
+                            "data_excerpt": excerpt,
+                        }),
+                    );
+                }
+                continue;
+            }
+        };
+
+        if let Some(seq) = event.sequence_number {
+            if let Some(last) = global_last_seq {
+                if seq <= last {
+                    continue;
+                }
+            }
+            global_last_seq = Some(seq);
+            if let Ok(mut guard) = checkpoint.write() {
+                guard.last_sequence = Some(seq);
+            }
+        }
+
+        match event.kind.as_str() {
+            // Individual output item finalised. Forward immediately so the
+            // rest of the agent can stream assistant text/functions *live*
+            // instead of waiting for the final `response.completed` envelope.
+            //
+            // IMPORTANT: We used to ignore these events and forward the
+            // duplicated `output` array embedded in the `response.completed`
+            // payload.  That produced two concrete issues:
+            //   1. No real‑time streaming – the user only saw output after the
+            //      entire turn had finished, which broke the "typing" UX and
+            //      made long‑running turns look stalled.
+            //   2. Duplicate `function_call_output` items – both the
+            //      individual *and* the completed array were forwarded, which
+            //      confused the backend and triggered 400
+            //      "previous_response_not_found" errors because the duplicated
+            //      IDs did not match the incremental turn chain.
+            //
+            // The fix is to forward the incremental events *as they come* and
+            // drop the duplicated list inside `response.completed`.
+            "response.output_item.done" => {
+                let Some(item_val) = event.item else { continue };
+                // Special-case: web_search_call completion -> synthesize a completion event
+                if item_val
+                    .get("type")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|s| s == "web_search_call")
+                {
+                    let call_id = item_val
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let query = item_val
+                        .get("action")
+                        .and_then(|a| a.get("query"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+                    let ev = ResponseEvent::WebSearchCallCompleted { call_id, query };
+                    if tx_event.send(Ok(ev)).await.is_err() {
+                        return;
+                    }
+                }
+                let Ok(item) = serde_json::from_value::<ResponseItem>(item_val.clone()) else {
+                    debug!("failed to parse ResponseItem from output_item.done");
+                    continue;
+                };
+
+                // Extract item_id if present
+                if let Some(id) = item_val.get("id").and_then(|v| v.as_str()) {
+                    current_item_id = Some(id.to_string());
+                } else {
+                    // Check within the parsed item structure
+                    match &item {
+                        ResponseItem::Message { id, .. }
+                        | ResponseItem::FunctionCall { id, .. }
+                        | ResponseItem::LocalShellCall { id, .. } => {
+                            if let Some(item_id) = id {
+                                current_item_id = Some(item_id.clone());
+                            }
+                        }
+                        ResponseItem::Reasoning { id, .. } => {
+                            current_item_id = Some(id.clone());
+                        }
+                        _ => {}
+                    }
+                }
+
+                let event = ResponseEvent::OutputItemDone { item, sequence_number: event.sequence_number, output_index: event.output_index };
+                if tx_event.send(Ok(event)).await.is_err() {
+                    return;
+                }
+            }
+            "response.output_text.delta" => {
+                if let Some(delta) = event.delta {
+                    // Prefer the explicit item_id from the SSE event; fall back to last seen.
+                    if let Some(ref id) = event.item_id {
+                        current_item_id = Some(id.clone());
+                    }
+                    tracing::debug!("sse.delta output_text id={:?} len={}", current_item_id, delta.len());
+                    let ev = ResponseEvent::OutputTextDelta {
+                        delta,
+                        item_id: event.item_id.or_else(|| current_item_id.clone()),
+                        sequence_number: event.sequence_number,
+                        output_index: event.output_index,
+                    };
+                    if tx_event.send(Ok(ev)).await.is_err() {
+                        return;
+                    }
+                }
+            }
+            "response.reasoning_summary_text.delta" => {
+                if let Some(delta) = event.delta {
+                    if let Some(ref id) = event.item_id {
+                        current_item_id = Some(id.clone());
+                    }
+                    // Compose key using item_id + output_index
+                    let out_idx: u32 = event.output_index.unwrap_or(0);
+                    let sum_idx: u32 = event.summary_index.unwrap_or(0);
+                    if let Some(ref id) = current_item_id {
+                        // Drop duplicates/out‑of‑order by sequence_number when available
+                        if let Some(sn) = event.sequence_number {
+                            let last = last_seq_reasoning_summary.entry((id.clone(), out_idx, sum_idx)).or_insert(0);
+                            if *last >= sn { continue; }
+                            *last = sn;
+                        } else {
+                            // Best-effort: drop exact duplicate text for same key when seq is missing
+                            let key = (id.clone(), out_idx, sum_idx);
+                            if last_text_reasoning_summary.get(&key).map_or(false, |prev| prev == &delta) {
+                                continue;
+                            }
+                            last_text_reasoning_summary.insert(key, delta.clone());
+                        }
+                    }
+                    tracing::debug!(
+                        "sse.delta reasoning_summary id={:?} out_idx={} sum_idx={} len={} seq={:?}",
+                        current_item_id, out_idx, sum_idx,
+                        delta.len(),
+                        event.sequence_number
+                    );
+                    let ev = ResponseEvent::ReasoningSummaryDelta {
+                        delta,
+                        item_id: event.item_id.or_else(|| current_item_id.clone()),
+                        sequence_number: event.sequence_number,
+                        output_index: event.output_index,
+                        summary_index: event.summary_index,
+                    };
+                    if tx_event.send(Ok(ev)).await.is_err() {
+                        return;
+                    }
+                }
+            }
+            "response.reasoning_text.delta" => {
+                if let Some(delta) = event.delta {
+                    if let Some(ref id) = event.item_id {
+                        current_item_id = Some(id.clone());
+                    }
+                    // Compose key using item_id + output_index + content_index
+                    let out_idx: u32 = event.output_index.unwrap_or(0);
+                    let content_idx: u32 = event.content_index.unwrap_or(0);
+                    if let Some(ref id) = current_item_id {
+                        // Drop duplicates/out‑of‑order by sequence_number when available
+                        if let Some(sn) = event.sequence_number {
+                            let last = last_seq_reasoning_content.entry((id.clone(), out_idx, content_idx)).or_insert(0);
+                            if *last >= sn { continue; }
+                            *last = sn;
+                        } else {
+                            // Best-effort: drop exact duplicate text for same key when seq is missing
+                            let key = (id.clone(), out_idx, content_idx);
+                            if last_text_reasoning_content.get(&key).map_or(false, |prev| prev == &delta) {
+                                continue;
+                            }
+                            last_text_reasoning_content.insert(key, delta.clone());
+                        }
+                    }
+                    tracing::debug!(
+                        "sse.delta reasoning_content id={:?} out_idx={} content_idx={} len={} seq={:?}",
+                        current_item_id, out_idx, content_idx,
+                        delta.len(),
+                        event.sequence_number
+                    );
+                    let ev = ResponseEvent::ReasoningContentDelta {
+                        delta,
+                        item_id: event.item_id.or_else(|| current_item_id.clone()),
+                        sequence_number: event.sequence_number,
+                        output_index: event.output_index,
+                        content_index: event.content_index,
+                    };
+                    if tx_event.send(Ok(ev)).await.is_err() {
+                        return;
+                    }
+                }
+            }
+            "response.created" => {
+                if let Some(response) = event.response {
+                    let response_id = response
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .map(ToString::to_string);
+                    let response_model = response
+                        .get("model")
+                        .and_then(Value::as_str)
+                        .map(ToString::to_string);
+                    let _ = tx_event
+                        .send(Ok(ResponseEvent::Created {
+                            response_id,
+                            response_model,
+                        }))
+                        .await;
+                }
+            }
+            "response.failed" => {
+                if let Some(resp_val) = event.response {
+                    response_error = Some(CodexErr::Stream(
+                        "response.failed event received".to_string(),
+                        None,
+                        Some(request_id.clone()),
+                    ));
+
+                    let error = resp_val.get("error");
+
+                    if let Some(error) = error {
+                        match serde_json::from_value::<Error>(error.clone()) {
+                            Ok(error) => {
+                                if error.r#type.as_deref() == Some("usage_limit_reached") {
+                                    response_error = Some(CodexErr::UsageLimitReached(
+                                        UsageLimitReachedError {
+                                            plan_type: error.plan_type,
+                                            resets_in_seconds: error.resets_in_seconds,
+                                        },
+                                    ));
+                                } else if error.r#type.as_deref() == Some("usage_not_included") {
+                                    response_error = Some(CodexErr::UsageNotIncluded);
+                                } else if is_quota_exceeded_error(&error) {
+                                    response_error = Some(CodexErr::QuotaExceeded);
+                                } else if is_server_overloaded_error(&error) {
+                                    response_error = Some(CodexErr::ServerOverloaded);
+                                } else {
+                                    let retry_after = try_parse_retry_after(&error, Utc::now());
+                                    let message = error.message.unwrap_or_default();
+                                    response_error = Some(CodexErr::Stream(
+                                        message,
+                                        retry_after,
+                                        Some(request_id.clone()),
+                                    ));
+                                }
+                            }
+                            Err(e) => {
+                                debug!("failed to parse ErrorResponse: {e}");
+                            }
+                        }
+                    }
+
+                    if let Some(error) = response_error.take() {
+                        if let Some(manager) = otel_event_manager.as_ref() {
+                            manager.see_event_completed_failed(&error);
+                        }
+                        let _ = tx_event.send(Err(error)).await;
+                        if let Ok(logger) = debug_logger.lock() {
+                            let _ = logger.end_request_log(&request_id);
+                        }
+                        return;
+                    }
+                }
+            }
+            "response.incomplete" => {
+                let reason = event.response.as_ref().and_then(|response| {
+                    response
+                        .get("incomplete_details")
+                        .and_then(|details| details.get("reason"))
+                        .and_then(Value::as_str)
+                });
+                let reason = reason.unwrap_or("unknown");
+                let message = format!("Incomplete response returned, reason: {reason}");
+                let event = CodexErr::Stream(message, None, Some(request_id.clone()));
+                let _ = tx_event.send(Err(event)).await;
+                return;
+            }
+            // Final response completed – includes array of output items & id
+            "response.completed" => {
+                if let Some(resp_val) = event.response {
+                    match serde_json::from_value::<ResponseCompleted>(resp_val) {
+                        Ok(r) => {
+                            response_completed = Some(r);
+                        }
+                        Err(e) => {
+                            debug!("failed to parse ResponseCompleted: {e}");
+                            continue;
+                        }
+                    };
+
+                    if let Some(completed) = response_completed.take() {
+                        emit_completed_event(
+                            completed,
+                            &tx_event,
+                            otel_event_manager.as_ref(),
+                            &debug_logger,
+                            &request_id,
+                        )
+                        .await;
+                        return;
+                    }
+                };
+            }
+            "response.done" => {
+                if let Some(resp_val) = event.response {
+                    match serde_json::from_value::<ResponseDone>(resp_val) {
+                        Ok(r) => {
+                            response_completed = Some(ResponseCompleted {
+                                id: r.id.unwrap_or_default(),
+                                usage: r.usage,
+                            });
+                        }
+                        Err(e) => {
+                            debug!("failed to parse ResponseDone: {e}");
+                            continue;
+                        }
+                    };
+                } else {
+                    response_completed = Some(ResponseCompleted {
+                        id: String::new(),
+                        usage: None,
+                    });
+                }
+
+                if let Some(completed) = response_completed.take() {
+                    emit_completed_event(
+                        completed,
+                        &tx_event,
+                        otel_event_manager.as_ref(),
+                        &debug_logger,
+                        &request_id,
+                    )
+                    .await;
+                    return;
+                }
+            }
+            "response.content_part.done"
+            | "response.function_call_arguments.delta"
+            | "response.custom_tool_call_input.delta"
+            | "response.custom_tool_call_input.done" // also emitted as response.output_item.done
+            | "response.in_progress"
+            | "response.output_item.added"
+            | "response.output_text.done" => {
+                if event.kind == "response.output_item.added" {
+                    if let Some(item) = event.item.as_ref() {
+                        // Detect web_search_call begin and forward a synthetic event upstream.
+                        if let Some(ty) = item.get("type").and_then(|v| v.as_str()) {
+                            if ty == "web_search_call" {
+                                let call_id = item
+                                    .get("id")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
+                                let ev = ResponseEvent::WebSearchCallBegin { call_id };
+                                if tx_event.send(Ok(ev)).await.is_err() {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            "response.reasoning_summary_part.added" => {
+                // Boundary between reasoning summary sections (e.g., titles).
+                let event = ResponseEvent::ReasoningSummaryPartAdded;
+                if tx_event.send(Ok(event)).await.is_err() {
+                    return;
+                }
+            }
+            "response.reasoning_summary_text.done" => {}
+            _ => {}
+        }
+    }
+}
+
+/// used in tests to stream from a text SSE file
+async fn stream_from_fixture(
+    path: impl AsRef<Path>,
+    provider: ModelProviderInfo,
+    otel_event_manager: Option<OtelEventManager>,
+) -> Result<ResponseStream> {
+    let (tx_event, rx_event) = mpsc::channel::<Result<ResponseEvent>>(1600);
+    let f = std::fs::File::open(path.as_ref())?;
+    let lines = std::io::BufReader::new(f).lines();
+
+    // insert \n\n after each line for proper SSE parsing
+    let mut content = String::new();
+    for line in lines {
+        content.push_str(&line?);
+        content.push_str("\n\n");
+    }
+
+    let rdr = std::io::Cursor::new(content);
+    let stream = ReaderStream::new(rdr).map_err(CodexErr::Io);
+    // Create a dummy debug logger for testing
+    let debug_logger = Arc::new(Mutex::new(DebugLogger::new(false).unwrap()));
+    tokio::spawn(process_sse(
+        stream,
+        tx_event,
+        provider.stream_idle_timeout(),
+        debug_logger,
+        String::new(), // Empty request_id for test fixture
+        otel_event_manager,
+        Arc::new(RwLock::new(StreamCheckpoint::default())),
+    ));
+    Ok(ResponseStream { rx_event })
+}
+
+// Note: legacy helpers for parsing Retry-After headers and rate-limit messages
+// were removed during merge cleanup. If needed in the future, pick them from
+// upstream and integrate with our error handling path.
 
 #[cfg(test)]
 mod tests;

@@ -45,6 +45,7 @@ mod error_code;
 mod external_agent_config_api;
 mod fs_api;
 mod fs_watch;
+#[allow(dead_code)]
 mod fuzzy_file_search;
 mod message_processor;
 pub mod outgoing_message;

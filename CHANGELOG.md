@@ -7,6 +7,61 @@
 
 - (none)
 
+## [0.6.92] - 2026-04-05
+
+- TUI: enable Wayland clipboard image paste so screenshot paste works reliably on Linux Wayland sessions. (fbe95ad8)
+- Core: align model/provider behavior by syncing remote model parity and updating Copilot/GPT-5.4 mini agent flags. (eff1ef4f, 93ad10cd)
+- Remote: forward `--cd` consistently across remote start/resume/fork/list flows so session directory targeting works as expected. (0ab8eda3)
+- Core/TUI: fix MCP tool listing for hyphenated server names and prevent stale `/copy` output after commentary-only turns. (a3b3e7a6, cc8fd0ff)
+- Platform: improve macOS stability by preventing sandbox HTTP-client panics and filtering malloc diagnostics from composer input. (1cc87019, a71fc47c)
+
+## [0.6.91] - 2026-04-03
+
+- Core: support command-backed provider auth and dynamic bearer token sources for more flexible login flows. (6dc620cb, 20f43c1e, 00719688, ea650a91)
+- TUI: fix zellij redraw/composer rendering plus resume picker and review-follow-up stale state issues for smoother sessions. (0bd31dc3, cb8dc18a, c0f2fed6, 57b98bc4)
+- App Server: fix `/status` accuracy by showing fork source correctly and preventing stale rate-limit data in active sessions. (9bb7f0a6, ae057e0b)
+- Windows: improve shell startup reliability with PowerShell fallback paths and longer startup timeouts on slower runners. (93380a6f, 5d64e58a, 30ee9e76)
+- Core: reduce `codex-core` compile times substantially by moving key execution paths to native async handlers. (3c7f013f, 7a3eec6f)
+
+## [0.6.90] - 2026-03-31
+
+- CI: remove legacy Rust CI workflows to streamline repository automation and reduce maintenance overhead. (6966db8b)
+- CI: simplify workflow policy/docs after retiring Rust CI jobs, making release checks more predictable. (6966db8b)
+
+## [0.6.89] - 2026-03-31
+
+- CI: increase hosted-runner time budget for argument lint jobs to reduce timeout-related release failures. (46e59276)
+- CI: improve release pipeline stability by giving slower lint runs more time before cancellation. (46e59276)
+
+## [0.6.87] - 2026-03-30
+
+- CI: switch `rust-ci-full` Windows jobs to hosted GitHub runners to reduce runner pool dependency in release validation. (bb2e39be)
+- CI: move Linux and Windows target matrices in `rust-ci-full` to hosted runners, improving cross-platform build reliability in restricted environments. (bb2e39be)
+
+## [0.6.86] - 2026-03-30
+
+- Auth: suppress stale tokens after refresh failures and avoid duplicate refresh attempts for more reliable sign-in. (5b172c2, 2c67a27)
+- CLI: add stdin piping support for `codex exec` to improve shell composition workflows. (71923f4)
+- TUI: polish app-server UX with plugin menu cleanup, skills picker scrolling fixes, and ghost subagent entry fixes. (f24c55f, 46b653e, 38e648c)
+- MCP: improve startup reliability with increased startup timeout and fixes for startup warning regressions. (3807807, 54d3ad1)
+- Sandbox: harden Windows and Linux sandbox behavior with network proxy support and safer `bwrap` resolution. (81fa047, b6050b4, ec089fd)
+
+## [0.6.85] - 2026-03-24
+
+- TUI/App Server: open ChatGPT login in the local browser, cancel active login on Ctrl+C, and always restore terminal state on early exit. (1b863776, c023e9d9, 989e5139)
+- Plugins: improve `/plugins` UX with clearer labels/wording, better ordering, cleaner disabled rows, and less OAuth URL console noise during install. (66edc347, 2d5a3bfe, 3ba0e85e, 363b3739, b364faf4, 4b91a7b3)
+- Plugin Listing: surface marketplace loading errors, stop filtering plugin/list results, and refresh mentions after install/uninstall. (621862a7, c8506071, 0f90a346)
+- Auth: use access-token expiration consistently for proactive refresh and prevent repeated refresh storms after permanent token failures. (7dc2cd2e, b8dde290, 88694e84)
+- Core/App Server: add back-pressure and batching to `command/exec` and complete codex exec migration to the app server for more stable execution under load. (d61c03ca, 45f68843)
+
+## [0.6.84] - 2026-03-24
+
+- Models: add `gpt-5.4-mini` support and simplify auth refresh handling for smoother model access. (124314eb, f55f5c25)
+- TUI: refresh curated model choices and suppress clean auto-review notices to reduce chat noise. (12b37afd)
+- Plugins: add install/uninstall flows in the TUI and better plugin labeling/filtering in listings. (b5d0a551, 54801634)
+- Multi-agent: ship structured agent communication/output and custom watcher support for v2 runs. (37ac0c09, 191fd9fd, 52724491)
+- Core: improve command/runtime stability with safer PATH construction, vendored bubblewrap fallback, and unified realtime stop handling. (84fb180e, d1088158, 7b92a906)
+
 ## [0.6.83] - 2026-03-23
 
 - CI: fall back to local Bazel execution when the BuildBuddy API key is unavailable, keeping release jobs running in restricted environments. (7fd302e2)
