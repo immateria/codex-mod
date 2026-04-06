@@ -5,9 +5,8 @@ use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 use crate::ui_interaction::{
     contains_point,
-    ScrollSelectionBehavior,
-    SelectableListMouseConfig,
     SelectableListMouseResult,
+    SETTINGS_LIST_MOUSE_CONFIG,
 };
 
 use super::SettingsOverviewView;
@@ -51,12 +50,7 @@ impl SettingsOverviewView {
                     )
                 }
             },
-            SelectableListMouseConfig {
-                hover_select: false,
-                require_pointer_hit_for_scroll: true,
-                scroll_behavior: ScrollSelectionBehavior::Clamp,
-                ..SelectableListMouseConfig::default()
-            },
+            SETTINGS_LIST_MOUSE_CONFIG,
         );
         self.scroll = scroll;
 

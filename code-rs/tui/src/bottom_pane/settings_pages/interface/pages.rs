@@ -5,7 +5,7 @@ use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
-use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::message_page::SettingsMessagePage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -24,11 +24,11 @@ impl InterfaceSettingsView {
         selected_row: RowKind,
     ) -> SettingsMenuPage<'static> {
         let header_lines = vec![shortcut_line(&[
-            KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(crate::colors::function())),
-            KeyHint::new("Enter", " activate").with_key_style(Style::new().fg(crate::colors::success())),
+            hint_nav(" navigate"),
+            hint_enter(" activate"),
             KeyHint::new("←→", " adjust").with_key_style(Style::new().fg(crate::colors::function())),
             KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(crate::colors::success())),
-            KeyHint::new("Esc", " close").with_key_style(Style::new().fg(crate::colors::error()).bold()),
+            hint_esc(" close"),
         ])];
         let footer_lines = vec![self.main_footer_line_for_row(selected_row)];
         SettingsMenuPage::new("Interface", Self::panel_style(), header_lines, footer_lines)
@@ -43,9 +43,9 @@ impl InterfaceSettingsView {
             ));
         }
         post_field_lines.push(shortcut_line(&[
-            KeyHint::new("Enter", " save").with_key_style(Style::new().fg(crate::colors::success())),
+            hint_enter(" save"),
             KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(crate::colors::success())),
-            KeyHint::new("Esc", " cancel").with_key_style(Style::new().fg(crate::colors::error()).bold()),
+            hint_esc(" cancel"),
         ]));
 
         SettingsEditorPage::new(

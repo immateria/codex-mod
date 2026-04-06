@@ -3,7 +3,7 @@ use super::*;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_nav, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::colors;
@@ -25,10 +25,10 @@ impl ValidationSettingsView {
 
     fn render_footer_lines(&self) -> Vec<Line<'static>> {
         let shortcuts = shortcut_line(&[
-            KeyHint::new("↑↓", " Navigate").with_key_style(Style::new().fg(colors::function())),
+            hint_nav(" Navigate"),
             KeyHint::new("Enter/Space", " Toggle")
                 .with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " Close").with_key_style(Style::new().fg(colors::error())),
+            hint_esc(" Close"),
         ]);
 
         let notice_line = match &self.pending_notice {

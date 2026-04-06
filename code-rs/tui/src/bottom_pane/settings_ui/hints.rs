@@ -60,6 +60,21 @@ pub(crate) fn shortcut_line(hints: &[KeyHint<'_>]) -> Line<'static> {
     Line::from(spans)
 }
 
+/// Navigate (↑↓) hint with `colors::function()` key style.
+pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
+    KeyHint::new("↑↓", description).with_key_style(Style::new().fg(colors::function()))
+}
+
+/// Esc hint with `colors::error()` key style.
+pub(crate) fn hint_esc(description: &'static str) -> KeyHint<'static> {
+    KeyHint::new("Esc", description).with_key_style(Style::new().fg(colors::error()))
+}
+
+/// Enter/confirm hint with `colors::success()` key style.
+pub(crate) fn hint_enter(description: &'static str) -> KeyHint<'static> {
+    KeyHint::new("Enter", description).with_key_style(Style::new().fg(colors::success()))
+}
+
 pub(crate) fn status_and_shortcuts(
     status: Option<StyledText<'_>>,
     hints: &[KeyHint<'_>],

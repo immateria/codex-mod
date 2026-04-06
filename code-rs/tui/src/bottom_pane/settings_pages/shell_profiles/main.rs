@@ -336,12 +336,7 @@ impl ShellProfilesSettingsView {
                     selection_index_at_over_text(layout.body, x, y, scroll_top, &row_specs)
                 }
             },
-            SelectableListMouseConfig {
-                hover_select: false,
-                require_pointer_hit_for_scroll: true,
-                scroll_behavior: ScrollSelectionBehavior::Clamp,
-                ..SelectableListMouseConfig::default()
-            },
+            SETTINGS_LIST_MOUSE_CONFIG,
         );
 
         if matches!(outcome.result, SelectableListMouseResult::Activated) {

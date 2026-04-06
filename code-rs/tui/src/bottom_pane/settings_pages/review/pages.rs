@@ -4,7 +4,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 use crate::colors;
-use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 
@@ -25,11 +25,11 @@ impl ReviewSettingsView {
 
     fn render_footer_lines(&self) -> Vec<Line<'static>> {
         let shortcuts = shortcut_line(&[
-            KeyHint::new("↑↓", " Navigate").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new("Enter", " Select").with_key_style(Style::new().fg(colors::success())),
+            hint_nav(" Navigate"),
+            hint_enter(" Select"),
             KeyHint::new("Space", " Toggle").with_key_style(Style::new().fg(colors::success())),
             KeyHint::new("←→", " Adjust").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new("Esc", " Close").with_key_style(Style::new().fg(colors::error())),
+            hint_esc(" Close"),
         ]);
 
         let notice_line = match &self.pending_notice {

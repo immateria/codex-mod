@@ -8,9 +8,8 @@ use crate::bottom_pane::settings_ui::menu_rows::selection_id_at as selection_men
 use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_mouse_with_hit_test;
 use crate::ui_interaction::{
     contains_point,
-    ScrollSelectionBehavior,
-    SelectableListMouseConfig,
     SelectableListMouseResult,
+    SETTINGS_LIST_MOUSE_CONFIG,
 };
 
 impl ExperimentalFeaturesSettingsView {
@@ -52,12 +51,7 @@ impl ExperimentalFeaturesSettingsView {
                     selection_menu_id_at(body_layout.list, x, y, scroll_top, &rows)
                 }
             },
-            SelectableListMouseConfig {
-                hover_select: false,
-                require_pointer_hit_for_scroll: true,
-                scroll_behavior: ScrollSelectionBehavior::Clamp,
-                ..SelectableListMouseConfig::default()
-            },
+            SETTINGS_LIST_MOUSE_CONFIG,
         );
         let selected = state.selected_idx.unwrap_or(0);
         self.list_state.set(state);

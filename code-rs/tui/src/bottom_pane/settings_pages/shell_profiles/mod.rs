@@ -24,9 +24,8 @@ use crate::components::scroll_state::ScrollState;
 use crate::native_picker::{pick_path, NativePickerKind};
 use crate::ui_interaction::{
     redraw_if,
-    ScrollSelectionBehavior,
-    SelectableListMouseConfig,
     SelectableListMouseResult,
+    SETTINGS_LIST_MOUSE_CONFIG,
 };
 use crate::util::buffer::{fill_rect, write_line};
 

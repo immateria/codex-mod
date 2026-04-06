@@ -9,9 +9,8 @@ use crate::bottom_pane::settings_ui::selectable_list_mouse::route_scroll_state_m
 use crate::components::mode_guard::ModeGuard;
 use crate::ui_interaction::{
     contains_point,
-    ScrollSelectionBehavior,
-    SelectableListMouseConfig,
     SelectableListMouseResult,
+    SETTINGS_LIST_MOUSE_CONFIG,
 };
 
 impl JsReplSettingsView {
@@ -59,12 +58,7 @@ impl JsReplSettingsView {
                             selection_index_at_over_text(layout.body, x, y, scroll_top, &row_specs)
                         }
                     },
-                    SelectableListMouseConfig {
-                        hover_select: false,
-                        require_pointer_hit_for_scroll: true,
-                        scroll_behavior: ScrollSelectionBehavior::Clamp,
-                        ..SelectableListMouseConfig::default()
-                    },
+                    SETTINGS_LIST_MOUSE_CONFIG,
                 );
 
                 if matches!(outcome.result, SelectableListMouseResult::Activated)

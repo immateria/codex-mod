@@ -13,6 +13,9 @@ use crate::bottom_pane::settings_ui::buttons::{
 };
 use crate::bottom_pane::settings_ui::form_page::{SettingsFormPage, SettingsFormSection};
 use crate::bottom_pane::settings_ui::hints::{
+    hint_esc,
+    hint_enter,
+    hint_nav,
     shortcut_line,
     status_and_shortcuts_split,
     title_line,
@@ -197,8 +200,8 @@ impl PluginsSettingsView {
         header_lines.push(Line::from(""));
 
         let mut shortcuts = vec![
-            KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new("Enter", " details").with_key_style(Style::new().fg(colors::success())),
+            hint_nav(" navigate"),
+            hint_enter(" details"),
             KeyHint::new("s", " sources").with_key_style(Style::new().fg(colors::primary())),
             KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
             KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
@@ -207,7 +210,7 @@ impl PluginsSettingsView {
             shortcuts.push(KeyHint::new("l", " login").with_key_style(Style::new().fg(colors::success())));
             shortcuts.push(KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())));
         }
-        shortcuts.push(KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error())));
+        shortcuts.push(hint_esc(" close"));
 
         SettingsMenuPage::new(
             "Plugins",
@@ -346,13 +349,13 @@ impl PluginsSettingsView {
             SettingsPanelStyle::bottom_pane(),
             header_lines,
             vec![shortcut_line(&[
-                KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(colors::function())),
-                KeyHint::new("Enter", " edit").with_key_style(Style::new().fg(colors::success())),
+                hint_nav(" navigate"),
+                hint_enter(" edit"),
                 KeyHint::new("a", " add repo").with_key_style(Style::new().fg(colors::primary())),
                 KeyHint::new("Del", " remove").with_key_style(Style::new().fg(colors::error())),
                 KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
                 KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
-                KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+                hint_esc(" back"),
             ])],
         )
     }
@@ -472,7 +475,7 @@ impl PluginsSettingsView {
             &[
                 KeyHint::new("Tab", " next"),
                 KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
-                KeyHint::new("Esc", " cancel").with_key_style(Style::new().fg(colors::error())),
+                hint_esc(" cancel"),
             ],
         );
 
@@ -524,8 +527,8 @@ impl PluginsSettingsView {
         });
         let shortcuts = [
             KeyHint::new("←→", " actions").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new("Enter", " activate").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+            hint_enter(" activate"),
+            hint_esc(" back"),
         ];
         let (status_lines, footer_lines) = status_and_shortcuts_split(status, &shortcuts);
         SettingsActionPage::new(

@@ -3,7 +3,7 @@ use super::*;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_nav, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -33,10 +33,10 @@ impl ExperimentalFeaturesSettingsView {
         }
 
         let shortcuts = vec![
-            KeyHint::new("↑↓", " select").with_key_style(Style::new().fg(colors::primary())),
+            hint_nav(" select"),
             KeyHint::new("Space", " toggle").with_key_style(Style::new().fg(colors::success())),
             KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error())),
+            hint_esc(" close"),
         ];
 
         SettingsMenuPage::new(

@@ -46,6 +46,18 @@ impl Default for SelectableListMouseConfig {
     }
 }
 
+/// Standard mouse config for settings-page selectable lists.
+///
+/// Disables hover-select, requires pointer inside the list body for scroll,
+/// and clamps (instead of wrapping) at boundaries.
+pub(crate) const SETTINGS_LIST_MOUSE_CONFIG: SelectableListMouseConfig = SelectableListMouseConfig {
+    hover_select: false,
+    activate_on_left_click: true,
+    scroll_select: true,
+    require_pointer_hit_for_scroll: true,
+    scroll_behavior: ScrollSelectionBehavior::Clamp,
+};
+
 /// Route common mouse interactions for selectable lists.
 ///
 /// Behavior:

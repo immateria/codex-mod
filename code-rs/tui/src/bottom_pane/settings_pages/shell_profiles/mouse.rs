@@ -177,12 +177,7 @@ pub(super) fn handle_mouse_event_direct_in_chrome(
                     )
                     .then_some(idx)
                 },
-                SelectableListMouseConfig {
-                    hover_select: false,
-                    require_pointer_hit_for_scroll: true,
-                    scroll_behavior: ScrollSelectionBehavior::Clamp,
-                    ..SelectableListMouseConfig::default()
-                },
+                SETTINGS_LIST_MOUSE_CONFIG,
             );
 
             let mut changed = outcome.changed;
