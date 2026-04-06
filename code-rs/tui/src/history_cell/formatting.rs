@@ -417,14 +417,8 @@ fn clip_preview_text(text: &str, limit: usize) -> (String, bool) {
     if char_count <= limit {
         return (text.to_string(), false);
     }
-    let tail: String = text
-        .chars()
-        .rev()
-        .take(limit)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect();
+    let skip = char_count - limit;
+    let tail: String = text.chars().skip(skip).collect();
     (tail, true)
 }
 

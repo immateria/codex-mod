@@ -707,7 +707,7 @@ pub(crate) fn new_status_output(
         .map(|(key, value)| (key.to_string(), value.clone()))
         .collect();
 
-    let lookup = |key: &str| -> String { summary_map.get(key).unwrap_or(&String::new()).clone() };
+    let lookup = |key: &str| -> String { summary_map.get(key).cloned().unwrap_or_default() };
     let title_case = |s: &str| -> String {
         s.split_whitespace()
             .map(|w| {
