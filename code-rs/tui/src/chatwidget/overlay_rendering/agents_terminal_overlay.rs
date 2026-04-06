@@ -179,7 +179,7 @@ impl ChatWidget<'_> {
         let desired_sidebar = longest_name_width
             .saturating_add(status_icon_width)
             .saturating_add(8);
-        let sidebar_width = if body_area.width <= 30 {
+        let sidebar_width = if body_area.width <= 50 {
             body_area.width
         } else {
             let max_allowed = body_area.width.saturating_sub(30).max(18);

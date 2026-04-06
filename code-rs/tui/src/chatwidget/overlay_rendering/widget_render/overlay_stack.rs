@@ -305,7 +305,7 @@ impl ChatWidget<'_> {
                     // Render confirmation dialog if active
                     if self.diffs.confirm.is_some() {
                         // Centered small box
-                        let w = (body_inner.width as i16 - 10).max(20) as u16;
+                        let w = (body_inner.width as i16 - 6).max(14) as u16;
                         let h = 5u16;
                         let x = body_inner.x + (body_inner.width.saturating_sub(w)) / 2;
                         let y = body_inner.y + (body_inner.height.saturating_sub(h)) / 2;

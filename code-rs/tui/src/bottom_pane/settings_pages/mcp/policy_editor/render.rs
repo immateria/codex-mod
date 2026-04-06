@@ -313,8 +313,8 @@ impl McpSettingsView {
                 buf,
             );
 
-        let min_value_width = 14u16;
-        let label_width = inner.width.saturating_sub(min_value_width).clamp(12, 30);
+        let min_value_width = if inner.width < 30 { 10u16 } else { 14u16 };
+        let label_width = inner.width.saturating_sub(min_value_width).clamp(8, 24);
         let value_width = inner.width.saturating_sub(label_width);
 
         let rows_end_y = inner.y.saturating_add(inner.height).saturating_sub(1);

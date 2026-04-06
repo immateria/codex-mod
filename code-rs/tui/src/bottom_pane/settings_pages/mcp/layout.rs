@@ -47,7 +47,7 @@ impl McpViewLayout {
             return None;
         }
 
-        let show_hint_row = content.height >= 16 && content.width >= 80;
+        let show_hint_row = content.height >= 16 && content.width >= 50;
         let vertical = if show_hint_row {
             Layout::default()
                 .direction(Direction::Vertical)
@@ -180,7 +180,7 @@ impl McpViewLayout {
 }
 
 fn split_content_wide(content: Rect) -> (Rect, Rect) {
-    let list_width = (content.width / 3).max(30u16);
+    let list_width = (content.width / 3).clamp(15, 30);
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(list_width), Constraint::Min(24)])

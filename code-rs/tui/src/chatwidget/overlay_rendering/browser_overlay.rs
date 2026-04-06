@@ -186,9 +186,10 @@ impl ChatWidget<'_> {
         };
 
         let column_constraints = if body_area.width <= 50 {
+            // Single-pane: screenshot gets full width, info is hidden
             [
-                Constraint::Length(body_area.width.saturating_sub(24).max(20)),
-                Constraint::Length(24),
+                Constraint::Length(body_area.width),
+                Constraint::Length(0),
             ]
         } else {
             [Constraint::Percentage(62), Constraint::Percentage(38)]
