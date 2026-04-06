@@ -110,7 +110,7 @@ pub fn get_openai_tools(
         entries.sort_by(|a, b| a.0.cmp(&b.0));
 
         for (name, tool) in entries {
-            match conversions::mcp_tool_to_openai_tool(name.clone(), tool.clone()) {
+            match conversions::mcp_tool_to_openai_tool(name.clone(), tool) {
                 Ok(converted_tool) => tools.push(OpenAiTool::Function(converted_tool)),
                 Err(e) => {
                     tracing::error!("Failed to convert {name:?} MCP tool to OpenAI tool: {e:?}");

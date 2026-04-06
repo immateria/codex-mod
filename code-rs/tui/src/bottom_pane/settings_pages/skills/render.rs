@@ -9,7 +9,7 @@ const LABEL_COLUMN_WIDTH: u16 = 24;
 const LOW_HEIGHT_THRESHOLD: usize = 24;
 
 impl SkillsSettingsView {
-    pub fn render(&self, area: Rect, buf: &mut Buffer) {
+    pub(super) fn render_framed(&self, area: Rect, buf: &mut Buffer) {
         self.render_in_chrome(ChromeMode::Framed, area, buf);
     }
 

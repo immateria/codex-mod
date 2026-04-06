@@ -120,9 +120,9 @@ static BUILTIN_PRESETS: Lazy<Vec<ShellPreset>> = Lazy::new(|| {
     ]
 });
 
-/// Returns the built-in shell presets.
-pub fn builtin_shell_presets() -> Vec<ShellPreset> {
-    BUILTIN_PRESETS.clone()
+/// Returns a reference to the built-in shell presets.
+pub fn builtin_shell_presets() -> &'static [ShellPreset] {
+    &BUILTIN_PRESETS
 }
 
 /// Merges user-defined shell presets with built-in ones.

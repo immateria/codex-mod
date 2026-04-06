@@ -2,7 +2,7 @@ use super::*;
 
 impl crate::bottom_pane::chrome_view::ChromeRenderable for SkillsSettingsView {
     fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {
-        self.render(area, buf);
+        self.render_framed(area, buf);
     }
 
     fn render_in_content_only_chrome(&self, area: Rect, buf: &mut Buffer) {

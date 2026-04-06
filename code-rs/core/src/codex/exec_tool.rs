@@ -569,7 +569,7 @@ pub(crate) async fn handle_apply_patch_action(
             .notify_background_event_with_order(
                 &ctx.sub_id,
                 order,
-                format!("Command guard: {}", guidance.clone()),
+                format!("Command guard: {guidance}"),
             )
             .await;
 
@@ -1244,7 +1244,7 @@ pub(crate) async fn handle_container_exec_with_params(
                     .notify_background_event_with_order(
                         &sub_id,
                         order,
-                        format!("Command guard: {}", guidance.clone()),
+                        format!("Command guard: {guidance}"),
                     )
                     .await;
 
@@ -1290,7 +1290,7 @@ pub(crate) async fn handle_container_exec_with_params(
                             .notify_background_event_with_order(
                                 &sub_id,
                                 order,
-                                format!("Command guard: {}", guidance.clone()),
+                                format!("Command guard: {guidance}"),
                             )
                             .await;
 
@@ -1311,7 +1311,7 @@ pub(crate) async fn handle_container_exec_with_params(
             .notify_background_event_with_order(
                 &sub_id,
                 order,
-                format!("Command guard: {}", guidance.clone()),
+                format!("Command guard: {guidance}"),
             )
             .await;
 
@@ -1331,7 +1331,7 @@ pub(crate) async fn handle_container_exec_with_params(
             .notify_background_event_with_order(
                 &sub_id,
                 order,
-                format!("Command guard: {}", guidance.clone()),
+                format!("Command guard: {guidance}"),
             )
             .await;
 
@@ -1351,7 +1351,7 @@ pub(crate) async fn handle_container_exec_with_params(
             .notify_background_event_with_order(
                 &sub_id,
                 order,
-                format!("Command guard: {}", guidance.clone()),
+                format!("Command guard: {guidance}"),
             )
             .await;
 
@@ -1372,7 +1372,7 @@ pub(crate) async fn handle_container_exec_with_params(
                 let suggested = serde_json::to_string(&vec![
                     "bash".to_string(),
                     "-lc".to_string(),
-                    format!("confirm: {}", joined),
+                    format!("confirm: {joined}"),
                 ])
                 .unwrap_or_else(|_| "<failed to serialize suggested argv>".to_string());
                 let guidance = pattern.guidance(
@@ -1386,7 +1386,7 @@ pub(crate) async fn handle_container_exec_with_params(
                     .notify_background_event_with_order(
                         &sub_id,
                         order,
-                        format!("Command guard: {}", guidance.clone()),
+                        format!("Command guard: {guidance}"),
                     )
                     .await;
 
@@ -1406,7 +1406,7 @@ pub(crate) async fn handle_container_exec_with_params(
                     let resend = vec![
                         "bash".to_string(),
                         "-lc".to_string(),
-                        format!("confirm: {}", joined),
+                        format!("confirm: {joined}"),
                     ];
                     let guidance = guidance_for_dry_run_guard(
                         &analysis,
@@ -1420,7 +1420,7 @@ pub(crate) async fn handle_container_exec_with_params(
                         .notify_background_event_with_order(
                             &sub_id,
                             order,
-                            format!("Command guard: {}", guidance.clone()),
+                            format!("Command guard: {guidance}"),
                         )
                         .await;
 
@@ -1501,7 +1501,7 @@ pub(crate) async fn handle_container_exec_with_params(
                             .notify_background_event_with_order(
                                 &sub_id,
                                 order,
-                                format!("Command guard: {}", guidance.clone()),
+                                format!("Command guard: {guidance}"),
                             )
                             .await;
 

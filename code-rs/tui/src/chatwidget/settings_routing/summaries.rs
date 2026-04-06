@@ -334,7 +334,7 @@ impl ChatWidget<'_> {
         } else {
             "Disabled"
         };
-        let mut parts = vec![format!("Auto update: {}", status)];
+        let mut parts = vec![format!("Auto update: {status}")];
         if let Some(latest) = self
             .latest_upgrade_version
             .as_deref()

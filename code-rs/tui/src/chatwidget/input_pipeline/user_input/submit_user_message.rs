@@ -259,8 +259,8 @@ impl ChatWidget<'_> {
                     };
                     let lines = vec![
                         format!("/{} configured", res.name),
-                        format!("mode: {}", mode),
-                        format!("agents: {}", agents),
+                        format!("mode: {mode}"),
+                        format!("agents: {agents}"),
                         format!("command: {}", original_text.trim()),
                     ];
                     self.history_push_plain_paragraphs(PlainMessageKind::Notice, lines);
