@@ -91,12 +91,11 @@ pub(super) fn handle_key_event_without_popup(
             if view
                 .history
                 .should_handle_navigation(view.textarea.text(), view.textarea.cursor())
+                && let Some(text) = view.history.navigate_up(view.textarea.text(), &view.app_event_tx)
             {
-                if let Some(text) = view.history.navigate_up(view.textarea.text(), &view.app_event_tx) {
-                    view.textarea.set_text(&text);
-                    view.textarea.set_cursor(0);
-                    return (InputResult::None, true);
-                }
+                view.textarea.set_text(&text);
+                view.textarea.set_cursor(0);
+                return (InputResult::None, true);
             }
             (InputResult::None, true)
         }
@@ -109,12 +108,11 @@ pub(super) fn handle_key_event_without_popup(
             if view
                 .history
                 .should_handle_navigation(view.textarea.text(), view.textarea.cursor())
+                && let Some(text) = view.history.navigate_down(&view.app_event_tx)
             {
-                if let Some(text) = view.history.navigate_down(&view.app_event_tx) {
-                    view.textarea.set_text(&text);
-                    view.textarea.set_cursor(0);
-                    return (InputResult::None, true);
-                }
+                view.textarea.set_text(&text);
+                view.textarea.set_cursor(0);
+                return (InputResult::None, true);
             }
             (InputResult::None, true)
         }

@@ -475,11 +475,11 @@ impl ChatWidget<'_> {
             let indicator_style = ratatui::style::Style::default()
                 .fg(crate::colors::text_dim())
                 .bg(crate::colors::background());
-            if hscroll > 0 {
-                if let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(padded_inner.x, padded_inner.y)) {
-                    cell.set_char('◂');
-                    cell.set_style(indicator_style);
-                }
+            if hscroll > 0
+                && let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(padded_inner.x, padded_inner.y))
+            {
+                cell.set_char('◂');
+                cell.set_style(indicator_style);
             }
             if hscroll < max_hscroll {
                 let right_x = padded_inner.x.saturating_add(padded_inner.width).saturating_sub(1);
@@ -753,11 +753,11 @@ impl ChatWidget<'_> {
             let indicator_style = ratatui::style::Style::default()
                 .fg(crate::colors::text_dim())
                 .bg(crate::colors::background());
-            if hscroll > 0 {
-                if let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(line_area.x, line_area.y)) {
-                    cell.set_char('◂');
-                    cell.set_style(indicator_style);
-                }
+            if hscroll > 0
+                && let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(line_area.x, line_area.y))
+            {
+                cell.set_char('◂');
+                cell.set_style(indicator_style);
             }
             if hscroll < max_hscroll {
                 let right_x = line_area.x.saturating_add(line_area.width).saturating_sub(1);

@@ -32,10 +32,10 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
         // Flags are a pair of regional indicator symbols, but UnicodeWidth counts each as 2.
         // Most terminals render the combined flag as a single 2-cell glyph.
         let mut it = g.chars();
-        if let (Some(c1), Some(c2), None) = (it.next(), it.next(), it.next()) {
-            if is_regional_indicator(c1) && is_regional_indicator(c2) {
-                return 2;
-            }
+        if let (Some(c1), Some(c2), None) = (it.next(), it.next(), it.next())
+            && is_regional_indicator(c1) && is_regional_indicator(c2)
+        {
+            return 2;
         }
 
         UnicodeWidthStr::width(g)

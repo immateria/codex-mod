@@ -114,7 +114,7 @@ impl SettingsOverlayView {
         let content_width = area.width as usize;
         let mut lines: Vec<Line<'static>> = Vec::new();
         let mut line_sections: Vec<Option<SettingsSection>> = Vec::new();
-        let mut line_hit_ranges: Vec<[Option<(u16, u16)>; 2]> = Vec::new();
+        let mut line_hit_ranges: super::OverviewHitRanges = Vec::new();
         let mut selected_range: Option<(usize, usize)> = None;
 
         for (idx, row) in self.overview_rows.iter().enumerate() {

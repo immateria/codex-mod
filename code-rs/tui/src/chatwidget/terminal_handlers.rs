@@ -29,10 +29,9 @@ pub(super) fn handle_terminal_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
             && !key_event
                 .modifiers
                 .intersects(KeyModifiers::ALT | KeyModifiers::SHIFT | KeyModifiers::SUPER)
+            && try_scroll_key(chat, key_event.code)
         {
-            if try_scroll_key(chat, key_event.code) {
-                return true;
-            }
+            return true;
         }
 
         if let Some(bytes) = encode_key_for_pty(key_event) {

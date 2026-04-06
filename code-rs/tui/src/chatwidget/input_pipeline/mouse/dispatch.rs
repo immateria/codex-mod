@@ -100,15 +100,15 @@ impl ChatWidget<'_> {
                 self.mouse_drag_exceeded.set(false);
 
                 // Only fire click if the mouse didn't move beyond threshold.
-                if !was_drag {
-                    if let Some(pos) = down_pos {
-                        if in_bottom_pane {
-                            // If the down was in the bottom pane, let it handle
-                            // the up. Otherwise check header clickable regions.
-                            // (Bottom pane clicks are already handled in Down.)
-                        }
-                        self.handle_click(pos);
+                if !was_drag
+                    && let Some(pos) = down_pos
+                {
+                    if in_bottom_pane {
+                        // If the down was in the bottom pane, let it handle
+                        // the up. Otherwise check header clickable regions.
+                        // (Bottom pane clicks are already handled in Down.)
                     }
+                    self.handle_click(pos);
                 }
             }
             MouseEventKind::Drag(crossterm::event::MouseButton::Left) => {

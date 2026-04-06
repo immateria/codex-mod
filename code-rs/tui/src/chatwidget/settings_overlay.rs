@@ -3,6 +3,9 @@ use std::cell::RefCell;
 
 use crate::bottom_pane::SettingsSection;
 
+/// Two disjoint hit ranges per overview row (label + optional summary).
+type OverviewHitRanges = Vec<[Option<(u16, u16)>; 2]>;
+
 mod agents;
 #[cfg(feature = "browser-automation")]
 mod chrome;
@@ -99,7 +102,7 @@ pub(crate) struct SettingsOverlayView {
     /// Horizontal hit ranges for each rendered overview list line (separators use `[None; 2]`).
     /// Stored as (start_x, end_x) in terminal cell coordinates. Some lines have
     /// two disjoint hit ranges (e.g., label + summary).
-    last_overview_line_hit_ranges: RefCell<Vec<[Option<(u16, u16)>; 2]>>,
+    last_overview_line_hit_ranges: RefCell<OverviewHitRanges>,
     /// Vertical scroll offset used for the overview list.
     last_overview_scroll: RefCell<usize>,
     /// Last panel inner area where content is rendered (for mouse forwarding)
