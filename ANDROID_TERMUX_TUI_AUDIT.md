@@ -1,6 +1,6 @@
 # Android / Termux TUI Audit
 
-> Audit of the code-rs TUI for narrow-width, short-height, and limited-capability
+> Audit of the code-rs TUI for narrow-width, short-height, and touch-driven
 > terminals typical of **Termux on Android** (portrait mode, on-screen keyboard).
 >
 > Typical Termux dimensions: **30–40 columns × 12–20 rows** (keyboard visible)
@@ -9,217 +9,250 @@
 
 ## Table of Contents
 
-1. [Layout: Narrow Width Issues](#1-layout-narrow-width-issues)
-2. [Layout: Short Height Issues](#2-layout-short-height-issues)
-3. [Unicode & Rendering Issues](#3-unicode--rendering-issues)
-4. [Input & Interaction Issues](#4-input--interaction-issues)
-5. [Recommended Termux Configuration](#5-recommended-termux-configuration)
+1. [Layout: Narrow Width](#1-layout-narrow-width)
+2. [Layout: Short Height](#2-layout-short-height)
+3. [Touch & Tap Targets](#3-touch--tap-targets)
+4. [Input & Hotkey Flexibility](#4-input--hotkey-flexibility)
+5. [Unicode Width Bugs](#5-unicode-width-bugs)
 6. [Fix Priority Matrix](#6-fix-priority-matrix)
 
 ---
 
-## 1. Layout: Narrow Width Issues
+## 1. Layout: Narrow Width
 
-These issues affect terminals with **20–50 columns** (Android portrait mode).
+At 30–40 columns, several UI elements break or become unusable.
 
-### Critical
+### Settings System (Broken Below ~45 cols)
 
-| Issue | File | Details |
-|-------|------|---------|
-| **Settings sidebar fixed at 22 cols** | `settings_overlay/overlay_render/section.rs:27` | At 30 cols, sidebar consumes 73% of width; content pane gets ~8 cols. Settings are unusable below ~45 cols. |
-| **Settings label column 18 cols** | `settings_overlay/types.rs:9` | After the sidebar, labels take 18 more cols. No room for values below ~60 cols total. |
-| **Image cards need 52+ cols** | `history_cell/image.rs:33-45` | `IMAGE_MIN_WIDTH(18) + GAP(2) + MIN_TEXT_WIDTH(28) + padding = 52`. Broken layout below 52 cols. |
-| **Skills label column 24 cols** | `settings_pages/skills/render.rs:8` | `Constraint::Length(24)` leaves only 6 cols for content at 30 cols. |
-| **Overlay rejects < 40 cols** | `settings_pages/interface/hotkeys.rs:7` | `OVERLAY_MIN_WIDTH_MIN = 40`. Overlay settings unavailable on very narrow phones. |
-| **Agents sidebar 30-col breakpoint** | `overlay_rendering/agents_terminal_overlay.rs:182` | At ≤ 30 cols, sidebar fills entire width; detail pane is 0 cols. |
-| **Composer chrome overhead 6 cols** | `layout_consts.rs:12` | `COMPOSER_CONTENT_WIDTH_OFFSET = 6` (borders + padding). At 20 cols → only 14 for text. |
+The settings overlay uses a **fixed 22-column sidebar** (`section.rs:27`) plus an
+**18-column label column** (`types.rs:9`). That's 40 cols of chrome before any
+content appears. On a 30-col screen the content pane gets **~8 columns** — unusable.
 
-### Moderate
+**Affected files and constants:**
 
-| Issue | File | Details |
-|-------|------|---------|
-| Limits overlay needs 110 cols | `settings_overlay/limits/content_impl.rs:2` | `WIDE_LAYOUT_MIN_WIDTH = 110`. Forces single-column on all phones. |
-| Accounts two-pane needs 96 cols | `settings_pages/accounts/.../mod.rs:17` | Falls back to single-column below 96 cols. |
-| Browser sidebar fixed 24 cols | `overlay_rendering/browser_overlay.rs:188` | Screenshot area only 16 cols at 40-col terminal. |
-| Intro animation needs 50+ cols | `glitch_animation.rs:13` | `SMALL_MIN_WIDTH = 50`. Falls back to "Tiny" or nothing below this. |
+| Constant / Logic | File | Value | Impact at 30 cols |
+|------------------|------|-------|--------------------|
+| Sidebar width | `settings_overlay/overlay_render/section.rs:27` | `Length(22)` | 73% of screen |
+| Label column | `settings_overlay/types.rs:9` | `18` chars | 0 cols for values |
+| Skills labels | `settings_pages/skills/render.rs:8` | `Length(24)` | 6 cols for content |
+| Overlay min width | `settings_pages/interface/hotkeys.rs:7` | `40` | Overlay unavailable |
+| Accounts two-pane | `settings_pages/accounts/.../mod.rs:17` | `96` cols min | Single-col only |
 
-### Recommendations
+**Fix:** Make the sidebar proportional (`min(22, width * 40%)`) and add a
+**stacked mode** that puts sidebar above content instead of beside it when
+`width < 45`. Most settings pages already handle single-column form layouts.
 
-- Make settings sidebar width proportional: `min(22, area.width * 40%)`.
-- Add a **stacked/single-column mode** for settings on narrow screens (sidebar above content instead of beside it).
-- Reduce `COMPOSER_CONTENT_WIDTH_OFFSET` by 2 on terminals < 40 cols (drop outer horizontal padding).
-- Image cards: fall back to text-only display below 40 cols.
-- All `Constraint::Length(N)` with N > 15 should have a `min(N, area.width - margin)` guard.
+### Card / History Cell Rendering
 
----
+| Element | File | Min Width | Issue |
+|---------|------|-----------|-------|
+| Image cards | `history_cell/image.rs:33-45` | 52 cols | `MIN_WIDTH(18) + GAP(2) + TEXT(28) + pad`. No text-only fallback. |
+| Agents sidebar | `agents_terminal_overlay.rs:182` | 30 col breakpoint | At ≤ 30 cols, detail pane = 0 cols. |
+| Browser sidebar | `browser_overlay.rs:188` | Fixed 24 cols | Screenshot area only 16 cols at 40-col. |
+| Limits wide layout | `limits/content_impl.rs:2` | 110 cols | Single-column only on phones (acceptable). |
 
-## 2. Layout: Short Height Issues
+**Fix:** Image cards should drop to a **title + text-only** layout below 40 cols.
+Agent/browser overlays should go **full-width single-pane** instead of
+sidebar-plus-detail.
 
-These issues affect terminals with **10–20 rows** (on-screen keyboard visible).
+### Composer Input Area
 
-### Critical
+The chat composer has **6 columns of chrome** (`layout_consts.rs:12`:
+`COMPOSER_CONTENT_WIDTH_OFFSET = 6` for outer pad + border + inner pad on each
+side). At 30 cols that's only 24 chars of typing area; at 20 cols, only 14.
 
-| Issue | File | Details |
-|-------|------|---------|
-| **MCP settings needs 25 rows** | `settings_pages/mcp/layout.rs:96-98` | `list(9) + summary(8) + tools(8) = 25` rows minimum in stacked mode. Completely unusable on 12-row terminals. |
-| **Approval prompt crushed to 1 row** | `user_approval_widget.rs:646-649` | Options consume most of a 5-8 row bottom pane; command text is unreadable. **Safety risk:** user can't read what they're approving. |
-| **Settings overlays fail silently** | `settings_overlay/overlay_render/section.rs:193` | Returns early if `height < 4`. No message to user. |
-| **Sectioned panel returns None** | `settings_ui/sectioned_panel.rs:94` | If `content.height < header + 1 + footer`, panels don't render at all. |
-| **Accounts settings need 10+ rows** | `settings_pages/accounts/.../mod.rs:18` | `ACCOUNTS_TWO_PANE_MIN_HEIGHT = 10` plus chrome = 12+ rows total. |
-
-### Moderate
-
-| Issue | File | Details |
-|-------|------|---------|
-| Bottom pane minimum 5 rows | `height_manager.rs:136` | `desired.max(5)`. On 12-row terminal, this is 42% of screen. |
-| HUD needs 4 rows minimum | `height_manager.rs:196` | Disappears entirely when vertical budget < 4. |
-| History squeezed to 3 rows | `height_manager.rs:225` | `min_history = 3` when bottom ≤ 6 rows. Barely usable. |
-| Scrollbar needs 3 rows | `ui_interaction/scrollbar.rs:9` | Disabled below 3 rows — user loses scroll position feedback. |
-| Auto-coordinator needs 3 rows | `panes/auto_coordinator/render/prompt.rs:99` | Renders nothing below 3 rows. |
-| Intro animation needs 19 rows | `glitch_animation.rs:16` | `SMALL_MIN_HEIGHT = 19`. Never renders with keyboard visible. |
-
-### Recommendations
-
-- Reduce bottom pane minimum to 3 rows on terminals < 16 rows.
-- MCP settings: collapse to single scrollable list below 15 rows.
-- Approval widget: guarantee at least 2 rows for command text (truncate options instead).
-- Show "terminal too small" message instead of silent failure.
-- Consider auto-hiding the status bar on very short terminals to reclaim 1 row.
+**Fix:** Drop outer horizontal padding (`COMPOSER_OUTER_HPAD`) on terminals
+< 40 cols, saving 2 cols. The border itself provides sufficient visual
+separation.
 
 ---
 
-## 3. Unicode & Rendering Issues
+## 2. Layout: Short Height
 
-### Width Calculation Bugs
+With the on-screen keyboard visible, Termux typically has **12–15 rows**. The TUI
+must fit status bar + history + composer into that budget.
 
-These use **character count** instead of **display width** and will break with CJK, emoji, or wide Unicode:
+### Critical Vertical Budget Conflicts
 
-| Issue | File | Line(s) | Impact |
-|-------|------|---------|--------|
-| **Table column widths** | `markdown_renderer/tables.rs` | 118, 122, 138 | Misaligned columns with CJK/emoji content |
-| **Celebration art width** | `history_cell/auto_drive.rs` | 1014-1019 | `chars.len()` instead of display width; misalignment |
-| **Sparkle occupied range** | `history_cell/auto_drive.rs` | 777-787 | Character index ≠ display position; corrupts double-width chars |
-| **Bullet indent** | `history_cell/assistant.rs` | 724 | `chars().count()` for indent; wrong with wide bullets |
-| Various layout helpers | `formatting.rs`, `explore.rs`, `reasoning.rs` | multiple | `.chars().count()` used for layout calculations |
+| Component | Min Rows | File | Issue |
+|-----------|----------|------|-------|
+| Bottom pane | 5 | `height_manager.rs:136` | 42% of a 12-row screen |
+| History | 3 | `height_manager.rs:225` | Only 3 lines visible |
+| Status bar | 1 | — | Always shown |
+| HUD preview | 4 | `height_manager.rs:196` | Disappears entirely at budget < 4 |
+| **Total minimum** | **9** | | Only 3 rows spare at 12 |
 
-### Box-Drawing Characters (83+ instances)
+At 12 rows: `status(1) + history(3) + bottom(5) + borders(≥2) = 11+`. There's
+barely room for **anything**.
 
-All card borders use Unicode box-drawing (`╭╮╰╯│─`) with **no ASCII fallback** in production:
+**Fix:** On terminals < 16 rows, reduce bottom pane minimum from 5 to **3**. The
+composer only needs 1 row for the input line + 1 for the footer hint + 1 for
+the prompt/border.
 
-- `history_cell/auto_drive.rs:32-34` — card borders
-- `history_cell/agent/preamble.rs:27-29`
-- `history_cell/image.rs:33-35`
-- `history_cell/browser/mod.rs:11-13`
-- `history_cell/web_search.rs:28-30`
-- `auto_drive_style.rs:114-153` — `ButtonGlyphs` (only `light()` uses ASCII)
-- `bottom_pane/panes/auto_coordinator/render/prompt.rs:119-126`
+### Settings Pages Refuse to Render
 
-Termux renders these correctly with a good font (e.g., Fira Code), but stock fonts
-or older Android versions may show boxes or misaligned characters.
+| Page | Min Height | File | Behavior |
+|------|-----------|------|----------|
+| MCP (stacked) | **25 rows** | `mcp/layout.rs:96-98` | `list(9)+summary(8)+tools(8)`. Unusable. |
+| Settings overlay | 4 rows | `section.rs:193` | Returns early — **silently blank**. |
+| Sectioned panel | header+1+footer | `sectioned_panel.rs:94` | Returns `None` — panel vanishes. |
+| Accounts | 10 rows | `accounts/.../mod.rs:18` | Two-pane blocked. |
 
-### Hardcoded Unicode Symbols
+**Fix:** MCP settings need a **collapsible accordion** that shows one section at a
+time. Settings overlay should display a "resize terminal" hint instead of going
+blank.
 
-| Symbol | File | Use | Termux Risk |
-|--------|------|-----|-------------|
-| `✓` checkmark | `history_cell/core.rs:69`, `rate_limits_view.rs` | Status indicators | May be 2-cell wide |
-| `•◦·∘⋅☐` bullets | `history_cell/assistant.rs:713` | List rendering | Width varies by font |
-| `○◔◑◕●` progress | `history_cell/plan_update.rs:158-165` | Plan progress icons | May be 2-cell wide |
-| `✶` star | `history_cell/auto_drive.rs:45` | Celebration sparkles | Width miscalculation |
-| `▗▄▐▌▛▚▞▜█` blocks | `history_cell/auto_drive.rs:40-43` | Celebration ASCII art | Likely misaligned |
+### Approval Widget — Safety Risk
 
-### Color Handling
+`user_approval_widget.rs:646-649`: When height is tight, the command prompt
+gets crushed to **1 row** while option buttons consume the rest. The user
+**can't read the command they're approving**.
 
-**Good:** The TUI correctly detects color support and falls back:
-- `theme.rs:360` — `palette_mode()` checks `supports_color` crate
-- `shimmer.rs:32` — checks `has_truecolor_terminal()` before using `Color::Rgb`
-- Termux NOT in the "known truecolor" list → falls back to ANSI-256/16
-
-**Issue:** A few hardcoded `Color::Rgb()` calls bypass palette detection:
-- `history_cell/auto_drive.rs:1048` — `Color::Rgb(255, 255, 255)` without quantization
-
-### Existing Mitigation
-
-- `CODEX_TUI_ASCII=1` env var forces ASCII-only text output (`sanitize.rs:39`)
-- But this only affects **content sanitization**, NOT UI chrome (borders, icons, spinners)
-
-### Recommendations
-
-- Replace all `.chars().count()` in layout code with `UnicodeWidthStr::width()`.
-- Extend `CODEX_TUI_ASCII` (or add `CODEX_TUI_SIMPLE`) to also replace box-drawing borders with ASCII (`+`, `-`, `|`), and Unicode icons with ASCII fallbacks.
-- Add Termux to terminal detection for conservative defaults.
-- Fix `occupied_range()` to use display-width positions.
+**Fix:** Guarantee ≥ 2 rows for the command text; truncate the options list
+instead.
 
 ---
 
-## 4. Input & Interaction Issues
+## 3. Touch & Tap Targets
 
-### Keyboard Shortcuts
+Termux translates screen taps into mouse click events. The TUI already has a
+clickable region system (`ClickableRegion` in `chatwidget`), but the current
+targets are **1 terminal row tall and as narrow as the label text**. On a phone
+screen, that's roughly 3–5mm tall — below the recommended 7mm (48dp) minimum
+for mobile touch targets.
 
-| Shortcut | Purpose | Termux Status |
-|----------|---------|---------------|
-| `Enter` | Submit message | ✅ Works |
-| `Esc` | Cancel / back | ✅ Works |
-| `Ctrl+D` | Exit (empty composer) | ✅ Works |
-| `Ctrl+B` | Toggle browser overlay | ✅ Works |
-| `Ctrl+A` | Toggle agents terminal | ✅ Works |
-| `Tab` | Autocomplete / navigate | ✅ Works |
-| `PageUp/Down` | Scroll history | ✅ Works |
-| `Arrow keys` | Navigate | ✅ Works |
-| **`Shift+Tab`** | **Cycle access mode** | **⚠️ Unreliable** — on-screen keyboard often sends Tab |
-| **`F2–F6`** | **Auto-drive features** | **⚠️ Requires extra keys bar** config |
-| **`F1`** | **Help overlay** | **⚠️ Requires extra keys bar** |
+### Current Clickable Regions
 
-### Mouse-Only Features (No Keyboard Alternative)
+| Region | Height | Width | File | Touch Friendly? |
+|--------|--------|-------|------|-----------------|
+| Header "Model:" | 1 row | ~10 chars | `terminal_surface_header/click_regions.rs` | ❌ Too small |
+| Header "Shell:" | 1 row | ~8 chars | same | ❌ Too small |
+| Header "Reasoning:" | 1 row | ~12 chars | same | ❌ Too small |
+| Fold/collapse gutter | 1 row | 1-2 chars | `cell_paint.rs:379,450` | ❌ Tiny |
+| Bottom pane items | 1 row each | varies | `selectable_list_mouse.rs` | ⚠️ Marginal |
 
-| Feature | File | Severity |
-|---------|------|----------|
-| **History cell fold/collapse** | `history_cell/core.rs:274` | HIGH — no keyboard toggle |
-| **Cursor positioning in textarea** | `components/textarea.rs:137` | HIGH — must use arrow keys |
-| **Reasoning effort cycling** | Header bar click region | MEDIUM — no keyboard shortcut |
-| **Gutter click targets** (fold/jump) | `height_manager.rs:222` | HIGH — click-only |
+### Proposed Improvements
 
-### Paste Support
+1. **Increase header click target height to 2-3 rows** by extending the
+   clickable rect vertically (the hit-test already uses `Rect`, so enlarging
+   `height` is trivial). Even if the visual label is 1 row, the tappable area
+   should extend above and below.
 
-- **Bracketed paste** is enabled (`tui.rs:82` — `EnableBracketedPaste`)
-- `Ctrl+V` works in Termux via terminal paste
-- Long-press paste → unreliable (generates mouse events)
+2. **Add dedicated touch-action rows** on small screens: a row of tappable
+   buttons below the header (e.g., `[Model] [Shell] [Reasoning] [Settings]`)
+   that replaces the compact header. This is similar to the Termux extra keys
+   bar concept but rendered inside the TUI.
 
-### Recommendations
+3. **Fold/collapse targets** should expand to at least 3 chars wide. Currently
+   the gutter fold icon is 1–2 chars, which is nearly impossible to tap
+   accurately on a phone.
 
-- Add `Alt+Tab` as alternative to `Shift+Tab` for access mode cycling.
-- Add keyboard shortcuts for fold/unfold: `Ctrl+[` / `Ctrl+]` or similar.
-- Add `Alt+R` for reasoning effort cycling.
-- Document required Termux extra keys bar configuration.
-- Consider reducing reliance on function keys for core features; provide `/slash` command alternatives.
+4. **Approval buttons** should be large, full-width rows rather than inline
+   options. On a phone, "Yes / No / Edit" should each be a separate tappable
+   row.
+
+5. **Slash command popup items** are currently mouse-inaccessible (documented as
+   deferred in `MOUSE_CLICKS.md`). On touch screens this is a significant gap —
+   users can't tap to select from the autocomplete popup.
+
+### Implementation Notes
+
+The `ClickableRegion` system (`chatwidget/input_pipeline/mouse/header.rs`)
+already supports arbitrary `Rect` dimensions. Enlarging touch targets requires:
+- Extending `rect.height` when registering regions (no rendering change needed)
+- For the "touch action bar" idea: a new 1-row widget rendered between header
+  and history when `area.width < 50 || area.height < 20`
 
 ---
 
-## 5. Recommended Termux Configuration
+## 4. Input & Hotkey Flexibility
 
-### Extra Keys Bar (`~/.termux/termux.properties`)
+### What Works on Termux
 
-```properties
-extra-keys = [['ESC','Ctrl','Alt','Shift','Tab'],['F1','F2','F3','F4','F5','F6','|']]
-```
+| Shortcut | Purpose | Status |
+|----------|---------|--------|
+| `Enter` | Submit message | ✅ |
+| `Esc` | Cancel / back / stop auto-drive | ✅ |
+| `Ctrl+D` | Exit (empty composer) | ✅ |
+| `Ctrl+B` | Toggle browser overlay | ✅ |
+| `Ctrl+A` | Toggle agents terminal | ✅ |
+| `Tab` | Autocomplete / navigate | ✅ |
+| `PageUp/Down` | Scroll history | ✅ |
+| `Arrow keys` | Navigate | ✅ |
+| `Ctrl+V` / bracketed paste | Paste | ✅ |
 
-### Environment Variables
+### What's Problematic
 
-```bash
-# Force ASCII-only content sanitization
-export CODEX_TUI_ASCII=1
+| Shortcut | Purpose | Issue |
+|----------|---------|-------|
+| `Shift+Tab` | Cycle access mode (RO → Write → Full) | On-screen keyboards often send plain Tab |
+| `F1` | Help overlay | Needs Termux extra keys bar |
+| `F2–F6` | Auto-drive features / configurable hotkeys | Needs extra keys bar |
+| Mouse click on header | Model/Shell/Reasoning selectors | Touch targets too small (see §3) |
 
-# (Proposed) Force simple UI chrome (ASCII borders, no emoji icons)
-# export CODEX_TUI_SIMPLE=1
-```
+### Hotkey System Is Already Flexible
 
-### Font Recommendation
+The `TuiHotkey` type (`core/config_types.rs:1544`) supports:
+- **Function keys** (`F1`–`F24`)
+- **Chords** (`Ctrl+X`, `Alt+X`, `Ctrl+Alt+X`)
+- **Legacy** single-key bindings
+- **Disabled**
 
-Install a Nerd Font or Fira Code in Termux for proper box-drawing and icon rendering:
-```bash
-# Example: install via Termux styling
-pkg install termux-styling
-# Then select a monospace font with good Unicode coverage
-```
+Users can remap hotkeys in their config. This is good — but the **defaults**
+assume function keys are available, which they aren't on Termux without extra
+keys bar config.
+
+### Recommended Default Adjustments for Small Terminals
+
+- **Shift+Tab fallback**: Add `Alt+A` (or any Ctrl chord) as alternative for
+  access mode cycling. `Alt` works in Termux.
+- **Reasoning cycling**: Add a keyboard shortcut (currently mouse-only).
+  `Alt+R` or a configurable hotkey.
+- **Fold/collapse**: Add keyboard shortcut. Currently mouse-only via gutter
+  click (`ToggleFoldAtIndex`). Suggest `[` / `]` keys when focus is on history
+  (the `Legacy` hotkey slot).
+- Provide `/` slash command equivalents for anything that currently requires a
+  function key or mouse click. `/reasoning`, `/fold`, `/access` would cover
+  the gaps.
+
+### Mouse-Only Features That Need Keyboard Alternatives
+
+| Feature | Current Access | Suggested Alternative |
+|---------|---------------|----------------------|
+| History fold/collapse | Gutter click | `[` / `]` or `/fold` |
+| Reasoning cycling | Header click | `Alt+R` or `/reasoning` |
+| Cursor positioning | Mouse click in textarea | Arrow keys work (acceptable) |
+| Directory picker | Header click | `/cd` command exists ✅ |
+
+---
+
+## 5. Unicode Width Bugs
+
+Several layout calculations use **character count** (`.chars().count()`) instead
+of **display width** (`UnicodeWidthStr::width()`). This causes misalignment
+with CJK characters, emoji, or any double-width Unicode.
+
+### Confirmed Bugs
+
+| Location | File | Line(s) | Bug |
+|----------|------|---------|-----|
+| **Table column widths** | `markdown_renderer/tables.rs` | 118, 122, 138 | `widths[i] = cell.chars().count()` — wrong for CJK |
+| **Celebration art layout** | `history_cell/auto_drive.rs` | 1014-1019 | `chars.len()` for width calculation |
+| **Sparkle position range** | `history_cell/auto_drive.rs` | 777-787 | Char index ≠ display position |
+| **Bullet indent depth** | `history_cell/assistant.rs` | 724 | `chars().count()` for indent |
+
+### What's Already Correct
+
+- Spinner frame width: `spinner.rs:204` uses `UnicodeWidthStr::width()` ✅
+- Card truncation: `card_style.rs` uses `UnicodeWidthStr` ✅
+- Color detection: falls back to ANSI-256/16 on Termux ✅
+- `CODEX_TUI_ASCII=1` forces ASCII content (but not UI chrome) ✅
+
+### Recommended Fix
+
+Replace every `.chars().count()` in layout/rendering code with `.width()` from
+`unicode_width`. The most impactful fix is the **table renderer** — markdown
+tables with CJK content are visibly broken.
 
 ---
 
@@ -229,34 +262,41 @@ pkg install termux-styling
 
 | Issue | Category | Effort |
 |-------|----------|--------|
-| Settings sidebar unusable < 45 cols | Layout/Width | Medium — proportional sizing |
-| Approval prompt unreadable at short heights | Layout/Height | Low — guarantee 2 rows for command |
-| MCP settings needs 25 rows | Layout/Height | Medium — collapsible sections |
-| Settings overlays fail silently | Layout/Height | Low — show "too small" message |
-| `.chars().count()` in table width | Unicode | Low — replace with `.width()` |
+| Settings sidebar breaks < 45 cols → stacked mode | Layout | Medium |
+| Approval prompt unreadable at short heights | Layout | Low |
+| MCP settings needs 25 rows → accordion mode | Layout | Medium |
+| Settings overlays go blank silently → show hint | Layout | Low |
+| `.chars().count()` in table width → `.width()` | Unicode | Low |
 
-### P1 — Degrades Experience Significantly
-
-| Issue | Category | Effort |
-|-------|----------|--------|
-| Image cards broken < 52 cols | Layout/Width | Medium — text-only fallback |
-| Skills/accounts label columns too wide | Layout/Width | Low — proportional or stacked |
-| No keyboard fold/collapse | Input | Low — add shortcut |
-| Shift+Tab unreliable | Input | Low — add Alt+Tab alternative |
-| Box-drawing with no ASCII mode | Unicode | Medium — conditional border sets |
-| Bottom pane min 5 rows | Layout/Height | Low — reduce to 3 on small terminals |
-
-### P2 — Polish & Edge Cases
+### P1 — Major Experience Gaps
 
 | Issue | Category | Effort |
 |-------|----------|--------|
-| Composer chrome overhead | Layout/Width | Low — reduce padding |
-| Hardcoded RGB without quantization | Unicode | Low — wrap in palette check |
-| Function keys need extra bar | Input | Docs — document config |
-| Intro animation height/width limits | Layout | Low — cosmetic only |
-| No Termux terminal detection | Unicode | Low — check `$PREFIX` env var |
-| Extend `CODEX_TUI_ASCII` to UI chrome | Unicode | Medium — border/icon fallbacks |
+| Touch targets too small (header, gutter) | Touch | Low |
+| No keyboard shortcut for fold/collapse | Input | Low |
+| No keyboard shortcut for reasoning cycling | Input | Low |
+| Shift+Tab unreliable → add Alt chord alternative | Input | Low |
+| Image cards broken < 52 cols → text-only fallback | Layout | Medium |
+| Bottom pane min 5 rows → reduce to 3 on small screens | Layout | Low |
+
+### P2 — Polish
+
+| Issue | Category | Effort |
+|-------|----------|--------|
+| Composer padding reduction on narrow screens | Layout | Low |
+| Touch action bar for small screens | Touch | Medium |
+| Slash command popup not tappable | Touch | High (deferred) |
+| Extend `CODEX_TUI_ASCII` to UI chrome (borders, icons) | Unicode | Medium |
+| Detect Termux via `$PREFIX` env for conservative defaults | Config | Low |
+| Document recommended Termux extra keys bar | Docs | Low |
+
+### Recommended Termux Extra Keys Bar
+
+```properties
+# ~/.termux/termux.properties
+extra-keys = [['ESC','Ctrl','Alt','Shift','Tab'],['F1','F2','F3','F4','F5','F6','|']]
+```
 
 ---
 
-*Generated by audit of `code-rs/tui/src/` — April 2026*
+*Audit of `code-rs/tui/src/` — April 2026*
