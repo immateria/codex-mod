@@ -55,7 +55,7 @@ pub(super) fn scrollable_clickable_regions_from_char_ranges(
                 x: padded_x,
                 y: area.y,
                 width: padded_right.saturating_sub(padded_x),
-                height: area.height.min(3).max(1),
+                height: area.height.clamp(1, 3),
             },
             action: action.clone(),
         });
