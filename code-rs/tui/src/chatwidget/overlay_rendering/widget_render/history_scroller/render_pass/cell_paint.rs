@@ -476,6 +476,39 @@ impl ChatWidget<'_> {
                     );
                 }
 
+                // Background events can be noisy (e.g. transient MCP failures); let the user
+                // dismiss them with a small close affordance.
+                if matches!(
+                    item_kind,
+                    crate::history_cell::HistoryCellType::BackgroundEvent
+                ) && visible_height > 0
+                    && item_area.width >= 3
+                {
+                    let label = "[x]";
+                    let x = item_area
+                        .x
+                        .saturating_add(item_area.width.saturating_sub(label.len() as u16));
+                    let y = item_area.y;
+                    let action = crate::chatwidget::ClickableAction::DismissHistoryCellAtIndex(idx);
+                    let hovered = self.hovered_clickable_action.borrow().as_ref() == Some(&action);
+                    let style = if hovered {
+                        Style::default()
+                            .bg(crate::colors::background())
+                            .fg(crate::colors::error())
+                    } else {
+                        Style::default()
+                            .bg(crate::colors::background())
+                            .fg(crate::colors::text_dim())
+                    };
+                    buf.set_string(x, y, label, style);
+                    self.clickable_regions.borrow_mut().push(
+                        crate::chatwidget::ClickableRegion {
+                            rect: Rect::new(x, y, label.len() as u16, 1),
+                            action,
+                        },
+                    );
+                }
+
                 if self.show_order_overlay
                     && let Some(Some(info)) = self.cell_order_dbg.get(idx)
                 {

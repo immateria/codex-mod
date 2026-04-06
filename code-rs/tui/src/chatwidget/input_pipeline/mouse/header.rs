@@ -107,6 +107,18 @@ impl ChatWidget<'_> {
             ClickableAction::ToggleFoldAtIndex(idx) => {
                 self.toggle_fold_at_index(idx);
             }
+            ClickableAction::DismissHistoryCellAtIndex(idx) => {
+                if idx >= self.history_cells.len() {
+                    return;
+                }
+                if !matches!(
+                    self.history_cells[idx].kind(),
+                    crate::history_cell::HistoryCellType::BackgroundEvent
+                ) {
+                    return;
+                }
+                self.history_remove_at(idx);
+            }
         }
     }
 

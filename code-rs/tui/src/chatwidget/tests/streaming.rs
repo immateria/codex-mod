@@ -593,6 +593,52 @@
         "expected Network settings view after click, got:\n{output}",
     );
     }
+
+    #[test]
+    fn background_event_close_button_removes_cell() {
+        let _guard = enter_test_runtime_guard();
+        let mut harness = ChatWidgetHarness::new();
+
+        harness.with_chat(|chat| {
+            reset_history(chat);
+            chat.push_background_tail("Auto-retrying… (MCP server failed)".to_string());
+        });
+
+        // Render once to populate clickable regions.
+        {
+            use crate::test_backend::VT100Backend;
+            use ratatui::Terminal;
+
+            let chat = harness.chat();
+            let mut terminal = Terminal::new(VT100Backend::new(80, 8)).expect("terminal");
+            terminal
+                .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+                .expect("draw");
+        }
+
+        let (x, y) = harness.with_chat(|chat| {
+            let regions = chat.clickable_regions.borrow();
+            let region = regions
+                .iter()
+                .find(|region| {
+                    matches!(
+                        region.action,
+                        ClickableAction::DismissHistoryCellAtIndex(idx) if idx == 0
+                    )
+                })
+                .expect("expected a dismiss click region for background event");
+            (region.rect.x, region.rect.y)
+        });
+
+        harness.with_chat(|chat| chat.handle_click((x, y)));
+
+        harness.with_chat(|chat| {
+            assert!(
+                chat.history_cells.is_empty(),
+                "expected background event cell to be removed"
+            );
+        });
+    }
     
     
     
