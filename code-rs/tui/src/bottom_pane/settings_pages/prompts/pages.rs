@@ -15,6 +15,9 @@ use crate::bottom_pane::settings_ui::form_page::{
     SettingsFormSection,
 };
 use crate::bottom_pane::settings_ui::hints::{
+    hint_enter,
+    hint_esc,
+    hint_nav,
     shortcut_line,
     status_and_shortcuts_split,
     title_line,
@@ -50,8 +53,8 @@ impl PromptsSettingsView {
             status,
             &[
                 KeyHint::new("Tab", " next"),
-                KeyHint::new("Enter", " activate").with_key_style(Style::new().fg(colors::success())),
-                KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+                hint_enter(" activate"),
+                hint_esc(" back"),
             ],
         );
         SettingsActionPage::new(
@@ -101,10 +104,10 @@ impl PromptsSettingsView {
             SettingsPanelStyle::bottom_pane(),
             self.list_header_lines(),
             vec![shortcut_line(&[
-                KeyHint::new("↑↓", " navigate").with_key_style(Style::new().fg(colors::function())),
-                KeyHint::new("Enter", " edit").with_key_style(Style::new().fg(colors::success())),
+                hint_nav(" navigate"),
+                hint_enter(" edit"),
                 KeyHint::new("Ctrl+N", " new").with_key_style(Style::new().fg(colors::info())),
-                KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error())),
+                hint_esc(" close"),
             ])],
         )
     }

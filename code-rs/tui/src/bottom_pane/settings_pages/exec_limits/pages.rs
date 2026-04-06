@@ -7,6 +7,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::colors;
 
@@ -67,19 +68,13 @@ impl ExecLimitsSettingsView {
     }
 
     pub(super) fn render_footer_lines(&self) -> Vec<Line<'static>> {
-        vec![Line::from(vec![
-            Span::styled("↑↓", Style::default().fg(colors::function())),
-            Span::styled(" move  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Enter", Style::default().fg(colors::success())),
-            Span::styled(" edit/toggle  ", Style::default().fg(colors::text_dim())),
-            Span::styled("a", Style::default().fg(colors::success())),
-            Span::styled(" auto  ", Style::default().fg(colors::text_dim())),
-            Span::styled("d", Style::default().fg(colors::success())),
-            Span::styled(" disable  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Ctrl+S", Style::default().fg(colors::success())),
-            Span::styled(" save  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Esc", Style::default().fg(colors::error())),
-            Span::styled(" close", Style::default().fg(colors::text_dim())),
+        vec![shortcut_line(&[
+            hint_nav(" move"),
+            hint_enter(" edit/toggle"),
+            KeyHint::new("a", " auto").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("d", " disable").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
+            hint_esc(" close"),
         ])]
     }
 

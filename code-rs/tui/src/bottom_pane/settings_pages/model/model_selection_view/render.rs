@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use code_core::config_types::{ContextMode, ServiceTier};
 
 use crate::bottom_pane::chrome::ChromeMode;
-use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
 use crate::bottom_pane::settings_ui::line_runs::SelectableLineRun;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
@@ -374,7 +374,7 @@ impl ModelSelectionView {
         let mut hints = vec![
             KeyHint::new("↑↓", " Navigate").with_key_style(Style::new().fg(colors::light_blue())),
             KeyHint::new("←→ +/-", " Adjust").with_key_style(Style::new().fg(colors::warning())),
-            KeyHint::new("Enter", " Select/Edit").with_key_style(Style::new().fg(colors::success())),
+            hint_enter(" Select/Edit"),
         ];
         if self.data.target.supports_context_mode() {
             hints.push(
@@ -382,7 +382,7 @@ impl ModelSelectionView {
                     .with_key_style(Style::new().fg(colors::primary())),
             );
         }
-        hints.push(KeyHint::new("Esc", " Cancel").with_key_style(Style::new().fg(colors::error())));
+        hints.push(hint_esc(" Cancel"));
 
         vec![
             Line::from(""),

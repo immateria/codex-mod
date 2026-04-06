@@ -6,7 +6,7 @@ use ratatui::style::Style;
 use ratatui::layout::Position;
 
 use crate::bottom_pane::chrome::ChromeMode;
-use crate::bottom_pane::settings_ui::hints::KeyHint;
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, KeyHint};
 use crate::bottom_pane::settings_ui::form_page::SettingsFormPageLayout;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::rows::StyledText;
@@ -129,8 +129,8 @@ impl PluginsSettingsView {
             .map(|err| StyledText::new(err.clone(), Style::new().fg(colors::error())));
         let shortcuts = [
             KeyHint::new("←→", " actions").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new("Enter", " activate").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+            hint_enter(" activate"),
+            hint_esc(" back"),
         ];
 
         let page = self.detail_page(&snapshot, &title, status, &shortcuts);
@@ -195,8 +195,8 @@ impl PluginsSettingsView {
             .map(|err| StyledText::new(err.clone(), Style::new().fg(colors::error())));
         let shortcuts = [
             KeyHint::new("←→", " actions").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new("Enter", " activate").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+            hint_enter(" activate"),
+            hint_esc(" back"),
         ];
         let page = self.detail_page(
             &snapshot,

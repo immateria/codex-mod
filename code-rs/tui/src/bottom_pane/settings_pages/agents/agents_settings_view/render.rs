@@ -8,7 +8,7 @@ use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
 use crate::bottom_pane::settings_ui::buttons::{TextButtonAlign, StandardButtonSpec};
 use crate::bottom_pane::settings_ui::fields::BorderedField;
-use crate::bottom_pane::settings_ui::hints::{status_and_shortcuts_split, title_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, status_and_shortcuts_split, title_line, KeyHint};
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::rows::StyledText;
 use crate::bottom_pane::settings_ui::toggle;
@@ -49,7 +49,7 @@ impl SubagentEditorView {
             KeyHint::new("Shift+Tab", " prev"),
             KeyHint::new("Space", " toggle").with_key_style(Style::new().fg(colors::success())),
             KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+            hint_esc(" back"),
         ];
         let (status_lines, footer_lines) =
             status_and_shortcuts_split(self.action_status_text(), &hints);

@@ -8,7 +8,7 @@ use ratatui::widgets::{Paragraph, Widget, Wrap};
 
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::rows::StyledText;
-use crate::bottom_pane::settings_ui::hints::KeyHint;
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, KeyHint};
 use crate::colors;
 use crate::util::buffer::fill_rect;
 
@@ -83,8 +83,8 @@ impl PluginsSettingsView {
 
         let shortcuts = [
             KeyHint::new("←→", " actions").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new("Enter", " activate").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+            hint_enter(" activate"),
+            hint_esc(" back"),
         ];
 
         let detail_state = snapshot.details.get(&key);
@@ -132,8 +132,8 @@ impl PluginsSettingsView {
         });
         let shortcuts = [
             KeyHint::new("←→", " actions").with_key_style(Style::new().fg(colors::function())),
-            KeyHint::new("Enter", " activate").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+            hint_enter(" activate"),
+            hint_esc(" back"),
         ];
         let page = self.detail_page(snapshot, "Confirm uninstall", status, &shortcuts);
 

@@ -6,7 +6,7 @@ use textwrap::Options as TwOptions;
 
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
-use crate::bottom_pane::settings_ui::hints::{status_and_shortcuts, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_nav, status_and_shortcuts, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::message_page::SettingsMessagePage;
@@ -55,10 +55,8 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
         AddStep::Choose { selected } => {
             let header_lines = vec![Line::from("Choose how you’d like to add an account:")];
             let footer_lines = footer_status_and_shortcuts(state, &[
-                KeyHint::new("↑↓", " navigate")
-                    .with_key_style(Style::new().fg(crate::colors::function())),
-                KeyHint::new("Enter", " select")
-                    .with_key_style(Style::new().fg(crate::colors::success())),
+                hint_nav(" navigate"),
+                hint_enter(" select"),
                 KeyHint::new("Esc", " back")
                     .with_key_style(Style::new().fg(crate::colors::error()).bold()),
             ]);
@@ -77,8 +75,7 @@ pub(super) fn render(state: &LoginAddAccountState, area: Rect, buf: &mut Buffer)
         AddStep::ApiKey { field } => {
             let pre_lines = vec![Line::from("Paste your OpenAI API key:")];
             let post_lines = footer_status_and_shortcuts(state, &[
-                KeyHint::new("Enter", " save")
-                    .with_key_style(Style::new().fg(crate::colors::success())),
+                hint_enter(" save"),
                 KeyHint::new("Esc", " cancel")
                     .with_key_style(Style::new().fg(crate::colors::error()).bold()),
             ]);

@@ -3,7 +3,7 @@ use super::*;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -113,13 +113,13 @@ impl AppsSettingsView {
         let shortcuts = vec![
             KeyHint::new("↑↓", " select").with_key_style(Style::new().fg(colors::primary())),
             KeyHint::new("Space", " pin").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Enter", " details").with_key_style(Style::new().fg(colors::success())),
+            hint_enter(" details"),
             KeyHint::new("m", " mode").with_key_style(Style::new().fg(colors::primary())),
             KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
             KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())),
             KeyHint::new("l", " login").with_key_style(Style::new().fg(colors::success())),
             KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Esc", " close").with_key_style(Style::new().fg(colors::error())),
+            hint_esc(" close"),
         ];
 
         SettingsMenuPage::new(
@@ -276,7 +276,7 @@ impl AppsSettingsView {
         let mut shortcuts = vec![
             KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
             KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())),
-            KeyHint::new("Esc", " back").with_key_style(Style::new().fg(colors::error())),
+            hint_esc(" back"),
         ];
         if let Some(crate::chatwidget::AppsAccountStatusState::Failed { needs_login: true, .. }) =
             snapshot.status_by_account_id.get(account_id)

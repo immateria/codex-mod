@@ -2,7 +2,7 @@ use ratatui::layout::Margin;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_nav, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::colors;
@@ -20,8 +20,7 @@ impl PlanningSettingsView {
                     Style::new().fg(colors::text_dim()),
                 )),
                 shortcut_line(&[
-                    KeyHint::new("↑↓", " navigate")
-                        .with_key_style(Style::new().fg(colors::function())),
+                    hint_nav(" navigate"),
                     KeyHint::new("Enter/Space", " toggle/open")
                         .with_key_style(Style::new().fg(colors::function())),
                     KeyHint::new("Esc", " close")

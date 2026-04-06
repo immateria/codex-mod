@@ -5,6 +5,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 use crate::colors;
@@ -112,20 +113,12 @@ impl MemoriesSettingsView {
     }
 
     fn render_footer_lines(&self) -> Vec<Line<'static>> {
-        vec![Line::from(vec![
-            Span::styled("↑↓", Style::default().fg(colors::function())),
-            Span::styled(" move  ", Style::default().fg(colors::text_dim())),
-            Span::styled("←/→", Style::default().fg(colors::function())),
-            Span::styled(" cycle  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Enter", Style::default().fg(colors::success())),
-            Span::styled(
-                " edit/activate  ",
-                Style::default().fg(colors::text_dim()),
-            ),
-            Span::styled("Ctrl+S", Style::default().fg(colors::success())),
-            Span::styled(" apply  ", Style::default().fg(colors::text_dim())),
-            Span::styled("Esc", Style::default().fg(colors::error())),
-            Span::styled(" close", Style::default().fg(colors::text_dim())),
+        vec![shortcut_line(&[
+            hint_nav(" move"),
+            KeyHint::new("←/→", " cycle").with_key_style(Style::new().fg(colors::function())),
+            hint_enter(" edit/activate"),
+            KeyHint::new("Ctrl+S", " apply").with_key_style(Style::new().fg(colors::success())),
+            hint_esc(" close"),
         ])]
     }
 
