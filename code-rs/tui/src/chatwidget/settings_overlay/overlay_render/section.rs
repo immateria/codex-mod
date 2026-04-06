@@ -191,6 +191,11 @@ impl SettingsOverlayView {
 
     fn render_help_overlay(&self, area: Rect, buf: &mut Buffer, help: &SettingsHelpOverlay) {
         if area.width < 4 || area.height < 4 {
+            let hint = if area.width >= 10 { "↔ resize" } else { "…" };
+            let hint_w = unicode_width::UnicodeWidthStr::width(hint) as u16;
+            let x = area.x + area.width.saturating_sub(hint_w) / 2;
+            let y = area.y + area.height / 2;
+            buf.set_string(x, y, hint, Style::default().fg(crate::colors::text_dim()));
             return;
         }
 

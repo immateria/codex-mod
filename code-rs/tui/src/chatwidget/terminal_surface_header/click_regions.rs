@@ -23,7 +23,7 @@ pub(super) fn centered_clickable_regions_from_char_ranges(
                 x: start_x + visible_start as u16,
                 y: area.y,
                 width: (visible_end - visible_start) as u16,
-                height: 1,
+                height: area.height.min(3).max(1),
             },
             action: action.clone(),
         });

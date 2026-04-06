@@ -641,10 +641,11 @@ impl WidgetRef for &UserApprovalWidget<'_> {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
         let mut prompt_height = self.get_confirmation_prompt_height(area.width);
         // Favor keeping approval actions visible when space is tight (the bottom pane
-        // height is capped relative to terminal height).
+        // height is capped relative to terminal height). Always guarantee at least 2
+        // rows for the command text so the user can read what they're approving.
         let min_options_height = self.select_options.len() as u16;
         if area.height > 0 && min_options_height > 0 {
-            let max_prompt_height = area.height.saturating_sub(min_options_height).max(1);
+            let max_prompt_height = area.height.saturating_sub(min_options_height).max(2);
             prompt_height = prompt_height.min(max_prompt_height);
         }
         let [prompt_chunk, options_chunk] = Layout::vertical([

@@ -30,13 +30,13 @@ content appears. On a 30-col screen the content pane gets **~8 columns** — unu
 
 **Affected files and constants:**
 
-| Constant / Logic | File | Value | Impact at 30 cols |
-|------------------|------|-------|--------------------|
-| Sidebar width | `settings_overlay/overlay_render/section.rs:27` | `Length(22)` | 73% of screen |
-| Label column | `settings_overlay/types.rs:9` | `18` chars | 0 cols for values |
-| Skills labels | `settings_pages/skills/render.rs:8` | `Length(24)` | 6 cols for content |
-| Overlay min width | `settings_pages/interface/hotkeys.rs:7` | `40` | Overlay unavailable |
-| Accounts two-pane | `settings_pages/accounts/.../mod.rs:17` | `96` cols min | Single-col only |
+| Constant / Logic  | File                                            | Value         | Impact at 30 cols   |
+| ----------------- | ----------------------------------------------- | ------------- | ------------------- |
+| Sidebar width     | `settings_overlay/overlay_render/section.rs:27` | `Length(22)`  | 73% of screen       |
+| Label column      | `settings_overlay/types.rs:9`                   | `18` chars    | 0 cols for values   |
+| Skills labels     | `settings_pages/skills/render.rs:8`             | `Length(24)`  | 6 cols for content  |
+| Overlay min width | `settings_pages/interface/hotkeys.rs:7`         | `40`          | Overlay unavailable |
+| Accounts two-pane | `settings_pages/accounts/.../mod.rs:17`         | `96` cols min | Single-col only     |
 
 **Fix:** Make the sidebar proportional (`min(22, width * 40%)`) and add a
 **stacked mode** that puts sidebar above content instead of beside it when
@@ -44,12 +44,12 @@ content appears. On a 30-col screen the content pane gets **~8 columns** — unu
 
 ### Card / History Cell Rendering
 
-| Element | File | Min Width | Issue |
-|---------|------|-----------|-------|
-| Image cards | `history_cell/image.rs:33-45` | 52 cols | `MIN_WIDTH(18) + GAP(2) + TEXT(28) + pad`. No text-only fallback. |
-| Agents sidebar | `agents_terminal_overlay.rs:182` | 30 col breakpoint | At ≤ 30 cols, detail pane = 0 cols. |
-| Browser sidebar | `browser_overlay.rs:188` | Fixed 24 cols | Screenshot area only 16 cols at 40-col. |
-| Limits wide layout | `limits/content_impl.rs:2` | 110 cols | Single-column only on phones (acceptable). |
+| Element            | File                             | Min Width         | Issue                                                             |
+| ------------------ | -------------------------------- | ----------------- | ----------------------------------------------------------------- |
+| Image cards        | `history_cell/image.rs:33-45`    | 52 cols           | `MIN_WIDTH(18) + GAP(2) + TEXT(28) + pad`. No text-only fallback. |
+| Agents sidebar     | `agents_terminal_overlay.rs:182` | 30 col breakpoint | At ≤ 30 cols, detail pane = 0 cols.                               |
+| Browser sidebar    | `browser_overlay.rs:188`         | Fixed 24 cols     | Screenshot area only 16 cols at 40-col.                           |
+| Limits wide layout | `limits/content_impl.rs:2`       | 110 cols          | Single-column only on phones (acceptable).                        |
 
 **Fix:** Image cards should drop to a **title + text-only** layout below 40 cols.
 Agent/browser overlays should go **full-width single-pane** instead of
@@ -74,13 +74,13 @@ must fit status bar + history + composer into that budget.
 
 ### Critical Vertical Budget Conflicts
 
-| Component | Min Rows | File | Issue |
-|-----------|----------|------|-------|
-| Bottom pane | 5 | `height_manager.rs:136` | 42% of a 12-row screen |
-| History | 3 | `height_manager.rs:225` | Only 3 lines visible |
-| Status bar | 1 | — | Always shown |
-| HUD preview | 4 | `height_manager.rs:196` | Disappears entirely at budget < 4 |
-| **Total minimum** | **9** | | Only 3 rows spare at 12 |
+| Component         | Min Rows | File                    | Issue                             |
+| ----------------- | -------- | ----------------------- | --------------------------------- |
+| Bottom pane       | 5        | `height_manager.rs:136` | 42% of a 12-row screen            |
+| History           | 3        | `height_manager.rs:225` | Only 3 lines visible              |
+| Status bar        | 1        | —                       | Always shown                      |
+| HUD preview       | 4        | `height_manager.rs:196` | Disappears entirely at budget < 4 |
+| **Total minimum** | **9**    |                         | Only 3 rows spare at 12           |
 
 At 12 rows: `status(1) + history(3) + bottom(5) + borders(≥2) = 11+`. There's
 barely room for **anything**.
@@ -91,12 +91,12 @@ the prompt/border.
 
 ### Settings Pages Refuse to Render
 
-| Page | Min Height | File | Behavior |
-|------|-----------|------|----------|
-| MCP (stacked) | **25 rows** | `mcp/layout.rs:96-98` | `list(9)+summary(8)+tools(8)`. Unusable. |
-| Settings overlay | 4 rows | `section.rs:193` | Returns early — **silently blank**. |
-| Sectioned panel | header+1+footer | `sectioned_panel.rs:94` | Returns `None` — panel vanishes. |
-| Accounts | 10 rows | `accounts/.../mod.rs:18` | Two-pane blocked. |
+| Page             | Min Height      | File                     | Behavior                                 |
+| ---------------- | --------------- | ------------------------ | ---------------------------------------- |
+| MCP (stacked)    | **25 rows**     | `mcp/layout.rs:96-98`    | `list(9)+summary(8)+tools(8)`. Unusable. |
+| Settings overlay | 4 rows          | `section.rs:193`         | Returns early — **silently blank**.      |
+| Sectioned panel  | header+1+footer | `sectioned_panel.rs:94`  | Returns `None` — panel vanishes.         |
+| Accounts         | 10 rows         | `accounts/.../mod.rs:18` | Two-pane blocked.                        |
 
 **Fix:** MCP settings need a **collapsible accordion** that shows one section at a
 time. Settings overlay should display a "resize terminal" hint instead of going
@@ -123,13 +123,13 @@ for mobile touch targets.
 
 ### Current Clickable Regions
 
-| Region | Height | Width | File | Touch Friendly? |
-|--------|--------|-------|------|-----------------|
-| Header "Model:" | 1 row | ~10 chars | `terminal_surface_header/click_regions.rs` | ❌ Too small |
-| Header "Shell:" | 1 row | ~8 chars | same | ❌ Too small |
-| Header "Reasoning:" | 1 row | ~12 chars | same | ❌ Too small |
-| Fold/collapse gutter | 1 row | 1-2 chars | `cell_paint.rs:379,450` | ❌ Tiny |
-| Bottom pane items | 1 row each | varies | `selectable_list_mouse.rs` | ⚠️ Marginal |
+| Region               | Height     | Width     | File                                       | Touch Friendly? |
+| -------------------- | ---------- | --------- | ------------------------------------------ | --------------- |
+| Header "Model:"      | 1 row      | ~10 chars | `terminal_surface_header/click_regions.rs` | ❌ Too small    |
+| Header "Shell:"      | 1 row      | ~8 chars  | same                                       | ❌ Too small    |
+| Header "Reasoning:"  | 1 row      | ~12 chars | same                                       | ❌ Too small    |
+| Fold/collapse gutter | 1 row      | 1-2 chars | `cell_paint.rs:379,450`                    | ❌ Tiny         |
+| Bottom pane items    | 1 row each | varies    | `selectable_list_mouse.rs`                 | ⚠️ Marginal   |
 
 ### Proposed Improvements
 
@@ -169,26 +169,26 @@ already supports arbitrary `Rect` dimensions. Enlarging touch targets requires:
 
 ### What Works on Termux
 
-| Shortcut | Purpose | Status |
-|----------|---------|--------|
-| `Enter` | Submit message | ✅ |
-| `Esc` | Cancel / back / stop auto-drive | ✅ |
-| `Ctrl+D` | Exit (empty composer) | ✅ |
-| `Ctrl+B` | Toggle browser overlay | ✅ |
-| `Ctrl+A` | Toggle agents terminal | ✅ |
-| `Tab` | Autocomplete / navigate | ✅ |
-| `PageUp/Down` | Scroll history | ✅ |
-| `Arrow keys` | Navigate | ✅ |
-| `Ctrl+V` / bracketed paste | Paste | ✅ |
+| Shortcut                   | Purpose                         | Status |
+| -------------------------- | ------------------------------- | ------ |
+| `Enter`                    | Submit message                  | ✅     |
+| `Esc`                      | Cancel / back / stop auto-drive | ✅     |
+| `Ctrl+D`                   | Exit (empty composer)           | ✅     |
+| `Ctrl+B`                   | Toggle browser overlay          | ✅     |
+| `Ctrl+A`                   | Toggle agents terminal          | ✅     |
+| `Tab`                      | Autocomplete / navigate         | ✅     |
+| `PageUp/Down`              | Scroll history                  | ✅     |
+| `Arrow keys`               | Navigate                        | ✅     |
+| `Ctrl+V` / bracketed paste | Paste                           | ✅     |
 
 ### What's Problematic
 
-| Shortcut | Purpose | Issue |
-|----------|---------|-------|
-| `Shift+Tab` | Cycle access mode (RO → Write → Full) | On-screen keyboards often send plain Tab |
-| `F1` | Help overlay | Needs Termux extra keys bar |
-| `F2–F6` | Auto-drive features / configurable hotkeys | Needs extra keys bar |
-| Mouse click on header | Model/Shell/Reasoning selectors | Touch targets too small (see §3) |
+| Shortcut              | Purpose                                    | Issue                                    |
+| --------------------- | ------------------------------------------ | ---------------------------------------- |
+| `Shift+Tab`           | Cycle access mode (RO → Write → Full)      | On-screen keyboards often send plain Tab |
+| `F1`                  | Help overlay                               | Needs Termux extra keys bar              |
+| `F2–F6`               | Auto-drive features / configurable hotkeys | Needs extra keys bar                     |
+| Mouse click on header | Model/Shell/Reasoning selectors            | Touch targets too small (see §3)         |
 
 ### Hotkey System Is Already Flexible
 
@@ -217,12 +217,12 @@ keys bar config.
 
 ### Mouse-Only Features That Need Keyboard Alternatives
 
-| Feature | Current Access | Suggested Alternative |
-|---------|---------------|----------------------|
-| History fold/collapse | Gutter click | `[` / `]` or `/fold` |
-| Reasoning cycling | Header click | `Alt+R` or `/reasoning` |
-| Cursor positioning | Mouse click in textarea | Arrow keys work (acceptable) |
-| Directory picker | Header click | `/cd` command exists ✅ |
+| Feature               | Current Access          | Suggested Alternative        |
+| --------------------- | ----------------------- | ---------------------------- |
+| History fold/collapse | Gutter click            | `[` / `]` or `/fold`         |
+| Reasoning cycling     | Header click            | `Alt+R` or `/reasoning`      |
+| Cursor positioning    | Mouse click in textarea | Arrow keys work (acceptable) |
+| Directory picker      | Header click            | `/cd` command exists ✅      |
 
 ---
 
@@ -234,12 +234,12 @@ with CJK characters, emoji, or any double-width Unicode.
 
 ### Confirmed Bugs
 
-| Location | File | Line(s) | Bug |
-|----------|------|---------|-----|
-| **Table column widths** | `markdown_renderer/tables.rs` | 118, 122, 138 | `widths[i] = cell.chars().count()` — wrong for CJK |
-| **Celebration art layout** | `history_cell/auto_drive.rs` | 1014-1019 | `chars.len()` for width calculation |
-| **Sparkle position range** | `history_cell/auto_drive.rs` | 777-787 | Char index ≠ display position |
-| **Bullet indent depth** | `history_cell/assistant.rs` | 724 | `chars().count()` for indent |
+| Location                   | File                          | Line(s)       | Bug                                                |
+| -------------------------- | ----------------------------- | ------------- | -------------------------------------------------- |
+| **Table column widths**    | `markdown_renderer/tables.rs` | 118, 122, 138 | `widths[i] = cell.chars().count()` — wrong for CJK |
+| **Celebration art layout** | `history_cell/auto_drive.rs`  | 1014-1019     | `chars.len()` for width calculation                |
+| **Sparkle position range** | `history_cell/auto_drive.rs`  | 777-787       | Char index ≠ display position                      |
+| **Bullet indent depth**    | `history_cell/assistant.rs`   | 724           | `chars().count()` for indent                       |
 
 ### What's Already Correct
 
@@ -260,35 +260,35 @@ tables with CJK content are visibly broken.
 
 ### P0 — Blocks Core Functionality
 
-| Issue | Category | Effort |
-|-------|----------|--------|
-| Settings sidebar breaks < 45 cols → stacked mode | Layout | Medium |
-| Approval prompt unreadable at short heights | Layout | Low |
-| MCP settings needs 25 rows → accordion mode | Layout | Medium |
-| Settings overlays go blank silently → show hint | Layout | Low |
-| `.chars().count()` in table width → `.width()` | Unicode | Low |
+| Issue                                            | Category | Effort |
+| ------------------------------------------------ | -------- | ------ |
+| Settings sidebar breaks < 45 cols → stacked mode | Layout   | Medium |
+| Approval prompt unreadable at short heights      | Layout   | Low    |
+| MCP settings needs 25 rows → accordion mode      | Layout   | Medium |
+| Settings overlays go blank silently → show hint  | Layout   | Low    |
+| `.chars().count()` in table width → `.width()`   | Unicode  | Low    |
 
 ### P1 — Major Experience Gaps
 
-| Issue | Category | Effort |
-|-------|----------|--------|
-| Touch targets too small (header, gutter) | Touch | Low |
-| No keyboard shortcut for fold/collapse | Input | Low |
-| No keyboard shortcut for reasoning cycling | Input | Low |
-| Shift+Tab unreliable → add Alt chord alternative | Input | Low |
-| Image cards broken < 52 cols → text-only fallback | Layout | Medium |
-| Bottom pane min 5 rows → reduce to 3 on small screens | Layout | Low |
+| Issue                                                 | Category | Effort |
+| ----------------------------------------------------- | -------- | ------ |
+| Touch targets too small (header, gutter)              | Touch    | Low    |
+| No keyboard shortcut for fold/collapse                | Input    | Low    |
+| No keyboard shortcut for reasoning cycling            | Input    | Low    |
+| Shift+Tab unreliable → add Alt chord alternative      | Input    | Low    |
+| Image cards broken < 52 cols → text-only fallback     | Layout   | Medium |
+| Bottom pane min 5 rows → reduce to 3 on small screens | Layout   | Low    |
 
 ### P2 — Polish
 
-| Issue | Category | Effort |
-|-------|----------|--------|
-| Composer padding reduction on narrow screens | Layout | Low |
-| Touch action bar for small screens | Touch | Medium |
-| Slash command popup not tappable | Touch | High (deferred) |
-| Extend `CODEX_TUI_ASCII` to UI chrome (borders, icons) | Unicode | Medium |
-| Detect Termux via `$PREFIX` env for conservative defaults | Config | Low |
-| Document recommended Termux extra keys bar | Docs | Low |
+| Issue                                                     | Category | Effort          |
+| --------------------------------------------------------- | -------- | --------------- |
+| Composer padding reduction on narrow screens              | Layout   | Low             |
+| Touch action bar for small screens                        | Touch    | Medium          |
+| Slash command popup not tappable                          | Touch    | High (deferred) |
+| Extend `CODEX_TUI_ASCII` to UI chrome (borders, icons)    | Unicode  | Medium          |
+| Detect Termux via `$PREFIX` env for conservative defaults | Config   | Low             |
+| Document recommended Termux extra keys bar                | Docs     | Low             |
 
 ### Recommended Termux Extra Keys Bar
 

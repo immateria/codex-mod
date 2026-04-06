@@ -130,10 +130,13 @@ impl HeightManager {
 
         let status_h = status_height.min(area.height);
 
-        // Cap the bottom pane to a percentage of screen height, with a minimum of 5 rows.
+        // Cap the bottom pane to a percentage of screen height. On short terminals
+        // (< 16 rows, typical for Termux with on-screen keyboard) reduce the floor
+        // from 5 to 3 rows so more history is visible.
+        let min_bottom: u16 = if area.height < 16 { 3 } else { 5 };
         let percent_cap: u16 = ((area.height as u32).saturating_mul(self.cfg.bottom_percent_cap as u32) / 100) as u16;
-        let bottom_cap = percent_cap.max(5);
-        let desired = bottom_desired_height.max(5).min(bottom_cap);
+        let bottom_cap = percent_cap.max(min_bottom);
+        let desired = bottom_desired_height.max(min_bottom).min(bottom_cap);
 
         // Bottom pane policy: Grow immediately, confirm small decreases over a few frames
         let mut bottom_h = match (self.last_bottom, self.bypass_once) {

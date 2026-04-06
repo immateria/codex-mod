@@ -34,7 +34,7 @@ impl ChatComposer {
 
     fn desired_input_height(&self, width: u16) -> u16 {
         let content_width = width
-            .saturating_sub(crate::layout_consts::COMPOSER_CONTENT_WIDTH_OFFSET);
+            .saturating_sub(crate::layout_consts::effective_composer_offset(width));
         let content_lines = self.textarea.desired_height(content_width).max(1);
         (content_lines + 2).max(3)
     }

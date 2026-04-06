@@ -44,7 +44,7 @@ pub(crate) fn append_markdown_with_opener_and_cwd_and_bold(
     // one pass. However, fenced code blocks sometimes lost leading whitespace
     // when formatted by the markdown renderer/highlighter. To preserve code
     // block content exactly, split the source into "text" and "code" segments:
-    // - Render non-code text through `tui_markdown` (with citation rewrite).
+    // - Render non-code text through `MarkdownRenderer` (with citation rewrite).
     // - Render code block content verbatim as plain lines without additional
     //   formatting, preserving leading spaces.
     for seg in split_text_and_fences(markdown_source) {

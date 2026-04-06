@@ -101,7 +101,6 @@ tracing = { version = "0.1.41", features = ["log"] }
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 tui-input = "0.14.0"
-tui-markdown = "=0.3.3"
 unicode-segmentation = "1.12.0"
 unicode-width = "0.1"
 url = "2"
@@ -111,7 +110,6 @@ fs2 = "0.4"
 syntect = { version = "5", features = ["yaml-load", "plist-load", "parsing", "default-syntaxes"] }
 which = "6"
 urlencoding = "2.1"
-pulldown-cmark = "0.13"
 portable-pty = "0.9.0"
 thiserror = "1"
 time = { workspace = true, features = ["formatting", "macros", "local-offset"] }

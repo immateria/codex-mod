@@ -468,8 +468,8 @@ impl ChatWidget<'_> {
                             rect: Rect::new(
                                 item_area.x,
                                 header_y,
-                                item_area.width,
-                                1,
+                                item_area.width.max(3),
+                                2.min(item_area.height.max(1)),
                             ),
                             action: crate::chatwidget::ClickableAction::ToggleFoldAtIndex(idx),
                         },
