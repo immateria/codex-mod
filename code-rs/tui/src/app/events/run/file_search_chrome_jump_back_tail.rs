@@ -56,12 +56,16 @@
                         if let Err(err) = std::thread::Builder::new()
                             .name("jump-back-fork".to_string())
                             .spawn(move || {
-                                let rt = tokio::runtime::Builder::new_multi_thread()
+                                let rt = match tokio::runtime::Builder::new_multi_thread()
                                     .enable_all()
                                     .build()
-                                    .unwrap_or_else(|err| {
-                                        panic!("build tokio runtime: {err}")
-                                    });
+                                {
+                                    Ok(rt) => rt,
+                                    Err(err) => {
+                                        tracing::error!("failed to build tokio runtime for jump-back fork: {err}");
+                                        return;
+                                    }
+                                };
                                 // Clone cfg for the async block to keep original for the event
                                 let cfg_for_rt = cfg.clone();
                                 let result = rt.block_on(async move {
@@ -185,6 +189,6 @@
                     }
                 }
                 event => {
-                    unreachable!("unhandled AppEvent in App::run match split: {event:?}");
+                    tracing::warn!("unhandled AppEvent in App::run match tail: {event:?}");
                 }
             }
