@@ -224,7 +224,7 @@ impl WebSearchSessionCell {
         }
 
         CardRow::new(
-            BORDER_TOP.to_string(),
+            BORDER_TOP,
             Self::accent_style(style),
             segments,
             None,
@@ -234,7 +234,7 @@ impl WebSearchSessionCell {
     fn blank_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
         if body_width == 0 {
             return CardRow::new(
-                BORDER_BODY.to_string(),
+                BORDER_BODY,
                 Self::accent_style(style),
                 Vec::new(),
                 None,
@@ -243,7 +243,7 @@ impl WebSearchSessionCell {
 
         let filler = " ".repeat(body_width);
         CardRow::new(
-            BORDER_BODY.to_string(),
+            BORDER_BODY,
             Self::accent_style(style),
             vec![CardSegment::new(filler, Style::default())],
             None,
@@ -292,7 +292,7 @@ impl WebSearchSessionCell {
             let mut remaining = body_width.saturating_sub(ACTION_TIME_INDENT);
             if remaining == 0 {
                 rows.push(CardRow::new(
-                    BORDER_BODY.to_string(),
+                    BORDER_BODY,
                     Self::accent_style(style),
                     segments,
                     None,
@@ -307,7 +307,7 @@ impl WebSearchSessionCell {
             if let Some(separator) = separator_text.as_ref() {
                 if remaining < ACTION_TIME_SEPARATOR_WIDTH {
                     rows.push(CardRow::new(
-                        BORDER_BODY.to_string(),
+                        BORDER_BODY,
                         Self::accent_style(style),
                         segments,
                         None,
@@ -320,7 +320,7 @@ impl WebSearchSessionCell {
 
             if remaining == 0 {
                 rows.push(CardRow::new(
-                    BORDER_BODY.to_string(),
+                    BORDER_BODY,
                     Self::accent_style(style),
                     segments,
                     None,
@@ -335,7 +335,7 @@ impl WebSearchSessionCell {
             segments.push(description_segment);
 
             rows.push(CardRow::new(
-                BORDER_BODY.to_string(),
+                BORDER_BODY,
                 Self::accent_style(style),
                 segments,
                 None,
@@ -348,7 +348,7 @@ impl WebSearchSessionCell {
     fn actions_heading_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
         if body_width == 0 {
             return CardRow::new(
-                BORDER_BODY.to_string(),
+                BORDER_BODY,
                 Self::accent_style(style),
                 Vec::new(),
                 None,
@@ -372,7 +372,7 @@ impl WebSearchSessionCell {
         }
 
         CardRow::new(
-            BORDER_BODY.to_string(),
+            BORDER_BODY,
             Self::accent_style(style),
             segments,
             None,
@@ -382,7 +382,7 @@ impl WebSearchSessionCell {
     fn placeholder_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
         if body_width == 0 {
             return CardRow::new(
-                BORDER_BODY.to_string(),
+                BORDER_BODY,
                 Self::accent_style(style),
                 Vec::new(),
                 None,
@@ -406,7 +406,7 @@ impl WebSearchSessionCell {
         }
 
         CardRow::new(
-            BORDER_BODY.to_string(),
+            BORDER_BODY,
             Self::accent_style(style),
             segments,
             None,
@@ -423,7 +423,7 @@ impl WebSearchSessionCell {
         let mut segment = CardSegment::new(text, hint_style);
         segment.inherit_background = true;
         CardRow::new(
-            BORDER_BOTTOM.to_string(),
+            BORDER_BOTTOM,
             Self::accent_style(style),
             vec![segment],
             None,

@@ -186,7 +186,7 @@ impl AgentRunCell {
         let mut segments = Vec::new();
         if body_width == 0 {
             return CardRow::new(
-                BORDER_TOP.to_string(),
+                BORDER_TOP,
                 Self::accent_style(style),
                 segments,
                 None,
@@ -229,15 +229,15 @@ impl AgentRunCell {
             remaining = remaining.saturating_sub(agents_width);
 
             if remaining == 0 {
-                return CardRow::new(BORDER_TOP.to_string(), Self::accent_style(style), segments, None);
+                return CardRow::new(BORDER_TOP, Self::accent_style(style), segments, None);
             }
         }
 
         if let Some(text_value) = title {
             if remaining == 0 {
-                return CardRow::new(BORDER_TOP.to_string(), Self::accent_style(style), segments, None);
+                return CardRow::new(BORDER_TOP, Self::accent_style(style), segments, None);
             }
-            segments.push(CardSegment::new(" ".to_string(), primary_text_style(style)));
+            segments.push(CardSegment::new(" ", primary_text_style(style)));
             remaining = remaining.saturating_sub(1);
 
             let mode_label = self.write_mode_label();
@@ -275,7 +275,7 @@ impl AgentRunCell {
         }
 
         CardRow::new(
-            BORDER_TOP.to_string(),
+            BORDER_TOP,
             Self::accent_style(style),
             segments,
             None,
@@ -289,7 +289,7 @@ impl AgentRunCell {
     fn blank_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
         let filler = " ".repeat(body_width);
         CardRow::new(
-            BORDER_BODY.to_string(),
+            BORDER_BODY,
             Self::accent_style(style),
             vec![CardSegment::new(filler, Style::default())],
             None,
@@ -305,10 +305,10 @@ impl AgentRunCell {
         indent: usize,
     ) -> CardRow {
         if body_width == 0 {
-            return CardRow::new(BORDER_BODY.to_string(), Self::accent_style(style), Vec::new(), None);
+            return CardRow::new(BORDER_BODY, Self::accent_style(style), Vec::new(), None);
         }
         if body_width <= indent {
-            return CardRow::new(BORDER_BODY.to_string(), Self::accent_style(style), Vec::new(), None);
+            return CardRow::new(BORDER_BODY, Self::accent_style(style), Vec::new(), None);
         }
         let mut segments = Vec::new();
         if indent > 0 {
@@ -318,7 +318,7 @@ impl AgentRunCell {
         let text: String = text.into();
         let display = truncate_with_ellipsis(text.as_str(), available);
         segments.push(CardSegment::new(display, text_style));
-        CardRow::new(BORDER_BODY.to_string(), Self::accent_style(style), segments, None)
+        CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None)
     }
 
     fn multiline_body_rows_with_indent(
@@ -348,7 +348,7 @@ impl AgentRunCell {
                 let truncated = truncate_with_ellipsis(line.as_str(), content_width);
                 segments.push(CardSegment::new(truncated, text_style));
                 CardRow::new(
-                    BORDER_BODY.to_string(),
+                    BORDER_BODY,
                     Self::accent_style(style),
                     segments,
                     None,
@@ -375,7 +375,7 @@ impl AgentRunCell {
             hint_text_style(style)
         };
         let segment = CardSegment::new(text, hint_style);
-        CardRow::new(BORDER_BOTTOM.to_string(), Self::accent_style(style), vec![segment], None)
+        CardRow::new(BORDER_BOTTOM, Self::accent_style(style), vec![segment], None)
     }
 
     pub(crate) fn set_batch_label(&mut self, batch: Option<String>) {
@@ -721,7 +721,7 @@ impl AgentRunCell {
             }
 
             rows.push(CardRow::new(
-                BORDER_BODY.to_string(),
+                BORDER_BODY,
                 Self::accent_style(style),
                 segments,
                 None,
@@ -763,7 +763,7 @@ impl AgentRunCell {
             let mut remaining = available_rest;
             if remaining == 0 {
                 rows.push(CardRow::new(
-                    BORDER_BODY.to_string(),
+                    BORDER_BODY,
                     Self::accent_style(style),
                     segments,
                     None,
@@ -777,7 +777,7 @@ impl AgentRunCell {
             segments.push(CardSegment::new(name_display, primary_text_style(style)));
 
             if remaining > 0 && !entry.status.is_empty() {
-                segments.push(CardSegment::new(" ".to_string(), Style::default()));
+                segments.push(CardSegment::new(" ", Style::default()));
                 remaining = remaining.saturating_sub(1);
                 if remaining > 0 {
                     let status_display = truncate_with_ellipsis(entry.status.as_str(), remaining);
@@ -806,7 +806,7 @@ impl AgentRunCell {
             }
 
             rows.push(CardRow::new(
-                BORDER_BODY.to_string(),
+                BORDER_BODY,
                 Self::accent_style(style),
                 segments,
                 None,
@@ -895,7 +895,7 @@ impl AgentRunCell {
                     ));
                 }
                 rows.push(CardRow::new(
-                    BORDER_BODY.to_string(),
+                    BORDER_BODY,
                     Self::accent_style(style),
                     ellipsis_segments,
                     None,
@@ -943,7 +943,7 @@ impl AgentRunCell {
             }
 
             rows.push(CardRow::new(
-                BORDER_BODY.to_string(),
+                BORDER_BODY,
                 Self::accent_style(style),
                 segments,
                 None,

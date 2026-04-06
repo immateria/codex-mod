@@ -1,6 +1,7 @@
 use ratatui::buffer::Buffer;
 use ratatui::prelude::*;
 use ratatui::style::Color;
+use std::borrow::Cow;
 use unicode_width::UnicodeWidthStr;
 
 use crate::card_theme;
@@ -21,15 +22,15 @@ pub(crate) struct CardStyle {
 
 #[derive(Clone, Debug)]
 pub(crate) struct CardSegment {
-    pub text: String,
+    pub text: Cow<'static, str>,
     pub style: Style,
     pub inherit_background: bool,
 }
 
 impl CardSegment {
-    pub fn new(text: String, style: Style) -> Self {
+    pub fn new(text: impl Into<Cow<'static, str>>, style: Style) -> Self {
         Self {
-            text,
+            text: text.into(),
             style,
             inherit_background: true,
         }
@@ -38,7 +39,7 @@ impl CardSegment {
 
 #[derive(Clone, Debug)]
 pub(crate) struct CardRow {
-    pub accent: String,
+    pub accent: Cow<'static, str>,
     pub accent_style: Style,
     pub segments: Vec<CardSegment>,
     pub body_bg: Option<Color>,
@@ -46,13 +47,13 @@ pub(crate) struct CardRow {
 
 impl CardRow {
     pub fn new(
-        accent: String,
+        accent: impl Into<Cow<'static, str>>,
         accent_style: Style,
         segments: Vec<CardSegment>,
         body_bg: Option<Color>,
     ) -> Self {
         Self {
-            accent,
+            accent: accent.into(),
             accent_style,
             segments,
             body_bg,
@@ -266,7 +267,7 @@ pub(crate) fn rows_to_lines(rows: &[CardRow], _style: &CardStyle, total_width: u
     for row in rows.iter() {
         let mut spans: Vec<Span<'static>> = Vec::new();
         if accent_width > 0 {
-            let accent_text = pad_icon(row.accent.as_str(), accent_width);
+            let accent_text = pad_icon(&row.accent, accent_width);
             let accent_span = Span::styled(accent_text, row.accent_style);
             spans.push(accent_span);
         }
@@ -278,7 +279,7 @@ pub(crate) fn rows_to_lines(rows: &[CardRow], _style: &CardStyle, total_width: u
             if let (true, Some(bg)) = (segment.inherit_background, row_bg) {
                 seg_style = seg_style.bg(bg);
             }
-            let width = UnicodeWidthStr::width(segment.text.as_str());
+            let width = UnicodeWidthStr::width(&*segment.text);
             used_width += width;
             spans.push(Span::styled(segment.text.clone(), seg_style));
         }

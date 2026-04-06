@@ -88,7 +88,7 @@ impl BrowserSessionCell {
         let mut segments = Vec::new();
         if body_width == 0 {
             return CardRow::new(
-                BORDER_TOP.to_string(),
+                BORDER_TOP,
                 Self::accent_style(style),
                 segments,
                 None,
@@ -101,18 +101,18 @@ impl BrowserSessionCell {
             title_text_style(style)
         };
 
-        segments.push(CardSegment::new(" ".to_string(), title_style));
+        segments.push(CardSegment::new(" ", title_style));
         let remaining = body_width.saturating_sub(1);
         let text = truncate_with_ellipsis(self.header_summary_text().as_str(), remaining);
         if !text.is_empty() {
             segments.push(CardSegment::new(text, title_style));
         }
-        CardRow::new(BORDER_TOP.to_string(), Self::accent_style(style), segments, None)
+        CardRow::new(BORDER_TOP, Self::accent_style(style), segments, None)
     }
 
     fn blank_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
         CardRow::new(
-            BORDER_BODY.to_string(),
+            BORDER_BODY,
             Self::accent_style(style),
             vec![CardSegment::new(" ".repeat(body_width), Style::default())],
             None,
@@ -129,7 +129,7 @@ impl BrowserSessionCell {
         right_padding_cols: usize,
     ) -> CardRow {
         if body_width == 0 {
-            return CardRow::new(BORDER_BODY.to_string(), Self::accent_style(style), Vec::new(), None);
+            return CardRow::new(BORDER_BODY, Self::accent_style(style), Vec::new(), None);
         }
         let indent = indent_cols.min(body_width.saturating_sub(1));
         let available = body_width.saturating_sub(indent);
@@ -139,7 +139,7 @@ impl BrowserSessionCell {
         }
         let text: String = text.into();
         if available == 0 {
-            return CardRow::new(BORDER_BODY.to_string(), Self::accent_style(style), segments, None);
+            return CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None);
         }
         let usable_width = available.saturating_sub(right_padding_cols);
         let display = if usable_width == 0 {
@@ -152,7 +152,7 @@ impl BrowserSessionCell {
             let pad = right_padding_cols.min(available);
             segments.push(CardSegment::new(" ".repeat(pad), Style::default()));
         }
-        CardRow::new(BORDER_BODY.to_string(), Self::accent_style(style), segments, None)
+        CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None)
     }
 
     fn bottom_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
@@ -164,7 +164,7 @@ impl BrowserSessionCell {
             hint_text_style(style)
         };
         let segment = CardSegment::new(text, hint_style);
-        CardRow::new(BORDER_BOTTOM.to_string(), Self::accent_style(style), vec![segment], None)
+        CardRow::new(BORDER_BOTTOM, Self::accent_style(style), vec![segment], None)
     }
 
     fn display_host(&self) -> Option<String> {
@@ -295,7 +295,7 @@ impl BrowserSessionCell {
                             ));
                         }
                         rows.push(CardRow::new(
-                            BORDER_BODY.to_string(),
+                            BORDER_BODY,
                             Self::accent_style(style),
                             segments,
                             None,
@@ -557,7 +557,7 @@ impl BrowserSessionCell {
             }
         }
 
-        CardRow::new(BORDER_BODY.to_string(), Self::accent_style(style), segments, None)
+        CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None)
     }
 
     fn render_fallback_entry(
@@ -609,7 +609,7 @@ impl BrowserSessionCell {
         }
 
         vec![CardRow::new(
-            BORDER_BODY.to_string(),
+            BORDER_BODY,
             Self::accent_style(style),
             segments,
             None,
