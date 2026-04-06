@@ -31,16 +31,14 @@ pub(in super::super) fn handle_custom_tool_end(
         return false;
     };
 
-    let (mut tracker, resolved_key) = match chat
+    let Some(mut tracker) = chat
         .tools_state
         .agent_run_by_batch
         .get(batch)
         .cloned()
         .and_then(|key| chat.tools_state.agent_runs.remove(&key))
-    {
-        Some(existing) => (existing, agent_batch_key(batch)),
-        None => return false,
-    };
+    else { return false };
+    let resolved_key = agent_batch_key(batch);
 
     tracker.slot.set_order_key(order_key);
     tracker.batch_id.get_or_insert(batch.clone());

@@ -183,10 +183,7 @@ pub(super) fn handle_custom_tool_end(
         })
         .unwrap_or_else(|| browser_key(order, call_id));
 
-    let mut tracker = match chat.tools_state.browser_sessions.remove(&key) {
-        Some(tracker) => tracker,
-        None => return false,
-    };
+    let Some(mut tracker) = chat.tools_state.browser_sessions.remove(&key) else { return false };
 
     let order_key = order
         .map(|meta| chat.provider_order_key_from_order_meta(meta))
@@ -250,10 +247,8 @@ pub(super) fn handle_background_event(
         return false;
     }
 
-    let payload = match message.strip_prefix(BROWSER_CONSOLE_EVENT_PREFIX) {
-        Some(rest) => rest.trim(),
-        None => return false,
-    };
+    let Some(payload) = message.strip_prefix(BROWSER_CONSOLE_EVENT_PREFIX) else { return false };
+    let payload = payload.trim();
     if payload.is_empty() {
         return false;
     }
@@ -261,10 +256,7 @@ pub(super) fn handle_background_event(
     let key = key_from_order_or_last(chat, order);
     let Some(key) = key else { return false; };
 
-    let mut tracker = match chat.tools_state.browser_sessions.remove(&key) {
-        Some(tracker) => tracker,
-        None => return false,
-    };
+    let Some(mut tracker) = chat.tools_state.browser_sessions.remove(&key) else { return false };
 
     let order_key = order
         .map(|meta| chat.provider_order_key_from_order_meta(meta))
@@ -315,10 +307,7 @@ pub(super) fn handle_screenshot_update(
     let key = key_from_order_or_last(chat, order);
     let Some(key) = key else { return result; };
 
-    let mut tracker = match chat.tools_state.browser_sessions.remove(&key) {
-        Some(tracker) => tracker,
-        None => return result,
-    };
+    let Some(mut tracker) = chat.tools_state.browser_sessions.remove(&key) else { return result };
 
     let order_key = order
         .map(|meta| chat.provider_order_key_from_order_meta(meta))

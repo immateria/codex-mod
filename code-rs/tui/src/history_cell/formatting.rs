@@ -433,14 +433,11 @@ pub(crate) fn output_lines(
     only_err: bool,
     include_angle_pipe: bool,
 ) -> Vec<Line<'static>> {
-    let CommandOutput {
+    let Some(CommandOutput {
         exit_code,
         stdout,
         stderr,
-    } = match output {
-        Some(o) => o,
-        None => return Vec::new(),
-    };
+    }) = output else { return Vec::new() };
 
     let mut lines: Vec<Line<'static>> = Vec::new();
     let is_streaming_preview = *exit_code == STREAMING_EXIT_CODE;

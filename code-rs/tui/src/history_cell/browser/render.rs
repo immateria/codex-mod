@@ -342,10 +342,7 @@ impl BrowserSessionCell {
         indent_cols: usize,
         right_padding: usize,
     ) -> Vec<CardRow> {
-        let last = match self.console_messages.last() {
-            Some(value) => value.clone(),
-            None => return Vec::new(),
-        };
+        let Some(last) = self.console_messages.last().cloned() else { return Vec::new() };
         let upper = last.to_ascii_uppercase();
         let is_warning = upper.contains("WARN")
             || upper.contains("WARNING")

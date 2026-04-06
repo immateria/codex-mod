@@ -135,7 +135,7 @@ pub(crate) fn set_last_sequence_number(&mut self, kind: StreamKind, seq: Option<
         if !enabled || !matches!(kind, StreamKind::Reasoning) {
             return;
         }
-        let id = match self.current_stream_id() { Some(s) => s, None => return };
+        let Some(id) = self.current_stream_id() else { return };
         // Parse trailing #s<idx>
         let idx = id.split('#').next_back().and_then(|frag| frag.strip_prefix('s'));
         if let Some(sidx) = idx {

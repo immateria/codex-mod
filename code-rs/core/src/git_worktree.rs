@@ -754,8 +754,8 @@ pub async fn copy_uncommitted_to_worktree(src_root: &Path, worktree_path: &Path)
                     if !line.starts_with('+') { continue; }
                     let rest = &line[1..];
                     let mut parts = rest.split_whitespace();
-                    let sha = match parts.next() { Some(s) => s, None => continue };
-                    let path = match parts.next() { Some(p) => p, None => continue };
+                    let Some(sha) = parts.next() else { continue };
+                    let Some(path) = parts.next() else { continue };
                     let spec = format!("160000,{sha},{path}");
                     let _ = Command::new("git")
                         .current_dir(worktree_path)
