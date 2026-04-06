@@ -3,6 +3,18 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use super::{ChatWidget, PendingCommandAction};
 use crate::app_event::AppEvent;
 
+fn try_scroll_key(chat: &mut ChatWidget<'_>, code: KeyCode) -> bool {
+    match code {
+        KeyCode::Up => { chat.terminal_scroll_lines(-1); true }
+        KeyCode::Down => { chat.terminal_scroll_lines(1); true }
+        KeyCode::PageUp => { chat.terminal_scroll_page(-1); true }
+        KeyCode::PageDown => { chat.terminal_scroll_page(1); true }
+        KeyCode::Home => { chat.terminal_scroll_to_top(); true }
+        KeyCode::End => { chat.terminal_scroll_to_bottom(); true }
+        _ => false,
+    }
+}
+
 pub(super) fn handle_terminal_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent) -> bool {
     let Some(id) = chat.terminal_overlay_id() else {
         return false;
@@ -18,32 +30,8 @@ pub(super) fn handle_terminal_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
                 .modifiers
                 .intersects(KeyModifiers::ALT | KeyModifiers::SHIFT | KeyModifiers::SUPER)
         {
-            match key_event.code {
-                KeyCode::Up => {
-                    chat.terminal_scroll_lines(-1);
-                    return true;
-                }
-                KeyCode::Down => {
-                    chat.terminal_scroll_lines(1);
-                    return true;
-                }
-                KeyCode::PageUp => {
-                    chat.terminal_scroll_page(-1);
-                    return true;
-                }
-                KeyCode::PageDown => {
-                    chat.terminal_scroll_page(1);
-                    return true;
-                }
-                KeyCode::Home => {
-                    chat.terminal_scroll_to_top();
-                    return true;
-                }
-                KeyCode::End => {
-                    chat.terminal_scroll_to_bottom();
-                    return true;
-                }
-                _ => {}
+            if try_scroll_key(chat, key_event.code) {
+                return true;
             }
         }
 
@@ -57,31 +45,11 @@ pub(super) fn handle_terminal_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
         return true;
     }
 
+    if try_scroll_key(chat, key_event.code) {
+        return true;
+    }
+
     match key_event.code {
-        KeyCode::Up => {
-            chat.terminal_scroll_lines(-1);
-            true
-        }
-        KeyCode::Down => {
-            chat.terminal_scroll_lines(1);
-            true
-        }
-        KeyCode::PageUp => {
-            chat.terminal_scroll_page(-1);
-            true
-        }
-        KeyCode::PageDown => {
-            chat.terminal_scroll_page(1);
-            true
-        }
-        KeyCode::Home => {
-            chat.terminal_scroll_to_top();
-            true
-        }
-        KeyCode::End => {
-            chat.terminal_scroll_to_bottom();
-            true
-        }
         KeyCode::Esc => {
             if running {
                 chat.request_terminal_cancel(id);

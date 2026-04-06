@@ -239,10 +239,7 @@ pub(crate) fn pad_icon(icon: &str, width: usize) -> String {
 }
 
 pub(crate) fn truncate_to_width(text: &str, width: usize) -> String {
-    crate::text_formatting::pad_to_display_width(
-        &crate::text_formatting::truncate_to_display_width(text, width),
-        width,
-    )
+    crate::text_formatting::pad_to_display_width(text, width)
 }
 
 pub(crate) fn truncate_with_ellipsis(text: &str, width: usize) -> String {
