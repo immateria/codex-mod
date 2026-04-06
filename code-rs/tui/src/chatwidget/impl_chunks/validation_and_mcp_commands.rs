@@ -445,7 +445,7 @@ impl ChatWidget<'_> {
                 // Support two forms:
                 //   1) /mcp add <name> <command> [args…] [ENV=VAL…]
                 //   2) /mcp add <command> [args…] [ENV=VAL…]   (name derived)
-                let tail_tokens: Vec<String> = parts.map(std::string::ToString::to_string).collect();
+                let tail_tokens: Vec<String> = parts.map(ToString::to_string).collect();
                 if tail_tokens.is_empty() {
                     let msg = "Usage: /mcp add <name> <command> [args…] [ENV=VAL…]\n       or: /mcp add <command> [args…] [ENV=VAL…]".to_string();
                     self.history_push_plain_state(history_cell::new_error_event(msg));

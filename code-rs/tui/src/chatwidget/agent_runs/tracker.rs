@@ -108,7 +108,7 @@ impl AgentRunTracker {
         self.effective_label()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
-            .or_else(|| self.batch_id.as_ref().map(std::string::ToString::to_string))
+            .or_else(|| self.batch_id.as_ref().map(ToString::to_string))
     }
 
     pub(crate) fn overlay_task(&self) -> Option<String> {

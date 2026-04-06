@@ -227,7 +227,7 @@ pub fn handle_slash_command(input: &str, agents: Option<&[AgentConfig]>) -> Opti
     // Parse the command and arguments
     let parts: Vec<&str> = input.splitn(2, ' ').collect();
     let command = parts[0];
-    let args = parts.get(1).map(std::string::ToString::to_string).unwrap_or_default();
+    let args = parts.get(1).map(ToString::to_string).unwrap_or_default();
 
     match command {
         "/plan" => {

@@ -40,7 +40,7 @@ mod tests {
     use super::*;
 
     fn vec_str(items: &[&str]) -> Vec<String> {
-        items.iter().map(std::string::ToString::to_string).collect()
+        items.iter().map(ToString::to_string).collect()
     }
 
     #[test]

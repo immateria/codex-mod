@@ -159,7 +159,7 @@ impl ChatWidget<'_> {
                                 .file_name()
                                 .and_then(|s| s.to_str())
                                 .filter(|s| !s.is_empty())
-                                .map(std::string::ToString::to_string);
+                                .map(ToString::to_string);
                         }
 
                         if head.len() >= 7

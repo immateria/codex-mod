@@ -230,7 +230,7 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
                         .strip_prefix(other)
                         .map(|suffix| suffix.trim_start_matches([' ', ':', '-']))
                         .filter(|suffix| !suffix.is_empty())
-                        .map(std::string::ToString::to_string)
+                        .map(ToString::to_string)
                         .unwrap_or_else(|| format_action_summary(action))
                 });
             ActionEntry {
@@ -246,7 +246,7 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
                 .strip_prefix(action.action.as_str())
                 .map(|suffix| suffix.trim_start_matches([' ', ':', '-']))
                 .filter(|suffix| !suffix.is_empty())
-                .map(std::string::ToString::to_string)
+                .map(ToString::to_string)
                 .unwrap_or_else(|| summary.clone());
             ActionEntry {
                 label,

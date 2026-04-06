@@ -250,12 +250,12 @@ pub(crate) async fn handle_gh_run_wait(
             let conclusion = v
                 .get("conclusion")
                 .and_then(Value::as_str)
-                .map(std::string::ToString::to_string)
+                .map(ToString::to_string)
                 .filter(|s| !s.is_empty());
             let html_url = v
                 .get("url")
                 .and_then(Value::as_str)
-                .map(std::string::ToString::to_string)
+                .map(ToString::to_string)
                 .filter(|s| !s.is_empty());
             Self {
                 status,
@@ -495,7 +495,7 @@ pub(crate) async fn handle_gh_run_wait(
                 let html_url = parsed_view
                     .get("htmlURL")
                     .and_then(Value::as_str)
-                    .map(std::string::ToString::to_string)
+                    .map(ToString::to_string)
                     .filter(|s| !s.trim().is_empty())
                     .or_else(|| summary.html_url.clone());
 

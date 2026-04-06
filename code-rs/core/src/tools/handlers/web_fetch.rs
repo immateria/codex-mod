@@ -603,10 +603,10 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 let mut opened_at: Option<String> = None;
                 if let Some(ld) = extract_ld_json(html)
                     && ld.get("@type").and_then(|v| v.as_str()) == Some("DiscussionForumPosting") {
-                        title = ld.get("headline").and_then(|v| v.as_str()).map(std::string::ToString::to_string);
-                        issue_body_md = ld.get("articleBody").and_then(|v| v.as_str()).map(std::string::ToString::to_string);
-                        opened_by = ld.get("author").and_then(|a| a.get("name")).and_then(|v| v.as_str()).map(std::string::ToString::to_string);
-                        opened_at = ld.get("datePublished").and_then(|v| v.as_str()).map(std::string::ToString::to_string);
+                        title = ld.get("headline").and_then(|v| v.as_str()).map(ToString::to_string);
+                        issue_body_md = ld.get("articleBody").and_then(|v| v.as_str()).map(ToString::to_string);
+                        opened_by = ld.get("author").and_then(|a| a.get("name")).and_then(|v| v.as_str()).map(ToString::to_string);
+                        opened_at = ld.get("datePublished").and_then(|v| v.as_str()).map(ToString::to_string);
                     }
 
                 // Parse GraphQL payload for comments and state
@@ -621,8 +621,8 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         let issue = repo.and_then(|r| r.get("issue"));
                         if let Some(issue) = issue {
                             if state.is_none() {
-                                state = issue.get("state").and_then(|v| v.as_str()).map(std::string::ToString::to_string);
-                                state_reason = issue.get("stateReason").and_then(|v| v.as_str()).map(std::string::ToString::to_string);
+                                state = issue.get("state").and_then(|v| v.as_str()).map(ToString::to_string);
+                                state_reason = issue.get("stateReason").and_then(|v| v.as_str()).map(ToString::to_string);
                             }
                             if let Some(edges) = issue.get("frontTimelineItems").and_then(|v| v.get("edges")).and_then(|v| v.as_array()) {
                                 for e in edges {
@@ -925,11 +925,11 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 let retry_after = headers
                     .get(reqwest::header::RETRY_AFTER)
                     .and_then(|v| v.to_str().ok())
-                    .map(std::string::ToString::to_string);
+                    .map(ToString::to_string);
                 let cf_ray = headers
                     .get("cf-ray")
                     .and_then(|v| v.to_str().ok())
-                    .map(std::string::ToString::to_string);
+                    .map(ToString::to_string);
 
                 let mut diag = serde_json::json!({
                     "final_url": final_url,
@@ -1010,11 +1010,11 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 let retry_after = headers
                     .get(reqwest::header::RETRY_AFTER)
                     .and_then(|v| v.to_str().ok())
-                    .map(std::string::ToString::to_string);
+                    .map(ToString::to_string);
                 let cf_ray = headers
                     .get("cf-ray")
                     .and_then(|v| v.to_str().ok())
-                    .map(std::string::ToString::to_string);
+                    .map(ToString::to_string);
 
                 let mut diag = serde_json::json!({
                     "final_url": final_url,

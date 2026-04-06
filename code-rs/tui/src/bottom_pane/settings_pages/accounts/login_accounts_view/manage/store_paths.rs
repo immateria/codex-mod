@@ -44,7 +44,7 @@ impl StorePathEditorState {
             .flat_map(|line| line.split(','))
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
             .collect()
     }
 
@@ -72,7 +72,7 @@ impl LoginAccountsState {
                     .filter_map(|value| value.as_str())
                     .map(str::trim)
                     .filter(|value| !value.is_empty())
-                    .map(std::string::ToString::to_string)
+                    .map(ToString::to_string)
                     .collect::<Vec<_>>();
                 if !parsed.is_empty() {
                     read_paths = parsed;

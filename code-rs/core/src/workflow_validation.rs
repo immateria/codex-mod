@@ -126,10 +126,10 @@ pub fn maybe_run_actionlint(
 
     let mut lines: Vec<String> = Vec::new();
     if !output.stdout.is_empty() {
-        lines.extend(String::from_utf8_lossy(&output.stdout).lines().map(std::string::ToString::to_string));
+        lines.extend(String::from_utf8_lossy(&output.stdout).lines().map(ToString::to_string));
     }
     if !output.stderr.is_empty() {
-        lines.extend(String::from_utf8_lossy(&output.stderr).lines().map(std::string::ToString::to_string));
+        lines.extend(String::from_utf8_lossy(&output.stderr).lines().map(ToString::to_string));
     }
     if lines.is_empty() {
         None

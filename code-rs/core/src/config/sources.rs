@@ -1881,14 +1881,14 @@ pub fn set_tui_status_line_layout(
         .iter()
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .collect::<Vec<_>>();
 
     let normalized_bottom = bottom_item_ids
         .iter()
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .collect::<Vec<_>>();
 
     if normalized_top.is_empty() {
@@ -1957,13 +1957,13 @@ pub fn set_account_store_paths(
         .iter()
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .collect::<Vec<_>>();
 
     let normalized_write_path = write_path
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .map(std::string::ToString::to_string);
+        .map(ToString::to_string);
 
     if normalized_read_paths.is_empty() && normalized_write_path.is_none() {
         doc.as_table_mut().remove("accounts");
@@ -2780,7 +2780,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                         .and_then(|v| v.as_array())
                         .map(|arr| {
                             arr.iter()
-                                .filter_map(|i| i.as_str().map(std::string::ToString::to_string))
+                                .filter_map(|i| i.as_str().map(ToString::to_string))
                                 .collect()
                         })
                         .unwrap_or_default();
@@ -2812,16 +2812,16 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                     let bearer_token = t
                         .get("bearer_token")
                         .and_then(|v| v.as_str())
-                        .map(std::string::ToString::to_string);
+                        .map(ToString::to_string);
                     let oauth_resource = t
                         .get("oauth_resource")
                         .and_then(|v| v.as_str())
-                        .map(std::string::ToString::to_string);
+                        .map(ToString::to_string);
 
                     let bearer_token_env_var = t
                         .get("bearer_token_env_var")
                         .and_then(|v| v.as_str())
-                        .map(std::string::ToString::to_string);
+                        .map(ToString::to_string);
 
                     let table_string_map = |item: &toml_edit::Item| {
                         item.as_inline_table()
@@ -2949,7 +2949,7 @@ pub fn list_mcp_servers(code_home: &Path) -> anyhow::Result<McpServerListPair> {
                         arr.iter()
                             .filter_map(|item| item.as_str().map(str::trim))
                             .filter(|name| !name.is_empty())
-                            .map(std::string::ToString::to_string)
+                            .map(ToString::to_string)
                             .collect()
                     })
                     .unwrap_or_default();
@@ -3317,7 +3317,7 @@ pub fn set_mcp_server_tool_enabled(
             arr.iter()
                 .filter_map(|item| item.as_str().map(str::trim))
                 .filter(|name| !name.is_empty())
-                .map(std::string::ToString::to_string)
+                .map(ToString::to_string)
                 .collect()
         })
         .unwrap_or_default();

@@ -854,7 +854,7 @@ fn normalize_marketplace_repo_ref(git_ref: Option<&str>) -> Option<String> {
     git_ref
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
 }
 
 fn parse_marketplace_repos_from_item(item: Option<&TomlItem>) -> Vec<PluginMarketplaceRepoToml> {
@@ -932,7 +932,7 @@ pub async fn set_plugin_marketplace_sources(code_home: &Path, sources: &PluginsT
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .map(std::string::ToString::to_string);
+        .map(ToString::to_string);
     let curated_ref = if curated_url.is_some() {
         normalize_marketplace_repo_ref(sources.curated_repo_ref.as_deref())
     } else {
@@ -1078,7 +1078,7 @@ pub async fn set_apps_sources(
         None => doc
             .get("profile")
             .and_then(|item| item.as_str())
-            .map(std::string::ToString::to_string),
+            .map(ToString::to_string),
     };
 
     let normalized_pins = normalize_account_id_list(&sources.pinned_account_ids);
@@ -1541,7 +1541,7 @@ async fn persist_overrides_with_behavior(
         Err(e) => return Err(e.into()),
     };
 
-    let effective_profile = if let Some(p) = profile { Some(p.to_owned()) } else { doc.get("profile").and_then(|i| i.as_str()).map(std::string::ToString::to_string) };
+    let effective_profile = if let Some(p) = profile { Some(p.to_owned()) } else { doc.get("profile").and_then(|i| i.as_str()).map(ToString::to_string) };
 
     let mut mutated = false;
     for (segments, value) in overrides.iter().copied() {

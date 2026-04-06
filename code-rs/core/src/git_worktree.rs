@@ -509,7 +509,7 @@ pub async fn ensure_local_default_remote(
     let base_branch_clean = base_branch
         .map(str::trim)
         .filter(|s| !s.is_empty() && *s != "HEAD")
-        .map(std::string::ToString::to_string);
+        .map(ToString::to_string);
     let base_branch_clean = match base_branch_clean {
         Some(value) => Some(value),
         None => detect_default_branch(git_root).await,

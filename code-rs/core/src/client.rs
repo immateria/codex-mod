@@ -1401,7 +1401,7 @@ impl ModelClient {
                     let x_request_id = headers
                         .get("x-request-id")
                         .and_then(|v| v.to_str().ok())
-                        .map(std::string::ToString::to_string);
+                        .map(ToString::to_string);
                     let now = Utc::now();
 
                     // Pull out Retry‑After header if present.
@@ -1521,7 +1521,7 @@ impl ModelClient {
                                     let plan_type = body
                                         .as_ref()
                                         .and_then(|err| err.error.plan_type.as_deref())
-                                        .map(std::string::ToString::to_string);
+                                        .map(ToString::to_string);
                                     let resets_in_seconds =
                                         body.as_ref().and_then(|err| err.error.resets_in_seconds);
                                     let code_home = self.code_home().to_path_buf();

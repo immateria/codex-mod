@@ -204,7 +204,7 @@ async fn get_git_remotes(cwd: &Path) -> Option<Vec<String>> {
     let mut remotes: Vec<String> = String::from_utf8(output.stdout)
         .ok()?
         .lines()
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .collect();
     if let Some(pos) = remotes.iter().position(|r| r == "origin") {
         let origin = remotes.remove(pos);
@@ -472,7 +472,7 @@ async fn diff_against_sha(cwd: &Path, sha: &GitSha) -> Option<String> {
             let untracked: Vec<String> = String::from_utf8(untracked_output.stdout)
                 .ok()?
                 .lines()
-                .map(std::string::ToString::to_string)
+                .map(ToString::to_string)
                 .filter(|s| !s.is_empty())
                 .collect();
 

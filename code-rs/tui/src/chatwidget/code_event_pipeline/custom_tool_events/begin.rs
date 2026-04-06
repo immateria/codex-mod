@@ -27,7 +27,7 @@ impl ChatWidget<'_> {
         // 2) Route tool families that own their own history/UI handling.
         let params_string = parameters
             .as_ref()
-            .map(std::string::ToString::to_string);
+            .map(ToString::to_string);
         if self.handle_agent_or_browser_custom_tool_begin(
             order,
             &call_id,

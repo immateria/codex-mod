@@ -146,7 +146,7 @@ pub(super) fn replace_tool_card<C: ToolCardCell>(
     slot.cell_index = Some(idx);
     slot.history_id = chat.history_cell_ids.get(idx).and_then(|slot| *slot);
     slot.last_order_key = Some(slot.order_key);
-    let signature = slot.signature().map(std::string::ToString::to_string);
+    let signature = slot.signature().map(ToString::to_string);
     prune_tool_card_duplicates::<C>(chat, slot, idx, signature.as_deref());
     idx
 }
@@ -177,7 +177,7 @@ fn should_anchor_agent_slot(chat: &ChatWidget<'_>, slot: &ToolCardSlot) -> bool 
 }
 
 fn remove_existing_card<C: ToolCardCell>(chat: &mut ChatWidget<'_>, slot: &mut ToolCardSlot) {
-    let signature = slot.signature().map(std::string::ToString::to_string);
+    let signature = slot.signature().map(ToString::to_string);
 
     let mut target_idx = if let Some(id) = slot.history_id {
         chat.cell_index_for_history_id(id).filter(|&idx| cell_matches::<C>(chat, idx, slot, signature.as_deref()))

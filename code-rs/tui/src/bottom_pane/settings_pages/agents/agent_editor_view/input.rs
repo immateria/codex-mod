@@ -22,13 +22,13 @@ impl AgentEditorView {
             .params_ro
             .text()
             .split_whitespace()
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
             .collect::<Vec<_>>();
         let wr = self
             .params_wr
             .text()
             .split_whitespace()
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
             .collect::<Vec<_>>();
         let ro_opt = if ro.is_empty() { None } else { Some(ro) };
         let wr_opt = if wr.is_empty() { None } else { Some(wr) };

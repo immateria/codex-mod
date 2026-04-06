@@ -270,7 +270,7 @@ fn extract_chatgpt_account_id(token: &str) -> Option<String> {
     json.get("https://api.openai.com/auth")
         .and_then(|auth| auth.get("chatgpt_account_id"))
         .and_then(|id| id.as_str())
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
 }
 
 #[derive(Debug, Deserialize)]

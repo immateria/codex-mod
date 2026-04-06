@@ -478,7 +478,7 @@ impl RunningToolCallCell {
                 .map(|items| {
                     items
                         .iter()
-                        .filter_map(|item| item.as_str().map(std::string::ToString::to_string))
+                        .filter_map(|item| item.as_str().map(ToString::to_string))
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
@@ -488,7 +488,7 @@ impl RunningToolCallCell {
                 .map(|items| {
                     items
                         .iter()
-                        .filter_map(|item| item.as_str().map(std::string::ToString::to_string))
+                        .filter_map(|item| item.as_str().map(ToString::to_string))
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();

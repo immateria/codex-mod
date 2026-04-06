@@ -84,7 +84,7 @@ pub(crate) async fn handle_browser_tool(
     };
 
     let action_value = object.remove("action");
-    let action = match action_value.and_then(|v| v.as_str().map(std::string::ToString::to_string))
+    let action = match action_value.and_then(|v| v.as_str().map(ToString::to_string))
     {
         Some(value) => value,
         None => {

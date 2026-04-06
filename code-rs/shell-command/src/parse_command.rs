@@ -91,11 +91,11 @@ mod tests {
     use super::*;
 
     fn shlex_split_safe(s: &str) -> Vec<String> {
-        shlex_split(s).unwrap_or_else(|| s.split_whitespace().map(std::string::ToString::to_string).collect())
+        shlex_split(s).unwrap_or_else(|| s.split_whitespace().map(ToString::to_string).collect())
     }
 
     fn vec_str(args: &[&str]) -> Vec<String> {
-        args.iter().map(std::string::ToString::to_string).collect()
+        args.iter().map(ToString::to_string).collect()
     }
 
     fn assert_parsed(args: &[String], expected: Vec<ParsedCommand>) {
@@ -1229,7 +1229,7 @@ fn short_display_path(path: &str) -> String {
     });
     parts
         .next()
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .unwrap_or_else(|| trimmed.to_string())
 }
 
@@ -1814,7 +1814,7 @@ fn summarize_main_tokens(main_cmd: &[String]) -> ParsedCommand {
                 (None, non_flags.first().map(|s| short_display_path(s)))
             } else {
                 (
-                    non_flags.first().cloned().map(std::string::ToString::to_string),
+                    non_flags.first().cloned().map(ToString::to_string),
                     non_flags.get(1).map(|s| short_display_path(s)),
                 )
             };
@@ -1849,7 +1849,7 @@ fn summarize_main_tokens(main_cmd: &[String]) -> ParsedCommand {
                 .collect();
             // Do not shorten the query: grep patterns may legitimately contain slashes
             // and should be preserved verbatim. Only paths should be shortened.
-            let query = non_flags.first().cloned().map(std::string::ToString::to_string);
+            let query = non_flags.first().cloned().map(ToString::to_string);
             let path = non_flags.get(1).map(|s| short_display_path(s));
             ParsedCommand::Search {
                 cmd: shlex_join(main_cmd),

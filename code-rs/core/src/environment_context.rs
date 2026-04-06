@@ -474,7 +474,7 @@ impl EnvironmentContextSnapshot {
         for (key, value) in &delta.changes {
             match key.as_str() {
                 "cwd" => {
-                    updated.cwd = value.as_str().map(std::string::ToString::to_string);
+                    updated.cwd = value.as_str().map(ToString::to_string);
                 }
                 "git_project_root" => {
                     updated.git_project_root = match value {
@@ -929,7 +929,7 @@ fn snapshot_to_response_item(
 ) -> serde_json::Result<ResponseItem> {
     let json = serde_json::to_string_pretty(snapshot)?;
     Ok(ResponseItem::Message {
-        id: stream_id.map(std::string::ToString::to_string),
+        id: stream_id.map(ToString::to_string),
         role: "user".to_string(),
         content: vec![ContentItem::InputText {
             text: format!(
@@ -944,7 +944,7 @@ fn delta_to_response_item(
 ) -> serde_json::Result<ResponseItem> {
     let json = serde_json::to_string_pretty(delta)?;
     Ok(ResponseItem::Message {
-        id: stream_id.map(std::string::ToString::to_string),
+        id: stream_id.map(ToString::to_string),
         role: "user".to_string(),
         content: vec![ContentItem::InputText {
             text: format!(
@@ -959,7 +959,7 @@ fn browser_snapshot_to_response_item(
 ) -> serde_json::Result<ResponseItem> {
     let json = serde_json::to_string_pretty(snapshot)?;
     Ok(ResponseItem::Message {
-        id: stream_id.map(std::string::ToString::to_string),
+        id: stream_id.map(ToString::to_string),
         role: "user".to_string(),
         content: vec![ContentItem::InputText {
             text: format!(

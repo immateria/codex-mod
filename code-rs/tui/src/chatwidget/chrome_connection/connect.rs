@@ -317,7 +317,7 @@ impl ChatWidget<'_> {
                     .unwrap_or_else(|_| "Failed to get browser status.".to_string());
 
                 let lines: Vec<String> =
-                    status.lines().map(std::string::ToString::to_string).collect();
+                    status.lines().map(ToString::to_string).collect();
                 self.push_background_tail(lines.join("\n"));
             }
             ChromeCommandArgs::WsUrl(ws_url) => {

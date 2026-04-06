@@ -98,7 +98,7 @@ pub(super) fn parse_progress(progress: &str) -> Option<StepProgress> {
 pub(super) fn lines_from(input: &str) -> Vec<String> {
     input
         .lines()
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .collect()
 }
 

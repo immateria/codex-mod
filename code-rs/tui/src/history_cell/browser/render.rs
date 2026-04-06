@@ -67,7 +67,7 @@ impl BrowserSessionCell {
             .as_ref()
             .map(|value| value.trim())
             .filter(|value| !value.is_empty() && !value.eq_ignore_ascii_case("(pending)"))
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
     }
 
     fn header_summary_text(&self) -> String {
@@ -172,7 +172,7 @@ impl BrowserSessionCell {
             .url
             .as_ref()
             .and_then(|url| Url::parse(url).ok())
-            .and_then(|parsed| parsed.host_str().map(std::string::ToString::to_string))
+            .and_then(|parsed| parsed.host_str().map(ToString::to_string))
     }
 
     fn display_label(&self) -> String {

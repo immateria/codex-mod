@@ -48,7 +48,7 @@ pub(super) async fn handle_browser_cookies_get(
                 .and_then(|v| {
                     v.as_array().map(|arr| {
                         arr.iter()
-                            .filter_map(|x| x.as_str().map(std::string::ToString::to_string))
+                            .filter_map(|x| x.as_str().map(ToString::to_string))
                             .collect::<Vec<_>>()
                     })
                 })

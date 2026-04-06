@@ -745,7 +745,7 @@ async fn kernel_stdout_loop(
                 let error = message
                     .get("error")
                     .and_then(JsonValue::as_str)
-                    .map(std::string::ToString::to_string);
+                    .map(ToString::to_string);
                 let sender = pending_execs.lock().await.remove(id);
                 if let Some(sender) = sender {
                     let _ = sender.send(ExecResultMessage { ok, output, error });

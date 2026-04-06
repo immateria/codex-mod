@@ -112,7 +112,7 @@ pub async fn tail_events(target: &BridgeTarget, level: &str, raw: bool) -> Resul
     let levels = vec![normalise_level(level)?];
     let caps = DEFAULT_CAPABILITIES
         .iter()
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .collect::<Vec<_>>();
     let (mut tx, mut rx) = connect_and_subscribe(target, &levels, &caps).await?;
 
@@ -340,7 +340,7 @@ async fn wait_for_type(
     expected: &[&str],
     dur: Duration,
 ) -> Result<Option<Value>> {
-    let expected_lower: Vec<String> = expected.iter().map(std::string::ToString::to_string).collect();
+    let expected_lower: Vec<String> = expected.iter().map(ToString::to_string).collect();
     let found = timeout(dur, async {
         while let Some(msg) = rx.next().await {
             match msg {
@@ -518,7 +518,7 @@ fn format_bridge_message(val: &Value) -> Option<String> {
                 _ => val
                     .get("message")
                     .and_then(|m| m.as_str())
-                    .map(std::string::ToString::to_string)
+                    .map(ToString::to_string)
                     .unwrap_or_else(|| t.to_string()),
             };
 

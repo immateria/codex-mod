@@ -1241,7 +1241,7 @@ async fn run_bridge_screenshot(cmd: BridgeScreenshotCommand) -> anyhow::Result<(
         if ok {
             let payload = res
                 .get("result")
-                .map(std::string::ToString::to_string)
+                .map(ToString::to_string)
                 .unwrap_or_else(|| "ok".to_string());
             println!("Control result  : {payload}");
         } else {
@@ -1281,7 +1281,7 @@ async fn run_bridge_javascript(cmd: BridgeJavascriptCommand) -> anyhow::Result<(
         if ok {
             let payload = res
                 .get("result")
-                .map(std::string::ToString::to_string)
+                .map(ToString::to_string)
                 .unwrap_or_else(|| "ok".to_string());
             println!("Result          : {payload}");
         } else {
@@ -1593,7 +1593,7 @@ fn resolve_resume_path(session_id: Option<&str>, last: bool) -> anyhow::Result<O
     let code_home = code_core::config::find_code_home()
         .context("failed to locate Codex home directory")?;
 
-    let sess = session_id.map(std::string::ToString::to_string);
+    let sess = session_id.map(ToString::to_string);
     let fetch = async move {
         let catalog = SessionCatalog::new(code_home.clone());
         if let Some(id) = sess.as_deref() {
@@ -1999,7 +1999,7 @@ async fn doctor_main() -> anyhow::Result<()> {
         let name = name.to_string();
         async move {
             let out = run_cmd("/bin/bash", &["-lc", &format!("which -a {name} 2>/dev/null || true")]).await;
-            out.split('\n').filter(|s| !s.is_empty()).map(std::string::ToString::to_string).collect::<Vec<_>>()
+            out.split('\n').filter(|s| !s.is_empty()).map(ToString::to_string).collect::<Vec<_>>()
         }
     };
     #[cfg(target_family = "windows")]

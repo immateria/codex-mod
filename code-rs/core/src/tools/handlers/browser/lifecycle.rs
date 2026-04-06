@@ -398,7 +398,7 @@ pub(super) async fn handle_browser_new_tab(
                 .and_then(|json| {
                     json.get("url")
                         .and_then(serde_json::Value::as_str)
-                        .map(std::string::ToString::to_string)
+                        .map(ToString::to_string)
                 })
                 .unwrap_or_else(|| "about:blank".to_string());
 

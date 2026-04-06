@@ -267,7 +267,7 @@ mod tests {
     fn snapshot(cwd: &str, branch: Option<&str>) -> TestSnapshot {
         TestSnapshot {
             cwd: cwd.to_string(),
-            branch: branch.map(std::string::ToString::to_string),
+            branch: branch.map(ToString::to_string),
         }
     }
 

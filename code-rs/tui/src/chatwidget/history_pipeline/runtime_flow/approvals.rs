@@ -194,7 +194,7 @@ impl ChatWidget<'_> {
             .lines()
             .map(str::trim)
             .find(|line| !line.is_empty())
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
             .unwrap_or_else(|| "Patch application failed".to_string());
 
         PatchFailureMetadata {

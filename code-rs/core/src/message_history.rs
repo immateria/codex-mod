@@ -139,33 +139,6 @@ pub(crate) async fn append_entry(text: &str, session_id: &Uuid, config: &Config)
     Ok(())
 }
 
-/// Attempt to acquire an exclusive advisory lock on `file`, retrying up to 10
-/// times if the lock is currently held by another process. This prevents a
-/// potential indefinite wait while still giving other writers some time to
-/// finish their operation.
-#[allow(dead_code)]
-async fn acquire_exclusive_lock_with_retry(file: &File) -> Result<()> {
-    use tokio::time::sleep;
-
-    for _ in 0..MAX_RETRIES {
-        match fs2::FileExt::try_lock_exclusive(file) {
-            Ok(()) => return Ok(()),
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock {
-                    sleep(RETRY_SLEEP).await;
-                } else {
-                    return Err(e);
-                }
-            }
-        }
-    }
-
-    Err(std::io::Error::new(
-        std::io::ErrorKind::WouldBlock,
-        "could not acquire exclusive lock on history file after multiple attempts",
-    ))
-}
-
 /// Asynchronously fetch the history file's *identifier* (inode on Unix) and
 /// the current number of entries by counting newline characters.
 pub(crate) async fn history_metadata(config: &Config) -> (u64, usize) {
@@ -301,28 +274,6 @@ pub(crate) fn lookup(log_id: u64, offset: usize, config: &Config) -> Option<Hist
 pub(crate) fn lookup(log_id: u64, offset: usize, config: &Config) -> Option<HistoryEntry> {
     let _ = (log_id, offset, config);
     None
-}
-
-#[cfg(unix)]
-#[allow(dead_code)]
-fn acquire_shared_lock_with_retry(file: &File) -> Result<()> {
-    for _ in 0..MAX_RETRIES {
-        match fs2::FileExt::try_lock_shared(file) {
-            Ok(()) => return Ok(()),
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock {
-                    std::thread::sleep(RETRY_SLEEP);
-                } else {
-                    return Err(e);
-                }
-            }
-        }
-    }
-
-    Err(std::io::Error::new(
-        std::io::ErrorKind::WouldBlock,
-        "could not acquire shared lock on history file after multiple attempts",
-    ))
 }
 
 /// On Unix systems ensure the file permissions are `0o600` (rw-------). If the

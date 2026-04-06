@@ -199,7 +199,7 @@ impl ChatWidget<'_> {
                     .lines()
                     .map(str::trim)
                     .filter(|line| !line.is_empty())
-                    .map(std::string::ToString::to_string)
+                    .map(ToString::to_string)
                     .collect();
                 Ok(changes)
             },

@@ -753,7 +753,7 @@ mod tests {
 
         TokenData {
             id_token: IdTokenInfo {
-                email: email.map(std::string::ToString::to_string),
+                email: email.map(ToString::to_string),
                 chatgpt_plan_type: None,
                 chatgpt_user_id: None,
                 chatgpt_account_id: None,
@@ -761,7 +761,7 @@ mod tests {
             },
             access_token: "access".to_string(),
             refresh_token: "refresh".to_string(),
-            account_id: account_id.map(std::string::ToString::to_string),
+            account_id: account_id.map(ToString::to_string),
         }
     }
 

@@ -1209,7 +1209,7 @@ impl crate::chatwidget::tool_cards::ToolCardCell for AutoDriveCardCell {
     }
 
     fn dedupe_signature(&self) -> Option<String> {
-        self.signature().map(std::string::ToString::to_string)
+        self.signature().map(ToString::to_string)
     }
 }
 

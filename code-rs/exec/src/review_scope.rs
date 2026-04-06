@@ -22,7 +22,7 @@ pub(crate) fn snapshot_parent_diff_paths(cwd: &Path, parent: &str, head: &str) -
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .collect();
 
     Some(paths)

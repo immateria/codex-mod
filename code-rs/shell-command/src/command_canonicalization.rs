@@ -162,7 +162,7 @@ fn file_name_only(path: &str) -> Option<String> {
     Path::new(path)
         .file_name()
         .and_then(|s| s.to_str())
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
 }
 
 fn is_busybox_executable(path: &str) -> bool {

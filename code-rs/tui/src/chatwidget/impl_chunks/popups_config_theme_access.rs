@@ -109,7 +109,7 @@ impl ChatWidget<'_> {
             let title = path
                 .file_name()
                 .and_then(|s| s.to_str())
-                .map(std::string::ToString::to_string)
+                .map(ToString::to_string)
                 .unwrap_or_else(|| path.display().to_string());
             tabs.push((title, blocks));
         }

@@ -64,7 +64,7 @@ fn insert_browser_anchor(
 
 fn browser_anchor_line(tracker: &BrowserSessionTracker) -> Line<'static> {
     let label = tracker.cell.summary_label();
-    let url = tracker.cell.current_url().map(std::string::ToString::to_string);
+    let url = tracker.cell.current_url().map(ToString::to_string);
 
     let mut spans: Vec<Span<'static>> = Vec::new();
     spans.push(Span::raw("Started "));
@@ -448,11 +448,11 @@ fn summarize_action(
             let description = params
                 .and_then(|value| value.get("description"))
                 .and_then(Value::as_str)
-                .map(std::string::ToString::to_string);
+                .map(ToString::to_string);
             let selector = params
                 .and_then(|value| value.get("selector"))
                 .and_then(Value::as_str)
-                .map(std::string::ToString::to_string);
+                .map(ToString::to_string);
             summary.target = description.clone().or_else(|| selector.clone());
             if let (Some(_), Some(sel)) = (description.as_ref(), selector.as_ref()) {
                 summary.value = Some(sel.clone());
@@ -554,7 +554,7 @@ fn summarize_action(
             summary.target = params
                 .and_then(|value| value.get("selector"))
                 .and_then(Value::as_str)
-                .map(std::string::ToString::to_string);
+                .map(ToString::to_string);
         }
         "browser_close" => {
             summary.action = "Close".to_string();
@@ -563,11 +563,11 @@ fn summarize_action(
             summary.target = params
                 .and_then(|value| value.get("target"))
                 .and_then(Value::as_str)
-                .map(std::string::ToString::to_string);
+                .map(ToString::to_string);
             summary.value = params
                 .and_then(|value| value.get("value"))
                 .and_then(Value::as_str)
-                .map(std::string::ToString::to_string);
+                .map(ToString::to_string);
         }
     }
 
@@ -621,11 +621,11 @@ fn summarize_action_result(result: &Result<String, String>) -> (Option<String>, 
                 let status = map
                     .get("status")
                     .and_then(Value::as_str)
-                    .map(std::string::ToString::to_string);
+                    .map(ToString::to_string);
                 let message = map
                     .get("message")
                     .and_then(Value::as_str)
-                    .map(std::string::ToString::to_string);
+                    .map(ToString::to_string);
                 let summary_text = status.or(message).unwrap_or_else(|| truncate(trimmed, 64));
 
                 let status_code = map
@@ -750,7 +750,7 @@ fn format_console_entry(entry: &serde_json::Map<String, Value>) -> Option<String
     let timestamp = entry
         .get("timestamp")
         .and_then(Value::as_str)
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .or_else(|| {
             entry.get("ts_unix_ms").and_then(|value| match value {
                 Value::Number(num) => Some(num.to_string()),

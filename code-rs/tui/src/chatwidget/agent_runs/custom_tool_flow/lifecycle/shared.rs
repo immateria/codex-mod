@@ -30,7 +30,7 @@ pub(super) fn apply_tracker_metadata(
     metadata: &InvocationMetadata,
     write_only_if_unset: bool,
 ) {
-    let raw_label = metadata.label.as_ref().map(std::string::ToString::to_string);
+    let raw_label = metadata.label.as_ref().map(ToString::to_string);
     let clean_label_value = raw_label.as_ref().and_then(|value| clean_label(value));
     if let Some(ref cleaned) = clean_label_value
         && !looks_like_uuid(cleaned)

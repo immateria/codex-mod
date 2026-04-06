@@ -213,7 +213,7 @@
             let rendered = cell
                 .display_lines_trimmed()
                 .iter()
-                .map(std::string::ToString::to_string)
+                .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 .join("\n");
             rendered.contains("Memories root:")

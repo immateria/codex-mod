@@ -3182,12 +3182,12 @@ fn request_decision_with_model(
     } = request;
     let developer_intro = developer_intro.to_string();
     let primary_goal = primary_goal.to_string();
-    let time_budget_message = time_budget_message.map(std::string::ToString::to_string);
-    let loop_warning = loop_warning.map(std::string::ToString::to_string);
+    let time_budget_message = time_budget_message.map(ToString::to_string);
+    let loop_warning = loop_warning.map(ToString::to_string);
     let schema = schema.clone();
     let conversation = Arc::clone(&conversation);
-    let auto_instructions = auto_instructions.map(std::string::ToString::to_string);
-    let coordinator_prompt = coordinator_prompt.map(std::string::ToString::to_string);
+    let auto_instructions = auto_instructions.map(ToString::to_string);
+    let coordinator_prompt = coordinator_prompt.map(ToString::to_string);
     let tx = event_tx.clone();
     let cancel = cancel_token.clone();
     let mut rate_limit_switch_state = RateLimitSwitchState::default();

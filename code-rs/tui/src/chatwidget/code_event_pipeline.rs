@@ -385,7 +385,7 @@ impl ChatWidget<'_> {
                         .as_ref()
                         .map(|s| s.trim())
                         .filter(|s| !s.is_empty())
-                        .map(std::string::ToString::to_string);
+                        .map(ToString::to_string);
                     let total = update.plan.len();
                     let completed = update
                         .plan

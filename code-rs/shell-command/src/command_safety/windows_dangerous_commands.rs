@@ -519,7 +519,7 @@ mod tests {
     use super::is_dangerous_command_windows;
 
     fn vec_str(items: &[&str]) -> Vec<String> {
-        items.iter().map(std::string::ToString::to_string).collect()
+        items.iter().map(ToString::to_string).collect()
     }
 
     #[test]

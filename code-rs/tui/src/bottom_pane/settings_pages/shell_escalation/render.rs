@@ -20,7 +20,7 @@ impl ShellEscalationSettingsView {
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
             .unwrap_or_else(|| "(unset)".to_string());
 
         let wrapper_override = self
@@ -28,7 +28,7 @@ impl ShellEscalationSettingsView {
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
             .unwrap_or_else(|| "auto".to_string());
 
         rows.iter()

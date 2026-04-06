@@ -407,7 +407,7 @@ pub(super) async fn handle_browser_wait_for(
                 .and_then(|v| v.as_str())
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
-                .map(std::string::ToString::to_string);
+                .map(ToString::to_string);
             let visible = json
                 .get("visible")
                 .and_then(serde_json::Value::as_bool)

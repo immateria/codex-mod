@@ -58,7 +58,7 @@ pub fn split_command_and_args(command: &str) -> (String, Vec<String>) {
             return (first.clone(), rest.to_vec());
         }
 
-    let tokens: Vec<String> = trimmed.split_whitespace().map(std::string::ToString::to_string).collect();
+    let tokens: Vec<String> = trimmed.split_whitespace().map(ToString::to_string).collect();
     if tokens.is_empty() {
         (String::new(), Vec::new())
     } else {

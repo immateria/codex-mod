@@ -565,7 +565,7 @@ fn span_from_syn((SynStyle { foreground, font_style, .. }, text): (SynStyle, &st
         style = style.add_modifier(Modifier::UNDERLINED);
     }
     // Strip a single trailing newline from syntect's line so our Line has no '\n'
-    let content = if let Some(stripped) = text.strip_suffix('\n') { stripped } else { text };
+    let content = text.strip_suffix('\n').unwrap_or(text);
     Span::styled(content.to_string(), style)
 }
 

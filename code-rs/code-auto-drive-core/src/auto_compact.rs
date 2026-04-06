@@ -215,7 +215,7 @@ fn summarize_with_model(
 ) -> Result<String> {
     let mut aggregate_summary = prev_summary
         .filter(|text| !text.trim().is_empty())
-        .map(std::string::ToString::to_string);
+        .map(ToString::to_string);
 
     let flattened = flatten_items(items);
     let chunks = chunk_text(&flattened);

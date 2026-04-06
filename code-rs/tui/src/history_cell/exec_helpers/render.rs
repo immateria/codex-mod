@@ -322,7 +322,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                     };
                     let tmp = terms_part.clone();
                     let chunks: Vec<String> = if tmp.contains(", ") {
-                        tmp.split(", ").map(std::string::ToString::to_string).collect()
+                        tmp.split(", ").map(ToString::to_string).collect()
                     } else {
                         vec![tmp.clone()]
                     };
@@ -782,7 +782,7 @@ fn new_parsed_command(
                     let tmp = terms_part.clone();
                     // First, split by ", "
                     let chunks: Vec<String> = if tmp.contains(", ") {
-                        tmp.split(", ").map(std::string::ToString::to_string).collect()
+                        tmp.split(", ").map(ToString::to_string).collect()
                     } else {
                         vec![tmp.clone()]
                     };

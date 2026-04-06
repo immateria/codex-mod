@@ -75,7 +75,7 @@ impl NetworkSettingsView {
                     .lines()
                     .map(str::trim)
                     .filter(|line| !line.is_empty())
-                    .map(std::string::ToString::to_string)
+                    .map(ToString::to_string)
                     .collect();
                 values.sort_by_key(|value| value.to_ascii_lowercase());
                 values.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
@@ -87,7 +87,7 @@ impl NetworkSettingsView {
                     .lines()
                     .map(str::trim)
                     .filter(|line| !line.is_empty())
-                    .map(std::string::ToString::to_string)
+                    .map(ToString::to_string)
                     .collect();
                 values.sort_by_key(|value| value.to_ascii_lowercase());
                 values.dedup_by(|a, b| a.eq_ignore_ascii_case(b));

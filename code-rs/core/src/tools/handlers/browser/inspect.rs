@@ -215,7 +215,7 @@ pub(super) async fn handle_browser_inspect(
                     let id_attr = json
                         .get("id")
                         .and_then(|v| v.as_str())
-                        .map(std::string::ToString::to_string);
+                        .map(ToString::to_string);
                     let mut x = json.get("x").and_then(serde_json::Value::as_f64);
                     let mut y = json.get("y").and_then(serde_json::Value::as_f64);
 

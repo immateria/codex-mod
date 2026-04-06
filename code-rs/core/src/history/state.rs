@@ -1506,7 +1506,7 @@ impl HistoryState {
 
         let mut state = AssistantMessageState {
             id: HistoryId::ZERO,
-            stream_id: stream_id.map(std::string::ToString::to_string),
+            stream_id: stream_id.map(ToString::to_string),
             markdown,
             citations,
             metadata,

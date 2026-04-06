@@ -382,7 +382,7 @@
         let lines = view.summary_lines();
         let text = lines
             .iter()
-            .map(std::string::ToString::to_string)
+            .map(ToString::to_string)
             .collect::<Vec<_>>()
             .join("\n");
 

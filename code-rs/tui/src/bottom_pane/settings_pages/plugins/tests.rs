@@ -114,13 +114,13 @@ fn make_sources(
     repos: Vec<(&str, Option<&str>)>,
 ) -> PluginsToml {
     PluginsToml {
-        curated_repo_url: curated_url.map(std::string::ToString::to_string),
-        curated_repo_ref: curated_ref.map(std::string::ToString::to_string),
+        curated_repo_url: curated_url.map(ToString::to_string),
+        curated_repo_ref: curated_ref.map(ToString::to_string),
         marketplace_repos: repos
             .into_iter()
             .map(|(url, git_ref)| PluginMarketplaceRepoToml {
                 url: url.to_string(),
-                git_ref: git_ref.map(std::string::ToString::to_string),
+                git_ref: git_ref.map(ToString::to_string),
             })
             .collect(),
     }

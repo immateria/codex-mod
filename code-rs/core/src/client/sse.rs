@@ -442,7 +442,7 @@ pub(super) async fn process_sse<S>(
                         .get("action")
                         .and_then(|a| a.get("query"))
                         .and_then(|v| v.as_str())
-                        .map(std::string::ToString::to_string);
+                        .map(ToString::to_string);
                     let ev = ResponseEvent::WebSearchCallCompleted { call_id, query };
                     if tx_event.send(Ok(ev)).await.is_err() {
                         return;

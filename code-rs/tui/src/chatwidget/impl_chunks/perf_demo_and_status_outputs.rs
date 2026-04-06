@@ -234,7 +234,7 @@ impl ChatWidget<'_> {
             self.history_push(assistant_cell);
 
             for (command_tokens, stdout) in execs {
-                let cmd_vec: Vec<String> = command_tokens.iter().map(std::string::ToString::to_string).collect();
+                let cmd_vec: Vec<String> = command_tokens.iter().map(ToString::to_string).collect();
                 let parsed = code_core::parse_command::parse_command(&cmd_vec);
                 self.history_push(history_cell::new_active_exec_command(
                     cmd_vec.clone(),

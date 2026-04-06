@@ -750,10 +750,10 @@ fn remove_staged_file(staged_root: &Path, cwd: &Path, path: &Path) {
 fn collect_output_lines(stdout: &[u8], stderr: &[u8]) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
     if !stdout.is_empty() {
-        lines.extend(String::from_utf8_lossy(stdout).lines().map(std::string::ToString::to_string));
+        lines.extend(String::from_utf8_lossy(stdout).lines().map(ToString::to_string));
     }
     if !stderr.is_empty() {
-        lines.extend(String::from_utf8_lossy(stderr).lines().map(std::string::ToString::to_string));
+        lines.extend(String::from_utf8_lossy(stderr).lines().map(ToString::to_string));
     }
     lines.retain(|line| !line.trim().is_empty());
     lines

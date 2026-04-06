@@ -68,7 +68,7 @@ pub(super) async fn handle_browser_screenshot(
                 .and_then(|v| v.as_str())
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
-                .map(std::string::ToString::to_string);
+                .map(ToString::to_string);
 
             let region = json.get("region").cloned();
 

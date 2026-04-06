@@ -134,7 +134,7 @@ impl ChatWidget<'_> {
                 let stream_identifier = explicit_id.clone().unwrap_or_else(|| {
                     self.stream
                         .current_stream_id()
-                        .map(std::string::ToString::to_string)
+                        .map(ToString::to_string)
                         .unwrap_or_else(|| "stream-preview".to_string())
                 });
 

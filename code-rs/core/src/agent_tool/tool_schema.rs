@@ -19,7 +19,7 @@ pub fn create_agent_tool(allowed_models: &[String]) -> OpenAiTool {
             allowed_values: Some(
                 ["create", "status", "wait", "result", "cancel", "list"]
                     .into_iter()
-                    .map(std::string::ToString::to_string)
+                    .map(ToString::to_string)
                     .collect(),
             ),
         },

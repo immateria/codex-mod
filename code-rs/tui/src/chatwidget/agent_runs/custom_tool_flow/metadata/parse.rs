@@ -57,7 +57,7 @@ fn apply_root_fields(meta: &mut InvocationMetadata, map: &Map<String, Value>) {
     if let Some(plan) = map.get("plan").and_then(Value::as_array) {
         meta.plan = plan
             .iter()
-            .filter_map(|step| step.as_str().map(std::string::ToString::to_string))
+            .filter_map(|step| step.as_str().map(ToString::to_string))
             .collect();
     }
     if let Some(models) = map.get("models").and_then(Value::as_array) {
@@ -138,7 +138,7 @@ fn apply_create(meta: &mut InvocationMetadata, map: &Map<String, Value>) {
     {
         meta.plan = plan
             .iter()
-            .filter_map(|step| step.as_str().map(std::string::ToString::to_string))
+            .filter_map(|step| step.as_str().map(ToString::to_string))
             .collect();
     }
 }

@@ -118,7 +118,7 @@ fn status_includes_shell_override_problem() {
     let status_text = view
         .status_lines()
         .iter()
-        .map(std::string::ToString::to_string)
+        .map(ToString::to_string)
         .collect::<Vec<_>>()
         .join("\n");
     assert!(
