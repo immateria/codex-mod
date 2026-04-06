@@ -203,7 +203,7 @@ fn indent_shell_lines(lines: Vec<String>) -> Vec<String> {
 
         if trimmed.ends_with("do")
             || trimmed.ends_with("then")
-            || trimmed.ends_with("{")
+            || trimmed.ends_with('{')
             || trimmed.starts_with("case ")
         {
             indent_level += 1;

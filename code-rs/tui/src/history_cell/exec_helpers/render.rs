@@ -193,15 +193,15 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                     }
 
                     // Balance parentheses
-                    let opens_paren = out.matches("(").count();
-                    let closes_paren = out.matches(")").count();
+                    let opens_paren = out.matches('(').count();
+                    let closes_paren = out.matches(')').count();
                     for _ in 0..opens_paren.saturating_sub(closes_paren) {
                         out.push(')');
                     }
 
                     // Balance curly braces
-                    let opens_curly = out.matches("{").count();
-                    let closes_curly = out.matches("}").count();
+                    let opens_curly = out.matches('{').count();
+                    let closes_curly = out.matches('}').count();
                     for _ in 0..opens_curly.saturating_sub(closes_curly) {
                         out.push('}');
                     }
@@ -648,14 +648,14 @@ fn new_parsed_command(
                         }
                     }
                     // Balance parentheses
-                    let opens_paren = out.matches("(").count();
-                    let closes_paren = out.matches(")").count();
+                    let opens_paren = out.matches('(').count();
+                    let closes_paren = out.matches(')').count();
                     for _ in 0..opens_paren.saturating_sub(closes_paren) {
                         out.push(')');
                     }
                     // Balance curly braces
-                    let opens_curly = out.matches("{").count();
-                    let closes_curly = out.matches("}").count();
+                    let opens_curly = out.matches('{').count();
+                    let closes_curly = out.matches('}').count();
                     for _ in 0..opens_curly.saturating_sub(closes_curly) {
                         out.push('}');
                     }

@@ -905,7 +905,7 @@ fn autodetect_lang(content: &str) -> Option<&'static str> {
 
     // 6) Python (def/class/import and minimal punctuation typical of Python)
     if (lower.contains("def ") || lower.contains("class ") || lower.contains("import "))
-        && !sample.contains(";")
+        && !sample.contains(';')
     {
         return Some("python");
     }

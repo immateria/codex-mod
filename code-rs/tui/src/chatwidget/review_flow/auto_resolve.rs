@@ -455,8 +455,8 @@ impl ChatWidget<'_> {
             return Some(decision);
         }
 
-        if let Some(start) = raw.find("{" )
-            && let Some(end) = raw.rfind("}") {
+        if let Some(start) = raw.find('{' )
+            && let Some(end) = raw.rfind('}') {
                 let slice = &raw[start..=end];
                 if let Ok(decision) = serde_json::from_str::<AutoResolveDecision>(slice) {
                     return Some(decision);

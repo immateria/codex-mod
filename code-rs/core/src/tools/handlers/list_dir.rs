@@ -309,7 +309,7 @@ fn truncate_utf8_prefix_by_bytes(input: &str, max_bytes: usize) -> String {
 }
 
 fn format_entry_name(path: &Path) -> String {
-    let normalized = path.to_string_lossy().replace("\\", "/");
+    let normalized = path.to_string_lossy().replace('\\', "/");
     truncate_utf8_prefix_by_bytes(&normalized, MAX_ENTRY_LENGTH)
 }
 

@@ -272,7 +272,7 @@ impl JsReplManager {
                 let mut active = active_exec_id.lock().await;
                 *active = None;
             }
-            let _ = self.reset().await;
+            if let Err(e) = self.reset().await { tracing::warn!("js_repl reset failed during error recovery: {e}"); }
             return Err(JsExecError {
                 output: String::new(),
                 error: format!("failed to send js_repl request: {err}"),
@@ -292,7 +292,7 @@ impl JsReplManager {
                         let mut active = active_exec_id.lock().await;
                         *active = None;
                     }
-                    let _ = self.reset().await;
+                    if let Err(e) = self.reset().await { tracing::warn!("js_repl reset failed during error recovery: {e}"); }
                     return Err(JsExecError {
                         output: String::new(),
                         error: format!("js_repl timed out after {timeout_ms}ms"),
@@ -305,7 +305,7 @@ impl JsReplManager {
                             let mut active = active_exec_id.lock().await;
                             *active = None;
                         }
-                        let _ = self.reset().await;
+                        if let Err(e) = self.reset().await { tracing::warn!("js_repl reset failed during error recovery: {e}"); }
                         return Err(JsExecError {
                             output: String::new(),
                             error: "js_repl kernel terminated while waiting for tool requests".to_string(),
@@ -332,7 +332,7 @@ impl JsReplManager {
                                 let mut active = active_exec_id.lock().await;
                                 *active = None;
                             }
-                            let _ = self.reset().await;
+                            if let Err(e) = self.reset().await { tracing::warn!("js_repl reset failed during error recovery: {e}"); }
                             return Err(JsExecError {
                                 output: String::new(),
                                 error: "js_repl kernel stopped before returning a result".to_string(),

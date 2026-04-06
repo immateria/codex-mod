@@ -256,7 +256,7 @@ impl ChatWidget<'_> {
             let first_arg = parts[0];
 
             // Check if the first argument looks like a URL (has a dot or protocol)
-            let is_url = first_arg.contains("://") || first_arg.contains(".");
+            let is_url = first_arg.contains("://") || first_arg.contains('.');
 
             if is_url {
                 // It's a URL - enable browser mode and navigate to it

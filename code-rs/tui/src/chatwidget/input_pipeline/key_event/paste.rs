@@ -22,7 +22,7 @@ impl ChatWidget<'_> {
 
         // Check if it looks like a file path
         let is_likely_path = trimmed.starts_with("file://")
-            || trimmed.starts_with("/")
+            || trimmed.starts_with('/')
             || trimmed.starts_with("~/")
             || trimmed.starts_with("./");
 

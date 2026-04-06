@@ -239,7 +239,7 @@ impl MergedExecCell {
             if let Some(idx) = rest.rfind(" (lines ") {
                 let fname = rest[..idx].to_string();
                 let tail = &rest[idx + 1..];
-                if tail.starts_with("(lines ") && tail.ends_with(")") {
+                if tail.starts_with("(lines ") && tail.ends_with(')') {
                     let inner = &tail[7..tail.len().saturating_sub(1)];
                     if let Some((a, b)) = inner.split_once(" to ")
                         && let (Ok(s), Ok(e)) = (a.trim().parse::<u32>(), b.trim().parse::<u32>()) {

@@ -117,7 +117,7 @@ impl ProgramSpec {
                 // should be the value for the option.
                 // This had better not be another option!
                 let (name, arg_type) = expected;
-                if arg.starts_with("-") {
+                if arg.starts_with('-') {
                     return Err(Error::OptionFollowedByOptionInsteadOfValue {
                         program: self.program.clone(),
                         option: name,
@@ -131,7 +131,7 @@ impl ProgramSpec {
                 return Err(Error::DoubleDashNotSupportedYet {
                     program: self.program.clone(),
                 });
-            } else if arg.starts_with("-") {
+            } else if arg.starts_with('-') {
                 match self.allowed_options.get(arg) {
                     Some(opt) => {
                         match &opt.meta {

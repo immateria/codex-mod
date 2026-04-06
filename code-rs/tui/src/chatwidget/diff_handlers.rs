@@ -126,8 +126,9 @@ fn selected_diff_block_text(chat: &ChatWidget<'_>) -> Option<String> {
 
     let mut diff_text = String::new();
     for line in &block.lines {
-        let rendered_line: String = line.spans.iter().map(|span| span.content.clone()).collect();
-        diff_text.push_str(&rendered_line);
+        for span in &line.spans {
+            diff_text.push_str(&span.content);
+        }
         diff_text.push('\n');
     }
     Some(diff_text)
