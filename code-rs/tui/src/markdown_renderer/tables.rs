@@ -10,6 +10,40 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
     if !header_line.contains('|') {
         return None;
     }
+    use unicode_width::UnicodeWidthStr;
+    use unicode_segmentation::UnicodeSegmentation;
+
+    // "Generally correct" terminal width:
+    // - Use UnicodeWidth for normal text (CJK, combining marks, etc.).
+    // - Treat emoji-presentation graphemes as width=2 (VS16, ZWJ sequences, flags, keycaps).
+    fn display_width_approx(s: &str) -> usize {
+        s.graphemes(true).map(grapheme_width_approx).sum()
+    }
+
+    fn grapheme_width_approx(g: &str) -> usize {
+        const ZWJ: char = '\u{200d}';
+        const VS16: char = '\u{fe0f}';
+        const KEYCAP: char = '\u{20e3}';
+
+        if g.contains(ZWJ) || g.contains(VS16) || g.contains(KEYCAP) {
+            return 2;
+        }
+
+        // Flags are a pair of regional indicator symbols, but UnicodeWidth counts each as 2.
+        // Most terminals render the combined flag as a single 2-cell glyph.
+        let mut it = g.chars();
+        if let (Some(c1), Some(c2), None) = (it.next(), it.next(), it.next()) {
+            if is_regional_indicator(c1) && is_regional_indicator(c2) {
+                return 2;
+            }
+        }
+
+        UnicodeWidthStr::width(g)
+    }
+
+    fn is_regional_indicator(ch: char) -> bool {
+        matches!(ch as u32, 0x1F1E6..=0x1F1FF)
+    }
 
     // Split a row by '|' and trim spaces; drop empty edge cells from leading/trailing '|'
     fn split_row(s: &str) -> Vec<String> {
@@ -115,11 +149,11 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
     // Compute widths per column
     let mut widths = vec![0usize; cols];
     for (i, cell) in header_cells.iter().enumerate() {
-        widths[i] = widths[i].max(cell.chars().count());
+        widths[i] = widths[i].max(display_width_approx(cell.as_str()));
     }
     for row in &body {
         for (i, cell) in row.iter().enumerate() {
-            widths[i] = widths[i].max(cell.chars().count());
+            widths[i] = widths[i].max(display_width_approx(cell.as_str()));
         }
     }
     // Infer alignment for numeric columns if not specified by pipes
@@ -135,7 +169,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
     }
 
     fn pad_cell(s: &str, w: usize, align: Align) -> String {
-        let len = s.chars().count();
+        let len = display_width_approx(s);
         if len >= w {
             return s.to_string();
         }
@@ -196,4 +230,3 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
 
     Some((idx, out))
 }
-
