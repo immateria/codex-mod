@@ -20,7 +20,7 @@ impl ChatWidget<'_> {
             if let Some(idx) = self
                 .history_cell_ids
                 .iter()
-                .position(|maybe| maybe.map(|stored| stored == *hid).unwrap_or(false))
+                .position(|maybe| maybe.is_some_and(|stored| stored == *hid))
             {
                 self.system_cell_by_id.insert(key.clone(), idx);
             }

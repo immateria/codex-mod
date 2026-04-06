@@ -1114,7 +1114,7 @@ fn cached_background_matches_env(
 ) -> bool {
     fn matches(expected: &Option<String>, actual: &Option<String>) -> bool {
         match expected {
-            Some(expected) => actual.as_ref().map(|value| value == expected).unwrap_or(false),
+            Some(expected) => actual.as_ref().is_some_and(|value| value == expected),
             None => true,
         }
     }

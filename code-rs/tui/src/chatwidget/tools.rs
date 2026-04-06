@@ -63,7 +63,7 @@ pub(super) fn mcp_end(chat: &mut ChatWidget<'_>, ev: McpToolCallEndEvent, key: O
         invocation,
         result,
     } = ev;
-    let success = !result.as_ref().map(|r| r.is_error.unwrap_or(false)).unwrap_or(false);
+    let success = !result.as_ref().is_ok_and(|r| r.is_error.unwrap_or(false));
     let mut completed = history_cell::new_completed_mcp_tool_call(80, invocation, duration, success, result);
     if let Some(tool_cell) = completed
         .as_any_mut()

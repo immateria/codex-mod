@@ -35,7 +35,7 @@ pub(crate) fn find_embedded_apply_patch(script: &str) -> Result<Option<EmbeddedA
                 .map(|c| c.is_whitespace() || ";|&".contains(c))
                 .unwrap_or(true);
         let after = script[start..].chars().skip(cmd_len).next();
-        let ok_after = after.map(|c| c.is_whitespace() || c == '<').unwrap_or(false);
+        let ok_after = after.is_some_and(|c| c.is_whitespace() || c == '<');
         if !ok_before || !ok_after {
             i = start + cmd_len;
             continue;

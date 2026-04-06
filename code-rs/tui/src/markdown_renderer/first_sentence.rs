@@ -38,7 +38,7 @@ fn apply_first_sentence_style(spans: &mut Vec<Span<'static>>) -> bool {
                 Some(c) if c.is_whitespace() => true,
                 Some('"') | Some('\'') => {
                     let n2 = chars.get(i + 2).copied();
-                    n2.is_none() || n2.map(char::is_whitespace).unwrap_or(false)
+                    n2.is_none() || n2.is_some_and(char::is_whitespace)
                 }
                 _ => false,
             };

@@ -706,7 +706,7 @@ impl ChatWidget<'_> {
             && let Some(idx) = self
                 .history_cell_ids
                 .iter()
-                .position(|maybe| maybe.map(|id| id == notice.history_id).unwrap_or(false))
+                .position(|maybe| maybe.is_some_and(|id| id == notice.history_id))
             {
                 let cell = crate::history_cell::PlainHistoryCell::from_state(state);
                 self.history_replace_at(idx, Box::new(cell));

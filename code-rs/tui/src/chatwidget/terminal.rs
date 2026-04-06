@@ -353,9 +353,8 @@ impl TerminalOverlay {
         while new_lines.len() > 1
             && new_lines
                 .last()
-                .map(|line| line_is_blank(line))
-                .unwrap_or(false)
-            && new_plain.last().map(std::string::String::is_empty).unwrap_or(false)
+                .is_some_and(|line| line_is_blank(line))
+            && new_plain.last().is_some_and(std::string::String::is_empty)
         {
             new_lines.pop();
             new_plain.pop();

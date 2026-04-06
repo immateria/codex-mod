@@ -11,7 +11,7 @@ impl BrowserManager {
     }
 
     pub fn is_enabled_sync(&self) -> bool {
-        self.config.try_read().map(|c| c.enabled).unwrap_or(false)
+        self.config.try_read().is_ok_and(|c| c.enabled)
     }
 
     /// Returns how long the browser has been idle when it exceeds the configured timeout.

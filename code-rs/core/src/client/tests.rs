@@ -274,7 +274,7 @@ async fn run_sse(
             .get("type")
             .and_then(|v| v.as_str())
             .or_panic("fixture event missing type");
-        if e.as_object().map(|o| o.len() == 1).unwrap_or(false) {
+        if e.as_object().is_some_and(|o| o.len() == 1) {
             body.push_str(&format!("event: {kind}\n\n"));
         } else {
             body.push_str(&format!("event: {kind}\ndata: {e}\n\n"));
