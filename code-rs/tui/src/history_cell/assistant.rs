@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
+use unicode_width::UnicodeWidthStr;
 
 #[cfg(feature = "test-helpers")]
 layout_build_counter!(
@@ -721,7 +722,7 @@ pub(crate) fn detect_bullet_prefix(
     if let Some(s) = spans.first() {
         let t = s.content.as_ref();
         if !t.is_empty() && t.chars().all(|c| c == ' ') {
-            indent = t.chars().count();
+            indent = t.width();
             idx = 1;
         }
     }

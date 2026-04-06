@@ -8,6 +8,7 @@ use ratatui::text::Line;
 use ratatui::text::Span;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
+use unicode_width::UnicodeWidthStr;
 
 use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::BottomPane;
@@ -52,7 +53,7 @@ impl ListSelectionView {
         let w = width as usize;
         let mut lines: u16 = 0;
         for part in text.split('\n') {
-            let len = part.chars().count();
+            let len = part.width();
             if len == 0 { lines = lines.saturating_add(1); continue; }
             let mut l = (len / w) as u16;
             if len % w != 0 { l = l.saturating_add(1); }

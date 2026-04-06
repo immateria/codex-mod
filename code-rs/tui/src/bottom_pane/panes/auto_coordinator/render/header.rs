@@ -7,6 +7,7 @@ use ratatui::prelude::Widget;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
+use unicode_width::UnicodeWidthStr;
 
 use crate::auto_drive_strings;
 use crate::colors;
@@ -37,7 +38,7 @@ pub(super) fn intro_state<'a>(header_text: &'a str, model: &AutoActiveViewModel)
         };
     };
 
-    let total_chars = header_text.chars().count();
+    let total_chars = header_text.width();
     if total_chars == 0 {
         return IntroState {
             header_text: Cow::Borrowed(header_text),
@@ -225,7 +226,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
     };
 
     if animating {
-        let total_chars = full_title.chars().count().max(1);
+        let total_chars = full_title.width().max(1);
         let visible_chars: Vec<char> = header_label.chars().collect();
         if !visible_chars.is_empty() {
             for (idx, ch) in visible_chars.iter().enumerate() {

@@ -115,7 +115,7 @@ pub(super) fn render_pending_prompt_block(
 
     let border_style = Style::default().fg(colors::text_dim());
     let title = " Next Prompt ";
-    let title_width = title.chars().count();
+    let title_width = title.width();
     let mut top_line = String::from("╭");
     if title_width + 2 <= inner_width {
         top_line.push_str(title);

@@ -3,6 +3,7 @@ use ratatui::style::Modifier;
 use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::text::Span;
+use unicode_width::UnicodeWidthStr;
 
 pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -> HeaderTemplateRender {
     let mut include_reasoning = !input.minimal_header;
@@ -28,7 +29,7 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
 
         let push_text =
             |spans: &mut Vec<Span<'static>>, width: &mut usize, text: &str, style: Style| {
-                *width += text.chars().count();
+                *width += text.width();
                 spans.push(Span::styled(text.to_string(), style));
             };
 

@@ -2,6 +2,7 @@ use super::*;
 use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::text::Span;
+use unicode_width::UnicodeWidthStr;
 
 pub(super) fn render_plain_header_template(
     template: &str,
@@ -38,7 +39,7 @@ pub(super) fn render_styled_header_template(
             return;
         }
         let start = *width;
-        *width += value.chars().count();
+        *width += value.width();
         span_starts.push(start);
         spans.push(Span::styled(
             value.to_string(),
@@ -146,7 +147,7 @@ pub(super) fn render_styled_header_template(
                         span_starts.push(last_start);
                         spans.push(Span::styled(prefix.clone(), last_span.style));
                     }
-                    let suffix_start = last_start + prefix.chars().count();
+                    let suffix_start = last_start + prefix.width();
                     click_start = suffix_start;
                     span_starts.push(suffix_start);
                     spans.push(Span::styled(
@@ -160,7 +161,7 @@ pub(super) fn render_styled_header_template(
             }
 
             let value_start = width;
-            width += value.chars().count();
+            width += value.width();
             let end = width;
             span_starts.push(value_start);
             spans.push(Span::styled(
@@ -175,7 +176,7 @@ pub(super) fn render_styled_header_template(
         } else {
             let raw_token = &template[open..=close];
             let start = width;
-            width += raw_token.chars().count();
+            width += raw_token.width();
             span_starts.push(start);
             spans.push(Span::styled(raw_token.to_string(), dim_style));
         }

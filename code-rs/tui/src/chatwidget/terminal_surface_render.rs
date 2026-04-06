@@ -7,6 +7,7 @@ use super::terminal_surface_header::render_plain_header_template;
 use super::terminal_surface_header::render_dynamic_header_line;
 use super::terminal_surface_header::render_styled_header_template;
 use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
+use unicode_width::UnicodeWidthStr;
 
 type TrackedClickableLine = (
     usize,
@@ -521,7 +522,7 @@ impl ChatWidget<'_> {
                 _ => None,
             };
 
-            let segment_width = value.chars().count();
+            let segment_width = value.width();
             let mut style = Style::default().fg(crate::colors::text());
             if let Some(action) = click_action.clone() {
                 style = super::terminal_surface_header::apply_hover_style(
@@ -537,7 +538,7 @@ impl ChatWidget<'_> {
 
         if !added_any {
             let fallback = "Status line configured with no available values".to_string();
-            width = fallback.chars().count();
+            width = fallback.width();
             spans.push(Span::styled(
                 fallback,
                 Style::default().fg(crate::colors::text_dim()),

@@ -10,6 +10,7 @@ use crate::history::state::{
 use code_core::parse_command::ParsedCommand;
 use shlex::Shlex;
 use std::path::{Component, Path};
+use unicode_width::UnicodeWidthStr;
 
 pub(crate) struct ExploreAggregationCell {
     record: ExploreRecord,
@@ -347,7 +348,7 @@ fn explore_lines_with_truncation(
             Style::default().add_modifier(Modifier::DIM),
         )];
         let label = entry_label(entry);
-        let padding = max_label_len.saturating_sub(label.chars().count()) + 1;
+        let padding = max_label_len.saturating_sub(label.width()) + 1;
         let mut padded_label = String::with_capacity(label.len() + padding);
         padded_label.push_str(label);
         padded_label.extend(std::iter::repeat_n(' ', padding));
@@ -412,7 +413,7 @@ fn entry_label(entry: &ExploreEntry) -> &'static str {
 }
 
 fn entry_label_width(entry: &ExploreEntry) -> usize {
-    entry_label(entry).chars().count()
+    entry_label(entry).width()
 }
 
 fn entry_summary_spans(entry: &ExploreEntry) -> Vec<Span<'static>> {
