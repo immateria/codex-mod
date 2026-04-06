@@ -990,7 +990,7 @@ pub fn draw_env_modal(frame: &mut Frame, area: Rect, app: &mut App) {
         items.push(ListItem::new(Line::from(spans)));
     }
 
-    let sel_desired = app.env_modal.as_ref().map(|m| m.selected).unwrap_or(0);
+    let sel_desired = app.env_modal.as_ref().map_or(0, |m| m.selected);
     let sel = sel_desired.min(envs.len());
     let mut list_state = ListState::default().with_selected(Some(sel));
     let list = List::new(items)
@@ -1032,7 +1032,7 @@ pub fn draw_best_of_modal(frame: &mut Frame, area: Rect, app: &mut App) {
         .wrap(Wrap { trim: true });
     frame.render_widget(hint, rows[0]);
 
-    let selected = app.best_of_modal.as_ref().map(|m| m.selected).unwrap_or(0);
+    let selected = app.best_of_modal.as_ref().map_or(0, |m| m.selected);
     let options = [1usize, 2, 3, 4];
     let mut items: Vec<ListItem> = Vec::new();
     for &attempts in &options {

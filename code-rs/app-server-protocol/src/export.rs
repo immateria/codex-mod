@@ -1732,7 +1732,7 @@ mod tests {
                         // type literals like `{ [k in string]?: string }`.
 
                         let line_start_idx =
-                            contents[..abs_idx].rfind('\n').map(|i| i + 1).unwrap_or(0);
+                            contents[..abs_idx].rfind('\n').map_or(0, |i| i + 1);
 
                         let mut segment_start_idx = line_start_idx;
                         if let Some(rel_idx) = contents[line_start_idx..abs_idx].rfind(',') {

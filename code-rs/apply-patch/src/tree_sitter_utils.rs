@@ -99,7 +99,7 @@ pub(crate) fn find_embedded_apply_patch(script: &str) -> Result<Option<EmbeddedA
         let Some(body_end) = found_end else { i = start + 2; continue; };
 
         // Determine line start for this statement and optional preceding `cd <path> &&`
-        let line_start = script[..start].rfind('\n').map(|p| p + 1).unwrap_or(0);
+        let line_start = script[..start].rfind('\n').map_or(0, |p| p + 1);
         let before_apply = &script[line_start..start];
         let mut cd_path: Option<String> = None;
         let mut stmt_begin = start;
@@ -124,7 +124,7 @@ pub(crate) fn find_embedded_apply_patch(script: &str) -> Result<Option<EmbeddedA
                             };
                             cd_path = Some(path_str);
                             // Include the cd... && in the removal range
-                            stmt_begin = line_start + left.find("cd ").map(|p| p).unwrap_or(0);
+                            stmt_begin = line_start + left.find("cd ").unwrap_or(0);
                         }
                     }
                 }

@@ -23,7 +23,7 @@ pub(super) fn handle_backslash_continuation(view: &mut ChatComposer) -> bool {
         return false;
     }
 
-    let line_start = text[..last_idx].rfind('\n').map(|idx| idx + 1).unwrap_or(0);
+    let line_start = text[..last_idx].rfind('\n').map_or(0, |idx| idx + 1);
     let line_before = &text[line_start..last_idx];
     let indent_end = line_before
         .bytes()

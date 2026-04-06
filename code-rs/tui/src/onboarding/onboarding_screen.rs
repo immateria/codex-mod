@@ -222,7 +222,7 @@ impl WidgetRef for &OnboardingScreen {
                     last_non_empty = Some(yy);
                 }
             }
-            last_non_empty.map(|v| v + 2).unwrap_or(0)
+            last_non_empty.map_or(0, |v| v + 2)
         }
 
         let mut i = 0usize;

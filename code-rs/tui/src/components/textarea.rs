@@ -236,7 +236,7 @@ impl TextArea {
     }
 
     fn beginning_of_line(&self, pos: usize) -> usize {
-        self.text[..pos].rfind('\n').map(|i| i + 1).unwrap_or(0)
+        self.text[..pos].rfind('\n').map_or(0, |i| i + 1)
     }
     fn beginning_of_current_line(&self) -> usize {
         self.beginning_of_line(self.cursor_pos)
@@ -705,7 +705,7 @@ impl TextArea {
                     c
                 }
             };
-            let prev_line_start = self.text[..prev_nl].rfind('\n').map(|i| i + 1).unwrap_or(0);
+            let prev_line_start = self.text[..prev_nl].rfind('\n').map_or(0, |i| i + 1);
             let prev_line_end = prev_nl;
             self.move_to_display_col_on_line(prev_line_start, prev_line_end, target_col);
         } else {
