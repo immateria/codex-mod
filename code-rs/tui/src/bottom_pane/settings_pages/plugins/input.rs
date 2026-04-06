@@ -292,8 +292,7 @@ impl PluginsSettingsView {
                 .sources
                 .marketplace_repos
                 .get(idx)
-                .map(|repo| (repo.url.as_str(), repo.git_ref.as_deref().unwrap_or("")))
-                .unwrap_or(("", "")),
+                .map_or(("", ""), |repo| (repo.url.as_str(), repo.git_ref.as_deref().unwrap_or(""))),
             None => ("", ""),
         };
         self.sources_editor.url_field.set_text(url);

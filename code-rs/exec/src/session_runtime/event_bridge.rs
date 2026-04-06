@@ -36,13 +36,17 @@ fn spawn_event_bridge(conversation: Arc<CodexConversation>, tx: UnboundedSender<
                     tokio::select! {
                         _ = stream.recv() => {
                             tracing::debug!("SIGTERM received; requesting shutdown");
-                            conversation.submit(Op::Shutdown).await.ok();
+                            if let Err(e) = conversation.submit(Op::Shutdown).await {
+                                tracing::warn!("Failed to submit shutdown: {e}");
+                            }
                             sigterm_requested = true;
                             break;
                         }
                         _ = tokio::signal::ctrl_c() => {
                             tracing::debug!("Keyboard interrupt");
-                            conversation.submit(Op::Interrupt).await.ok();
+                            if let Err(e) = conversation.submit(Op::Interrupt).await {
+                                tracing::warn!("Failed to submit interrupt: {e}");
+                            }
                             break;
                         }
                         res = conversation.next_event() => match res {
@@ -69,7 +73,9 @@ fn spawn_event_bridge(conversation: Arc<CodexConversation>, tx: UnboundedSender<
                     tokio::select! {
                         _ = tokio::signal::ctrl_c() => {
                             tracing::debug!("Keyboard interrupt");
-                            conversation.submit(Op::Interrupt).await.ok();
+                            if let Err(e) = conversation.submit(Op::Interrupt).await {
+                                tracing::warn!("Failed to submit interrupt: {e}");
+                            }
                             break;
                         }
                         res = conversation.next_event() => match res {
@@ -99,7 +105,9 @@ fn spawn_event_bridge(conversation: Arc<CodexConversation>, tx: UnboundedSender<
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => {
                         tracing::debug!("Keyboard interrupt");
-                        conversation.submit(Op::Interrupt).await.ok();
+                        if let Err(e) = conversation.submit(Op::Interrupt).await {
+                            tracing::warn!("Failed to submit interrupt: {e}");
+                        }
                         break;
                     }
                     res = conversation.next_event() => match res {

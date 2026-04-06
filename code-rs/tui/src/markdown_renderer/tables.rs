@@ -155,7 +155,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
                 spans.push(Span::raw("  "));
             }
             let text = pad_cell(
-                header_cells.get(i).map(String::as_str).unwrap_or(""),
+                header_cells.get(i).map_or("", String::as_str),
                 widths[i],
                 aligns[i],
             );
@@ -185,7 +185,7 @@ fn parse_markdown_table(lines: &[&str]) -> Option<(usize, Vec<Line<'static>>)> {
                 spans.push(Span::raw("  "));
             }
             let text = pad_cell(
-                row.get(i).map(String::as_str).unwrap_or(""),
+                row.get(i).map_or("", String::as_str),
                 widths[i],
                 aligns[i],
             );

@@ -387,7 +387,7 @@ fn is_short_preview_of_url(label: &str, target: &str) -> bool {
     fn looks_like_domain(s: &str) -> bool {
         let s = s.trim().trim_end_matches('/');
         if !s.contains('.') || s.contains(' ') { return false; }
-        let tld = s.rsplit_once('.').map(|(_, t)| t).unwrap_or("").to_ascii_lowercase();
+        let tld = s.rsplit_once('.').map_or("", |(_, t)| t).to_ascii_lowercase();
         const ALLOWED_TLDS: &[&str] = &[
             "com","org","net","edu","gov","io","ai","app","dev","co","us","uk","ca","de","fr","jp","cn","in","au"
         ];

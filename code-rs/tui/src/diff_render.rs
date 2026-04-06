@@ -377,7 +377,7 @@ fn render_patch_details_with_width(
     let term_cols: usize = if let Some(w) = width_cols {
         w
     } else {
-        let full = terminal::size().map(|(w, _)| w as usize).unwrap_or(120);
+        let full = terminal::size().map_or(120, |(w, _)| w as usize);
         full.saturating_sub(20).max(40)
     };
 

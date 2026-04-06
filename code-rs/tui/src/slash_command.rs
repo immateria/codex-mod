@@ -288,7 +288,7 @@ pub fn process_slash_command_message(message: &str) -> ProcessedCommand {
     let command_portion = if has_slash { &trimmed[1..] } else { trimmed };
     let mut parts = command_portion.splitn(2, |c: char| c.is_whitespace());
     let command_str = parts.next().unwrap_or("");
-    let args_raw = parts.next().map(str::trim).unwrap_or("");
+    let args_raw = parts.next().map_or("", str::trim);
     let canonical_command = command_str.to_ascii_lowercase();
 
     if matches!(canonical_command.as_str(), "quit" | "exit") {

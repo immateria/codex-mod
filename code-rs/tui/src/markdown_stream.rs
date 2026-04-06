@@ -494,7 +494,7 @@ fn unwrap_markdown_language_fence_if_enabled(s: String) -> String {
     }
 
     // Identify opening fence and language.
-    let open = lines.first().map(|l| l.trim_start()).unwrap_or("");
+    let open = lines.first().map_or("", |l| l.trim_start());
     if !open.starts_with("```") {
         return s;
     }

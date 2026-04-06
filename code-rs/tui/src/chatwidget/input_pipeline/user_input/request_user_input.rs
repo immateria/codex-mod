@@ -74,7 +74,7 @@ impl ChatWidget<'_> {
                 .get(&question.id)
                 .map(|a| a.answers.as_slice())
                 .unwrap_or(&[]);
-            let value = answer.first().map(String::as_str).unwrap_or("");
+            let value = answer.first().map_or("", String::as_str);
             let value = if value.trim().is_empty() {
                 "(skipped)"
             } else if question.is_secret {

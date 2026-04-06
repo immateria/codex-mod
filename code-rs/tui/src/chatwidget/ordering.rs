@@ -5,7 +5,7 @@ impl ChatWidget<'_> {
         // sequence_number can be None on some terminal events; treat as 0 for stable placement
         OrderKey {
             req: om.request_ordinal,
-            out: om.output_index.map(|v| v as i32).unwrap_or(0),
+            out: om.output_index.map_or(0, |v| v as i32),
             seq: om.sequence_number.unwrap_or(0),
         }
     }

@@ -11,7 +11,7 @@ impl ChatWidget<'_> {
 
         let mut parts = trimmed.splitn(2, ' ');
         let head = parts.next().unwrap_or("").to_ascii_lowercase();
-        let rest = parts.next().map(str::trim).unwrap_or("");
+        let rest = parts.next().map_or("", str::trim);
 
         match head.as_str() {
             "list" => {

@@ -205,7 +205,7 @@ impl RequestUserInputView {
         }
 
         let question = self.current_question();
-        let prompt = question.map(|q| q.question.as_str()).unwrap_or("");
+        let prompt = question.map_or("", |q| q.question.as_str());
 
         let mut content_y = inner.y.saturating_add(2);
         let footer_height = 1u16;

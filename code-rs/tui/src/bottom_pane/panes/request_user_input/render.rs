@@ -194,7 +194,7 @@ impl RequestUserInputView {
                 }
                 render_rows(content_rect, buf, &rows, &state, rows.len().max(1), false);
             } else {
-                let text = self.current_answer().map(|a| a.freeform.as_str()).unwrap_or("");
+                let text = self.current_answer().map_or("", |a| a.freeform.as_str());
                 let display_text = if is_secret && !text.is_empty() {
                     mask_secret(text)
                 } else {
