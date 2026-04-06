@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use crossterm::event::KeyEventKind;
 use crossterm::terminal::supports_keyboard_enhancement;
 #[cfg(unix)]
-use signal_hook::consts::signal::SIGTERM;
+use signal_hook::consts::signal::{SIGHUP, SIGTERM};
 #[cfg(unix)]
 use signal_hook::flag;
 
@@ -258,6 +258,11 @@ impl App<'_> {
                         tracing::warn!("failed to register SIGTERM handler: {err}");
                         input_running.store(false, Ordering::Release);
                     }
+                }
+                // SIGHUP (terminal disconnect / Termux OOM) triggers the same
+                // clean-exit path so raw mode and alt screen are restored.
+                if let Err(err) = flag::register(SIGHUP, Arc::clone(&term_trigger)) {
+                    tracing::warn!("failed to register SIGHUP handler: {err}");
                 }
             } else {
                 tracing::warn!("SIGTERM listener spawn skipped: background thread limit reached");

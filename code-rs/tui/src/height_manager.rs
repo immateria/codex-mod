@@ -6,6 +6,8 @@
 
 use ratatui::layout::{Constraint, Layout, Rect};
 
+use crate::platform_caps;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum HeightEvent {
     Resize,
@@ -132,8 +134,9 @@ impl HeightManager {
 
         // Cap the bottom pane to a percentage of screen height. On short terminals
         // (< 16 rows, typical for Termux with on-screen keyboard) reduce the floor
-        // from 5 to 3 rows so more history is visible.
-        let min_bottom: u16 = if area.height < 16 { 3 } else { 5 };
+        // from 5 to 3 rows so more history is visible. On Termux, always prefer
+        // the compact floor regardless of terminal height.
+        let min_bottom: u16 = if area.height < 16 || platform_caps::is_termux() { 3 } else { 5 };
         let percent_cap: u16 = ((area.height as u32).saturating_mul(self.cfg.bottom_percent_cap as u32) / 100) as u16;
         let bottom_cap = percent_cap.max(min_bottom);
         let desired = bottom_desired_height.max(min_bottom).min(bottom_cap);

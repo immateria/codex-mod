@@ -65,6 +65,19 @@ fn env_truthy(name: &str) -> bool {
         .is_some_and(|value| !value.trim().is_empty() && value.trim() != "0")
 }
 
+/// Returns `true` when running inside Termux on Android.
+/// Cached after the first call via `OnceLock`.
+pub(crate) fn is_termux() -> bool {
+    use std::sync::OnceLock;
+    static CACHED: OnceLock<bool> = OnceLock::new();
+    *CACHED.get_or_init(|| {
+        cfg!(target_os = "android")
+            || std::env::var("PREFIX")
+                .ok()
+                .is_some_and(|p| p.contains("/com.termux/"))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
