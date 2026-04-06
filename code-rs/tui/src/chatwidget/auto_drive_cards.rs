@@ -26,12 +26,10 @@ impl AutoDriveTracker {
     }
 
     fn assign_key(&mut self) {
-        let signature = Some(self.card_key());
-        self.cell.set_signature(signature.clone());
-        tool_cards::assign_tool_card_key(&mut self.slot, &mut self.cell, signature.clone());
-        if let Some(sig) = signature {
-            self.slot.set_signature(Some(sig));
-        }
+        let key = self.card_key();
+        self.cell.set_signature(Some(key.clone()));
+        tool_cards::assign_tool_card_key(&mut self.slot, &mut self.cell, Some(key.clone()));
+        self.slot.set_signature(Some(key));
     }
 
     fn ensure_insert(&mut self, chat: &mut ChatWidget<'_>) {
@@ -39,9 +37,38 @@ impl AutoDriveTracker {
         tool_cards::ensure_tool_card::<AutoDriveCardCell>(chat, &mut self.slot, &self.cell);
     }
 
-    fn replace(&mut self, chat: &mut ChatWidget<'_>) {
+    fn sync_to_history(&mut self, chat: &mut ChatWidget<'_>) {
         tool_cards::replace_tool_card::<AutoDriveCardCell>(chat, &mut self.slot, &self.cell);
     }
+}
+
+/// Borrow the active tracker mutably, execute `f`, then sync the card back
+/// to the history. Returns `Some(R)` if a tracker was present, `None`
+/// otherwise. The tracker is never temporarily removed from its slot, so
+/// an early return or panic inside `f` cannot lose it.
+fn with_tracker<R>(
+    chat: &mut ChatWidget<'_>,
+    f: impl FnOnce(&mut AutoDriveTracker, &mut ChatWidget<'_>) -> R,
+) -> Option<R> {
+    let mut tracker = chat.tools_state.auto_drive_tracker.take()?;
+    let result = f(&mut tracker, chat);
+    tracker.sync_to_history(chat);
+    chat.tools_state.auto_drive_tracker = Some(tracker);
+    Some(result)
+}
+
+/// Like [`with_tracker`] but also updates `request_ordinal` and `order_key`
+/// from the supplied key before calling `f`.
+fn with_tracker_keyed<R>(
+    chat: &mut ChatWidget<'_>,
+    order_key: OrderKey,
+    f: impl FnOnce(&mut AutoDriveTracker) -> R,
+) -> Option<R> {
+    with_tracker(chat, |tracker, _chat| {
+        tracker.request_ordinal = order_key.req;
+        tracker.slot.set_order_key(order_key);
+        f(tracker)
+    })
 }
 
 pub(super) fn start_session(
@@ -51,13 +78,13 @@ pub(super) fn start_session(
 ) {
     let request_ordinal = order_key.req;
 
-    if let Some(mut tracker) = chat.tools_state.auto_drive_tracker.take()
-        && tracker.request_ordinal == request_ordinal {
+    // If a tracker for the same request already exists, just refresh its key.
+    if chat.tools_state.auto_drive_tracker.as_ref().is_some_and(|t| t.request_ordinal == request_ordinal) {
+        with_tracker(chat, |tracker, _| {
             tracker.slot.set_order_key(order_key);
-            tracker.replace(chat);
-            chat.tools_state.auto_drive_tracker = Some(tracker);
-            return;
-        }
+        });
+        return;
+    }
 
     let session_id = chat.auto_drive_card_sequence;
     chat.auto_drive_card_sequence = chat.auto_drive_card_sequence.wrapping_add(1);
@@ -73,13 +100,10 @@ pub(super) fn record_action(
     text: impl Into<String>,
     kind: AutoDriveActionKind,
 ) {
-    if let Some(mut tracker) = chat.tools_state.auto_drive_tracker.take() {
-        tracker.request_ordinal = order_key.req;
-        tracker.slot.set_order_key(order_key);
+    let text = text.into();
+    with_tracker_keyed(chat, order_key, |tracker| {
         tracker.cell.push_action(text, kind);
-        tracker.replace(chat);
-        chat.tools_state.auto_drive_tracker = Some(tracker);
-    }
+    });
 }
 
 pub(super) fn update_goal(
@@ -87,23 +111,15 @@ pub(super) fn update_goal(
     order_key: OrderKey,
     goal: Option<String>,
 ) {
-    if let Some(mut tracker) = chat.tools_state.auto_drive_tracker.take() {
-        tracker.request_ordinal = order_key.req;
-        tracker.slot.set_order_key(order_key);
+    with_tracker_keyed(chat, order_key, |tracker| {
         tracker.cell.set_goal(goal);
-        tracker.replace(chat);
-        chat.tools_state.auto_drive_tracker = Some(tracker);
-    }
+    });
 }
 
 pub(super) fn set_status(chat: &mut ChatWidget<'_>, order_key: OrderKey, status: AutoDriveStatus) {
-    if let Some(mut tracker) = chat.tools_state.auto_drive_tracker.take() {
-        tracker.request_ordinal = order_key.req;
-        tracker.slot.set_order_key(order_key);
+    with_tracker_keyed(chat, order_key, |tracker| {
         tracker.cell.set_status(status);
-        tracker.replace(chat);
-        chat.tools_state.auto_drive_tracker = Some(tracker);
-    }
+    });
 }
 
 pub(super) fn finalize(
@@ -114,54 +130,41 @@ pub(super) fn finalize(
     action_kind: AutoDriveActionKind,
     completion_message: Option<String>,
 ) {
-    if let Some(mut tracker) = chat.tools_state.auto_drive_tracker.take() {
-        tracker.request_ordinal = order_key.req;
-        tracker.slot.set_order_key(order_key);
+    with_tracker_keyed(chat, order_key, |tracker| {
         if let Some(msg) = message {
             tracker.cell.push_action(msg, action_kind);
         }
         tracker.cell.set_completion_message(completion_message);
         tracker.cell.set_status(status);
-        tracker.replace(chat);
         tracker.active = false;
-        chat.tools_state.auto_drive_tracker = Some(tracker);
-    }
+    });
 }
 
 pub(super) fn start_celebration(
     chat: &mut ChatWidget<'_>,
     message: Option<String>,
 ) -> bool {
-    if let Some(mut tracker) = chat.tools_state.auto_drive_tracker.take() {
+    with_tracker(chat, |tracker, _| {
         tracker.cell.start_celebration(message);
-        tracker.replace(chat);
-        chat.tools_state.auto_drive_tracker = Some(tracker);
-        return true;
-    }
-    false
+    })
+    .is_some()
 }
 
 pub(super) fn stop_celebration(chat: &mut ChatWidget<'_>) -> bool {
-    if let Some(mut tracker) = chat.tools_state.auto_drive_tracker.take() {
+    with_tracker(chat, |tracker, _| {
         tracker.cell.stop_celebration();
-        tracker.replace(chat);
-        chat.tools_state.auto_drive_tracker = Some(tracker);
-        return true;
-    }
-    false
+    })
+    .is_some()
 }
 
 pub(super) fn update_completion_message(
     chat: &mut ChatWidget<'_>,
     message: Option<String>,
 ) -> bool {
-    if let Some(mut tracker) = chat.tools_state.auto_drive_tracker.take() {
+    with_tracker(chat, |tracker, _| {
         tracker.cell.set_completion_message(message);
-        tracker.replace(chat);
-        chat.tools_state.auto_drive_tracker = Some(tracker);
-        return true;
-    }
-    false
+    })
+    .is_some()
 }
 
 pub(super) fn clear(chat: &mut ChatWidget<'_>) {

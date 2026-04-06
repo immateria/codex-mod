@@ -283,6 +283,11 @@ impl ChatWidget<'_> {
         let mut handled = false;
         let mut attempts = 0;
 
+        // Each iteration closes one overlay/popup (e.g., file popup →
+        // approval pane → composer). The limit prevents infinite loops if
+        // a non-consuming intent (CloseFilePopup with consume=false)
+        // cycles without making progress. In practice ≤3 iterations
+        // suffice; 8 is a generous safety cap.
         while attempts < 8 {
             attempts += 1;
             let route = self.describe_esc_context();

@@ -103,7 +103,7 @@ struct RoutingEditorState {
     model_cursor: usize,
     enabled: bool,
     reasoning_cursor: usize,
-    reasoning_enabled: [bool; 5],
+    reasoning_enabled: [bool; ROUTING_REASONING_LEVELS.len()],
     description: String,
     selected_field: RoutingEditorField,
 }
@@ -114,7 +114,7 @@ impl RoutingEditorState {
         entry: Option<&AutoDriveModelRoutingEntry>,
         model_options: &[String],
     ) -> Self {
-        let mut reasoning_enabled = [false; 5];
+        let mut reasoning_enabled = [false; ROUTING_REASONING_LEVELS.len()];
         let mut model_cursor = 0;
         let mut enabled = true;
         let mut description = String::new();

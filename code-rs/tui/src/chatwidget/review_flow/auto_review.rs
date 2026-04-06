@@ -702,7 +702,7 @@ impl ChatWidget<'_> {
         };
 
         // Replace existing notice if present
-        if let Some(notice) = self.auto_review_notice.clone()
+        if let Some(notice) = self.auto_review_notice.as_ref()
             && let Some(idx) = self
                 .history_cell_ids
                 .iter()
@@ -781,19 +781,17 @@ impl ChatWidget<'_> {
             has_findings = false;
         }
 
-        let inflight_base = self
-            .background_review
-            .as_ref()
-            .and_then(|state| state.base.clone());
-        let inflight_snapshot = snapshot.or_else(|| {
-            self.background_review
-                .as_ref()
-                .and_then(|state| state.snapshot.clone())
-        });
-        // Clear flags up front so subsequent auto reviews can start even if this finishes with an error
-        self.background_review = None;
+        // Take the in-flight review state so we can extract its fields without
+        // cloning, then clear the guard. Subsequent auto reviews can start even
+        // if this run finishes with an error.
+        let inflight = self.background_review.take();
         self.background_review_guard = None;
         release_background_lock(&agent_id);
+
+        let inflight_base = inflight.as_ref().and_then(|state| state.base.clone());
+        let inflight_snapshot = snapshot.or_else(|| {
+            inflight.and_then(|state| state.snapshot)
+        });
         let mut developer_note: Option<String> = None;
         let snapshot_note = inflight_snapshot
             .as_deref()
