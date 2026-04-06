@@ -120,12 +120,16 @@ impl ChatWidget<'_> {
                 self.submit_op(Op::ListCustomPrompts);
                 self.submit_op(Op::ListSkills);
                 self.mcp_tool_catalog_by_id.clear();
+                self.mcp_tool_catalog_protocol_by_id.clear();
                 self.mcp_tools_by_server.clear();
                 self.mcp_disabled_tools_by_server.clear();
                 self.mcp_resources_by_server.clear();
                 self.mcp_resource_templates_by_server.clear();
                 self.mcp_server_failures.clear();
                 self.mcp_auth_statuses.clear();
+                self.agent_runtime.clear();
+                self.pending_agent_updates.clear();
+                self.active_agents.clear();
                 if !self.config.mcp_servers.is_empty() {
                     self.submit_op(Op::ListMcpTools);
                 }
