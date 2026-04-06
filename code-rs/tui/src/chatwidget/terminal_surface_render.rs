@@ -636,7 +636,7 @@ impl ChatWidget<'_> {
 
             let segment_width = display_value.width();
             let mut style = Style::default().fg(crate::colors::text());
-            if let Some(action) = click_action.clone() {
+            if let Some(action) = click_action {
                 style = super::terminal_surface_header::apply_hover_style(
                     style,
                     hover_style,

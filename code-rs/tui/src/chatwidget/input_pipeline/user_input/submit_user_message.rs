@@ -526,9 +526,8 @@ impl ChatWidget<'_> {
         self.queued_user_messages.push_back(queued_clone);
         self.refresh_queued_user_messages(false);
 
-        let batch: Vec<UserMessage> = self.queued_user_messages.iter().cloned().collect();
-        let summary = batch
-            .last()
+        let summary = self.queued_user_messages
+            .back()
             .and_then(|msg| {
                 let trimmed = msg.display_text.trim();
                 if trimmed.is_empty() {
@@ -539,6 +538,8 @@ impl ChatWidget<'_> {
             });
 
         let _ = self.capture_ghost_snapshot(summary);
+
+        let batch: Vec<UserMessage> = self.queued_user_messages.iter().cloned().collect();
 
         if self.auto_state.is_active() {
             tracing::info!(

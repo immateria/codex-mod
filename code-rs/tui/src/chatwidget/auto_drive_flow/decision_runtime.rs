@@ -42,10 +42,10 @@ impl ChatWidget<'_> {
             let _ = handle.send(code_auto_drive_core::AutoCoordinatorCommand::AckDecision { seq });
         }
 
-        self.auto_state.current_status_sent_to_user = status_sent_to_user.clone();
-        self.auto_state.current_status_title = status_title.clone();
         self.auto_state.last_decision_status_sent_to_user = status_sent_to_user.clone();
         self.auto_state.last_decision_status_title = status_title.clone();
+        self.auto_state.current_status_sent_to_user = status_sent_to_user;
+        self.auto_state.current_status_title = status_title;
         let planning_turn = cli
             .as_ref()
             .map(|action| action.suppress_ui_context)
@@ -56,12 +56,15 @@ impl ChatWidget<'_> {
         let cli_context = Self::normalize_status_field(cli_context_raw);
         let cli_prompt = cli.as_ref().map(|action| action.prompt.clone());
 
+        self.auto_state.current_cli_prompt = cli_prompt.clone();
         self.auto_state.current_cli_context = cli_context;
         self.auto_state.hide_cli_context_in_ui = planning_turn;
         self.auto_state.suppress_next_cli_display = planning_turn;
-        self.auto_state.current_cli_prompt = cli_prompt.clone();
 
-        let summary_text = Self::compose_status_summary(&status_title, &status_sent_to_user);
+        let summary_text = Self::compose_status_summary(
+            &self.auto_state.current_status_title,
+            &self.auto_state.current_status_sent_to_user,
+        );
         self.auto_state.last_decision_summary = Some(summary_text.clone());
         self.auto_state.set_coordinator_waiting(false);
         self.auto_on_reasoning_final(&summary_text);
@@ -73,7 +76,7 @@ impl ChatWidget<'_> {
         self.pending_turn_descriptor = None;
         self.pending_auto_turn_config = None;
 
-        if let Some(current) = status_title
+        if let Some(current) = self.auto_state.current_status_title
             .as_ref()
             .map(|value| value.trim())
             .filter(|value| !value.is_empty())
@@ -381,19 +384,13 @@ Have we met every part of this goal and is there no further work to do?"#
                         let _ = handle.send(AutoCoordinatorCommand::Stop);
                     }
                     let final_message = message.or_else(|| summary.message.clone());
-                    if let Some(msg) = final_message.clone() {
-                        if !msg.trim().is_empty() {
-                            self.auto_card_finalize(
-                                Some(msg),
-                                AutoDriveStatus::Stopped,
-                                AutoDriveActionKind::Info,
-                            );
-                        } else {
-                            self.auto_card_finalize(None, AutoDriveStatus::Stopped, AutoDriveActionKind::Info);
-                        }
-                    } else {
-                        self.auto_card_finalize(None, AutoDriveStatus::Stopped, AutoDriveActionKind::Info);
-                    }
+                    let display_msg = final_message
+                        .filter(|msg| !msg.trim().is_empty());
+                    self.auto_card_finalize(
+                        display_msg,
+                        AutoDriveStatus::Stopped,
+                        AutoDriveActionKind::Info,
+                    );
                     self.schedule_auto_drive_card_celebration(
                         Duration::from_secs(0),
                         self.auto_state.last_completion_explanation.clone(),

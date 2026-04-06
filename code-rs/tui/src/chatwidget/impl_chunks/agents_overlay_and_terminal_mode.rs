@@ -683,14 +683,16 @@ impl ChatWidget<'_> {
                 }
         }
 
-        if let Some(pending) = self.agents_terminal.pending_stop.clone() {
-            let still_running = self
-                .agents_terminal
-                .entries
-                .get(&pending.agent_id)
-                .map(|entry| matches!(entry.status, AgentStatus::Pending | AgentStatus::Running))
-                .unwrap_or(false);
-            if !still_running {
+        {
+            let should_clear = self.agents_terminal.pending_stop.as_ref().is_some_and(|pending| {
+                !self
+                    .agents_terminal
+                    .entries
+                    .get(&pending.agent_id)
+                    .map(|entry| matches!(entry.status, AgentStatus::Pending | AgentStatus::Running))
+                    .unwrap_or(false)
+            });
+            if should_clear {
                 self.agents_terminal.clear_stop_prompt();
             }
         }

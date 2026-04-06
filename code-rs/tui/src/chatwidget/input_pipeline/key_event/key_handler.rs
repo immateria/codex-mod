@@ -100,15 +100,16 @@ impl ChatWidget<'_> {
                 return;
             }
 
-            if let Some(pending) = self.agents_terminal.pending_stop.clone() {
+            if self.agents_terminal.pending_stop.is_some() {
                 match key_event.code {
                     KeyCode::Esc | KeyCode::Char('n') => {
                         self.agents_terminal.clear_stop_prompt();
                         self.request_redraw();
                     }
                     KeyCode::Enter | KeyCode::Char('y') => {
-                        self.cancel_agent_by_id(&pending.agent_id);
-                        self.agents_terminal.clear_stop_prompt();
+                        if let Some(pending) = self.agents_terminal.pending_stop.take() {
+                            self.cancel_agent_by_id(&pending.agent_id);
+                        }
                     }
                     _ => {}
                 }
