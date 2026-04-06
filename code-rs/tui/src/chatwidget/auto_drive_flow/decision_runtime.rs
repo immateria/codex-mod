@@ -59,11 +59,7 @@ impl ChatWidget<'_> {
         self.auto_state.current_cli_context = cli_context;
         self.auto_state.hide_cli_context_in_ui = planning_turn;
         self.auto_state.suppress_next_cli_display = planning_turn;
-        if let Some(ref prompt_text) = cli_prompt {
-            self.auto_state.current_cli_prompt = Some(prompt_text.clone());
-        } else {
-            self.auto_state.current_cli_prompt = None;
-        }
+        self.auto_state.current_cli_prompt = cli_prompt.clone();
 
         let summary_text = Self::compose_status_summary(&status_title, &status_sent_to_user);
         self.auto_state.last_decision_summary = Some(summary_text.clone());

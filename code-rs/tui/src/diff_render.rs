@@ -230,7 +230,7 @@ pub(super) fn create_diff_summary_with_width(
         // Prefix
         let prefix = if idx == 0 { "└ " } else { "  " };
         spans.push(RtSpan::styled(
-            prefix.to_string(),
+            prefix,
             Style::default().add_modifier(Modifier::DIM),
         ));
         let dim_style = Style::default().fg(crate::colors::text_dim());
@@ -242,14 +242,14 @@ pub(super) fn create_diff_summary_with_width(
         {
             if let Some(rename_target) = &f.rename_target {
                 spans.push(RtSpan::styled(f.original_path.clone(), dim_style));
-                spans.push(RtSpan::styled(" to ".to_string(), dim_style));
+                spans.push(RtSpan::styled(" to ", dim_style));
                 spans.push(RtSpan::styled(
                     rename_target.clone(),
                     Style::default().fg(crate::colors::text()),
                 ));
             } else {
                 spans.push(RtSpan::styled(f.original_path.clone(), dim_style));
-                spans.push(RtSpan::styled(" (renamed)".to_string(), dim_style));
+                spans.push(RtSpan::styled(" (renamed)", dim_style));
             }
             out.push(RtLine::from(spans));
             continue;
@@ -260,7 +260,7 @@ pub(super) fn create_diff_summary_with_width(
         } else {
             f.original_path.clone()
         };
-        let mut annotation: Option<String> = None;
+        let mut annotation: Option<&str> = None;
         let mut skip_counts = false;
 
         match &f.change {
@@ -268,31 +268,31 @@ pub(super) fn create_diff_summary_with_width(
                 metadata_only: true,
                 ..
             } => {
-                annotation = Some(" (metadata change)".to_string());
+                annotation = Some(" (metadata change)");
                 skip_counts = true;
             }
             FileSummaryKind::Update {
                 no_content_change: true,
                 ..
             } => {
-                annotation = Some(" (no changes)".to_string());
+                annotation = Some(" (no changes)");
                 skip_counts = true;
             }
             FileSummaryKind::Update {
                 binary: true,
                 ..
             } => {
-                annotation = Some(" (binary change)".to_string());
+                annotation = Some(" (binary change)");
                 skip_counts = true;
             }
             FileSummaryKind::Delete {
                 removed_unknown: true,
             } => {
-                annotation = Some(" (deleted)".to_string());
+                annotation = Some(" (deleted)");
                 skip_counts = true;
             }
             FileSummaryKind::Add { empty: true } => {
-                annotation = Some(" (empty file)".to_string());
+                annotation = Some(" (empty file)");
                 skip_counts = true;
             }
             _ => {}
@@ -308,30 +308,28 @@ pub(super) fn create_diff_summary_with_width(
             continue;
         }
 
-        if !skip_counts {
-            if let FileSummaryKind::Delete { removed_unknown: false } = &f.change {
-                spans.push(RtSpan::styled(" (".to_string(), dim_style));
-                spans.push(RtSpan::styled(
-                    format!("-{}", f.removed),
-                    Style::default().fg(crate::colors::error()),
-                ));
-                spans.push(RtSpan::styled(")".to_string(), dim_style));
-            } else if matches!(
-                &f.change,
-                FileSummaryKind::Update { .. } | FileSummaryKind::Add { empty: false }
-            ) {
-                spans.push(RtSpan::styled(" (".to_string(), dim_style));
-                spans.push(RtSpan::styled(
-                    format!("+{}", f.added),
-                    Style::default().fg(crate::colors::success()),
-                ));
-                spans.push(RtSpan::raw(" "));
-                spans.push(RtSpan::styled(
-                    format!("-{}", f.removed),
-                    Style::default().fg(crate::colors::error()),
-                ));
-                spans.push(RtSpan::styled(")".to_string(), dim_style));
-            }
+        if let FileSummaryKind::Delete { removed_unknown: false } = &f.change {
+            spans.push(RtSpan::styled(" (", dim_style));
+            spans.push(RtSpan::styled(
+                format!("-{}", f.removed),
+                Style::default().fg(crate::colors::error()),
+            ));
+            spans.push(RtSpan::styled(")", dim_style));
+        } else if matches!(
+            &f.change,
+            FileSummaryKind::Update { .. } | FileSummaryKind::Add { empty: false }
+        ) {
+            spans.push(RtSpan::styled(" (", dim_style));
+            spans.push(RtSpan::styled(
+                format!("+{}", f.added),
+                Style::default().fg(crate::colors::success()),
+            ));
+            spans.push(RtSpan::raw(" "));
+            spans.push(RtSpan::styled(
+                format!("-{}", f.removed),
+                Style::default().fg(crate::colors::error()),
+            ));
+            spans.push(RtSpan::styled(")", dim_style));
         }
         out.push(RtLine::from(spans));
     }

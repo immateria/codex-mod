@@ -51,7 +51,8 @@ pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageErro
     }
 
     let mut png: Vec<u8> = Vec::new();
-    let rgba_img = image::RgbaImage::from_raw(w, h, img.bytes.into_owned()).unwrap();
+    let rgba_img = image::RgbaImage::from_raw(w, h, img.bytes.into_owned())
+        .ok_or_else(|| PasteImageError::EncodeFailed("RgbaImage::from_raw returned None".into()))?;
     let dyn_img = image::DynamicImage::ImageRgba8(rgba_img);
     tracing::debug!("clipboard image decoded RGBA {w}x{h}");
     {
