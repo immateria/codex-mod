@@ -611,13 +611,13 @@ impl ChatWidget<'_> {
                 let mut new_entry = AgentTerminalEntry::new(
                     info.name.clone(),
                     info.model.clone(),
-                    status.clone(),
+                    status,
                     info.batch_id.clone(),
                 );
                 new_entry.source_kind = info.source_kind.clone();
                 new_entry.push_log(
                     AgentLogKind::Status,
-                    format!("Status → {}", agent_status_label(status.clone())),
+                    format!("Status → {}", agent_status_label(status)),
                 );
                 new_entry
             });
@@ -657,10 +657,10 @@ impl ChatWidget<'_> {
                 .or(previous_context);
 
             if entry.status != status {
-                entry.status = status.clone();
+                entry.status = status;
                 entry.push_log(
                     AgentLogKind::Status,
-                    format!("Status → {}", agent_status_label(status.clone())),
+                    format!("Status → {}", agent_status_label(status)),
                 );
             }
 
@@ -725,7 +725,7 @@ impl ChatWidget<'_> {
                     let mut entry = AgentTerminalEntry::new(
                         agent.name.clone(),
                         agent.model.clone(),
-                        agent.status.clone(),
+                        agent.status,
                         agent.batch_id.clone(),
                     );
                     let batch_metadata = agent

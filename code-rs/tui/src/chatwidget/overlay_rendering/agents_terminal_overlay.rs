@@ -224,8 +224,8 @@ impl ChatWidget<'_> {
                         .as_ref()
                         .map(|value| Self::format_model_label(value))
                         .unwrap_or_else(|| Self::format_model_label(&entry.name));
-                    let status = entry.status.clone();
-                    let status_icon = agent_status_icon(status.clone());
+                    let status = entry.status;
+                    let status_icon = agent_status_icon(status);
                     let name_room = sidebar_width
                         .saturating_sub((UnicodeWidthStr::width(status_icon) as u16).saturating_add(5))
                         .max(4) as usize;
@@ -327,8 +327,8 @@ impl ChatWidget<'_> {
         match self.agents_terminal.current_sidebar_entry() {
             Some(AgentsSidebarEntry::Agent(agent_id)) => {
                 if let Some(entry) = self.agents_terminal.entries.get(agent_id.as_str()) {
-                    let status = entry.status.clone();
-                    let status_color = agent_status_color(status.clone());
+                    let status = entry.status;
+                    let status_color = agent_status_color(status);
                     let display_name = entry
                         .model
                         .as_ref()
@@ -355,7 +355,7 @@ impl ChatWidget<'_> {
                     ]));
 
                     let id_short = format!("#{}", agent_id.chars().take(7).collect::<String>());
-                    let status_chip = format!("{} {}", agent_status_icon(status.clone()), agent_status_label(status));
+                    let status_chip = format!("{} {}", agent_status_icon(status), agent_status_label(status));
                     let model_meta = entry
                         .model
                         .as_ref()

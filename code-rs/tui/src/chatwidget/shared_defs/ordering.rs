@@ -181,7 +181,7 @@ struct AgentInfo {
     last_progress: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum AgentStatus {
     Pending,
     Running,

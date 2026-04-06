@@ -99,17 +99,15 @@
                             use crossterm::event::EnableMouseCapture;
                             use crossterm::execute;
                             use std::io::stdout;
+                            use std::sync::atomic::{AtomicBool, Ordering};
 
-                            // Static variable to track mouse capture state
-                            static mut MOUSE_CAPTURE_ENABLED: bool = true;
+                            static MOUSE_CAPTURE_ENABLED: AtomicBool = AtomicBool::new(true);
 
-                            unsafe {
-                                MOUSE_CAPTURE_ENABLED = !MOUSE_CAPTURE_ENABLED;
-                                if MOUSE_CAPTURE_ENABLED {
-                                    let _ = execute!(stdout(), EnableMouseCapture);
-                                } else {
-                                    let _ = execute!(stdout(), DisableMouseCapture);
-                                }
+                            let was_enabled = MOUSE_CAPTURE_ENABLED.fetch_xor(true, Ordering::Relaxed);
+                            if !was_enabled {
+                                let _ = execute!(stdout(), EnableMouseCapture);
+                            } else {
+                                let _ = execute!(stdout(), DisableMouseCapture);
                             }
                             self.app_event_tx.send(AppEvent::RequestRedraw);
                         }
