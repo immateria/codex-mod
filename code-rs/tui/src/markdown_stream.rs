@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::VecDeque;
 
 use code_core::config::Config;
@@ -159,7 +160,7 @@ impl MarkdownStreamCollector {
     pub fn commit_complete_lines(&mut self, config: &Config) -> Vec<Line<'static>> {
         // In non-test builds, unwrap an outer ```markdown fence during commit as well,
         // so fence markers never appear in streamed history.
-        let source = unwrap_markdown_language_fence_if_enabled(self.buffer.clone());
+        let source = unwrap_markdown_language_fence_if_enabled(&self.buffer);
         let source = strip_empty_fenced_code_blocks(&source);
 
         let mut rendered: Vec<Line<'static>> = Vec::new();
@@ -282,7 +283,7 @@ impl MarkdownStreamCollector {
         relax_list_holdback: bool,
         relax_code_holdback: bool,
     ) -> Vec<Line<'static>> {
-        let source = unwrap_markdown_language_fence_if_enabled(self.buffer.clone());
+        let source = unwrap_markdown_language_fence_if_enabled(&self.buffer);
         let source = strip_empty_fenced_code_blocks(&source);
 
         let mut rendered: Vec<Line<'static>> = Vec::new();
@@ -328,11 +329,15 @@ impl MarkdownStreamCollector {
     /// for rendering. Optionally unwraps ```markdown language fences in
     /// non-test builds.
     pub fn finalize_and_drain(&mut self, config: &Config) -> Vec<Line<'static>> {
-        let mut source: String = self.buffer.clone();
-        if !source.ends_with('\n') {
-            source.push('\n');
-        }
-        let source = unwrap_markdown_language_fence_if_enabled(source);
+        let needs_newline = !self.buffer.ends_with('\n');
+        let source: Cow<'_, str> = if needs_newline {
+            let mut s = self.buffer.clone();
+            s.push('\n');
+            Cow::Owned(s)
+        } else {
+            Cow::Borrowed(&self.buffer)
+        };
+        let source = unwrap_markdown_language_fence_if_enabled(&source);
         let source = strip_empty_fenced_code_blocks(&source);
 
         let mut rendered: Vec<Line<'static>> = Vec::new();
@@ -355,11 +360,15 @@ impl MarkdownStreamCollector {
 
     /// Return the full source that would be rendered at finalize time without mutating state.
     pub fn full_render_source_preview(&self) -> String {
-        let mut source: String = self.buffer.clone();
-        if !source.ends_with('\n') {
-            source.push('\n');
-        }
-        let source = unwrap_markdown_language_fence_if_enabled(source);
+        let needs_newline = !self.buffer.ends_with('\n');
+        let source: Cow<'_, str> = if needs_newline {
+            let mut s = self.buffer.clone();
+            s.push('\n');
+            Cow::Owned(s)
+        } else {
+            Cow::Borrowed(&self.buffer)
+        };
+        let source = unwrap_markdown_language_fence_if_enabled(&source);
         
         strip_empty_fenced_code_blocks(&source)
     }
@@ -374,7 +383,7 @@ impl MarkdownStreamCollector {
     /// synthetic trailing newline, so the preview reflects what a soft-commit
     /// would render at this moment.
     pub fn render_preview_lines(&self, config: &Config) -> Vec<Line<'static>> {
-        let source = unwrap_markdown_language_fence_if_enabled(self.buffer.clone());
+        let source = unwrap_markdown_language_fence_if_enabled(&self.buffer);
         let source = strip_empty_fenced_code_blocks(&source);
         let mut rendered: Vec<Line<'static>> = Vec::new();
         if self.bold_first_sentence {
@@ -483,25 +492,25 @@ fn is_short_plain_word(s: &str) -> bool {
 }
 
 /// fence helpers are provided by `crate::render::markdown_utils`
-fn unwrap_markdown_language_fence_if_enabled(s: String) -> String {
+fn unwrap_markdown_language_fence_if_enabled(s: &str) -> Cow<'_, str> {
     // Best-effort unwrap of a single outer fenced markdown block.
     // Recognizes common forms like ```markdown, ```md (any case), optional
     // surrounding whitespace, and flexible trailing newlines/CRLF.
     // If the block is not recognized, return the input unchanged.
     let lines = s.lines().collect::<Vec<_>>();
     if lines.len() < 2 {
-        return s;
+        return Cow::Borrowed(s);
     }
 
     // Identify opening fence and language.
     let open = lines.first().map_or("", |l| l.trim_start());
     if !open.starts_with("```") {
-        return s;
+        return Cow::Borrowed(s);
     }
     let lang = open.trim_start_matches("```").trim();
     let is_markdown_lang = lang.eq_ignore_ascii_case("markdown") || lang.eq_ignore_ascii_case("md");
     if !is_markdown_lang {
-        return s;
+        return Cow::Borrowed(s);
     }
 
     // Find the last non-empty line and ensure it is a closing fence.
@@ -510,7 +519,7 @@ fn unwrap_markdown_language_fence_if_enabled(s: String) -> String {
         last_idx -= 1;
     }
     if lines[last_idx].trim() != "```" {
-        return s;
+        return Cow::Borrowed(s);
     }
 
     // Reconstruct the inner content between the fences.
@@ -519,7 +528,7 @@ fn unwrap_markdown_language_fence_if_enabled(s: String) -> String {
         out.push_str(l);
         out.push('\n');
     }
-    out
+    Cow::Owned(out)
 }
 
 pub(crate) struct StepResult {
