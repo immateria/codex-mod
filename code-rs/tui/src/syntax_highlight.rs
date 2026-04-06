@@ -592,7 +592,7 @@ pub(crate) fn highlight_code_block_with_metrics(content: &str, lang: Option<&str
 
     // Resolve across default and optional extra syntax sets
     let mut ps = syntax_set();
-    let mut syntax = if let Some(l) = lang.and_then(|l| if l.trim().is_empty() { None } else { Some(l) }) {
+    let mut syntax = if let Some(l) = lang.filter(|l| !l.trim().is_empty()) {
         if let Some(s) = try_syntax_for_lang(ps, l) { s } else if let Some(ref extra) = *extra_syntax_set() {
             if let Some(s2) = try_syntax_for_lang(extra, l) { ps = extra; s2 } else { ps.find_syntax_plain_text() }
         } else { ps.find_syntax_plain_text() }

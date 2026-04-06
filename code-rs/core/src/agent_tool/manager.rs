@@ -248,11 +248,8 @@ impl AgentManager {
                     let context = agent
                         .context
                         .as_ref()
-                        .and_then(|value| if value.trim().is_empty() {
-                            None
-                        } else {
-                            Some(value.clone())
-                        });
+                        .filter(|value| !value.trim().is_empty())
+                        .cloned();
                     let task = if agent.prompt.trim().is_empty() {
                         None
                     } else {
