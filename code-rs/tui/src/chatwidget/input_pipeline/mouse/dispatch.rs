@@ -1,4 +1,7 @@
 impl ChatWidget<'_> {
+    /// Drag threshold in columns — movement beyond this invalidates a click.
+    const CLICK_DRAG_THRESHOLD: u16 = 3;
+
     pub(crate) fn handle_mouse_event(&mut self, mouse_event: crossterm::event::MouseEvent) {
         use crossterm::event::KeyModifiers;
         use crossterm::event::MouseEventKind;
@@ -66,10 +69,7 @@ impl ChatWidget<'_> {
             MouseEventKind::ScrollLeft | MouseEventKind::ScrollRight => {
                 let delta: i32 = if matches!(mouse_event.kind, MouseEventKind::ScrollLeft) { -3 } else { 3 };
                 let status_bar_area = self.layout.last_status_bar_area.get();
-                let in_status_bar = mouse_event.row >= status_bar_area.y
-                    && mouse_event.row < status_bar_area.y.saturating_add(status_bar_area.height)
-                    && mouse_event.column >= status_bar_area.x
-                    && mouse_event.column < status_bar_area.x.saturating_add(status_bar_area.width);
+                let in_status_bar = Self::pos_in_rect(mouse_pos, status_bar_area);
                 if in_status_bar {
                     let cur = self.status_bar_hscroll.get() as i32;
                     self.status_bar_hscroll.set(cur.saturating_add(delta).max(0) as u16);
@@ -81,47 +81,64 @@ impl ChatWidget<'_> {
                 }
             }
             MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
-                // Record drag start position for status bar panning.
-                let status_bar_area = self.layout.last_status_bar_area.get();
-                let in_status_bar = mouse_event.row >= status_bar_area.y
-                    && mouse_event.row < status_bar_area.y.saturating_add(status_bar_area.height)
-                    && mouse_event.column >= status_bar_area.x
-                    && mouse_event.column < status_bar_area.x.saturating_add(status_bar_area.width);
-                if in_status_bar || in_bottom_pane {
-                    self.status_bar_drag_col.set(Some(mouse_event.column));
-                }
-                // First check if click is inside the bottom pane area
+                // Record mouse-down position; defer the click to mouse-up so
+                // that drags don't accidentally trigger clickable actions.
+                self.mouse_down_pos.set(Some(mouse_pos));
+                self.mouse_drag_exceeded.set(false);
+
+                // Forward to bottom pane for its own drag/selection tracking.
                 if in_bottom_pane {
-                    // Forward click to bottom pane
                     let (input_result, needs_redraw) = self.bottom_pane.handle_mouse_event(mouse_event, bottom_pane_area);
                     if needs_redraw {
                         self.process_mouse_input_result(input_result);
-                        return;
                     }
                 }
-                // Handle left click by checking clickable regions (header bar, etc.)
-                self.handle_click(mouse_pos);
             }
             MouseEventKind::Up(crossterm::event::MouseButton::Left) => {
-                self.status_bar_drag_col.set(None);
+                let was_drag = self.mouse_drag_exceeded.get();
+                let down_pos = self.mouse_down_pos.take();
+                self.mouse_drag_exceeded.set(false);
+
+                // Only fire click if the mouse didn't move beyond threshold.
+                if !was_drag {
+                    if let Some(pos) = down_pos {
+                        if in_bottom_pane {
+                            // If the down was in the bottom pane, let it handle
+                            // the up. Otherwise check header clickable regions.
+                            // (Bottom pane clicks are already handled in Down.)
+                        }
+                        self.handle_click(pos);
+                    }
+                }
             }
             MouseEventKind::Drag(crossterm::event::MouseButton::Left) => {
-                if let Some(start_col) = self.status_bar_drag_col.get() {
+                if let Some((start_col, _start_row)) = self.mouse_down_pos.get() {
                     let current_col = mouse_event.column;
-                    let delta = start_col as i32 - current_col as i32;
-                    if delta != 0 {
-                        // Determine which bar was being dragged based on row.
-                        let status_bar_area = self.layout.last_status_bar_area.get();
-                        let in_status_bar = mouse_event.row < status_bar_area.y.saturating_add(status_bar_area.height);
-                        if in_status_bar {
-                            let cur = self.status_bar_hscroll.get() as i32;
-                            self.status_bar_hscroll.set(cur.saturating_add(delta).max(0) as u16);
-                        } else {
-                            let cur = self.bottom_status_hscroll.get() as i32;
-                            self.bottom_status_hscroll.set(cur.saturating_add(delta).max(0) as u16);
+                    let col_delta = (start_col as i32 - current_col as i32).unsigned_abs() as u16;
+
+                    // Once movement exceeds threshold, mark as drag and start
+                    // applying horizontal scroll to status bars.
+                    if col_delta > Self::CLICK_DRAG_THRESHOLD {
+                        self.mouse_drag_exceeded.set(true);
+                    }
+
+                    if self.mouse_drag_exceeded.get() {
+                        let delta = start_col as i32 - current_col as i32;
+                        if delta != 0 {
+                            let status_bar_area = self.layout.last_status_bar_area.get();
+                            let in_status_bar = Self::pos_in_rect(mouse_pos, status_bar_area);
+                            if in_status_bar {
+                                let cur = self.status_bar_hscroll.get() as i32;
+                                self.status_bar_hscroll.set(cur.saturating_add(delta).max(0) as u16);
+                            } else if in_bottom_pane {
+                                let cur = self.bottom_status_hscroll.get() as i32;
+                                self.bottom_status_hscroll.set(cur.saturating_add(delta).max(0) as u16);
+                            }
+                            // Update the anchor so subsequent drag events are
+                            // relative to the current position.
+                            self.mouse_down_pos.set(Some(mouse_pos));
+                            self.request_redraw();
                         }
-                        self.status_bar_drag_col.set(Some(current_col));
-                        self.request_redraw();
                     }
                 }
             }
@@ -144,6 +161,14 @@ impl ChatWidget<'_> {
                 // Ignore other mouse events for now
             }
         }
+    }
+
+    /// Check whether a (col, row) position falls inside a `Rect`.
+    fn pos_in_rect(pos: (u16, u16), rect: Rect) -> bool {
+        pos.0 >= rect.x
+            && pos.0 < rect.x.saturating_add(rect.width)
+            && pos.1 >= rect.y
+            && pos.1 < rect.y.saturating_add(rect.height)
     }
 
     /// Process InputResult from mouse events (similar to key event handling).

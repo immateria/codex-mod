@@ -563,8 +563,15 @@
 
     assert_eq!(
         sections,
-        SettingsSection::ALL.to_vec(),
-        "expected /settings overview to include every registered settings section",
+        {
+            let chat = harness.chat();
+            SettingsSection::ALL
+                .iter()
+                .copied()
+                .filter(|s| s.is_visible(&chat.config.features_effective))
+                .collect::<Vec<_>>()
+        },
+        "expected /settings overview to include every visible settings section",
     );
     }
 

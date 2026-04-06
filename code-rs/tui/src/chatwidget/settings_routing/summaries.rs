@@ -1,8 +1,10 @@
 impl ChatWidget<'_> {
     pub(super) fn build_settings_overview_rows(&mut self) -> Vec<SettingsOverviewRow> {
+        let features = &self.config.features_effective;
         SettingsSection::ALL
             .iter()
             .copied()
+            .filter(|section| section.is_visible(features))
             .map(|section| {
                 let summary = match section {
                     SettingsSection::Model         => self.settings_summary_model(),

@@ -1040,8 +1040,13 @@ pub(crate) struct ChatWidget<'a> {
     // horizontally to reveal hidden segments.
     status_bar_hscroll: Cell<u16>,
     bottom_status_hscroll: Cell<u16>,
-    // Tracks drag-start column for click-and-drag horizontal panning on status bars.
-    status_bar_drag_col: Cell<Option<u16>>,
+    // Tracks the mouse-down position for deferred click detection. A click is
+    // only fired on mouse-up if the cursor hasn't moved beyond a small drag
+    // threshold, preventing accidental action triggers during drag/swipe.
+    mouse_down_pos: Cell<Option<(u16, u16)>>,
+    // Set to true when the mouse moves beyond the drag threshold after a
+    // mouse-down, invalidating any pending click.
+    mouse_drag_exceeded: Cell<bool>,
 }
 
 #[derive(Clone, Debug, Default)]

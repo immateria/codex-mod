@@ -95,4 +95,16 @@ impl SettingsSection {
         SettingsSection::Notifications,
         SettingsSection::Limits,
     ];
+
+    /// Whether this section should appear in the settings sidebar given the
+    /// current feature flags. Sections tied to experimental features are hidden
+    /// when the feature is disabled — the user can enable them via the
+    /// Experimental settings page, after which the section appears.
+    pub(crate) fn is_visible(&self, features: &code_core::config_types::FeaturesToml) -> bool {
+        match self {
+            SettingsSection::JsRepl => features.enabled("js_repl"),
+            SettingsSection::Apps => features.enabled("apps"),
+            _ => true,
+        }
+    }
 }

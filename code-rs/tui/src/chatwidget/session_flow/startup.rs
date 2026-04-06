@@ -339,7 +339,8 @@ impl ChatWidget<'_> {
             hovered_clickable_action: RefCell::new(None),
             status_bar_hscroll: Cell::new(0),
             bottom_status_hscroll: Cell::new(0),
-            status_bar_drag_col: Cell::new(None),
+            mouse_down_pos: Cell::new(None),
+            mouse_drag_exceeded: Cell::new(false),
         };
         new_widget.load_auto_review_baseline_marker();
         new_widget.spawn_conversation_runtime(config.clone(), auth_manager, code_op_rx);

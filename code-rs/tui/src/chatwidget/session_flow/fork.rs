@@ -322,7 +322,8 @@ impl ChatWidget<'_> {
             hovered_clickable_action: RefCell::new(None),
             status_bar_hscroll: Cell::new(0),
             bottom_status_hscroll: Cell::new(0),
-            status_bar_drag_col: Cell::new(None),
+            mouse_down_pos: Cell::new(None),
+            mouse_drag_exceeded: Cell::new(false),
         };
         w.load_auto_review_baseline_marker();
         if let Ok(Some(active_id)) = auth_accounts::get_active_account_id(&config.code_home)
