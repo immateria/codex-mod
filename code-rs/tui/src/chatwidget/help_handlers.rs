@@ -5,9 +5,17 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 // Returns true if the key was handled by the guide overlay (or toggled it closed).
 pub(super) fn handle_help_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent) -> bool {
-    // If no guide overlay, only intercept F1 to open it.
+    use crossterm::event::KeyModifiers;
+
+    // If no guide overlay, intercept F1 or Ctrl+/ to open it.
     if chat.help.overlay.is_none() {
-        if let KeyEvent { code: KeyCode::F(1), .. } = key_event {
+        let is_f1 = matches!(key_event, KeyEvent { code: KeyCode::F(1), .. });
+        let is_ctrl_slash = matches!(
+            key_event,
+            KeyEvent { code: KeyCode::Char('/'), modifiers, .. }
+            if modifiers.contains(KeyModifiers::CONTROL)
+        );
+        if is_f1 || is_ctrl_slash {
             chat.toggle_help_popup();
             return true;
         }

@@ -153,13 +153,13 @@ impl ChatWidget<'_> {
         };
         // Top quick action
         lines.push(kv(
-            "Shift+Tab",
-            "Rotate agent between Read Only / Write with Approval / Full Access",
+            "Alt+A / Shift+Tab",
+            "Cycle access mode (Read Only / Approval / Full Access)",
         ));
 
         // Global
         let hotkeys = self.config.tui.hotkeys.effective_for_runtime();
-        lines.push(kv("F1", "Help overlay"));
+        lines.push(kv("Ctrl+/ / F1", "Help overlay"));
         let model_hotkey = hotkeys.model_selector.display_name();
         lines.push(kv(
             model_hotkey.as_ref(),
@@ -224,11 +224,9 @@ impl ChatWidget<'_> {
             t_fg.add_modifier(Modifier::BOLD),
         )]));
         lines.push(kv("Enter", "Send message"));
-        lines.push(kv("Ctrl+J", "Insert newline"));
-        lines.push(kv("Shift+Enter", "Insert newline"));
-        // Split combined shortcuts into separate rows for readability
-        lines.push(kv("Shift+Up", "Browse input history"));
-        lines.push(kv("Shift+Down", "Browse input history"));
+        lines.push(kv("Ctrl+J / Shift+Enter", "Insert newline"));
+        lines.push(kv("Ctrl+P / Shift+Up", "Previous input history"));
+        lines.push(kv("Ctrl+N / Shift+Down", "Next input history"));
         lines.push(kv("Ctrl+B", "Move left"));
         lines.push(kv("Ctrl+F", "Move right"));
         lines.push(kv("Alt+Left", "Move by word"));

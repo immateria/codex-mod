@@ -185,6 +185,19 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
             }
             return true;
         }
+        // Esc in content pane (when no sub-editor is active) returns to sidebar.
+        // This is a Termux-friendly fallback for Shift+Tab.
+        KeyCode::Esc if content_focused => {
+            let changed = chat
+                .settings
+                .overlay
+                .as_mut()
+                .is_some_and(super::settings_overlay::SettingsOverlayView::set_focus_sidebar);
+            if changed {
+                chat.request_redraw();
+            }
+            return true;
+        }
         _ => {}
     }
 

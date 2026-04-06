@@ -15,9 +15,17 @@ pub(super) fn handle_key_event_without_popup(
             (InputResult::None, true)
         }
         // -------------------------------------------------------------
-        // Shift+Tab — rotate access preset (Read Only → Write with Approval → Full Access)
+        // Shift+Tab or Alt+A — rotate access preset
+        // (Read Only → Write with Approval → Full Access)
+        // Alt+A is the fallback for Termux/mobile where Shift+Tab is unreliable.
         // -------------------------------------------------------------
-        KeyEvent { code: KeyCode::BackTab, .. } => {
+        KeyEvent { code: KeyCode::BackTab, .. }
+        | KeyEvent {
+            code: KeyCode::Char('a'),
+            modifiers: KeyModifiers::ALT,
+            kind: KeyEventKind::Press,
+            ..
+        } => {
             view.app_event_tx.send(crate::app_event::AppEvent::CycleAccessMode);
             (InputResult::None, true)
         }
@@ -69,6 +77,46 @@ pub(super) fn handle_key_event_without_popup(
         KeyEvent { code: KeyCode::Esc, .. } => {
             // Do nothing here so App can implement global Esc ordering.
             (InputResult::None, false)
+        }
+        // -------------------------------------------------------------
+        // Ctrl+P / Ctrl+N — readline-style history navigation (Termux fallback
+        // for Shift+Up/Down which may not transmit on virtual keyboards)
+        // -------------------------------------------------------------
+        KeyEvent {
+            code: KeyCode::Char('p'),
+            modifiers: KeyModifiers::CONTROL,
+            kind: KeyEventKind::Press,
+            ..
+        } => {
+            if view
+                .history
+                .should_handle_navigation(view.textarea.text(), view.textarea.cursor())
+            {
+                if let Some(text) = view.history.navigate_up(view.textarea.text(), &view.app_event_tx) {
+                    view.textarea.set_text(&text);
+                    view.textarea.set_cursor(0);
+                    return (InputResult::None, true);
+                }
+            }
+            (InputResult::None, true)
+        }
+        KeyEvent {
+            code: KeyCode::Char('n'),
+            modifiers: KeyModifiers::CONTROL,
+            kind: KeyEventKind::Press,
+            ..
+        } => {
+            if view
+                .history
+                .should_handle_navigation(view.textarea.text(), view.textarea.cursor())
+            {
+                if let Some(text) = view.history.navigate_down(&view.app_event_tx) {
+                    view.textarea.set_text(&text);
+                    view.textarea.set_cursor(0);
+                    return (InputResult::None, true);
+                }
+            }
+            (InputResult::None, true)
         }
         // -------------------------------------------------------------
         // Up/Down key handling - check modifiers to determine action
