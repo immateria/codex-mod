@@ -37,10 +37,7 @@ pub(in crate::codex) async fn submission_loop(
     loop {
         tokio::select! {
             sub = rx_sub.recv() => {
-                let sub = match sub {
-                    Ok(sub) => sub,
-                    Err(_) => break,
-                };
+                let Ok(sub) = sub else { break };
 
                 debug!(?sub, "Submission");
                 match sub.op {

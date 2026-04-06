@@ -47,9 +47,8 @@ fn main() {
         g.to_string()
     }
 
-    let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
-        Ok(value) => value,
-        Err(_) => return,
+    let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") else {
+        return;
     };
     let path = PathBuf::from(manifest_dir).join("src").join("assets").join("spinners.json");
     if let Ok(text) = fs::read_to_string(&path)

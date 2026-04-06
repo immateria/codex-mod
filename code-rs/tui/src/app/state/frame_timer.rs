@@ -92,12 +92,9 @@ impl FrameTimer {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         loop {
-            let deadline = match state.deadlines.peek().copied() {
-                Some(Reverse(deadline)) => deadline,
-                None => {
-                    state.worker_running = false;
-                    break;
-                }
+            let Some(Reverse(deadline)) = state.deadlines.peek().copied() else {
+                state.worker_running = false;
+                break;
             };
 
             let now = Instant::now();

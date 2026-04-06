@@ -71,19 +71,16 @@ pub(crate) async fn handle_browser_tool(
         }
     };
 
-    let mut object = match parsed_value {
-        Value::Object(map) => map,
-        _ => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "Invalid browser arguments: expected an object".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
-        }
+    let Value::Object(mut object) = parsed_value else {
+        return ResponseInputItem::FunctionCallOutput {
+            call_id: ctx.call_id.clone(),
+            output: FunctionCallOutputPayload {
+                body: FunctionCallOutputBody::Text(
+                    "Invalid browser arguments: expected an object".to_string(),
+                ),
+                success: Some(false),
+            },
+        };
     };
 
     let action_value = object.remove("action");

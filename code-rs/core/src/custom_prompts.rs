@@ -25,9 +25,8 @@ pub async fn discover_prompts_in_excluding(
     exclude: &HashSet<String>,
 ) -> Vec<CustomPrompt> {
     let mut out: Vec<CustomPrompt> = Vec::new();
-    let mut entries = match fs::read_dir(dir).await {
-        Ok(entries) => entries,
-        Err(_) => return out,
+    let Ok(mut entries) = fs::read_dir(dir).await else {
+        return out;
     };
 
     while let Ok(Some(entry)) = entries.next_entry().await {

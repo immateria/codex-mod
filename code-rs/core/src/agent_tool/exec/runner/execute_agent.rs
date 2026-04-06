@@ -59,9 +59,8 @@ pub(crate) async fn execute_agent(agent_id: String, config: Option<AgentConfig>)
     let mut manager = AGENT_MANAGER.write().await;
 
     // Get agent details
-    let agent = match manager.get_agent(&agent_id) {
-        Some(t) => t,
-        None => return,
+    let Some(agent) = manager.get_agent(&agent_id) else {
+        return;
     };
 
     // Update status to running

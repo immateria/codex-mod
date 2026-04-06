@@ -121,20 +121,17 @@ fn apply_exec_begin_metadata_to_finished_call(
     chat: &mut ChatWidget<'_>,
     ev: &ExecCommandBeginEvent,
 ) -> bool {
-    let history_id = match chat
+    let Some(history_id) = chat
         .history_state
         .history_id_for_exec_call(&ev.call_id)
-    {
-        Some(id) => id,
-        None => return false,
+    else {
+        return false;
     };
-    let index = match chat.history_state.index_of(history_id) {
-        Some(idx) => idx,
-        None => return false,
+    let Some(index) = chat.history_state.index_of(history_id) else {
+        return false;
     };
-    let record = match chat.history_state.record(history_id).cloned() {
-        Some(record) => record,
-        None => return false,
+    let Some(record) = chat.history_state.record(history_id).cloned() else {
+        return false;
     };
     match record {
         HistoryRecord::Exec(mut exec_record) => {

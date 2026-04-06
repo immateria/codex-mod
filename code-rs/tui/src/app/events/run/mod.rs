@@ -64,7 +64,7 @@ impl App<'_> {
         app_event_tx.send(AppEvent::ScheduleFrameIn(Duration::from_millis(120)));
 
         'main: loop {
-            let event = match self.next_event_priority() { Some(e) => e, None => break 'main };
+            let Some(event) = self.next_event_priority() else { break 'main };
             include!("history_insert.rs");
         }
         if self.alt_screen_active {

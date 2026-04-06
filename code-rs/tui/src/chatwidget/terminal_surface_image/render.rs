@@ -19,12 +19,9 @@ impl ChatWidget<'_> {
         }
 
         // First, cheaply read image dimensions without decoding the full image.
-        let (img_w, img_h) = match image::image_dimensions(path) {
-            Ok(dim) => dim,
-            Err(_) => {
-                render_image_placeholder(path, area, buf, "Browser");
-                return;
-            }
+        let Ok((img_w, img_h)) = image::image_dimensions(path) else {
+            render_image_placeholder(path, area, buf, "Browser");
+            return;
         };
 
         let (cell_w, cell_h) = self.measured_font_size();
