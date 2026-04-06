@@ -29,6 +29,7 @@ impl ChatWidget<'_> {
 
         let layout_areas = self.layout_areas(area);
         let status_bar_area = layout_areas.first().copied().unwrap_or(area);
+        self.layout.last_status_bar_area.set(status_bar_area);
         let history_area = layout_areas.get(1).copied().unwrap_or(area);
         let bottom_pane_area = layout_areas.get(2).copied().unwrap_or(area);
         self.layout

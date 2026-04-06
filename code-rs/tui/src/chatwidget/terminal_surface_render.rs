@@ -3,6 +3,7 @@ use super::terminal_surface_header::HeaderTemplateContext;
 use super::terminal_surface_header::DynamicHeaderLayoutInput;
 use super::terminal_surface_header::McpHeaderIndicatorKind;
 use super::terminal_surface_header::centered_clickable_regions_from_char_ranges;
+use super::terminal_surface_header::scrollable_clickable_regions_from_char_ranges;
 use super::terminal_surface_header::render_plain_header_template;
 use super::terminal_surface_header::render_dynamic_header_line;
 use super::terminal_surface_header::render_styled_header_template;
@@ -315,6 +316,8 @@ impl ChatWidget<'_> {
         let inner_area = status_block.inner(padded_area);
         let padded_inner = inner_area.inner(Margin::new(1, 0));
         let inner_width = padded_inner.width as usize;
+        // Build the header at full width — scroll handles overflow instead of
+        // cascading segment removal.
         let dynamic_header = render_dynamic_header_line(
             &DynamicHeaderLayoutInput {
                 title: header_title,
@@ -332,7 +335,7 @@ impl ChatWidget<'_> {
                 hover_style,
                 minimal_header: crate::tui_env::force_minimal_header(),
                 demo_mode: self.config.demo_developer_message.is_some(),
-                inner_width,
+                inner_width: usize::MAX,
             },
         );
 
@@ -391,7 +394,7 @@ impl ChatWidget<'_> {
                 &top_status_line_items,
                 header_template_ctx.hovered_action.clone(),
                 hover_style,
-                inner_width,
+                usize::MAX,
             ))
         } else {
             None
@@ -436,10 +439,56 @@ impl ChatWidget<'_> {
             return;
         }
 
+        // Determine if horizontal scrolling is needed. The tracked lines
+        // record the full content width; if any exceeds the viewport, we
+        // switch from centered alignment to left-aligned with a scroll offset.
+        let max_content_width = tracked_clickable_lines
+            .iter()
+            .map(|(_, _, w)| *w)
+            .max()
+            .unwrap_or(0);
+        let overflows = max_content_width > inner_width;
+
+        // Clamp scroll offset to valid range.
+        let max_hscroll = if overflows {
+            (max_content_width - inner_width) as u16
+        } else {
+            0
+        };
+        let hscroll = self.status_bar_hscroll.get().min(max_hscroll);
+        self.status_bar_hscroll.set(hscroll);
+
+        let (alignment, scroll_cols) = if overflows {
+            (ratatui::layout::Alignment::Left, hscroll)
+        } else {
+            (ratatui::layout::Alignment::Center, 0u16)
+        };
+
         let status_widget = Paragraph::new(status_lines)
-            .alignment(ratatui::layout::Alignment::Center)
+            .alignment(alignment)
+            .scroll((0, scroll_cols))
             .style(status_style);
         ratatui::widgets::Widget::render(status_widget, padded_inner, buf);
+
+        // Render scroll indicators at the edges when content is clipped.
+        if overflows {
+            let indicator_style = ratatui::style::Style::default()
+                .fg(crate::colors::text_dim())
+                .bg(crate::colors::background());
+            if hscroll > 0 {
+                if let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(padded_inner.x, padded_inner.y)) {
+                    cell.set_char('◂');
+                    cell.set_style(indicator_style);
+                }
+            }
+            if hscroll < max_hscroll {
+                let right_x = padded_inner.x.saturating_add(padded_inner.width).saturating_sub(1);
+                if let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(right_x, padded_inner.y)) {
+                    cell.set_char('▸');
+                    cell.set_style(indicator_style);
+                }
+            }
+        }
 
         self.clickable_regions.borrow_mut().clear();
         for (line_offset, ranges, total_width) in tracked_clickable_lines {
@@ -449,11 +498,21 @@ impl ChatWidget<'_> {
                 width: padded_inner.width,
                 height: 1,
             };
-            self.append_status_bar_clickable_regions_from_char_ranges(
-                &ranges,
-                line_area,
-                total_width,
-            );
+            if overflows {
+                let mut regions = self.clickable_regions.borrow_mut();
+                regions.extend(scrollable_clickable_regions_from_char_ranges(
+                    &ranges,
+                    line_area,
+                    total_width,
+                    hscroll,
+                ));
+            } else {
+                self.append_status_bar_clickable_regions_from_char_ranges(
+                    &ranges,
+                    line_area,
+                    total_width,
+                );
+            }
         }
     }
 
@@ -608,7 +667,6 @@ impl ChatWidget<'_> {
     // (startup model migration notice removed)
 
     pub(super) fn render_bottom_status_line(&self, bottom_pane_area: Rect, buf: &mut Buffer) {
-        use ratatui::layout::Alignment;
         use ratatui::style::Style;
         use ratatui::widgets::Paragraph;
 
@@ -639,27 +697,75 @@ impl ChatWidget<'_> {
 
         let hovered_action = self.hovered_clickable_action.borrow().clone();
         let hover_style = self.config.tui.header.hover_style;
+        // Build with full width — scroll handles overflow.
         let rendered = self.render_selected_status_line_with_width(
             &bottom_items,
             hovered_action,
             hover_style,
-            line_area.width as usize,
+            usize::MAX,
         );
 
-        // Add clickable regions for the bottom status line, in addition to any
-        // regions tracked for the top status bar.
+        let viewport_width = line_area.width as usize;
+        let overflows = rendered.width > viewport_width;
+        let max_hscroll = if overflows {
+            (rendered.width - viewport_width) as u16
+        } else {
+            0
+        };
+        let hscroll = self.bottom_status_hscroll.get().min(max_hscroll);
+        self.bottom_status_hscroll.set(hscroll);
+
+        let (alignment, scroll_cols) = if overflows {
+            (ratatui::layout::Alignment::Left, hscroll)
+        } else {
+            (ratatui::layout::Alignment::Center, 0u16)
+        };
+
+        // Add clickable regions for the bottom status line.
         {
-            let mut regions = self.clickable_regions.borrow_mut();
-            regions.extend(centered_clickable_regions_from_char_ranges(
-                &rendered.clickable_ranges,
-                line_area,
-                rendered.width,
-            ));
+            if overflows {
+                let mut regions = self.clickable_regions.borrow_mut();
+                regions.extend(scrollable_clickable_regions_from_char_ranges(
+                    &rendered.clickable_ranges,
+                    line_area,
+                    rendered.width,
+                    hscroll,
+                ));
+            } else {
+                let mut regions = self.clickable_regions.borrow_mut();
+                regions.extend(centered_clickable_regions_from_char_ranges(
+                    &rendered.clickable_ranges,
+                    line_area,
+                    rendered.width,
+                ));
+            }
         }
 
+        let base_style = Style::default().fg(crate::colors::text_dim());
         let widget = Paragraph::new(vec![rendered.line])
-            .alignment(Alignment::Center)
-            .style(Style::default().fg(crate::colors::text_dim()));
+            .alignment(alignment)
+            .scroll((0, scroll_cols))
+            .style(base_style);
         ratatui::widgets::Widget::render(widget, line_area, buf);
+
+        // Scroll indicators for bottom status line.
+        if overflows {
+            let indicator_style = ratatui::style::Style::default()
+                .fg(crate::colors::text_dim())
+                .bg(crate::colors::background());
+            if hscroll > 0 {
+                if let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(line_area.x, line_area.y)) {
+                    cell.set_char('◂');
+                    cell.set_style(indicator_style);
+                }
+            }
+            if hscroll < max_hscroll {
+                let right_x = line_area.x.saturating_add(line_area.width).saturating_sub(1);
+                if let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(right_x, line_area.y)) {
+                    cell.set_char('▸');
+                    cell.set_style(indicator_style);
+                }
+            }
+        }
     }
 }

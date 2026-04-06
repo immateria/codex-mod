@@ -60,6 +60,15 @@ pub(super) fn centered_clickable_regions_from_char_ranges(
     click_regions::centered_clickable_regions_from_char_ranges(ranges, area, total_width)
 }
 
+pub(super) fn scrollable_clickable_regions_from_char_ranges(
+    ranges: &[(Range<usize>, ClickableAction)],
+    area: Rect,
+    total_width: usize,
+    scroll_offset: u16,
+) -> Vec<ClickableRegion> {
+    click_regions::scrollable_clickable_regions_from_char_ranges(ranges, area, total_width, scroll_offset)
+}
+
 pub(super) fn render_dynamic_header_line(
     input: &DynamicHeaderLayoutInput<'_>,
 ) -> HeaderTemplateRender {

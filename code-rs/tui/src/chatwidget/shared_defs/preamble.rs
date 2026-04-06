@@ -1035,6 +1035,13 @@ pub(crate) struct ChatWidget<'a> {
     clickable_regions: RefCell<Vec<ClickableRegion>>,
     // Current hovered header action (for hover styling on top status line).
     hovered_clickable_action: RefCell<Option<ClickableAction>>,
+    // Horizontal scroll offset for the top and bottom status bars (in display columns).
+    // When the rendered content is wider than the viewport, the user can scroll/drag
+    // horizontally to reveal hidden segments.
+    status_bar_hscroll: Cell<u16>,
+    bottom_status_hscroll: Cell<u16>,
+    // Tracks drag-start column for click-and-drag horizontal panning on status bars.
+    status_bar_drag_col: Cell<Option<u16>>,
 }
 
 #[derive(Clone, Debug, Default)]

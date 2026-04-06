@@ -250,6 +250,7 @@ impl ChatWidget<'_> {
                 last_frame_height: std::cell::Cell::new(0),
                 last_frame_width: std::cell::Cell::new(0),
                 last_bottom_pane_area: std::cell::Cell::new(Rect::default()),
+                last_status_bar_area: std::cell::Cell::new(Rect::default()),
             },
             last_theme: crate::theme::current_theme(),
             perf_state: PerfState {
@@ -319,6 +320,9 @@ impl ChatWidget<'_> {
             resume_picker_loading: false,
             clickable_regions: RefCell::new(Vec::new()),
             hovered_clickable_action: RefCell::new(None),
+            status_bar_hscroll: Cell::new(0),
+            bottom_status_hscroll: Cell::new(0),
+            status_bar_drag_col: Cell::new(None),
         };
         w.load_auto_review_baseline_marker();
         if let Ok(Some(active_id)) = auth_accounts::get_active_account_id(&config.code_home)

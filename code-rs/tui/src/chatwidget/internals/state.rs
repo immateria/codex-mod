@@ -249,6 +249,8 @@ pub(crate) struct LayoutState {
     pub(crate) last_frame_width: std::cell::Cell<u16>,
     // Last bottom pane area for mouse hit testing
     pub(crate) last_bottom_pane_area: std::cell::Cell<Rect>,
+    // Last status bar (header) area for mouse hit testing (horizontal scroll/drag)
+    pub(crate) last_status_bar_area: std::cell::Cell<Rect>,
 }
 
 #[derive(Default)]

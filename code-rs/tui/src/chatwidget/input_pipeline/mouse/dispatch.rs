@@ -62,7 +62,34 @@ impl ChatWidget<'_> {
                 // Otherwise, scroll the history
                 layout_scroll::mouse_scroll(self, false)
             }
+            // Horizontal scroll on status bars (mouse wheel left/right).
+            MouseEventKind::ScrollLeft | MouseEventKind::ScrollRight => {
+                let delta: i32 = if matches!(mouse_event.kind, MouseEventKind::ScrollLeft) { -3 } else { 3 };
+                let status_bar_area = self.layout.last_status_bar_area.get();
+                let in_status_bar = mouse_event.row >= status_bar_area.y
+                    && mouse_event.row < status_bar_area.y.saturating_add(status_bar_area.height)
+                    && mouse_event.column >= status_bar_area.x
+                    && mouse_event.column < status_bar_area.x.saturating_add(status_bar_area.width);
+                if in_status_bar {
+                    let cur = self.status_bar_hscroll.get() as i32;
+                    self.status_bar_hscroll.set(cur.saturating_add(delta).max(0) as u16);
+                    self.request_redraw();
+                } else if in_bottom_pane {
+                    let cur = self.bottom_status_hscroll.get() as i32;
+                    self.bottom_status_hscroll.set(cur.saturating_add(delta).max(0) as u16);
+                    self.request_redraw();
+                }
+            }
             MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
+                // Record drag start position for status bar panning.
+                let status_bar_area = self.layout.last_status_bar_area.get();
+                let in_status_bar = mouse_event.row >= status_bar_area.y
+                    && mouse_event.row < status_bar_area.y.saturating_add(status_bar_area.height)
+                    && mouse_event.column >= status_bar_area.x
+                    && mouse_event.column < status_bar_area.x.saturating_add(status_bar_area.width);
+                if in_status_bar || in_bottom_pane {
+                    self.status_bar_drag_col.set(Some(mouse_event.column));
+                }
                 // First check if click is inside the bottom pane area
                 if in_bottom_pane {
                     // Forward click to bottom pane
@@ -74,6 +101,29 @@ impl ChatWidget<'_> {
                 }
                 // Handle left click by checking clickable regions (header bar, etc.)
                 self.handle_click(mouse_pos);
+            }
+            MouseEventKind::Up(crossterm::event::MouseButton::Left) => {
+                self.status_bar_drag_col.set(None);
+            }
+            MouseEventKind::Drag(crossterm::event::MouseButton::Left) => {
+                if let Some(start_col) = self.status_bar_drag_col.get() {
+                    let current_col = mouse_event.column;
+                    let delta = start_col as i32 - current_col as i32;
+                    if delta != 0 {
+                        // Determine which bar was being dragged based on row.
+                        let status_bar_area = self.layout.last_status_bar_area.get();
+                        let in_status_bar = mouse_event.row < status_bar_area.y.saturating_add(status_bar_area.height);
+                        if in_status_bar {
+                            let cur = self.status_bar_hscroll.get() as i32;
+                            self.status_bar_hscroll.set(cur.saturating_add(delta).max(0) as u16);
+                        } else {
+                            let cur = self.bottom_status_hscroll.get() as i32;
+                            self.bottom_status_hscroll.set(cur.saturating_add(delta).max(0) as u16);
+                        }
+                        self.status_bar_drag_col.set(Some(current_col));
+                        self.request_redraw();
+                    }
+                }
             }
             MouseEventKind::Moved => {
                 let mut needs_redraw = false;

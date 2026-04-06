@@ -1,11 +1,28 @@
 use super::*;
 
+/// Convert character-index ranges within a rendered header/status line into
+/// screen-space `ClickableRegion`s.
+///
+/// When `scroll_offset > 0`, the line is rendered left-aligned and shifted
+/// left by that many columns. Otherwise the line is centered in `area`.
 pub(super) fn centered_clickable_regions_from_char_ranges(
     ranges: &[(std::ops::Range<usize>, ClickableAction)],
     area: Rect,
     total_width: usize,
 ) -> Vec<ClickableRegion> {
-    let start_x = if total_width < area.width as usize {
+    scrollable_clickable_regions_from_char_ranges(ranges, area, total_width, 0)
+}
+
+pub(super) fn scrollable_clickable_regions_from_char_ranges(
+    ranges: &[(std::ops::Range<usize>, ClickableAction)],
+    area: Rect,
+    total_width: usize,
+    scroll_offset: u16,
+) -> Vec<ClickableRegion> {
+    let start_x = if scroll_offset > 0 {
+        // When scrolling, content is left-aligned and shifted by scroll_offset.
+        area.x
+    } else if total_width < area.width as usize {
         area.x + ((area.width as usize - total_width) / 2) as u16
     } else {
         area.x
@@ -16,8 +33,15 @@ pub(super) fn centered_clickable_regions_from_char_ranges(
     // Horizontal padding around each clickable segment for easier touch.
     let h_pad: u16 = 1;
     for (range, action) in ranges {
-        let visible_start = range.start.min(visible_width);
-        let visible_end = range.end.min(visible_width);
+        // Shift range by scroll offset (content scrolled left).
+        let shifted_start = range.start.saturating_sub(scroll_offset as usize);
+        let shifted_end = range.end.saturating_sub(scroll_offset as usize);
+        // Skip regions entirely scrolled out of view.
+        if shifted_end <= shifted_start || range.end <= scroll_offset as usize {
+            continue;
+        }
+        let visible_start = shifted_start.min(visible_width);
+        let visible_end = shifted_end.min(visible_width);
         if visible_end <= visible_start {
             continue;
         }
