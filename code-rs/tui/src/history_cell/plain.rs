@@ -280,7 +280,7 @@ impl HistoryCell for PlainHistoryCell {
         if let Some(header) = self.state.header() {
             let label = header.label.trim().to_lowercase();
             if label == "auto review" {
-                return Some("•");
+                return Some(crate::icons::bullet());
             }
         }
         super::gutter_symbol_for_kind(self.kind())
@@ -766,13 +766,13 @@ pub(crate) fn new_status_output(
         let same_model = response_model_matches_request(requested_display, response_model);
         let (match_marker, match_label, match_style) = if same_model {
             (
-                "✓",
+                crate::icons::status_ok(),
                 "requested model matches response",
                 Style::default().fg(colors::success()),
             )
         } else {
             (
-                "✗",
+                crate::icons::status_fail(),
                 "requested model does not match response",
                 Style::default().fg(colors::error()),
             )

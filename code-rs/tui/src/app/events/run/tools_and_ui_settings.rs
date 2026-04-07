@@ -124,6 +124,26 @@
                     }
                     self.schedule_redraw();
                 }
+                AppEvent::SetNerdFonts(enabled) => {
+                    crate::icons::set_nerd_fonts(enabled);
+                    match code_core::config::set_tui_nerd_fonts(&self.config.code_home, enabled) {
+                        Ok(()) => {
+                            self.config.tui.nerd_fonts = enabled;
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                let label = if enabled { "on" } else { "off" };
+                                widget.flash_footer_notice(format!("NerdFont icons: {label}"));
+                            }
+                        }
+                        Err(err) => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.flash_footer_notice(format!(
+                                    "Failed to persist NerdFont setting: {err}",
+                                ));
+                            }
+                        }
+                    }
+                    self.schedule_redraw();
+                }
                 AppEvent::StatusLineSetup {
                     top_items,
                     bottom_items,

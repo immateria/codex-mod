@@ -20,6 +20,7 @@ impl InterfaceSettingsView {
         match row {
             RowKind::OpenMode => self.cycle_open_mode_next(),
             RowKind::OverlayMinWidth => self.open_width_editor(),
+            RowKind::NerdFonts => self.toggle_nerd_fonts(),
             RowKind::HotkeyScope => self.cycle_hotkey_scope_next(),
             RowKind::ShowConfigToml => self.show_config_toml(),
             RowKind::ShowCodeHome => self.show_code_home(),
@@ -70,6 +71,7 @@ impl InterfaceSettingsView {
                         self.dirty_settings = true;
                     }
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(-5),
+                    Some(RowKind::NerdFonts) => self.toggle_nerd_fonts(),
                     Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_prev(),
                     Some(row) if row.is_hotkey_row() => {
                         self.adjust_hotkey_for_row(row, false);
@@ -83,6 +85,7 @@ impl InterfaceSettingsView {
                 match current_row {
                     Some(RowKind::OpenMode) => self.cycle_open_mode_next(),
                     Some(RowKind::OverlayMinWidth) => self.adjust_min_width(5),
+                    Some(RowKind::NerdFonts) => self.toggle_nerd_fonts(),
                     Some(RowKind::HotkeyScope) => self.cycle_hotkey_scope_next(),
                     Some(row) if row.is_hotkey_row() => {
                         self.adjust_hotkey_for_row(row, true);

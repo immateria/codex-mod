@@ -28,6 +28,7 @@ mod tests;
 enum RowKind {
     OpenMode,
     OverlayMinWidth,
+    NerdFonts,
     HotkeyScope,
     ModelSelectorHotkey,
     ReasoningEffortHotkey,
@@ -182,6 +183,8 @@ pub(crate) struct InterfaceSettingsView {
     settings: SettingsMenuConfig,
     hotkeys: TuiHotkeysConfig,
     hotkey_scope: HotkeyScope,
+    nerd_fonts: bool,
+    nerd_fonts_baseline: bool,
     code_home: PathBuf,
     app_event_tx: AppEventSender,
     is_complete: bool,
@@ -216,6 +219,7 @@ impl InterfaceSettingsView {
         code_home: PathBuf,
         settings: SettingsMenuConfig,
         hotkeys: TuiHotkeysConfig,
+        nerd_fonts: bool,
         app_event_tx: AppEventSender,
     ) -> Self {
         let mut state = ScrollState::new();
@@ -224,6 +228,8 @@ impl InterfaceSettingsView {
             settings,
             hotkeys,
             hotkey_scope: HotkeyScope::Global,
+            nerd_fonts,
+            nerd_fonts_baseline: nerd_fonts,
             code_home,
             app_event_tx,
             is_complete: false,

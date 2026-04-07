@@ -245,12 +245,13 @@ impl ChatWidget<'_> {
     pub(super) fn settings_summary_interface(&self) -> Option<String> {
         let settings = &self.config.tui.settings_menu;
         let width = settings.overlay_min_width;
+        let nf = if self.config.tui.nerd_fonts { " · NerdFont" } else { "" };
         match settings.open_mode {
             code_core::config_types::SettingsMenuOpenMode::Auto => {
-                Some(format!("Mode: auto · Overlay >= {width}"))
+                Some(format!("Mode: auto · Overlay >= {width}{nf}"))
             }
-            code_core::config_types::SettingsMenuOpenMode::Overlay => Some("Mode: overlay".to_string()),
-            code_core::config_types::SettingsMenuOpenMode::Bottom => Some("Mode: bottom".to_string()),
+            code_core::config_types::SettingsMenuOpenMode::Overlay => Some(format!("Mode: overlay{nf}")),
+            code_core::config_types::SettingsMenuOpenMode::Bottom => Some(format!("Mode: bottom{nf}")),
         }
     }
 

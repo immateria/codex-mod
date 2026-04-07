@@ -270,7 +270,7 @@ impl ChatWidget<'_> {
                             },
                             _ => crate::colors::text_dim(),
                         }
-                    } else if symbol == "❯" {
+                    } else if crate::icons::is_exec_prompt(symbol) {
                         if let Some(exec) = item
                             .as_any()
                             .downcast_ref::<crate::history_cell::ExecCell>()
@@ -294,7 +294,7 @@ impl ChatWidget<'_> {
                                 _ => crate::colors::text(),
                             }
                         }
-                    } else if symbol == "↯" {
+                    } else if crate::icons::is_patch(symbol) {
                         match item.kind() {
                             crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::ApplySuccess,
@@ -310,14 +310,14 @@ impl ChatWidget<'_> {
                             } => crate::colors::error(),
                             _ => crate::colors::primary(),
                         }
-                    } else if matches!(symbol, "◐" | "◓" | "◑" | "◒")
+                    } else if crate::icons::is_spinner(symbol)
                         && item
                             .as_any()
                             .downcast_ref::<crate::history_cell::RunningToolCallCell>()
                             .is_some_and(|cell| cell.has_title("Waiting"))
                     {
                         crate::colors::text_bright()
-                    } else if matches!(symbol, "○" | "◔" | "◑" | "◕" | "●") {
+                    } else if crate::icons::is_progress(symbol) {
                         if let Some(plan_cell) = item
                             .as_any()
                             .downcast_ref::<crate::history_cell::PlanUpdateCell>()
@@ -331,15 +331,22 @@ impl ChatWidget<'_> {
                             crate::colors::success()
                         }
                     } else {
-                        match symbol {
-                            "›" => crate::colors::text(),
-                            "⋮" => crate::colors::primary(),
-                            "•" => crate::colors::text_bright(),
-                            "…" => crate::colors::info(),
-                            "✓" => crate::colors::success(),
-                            "✗" => crate::colors::error(),
-                            "★" => crate::colors::text_bright(),
-                            _ => crate::colors::text_dim(),
+                        if crate::icons::is_user(symbol) {
+                            crate::colors::text()
+                        } else if symbol == "⋮" {
+                            crate::colors::primary()
+                        } else if crate::icons::is_assistant(symbol) {
+                            crate::colors::text_bright()
+                        } else if crate::icons::is_running(symbol) {
+                            crate::colors::info()
+                        } else if crate::icons::is_success(symbol) {
+                            crate::colors::success()
+                        } else if crate::icons::is_failure(symbol) {
+                            crate::colors::error()
+                        } else if crate::icons::is_notice(symbol) {
+                            crate::colors::text_bright()
+                        } else {
+                            crate::colors::text_dim()
                         }
                     }
                 };

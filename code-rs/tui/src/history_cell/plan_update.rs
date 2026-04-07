@@ -69,7 +69,7 @@ impl PlanUpdateCell {
         match step.status {
             StepStatus::Completed => {
                 spans.push(Span::styled(
-                    "✓",
+                    crate::icons::status_ok(),
                     Style::default().fg(crate::colors::success()),
                 ));
                 spans.push(Span::raw(" "));

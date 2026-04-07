@@ -156,3 +156,23 @@ pub fn pointer_focused() -> &'static str { pick("\u{f101}", "»") }   // nf-fa-a
 pub fn bullet() -> &'static str { pick("\u{f111}", "•") }            // nf-fa-circle
 pub fn separator_dot() -> &'static str { pick("\u{f111}", "·") }     // nf-fa-circle (small)
 pub fn upgrade_arrow() -> &'static str { pick("\u{f061}", "→") }     // nf-fa-arrow_right
+
+// ── Symbol recognizers ───────────────────────────────────────────────
+// Used by cell_paint and other renderers that match gutter symbols for
+// coloring. Must recognize both NerdFont and plain variants.
+
+pub fn is_exec_prompt(s: &str) -> bool { s == "❯" || s == "\u{f120}" }
+pub fn is_patch(s: &str) -> bool { s == "↯" || s == "\u{f126}" }
+pub fn is_user(s: &str) -> bool { s == "›" || s == "\u{f007}" }
+pub fn is_assistant(s: &str) -> bool { s == "•" || s == "\u{f108}" }
+pub fn is_running(s: &str) -> bool { s == "…" || s == "\u{f110}" }
+pub fn is_success(s: &str) -> bool { s == "✓" || s == "\u{f058}" }
+pub fn is_failure(s: &str) -> bool { s == "✗" || s == "\u{f057}" }
+pub fn is_notice(s: &str) -> bool { s == "★" || s == "\u{f005}" }
+pub fn is_progress(s: &str) -> bool {
+    matches!(s, "○" | "◔" | "◑" | "◕" | "●"
+        | "\u{f10c}" | "\u{f123}" | "\u{f042}" | "\u{f111}" | "\u{f058}")
+}
+pub fn is_spinner(s: &str) -> bool {
+    matches!(s, "◐" | "◓" | "◑" | "◒")
+}

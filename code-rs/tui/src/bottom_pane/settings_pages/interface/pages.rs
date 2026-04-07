@@ -149,6 +149,9 @@ impl InterfaceSettingsView {
         match row {
             RowKind::OpenMode => "Auto uses overlay on wide terminals; override with overlay/bottom.",
             RowKind::OverlayMinWidth => "Terminal width (columns) at which auto prefers overlay.",
+            RowKind::NerdFonts => {
+                "Use NerdFont private-use-area glyphs for richer icons. Requires a NerdFont-patched terminal font."
+            }
             RowKind::HotkeyScope => {
                 "Choose which scope to edit. Platform scopes write to [tui.hotkeys.<platform>] and can inherit."
             }

@@ -481,6 +481,12 @@ impl InterfaceSettingsView {
             saved_any = true;
         }
 
+        if self.nerd_fonts != self.nerd_fonts_baseline {
+            self.app_event_tx.send(AppEvent::SetNerdFonts(self.nerd_fonts));
+            self.nerd_fonts_baseline = self.nerd_fonts;
+            saved_any = true;
+        }
+
         if self.dirty_hotkeys {
             if let Err(err) = self.validate_hotkeys() {
                 let msg = if saved_any {
@@ -530,6 +536,12 @@ impl InterfaceSettingsView {
     pub(super) fn show_code_home(&mut self) {
         let (message, is_error) = Self::show_path_result(&self.code_home, "CODE_HOME");
         self.status = Some((message, is_error));
+    }
+
+    pub(super) fn toggle_nerd_fonts(&mut self) {
+        self.nerd_fonts = !self.nerd_fonts;
+        crate::icons::set_nerd_fonts(self.nerd_fonts);
+        self.status = None;
     }
 
     fn scoped_hotkeys_resolved(&self) -> ResolvedTuiHotkeys {

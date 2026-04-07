@@ -15,6 +15,7 @@ fn ctrl_s_saves_settings_menu_config_when_dirty() {
         PathBuf::from("/tmp"),
         SettingsMenuConfig::default(),
         TuiHotkeysConfig::default(),
+        false,
         app_event_tx,
     );
 
@@ -44,6 +45,7 @@ fn ctrl_s_with_no_changes_emits_no_events() {
         PathBuf::from("/tmp"),
         SettingsMenuConfig::default(),
         TuiHotkeysConfig::default(),
+        false,
         app_event_tx,
     );
 

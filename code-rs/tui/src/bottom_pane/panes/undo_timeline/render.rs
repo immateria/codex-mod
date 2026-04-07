@@ -14,7 +14,7 @@ impl UndoTimelineView {
             let absolute_idx = start + idx;
             let selected = absolute_idx == self.selected;
 
-            let marker = if selected { "›" } else { " " };
+            let marker = if selected { crate::icons::pointer_active() } else { " " };
             let mut title_spans = vec![
                 Span::styled(
                     format!("{marker} "),

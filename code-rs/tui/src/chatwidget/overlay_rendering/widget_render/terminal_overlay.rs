@@ -134,7 +134,7 @@ impl ChatWidget<'_> {
                     } else {
                         let (icon, color, status_text) = match overlay.exit_code {
                             Some(0) => (
-                                "✓",
+                                crate::icons::status_ok(),
                                 crate::colors::success(),
                                 overlay
                                     .duration
@@ -142,7 +142,7 @@ impl ChatWidget<'_> {
                                     .unwrap_or_else(|| "Completed".to_string()),
                             ),
                             Some(code) => (
-                                "✗",
+                                crate::icons::status_fail(),
                                 crate::colors::error(),
                                 overlay
                                     .duration

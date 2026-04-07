@@ -213,11 +213,11 @@ fn agent_status_label(status: AgentStatus) -> &'static str {
 
 fn agent_status_icon(status: AgentStatus) -> &'static str {
     match status {
-        AgentStatus::Completed => "✓",
-        AgentStatus::Running => ">",
-        AgentStatus::Pending => "…",
-        AgentStatus::Failed => "✗",
-        AgentStatus::Cancelled => "×",
+        AgentStatus::Completed => crate::icons::agent_completed(),
+        AgentStatus::Running => crate::icons::agent_running(),
+        AgentStatus::Pending => crate::icons::agent_pending(),
+        AgentStatus::Failed => crate::icons::agent_failed(),
+        AgentStatus::Cancelled => crate::icons::agent_cancelled(),
     }
 }
 

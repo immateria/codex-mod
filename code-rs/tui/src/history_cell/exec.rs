@@ -160,11 +160,11 @@ impl HistoryCell for ExecCell {
                 status,
             } => {
                 if matches!(status, ExecStatus::Error) {
-                    Some("✗")
+                    Some(crate::icons::gutter_error())
                 } else if self.parent_call_id.is_some() {
                     Some("↳")
                 } else if self.has_bold_command {
-                    Some("❯")
+                    Some(crate::icons::gutter_exec())
                 } else {
                     None
                 }

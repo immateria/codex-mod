@@ -8,9 +8,10 @@ use code_core::config_types::SettingsMenuOpenMode;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::rows::StyledText;
 
-const MAIN_ROWS: [RowKind; 15] = [
+const MAIN_ROWS: [RowKind; 16] = [
     RowKind::OpenMode,
     RowKind::OverlayMinWidth,
+    RowKind::NerdFonts,
     RowKind::HotkeyScope,
     RowKind::ModelSelectorHotkey,
     RowKind::ReasoningEffortHotkey,
@@ -43,9 +44,10 @@ impl InterfaceSettingsView {
         }
     }
 
-    const MAIN_ROWS_NO_FILE_MANAGER: [RowKind; 13] = [
+    const MAIN_ROWS_NO_FILE_MANAGER: [RowKind; 14] = [
         RowKind::OpenMode,
         RowKind::OverlayMinWidth,
+        RowKind::NerdFonts,
         RowKind::HotkeyScope,
         RowKind::ModelSelectorHotkey,
         RowKind::ReasoningEffortHotkey,
@@ -81,6 +83,7 @@ impl InterfaceSettingsView {
             match kind {
                 RowKind::OpenMode => "Settings menu",
                 RowKind::OverlayMinWidth => "Overlay min width",
+                RowKind::NerdFonts => "NerdFont icons",
                 RowKind::HotkeyScope => "Hotkey scope",
                 RowKind::ShowConfigToml => "Show config.toml",
                 RowKind::ShowCodeHome => "Show CODE_HOME",
@@ -135,13 +138,23 @@ impl InterfaceSettingsView {
                             self.settings.overlay_min_width.to_string(),
                             Style::new().fg(crate::colors::function()),
                         )),
+                        RowKind::NerdFonts => Some(StyledText::new(
+                            if self.nerd_fonts { "on" } else { "off" },
+                            if self.nerd_fonts {
+                                Style::new().fg(crate::colors::success())
+                            } else {
+                                Style::new().fg(crate::colors::text_dim())
+                            },
+                        )),
                         RowKind::HotkeyScope => Some(StyledText::new(
                             self.hotkey_scope.label(),
                             Style::new().fg(crate::colors::function()),
                         )),
                         RowKind::ShowConfigToml | RowKind::ShowCodeHome | RowKind::Close => None,
                         RowKind::Apply => {
-                            let is_dirty = self.dirty_settings || self.dirty_hotkeys;
+                            let is_dirty = self.dirty_settings
+                                || self.dirty_hotkeys
+                                || self.nerd_fonts != self.nerd_fonts_baseline;
                             Some(StyledText::new(
                                 if is_dirty { "Pending" } else { "Saved" },
                                 if is_dirty {
