@@ -16,6 +16,7 @@ impl ChatWidget<'_> {
                 overlay.set_limits_content(LimitsSettingsContent::new(
                     content,
                     self.config.tui.limits.layout_mode,
+                    self.app_event_tx.clone(),
                 ));
             }
             self.request_redraw();
@@ -103,7 +104,7 @@ impl ChatWidget<'_> {
                 DEFAULT_GRID_CONFIG,
                 display,
             );
-            tabs.push(LimitsTab::view(title, header, view, extra));
+            tabs.push(LimitsTab::view(title, active_id.clone(), header, view, extra));
 
             if let Some(active_id) = active_id.as_ref()
                 && account_map.contains_key(active_id) {
@@ -178,7 +179,7 @@ impl ChatWidget<'_> {
                             usage_summary.as_ref(),
                             is_api_key_account,
                         );
-                        tabs.push(LimitsTab::view(title, header, view, extra));
+                        tabs.push(LimitsTab::view(title, Some(id.clone()), header, view, extra));
                     } else {
                         let is_api_key_account = matches!(
                             account.map(|acc| acc.mode),
@@ -196,7 +197,7 @@ impl ChatWidget<'_> {
                             Some(&record),
                             usage_summary.as_ref(),
                         );
-                        tabs.push(LimitsTab::message(title, header, lines));
+                        tabs.push(LimitsTab::message(title, Some(id.clone()), header, lines));
                     }
                 }
                 None => {
@@ -216,7 +217,7 @@ impl ChatWidget<'_> {
                         None,
                         usage_summary.as_ref(),
                     );
-                    tabs.push(LimitsTab::message(title, header, lines));
+                    tabs.push(LimitsTab::message(title, Some(id.clone()), header, lines));
                 }
             }
         }
@@ -226,7 +227,7 @@ impl ChatWidget<'_> {
             lines.push(Self::dim_line(
                 " Rate limit snapshot not yet available.",
             ));
-            tabs.push(LimitsTab::message("Usage", Vec::new(), lines));
+            tabs.push(LimitsTab::message("Usage", None, Vec::new(), lines));
         }
 
         tabs

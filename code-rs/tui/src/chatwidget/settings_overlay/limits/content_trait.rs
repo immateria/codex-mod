@@ -39,6 +39,27 @@ impl SettingsContent for LimitsSettingsContent {
             KeyCode::Right | KeyCode::Char(']') => self.overlay.select_next_tab(),
             KeyCode::Char('v') | KeyCode::Char('V') => self.toggle_layout_mode(),
             KeyCode::Char('f') | KeyCode::Char('F') => self.cycle_focus_mode(),
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                // Switch active account to the one shown in the current tab.
+                if let Some(account_id) = self.current_tab_account_id() {
+                    self.app_event_tx.send(
+                        crate::app_event::AppEvent::SwitchAccountFromLimits { account_id },
+                    );
+                    true
+                } else {
+                    false
+                }
+            }
+            KeyCode::Char('w') | KeyCode::Char('W') => {
+                // Warm all non-active accounts (start their usage timers).
+                self.app_event_tx.send(crate::app_event::AppEvent::WarmAllAccounts);
+                true
+            }
+            KeyCode::Char('r') | KeyCode::Char('R') => {
+                // Refresh rate limits for all accounts.
+                self.app_event_tx.send(crate::app_event::AppEvent::WarmAllAccounts);
+                true
+            }
             KeyCode::Tab => {
                 if key.modifiers.contains(KeyModifiers::SHIFT) {
                     self.overlay.select_prev_tab()

@@ -5,9 +5,14 @@ impl LimitsSettingsContent {
     const WIDE_MIN_RIGHT_WIDTH: u16 = 52;
     const WIDE_MAX_LEFT_PERCENT: u16 = 58;
 
-    pub(crate) fn new(content: LimitsOverlayContent, layout_mode: ConfigLimitsLayoutMode) -> Self {
+    pub(crate) fn new(
+        content: LimitsOverlayContent,
+        layout_mode: ConfigLimitsLayoutMode,
+        app_event_tx: crate::app_event_sender::AppEventSender,
+    ) -> Self {
         Self {
             overlay: LimitsOverlay::new(content),
+            app_event_tx,
             layout_mode: LimitsLayoutMode::from_config(layout_mode),
             pane_focus: LimitsPaneFocus::Sync,
             left_scroll: Cell::new(0),
@@ -24,6 +29,13 @@ impl LimitsSettingsContent {
 
     pub(crate) fn set_content(&mut self, content: LimitsOverlayContent) {
         self.overlay.set_content(content);
+    }
+
+    /// Returns the account ID of the currently-selected tab, if any.
+    fn current_tab_account_id(&self) -> Option<String> {
+        let tabs = self.overlay.tabs()?;
+        let idx = self.overlay.selected_tab();
+        tabs.get(idx).and_then(|tab| tab.account_id.clone())
     }
 
     fn set_wide_active(&self, active: bool) {

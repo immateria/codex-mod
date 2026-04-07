@@ -15,10 +15,6 @@ impl Widget for LimitsHintRowWidget {
         let mut spans = vec![
             Span::styled("↑↓", accent_style),
             Span::styled(" scroll  ", hint_style),
-            Span::styled("PgUp/PgDn", accent_style),
-            Span::styled(" page  ", hint_style),
-            Span::styled("Home/End", accent_style),
-            Span::styled(" jump  ", hint_style),
             Span::styled("V", accent_style),
             Span::styled(format!(" layout:{}  ", self.layout_mode.label()), hint_style),
             Span::styled("F", accent_style),
@@ -26,7 +22,13 @@ impl Widget for LimitsHintRowWidget {
         ];
         if self.has_tabs {
             spans.push(Span::styled("◂ ▸", accent_style));
-            spans.push(Span::styled(" change tab", hint_style));
+            spans.push(Span::styled(" tab  ", hint_style));
+            spans.push(Span::styled("S", accent_style));
+            spans.push(Span::styled(" switch  ", hint_style));
+            spans.push(Span::styled("W", accent_style));
+            spans.push(Span::styled(" warm all  ", hint_style));
+            spans.push(Span::styled("R", accent_style));
+            spans.push(Span::styled(" refresh", hint_style));
         }
 
         Paragraph::new(Line::from(spans))

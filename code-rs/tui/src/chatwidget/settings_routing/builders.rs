@@ -569,7 +569,7 @@ impl ChatWidget<'_> {
             self.request_latest_rate_limits(snapshot.is_none());
         }
 
-        LimitsSettingsContent::new(content, self.config.tui.limits.layout_mode)
+        LimitsSettingsContent::new(content, self.config.tui.limits.layout_mode, self.app_event_tx.clone())
     }
 
     pub(super) fn sync_limits_layout_mode_preference(&mut self) {

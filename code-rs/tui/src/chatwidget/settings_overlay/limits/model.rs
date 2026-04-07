@@ -1,5 +1,6 @@
 pub(crate) struct LimitsSettingsContent {
     overlay: LimitsOverlay,
+    app_event_tx: crate::app_event_sender::AppEventSender,
     layout_mode: LimitsLayoutMode,
     pane_focus: LimitsPaneFocus,
     left_scroll: Cell<u16>,

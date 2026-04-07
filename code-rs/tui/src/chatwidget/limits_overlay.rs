@@ -17,6 +17,8 @@ pub(crate) enum LimitsOverlayContent {
 #[derive(Clone)]
 pub(crate) struct LimitsTab {
     pub title: String,
+    /// The account ID this tab represents, if any.
+    pub account_id: Option<String>,
     pub header: Vec<RtLine<'static>>,
     pub body: LimitsTabBody,
     pub extra: Vec<RtLine<'static>>,
@@ -169,12 +171,14 @@ impl LimitsOverlay {
 impl LimitsTab {
     pub fn view(
         title: impl Into<String>,
+        account_id: Option<String>,
         header: Vec<RtLine<'static>>,
         view: LimitsView,
         extra: Vec<RtLine<'static>>,
     ) -> Self {
         Self {
             title: title.into(),
+            account_id,
             header,
             body: LimitsTabBody::View(view),
             extra,
@@ -183,11 +187,13 @@ impl LimitsTab {
 
     pub fn message(
         title: impl Into<String>,
+        account_id: Option<String>,
         header: Vec<RtLine<'static>>,
         lines: Vec<RtLine<'static>>,
     ) -> Self {
         Self {
             title: title.into(),
+            account_id,
             header,
             body: LimitsTabBody::Lines(lines),
             extra: Vec::new(),

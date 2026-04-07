@@ -58,6 +58,7 @@ use code_core::account_usage::{
     TokenTotals,
 };
 use code_core::auth_accounts::{self, StoredAccount};
+use code_core::auth;
 use code_login::AuthManager;
 use code_login::AuthMode;
 use code_protocol::dynamic_tools::DynamicToolResponse;

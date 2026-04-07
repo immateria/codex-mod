@@ -150,6 +150,69 @@ impl ChatWidget<'_> {
         }
     }
 
+    /// Switch the active account from the limits overlay (triggered by `S` key).
+    pub(crate) fn on_switch_account_from_limits(&mut self, account_id: String) {
+        let code_home = self.config.code_home.clone();
+        let account = match auth_accounts::find_account(&code_home, &account_id) {
+            Ok(Some(acc)) => acc,
+            _ => return,
+        };
+        let mode = account.mode;
+        match auth::activate_account_with_store_mode(
+            &code_home,
+            &account_id,
+            self.config.cli_auth_credentials_store_mode,
+        ) {
+            Ok(()) => {
+                self.app_event_tx.send(AppEvent::LoginUsingChatGptChanged {
+                    using_chatgpt_auth: mode.is_chatgpt(),
+                });
+                // Re-probe the newly-active account so the overlay refreshes
+                // with live data.
+                self.rate_limit_fetch_inflight = true;
+                start_rate_limit_refresh(
+                    self.app_event_tx.clone(),
+                    self.config.clone(),
+                    self.config.debug,
+                );
+                self.set_limits_overlay_content(LimitsOverlayContent::Loading);
+                self.request_redraw();
+            }
+            Err(err) => {
+                tracing::warn!("failed to switch account from limits: {err}");
+            }
+        }
+    }
+
+    /// Warm all non-active accounts by sending a minimal probe to each, which
+    /// starts their 5-hour usage timer and fetches fresh rate limit data.
+    pub(crate) fn on_warm_all_accounts(&mut self) {
+        let code_home = self.config.code_home.clone();
+        let active_id = auth_accounts::get_active_account_id(&code_home)
+            .ok()
+            .flatten();
+        let accounts = auth_accounts::list_accounts(&code_home).unwrap_or_default();
+        let mut launched = 0u32;
+        for account in accounts {
+            if active_id.as_deref() == Some(account.id.as_str()) {
+                continue;
+            }
+            start_rate_limit_refresh_for_account(
+                self.app_event_tx.clone(),
+                self.config.clone(),
+                self.config.debug,
+                account,
+                false,
+                false,
+            );
+            launched += 1;
+        }
+        if launched > 0 {
+            self.set_limits_overlay_content(LimitsOverlayContent::Loading);
+            self.request_redraw();
+        }
+    }
+
     fn rate_limit_reset_info(&self) -> RateLimitResetInfo {
         let auto_compact_limit = self
             .config

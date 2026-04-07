@@ -728,6 +728,13 @@ pub(crate) enum AppEvent {
     /// Background rate limit refresh persisted an account snapshot.
     RateLimitSnapshotStored { account_id: String },
 
+    /// Switch the active account (triggered from the limits overlay).
+    SwitchAccountFromLimits { account_id: String },
+
+    /// Probe all non-active accounts to warm their usage timers and fetch
+    /// fresh rate limit snapshots.
+    WarmAllAccounts,
+
     StartCommitAnimation,
     StopCommitAnimation,
     CommitTick,
