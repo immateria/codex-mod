@@ -119,6 +119,20 @@ impl ChatWidget<'_> {
                 dim_style,
             ),
         ]));
+        lines.push(Line::from(vec![
+            Span::styled("     ", dim_style),
+            Span::styled(
+                "Hold Shift and click-drag to select text for copying.",
+                dim_style,
+            ),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("     ", dim_style),
+            Span::styled(
+                "Click and drag the scrollbar to navigate long conversations.",
+                dim_style,
+            ),
+        ]));
 
         self.history_push_plain_state(crate::history_cell::plain_message_state_from_lines(
             lines,

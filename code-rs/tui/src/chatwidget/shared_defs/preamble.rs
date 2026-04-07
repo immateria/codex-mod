@@ -1050,6 +1050,8 @@ pub(crate) struct ChatWidget<'a> {
     // Set to true when the mouse moves beyond the drag threshold after a
     // mouse-down, invalidating any pending click.
     mouse_drag_exceeded: Cell<bool>,
+    // Active scrollbar drag: offset within the thumb where the drag began.
+    scrollbar_drag_offset: Cell<Option<usize>>,
 }
 
 #[derive(Clone, Debug, Default)]

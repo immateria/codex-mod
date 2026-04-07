@@ -177,6 +177,25 @@ pub(super) fn to_bottom(chat: &mut ChatWidget<'_>) {
     scroll_epilogue(chat, before);
 }
 
+/// Set scroll position from a scrollbar-derived "from-top" position.
+/// `pos_from_top` is in range [0, max_scroll] where 0 = oldest (top).
+pub(super) fn set_from_scrollbar(chat: &mut ChatWidget<'_>, pos_from_top: u16) {
+    let max = chat.layout.last_max_scroll.get();
+    let before = chat.layout.scroll_offset.get();
+    // Convert from-top to from-bottom offset.
+    let new_offset = max.saturating_sub(pos_from_top);
+    if new_offset == before {
+        return;
+    }
+    chat.layout.scroll_offset.set(new_offset);
+    chat.bottom_pane.set_compact_compose(new_offset > 0);
+    flash_scrollbar(chat);
+    chat.sync_history_virtualization();
+    chat.app_event_tx
+        .send(crate::app_event::AppEvent::RequestRedraw);
+    chat.perf_track_scroll_delta(before, new_offset);
+}
+
 pub(super) fn layout_areas(chat: &ChatWidget<'_>, area: Rect) -> Vec<Rect> {
     let bottom_desired = chat.bottom_pane.desired_height(area.width);
     let font_cell = chat.measured_font_size();

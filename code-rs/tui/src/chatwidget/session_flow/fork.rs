@@ -244,6 +244,7 @@ impl ChatWidget<'_> {
                 scroll_offset: Cell::new(0),
                 last_max_scroll: std::cell::Cell::new(0),
                 last_history_viewport_height: std::cell::Cell::new(0),
+                last_total_height: std::cell::Cell::new(0),
                 vertical_scrollbar_state: std::cell::RefCell::new(ScrollbarState::default()),
                 scrollbar_visible_until: std::cell::Cell::new(None),
                 last_bottom_reserved_rows: std::cell::Cell::new(0),
@@ -251,6 +252,7 @@ impl ChatWidget<'_> {
                 last_frame_width: std::cell::Cell::new(0),
                 last_bottom_pane_area: std::cell::Cell::new(Rect::default()),
                 last_status_bar_area: std::cell::Cell::new(Rect::default()),
+                last_history_area: std::cell::Cell::new(Rect::default()),
             },
             last_theme: crate::theme::current_theme(),
             perf_state: PerfState {
@@ -324,6 +326,7 @@ impl ChatWidget<'_> {
             bottom_status_hscroll: Cell::new(0),
             mouse_down_pos: Cell::new(None),
             mouse_drag_exceeded: Cell::new(false),
+            scrollbar_drag_offset: Cell::new(None),
         };
         w.load_auto_review_baseline_marker();
         if let Ok(Some(active_id)) = auth_accounts::get_active_account_id(&config.code_home)

@@ -90,6 +90,11 @@ impl ChatWidget<'_> {
                 self.mouse_down_pos.set(Some(mouse_pos));
                 self.mouse_drag_exceeded.set(false);
 
+                // Check if click is on the history scrollbar thumb.
+                if self.try_begin_scrollbar_drag(mouse_event.column, mouse_event.row) {
+                    return;
+                }
+
                 // Forward to bottom pane for its own drag/selection tracking.
                 if in_bottom_pane {
                     let (input_result, needs_redraw) = self.bottom_pane.handle_mouse_event(mouse_event, bottom_pane_area);
@@ -99,9 +104,16 @@ impl ChatWidget<'_> {
                 }
             }
             MouseEventKind::Up(crossterm::event::MouseButton::Left) => {
+                let was_scrollbar_drag = self.scrollbar_drag_offset.get().is_some();
+                self.scrollbar_drag_offset.set(None);
+
                 let was_drag = self.mouse_drag_exceeded.get();
                 let down_pos = self.mouse_down_pos.take();
                 self.mouse_drag_exceeded.set(false);
+
+                if was_scrollbar_drag {
+                    return;
+                }
 
                 // Only fire click if the mouse didn't move beyond threshold.
                 if !was_drag
@@ -116,6 +128,12 @@ impl ChatWidget<'_> {
                 }
             }
             MouseEventKind::Drag(crossterm::event::MouseButton::Left) => {
+                // If dragging the history scrollbar thumb, update scroll.
+                if self.scrollbar_drag_offset.get().is_some() {
+                    self.handle_scrollbar_drag(mouse_event.row);
+                    return;
+                }
+
                 if let Some((start_col, _start_row)) = self.mouse_down_pos.get() {
                     let current_col = mouse_event.column;
                     let col_delta = (start_col as i32 - current_col as i32).unsigned_abs() as u16;

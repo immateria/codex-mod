@@ -105,5 +105,9 @@ impl ChatWidget<'_> {
             },
             buf,
         );
+
+        // Cache geometry for scrollbar hit-testing in mouse handler.
+        self.layout.last_history_area.set(history_area);
+        self.layout.last_total_height.set(total_height);
     }
 }

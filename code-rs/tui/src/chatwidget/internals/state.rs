@@ -239,6 +239,8 @@ pub(crate) struct LayoutState {
     pub(crate) last_max_scroll: std::cell::Cell<u16>,
     // Track last viewport height of the history content area
     pub(crate) last_history_viewport_height: std::cell::Cell<u16>,
+    // Total rendered height of all history cells (rows)
+    pub(crate) last_total_height: std::cell::Cell<u16>,
     // Stateful vertical scrollbar for history view
     pub(crate) vertical_scrollbar_state: std::cell::RefCell<ScrollbarState>,
     // Auto-hide scrollbar timer
@@ -251,6 +253,8 @@ pub(crate) struct LayoutState {
     pub(crate) last_bottom_pane_area: std::cell::Cell<Rect>,
     // Last status bar (header) area for mouse hit testing (horizontal scroll/drag)
     pub(crate) last_status_bar_area: std::cell::Cell<Rect>,
+    // Last history area (full region, including scrollbar column) for scrollbar hit testing
+    pub(crate) last_history_area: std::cell::Cell<Rect>,
 }
 
 #[derive(Default)]
