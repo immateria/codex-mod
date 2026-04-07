@@ -55,10 +55,6 @@ pub(crate) async fn wait_for_connectivity(probe_url: &str) {
     }
 }
 
-pub fn escape_command(command: &[String]) -> String {
-    code_shell_command::escape_command(command)
-}
-
 pub fn strip_bash_lc_and_escape(command: &[String]) -> String {
     code_shell_command::strip_bash_lc_and_escape(command)
 }
