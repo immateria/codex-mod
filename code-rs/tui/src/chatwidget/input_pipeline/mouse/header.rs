@@ -148,6 +148,7 @@ impl ChatWidget<'_> {
     }
 
     fn update_header_hover_state(&mut self, pos: (u16, u16)) -> bool {
+        self.last_mouse_pos.set(Some(pos));
         let (x, y) = pos;
         let hovered = {
             let regions = self.clickable_regions.borrow();

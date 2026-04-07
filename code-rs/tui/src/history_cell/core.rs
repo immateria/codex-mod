@@ -274,6 +274,11 @@ pub(crate) trait HistoryCell {
         false
     }
 
+    /// Returns true if this cell is currently in collapsed/folded state.
+    fn is_collapsed(&self) -> bool {
+        false
+    }
+
     /// Returns the content of this cell as markdown text for clipboard copy.
     /// Default extracts plain text from display_lines(); cells with richer
     /// content (e.g. AssistantMarkdownCell) override to return the raw markdown.
@@ -355,6 +360,10 @@ impl HistoryCell for Box<dyn HistoryCell> {
 
     fn is_fold_toggleable(&self) -> bool {
         self.as_ref().is_fold_toggleable()
+    }
+
+    fn is_collapsed(&self) -> bool {
+        self.as_ref().is_collapsed()
     }
 
     fn copyable_markdown(&self) -> Option<String> {

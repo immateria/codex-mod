@@ -318,6 +318,10 @@ impl HistoryCell for PlainHistoryCell {
         self.has_enough_lines_to_fold()
     }
 
+    fn is_collapsed(&self) -> bool {
+        self.collapsed.get()
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
         if self.collapsed.get() {
             return vec![self.collapsed_summary_line()];

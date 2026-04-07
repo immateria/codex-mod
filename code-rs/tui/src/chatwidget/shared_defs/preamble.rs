@@ -1054,6 +1054,8 @@ pub(crate) struct ChatWidget<'a> {
     mouse_drag_exceeded: Cell<bool>,
     // Active scrollbar drag: offset within the thumb where the drag began.
     scrollbar_drag_offset: Cell<Option<usize>>,
+    // Last known mouse position for hover-dependent rendering (e.g. copy button).
+    last_mouse_pos: Cell<Option<(u16, u16)>>,
 }
 
 #[derive(Clone, Debug, Default)]

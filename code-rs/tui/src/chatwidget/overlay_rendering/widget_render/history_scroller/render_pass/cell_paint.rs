@@ -397,6 +397,30 @@ impl ChatWidget<'_> {
                                 },
                             );
                         }
+                        // Show fold indicator for foldable cells.
+                        if item.is_fold_toggleable() {
+                            let fold_icon = if item.is_collapsed() {
+                                crate::icons::collapse_closed()
+                            } else {
+                                crate::icons::collapse_open()
+                            };
+                            let fold_style = Style::default()
+                                .fg(crate::colors::text_dim())
+                                .bg(gutter_bg);
+                            if item.is_collapsed() {
+                                // Collapsed: show ▶ in the gutter gap (after the icon, same row).
+                                let gap_x = symbol_x.saturating_add(2);
+                                if gap_x < gutter_area.x.saturating_add(gutter_area.width) {
+                                    buf.set_string(gap_x, symbol_y, fold_icon, fold_style);
+                                }
+                            } else if visible_height > 1 {
+                                // Expanded: show ▼ on the row below the gutter symbol.
+                                let fold_y = symbol_y.saturating_add(1);
+                                if fold_y < gutter_area.y.saturating_add(gutter_area.height) {
+                                    buf.set_string(symbol_x, fold_y, fold_icon, fold_style);
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -467,16 +491,16 @@ impl ChatWidget<'_> {
                 }
 
                 // Register fold toggle click target for foldable cells.
-                // Use the first visible row (header) as the click region.
-                if item.is_fold_toggleable() && visible_height > 0 && item_area.width > 0 {
-                    let header_y = item_area.y;
+                // Cover the gutter fold indicator area (gutter x, below gutter symbol).
+                if item.is_fold_toggleable() && visible_height > 0 {
+                    let gutter_x = content_area.x;
                     self.clickable_regions.borrow_mut().push(
                         crate::chatwidget::ClickableRegion {
                             rect: Rect::new(
-                                item_area.x,
-                                header_y,
-                                item_area.width.max(3),
-                                2.min(item_area.height.max(1)),
+                                gutter_x,
+                                item_area.y,
+                                GUTTER_WIDTH,
+                                2.min(visible_height).max(1),
                             ),
                             action: crate::chatwidget::ClickableAction::ToggleFoldAtIndex(idx),
                         },
@@ -516,49 +540,51 @@ impl ChatWidget<'_> {
                     );
                 }
 
-                // Copy-as-markdown button: show a clipboard icon on the right side
-                // of the first visible row for cells that have copyable content.
-                if visible_height > 0
-                    && item_area.width >= 5
+                // Copy-as-markdown button: only visible when mouse hovers over
+                // this cell's area. Indented 1 row down and 2 cols from right edge.
+                if visible_height > 2
+                    && item_area.width >= 8
                     && item.copyable_markdown().is_some()
                 {
-                    let label = crate::icons::copy_content();
-                    let label_w = {
-                        use unicode_width::UnicodeWidthStr as _;
-                        label.width() as u16
-                    };
-                    // Place to the left of the dismiss button if present, else at right edge.
-                    let dismiss_offset = if matches!(
-                        item_kind,
-                        crate::history_cell::HistoryCellType::BackgroundEvent
-                    ) {
-                        crate::icons::dismiss().len() as u16 + 1
-                    } else {
-                        0
-                    };
-                    let x = item_area
-                        .x
-                        .saturating_add(item_area.width)
-                        .saturating_sub(label_w + dismiss_offset);
-                    let y = item_area.y;
-                    let action = crate::chatwidget::ClickableAction::CopyMarkdownAtIndex(idx);
-                    let hovered = self.hovered_clickable_action.borrow().as_ref() == Some(&action);
-                    let style = if hovered {
-                        Style::default()
-                            .bg(crate::colors::background())
-                            .fg(crate::colors::primary())
-                    } else {
-                        Style::default()
-                            .bg(crate::colors::background())
-                            .fg(crate::colors::text_dim())
-                    };
-                    buf.set_string(x, y, label, style);
-                    self.clickable_regions.borrow_mut().push(
-                        crate::chatwidget::ClickableRegion {
-                            rect: Rect::new(x, y, label_w.max(1), 1),
-                            action,
-                        },
-                    );
+                    let mouse_in_cell = self.last_mouse_pos.get().is_some_and(|(mx, my)| {
+                        mx >= item_area.x
+                            && mx < item_area.x.saturating_add(item_area.width)
+                            && my >= item_area.y
+                            && my < item_area.y.saturating_add(visible_height)
+                    });
+                    if mouse_in_cell {
+                        let label = crate::icons::copy_content();
+                        let label_w = {
+                            use unicode_width::UnicodeWidthStr as _;
+                            label.width() as u16
+                        };
+                        // Inset: 1 row from top, 2 cols from right.
+                        let x = item_area
+                            .x
+                            .saturating_add(item_area.width)
+                            .saturating_sub(label_w + 2);
+                        let y = item_area.y.saturating_add(1);
+                        if y < item_area.y.saturating_add(visible_height) {
+                            let action = crate::chatwidget::ClickableAction::CopyMarkdownAtIndex(idx);
+                            let hovered = self.hovered_clickable_action.borrow().as_ref() == Some(&action);
+                            let style = if hovered {
+                                Style::default()
+                                    .bg(crate::colors::background())
+                                    .fg(crate::colors::primary())
+                            } else {
+                                Style::default()
+                                    .bg(crate::colors::background())
+                                    .fg(crate::colors::text_dim())
+                            };
+                            buf.set_string(x, y, label, style);
+                            self.clickable_regions.borrow_mut().push(
+                                crate::chatwidget::ClickableRegion {
+                                    rect: Rect::new(x, y, label_w.max(1), 1),
+                                    action,
+                                },
+                            );
+                        }
+                    }
                 }
 
                 if self.show_order_overlay
