@@ -97,6 +97,8 @@ impl StatusLineSetupView {
             ),
         ]));
 
+        let header_lines = lines.len() as u16; // 5 header lines
+
         for (idx, choice) in self.choices_for_active_lane().iter().enumerate() {
             let selected = idx == self.selected_index_for_active_lane();
             let marker = if choice.enabled {
@@ -127,20 +129,57 @@ impl StatusLineSetupView {
             lines.push(line);
         }
 
-        let paragraph = Paragraph::new(lines).style(
-            Style::default()
-                .bg(crate::colors::background())
-                .fg(crate::colors::text()),
-        );
-        paragraph.render(
-            Rect {
-                x: inner.x.saturating_add(1),
-                y: inner.y,
-                width: inner.width.saturating_sub(2),
-                height: inner.height,
-            },
-            buf,
-        );
+        let content = Rect {
+            x: inner.x.saturating_add(1),
+            y: inner.y,
+            width: inner.width.saturating_sub(2),
+            height: inner.height,
+        };
+
+        // Ensure selected row is visible
+        let total_lines = lines.len() as u16;
+        let max_scroll = total_lines.saturating_sub(content.height);
+        let mut scroll = self.scroll_offset.get().min(max_scroll);
+        let selected_line = header_lines + self.selected_index_for_active_lane() as u16;
+        if selected_line < scroll {
+            scroll = selected_line.saturating_sub(1);
+        }
+        if selected_line >= scroll.saturating_add(content.height) {
+            scroll = selected_line.saturating_sub(content.height).saturating_add(2);
+        }
+        self.scroll_offset.set(scroll.min(max_scroll));
+
+        let paragraph = Paragraph::new(lines)
+            .scroll((self.scroll_offset.get(), 0))
+            .style(
+                Style::default()
+                    .bg(crate::colors::background())
+                    .fg(crate::colors::text()),
+            );
+        paragraph.render(content, buf);
+
+        // Scroll indicators
+        if total_lines > content.height && content.width > 1 {
+            let indicator_x = content.x.saturating_add(content.width);
+            let s = self.scroll_offset.get();
+            if s > 0 {
+                buf.set_string(
+                    indicator_x,
+                    content.y,
+                    crate::icons::arrow_up(),
+                    Style::default().fg(crate::colors::light_blue()),
+                );
+            }
+            if s < max_scroll {
+                let bottom_y = content.y.saturating_add(content.height.saturating_sub(1));
+                buf.set_string(
+                    indicator_x,
+                    bottom_y,
+                    crate::icons::arrow_down(),
+                    Style::default().fg(crate::colors::light_blue()),
+                );
+            }
+        }
     }
 }
 

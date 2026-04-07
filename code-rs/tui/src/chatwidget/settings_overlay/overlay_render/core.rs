@@ -17,6 +17,74 @@ impl SettingsOverlayView {
         let inner = block.inner(area);
         block.render(area, buf);
 
+        // Render close button as an inset box in the top-right corner:
+        //   ────┬───┐
+        //       │ ✕ │
+        //       └───┤
+        {
+            let dismiss_glyph = crate::icons::dismiss();
+            // Box is 5 chars wide: "│ ✕ │" (border + space + glyph + space + border)
+            let box_w: u16 = 5;
+            let border_style = Style::default()
+                .fg(crate::colors::border())
+                .bg(crate::colors::background());
+            let bg = Style::default().bg(crate::colors::background());
+
+            // Position: right edge shares the outer border's right column
+            let right_edge = area.x.saturating_add(area.width).saturating_sub(1);
+            let box_left = right_edge.saturating_sub(box_w.saturating_sub(1));
+            let box_top = area.y; // top border row
+
+            if box_left > area.x + 2 && area.height > 3 {
+                // Top border row: draw ┬ at box_left, border fills stay from Block
+                buf.set_string(box_left, box_top, "┬", border_style);
+
+                // Content row (one below top border)
+                let content_y = box_top + 1;
+                buf.set_string(box_left, content_y, "│", border_style);
+                // Clear inside and draw glyph
+                for dx in 1..box_w.saturating_sub(1) {
+                    let cx = box_left + dx;
+                    if cx < right_edge {
+                        let cell = &mut buf[(cx, content_y)];
+                        cell.set_symbol(" ");
+                        cell.set_style(bg);
+                    }
+                }
+                // The right edge column is the outer border's │ — it stays as-is.
+                let glyph_x = box_left + 2; // center of the 5-wide box
+                buf.set_string(
+                    glyph_x,
+                    content_y,
+                    dismiss_glyph,
+                    Style::default()
+                        .fg(crate::colors::text_dim())
+                        .bg(crate::colors::background()),
+                );
+
+                // Bottom border row of the mini box
+                let bottom_y = content_y + 1;
+                buf.set_string(box_left, bottom_y, "└", border_style);
+                for dx in 1..box_w.saturating_sub(1) {
+                    let cx = box_left + dx;
+                    if cx < right_edge {
+                        buf.set_string(cx, bottom_y, "─", border_style);
+                    }
+                }
+                buf.set_string(right_edge, bottom_y, "┤", border_style);
+
+                // Hit area covers the visible box (content row is the click target)
+                *self.last_close_button_area.borrow_mut() = Rect {
+                    x: box_left,
+                    y: box_top,
+                    width: box_w,
+                    height: 3, // top border + content + bottom border
+                };
+            } else {
+                *self.last_close_button_area.borrow_mut() = Rect::default();
+            }
+        }
+
         let bg = Style::default().bg(crate::colors::background());
         for y in inner.y..inner.y.saturating_add(inner.height) {
             for x in inner.x..inner.x.saturating_add(inner.width) {

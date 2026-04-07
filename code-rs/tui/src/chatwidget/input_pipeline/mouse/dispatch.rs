@@ -24,6 +24,10 @@ impl ChatWidget<'_> {
                 height: self.layout.last_frame_height.get(),
             };
             let changed = overlay.handle_mouse_event(mouse_event, terminal_area);
+            if overlay.close_requested.get() {
+                self.close_settings_overlay();
+                return;
+            }
             if changed {
                 self.sync_limits_layout_mode_preference();
                 self.request_redraw();

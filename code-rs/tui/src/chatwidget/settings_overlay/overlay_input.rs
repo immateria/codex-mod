@@ -28,6 +28,18 @@ impl SettingsOverlayView {
             return false;
         }
 
+        // Check close button click
+        if matches!(mouse_event.kind, MouseEventKind::Down(MouseButton::Left)) {
+            let close_area = *self.last_close_button_area.borrow();
+            if close_area.width > 0
+                && close_area.height > 0
+                && contains_point(close_area, mouse_event.column, mouse_event.row)
+            {
+                self.close_requested.set(true);
+                return true;
+            }
+        }
+
         if self.is_menu_active() {
             self.handle_menu_mouse_event(mouse_event)
         } else {

@@ -113,6 +113,10 @@ pub(crate) struct SettingsOverlayView {
     sidebar_collapsed: Cell<bool>,
     /// Rectangle of the sidebar toggle button for mouse hit testing.
     last_sidebar_toggle_area: RefCell<Rect>,
+    /// Rectangle of the close button [x] in the title bar for mouse hit testing.
+    last_close_button_area: RefCell<Rect>,
+    /// Set when the user clicks the close button; the parent reads and clears.
+    pub(crate) close_requested: Cell<bool>,
 }
 
 impl SettingsOverlayView {
@@ -163,6 +167,8 @@ impl SettingsOverlayView {
             hovered_section: RefCell::new(None),
             sidebar_collapsed: Cell::new(false),
             last_sidebar_toggle_area: RefCell::new(Rect::default()),
+            last_close_button_area: RefCell::new(Rect::default()),
+            close_requested: Cell::new(false),
         }
     }
 

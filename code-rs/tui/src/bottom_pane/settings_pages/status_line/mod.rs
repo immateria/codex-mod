@@ -53,4 +53,6 @@ pub(crate) struct StatusLineSetupView {
     active_lane: StatusLineLane,
     primary_lane: StatusLineLane,
     complete: bool,
+    /// Scroll offset for when content exceeds viewport height.
+    scroll_offset: std::cell::Cell<u16>,
 }

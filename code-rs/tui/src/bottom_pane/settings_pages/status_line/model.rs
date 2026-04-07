@@ -25,6 +25,7 @@ impl StatusLineSetupView {
             active_lane: initial_lane,
             primary_lane,
             complete: false,
+            scroll_offset: std::cell::Cell::new(0),
         }
     }
 
