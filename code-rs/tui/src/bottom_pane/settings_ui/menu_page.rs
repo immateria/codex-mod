@@ -11,6 +11,7 @@ use crate::live_wrap::RowBuilder;
 use crate::ui_interaction::split_header_body_footer;
 use crate::util::buffer::{fill_rect, write_line};
 
+use super::hints::{shortcut_line, KeyHint};
 use super::line_runs::{
     render_selectable_runs,
     SelectableLineRun,
@@ -26,9 +27,11 @@ use super::sectioned_panel::{SettingsSectionedPanel, SettingsSectionedPanelLayou
 
 #[derive(Clone, Debug)]
 pub(crate) struct SettingsMenuPage<'a> {
-    panel: SettingsSectionedPanel<'a>,
+    title: Cow<'a, str>,
+    style: SettingsPanelStyle,
     header_lines: Vec<Line<'static>>,
     footer_lines: Vec<Line<'static>>,
+    shortcut_hints: Vec<KeyHint<'static>>,
     render_detail_pane: bool,
 }
 
@@ -47,20 +50,19 @@ impl<'a> SettingsMenuPage<'a> {
         header_lines: Vec<Line<'static>>,
         footer_lines: Vec<Line<'static>>,
     ) -> Self {
-        let panel = SettingsSectionedPanel::new(
-            title,
-            style,
-            header_lines.len(),
-            footer_lines.len(),
-        )
-        .with_min_body_rows(2);
-
         Self {
-            panel,
+            title: title.into(),
+            style,
             header_lines,
             footer_lines,
+            shortcut_hints: Vec::new(),
             render_detail_pane: false,
         }
+    }
+
+    pub(crate) fn with_shortcuts(mut self, shortcut_hints: Vec<KeyHint<'static>>) -> Self {
+        self.shortcut_hints = shortcut_hints;
+        self
     }
 
     pub(crate) fn with_detail_pane(mut self) -> Self {
@@ -76,12 +78,27 @@ impl<'a> SettingsMenuPage<'a> {
         SettingsMenuPageContentOnly { page: self }
     }
 
+    fn sectioned_panel(&self) -> SettingsSectionedPanel<'_> {
+        SettingsSectionedPanel::new(
+            self.title.clone(),
+            self.style,
+            self.header_lines.len(),
+            self.footer_line_count(),
+        )
+        .with_min_body_rows(2)
+    }
+
     fn layout_framed(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
-        self.panel.layout(area)
+        self.sectioned_panel().layout(area)
     }
 
     fn layout_content(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
-        split_header_body_footer(area, self.header_lines.len(), self.footer_lines.len(), 1)
+        split_header_body_footer(
+            area,
+            self.header_lines.len(),
+            self.footer_line_count(),
+            1,
+        )
             .map(Into::into)
     }
 
@@ -90,10 +107,11 @@ impl<'a> SettingsMenuPage<'a> {
         area: Rect,
         buf: &mut Buffer,
     ) -> Option<SettingsSectionedPanelLayout> {
-        let layout = self.panel.render(area, buf)?;
+        let layout = self.sectioned_panel().render(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
         render_lines(layout.header, buf, &self.header_lines, base);
-        render_lines(layout.footer, buf, &self.footer_lines, base);
+        let footer_lines = self.combined_footer_lines();
+        render_lines(layout.footer, buf, &footer_lines, base);
         Some(layout)
     }
 
@@ -106,8 +124,23 @@ impl<'a> SettingsMenuPage<'a> {
         let base = Style::new().bg(colors::background()).fg(colors::text());
         fill_rect(buf, area, Some(' '), base);
         render_lines(layout.header, buf, &self.header_lines, base);
-        render_lines(layout.footer, buf, &self.footer_lines, base);
+        let footer_lines = self.combined_footer_lines();
+        render_lines(layout.footer, buf, &footer_lines, base);
         Some(layout)
+    }
+
+    fn footer_line_count(&self) -> usize {
+        self.footer_lines
+            .len()
+            .saturating_add(usize::from(!self.shortcut_hints.is_empty()))
+    }
+
+    fn combined_footer_lines(&self) -> Vec<Line<'static>> {
+        let mut lines = self.footer_lines.clone();
+        if !self.shortcut_hints.is_empty() {
+            lines.push(shortcut_line(&self.shortcut_hints));
+        }
+        lines
     }
 
     pub(crate) fn selection_menu_id_in_body<Id: Copy + PartialEq>(

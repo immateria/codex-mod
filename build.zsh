@@ -21,8 +21,6 @@ CODE_RS_DIR="${WORKSPACE_ROOT}/code-rs"
 # Build configuration variables
 PLATFORM="${PLATFORM:-native}"
 BUILD_MODE="debug"
-BUILD_FLAGS=()
-CARGO_BUILD_FLAGS=()
 
 # Color output
 typeset -r RED='\033[0;31m'
@@ -31,26 +29,22 @@ typeset -r YELLOW='\033[1;33m'
 typeset -r BLUE='\033[0;34m'
 typeset -r NC='\033[0m'
 
-# Helper functions
-function log-info
-{   print "${BLUE}ℹ${NC} $*"
-}
 
-function log-success
-{print "${GREEN}✓${NC} $*"
-}
+function .log.info
+{ print "${BLUE}ℹ${NC} $*" }
 
-function log-warn
-{	print "${YELLOW}⚠${NC} $*"
-}
+function .log.success
+{ print "${GREEN}✓${NC} $*" }
 
-function log-error
-{	print "${RED}✗${NC} $*" >&2
-}
+function .log.warn
+{ print "${YELLOW}⚠${NC} $*" }
+
+function ..log.error
+{ print "${RED}✗${NC} $*" >&2 }
 
 function show-usage
 {   emulate -L zsh
-  	cat << 'EOF'
+      cat << 'EOF'
 Build script for code - Multi-platform build orchestration
 
 USAGE:
@@ -96,7 +90,7 @@ function parse-args
             platform=*)
                 PLATFORM="${arg#platform=}"
                 ;;
-				
+                
             --release)
                 BUILD_MODE="release"
                 CARGO_BUILD_FLAGS+=("--release")
@@ -112,7 +106,7 @@ function parse-args
                 ;;
 
             *)
-                log-error "Unknown argument: ${arg}"
+                .log.error "Unknown argument: ${arg}"
                 show-usage
                 exit 1
                 ;;
@@ -122,13 +116,13 @@ function parse-args
 
 # Validate platform
 function validate-platform
-{	emulate -L zsh
+{    emulate -L zsh
 
-	case "$PLATFORM" in
+    case "$PLATFORM" in
         native|android) return 0 ;;
         
-		*)
-            log-error "Unknown platform: ${PLATFORM}"
+        *)
+            .log.error "Unknown platform: ${PLATFORM}"
             print     "Supported platforms: native, android"
             exit 1
             ;;
@@ -153,7 +147,7 @@ function resolve-toolchain
 function setup-android-env
 {   emulate -L zsh
 
-    log-info "Setting up Android build environment..."
+    .log.info "Setting up Android build environment..."
 
     # Android builds are expected to use the "small build" feature set by
     # default (see docs/architecture/termux_support.md).
@@ -172,56 +166,56 @@ function setup-android-env
     
     BUILD_FLAGS+=("--target" "aarch64-linux-android")
     
-    log-success "Android environment ready"
+    .log.success "Android environment ready"
 }
 
 
 function setup-native-env
-{	log-info "Setting up native build environment..."
+{    .log.info "Setting up native build environment..."
     # Native builds don't need special setup
-    log-success "Native environment ready"
+    .log.success "Native environment ready"
 }
 
 # Validate environment
 function validate-env
 {   emulate -L zsh
 
-    log-info "Validating environment..."
+    .log.info "Validating environment..."
 
     if [[ ! -d "$CODE_RS_DIR" ]]; then
-        log-error "code-rs directory not found at $CODE_RS_DIR"
+        .log.error "code-rs directory not found at $CODE_RS_DIR"
         exit 1
     fi
 
     if ! command -v rustup &> /dev/null; then
-        log-error  "rustup not found. Please install Rust."
+        .log.error  "rustup not found. Please install Rust."
         exit 1
     fi
 
     if ! command -v cargo &> /dev/null; then
-        log-error  "cargo not found. Please install Rust."
+        .log.error  "cargo not found. Please install Rust."
         exit 1
     fi
 
     if [[ "$PLATFORM" == "android" ]]; then
-        log-info "Ensuring rust target is installed for toolchain: ${TOOLCHAIN}"
+        .log.info "Ensuring rust target is installed for toolchain: ${TOOLCHAIN}"
         rustup target add --toolchain "${TOOLCHAIN}" aarch64-linux-android
 
         if [[ ! -d "/opt/homebrew/share/android-ndk" ]]; then
-            log-error "Android NDK not found at /opt/homebrew/share/android-ndk"
-            log-info  "Install with: brew install android-ndk"
+            .log.error "Android NDK not found at /opt/homebrew/share/android-ndk"
+            .log.info  "Install with: brew install android-ndk"
             exit 1
         fi
     fi
     
-    log-success "Environment validated"
+    .log.success "Environment validated"
 }
 
 # Perform the build
 function perform-build
 {   emulate -L zsh
 
-	typeset OUTPUT_DIR BINARY_SIZE BINARY_TYPE
+    typeset OUTPUT_DIR BINARY_SIZE BINARY_TYPE CARGO_BIN RUSTC_BIN
             OUTPUT_DIR="${CODE_RS_DIR}/target"
     
     if [[ "${PLATFORM}" == "android" ]]; then
@@ -234,16 +228,15 @@ function perform-build
         OUTPUT_DIR="${OUTPUT_DIR}/debug"
     fi
     
-    log-info "Building code for ${PLATFORM} in ${BUILD_MODE} mode..."
-    log-info "Output will be: ${OUTPUT_DIR}/code"
+    .log.info "Building code for ${PLATFORM} in ${BUILD_MODE} mode..."
+    .log.info "Output will be: ${OUTPUT_DIR}/code"
     
     cd "${CODE_RS_DIR}"
     
     # Build with appropriate flags
-	log-info "Running: cargo build -p code-cli --bin code ${BUILD_FLAGS} ${CARGO_BUILD_FLAGS}"
+    .log.info "Running: cargo build -p code-cli --bin code ${BUILD_FLAGS} ${CARGO_BUILD_FLAGS}"
     
     # For Android, ensure all environment variables are passed to cargo
-    typeset CARGO_BIN RUSTC_BIN
     CARGO_BIN="$(rustup which cargo --toolchain "${TOOLCHAIN}")"
     RUSTC_BIN="$(rustup which rustc --toolchain "${TOOLCHAIN}")"
     if [[ "${PLATFORM}" == "android" ]]; then
@@ -252,22 +245,23 @@ function perform-build
             --bin code                                                                                      \
             $BUILD_FLAGS                                                                                    \
             $CARGO_BUILD_FLAGS; then
-            	log-error "Build failed"
-            	exit 1
+                .log.error "Build failed"
+                exit 1
         fi
+
     else
-	        if ! env RUSTC="${RUSTC_BIN}" "${CARGO_BIN}" build -p code-cli \
-            --bin code                     \
-            $BUILD_FLAGS                   \
+            if ! env RUSTC="${RUSTC_BIN}" "${CARGO_BIN}" build -p code-cli \
+            --bin code                                                     \
+            $BUILD_FLAGS                                                   \
             $CARGO_BUILD_FLAGS; then
-            log-error "Build failed"
+            .log.error "Build failed"
             exit 1
         fi
     fi
     
     # Verify output
     if [[ ! -f "${OUTPUT_DIR}/code" ]]; then
-        log-error "Binary not found at ${OUTPUT_DIR}/code"
+        .log.error "Binary not found at ${OUTPUT_DIR}/code"
         exit 1
     fi
     
@@ -275,41 +269,41 @@ function perform-build
     BINARY_SIZE=${${"$(ls -lh --  "${OUTPUT_DIR}/code")"}[(w)5]}
     BINARY_TYPE=${"$(file     --  "${OUTPUT_DIR}/code")"#*:}
     
-    log-success "Build completed successfully!"
-    log-info "Binary size: ${BINARY_SIZE}"
-    log-info "Binary type: ${BINARY_TYPE}"
+    .log.success "Build completed successfully!"
+    .log.info "Binary size: ${BINARY_SIZE}"
+    .log.info "Binary type: ${BINARY_TYPE}"
     
     # Show platform-specific next steps
-	    case "${PLATFORM}" in
-	        android)
-	            print
-	            log-info "Android binary ready for deployment to Termux:"
-	            log-info "  adb push '${OUTPUT_DIR}/code' /sdcard/Download/code"
-	            log-info "  adb shell chmod +x /sdcard/Download/code"
-	            log-info "  # In Termux (once): termux-setup-storage"
-	            log-info "  # In Termux: cp ~/storage/downloads/code \"$PREFIX/bin/code\" && chmod +x \"$PREFIX/bin/code\""
-	            log-info "  # In Termux: code --version"
-	            ;;
+        case "${PLATFORM}" in
+            android)
+                print
+                .log.info "Android binary ready for deployment to Termux:"
+                .log.info "  adb push '${OUTPUT_DIR}/code' /sdcard/Download/code"
+                .log.info "  adb shell chmod +x /sdcard/Download/code"
+                .log.info "  # In Termux (once): termux-setup-storage"
+                .log.info "  # In Termux: cp ~/storage/downloads/code \"$PREFIX/bin/code\" && chmod +x \"$PREFIX/bin/code\""
+                .log.info "  # In Termux: code --version"
+                ;;
 
         native)
             print
-            log-info "Native binary ready:"
-            log-info "  ${OUTPUT_DIR}/code"
+            .log.info "Native binary ready:"
+            .log.info "  ${OUTPUT_DIR}/code"
     esac
 }
 
 function main
-{	emulate -L zsh
+{    emulate -L zsh
 
-	log-info "Code build system"
+    .log.info "Code build system"
     
     parse-args "$@"
     
     validate-platform
     resolve-toolchain
-    log-info "Platform:   ${PLATFORM}"
-    log-info "Build mode: ${BUILD_MODE}"
-    log-info "Toolchain:  ${TOOLCHAIN}"
+    .log.info "Platform:   ${PLATFORM}"
+    .log.info "Build mode: ${BUILD_MODE}"
+    .log.info "Toolchain:  ${TOOLCHAIN}"
     
     validate-env
     

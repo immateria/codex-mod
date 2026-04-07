@@ -2,7 +2,10 @@ use super::*;
 
 use crate::colors;
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, status_and_shortcuts, status_and_shortcuts_split, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{
+    hint_enter, hint_esc, key_ctrl, key_space, key_tab, status_and_shortcuts,
+    status_and_shortcuts_split, KeyHint,
+};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -56,8 +59,8 @@ impl AutoDriveSettingsView {
         let (status_lines, footer_lines) = status_and_shortcuts_split(
             status,
             &[
-                KeyHint::new("Tab", " next field"),
-                KeyHint::new("Space", " toggle"),
+                KeyHint::new(key_tab(), " next field"),
+                KeyHint::new(key_space(), " toggle"),
                 hint_enter(" save/activate"),
                 hint_esc(" back"),
             ],
@@ -87,7 +90,7 @@ impl AutoDriveSettingsView {
                 hint_enter(" select/toggle"),
                 KeyHint::new("←/→", " adjust delay"),
                 hint_esc(" close"),
-                KeyHint::new("Ctrl+S", " close"),
+                KeyHint::new(key_ctrl("S"), " close"),
             ],
         )
     }
@@ -99,7 +102,7 @@ impl AutoDriveSettingsView {
                 .map(|message| crate::bottom_pane::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
             &[
                 hint_enter(" edit/add"),
-                KeyHint::new("Space", " toggle enabled"),
+                KeyHint::new(key_space(), " toggle enabled"),
                 KeyHint::new("D", " remove"),
                 hint_esc(" back"),
             ],

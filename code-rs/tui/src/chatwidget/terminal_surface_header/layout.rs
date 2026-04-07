@@ -78,14 +78,27 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             }
         };
 
+        let title_action = ClickableAction::OpenSettings;
+        let title_is_hovered = input
+            .hovered_action
+            .as_ref()
+            .is_some_and(|hovered| hovered == &title_action);
+        let title_start = width;
         push_text(
             &mut spans,
             &mut width,
             input.title,
-            Style::default()
-                .fg(crate::colors::text())
-                .add_modifier(Modifier::BOLD),
+            apply_hover_style(
+                Style::default()
+                    .fg(crate::colors::text())
+                    .add_modifier(Modifier::BOLD),
+                input.hover_style,
+                title_is_hovered,
+            ),
         );
+        if width > title_start {
+            ranges.push((title_start..width, title_action));
+        }
 
         if include_model {
             push_separator(&mut spans, &mut width);

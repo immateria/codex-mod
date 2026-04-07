@@ -155,9 +155,12 @@ mod imp {
             lines.push(Line::from(vec![
                 Span::styled("↑↓/jk", Style::default().fg(crate::colors::function())),
                 Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Enter", Style::default().fg(crate::colors::function())),
+                Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::function())),
                 Span::styled(" select  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Esc/q", Style::default().fg(crate::colors::function())),
+                Span::styled(
+                    format!("{}/q", crate::icons::escape()),
+                    Style::default().fg(crate::colors::function()),
+                ),
                 Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
             ]));
 

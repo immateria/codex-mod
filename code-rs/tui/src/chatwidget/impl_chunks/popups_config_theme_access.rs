@@ -151,15 +151,18 @@ impl ChatWidget<'_> {
                 RtSpan::styled(v.to_string(), t_dim),
             ])
         };
+        let ctrl = |key: &str| crate::icons::ctrl_combo(key);
+        let alt = |key: &str| crate::icons::alt_combo(key);
+        let shift = |key: &str| crate::icons::shift_combo(key);
         // Top quick action
         lines.push(kv(
-            "Alt+A / Shift+Tab",
+            &format!("{} / {}", alt("A"), crate::icons::reverse_tab()),
             "Cycle access mode (Read Only / Approval / Full Access)",
         ));
 
         // Global
         let hotkeys = self.config.tui.hotkeys.effective_for_runtime();
-        lines.push(kv("Ctrl+/ / F1", "Help overlay"));
+        lines.push(kv(&format!("{} / F1", ctrl("/")), "Help overlay"));
         let model_hotkey = hotkeys.model_selector.display_name();
         lines.push(kv(
             model_hotkey.as_ref(),
@@ -207,15 +210,15 @@ impl ChatWidget<'_> {
             &jump_child_hotkey,
             "Jump to latest spawned tool call (composer empty)",
         ));
-        lines.push(kv("Ctrl+G", "Open external editor"));
-        lines.push(kv("Ctrl+R", "Toggle reasoning"));
-        lines.push(kv("Ctrl+T", "Toggle screen"));
-        lines.push(kv("Ctrl+D", "Diff viewer"));
-        lines.push(kv("Esc", &format!("{} / close popups", Self::double_esc_hint_label())));
+        lines.push(kv(&ctrl("G"), "Open external editor"));
+        lines.push(kv(&ctrl("R"), "Toggle reasoning"));
+        lines.push(kv(&ctrl("T"), "Toggle screen"));
+        lines.push(kv(&ctrl("D"), "Diff viewer"));
+        lines.push(kv(crate::icons::escape(), &format!("{} / close popups", Self::double_esc_hint_label())));
         // Task control shortcuts
-        lines.push(kv("Esc", "End current task"));
-        lines.push(kv("Ctrl+C", "End current task"));
-        lines.push(kv("Ctrl+C twice", "Quit"));
+        lines.push(kv(crate::icons::escape(), "End current task"));
+        lines.push(kv(&ctrl("C"), "End current task"));
+        lines.push(kv(&format!("{} twice", ctrl("C")), "Quit"));
         lines.push(RtLine::from(""));
 
         // Composer
@@ -223,21 +226,30 @@ impl ChatWidget<'_> {
             "Compose field",
             t_fg.add_modifier(Modifier::BOLD),
         )]));
-        lines.push(kv("Enter", "Send message"));
-        lines.push(kv("Ctrl+J / Shift+Enter", "Insert newline"));
-        lines.push(kv("Ctrl+P / Shift+Up", "Previous input history"));
-        lines.push(kv("Ctrl+N / Shift+Down", "Next input history"));
-        lines.push(kv("Ctrl+B", "Move left"));
-        lines.push(kv("Ctrl+F", "Move right"));
-        lines.push(kv("Alt+Left", "Move by word"));
-        lines.push(kv("Alt+Right", "Move by word"));
+        lines.push(kv(crate::icons::enter(), "Send message"));
+        lines.push(kv(
+            &format!("{} / {}", ctrl("J"), shift(crate::icons::enter())),
+            "Insert newline",
+        ));
+        lines.push(kv(
+            &format!("{} / {}", ctrl("P"), shift("Up")),
+            "Previous input history",
+        ));
+        lines.push(kv(
+            &format!("{} / {}", ctrl("N"), shift("Down")),
+            "Next input history",
+        ));
+        lines.push(kv(&ctrl("B"), "Move left"));
+        lines.push(kv(&ctrl("F"), "Move right"));
+        lines.push(kv(&alt("Left"), "Move by word"));
+        lines.push(kv(&alt("Right"), "Move by word"));
         // Simplify delete shortcuts; remove Alt+Backspace/Backspace/Delete variants
-        lines.push(kv("Ctrl+W", "Delete previous word"));
-        lines.push(kv("Ctrl+H", "Delete previous char"));
-        lines.push(kv("Ctrl+D", "Delete next char"));
-        lines.push(kv("Ctrl+Backspace", "Delete current line"));
-        lines.push(kv("Ctrl+U", "Delete to line start"));
-        lines.push(kv("Ctrl+K", "Delete to line end"));
+        lines.push(kv(&ctrl("W"), "Delete previous word"));
+        lines.push(kv(&ctrl("H"), "Delete previous char"));
+        lines.push(kv(&ctrl("D"), "Delete next char"));
+        lines.push(kv(&ctrl(crate::icons::backspace()), "Delete current line"));
+        lines.push(kv(&ctrl("U"), "Delete to line start"));
+        lines.push(kv(&ctrl("K"), "Delete to line end"));
         lines.push(kv(
             "Home/End",
             "Jump to line start/end (jump to history start/end when input is empty)",
@@ -258,8 +270,8 @@ impl ChatWidget<'_> {
             "Panels",
             t_fg.add_modifier(Modifier::BOLD),
         )]));
-        lines.push(kv("Ctrl+B", "Toggle Browser overlay"));
-        lines.push(kv("Ctrl+A", "Open Agents terminal"));
+        lines.push(kv(&ctrl("B"), "Toggle Browser overlay"));
+        lines.push(kv(&ctrl("A"), "Open Agents terminal"));
 
         // Slash command reference
         lines.push(RtLine::from(""));

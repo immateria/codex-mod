@@ -166,7 +166,7 @@ fn list_click_add_new_enters_edit_mode() {
 
     let list_area = SkillsSettingsView::list_area_framed(area);
     let click = mouse_left_click(list_area.x.saturating_add(1), list_area.y);
-    assert!(view.framed_mut().handle_mouse_event_direct(click, area));
+    assert!(view.handle_mouse_event_direct_framed(click, area));
     assert!(matches!(view.mode, Mode::Edit));
     assert!(matches!(view.editor.focus, Focus::Name));
 }
@@ -177,7 +177,7 @@ fn content_only_list_mouse_geometry_differs_from_framed() {
     let click = mouse_left_click(area.x.saturating_add(1), area.y.saturating_add(3));
 
     let mut framed_view = make_view(HashMap::new());
-    assert!(!framed_view.framed_mut().handle_mouse_event_direct(click, area));
+    assert!(!framed_view.handle_mouse_event_direct_framed(click, area));
     assert!(matches!(framed_view.mode, Mode::List));
 
     let mut content_view = make_view(HashMap::new());
@@ -212,7 +212,7 @@ fn edit_click_focuses_style_mcp_include_field() {
         layout.style_mcp_include_inner.x.saturating_add(1),
         layout.style_mcp_include_inner.y.saturating_add(1),
     );
-    assert!(view.framed_mut().handle_mouse_event_direct(click, area));
+    assert!(view.handle_mouse_event_direct_framed(click, area));
     assert!(matches!(view.editor.focus, Focus::StyleMcpInclude));
 }
 
@@ -233,7 +233,7 @@ fn scrolling_body_field_with_mouse_moves_cursor() {
         layout.body_inner.x.saturating_add(1),
         layout.body_inner.y.saturating_add(1),
     );
-    assert!(view.framed_mut().handle_mouse_event_direct(click, area));
+    assert!(view.handle_mouse_event_direct_framed(click, area));
     assert!(matches!(view.editor.focus, Focus::Body));
 
     let before = view.editor.body_field.cursor();
@@ -241,7 +241,7 @@ fn scrolling_body_field_with_mouse_moves_cursor() {
         layout.body_inner.x.saturating_add(1),
         layout.body_inner.y.saturating_add(1),
     );
-    assert!(view.framed_mut().handle_mouse_event_direct(scroll_down, area));
+    assert!(view.handle_mouse_event_direct_framed(scroll_down, area));
     let after = view.editor.body_field.cursor();
     assert!(after > before);
 }
@@ -264,14 +264,14 @@ fn mouse_move_updates_button_hover_state() {
         )
         .saturating_add(1);
     let hover_save = mouse_move(save_x, layout.buttons_row.y);
-    assert!(view.framed_mut().handle_mouse_event_direct(hover_save, area));
+    assert!(view.handle_mouse_event_direct_framed(hover_save, area));
     assert_eq!(view.editor.hovered_button, Some(ActionButton::Save));
 
     let hover_body = mouse_move(
         layout.body_inner.x.saturating_add(1),
         layout.body_inner.y.saturating_add(1),
     );
-    assert!(view.framed_mut().handle_mouse_event_direct(hover_body, area));
+    assert!(view.handle_mouse_event_direct_framed(hover_body, area));
     assert_eq!(view.editor.hovered_button, None);
 }
 
@@ -310,4 +310,3 @@ fn edit_focus_scroll_uses_last_render_chrome_mode() {
     )));
     assert!(view.editor.edit_scroll_top > 0);
 }
-

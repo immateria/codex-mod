@@ -70,10 +70,10 @@ impl ThemeSelectionView {
             Span::styled("▲ ▼ ◀ ▶", t_fg),
             Span::styled(" select ", t_dim),
             Span::styled("——— ", t_dim),
-            Span::styled("Enter", t_fg),
+            Span::styled(crate::icons::enter(), t_fg),
             Span::styled(" choose ", t_dim),
             Span::styled("——— ", t_dim),
-            Span::styled("Esc", t_fg),
+            Span::styled(crate::icons::escape(), t_fg),
         ]);
         if matches!(self.mode, Mode::Overview) {
             title_spans.push(Span::styled(" close ", t_dim));
@@ -133,10 +133,10 @@ impl ThemeSelectionView {
             Span::styled("▲ ▼ ◀ ▶", t_fg),
             Span::styled(" select ", t_dim),
             Span::styled("——— ", t_dim),
-            Span::styled("Enter", t_fg),
+            Span::styled(crate::icons::enter(), t_fg),
             Span::styled(" choose ", t_dim),
             Span::styled("——— ", t_dim),
-            Span::styled("Esc", t_fg),
+            Span::styled(crate::icons::escape(), t_fg),
         ]);
         if matches!(self.mode, Mode::Overview) {
             spans.push(Span::styled(" close ", t_dim));

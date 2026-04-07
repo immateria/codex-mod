@@ -5,7 +5,9 @@ use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
-use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{
+    hint_esc, hint_enter, hint_nav, key_ctrl, shortcut_line, KeyHint,
+};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::message_page::SettingsMessagePage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -23,15 +25,16 @@ impl InterfaceSettingsView {
         &self,
         selected_row: RowKind,
     ) -> SettingsMenuPage<'static> {
-        let header_lines = vec![shortcut_line(&[
+        let shortcuts = vec![
             hint_nav(" navigate"),
             hint_enter(" activate"),
             KeyHint::new("←→", " adjust").with_key_style(Style::new().fg(crate::colors::function())),
-            KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(crate::colors::success())),
+            KeyHint::new(key_ctrl("S"), " save").with_key_style(Style::new().fg(crate::colors::success())),
             hint_esc(" close"),
-        ])];
+        ];
         let footer_lines = vec![self.main_footer_line_for_row(selected_row)];
-        SettingsMenuPage::new("Interface", Self::panel_style(), header_lines, footer_lines)
+        SettingsMenuPage::new("Interface", Self::panel_style(), Vec::new(), footer_lines)
+            .with_shortcuts(shortcuts)
     }
 
     pub(super) fn edit_width_page(error: Option<&str>) -> SettingsEditorPage<'static> {
@@ -44,7 +47,7 @@ impl InterfaceSettingsView {
         }
         post_field_lines.push(shortcut_line(&[
             hint_enter(" save"),
-            KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(crate::colors::success())),
+            KeyHint::new(key_ctrl("S"), " save").with_key_style(Style::new().fg(crate::colors::success())),
             hint_esc(" cancel"),
         ]));
 
@@ -107,8 +110,7 @@ impl InterfaceSettingsView {
         )));
 
         let mut footer_hints = vec![
-            KeyHint::new("Esc", " cancel")
-                .with_key_style(Style::new().fg(crate::colors::error()).bold()),
+            hint_esc(" cancel").with_key_style(Style::new().fg(crate::colors::error()).bold()),
             KeyHint::new("d", " disable").with_key_style(Style::new().fg(crate::colors::function())),
         ];
         if let Some(hint) = legacy_hint {

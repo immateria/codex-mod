@@ -66,7 +66,7 @@ pub(super) fn render_styled_header_template(
             "title" => Some((
                 context.title,
                 Style::default().fg(crate::colors::text()).add_modifier(ratatui::style::Modifier::BOLD),
-                None,
+                Some(ClickableAction::OpenSettings),
             )),
             "model" => Some((
                 context.model,

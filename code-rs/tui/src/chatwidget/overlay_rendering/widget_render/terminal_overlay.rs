@@ -288,7 +288,7 @@ impl ChatWidget<'_> {
                         Style::default().fg(crate::colors::text_dim()),
                     ),
                     ratatui::text::Span::styled(
-                        "Esc",
+                        crate::icons::escape(),
                         Style::default().fg(crate::colors::error()),
                     ),
                     ratatui::text::Span::styled(
@@ -298,7 +298,7 @@ impl ChatWidget<'_> {
                 ];
                 if overlay.running {
                     footer_spans.push(ratatui::text::Span::styled(
-                        "Ctrl+C",
+                        crate::icons::ctrl_combo("C"),
                         Style::default().fg(crate::colors::warning()),
                     ));
                     footer_spans.push(ratatui::text::Span::styled(
@@ -307,7 +307,7 @@ impl ChatWidget<'_> {
                     ));
                 } else if pending_visible {
                     footer_spans.push(ratatui::text::Span::styled(
-                        "Enter",
+                        crate::icons::enter(),
                         Style::default().fg(crate::colors::primary()),
                     ));
                     footer_spans.push(ratatui::text::Span::styled(

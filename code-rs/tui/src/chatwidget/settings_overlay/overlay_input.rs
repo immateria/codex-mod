@@ -21,11 +21,27 @@ impl SettingsOverlayView {
     pub(crate) fn handle_mouse_event(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         // Check if mouse is within overlay area
         if !contains_point(area, mouse_event.column, mouse_event.row) {
-            if self.hovered_section.borrow().is_some() {
+            let close_hovered = self.close_button_hovered.replace(false);
+            if self.hovered_section.borrow().is_some() || close_hovered {
                 *self.hovered_section.borrow_mut() = None;
                 return true;
             }
             return false;
+        }
+
+        if matches!(mouse_event.kind, MouseEventKind::Moved) {
+            let close_area = *self.last_close_button_area.borrow();
+            let close_hovered = close_area.width > 0
+                && close_area.height > 0
+                && contains_point(close_area, mouse_event.column, mouse_event.row);
+            let hover_changed = self.close_button_hovered.replace(close_hovered) != close_hovered;
+            if close_hovered {
+                let sidebar_changed = self.hovered_section.borrow_mut().take().is_some();
+                return hover_changed || sidebar_changed;
+            }
+            if hover_changed {
+                return true;
+            }
         }
 
         // Check close button click

@@ -2,7 +2,7 @@ use ratatui::layout::Margin;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, shortcut_line};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::colors;
@@ -18,18 +18,18 @@ impl VerbositySelectionView {
                 Style::new().fg(colors::warning()).bold(),
             ),
         ])];
-        let footer_lines = vec![shortcut_line(&[
+        let shortcuts = vec![
             hint_nav(" navigate"),
             hint_enter(" select"),
             hint_esc(" cancel"),
-        ])];
+        ];
 
         SettingsMenuPage::new(
             "Text verbosity",
             SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
             header_lines,
-            footer_lines,
+            Vec::new(),
         )
+        .with_shortcuts(shortcuts)
     }
 }
-

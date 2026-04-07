@@ -66,5 +66,8 @@ fn content_only_mouse_uses_content_geometry_not_framed_geometry() {
 fn desired_height_constants_match_render_lines() {
     let view = make_view();
     assert_eq!(UpdateSettingsView::HEADER_LINE_COUNT, view.header_lines().len());
-    assert_eq!(UpdateSettingsView::FOOTER_LINE_COUNT, UpdateSettingsView::footer_lines().len());
+    assert_eq!(
+        UpdateSettingsView::FOOTER_LINE_COUNT,
+        usize::from(!UpdateSettingsView::shortcuts().is_empty())
+    );
 }

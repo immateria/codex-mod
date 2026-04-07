@@ -904,6 +904,47 @@
     }
 
     #[test]
+    fn default_header_title_click_opens_settings() {
+    let _guard = enter_test_runtime_guard();
+    let mut harness = ChatWidgetHarness::new();
+
+    let _env_lock = crate::chatwidget::smoke_helpers::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _header_guard = crate::tui_env::ForceMinimalHeaderOverrideGuard::set(false);
+
+    {
+        use crate::test_backend::VT100Backend;
+        use ratatui::Terminal;
+
+        let chat = harness.chat();
+        let mut terminal = Terminal::new(VT100Backend::new(140, 24)).expect("terminal");
+        terminal
+            .draw(|frame| frame.render_widget_ref(&*chat, frame.area()))
+            .expect("draw");
+    }
+
+    let (x, y) = harness.with_chat(|chat| {
+        let regions = chat.clickable_regions.borrow();
+        let region = regions
+            .iter()
+            .find(|region| region.action == ClickableAction::OpenSettings)
+            .expect("expected default header region for app-title settings action");
+        let x = region.rect.x.saturating_add(region.rect.width.saturating_div(2));
+        (x, region.rect.y)
+    });
+
+    harness.with_chat(|chat| chat.handle_click((x, y)));
+
+    harness.with_chat(|chat| {
+        assert!(
+            chat.settings.overlay.is_some() || chat.bottom_pane.has_active_view(),
+            "expected settings view to open after clicking header title",
+        );
+    });
+    }
+
+    #[test]
     fn service_tier_controls_hide_for_non_gpt_5_4_models() {
     let _guard = enter_test_runtime_guard();
     let mut harness = ChatWidgetHarness::new();

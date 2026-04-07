@@ -97,7 +97,7 @@ impl ChatWidget<'_> {
                     ratatui::text::Span::styled("u", t_fg),
                     ratatui::text::Span::styled(" undo ", t_dim),
                     ratatui::text::Span::styled("——— ", t_dim),
-                    ratatui::text::Span::styled("Esc", t_fg),
+                    ratatui::text::Span::styled(crate::icons::escape(), t_fg),
                     ratatui::text::Span::styled(" close ", t_dim),
                 ]);
                 let block = Block::default()
@@ -388,7 +388,7 @@ impl ChatWidget<'_> {
                                 Style::default().fg(crate::colors::text_dim()),
                             ),
                             ratatui::text::Span::styled(
-                                "Esc",
+                                crate::icons::escape(),
                                 Style::default().fg(crate::colors::text()),
                             ),
                             ratatui::text::Span::styled(

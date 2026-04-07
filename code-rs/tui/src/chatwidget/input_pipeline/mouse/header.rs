@@ -28,6 +28,9 @@ impl ChatWidget<'_> {
 
     pub(in crate::chatwidget) fn handle_clickable_action(&mut self, action: ClickableAction) {
         match action {
+            ClickableAction::OpenSettings => {
+                self.show_settings_overlay(None);
+            }
             ClickableAction::ShowModelSelector => {
                 // Open model selector with empty args (opens selector UI)
                 self.handle_model_command(String::new());

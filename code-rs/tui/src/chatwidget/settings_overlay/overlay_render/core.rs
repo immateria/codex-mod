@@ -17,82 +17,31 @@ impl SettingsOverlayView {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        // Render close button as an inset box in the top-right corner:
+        // Fill the inner content region so we consistently repaint background even
+        // when nested panels render sparse cells.
+        fill_rect(
+            buf,
+            inner,
+            Some(' '),
+            Style::default().bg(crate::colors::background()),
+        );
+
+        // Render a close button as an inset box in the top-right corner:
         //   ────┬───┐
-        //       │ ✕ │
+        //       │ x │
         //       └───┤
-        {
-            let dismiss_glyph = crate::icons::dismiss();
-            // Box is 5 chars wide: "│ ✕ │" (border + space + glyph + space + border)
-            let box_w: u16 = 5;
-            let border_style = Style::default()
-                .fg(crate::colors::border())
-                .bg(crate::colors::background());
-            let bg = Style::default().bg(crate::colors::background());
+        //
+        // The box must never be overwritten by the content panel. We draw a 3-row
+        // box when there is enough vertical room to also reserve an extra header
+        // row above content; otherwise we fall back to a 2-row variant.
+        let render_close_box_bottom = area.height >= 6;
+        let close_consumes_inner_rows = if self.render_close_button(area, buf, render_close_box_bottom) {
+            if render_close_box_bottom { 2 } else { 1 }
+        } else {
+            1
+        };
 
-            // Position: right edge shares the outer border's right column
-            let right_edge = area.x.saturating_add(area.width).saturating_sub(1);
-            let box_left = right_edge.saturating_sub(box_w.saturating_sub(1));
-            let box_top = area.y; // top border row
-
-            if box_left > area.x + 2 && area.height > 3 {
-                // Top border row: draw ┬ at box_left, border fills stay from Block
-                buf.set_string(box_left, box_top, "┬", border_style);
-
-                // Content row (one below top border)
-                let content_y = box_top + 1;
-                buf.set_string(box_left, content_y, "│", border_style);
-                // Clear inside and draw glyph
-                for dx in 1..box_w.saturating_sub(1) {
-                    let cx = box_left + dx;
-                    if cx < right_edge {
-                        let cell = &mut buf[(cx, content_y)];
-                        cell.set_symbol(" ");
-                        cell.set_style(bg);
-                    }
-                }
-                // The right edge column is the outer border's │ — it stays as-is.
-                let glyph_x = box_left + 2; // center of the 5-wide box
-                buf.set_string(
-                    glyph_x,
-                    content_y,
-                    dismiss_glyph,
-                    Style::default()
-                        .fg(crate::colors::text_dim())
-                        .bg(crate::colors::background()),
-                );
-
-                // Bottom border row of the mini box
-                let bottom_y = content_y + 1;
-                buf.set_string(box_left, bottom_y, "└", border_style);
-                for dx in 1..box_w.saturating_sub(1) {
-                    let cx = box_left + dx;
-                    if cx < right_edge {
-                        buf.set_string(cx, bottom_y, "─", border_style);
-                    }
-                }
-                buf.set_string(right_edge, bottom_y, "┤", border_style);
-
-                // Hit area covers the visible box (content row is the click target)
-                *self.last_close_button_area.borrow_mut() = Rect {
-                    x: box_left,
-                    y: box_top,
-                    width: box_w,
-                    height: 3, // top border + content + bottom border
-                };
-            } else {
-                *self.last_close_button_area.borrow_mut() = Rect::default();
-            }
-        }
-
-        let bg = Style::default().bg(crate::colors::background());
-        for y in inner.y..inner.y.saturating_add(inner.height) {
-            for x in inner.x..inner.x.saturating_add(inner.width) {
-                buf[(x, y)].set_style(bg);
-            }
-        }
-
-        let content = inner.inner(Margin::new(1, 1));
+        let content = Self::overlay_content_area(inner, close_consumes_inner_rows);
         if content.width == 0 || content.height == 0 {
             return;
         }
@@ -111,25 +60,137 @@ impl SettingsOverlayView {
         }
     }
 
-    fn block_title_line(&self) -> Line<'static> {
-        let sep = format!(" {} ", crate::icons::breadcrumb_sep());
-        let sep_style = Style::default().fg(crate::colors::text_dim());
-        if self.is_menu_active() {
-            Line::from(vec![
-                Span::styled("Settings", Style::default().fg(crate::colors::text())),
-                Span::styled(sep, sep_style),
-                Span::styled("Overview", Style::default().fg(crate::colors::text())),
-            ])
-        } else {
-            Line::from(vec![
-                Span::styled("Settings", Style::default().fg(crate::colors::text())),
-                Span::styled(sep, sep_style),
-                Span::styled(
-                    self.active_section().label(),
-                    Style::default().fg(crate::colors::text()),
-                ),
-            ])
+    fn overlay_content_area(inner: Rect, reserved_header_rows: u16) -> Rect {
+        // Keep the content inset from the overlay border; reserve additional top
+        // rows when the close button uses a 3-row box so content doesn't overwrite
+        // its bottom border row.
+        let top_pad = reserved_header_rows.min(inner.height);
+        let bottom_pad = 1u16.min(inner.height.saturating_sub(top_pad));
+
+        let x = inner.x.saturating_add(1);
+        let width = inner.width.saturating_sub(2);
+        let y = inner.y.saturating_add(top_pad);
+        let height = inner.height.saturating_sub(top_pad.saturating_add(bottom_pad));
+
+        Rect { x, y, width, height }
+    }
+
+    fn render_close_button(&self, area: Rect, buf: &mut Buffer, draw_bottom_border: bool) -> bool {
+        // Box is 5 chars wide: "│ x │" (border + space + glyph + space + border).
+        let box_w: u16 = 5;
+        let min_width = 8; // box_w + at least 3 cols of title space
+        if area.width < min_width || area.height < 3 {
+            *self.last_close_button_area.borrow_mut() = Rect::default();
+            return false;
         }
+
+        // Position: right edge shares the outer border's right column.
+        let right_edge = area.x.saturating_add(area.width).saturating_sub(1);
+        let box_left = right_edge.saturating_sub(box_w.saturating_sub(1));
+        let box_top = area.y; // top border row
+
+        // Ensure the inset box doesn't collide with the left border/title padding.
+        if box_left <= area.x.saturating_add(2) || area.height < 3 {
+            *self.last_close_button_area.borrow_mut() = Rect::default();
+            return false;
+        }
+
+        let border_style = Style::default()
+            .fg(crate::colors::border())
+            .bg(crate::colors::background());
+        let hovered = self.close_button_hovered.get();
+        let button_bg = if hovered {
+            crate::colors::selection()
+        } else {
+            crate::colors::background()
+        };
+        let glyph_style = Style::default()
+            .fg(if hovered {
+                crate::colors::text_bright()
+            } else {
+                crate::colors::text_dim()
+            })
+            .bg(button_bg)
+            .add_modifier(if hovered { Modifier::BOLD } else { Modifier::empty() });
+
+        // The dismiss icon can be multi-cell in plain mode (e.g. "[x]") or via
+        // user overrides; the close box is fixed-width, so force a 1-cell glyph.
+        let dismiss_glyph = crate::icons::dismiss();
+        let dismiss_glyph = if UnicodeWidthStr::width(dismiss_glyph) == 1 {
+            dismiss_glyph
+        } else {
+            "x"
+        };
+
+        // Top border row: overwrite any title spill in this region so the button
+        // frame is always intact.
+        buf.set_string(box_left, box_top, "┬", border_style);
+        fill_rect(
+            buf,
+            Rect::new(box_left.saturating_add(1), box_top, box_w.saturating_sub(2), 1),
+            Some('─'),
+            border_style,
+        );
+
+        // Content row (one below top border).
+        let content_y = box_top.saturating_add(1);
+        buf.set_string(box_left, content_y, "│", border_style);
+        buf.set_string(right_edge, content_y, "│", border_style);
+        fill_rect(
+            buf,
+            Rect::new(
+                box_left.saturating_add(1),
+                content_y,
+                box_w.saturating_sub(2),
+                1,
+            ),
+            Some(' '),
+            Style::default().bg(button_bg),
+        );
+        buf.set_string(box_left.saturating_add(2), content_y, dismiss_glyph, glyph_style);
+
+        let mut hit_height = 2u16;
+        if draw_bottom_border && area.height >= 4 {
+            let bottom_y = content_y.saturating_add(1);
+            buf.set_string(box_left, bottom_y, "└", border_style);
+            fill_rect(
+                buf,
+                Rect::new(
+                    box_left.saturating_add(1),
+                    bottom_y,
+                    box_w.saturating_sub(2),
+                    1,
+                ),
+                Some('─'),
+                border_style,
+            );
+            buf.set_string(right_edge, bottom_y, "┤", border_style);
+            hit_height = 3;
+        }
+
+        *self.last_close_button_area.borrow_mut() = Rect {
+            x: box_left,
+            y: box_top,
+            width: box_w,
+            height: hit_height,
+        };
+        true
+    }
+
+    fn block_title_line(&self) -> Line<'static> {
+        let sep_style = Style::default().fg(crate::colors::text_dim());
+        let title_style = Style::default().fg(crate::colors::text());
+        let mut spans: Vec<Span<'static>> = Vec::with_capacity(5);
+        spans.push(Span::styled("Settings", title_style));
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(crate::icons::breadcrumb_sep(), sep_style));
+        spans.push(Span::raw(" "));
+        if self.is_menu_active() {
+            spans.push(Span::styled("Overview", title_style));
+        } else {
+            spans.push(Span::styled(self.active_section().label(), title_style));
+        }
+        Line::from(spans)
     }
 
     fn render_overview(&self, area: Rect, buf: &mut Buffer) {
@@ -158,33 +219,33 @@ impl SettingsOverlayView {
             return;
         }
 
-        fill_rect(
-            buf,
-            area,
-            Some(' '),
-            Style::default().bg(crate::colors::background()),
-        );
+        let bg_style = Style::default().bg(crate::colors::background());
+        fill_rect(buf, area, Some(' '), bg_style);
 
         if self.overview_rows.is_empty() {
             *self.last_overview_list_area.borrow_mut() = area;
-            *self.last_overview_line_sections.borrow_mut() = Vec::new();
-            *self.last_overview_line_hit_ranges.borrow_mut() = Vec::new();
+            self.last_overview_line_sections.borrow_mut().clear();
+            self.last_overview_line_hit_ranges.borrow_mut().clear();
             *self.last_overview_scroll.borrow_mut() = 0;
             let line = Line::from(vec![Span::styled(
                 "No settings available.",
                 Style::default().fg(crate::colors::text_dim()),
             )]);
             Paragraph::new(line)
-                .style(Style::default().bg(crate::colors::background()))
+                .style(bg_style)
                 .render(area, buf);
             return;
         }
 
         let active_section = self.active_section();
         let content_width = area.width as usize;
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        let mut line_sections: Vec<Option<SettingsSection>> = Vec::new();
-        let mut line_hit_ranges: super::OverviewHitRanges = Vec::new();
+        let title_style = Style::default().fg(crate::colors::text());
+        let mut lines: Vec<Line<'static>> =
+            Vec::with_capacity(self.overview_rows.len().saturating_mul(4).saturating_add(8));
+        let mut line_sections: Vec<Option<SettingsSection>> =
+            Vec::with_capacity(lines.capacity());
+        let mut line_hit_ranges: super::OverviewHitRanges =
+            Vec::with_capacity(lines.capacity());
         let mut selected_range: Option<(usize, usize)> = None;
 
         for (idx, row) in self.overview_rows.iter().enumerate() {
@@ -240,7 +301,7 @@ impl SettingsOverlayView {
             let mut summary_hit_range: Option<(u16, u16)> = None;
 
             let mut summary_line = Line::from(vec![
-                Span::styled(indicator.to_string(), Style::default().fg(crate::colors::text())),
+                Span::styled(indicator, title_style),
                 Span::raw(" "),
                 Span::styled(label_text, label_style),
             ]);
@@ -370,7 +431,7 @@ impl SettingsOverlayView {
 
         Paragraph::new(lines)
             .alignment(Alignment::Left)
-            .style(Style::default().bg(crate::colors::background()))
+            .style(bg_style)
             .scroll((scroll, 0))
             .render(area, buf);
     }

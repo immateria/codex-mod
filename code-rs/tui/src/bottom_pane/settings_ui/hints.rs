@@ -4,6 +4,7 @@ use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
 use crate::colors;
+use crate::icons;
 
 use super::rows::StyledText;
 
@@ -65,14 +66,30 @@ pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
     KeyHint::new("↑↓", description).with_key_style(Style::new().fg(colors::function()))
 }
 
+pub(crate) fn key_tab() -> &'static str {
+    icons::tab()
+}
+
+pub(crate) fn key_reverse_tab() -> &'static str {
+    icons::reverse_tab()
+}
+
+pub(crate) fn key_space() -> &'static str {
+    icons::space()
+}
+
+pub(crate) fn key_ctrl(key: &str) -> String {
+    icons::ctrl_combo(key)
+}
+
 /// Esc hint with `colors::error()` key style.
 pub(crate) fn hint_esc(description: &'static str) -> KeyHint<'static> {
-    KeyHint::new("Esc", description).with_key_style(Style::new().fg(colors::error()))
+    KeyHint::new(icons::escape(), description).with_key_style(Style::new().fg(colors::error()))
 }
 
 /// Enter/confirm hint with `colors::success()` key style.
 pub(crate) fn hint_enter(description: &'static str) -> KeyHint<'static> {
-    KeyHint::new("Enter", description).with_key_style(Style::new().fg(colors::success()))
+    KeyHint::new(icons::enter(), description).with_key_style(Style::new().fg(colors::success()))
 }
 
 pub(crate) fn status_and_shortcuts(

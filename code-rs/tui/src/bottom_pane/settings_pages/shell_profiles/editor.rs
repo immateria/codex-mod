@@ -63,17 +63,26 @@ impl ShellProfilesSettingsView {
     fn editor_shortcuts(target: ListTarget) -> Vec<KeyHint<'static>> {
         match target {
             ListTarget::Summary => vec![
-                KeyHint::new("Ctrl+S", " save"),
-                KeyHint::new("Ctrl+G", " generate"),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save"),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("G"), " generate"),
                 hint_esc(" cancel"),
             ],
             ListTarget::References | ListTarget::SkillRoots => {
-                let mut hints = vec![KeyHint::new("Ctrl+S", " save")];
+                let mut hints = vec![KeyHint::new(
+                    crate::bottom_pane::settings_ui::hints::key_ctrl("S"),
+                    " save",
+                )];
                 if crate::platform_caps::supports_native_picker() {
-                    hints.push(KeyHint::new("Ctrl+O", " pick"));
+                    hints.push(KeyHint::new(
+                        crate::bottom_pane::settings_ui::hints::key_ctrl("O"),
+                        " pick",
+                    ));
                 }
                 if crate::platform_caps::supports_reveal_in_file_manager() {
-                    hints.push(KeyHint::new("Ctrl+V", " show"));
+                    hints.push(KeyHint::new(
+                        crate::bottom_pane::settings_ui::hints::key_ctrl("V"),
+                        " show",
+                    ));
                 }
                 hints.push(hint_esc(" cancel"));
                 hints

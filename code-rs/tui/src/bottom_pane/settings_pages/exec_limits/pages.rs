@@ -73,7 +73,8 @@ impl ExecLimitsSettingsView {
             hint_enter(" edit/toggle"),
             KeyHint::new("a", " auto").with_key_style(Style::new().fg(colors::success())),
             KeyHint::new("d", " disable").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save")
+                .with_key_style(Style::new().fg(colors::success())),
             hint_esc(" close"),
         ])]
     }
@@ -109,4 +110,3 @@ impl ExecLimitsSettingsView {
         .with_field_margin(Margin::new(2, 0))
     }
 }
-

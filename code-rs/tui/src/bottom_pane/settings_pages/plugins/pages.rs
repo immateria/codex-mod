@@ -16,7 +16,6 @@ use crate::bottom_pane::settings_ui::hints::{
     hint_esc,
     hint_enter,
     hint_nav,
-    shortcut_line,
     status_and_shortcuts_split,
     title_line,
     KeyHint,
@@ -216,8 +215,9 @@ impl PluginsSettingsView {
             "Plugins",
             SettingsPanelStyle::bottom_pane(),
             header_lines,
-            vec![shortcut_line(&shortcuts)],
+            Vec::new(),
         )
+        .with_shortcuts(shortcuts)
     }
 
     pub(super) fn list_rows(&self, snapshot: &PluginsSharedState) -> Vec<SettingsMenuRow<'static, usize>> {
@@ -348,7 +348,9 @@ impl PluginsSettingsView {
             "Plugins",
             SettingsPanelStyle::bottom_pane(),
             header_lines,
-            vec![shortcut_line(&[
+            Vec::new(),
+        )
+        .with_shortcuts(vec![
                 hint_nav(" navigate"),
                 hint_enter(" edit"),
                 KeyHint::new("a", " add repo").with_key_style(Style::new().fg(colors::primary())),
@@ -356,8 +358,7 @@ impl PluginsSettingsView {
                 KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
                 KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
                 hint_esc(" back"),
-            ])],
-        )
+            ])
     }
 
     pub(super) fn sources_list_rows(
@@ -473,8 +474,9 @@ impl PluginsSettingsView {
         let (status_lines, footer_lines) = status_and_shortcuts_split(
             status,
             &[
-                KeyHint::new("Tab", " next"),
-                KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_tab(), " next"),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save")
+                    .with_key_style(Style::new().fg(colors::success())),
                 hint_esc(" cancel"),
             ],
         );

@@ -227,11 +227,11 @@ impl McpSettingsView {
             McpSettingsMode::Main => Paragraph::new(Line::from(vec![
                 Span::styled("↑↓", Style::default().fg(crate::colors::function())),
                 Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Space", Style::default().fg(crate::colors::success())),
+                Span::styled(crate::icons::space(), Style::default().fg(crate::colors::success())),
                 Span::styled(" toggle tool  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
                 Span::styled(" expand tool  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Tab", Style::default().fg(crate::colors::function())),
+                Span::styled(crate::icons::tab(), Style::default().fg(crate::colors::function())),
                 Span::styled(" /Click", Style::default().fg(crate::colors::function())),
                 Span::styled(" focus pane  ", Style::default().fg(crate::colors::text_dim())),
                 Span::styled("E", Style::default().fg(crate::colors::function())),
@@ -241,7 +241,7 @@ impl McpSettingsView {
                 ),
                 Span::styled("W", Style::default().fg(crate::colors::function())),
                 Span::styled(" wrap  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Esc", Style::default().fg(crate::colors::error())),
+                Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
                 Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
             ]))
             .render(hint_area, buf),
@@ -249,14 +249,14 @@ impl McpSettingsView {
                 Paragraph::new(Line::from(vec![
                     Span::styled("↑↓", Style::default().fg(crate::colors::function())),
                     Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                    Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
                     Span::styled(
                         " edit/toggle  ",
                         Style::default().fg(crate::colors::text_dim()),
                     ),
-                    Span::styled("Ctrl+S", Style::default().fg(crate::colors::function())),
+                    Span::styled(crate::icons::ctrl_combo("S"), Style::default().fg(crate::colors::function())),
                     Span::styled(" save  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled("Esc", Style::default().fg(crate::colors::error())),
+                    Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
                     Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
                 ]))
                 .render(hint_area, buf)

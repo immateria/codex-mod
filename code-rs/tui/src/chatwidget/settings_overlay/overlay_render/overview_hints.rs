@@ -71,9 +71,9 @@ impl SettingsOverlayView {
         let line = Line::from(vec![
             Span::styled("↑ ↓", Style::default().fg(crate::colors::text())),
             Span::styled(" Move    ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Enter", Style::default().fg(crate::colors::text())),
+            Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::text())),
             Span::styled(" Open    ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Esc", Style::default().fg(crate::colors::text())),
+            Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::text())),
             Span::styled(" Close    ", Style::default().fg(crate::colors::text_dim())),
             Span::styled("?", Style::default().fg(crate::colors::text())),
             Span::styled(" Help", Style::default().fg(crate::colors::text_dim())),
@@ -92,6 +92,7 @@ impl SettingsOverlayView {
 
         let key = Style::default().fg(crate::colors::text());
         let hint = Style::default().fg(crate::colors::text_dim());
+        let separator = Style::default().fg(crate::colors::text_mid());
         let focus = Style::default()
             .fg(crate::colors::primary())
             .add_modifier(Modifier::BOLD);
@@ -100,39 +101,55 @@ impl SettingsOverlayView {
         } else {
             "Content"
         };
+        let sidebar_action = if self.sidebar_collapsed.get() {
+            " Show"
+        } else {
+            " Hide"
+        };
 
-        let mut spans = vec![
-            Span::styled("Tab", key),
-            Span::styled(" Content  ", hint),
-            Span::styled("Shift+Tab", key),
-            Span::styled(" Sidebar  ", hint),
-            Span::styled("Ctrl+B", key),
-            Span::styled(
-                if self.sidebar_collapsed.get() { " Show  " } else { " Hide  " },
-                hint,
-            ),
-            Span::styled("Esc", key),
-            Span::styled(" Overview  ", hint),
-            Span::styled("?", key),
-            Span::styled(" Help  ", hint),
-            Span::styled("Focus:", hint),
-            Span::styled(format!(" {focus_label}"), focus),
-        ];
+        let hint_group = |key_label: String, description: &'static str| -> Vec<Span<'static>> {
+            vec![
+                Span::styled(key_label, key),
+                Span::styled(description.to_string(), hint),
+            ]
+        };
+
+        let join_groups = |groups: Vec<Vec<Span<'static>>>| -> Vec<Span<'static>> {
+            let mut spans = Vec::new();
+            for (idx, group) in groups.into_iter().enumerate() {
+                if idx > 0 {
+                    spans.push(Span::styled("  •  ", separator));
+                }
+                spans.extend(group);
+            }
+            spans
+        };
+
+        let mut spans = join_groups(vec![
+            hint_group(crate::icons::tab().to_string(), " Content"),
+            hint_group(crate::icons::reverse_tab().to_string(), " Sidebar"),
+            hint_group(crate::icons::ctrl_combo("B"), sidebar_action),
+            hint_group(crate::icons::escape().to_string(), " Overview"),
+            hint_group("?".to_string(), " Help"),
+            vec![
+                Span::styled("Focus", hint),
+                Span::styled(": ", separator),
+                Span::styled(focus_label.to_string(), focus),
+            ],
+        ]);
 
         // On narrow screens, drop the less-critical hints.
         let full_width: usize = spans.iter().map(|s| s.width()).sum();
         if full_width > area.width as usize {
-            spans = vec![
-                Span::styled("^B", key),
-                Span::styled(
-                    if self.sidebar_collapsed.get() { " Show  " } else { " Hide  " },
-                    hint,
-                ),
-                Span::styled("Esc", key),
-                Span::styled(" Back  ", hint),
-                Span::styled("Focus:", hint),
-                Span::styled(format!(" {focus_label}"), focus),
-            ];
+            spans = join_groups(vec![
+                hint_group(crate::icons::ctrl_combo("B"), sidebar_action),
+                hint_group(crate::icons::escape().to_string(), " Back"),
+                vec![
+                    Span::styled("Focus", hint),
+                    Span::styled(": ", separator),
+                    Span::styled(focus_label.to_string(), focus),
+                ],
+            ]);
         }
 
         Paragraph::new(Line::from(spans))

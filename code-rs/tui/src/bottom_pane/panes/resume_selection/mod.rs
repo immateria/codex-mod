@@ -243,9 +243,9 @@ impl BottomPaneView<'_> for ResumeSelectionView {
         let footer_line = Line::from(vec![
             Span::styled("↑↓ PgUp PgDn", Style::default().fg(crate::colors::light_blue())),
             Span::raw(" Navigate  "),
-            Span::styled("Enter", Style::default().fg(crate::colors::success())),
+            Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
             Span::raw(" Select  "),
-            Span::styled("Esc", Style::default().fg(crate::colors::error())),
+            Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
             Span::raw(" Cancel"),
         ]);
         Paragraph::new(footer_line)

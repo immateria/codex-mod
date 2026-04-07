@@ -146,7 +146,7 @@ impl ChatWidget<'_> {
             left_spans.push(Span::styled(screenshot_info, label_style));
 
             let right_spans: Vec<Span> = vec![
-                Span::from("Ctrl+B").style(key_hint_style),
+                Span::from(crate::icons::ctrl_combo("B")).style(key_hint_style),
                 Span::styled(" close", label_style),
             ];
 

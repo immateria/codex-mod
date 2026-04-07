@@ -219,7 +219,7 @@ impl LoginAccountsState {
         let (status_lines, footer_lines) = status_and_shortcuts_split(
             status,
             &[
-                KeyHint::new("Tab", " next"),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_tab(), " next"),
                 KeyHint::new("S", " save")
                     .with_key_style(Style::new().fg(crate::colors::success()).bold()),
                 hint_esc(" back"),

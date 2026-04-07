@@ -4,7 +4,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 use crate::colors;
-use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 
@@ -23,15 +23,18 @@ impl ReviewSettingsView {
         ]
     }
 
-    fn render_footer_lines(&self) -> Vec<Line<'static>> {
-        let shortcuts = shortcut_line(&[
+    fn shortcuts(&self) -> Vec<KeyHint<'static>> {
+        vec![
             hint_nav(" Navigate"),
             hint_enter(" Select"),
-            KeyHint::new("Space", " Toggle").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " Toggle")
+                .with_key_style(Style::new().fg(colors::success())),
             KeyHint::new("←→", " Adjust").with_key_style(Style::new().fg(colors::function())),
             hint_esc(" Close"),
-        ]);
+        ]
+    }
 
+    fn render_footer_lines(&self) -> Vec<Line<'static>> {
         let notice_line = match &self.pending_notice {
             Some(notice) => Line::from(Span::styled(
                 notice.clone(),
@@ -40,7 +43,7 @@ impl ReviewSettingsView {
             None => Line::default(),
         };
 
-        vec![shortcuts, notice_line]
+        vec![notice_line]
     }
 
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
@@ -50,5 +53,6 @@ impl ReviewSettingsView {
             self.render_header_lines(),
             self.render_footer_lines(),
         )
+        .with_shortcuts(self.shortcuts())
     }
 }

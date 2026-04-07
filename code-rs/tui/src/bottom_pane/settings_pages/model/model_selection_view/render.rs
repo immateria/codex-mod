@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use code_core::config_types::{ContextMode, ServiceTier};
 
 use crate::bottom_pane::chrome::ChromeMode;
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, KeyHint};
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
 use crate::bottom_pane::settings_ui::line_runs::SelectableLineRun;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
@@ -25,6 +25,7 @@ impl ModelSelectionView {
             self.header_lines(),
             self.footer_lines(),
         )
+        .with_shortcuts(self.shortcuts())
     }
 
     fn dim_style() -> Style {
@@ -370,7 +371,7 @@ impl ModelSelectionView {
         ]
     }
 
-    fn footer_lines(&self) -> Vec<Line<'static>> {
+    fn shortcuts(&self) -> Vec<KeyHint<'static>> {
         let mut hints = vec![
             KeyHint::new("↑↓", " Navigate").with_key_style(Style::new().fg(colors::light_blue())),
             KeyHint::new("←→ +/-", " Adjust").with_key_style(Style::new().fg(colors::warning())),
@@ -378,16 +379,16 @@ impl ModelSelectionView {
         ];
         if self.data.target.supports_context_mode() {
             hints.push(
-                KeyHint::new("Ctrl+S", " Save default")
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " Save default")
                     .with_key_style(Style::new().fg(colors::primary())),
             );
         }
         hints.push(hint_esc(" Cancel"));
+        hints
+    }
 
-        vec![
-            Line::from(""),
-            shortcut_line(&hints),
-        ]
+    fn footer_lines(&self) -> Vec<Line<'static>> {
+        vec![Line::from("")]
     }
 
     pub(super) fn edit_page(target: EditTarget, error: Option<&str>) -> SettingsEditorPage<'static> {

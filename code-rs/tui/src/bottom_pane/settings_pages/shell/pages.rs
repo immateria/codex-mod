@@ -2,7 +2,9 @@ use super::*;
 
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
 use crate::bottom_pane::settings_ui::buttons::{standard_button_specs, StandardButtonSpec};
-use crate::bottom_pane::settings_ui::hints::{self, hint_enter, hint_esc, hint_nav, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{
+    self, hint_enter, hint_esc, hint_nav, key_ctrl, key_tab, KeyHint,
+};
 use crate::bottom_pane::settings_ui::line_runs::SelectableLineRun;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
@@ -39,21 +41,22 @@ impl ShellSelectionView {
             Line::from(""),
         ];
 
-        let footer_lines = vec![hints::shortcut_line(&[
+        let shortcuts = vec![
             hint_nav(" select"),
             hint_enter(" apply"),
             KeyHint::new("e/→", " edit"),
             KeyHint::new("p", " pin"),
-            KeyHint::new("Ctrl+P", " profiles"),
+            KeyHint::new(key_ctrl("P"), " profiles"),
             hint_esc(" close"),
-        ])];
+        ];
 
         SettingsMenuPage::new(
             "Select Shell",
             SettingsPanelStyle::bottom_pane(),
             header_lines,
-            footer_lines,
+            Vec::new(),
         )
+        .with_shortcuts(shortcuts)
     }
 
     pub(super) fn list_runs(&self) -> Vec<SelectableLineRun<'_, usize>> {
@@ -159,15 +162,15 @@ impl ShellSelectionView {
     pub(super) fn edit_page(&self) -> SettingsActionPage<'_> {
         let status_lines = vec![self.edit_status_line()];
         let mut footer_hints = vec![
-            KeyHint::new("Tab", " focus"),
+            KeyHint::new(key_tab(), " focus"),
             hint_enter(" apply"),
-            KeyHint::new("Ctrl+R", " resolve"),
-            KeyHint::new("Ctrl+T", " style"),
-            KeyHint::new("Ctrl+P", " profiles"),
+            KeyHint::new(key_ctrl("R"), " resolve"),
+            KeyHint::new(key_ctrl("T"), " style"),
+            KeyHint::new(key_ctrl("P"), " profiles"),
             hint_esc(" back"),
         ];
         if crate::platform_caps::supports_native_picker() {
-            footer_hints.insert(2, KeyHint::new("Ctrl+O", " pick"));
+            footer_hints.insert(2, KeyHint::new(key_ctrl("O"), " pick"));
         }
         if crate::platform_caps::supports_reveal_in_file_manager() {
             let insert_at = if crate::platform_caps::supports_native_picker() {
@@ -175,7 +178,7 @@ impl ShellSelectionView {
             } else {
                 2
             };
-            footer_hints.insert(insert_at, KeyHint::new("Ctrl+V", " show"));
+            footer_hints.insert(insert_at, KeyHint::new(key_ctrl("V"), " show"));
         }
         let footer_lines = vec![hints::shortcut_line(&footer_hints)];
 

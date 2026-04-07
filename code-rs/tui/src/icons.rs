@@ -127,6 +127,18 @@ pub fn nerd_fonts_enabled() -> bool {
     NERD_FONTS_ENABLED.load(Ordering::Relaxed)
 }
 
+pub fn ctrl_combo(key: &str) -> String {
+    format!("{}+{key}", control())
+}
+
+pub fn alt_combo(key: &str) -> String {
+    format!("{}+{key}", option())
+}
+
+pub fn shift_combo(key: &str) -> String {
+    format!("{}+{key}", shift())
+}
+
 // ── Icon definitions ─────────────────────────────────────────────────
 
 define_icon_functions! {
@@ -238,6 +250,27 @@ define_icon_functions! {
     /// Breadcrumb separator.
     breadcrumb_sep   => BREADCRUMB_SEP     ("\u{f054}", "▸");       // nf-fa-chevron_right
 
+    // ── Keyboard / modifier labels ─────────────────────────────────────
+
+    /// Escape key label.
+    escape           => ESCAPE             ("\u{f12b7}", "Esc");
+    /// Control key label.
+    control          => CONTROL            ("\u{f0634}", "Ctrl");
+    /// Option / Alt key label.
+    option           => OPTION             ("\u{f0635}", "Alt");
+    /// Shift key label.
+    shift            => SHIFT              ("\u{f0636}", "Shift");
+    /// Enter / return key label.
+    enter            => ENTER              ("\u{f0311}", "Enter");
+    /// Backspace key label.
+    backspace        => BACKSPACE          ("\u{f030d}", "Backspace");
+    /// Tab key label.
+    tab              => TAB                ("\u{f0312}", "Tab");
+    /// Reverse tab / shift+tab key label.
+    reverse_tab      => REVERSE_TAB        ("\u{f0325}", "Shift+Tab");
+    /// Space key label.
+    space            => SPACE              ("\u{f1050}", "Space");
+
     // ── Selection pointer ──────────────────────────────────────────────
 
     /// Active item pointer.
@@ -265,6 +298,26 @@ define_icon_functions! {
     tree_start       => TREE_START         ("\u{f105}", "┌");       // nf-fa-angle_right
     /// Rename / transition arrow.
     rename_arrow     => RENAME_ARROW       ("\u{f061}", "→");       // nf-fa-arrow_right
+    /// JavaScript language icon.
+    javascript_icon  => JAVASCRIPT_ICON    ("\u{f2ee}", "JS");
+    /// Rust language icon.
+    rust_icon        => RUST_ICON          ("\u{e7a8}", "RS");
+    /// Bash / shell language icon.
+    bash_icon        => BASH_ICON          ("\u{e760}", "SH");
+    /// Markdown language icon.
+    markdown_icon    => MARKDOWN_ICON      ("\u{f0354}", "MD");
+    /// Markdown outline icon.
+    markdown_icon_outline => MARKDOWN_ICON_OUTLINE ("\u{f0f5b}", "MDOutline");
+    /// Informational circle icon.
+    info_circle      => INFO_CIRCLE        ("\u{f05a}", "Info");
+    /// Lambda symbol icon.
+    lambda           => LAMBDA             ("\u{f0627}", "λ");
+    /// Undo action icon.
+    undo             => UNDO               ("\u{f0e2}", "Undo");
+    /// Redo action icon.
+    redo             => REDO               ("\u{f01e}", "Redo");
+    /// Add / create action icon.
+    add              => ADD                ("\u{ea60}", "Add");
 
     // ── Checkboxes / toggles ───────────────────────────────────────────
 
@@ -278,6 +331,35 @@ define_icon_functions! {
     task_done        => TASK_DONE          ("\u{f058}", "✓");       // nf-fa-check_circle
     /// Markdown task list: pending.
     task_pending     => TASK_PENDING       ("\u{f096}", "☐");       // nf-fa-square_o
+    /// Copy content action.
+    copy_content     => COPY_CONTENT       ("\u{f018f}", "Copy");
+    /// Paste content action.
+    paste_content    => PASTE_CONTENT      ("\u{f0192}", "Paste");
+    /// Cut content action.
+    cut_content      => CUT_CONTENT        ("\u{f0190}", "Cut");
+
+    // ── Number glyphs ──────────────────────────────────────────────────
+
+    /// Number one icon.
+    number_one       => NUMBER_ONE         ("\u{f0b3a}", "1");
+    /// Number two icon.
+    number_two       => NUMBER_TWO         ("\u{f0b3b}", "2");
+    /// Number three icon.
+    number_three     => NUMBER_THREE       ("\u{f0b3c}", "3");
+    /// Number four icon.
+    number_four      => NUMBER_FOUR        ("\u{f0b3d}", "4");
+    /// Number five icon.
+    number_five      => NUMBER_FIVE        ("\u{f0b3e}", "5");
+    /// Number six icon.
+    number_six       => NUMBER_SIX         ("\u{f0b3f}", "6");
+    /// Number seven icon.
+    number_seven     => NUMBER_SEVEN       ("\u{f0b40}", "7");
+    /// Number eight icon.
+    number_eight     => NUMBER_EIGHT       ("\u{f0b41}", "8");
+    /// Number nine icon.
+    number_nine      => NUMBER_NINE        ("\u{f0b42}", "9");
+    /// Number zero icon.
+    number_zero      => NUMBER_ZERO        ("\u{f0b39}", "0");
 
     // ── Markdown list bullets ──────────────────────────────────────────
 
@@ -356,4 +438,3 @@ pub fn is_spinner(s:     &str) -> bool { matches!(s, "◐" | "◓" | "◑" | "�
 pub fn is_context(s:     &str) -> bool { GUTTER_CONTEXT.matches(s) }
 pub fn is_compaction(s:  &str) -> bool { GUTTER_COMPACTION.matches(s) }
 pub fn is_background(s:  &str) -> bool { GUTTER_BACKGROUND.matches(s) }
-

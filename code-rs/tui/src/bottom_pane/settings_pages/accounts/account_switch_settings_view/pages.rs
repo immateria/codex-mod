@@ -1,6 +1,6 @@
 use super::AccountSwitchSettingsView;
 
-use crate::bottom_pane::settings_ui::hints::{hint_esc, shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, KeyHint};
 use crate::bottom_pane::settings_ui::line_runs::SelectableLineRun;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
@@ -19,14 +19,15 @@ impl AccountSwitchSettingsView {
             "Accounts",
             SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
             Vec::new(),
-            vec![shortcut_line(&[
+            Vec::new(),
+        )
+        .with_shortcuts(vec![
                 KeyHint::new("↑↓/Tab", " navigate")
                     .with_key_style(Style::new().fg(colors::function())),
                 KeyHint::new("Enter/Space", " activate")
                     .with_key_style(Style::new().fg(colors::success())),
                 hint_esc(" close"),
-            ])],
-        )
+            ])
     }
 
     pub(super) fn main_runs(
@@ -132,18 +133,19 @@ impl AccountSwitchSettingsView {
             ]),
             Line::from(""),
         ];
-        let footer_lines = vec![shortcut_line(&[
+        let shortcuts = vec![
             KeyHint::new("↑↓/Tab", " select").with_key_style(Style::new().fg(colors::function())),
             KeyHint::new("Enter/Space", " apply").with_key_style(Style::new().fg(colors::success())),
             hint_esc(" back"),
-        ])];
+        ];
 
         SettingsMenuPage::new(
             "Credential store",
             SettingsPanelStyle::bottom_pane().with_margin(Margin::new(0, 0)),
             header_lines,
-            footer_lines,
+            Vec::new(),
         )
+        .with_shortcuts(shortcuts)
     }
 
     pub(super) fn confirm_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {

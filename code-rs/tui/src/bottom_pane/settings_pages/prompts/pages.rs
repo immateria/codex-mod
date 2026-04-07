@@ -18,7 +18,6 @@ use crate::bottom_pane::settings_ui::hints::{
     hint_enter,
     hint_esc,
     hint_nav,
-    shortcut_line,
     status_and_shortcuts_split,
     title_line,
     KeyHint,
@@ -52,7 +51,7 @@ impl PromptsSettingsView {
         let (status_lines, footer_lines) = status_and_shortcuts_split(
             status,
             &[
-                KeyHint::new("Tab", " next"),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_tab(), " next"),
                 hint_enter(" activate"),
                 hint_esc(" back"),
             ],
@@ -103,13 +102,15 @@ impl PromptsSettingsView {
             "Custom Prompts",
             SettingsPanelStyle::bottom_pane(),
             self.list_header_lines(),
-            vec![shortcut_line(&[
+            Vec::new(),
+        )
+        .with_shortcuts(vec![
                 hint_nav(" navigate"),
                 hint_enter(" edit"),
-                KeyHint::new("Ctrl+N", " new").with_key_style(Style::new().fg(colors::info())),
+                KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("N"), " new")
+                    .with_key_style(Style::new().fg(colors::info())),
                 hint_esc(" close"),
-            ])],
-        )
+            ])
     }
 
     pub(super) fn list_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {

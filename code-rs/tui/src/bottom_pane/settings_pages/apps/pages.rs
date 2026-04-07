@@ -3,7 +3,7 @@ use super::*;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -112,13 +112,15 @@ impl AppsSettingsView {
 
         let shortcuts = vec![
             KeyHint::new("↑↓", " select").with_key_style(Style::new().fg(colors::primary())),
-            KeyHint::new("Space", " pin").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " pin")
+                .with_key_style(Style::new().fg(colors::success())),
             hint_enter(" details"),
             KeyHint::new("m", " mode").with_key_style(Style::new().fg(colors::primary())),
             KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
             KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())),
             KeyHint::new("l", " login").with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("Ctrl+S", " save").with_key_style(Style::new().fg(colors::success())),
+            KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " save")
+                .with_key_style(Style::new().fg(colors::success())),
             hint_esc(" close"),
         ];
 
@@ -126,8 +128,9 @@ impl AppsSettingsView {
             "Apps",
             SettingsPanelStyle::bottom_pane(),
             header_lines,
-            vec![shortcut_line(&shortcuts)],
+            Vec::new(),
         )
+        .with_shortcuts(shortcuts)
     }
 
     pub(super) fn overview_rows(
@@ -291,7 +294,8 @@ impl AppsSettingsView {
             "Apps",
             SettingsPanelStyle::bottom_pane(),
             header_lines,
-            vec![shortcut_line(&shortcuts)],
+            Vec::new(),
         )
+        .with_shortcuts(shortcuts)
     }
 }

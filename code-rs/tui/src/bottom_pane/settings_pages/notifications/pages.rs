@@ -2,7 +2,7 @@ use ratatui::layout::Margin;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::toggle;
@@ -38,22 +38,22 @@ impl NotificationsSettingsView {
     }
 
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
-        let footer_lines = match &self.mode {
-            NotificationsMode::Toggle { .. } => vec![shortcut_line(&[
+        let (footer_lines, shortcuts) = match &self.mode {
+            NotificationsMode::Toggle { .. } => (Vec::new(), vec![
                 hint_nav(" navigate"),
                 KeyHint::new("←→/Space", " toggle")
                     .with_key_style(Style::new().fg(colors::success())),
                 hint_enter(" toggle/close"),
                 hint_esc(" close"),
-            ])],
-            NotificationsMode::Custom { .. } => vec![Line::from(vec![
+            ]),
+            NotificationsMode::Custom { .. } => (vec![Line::from(vec![
                 Span::styled("Edit ", Style::new().fg(colors::text_dim())),
                 Span::styled("[tui].notifications", Style::new().fg(colors::info())),
                 Span::styled(
                     " in ~/.code/config.toml to adjust filters.",
                     Style::new().fg(colors::text_dim()),
                 ),
-            ])],
+            ])], Vec::new()),
         };
 
         SettingsMenuPage::new(
@@ -62,6 +62,6 @@ impl NotificationsSettingsView {
             vec![self.status_line(), Line::from("")],
             footer_lines,
         )
+        .with_shortcuts(shortcuts)
     }
 }
-

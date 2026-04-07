@@ -180,13 +180,13 @@ impl UndoTimelineView {
             Line::from(vec![
                 Span::styled("↑↓ PgUp PgDn", Style::default().fg(crate::colors::light_blue())),
                 Span::raw(" Navigate  "),
-                Span::styled("Space", Style::default().fg(crate::colors::success())),
+                Span::styled(crate::icons::space(), Style::default().fg(crate::colors::success())),
                 Span::raw(" Toggle files  "),
                 Span::styled("C", Style::default().fg(crate::colors::success())),
                 Span::raw(" Toggle conversation  "),
-                Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
                 Span::raw(" Restore  "),
-                Span::styled("Esc", Style::default().fg(crate::colors::error())),
+                Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
                 Span::raw(" Close"),
             ]),
         ]
@@ -224,4 +224,3 @@ impl UndoTimelineView {
         self.render_preview(preview_area, buf);
     }
 }
-

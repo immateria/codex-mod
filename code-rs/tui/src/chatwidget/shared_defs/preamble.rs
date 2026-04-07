@@ -674,6 +674,7 @@ struct RenderRequestSeed {
 /// Actions that can be triggered by clicking on UI elements
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ClickableAction {
+    OpenSettings,
     ShowModelSelector,
     ToggleServiceTier,
     ShowShellSelector,

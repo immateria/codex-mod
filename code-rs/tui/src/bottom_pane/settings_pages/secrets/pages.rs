@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
 use crate::bottom_pane::settings_ui::buttons::{standard_button_specs, SettingsButtonKind, StandardButtonSpec};
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, shortcut_line, title_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, title_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -88,8 +88,9 @@ impl SecretsSettingsView {
             "Secrets",
             SettingsPanelStyle::bottom_pane(),
             header_lines,
-            vec![shortcut_line(&self.list_shortcuts(deleting))],
+            Vec::new(),
         )
+        .with_shortcuts(self.list_shortcuts(deleting))
     }
 
     fn list_shortcuts(&self, deleting: bool) -> Vec<KeyHint<'static>> {

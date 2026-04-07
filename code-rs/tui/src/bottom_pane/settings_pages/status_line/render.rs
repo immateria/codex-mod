@@ -30,17 +30,17 @@ impl StatusLineSetupView {
 
         let mut lines = Vec::new();
         lines.push(Line::from(vec![
-            Span::styled("Tab", Style::default().fg(crate::colors::light_blue())),
+            Span::styled(crate::icons::tab(), Style::default().fg(crate::colors::light_blue())),
             Span::styled(" lane  ", Style::default().fg(crate::colors::text_dim())),
             Span::styled("p", Style::default().fg(crate::colors::light_blue())),
             Span::styled(" primary  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Space", Style::default().fg(crate::colors::success())),
+            Span::styled(crate::icons::space(), Style::default().fg(crate::colors::success())),
             Span::styled(" toggle  ", Style::default().fg(crate::colors::text_dim())),
             Span::styled("←/→", Style::default().fg(crate::colors::light_blue())),
             Span::styled(" reorder  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Enter", Style::default().fg(crate::colors::success())),
+            Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
             Span::styled(" apply  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Esc", Style::default().fg(crate::colors::error())),
+            Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
             Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
         ]));
 
@@ -182,4 +182,3 @@ impl StatusLineSetupView {
         }
     }
 }
-
