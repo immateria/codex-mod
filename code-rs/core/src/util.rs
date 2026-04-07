@@ -66,3 +66,16 @@ pub fn strip_bash_lc_and_escape(command: &[String]) -> String {
 pub(crate) fn is_shell_like_executable(token: &str) -> bool {
     code_shell_command::is_shell_like_executable(token)
 }
+
+/// Serialize a [`reqwest::header::HeaderMap`] into a deterministic JSON object.
+pub(crate) fn header_map_to_json(headers: &reqwest::header::HeaderMap) -> serde_json::Value {
+    let mut ordered: std::collections::BTreeMap<String, Vec<String>> =
+        std::collections::BTreeMap::new();
+    for (name, value) in headers.iter() {
+        ordered
+            .entry(name.as_str().to_string())
+            .or_default()
+            .push(value.to_str().unwrap_or_default().to_string());
+    }
+    serde_json::to_value(ordered).unwrap_or(serde_json::Value::Null)
+}

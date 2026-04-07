@@ -193,16 +193,25 @@ pub(crate) struct InterfaceSettingsView {
     main_viewport_rows: Cell<usize>,
 }
 
-pub(crate) type InterfaceSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, InterfaceSettingsView>;
 pub(crate) type InterfaceSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, InterfaceSettingsView>;
-pub(crate) type InterfaceSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, InterfaceSettingsView>;
 pub(crate) type InterfaceSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, InterfaceSettingsView>;
 
 impl InterfaceSettingsView {
+    pub(super) fn desired_height_impl(&self, _width: u16) -> u16 {
+        match &self.mode {
+            ViewMode::Main => {
+                let base = self.build_rows().len().saturating_add(4);
+                (base.clamp(12, 20)) as u16
+            }
+            ViewMode::EditWidth { error, .. } | ViewMode::CaptureHotkey { error, .. } => {
+                if error.is_some() { 9 } else { 8 }
+            }
+            ViewMode::Transition => 8,
+        }
+    }
+
     pub fn new(
         code_home: PathBuf,
         settings: SettingsMenuConfig,
@@ -227,16 +236,8 @@ impl InterfaceSettingsView {
         }
     }
 
-    pub(crate) fn framed(&self) -> InterfaceSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> InterfaceSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> InterfaceSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> InterfaceSettingsViewContentOnlyMut<'_> {

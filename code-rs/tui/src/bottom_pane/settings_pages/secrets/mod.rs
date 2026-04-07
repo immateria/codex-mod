@@ -42,12 +42,8 @@ pub(crate) struct SecretsSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type SecretsSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, SecretsSettingsView>;
 pub(crate) type SecretsSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, SecretsSettingsView>;
-pub(crate) type SecretsSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, SecretsSettingsView>;
 pub(crate) type SecretsSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, SecretsSettingsView>;
 
@@ -91,16 +87,8 @@ impl SecretsSettingsView {
         view
     }
 
-    pub(crate) fn framed(&self) -> SecretsSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> SecretsSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> SecretsSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> SecretsSettingsViewContentOnlyMut<'_> {

@@ -23,6 +23,8 @@ mod state;
 #[cfg(test)]
 mod tests;
 mod views;
+#[macro_use]
+mod pane_impl_macros;
 pub(crate) mod panes;
 pub(crate) mod settings_pages;
 mod settings_overlay;

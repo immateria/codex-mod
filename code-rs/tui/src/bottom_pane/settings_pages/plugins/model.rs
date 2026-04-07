@@ -49,16 +49,8 @@ impl PluginsSettingsView {
         view
     }
 
-    pub(crate) fn framed(&self) -> PluginsSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> PluginsSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> PluginsSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> PluginsSettingsViewContentOnlyMut<'_> {

@@ -28,7 +28,6 @@ use crate::components::scroll_state::ScrollState;
 use crate::ui_interaction::{
     clipped_vertical_rect_with_scroll,
     next_scroll_top_with_delta,
-    redraw_if,
     render_vertical_scrollbar,
     scroll_top_to_keep_visible,
     split_pinned_footer_layout,
@@ -37,9 +36,7 @@ use crate::ui_interaction::{
     SelectableListMouseResult,
 };
 
-use crate::bottom_pane::{BottomPaneView, ConditionalUpdate};
 use crate::bottom_pane::{ChromeMode, LastRenderContext};
-use crate::bottom_pane::BottomPane;
 
 mod document;
 mod editor;
@@ -98,16 +95,8 @@ impl SkillsSettingsView {
         self.complete
     }
 
-    pub(crate) fn framed(&self) -> SkillsSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> SkillsSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> SkillsSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> SkillsSettingsViewContentOnlyMut<'_> {
@@ -143,11 +132,8 @@ impl SkillsSettingsView {
     }
 }
 
-pub(crate) type SkillsSettingsViewFramed<'v> = crate::bottom_pane::chrome_view::Framed<'v, SkillsSettingsView>;
 pub(crate) type SkillsSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, SkillsSettingsView>;
-pub(crate) type SkillsSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, SkillsSettingsView>;
 pub(crate) type SkillsSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, SkillsSettingsView>;
 

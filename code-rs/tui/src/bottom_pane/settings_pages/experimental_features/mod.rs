@@ -36,12 +36,8 @@ pub(crate) struct ExperimentalFeaturesSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type ExperimentalFeaturesSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, ExperimentalFeaturesSettingsView>;
 pub(crate) type ExperimentalFeaturesSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, ExperimentalFeaturesSettingsView>;
-pub(crate) type ExperimentalFeaturesSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, ExperimentalFeaturesSettingsView>;
 pub(crate) type ExperimentalFeaturesSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ExperimentalFeaturesSettingsView>;
 
@@ -90,16 +86,8 @@ impl ExperimentalFeaturesSettingsView {
         }
     }
 
-    pub(crate) fn framed(&self) -> ExperimentalFeaturesSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> ExperimentalFeaturesSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> ExperimentalFeaturesSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ExperimentalFeaturesSettingsViewContentOnlyMut<'_> {

@@ -56,11 +56,7 @@ pub(crate) struct ExecLimitsSettingsView {
     app_event_tx: AppEventSender,
 }
 
-pub(crate) type ExecLimitsSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, ExecLimitsSettingsView>;
 pub(crate) type ExecLimitsSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, ExecLimitsSettingsView>;
-pub(crate) type ExecLimitsSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, ExecLimitsSettingsView>;
 pub(crate) type ExecLimitsSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ExecLimitsSettingsView>;

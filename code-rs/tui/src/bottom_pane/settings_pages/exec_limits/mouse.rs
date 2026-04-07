@@ -96,7 +96,7 @@ impl ExecLimitsSettingsView {
         }
     }
 
-    pub(super) fn handle_mouse_event_direct_content(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
+    pub(super) fn handle_mouse_event_direct_content_only(&mut self, mouse_event: MouseEvent, area: Rect) -> bool {
         self.handle_mouse_event_direct_in_chrome(ChromeMode::ContentOnly, mouse_event, area)
     }
 

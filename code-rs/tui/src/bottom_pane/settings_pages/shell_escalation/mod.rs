@@ -59,17 +59,21 @@ pub(crate) struct ShellEscalationSettingsView {
     editor_notice: Option<String>,
 }
 
-pub(crate) type ShellEscalationSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, ShellEscalationSettingsView>;
 pub(crate) type ShellEscalationSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, ShellEscalationSettingsView>;
-pub(crate) type ShellEscalationSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, ShellEscalationSettingsView>;
 pub(crate) type ShellEscalationSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ShellEscalationSettingsView>;
 
 impl ShellEscalationSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
+
+    fn desired_height_impl(&self, _width: u16) -> u16 {
+        match &self.mode {
+            ViewMode::Main => 18,
+            ViewMode::EditText { .. } => 12,
+            ViewMode::Transition => 18,
+        }
+    }
 
     pub(crate) fn new(
         active_profile: Option<String>,
@@ -104,16 +108,8 @@ impl ShellEscalationSettingsView {
         }
     }
 
-    pub(crate) fn framed(&self) -> ShellEscalationSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> ShellEscalationSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> ShellEscalationSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ShellEscalationSettingsViewContentOnlyMut<'_> {

@@ -123,12 +123,8 @@ pub(crate) struct PluginsSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type PluginsSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, PluginsSettingsView>;
 pub(crate) type PluginsSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, PluginsSettingsView>;
-pub(crate) type PluginsSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, PluginsSettingsView>;
 pub(crate) type PluginsSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, PluginsSettingsView>;
 

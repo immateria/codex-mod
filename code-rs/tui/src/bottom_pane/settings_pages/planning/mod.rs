@@ -26,11 +26,8 @@ pub(crate) struct PlanningSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type PlanningSettingsViewFramed<'v> = crate::bottom_pane::chrome_view::Framed<'v, PlanningSettingsView>;
 pub(crate) type PlanningSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, PlanningSettingsView>;
-pub(crate) type PlanningSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, PlanningSettingsView>;
 pub(crate) type PlanningSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, PlanningSettingsView>;
 
@@ -62,16 +59,8 @@ impl PlanningSettingsView {
         self.use_chat_model = use_chat;
     }
 
-    pub(crate) fn framed(&self) -> PlanningSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> PlanningSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> PlanningSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> PlanningSettingsViewContentOnlyMut<'_> {

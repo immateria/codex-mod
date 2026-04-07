@@ -11,8 +11,6 @@ use super::{
     UpdateSettingsView,
     UpdateSettingsViewContentOnly,
     UpdateSettingsViewContentOnlyMut,
-    UpdateSettingsViewFramed,
-    UpdateSettingsViewFramedMut,
     UpdateSharedState,
 };
 
@@ -119,16 +117,8 @@ impl UpdateSettingsView {
             .min(Self::ROW_COUNT.saturating_sub(1))
     }
 
-    pub(crate) fn framed(&self) -> UpdateSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> UpdateSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> UpdateSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> UpdateSettingsViewContentOnlyMut<'_> {

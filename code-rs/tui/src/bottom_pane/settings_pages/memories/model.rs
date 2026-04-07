@@ -350,16 +350,8 @@ impl MemoriesSettingsView {
         }
     }
 
-    pub(crate) fn framed(&self) -> MemoriesSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> MemoriesSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> MemoriesSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> MemoriesSettingsViewContentOnlyMut<'_> {

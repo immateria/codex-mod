@@ -113,7 +113,7 @@ impl JsReplSettingsView {
         }
     }
 
-    pub(super) fn handle_mouse_event_direct_content(
+    pub(super) fn handle_mouse_event_direct_content_only(
         &mut self,
         mouse_event: MouseEvent,
         area: Rect,

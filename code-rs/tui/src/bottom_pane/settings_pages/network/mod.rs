@@ -60,17 +60,29 @@ pub(crate) struct NetworkSettingsView {
     viewport_rows: Cell<usize>,
 }
 
-pub(crate) type NetworkSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, NetworkSettingsView>;
 pub(crate) type NetworkSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, NetworkSettingsView>;
-pub(crate) type NetworkSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, NetworkSettingsView>;
 pub(crate) type NetworkSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, NetworkSettingsView>;
 
 impl NetworkSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
+
+    pub(super) fn desired_height_impl(&self, _width: u16) -> u16 {
+        match &self.mode {
+            ViewMode::Main { show_advanced } => {
+                let header = u16::try_from(Self::HEADER_LINE_COUNT).unwrap_or(u16::MAX);
+                let visible = u16::try_from(self.row_count(*show_advanced).clamp(1, 12))
+                    .unwrap_or(u16::MAX);
+                2u16.saturating_add(header).saturating_add(visible)
+            }
+            ViewMode::EditList { .. } => 18,
+            ViewMode::Transition => {
+                let header = u16::try_from(Self::HEADER_LINE_COUNT).unwrap_or(u16::MAX);
+                2u16.saturating_add(header).saturating_add(8)
+            }
+        }
+    }
 
     pub fn new(
         settings: Option<NetworkProxySettingsToml>,
@@ -93,16 +105,8 @@ impl NetworkSettingsView {
         }
     }
 
-    pub(crate) fn framed(&self) -> NetworkSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> NetworkSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> NetworkSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> NetworkSettingsViewContentOnlyMut<'_> {

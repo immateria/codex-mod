@@ -68,12 +68,8 @@ pub(crate) struct ReviewSettingsView {
     pending_notice: Option<String>,
 }
 
-pub(crate) type ReviewSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, ReviewSettingsView>;
 pub(crate) type ReviewSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, ReviewSettingsView>;
-pub(crate) type ReviewSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, ReviewSettingsView>;
 pub(crate) type ReviewSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ReviewSettingsView>;
 
@@ -223,16 +219,8 @@ impl ReviewSettingsView {
         self.is_complete
     }
 
-    pub(crate) fn framed(&self) -> ReviewSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> ReviewSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> ReviewSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ReviewSettingsViewContentOnlyMut<'_> {

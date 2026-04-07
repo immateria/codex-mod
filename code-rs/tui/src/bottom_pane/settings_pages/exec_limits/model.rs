@@ -1,6 +1,22 @@
 use super::*;
 
 impl ExecLimitsSettingsView {
+    pub(super) fn desired_height_impl(&self, _width: u16) -> u16 {
+        match &self.mode {
+            ViewMode::Main => {
+                let header = u16::try_from(self.render_header_lines().len()).unwrap_or(u16::MAX);
+                let total_rows = Self::build_rows().len();
+                let visible = u16::try_from(total_rows.clamp(1, 10)).unwrap_or(u16::MAX);
+                2u16.saturating_add(header).saturating_add(visible)
+            }
+            ViewMode::Edit { .. } => 10,
+            ViewMode::Transition => {
+                let header = u16::try_from(self.render_header_lines().len()).unwrap_or(u16::MAX);
+                2u16.saturating_add(header).saturating_add(6)
+            }
+        }
+    }
+
     pub(crate) fn new(settings: code_core::config::ExecLimitsToml, app_event_tx: AppEventSender) -> Self {
         let mut state = ScrollState::new();
         state.selected_idx = Some(0);
@@ -52,16 +68,8 @@ impl ExecLimitsSettingsView {
         }
     }
 
-    pub(crate) fn framed(&self) -> ExecLimitsSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> ExecLimitsSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> ExecLimitsSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> ExecLimitsSettingsViewContentOnlyMut<'_> {

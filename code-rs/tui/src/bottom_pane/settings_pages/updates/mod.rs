@@ -33,11 +33,8 @@ pub(crate) struct UpdateSettingsView {
     manual_instructions: Option<String>,
 }
 
-pub(crate) type UpdateSettingsViewFramed<'v> = crate::bottom_pane::chrome_view::Framed<'v, UpdateSettingsView>;
 pub(crate) type UpdateSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, UpdateSettingsView>;
-pub(crate) type UpdateSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, UpdateSettingsView>;
 pub(crate) type UpdateSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, UpdateSettingsView>;
 

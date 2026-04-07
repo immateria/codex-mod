@@ -25,8 +25,6 @@ pub(crate) struct NotificationsSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type NotificationsSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, NotificationsSettingsView>;
 pub(crate) type NotificationsSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, NotificationsSettingsView>;
 pub(crate) type NotificationsSettingsViewContentOnlyMut<'v> =
@@ -47,10 +45,6 @@ impl NotificationsSettingsView {
             state,
             is_complete: false,
         }
-    }
-
-    pub(crate) fn framed(&self) -> NotificationsSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
     }
 
     pub(crate) fn content_only(&self) -> NotificationsSettingsViewContentOnly<'_> {

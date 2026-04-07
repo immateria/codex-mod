@@ -37,12 +37,8 @@ pub(crate) struct AppsSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type AppsSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, AppsSettingsView>;
 pub(crate) type AppsSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, AppsSettingsView>;
-pub(crate) type AppsSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, AppsSettingsView>;
 pub(crate) type AppsSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, AppsSettingsView>;
 
@@ -71,16 +67,8 @@ impl AppsSettingsView {
         }
     }
 
-    pub(crate) fn framed(&self) -> AppsSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> AppsSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> AppsSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> AppsSettingsViewContentOnlyMut<'_> {

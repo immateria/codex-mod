@@ -64,18 +64,30 @@ pub(crate) struct JsReplSettingsView {
     viewport_rows: Cell<usize>,
 }
 
-pub(crate) type JsReplSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, JsReplSettingsView>;
 pub(crate) type JsReplSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, JsReplSettingsView>;
-pub(crate) type JsReplSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, JsReplSettingsView>;
 pub(crate) type JsReplSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, JsReplSettingsView>;
 
 impl JsReplSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
     const HEADER_ROWS: u16 = 3;
+
+    pub(super) fn desired_height_impl(&self, _width: u16) -> u16 {
+        match &self.mode {
+            ViewMode::Main => {
+                let total_rows = self.row_count();
+                let visible = (total_rows.clamp(1, 12)) as u16;
+                2u16
+                    .saturating_add(Self::HEADER_ROWS)
+                    .saturating_add(visible)
+            }
+            ViewMode::EditText { .. } | ViewMode::EditList { .. } => 18,
+            ViewMode::Transition => {
+                2u16.saturating_add(Self::HEADER_ROWS).saturating_add(8)
+            }
+        }
+    }
 
     pub(crate) fn new(
         settings: JsReplSettingsToml,
@@ -98,16 +110,8 @@ impl JsReplSettingsView {
         }
     }
 
-    pub(crate) fn framed(&self) -> JsReplSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
     pub(crate) fn content_only(&self) -> JsReplSettingsViewContentOnly<'_> {
         crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> JsReplSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
     }
 
     pub(crate) fn content_only_mut(&mut self) -> JsReplSettingsViewContentOnlyMut<'_> {

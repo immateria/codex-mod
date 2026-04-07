@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -8,7 +7,6 @@ use futures::Stream;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use reqwest::StatusCode;
-use reqwest::header::HeaderMap;
 use serde_json::Value;
 use serde_json::json;
 use std::pin::Pin;
@@ -33,7 +31,7 @@ use crate::error::RetryLimitReachedError;
 use crate::error::UnexpectedResponseError;
 use crate::model_family::ModelFamily;
 use crate::openai_tools::create_tools_json_for_chat_completions_api;
-use crate::util::backoff;
+use crate::util::{backoff, header_map_to_json};
 use std::sync::{Arc, Mutex};
 use code_protocol::models::ContentItem;
 use code_protocol::models::ReasoningItemContent;
@@ -1285,14 +1283,4 @@ impl<S> AggregatedChatStream<S> {
     pub(crate) fn streaming_mode(inner: S) -> Self {
         Self::new(inner, AggregateMode::Streaming)
     }
-}
-
-fn header_map_to_json(headers: &HeaderMap) -> serde_json::Value {
-    let mut ordered: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for (name, value) in headers.iter() {
-        let entry = ordered.entry(name.as_str().to_string()).or_default();
-        entry.push(value.to_str().unwrap_or_default().to_string());
-    }
-
-    serde_json::to_value(ordered).unwrap_or(serde_json::Value::Null)
 }

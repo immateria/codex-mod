@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::io::BufRead;
 use std::path::Path;
 use std::sync::OnceLock;
@@ -79,7 +78,7 @@ use crate::protocol::SandboxPolicy;
 use crate::protocol::TokenUsage;
 use crate::reasoning::clamp_reasoning_effort_for_model;
 use crate::slash_commands::get_enabled_agents;
-use crate::util::backoff;
+use crate::util::{backoff, header_map_to_json};
 use code_otel::otel_event_manager::{OtelEventManager, TurnLatencyPayload};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -2413,16 +2412,6 @@ fn parse_retry_after_header(value: &str, now: DateTime<Utc>) -> Option<RetryAfte
     }
 
     None
-}
-
-fn header_map_to_json(headers: &HeaderMap) -> Value {
-    let mut ordered: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for (name, value) in headers.iter() {
-        let entry = ordered.entry(name.as_str().to_string()).or_default();
-        entry.push(value.to_str().unwrap_or_default().to_string());
-    }
-
-    serde_json::to_value(ordered).unwrap_or(Value::Null)
 }
 
 async fn emit_completed_event(

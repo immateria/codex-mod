@@ -48,11 +48,8 @@ pub(crate) struct PromptsSettingsView {
     mode: Mode,
 }
 
-pub(crate) type PromptsSettingsViewFramed<'v> = crate::bottom_pane::chrome_view::Framed<'v, PromptsSettingsView>;
 pub(crate) type PromptsSettingsViewContentOnly<'v> =
     crate::bottom_pane::chrome_view::ContentOnly<'v, PromptsSettingsView>;
-pub(crate) type PromptsSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, PromptsSettingsView>;
 pub(crate) type PromptsSettingsViewContentOnlyMut<'v> =
     crate::bottom_pane::chrome_view::ContentOnlyMut<'v, PromptsSettingsView>;
 
