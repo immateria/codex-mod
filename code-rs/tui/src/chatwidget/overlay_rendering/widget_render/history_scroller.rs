@@ -24,7 +24,7 @@ impl ChatWidget<'_> {
 
         // Calculate total content height using prefix sums; build if needed
         let spacing = 1u16; // Standard spacing between cells
-        const GUTTER_WIDTH: u16 = 2; // Same as in render loop
+        const GUTTER_WIDTH: u16 = 4; // icon (2 cols) + gap (2 cols) — same as in render loop
         let reasoning_visible = self.is_reasoning_shown();
         let cache_width = content_area.width.saturating_sub(GUTTER_WIDTH);
 

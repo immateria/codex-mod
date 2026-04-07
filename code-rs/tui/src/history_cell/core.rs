@@ -273,6 +273,24 @@ pub(crate) trait HistoryCell {
     fn is_fold_toggleable(&self) -> bool {
         false
     }
+
+    /// Returns the content of this cell as markdown text for clipboard copy.
+    /// Default extracts plain text from display_lines(); cells with richer
+    /// content (e.g. AssistantMarkdownCell) override to return the raw markdown.
+    fn copyable_markdown(&self) -> Option<String> {
+        let lines = self.display_lines();
+        if lines.is_empty() {
+            return None;
+        }
+        let text: String = lines
+            .iter()
+            .map(|line| {
+                line.spans.iter().map(|s| s.content.as_ref()).collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        Some(text)
+    }
 }
 
 // Allow Box<dyn HistoryCell> to implement HistoryCell
@@ -337,5 +355,9 @@ impl HistoryCell for Box<dyn HistoryCell> {
 
     fn is_fold_toggleable(&self) -> bool {
         self.as_ref().is_fold_toggleable()
+    }
+
+    fn copyable_markdown(&self) -> Option<String> {
+        self.as_ref().copyable_markdown()
     }
 }

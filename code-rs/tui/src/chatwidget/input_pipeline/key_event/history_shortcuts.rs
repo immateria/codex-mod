@@ -133,8 +133,10 @@ impl ChatWidget<'_> {
     /// Toggle fold/collapse for a specific history cell by index (used by mouse clicks).
     pub(in crate::chatwidget) fn toggle_fold_at_index(&mut self, idx: usize) {
         use crate::history_cell::{
+            AssistantMarkdownCell,
             ExecCell,
             JsReplCell,
+            PlainHistoryCell,
             RunningToolCallCell,
             ToolCallCell,
             WebFetchToolCell,
@@ -152,6 +154,10 @@ impl ChatWidget<'_> {
             tool_cell.toggle_details_collapsed();
         } else if let Some(web_fetch_cell) = cell.as_any().downcast_ref::<WebFetchToolCell>() {
             web_fetch_cell.toggle_body_collapsed();
+        } else if let Some(assistant_cell) = cell.as_any().downcast_ref::<AssistantMarkdownCell>() {
+            assistant_cell.toggle_body_collapsed();
+        } else if let Some(plain_cell) = cell.as_any().downcast_ref::<PlainHistoryCell>() {
+            plain_cell.toggle_body_collapsed();
         } else {
             return;
         }

@@ -133,6 +133,7 @@ mod foundation;
 mod ui_consts;
 mod user_approval_widget;
 mod height_manager;
+mod clipboard_copy;
 mod clipboard_paste;
 mod greeting;
 #[cfg(target_os = "macos")]

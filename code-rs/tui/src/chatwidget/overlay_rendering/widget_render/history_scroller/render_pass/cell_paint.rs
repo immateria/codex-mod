@@ -35,7 +35,7 @@ impl ChatWidget<'_> {
         let mut screen_y = start_y;
         let spacing = 1u16;
         let history_len = self.history_cells.len();
-        const GUTTER_WIDTH: u16 = 2;
+        const GUTTER_WIDTH: u16 = 4; // icon (2 cols) + gap (2 cols)
         let viewport_bottom = content_area.y.saturating_add(content_area.height);
         let history_right = history_area.x.saturating_add(history_area.width);
         let logging_enabled = history_cell_logging_enabled();
@@ -511,6 +511,51 @@ impl ChatWidget<'_> {
                     self.clickable_regions.borrow_mut().push(
                         crate::chatwidget::ClickableRegion {
                             rect: Rect::new(x, y, label.len() as u16, 1),
+                            action,
+                        },
+                    );
+                }
+
+                // Copy-as-markdown button: show a clipboard icon on the right side
+                // of the first visible row for cells that have copyable content.
+                if visible_height > 0
+                    && item_area.width >= 5
+                    && item.copyable_markdown().is_some()
+                {
+                    let label = crate::icons::copy_content();
+                    let label_w = {
+                        use unicode_width::UnicodeWidthStr as _;
+                        label.width() as u16
+                    };
+                    // Place to the left of the dismiss button if present, else at right edge.
+                    let dismiss_offset = if matches!(
+                        item_kind,
+                        crate::history_cell::HistoryCellType::BackgroundEvent
+                    ) {
+                        crate::icons::dismiss().len() as u16 + 1
+                    } else {
+                        0
+                    };
+                    let x = item_area
+                        .x
+                        .saturating_add(item_area.width)
+                        .saturating_sub(label_w + dismiss_offset);
+                    let y = item_area.y;
+                    let action = crate::chatwidget::ClickableAction::CopyMarkdownAtIndex(idx);
+                    let hovered = self.hovered_clickable_action.borrow().as_ref() == Some(&action);
+                    let style = if hovered {
+                        Style::default()
+                            .bg(crate::colors::background())
+                            .fg(crate::colors::primary())
+                    } else {
+                        Style::default()
+                            .bg(crate::colors::background())
+                            .fg(crate::colors::text_dim())
+                    };
+                    buf.set_string(x, y, label, style);
+                    self.clickable_regions.borrow_mut().push(
+                        crate::chatwidget::ClickableRegion {
+                            rect: Rect::new(x, y, label_w.max(1), 1),
                             action,
                         },
                     );

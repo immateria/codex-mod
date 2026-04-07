@@ -687,6 +687,8 @@ enum ClickableAction {
     ToggleFoldAtIndex(usize),
     /// Remove a dismissible history cell at the given index.
     DismissHistoryCellAtIndex(usize),
+    /// Copy markdown content of a history cell to system clipboard via OSC 52.
+    CopyMarkdownAtIndex(usize),
 }
 
 /// A clickable region with its screen coordinates and associated action

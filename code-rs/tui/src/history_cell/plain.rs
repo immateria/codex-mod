@@ -18,6 +18,7 @@ use crate::colors;
 use crate::sanitize::Mode as SanitizeMode;
 use crate::sanitize::Options as SanitizeOptions;
 use crate::sanitize::sanitize_for_tui;
+use std::cell::Cell;
 use crate::theme::{current_theme, Theme};
 use code_ansi_escape::ansi_escape_line;
 use code_common::create_config_summary_entries;
@@ -62,6 +63,7 @@ impl PlainCellState {
 pub(crate) struct PlainHistoryCell {
     state: PlainCellState,
     cached_layout: std::cell::RefCell<Option<PlainLayoutCache>>,
+    collapsed: Cell<bool>,
 }
 
 impl PlainHistoryCell {
@@ -109,6 +111,7 @@ impl PlainHistoryCell {
                 kind,
             },
             cached_layout: std::cell::RefCell::new(None),
+            collapsed: Cell::new(false),
         }
     }
 
@@ -135,6 +138,31 @@ impl PlainHistoryCell {
     pub(crate) fn state_mut(&mut self) -> &mut PlainMessageState {
         self.invalidate_layout_cache();
         &mut self.state.message
+    }
+
+    pub(crate) fn toggle_body_collapsed(&self) {
+        self.collapsed.set(!self.collapsed.get());
+    }
+
+    fn has_enough_lines_to_fold(&self) -> bool {
+        self.state.body().len() > 2
+    }
+
+    fn collapsed_summary_line(&self) -> Line<'static> {
+        let body = self.state.body();
+        let first_line = body.first()
+            .map(|l| {
+                l.spans.iter().map(|s| s.text.as_str()).collect::<String>()
+            })
+            .unwrap_or_default();
+        let preview = crate::text_formatting::truncate_chars_with_ellipsis(first_line.trim(), 72);
+        Line::from(vec![
+            Span::styled(
+                format!("{} ", crate::icons::collapse_closed()),
+                Style::new().fg(crate::colors::text_dim()),
+            ),
+            Span::styled(preview, Style::new().fg(crate::colors::text_dim())),
+        ])
     }
 
     pub(crate) fn invalidate_layout_cache(&self) {
@@ -286,7 +314,14 @@ impl HistoryCell for PlainHistoryCell {
         super::gutter_symbol_for_kind(self.kind())
     }
 
+    fn is_fold_toggleable(&self) -> bool {
+        self.has_enough_lines_to_fold()
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
+        if self.collapsed.get() {
+            return vec![self.collapsed_summary_line()];
+        }
         let theme = current_theme();
         let mut lines: Vec<Line<'static>> = Vec::new();
 
@@ -308,10 +343,16 @@ impl HistoryCell for PlainHistoryCell {
     }
 
     fn has_custom_render(&self) -> bool {
+        if self.collapsed.get() {
+            return false;
+        }
         matches!(self.state.kind, HistoryCellType::User) || self.is_auto_review_notice()
     }
 
     fn desired_height(&self, width: u16) -> u16 {
+        if self.collapsed.get() {
+            return 1;
+        }
         let effective_width = if matches!(self.state.kind, HistoryCellType::User) {
             width.saturating_sub(crate::layout_consts::USER_HISTORY_RIGHT_PAD)
         } else {

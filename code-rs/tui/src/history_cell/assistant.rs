@@ -2,7 +2,7 @@ use super::*;
 use crate::history::state::AssistantMessageState;
 use code_core::config::Config;
 use code_core::config_types::UriBasedFileOpener;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -25,6 +25,7 @@ pub(crate) struct AssistantMarkdownCell {
     cwd: PathBuf,
     layout_cache: RefCell<HashMap<u16, Rc<AssistantLayoutCache>>>,
     rendered_lines_cache: RefCell<Option<Rc<Vec<Line<'static>>>>>,
+    collapsed: Cell<bool>,
 }
 
 impl AssistantMarkdownCell {
@@ -38,6 +39,7 @@ impl AssistantMarkdownCell {
             cwd: cfg.cwd.clone(),
             layout_cache: RefCell::new(HashMap::new()),
             rendered_lines_cache: RefCell::new(None),
+            collapsed: Cell::new(false),
         }
     }
 
@@ -72,6 +74,23 @@ impl AssistantMarkdownCell {
 
     pub(crate) fn state(&self) -> &AssistantMessageState {
         &self.state
+    }
+
+    pub(crate) fn toggle_body_collapsed(&self) {
+        self.collapsed.set(!self.collapsed.get());
+    }
+
+    fn collapsed_summary_line(&self) -> Line<'static> {
+        let md = &self.state.markdown;
+        let first_line = md.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+        let preview = crate::text_formatting::truncate_chars_with_ellipsis(first_line.trim(), 72);
+        Line::from(vec![
+            Span::styled(
+                format!("{} ", crate::icons::collapse_closed()),
+                Style::new().fg(crate::colors::text_dim()),
+            ),
+            Span::styled(preview, Style::new().fg(crate::colors::text_dim())),
+        ])
     }
 
     pub(crate) fn state_mut(&mut self) -> &mut AssistantMessageState {
@@ -291,21 +310,39 @@ impl HistoryCell for AssistantMarkdownCell {
         }
     }
 
+    fn is_fold_toggleable(&self) -> bool {
+        !self.state.mid_turn
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
+        if self.collapsed.get() {
+            return vec![self.collapsed_summary_line()];
+        }
         assistant_markdown_lines_with_context(&self.state, self.file_opener, &self.cwd)
     }
 
     fn has_custom_render(&self) -> bool {
-        true
+        !self.collapsed.get()
     }
 
     fn desired_height(&self, width: u16) -> u16 {
+        if self.collapsed.get() {
+            return 1;
+        }
         self.ensure_layout(width).total_rows()
     }
 
     fn custom_render_with_skip(&self, area: Rect, buf: &mut Buffer, skip_rows: u16) {
+        if self.collapsed.get() {
+            return;
+        }
         let plan = self.ensure_layout(area.width);
         self.render_with_layout(plan.as_ref(), area, buf, skip_rows);
+    }
+
+    fn copyable_markdown(&self) -> Option<String> {
+        let md = &self.state.markdown;
+        if md.is_empty() { None } else { Some(md.clone()) }
     }
 }
 
