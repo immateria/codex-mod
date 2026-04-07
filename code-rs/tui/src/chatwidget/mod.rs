@@ -472,6 +472,7 @@ include!("impl_chunks/history_insert_and_answer_streaming.rs");
 include!("impl_chunks/reasoning_terminal_browser.rs");
 include!("impl_chunks/validation_and_mcp_commands.rs");
 include!("impl_chunks/submit_messages_and_usage.rs");
+include!("impl_chunks/help_system.rs");
 
 async fn run_background_review(
     config: Config,

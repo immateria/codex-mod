@@ -186,6 +186,9 @@ impl ChatWidget<'_> {
                 self.pending_turn_origin = Some(TurnOrigin::User);
                 let cleaned = Self::strip_context_sections(&text);
                 self.last_user_message = (!cleaned.trim().is_empty()).then_some(cleaned);
+                if self.try_handle_help_query(text.trim()) {
+                    return;
+                }
                 let user_message = self.parse_message_with_images(text);
                 self.submit_user_message(user_message);
             }

@@ -294,7 +294,7 @@ fn dynamic_welcome_lines(
         && let Some(last) = out.last_mut()
         && last.trim().is_empty()
     {
-        *last = center_line("Interactive: type /help", max_width);
+        *last = center_line("Interactive: type ? for help", max_width);
     }
     out
 }

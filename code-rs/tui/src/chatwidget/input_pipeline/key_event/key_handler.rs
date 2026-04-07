@@ -497,6 +497,9 @@ impl ChatWidget<'_> {
                     self.handle_auto_command(Some(trimmed.to_string()));
                     return;
                 }
+                if self.try_handle_help_query(text.trim()) {
+                    return;
+                }
                 if self.try_handle_terminal_shortcut(&text) {
                     return;
                 }
