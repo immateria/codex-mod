@@ -190,8 +190,13 @@ where
             .label_pad_cols
             .map(|_| u16::try_from(self.label.as_ref().width()).unwrap_or(u16::MAX));
 
+        let pointer = if selected {
+            format!("{} ", crate::icons::pointer_active())
+        } else {
+            "  ".to_string()
+        };
         let mut spans = vec![
-            Span::styled(if selected { "› " } else { "  " }, arrow_style),
+            Span::styled(pointer, arrow_style),
         ];
         if self.indent_cols > 0 {
             push_spaces(&mut spans, self.indent_cols);
@@ -268,11 +273,16 @@ fn menu_row_run_with_width<'a, Id: Copy + PartialEq>(
     let mut used_cols = 0usize;
     let mut spans = Vec::new();
 
+    let pointer = if selected {
+        format!("{} ", crate::icons::pointer_active())
+    } else {
+        "  ".to_string()
+    };
     let _ = push_text_clipped(
         &mut spans,
         &mut used_cols,
         max_cols,
-        if selected { "› " } else { "  " },
+        &pointer,
         arrow_style,
     );
     if row.indent_cols > 0 {

@@ -852,7 +852,7 @@ fn run_ratatui_app(
     } = cli;
 
     // Activate NerdFont glyphs if the user opted in via config.toml [tui].
-    icons::set_nerd_fonts(config.tui.nerd_fonts);
+    icons::init(config.tui.nerd_fonts, config.tui.icons.clone());
 
     let mut app = App::new(app::AppInitArgs {
         config: config.clone(),

@@ -79,7 +79,7 @@ impl ModelSelectionView {
         lines.push(SelectableLineRun::selectable(
             fast_index,
             vec![Line::from(vec![
-                Span::styled(if is_selected { "› " } else { "  " }, arrow_style),
+                Span::styled(if is_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() }, arrow_style),
                 Span::styled("Fast mode: ", label_style),
                 Span::styled(
                     status.text,
@@ -143,7 +143,7 @@ impl ModelSelectionView {
         lines.push(SelectableLineRun::selectable(
             context_index,
             vec![Line::from(vec![
-                Span::styled(if is_selected { "› " } else { "  " }, arrow_style),
+                Span::styled(if is_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() }, arrow_style),
                 Span::styled(format!("Context preset: {context_status}"), label_style),
             ])],
         ));
@@ -163,7 +163,7 @@ impl ModelSelectionView {
             context_window_index,
             vec![Line::from(vec![
                 Span::styled(
-                    if is_window_selected { "› " } else { "  " },
+                    if is_window_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
                     window_arrow_style,
                 ),
                 Span::styled("Context window: ", window_label_style),
@@ -187,7 +187,7 @@ impl ModelSelectionView {
             auto_compact_index,
             vec![Line::from(vec![
                 Span::styled(
-                    if is_compact_selected { "› " } else { "  " },
+                    if is_compact_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
                     compact_arrow_style,
                 ),
                 Span::styled("Auto-compact at: ", compact_label_style),
@@ -233,7 +233,7 @@ impl ModelSelectionView {
         };
 
         let mut spans = vec![
-            Span::styled(if is_selected { "› " } else { "  " }, arrow_style),
+            Span::styled(if is_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() }, arrow_style),
             Span::styled("   ", indent_style),
             Span::styled("Use chat model", label_style),
         ];

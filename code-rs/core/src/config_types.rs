@@ -2314,6 +2314,12 @@ pub struct Tui {
     /// When false (the default), only standard Unicode symbols are used.
     #[serde(default)]
     pub nerd_fonts: bool,
+
+    /// Per-icon overrides.  Keys match the accessor function names in
+    /// `tui/src/icons.rs` (e.g. `gutter_user`, `bullet`, `arrow_left`).
+    /// Values are arbitrary Unicode strings displayed in place of the default.
+    #[serde(default)]
+    pub icons: std::collections::HashMap<String, String>,
 }
 
 fn deserialize_theme_config<'de, D>(deserializer: D) -> Result<ThemeConfig, D::Error>
@@ -2493,6 +2499,7 @@ impl Default for Tui {
             settings_menu: SettingsMenuConfig::default(),
             hotkeys: TuiHotkeysConfig::default(),
             nerd_fonts: false,
+            icons: std::collections::HashMap::new(),
         }
     }
 }

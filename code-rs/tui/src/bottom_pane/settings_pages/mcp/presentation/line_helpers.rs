@@ -4,13 +4,13 @@ use ratatui::text::{Line, Span};
 use super::super::McpSettingsView;
 
 impl McpSettingsView {
-    fn list_row_prefix(is_selected: bool, is_hovered: bool) -> &'static str {
+    fn list_row_prefix(is_selected: bool, is_hovered: bool) -> String {
         if is_selected {
-            "› "
+            format!("{} ", crate::icons::pointer_active())
         } else if is_hovered {
-            "> "
+            "> ".to_string()
         } else {
-            "  "
+            "  ".to_string()
         }
     }
 

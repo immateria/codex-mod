@@ -16,7 +16,7 @@ impl ThemeSelectionView {
             let selected = self.overview_selected_index == 0;
             let mut spans = vec![Span::raw(" ")];
             if selected {
-                spans.push(Span::styled("› ", Style::default().fg(theme.keyword)));
+                spans.push(Span::styled(format!("{} ", crate::icons::pointer_active()), Style::default().fg(theme.keyword)));
             } else {
                 spans.push(Span::raw("  "));
             }
@@ -43,7 +43,7 @@ impl ThemeSelectionView {
             let selected = self.overview_selected_index == 1;
             let mut spans = vec![Span::raw(" ")];
             if selected {
-                spans.push(Span::styled("› ", Style::default().fg(theme.keyword)));
+                spans.push(Span::styled(format!("{} ", crate::icons::pointer_active()), Style::default().fg(theme.keyword)));
             } else {
                 spans.push(Span::raw("  "));
             }
@@ -69,7 +69,7 @@ impl ThemeSelectionView {
             let selected = self.overview_selected_index == 2;
             let mut spans = vec![Span::raw(" ")];
             if selected {
-                spans.push(Span::styled("› ", Style::default().fg(theme.keyword)));
+                spans.push(Span::styled(format!("{} ", crate::icons::pointer_active()), Style::default().fg(theme.keyword)));
             } else {
                 spans.push(Span::raw("  "));
             }

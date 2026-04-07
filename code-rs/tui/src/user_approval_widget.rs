@@ -667,7 +667,11 @@ impl WidgetRef for &UserApprovalWidget<'_> {
         let expanded = options_chunk.height >= expanded_needed;
         for (idx, option) in self.select_options.iter().enumerate() {
             let selected = idx == self.selected_option;
-            let indicator = if selected { "› " } else { "  " };
+            let indicator = if selected {
+                format!("{} ", crate::icons::pointer_active())
+            } else {
+                "  ".to_string()
+            };
             let line_style = if selected {
                 Style::default()
                     .fg(crate::colors::primary())

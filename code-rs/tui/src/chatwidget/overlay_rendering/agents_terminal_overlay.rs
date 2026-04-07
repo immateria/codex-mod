@@ -244,7 +244,7 @@ impl ChatWidget<'_> {
                         .unwrap_or(false);
                     let prefix_span = if is_selected {
                         Span::styled(
-                            "› ",
+                            format!("{} ", crate::icons::pointer_active()),
                             Style::default().fg(crate::colors::primary()),
                         )
                     } else {
@@ -411,7 +411,11 @@ impl ChatWidget<'_> {
                     let action_header_style = Style::default()
                         .fg(crate::colors::text())
                         .add_modifier(Modifier::BOLD);
-                    let chevron = if self.agents_terminal.actions_collapsed { "▶" } else { "▼" };
+                    let chevron = if self.agents_terminal.actions_collapsed {
+                        crate::icons::collapse_closed()
+                    } else {
+                        crate::icons::collapse_open()
+                    };
                     let header_text = format!(
                         "╭ Action Log (a) {chevron} — {} entries ",
                         entry.logs.len()

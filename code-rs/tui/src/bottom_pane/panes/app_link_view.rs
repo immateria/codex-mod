@@ -202,7 +202,7 @@ impl BottomPaneView<'_> for AppLinkView {
         let mut y = inner.y + inner.height.saturating_sub(actions.len() as u16);
         for (idx, label) in actions.iter().enumerate() {
             let selected = idx == self.selected_action;
-            let prefix = if selected { '›' } else { ' ' };
+            let prefix = if selected { crate::icons::pointer_active() } else { " " };
             let line = Line::from(format!("{prefix} {label}"));
             let style = if selected {
                 Style::default().fg(crate::colors::primary())

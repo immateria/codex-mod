@@ -53,9 +53,9 @@ impl McpSettingsView {
             };
             let marker = if entry.enabled { "[x]" } else { "[ ]" };
             let expansion = if self.is_tool_expanded(entry.name) {
-                "▼"
+                crate::icons::collapse_open()
             } else {
-                "▶"
+                crate::icons::collapse_closed()
             };
             let has_override = overrides.is_some_and(|map| {
                 map.get(entry.name).is_some_and(|cfg| {
@@ -89,11 +89,11 @@ impl McpSettingsView {
             let mut spans = vec![
                 Span::styled(
                     if focused {
-                        "› "
+                        format!("{} ", crate::icons::pointer_active())
                     } else if hovered_row {
-                        "> "
+                        "> ".to_string()
                     } else {
-                        "  "
+                        "  ".to_string()
                     },
                     row_style,
                 ),

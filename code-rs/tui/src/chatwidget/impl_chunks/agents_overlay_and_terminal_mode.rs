@@ -339,7 +339,7 @@ impl ChatWidget<'_> {
         let header_style = ratatui::style::Style::default()
             .fg(crate::colors::text())
             .add_modifier(ratatui::style::Modifier::BOLD);
-        let chevron = if collapsed { "▶" } else { "▼" };
+        let chevron = if collapsed { crate::icons::collapse_closed() } else { crate::icons::collapse_open() };
         let title = format!("╭ Highlights (h) {chevron} ");
         let title_width = unicode_width::UnicodeWidthStr::width(title.as_str()) as u16;
         let pad = available_width

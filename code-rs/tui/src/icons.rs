@@ -1,178 +1,335 @@
 //! Centralized icon/glyph system with opt-in NerdFont support.
 //!
 //! When `tui.nerd_fonts = true` in config.toml, icons are drawn from
-//! the NerdFont private-use-area codepoints. Otherwise standard Unicode
+//! the NerdFont private-use-area codepoints.  Otherwise standard Unicode
 //! symbols are used (the default, which works in any terminal).
 //!
-//! Call [`set_nerd_fonts`] once at startup before the first render.
+//! # Customization
+//!
+//! Individual icons can be overridden via `[tui.icons]` in config.toml:
+//!
+//! ```toml
+//! [tui]
+//! nerd_fonts = true
+//!
+//! [tui.icons]
+//! gutter_user  = ">"          # override user-message gutter
+//! gutter_exec  = "$"          # override exec prompt
+//! bullet       = "·"          # override list-separator bullet
+//! ```
+//!
+//! Any key from [`ALL_ICONS`] can be used.  Custom values take precedence
+//! over both the NerdFont and plain defaults.
+//!
+//! Call [`init`] once at startup before the first render.
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
+
+// ── Global state ─────────────────────────────────────────────────────
 
 static NERD_FONTS_ENABLED: AtomicBool = AtomicBool::new(false);
+static OVERRIDES: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
 
-/// Enable or disable NerdFont glyphs globally. Call once at startup.
+// ── Icon descriptor ──────────────────────────────────────────────────
+
+/// A single icon with a config key, NerdFont codepoint, and plain fallback.
+#[derive(Clone, Copy)]
+pub struct Icon {
+    /// Config key used in `[tui.icons]` (matches the accessor function name).
+    pub key: &'static str,
+    /// NerdFont private-use-area glyph.
+    pub nerd: &'static str,
+    /// Standard Unicode fallback.
+    pub plain: &'static str,
+}
+
+impl Icon {
+    const fn new(key: &'static str, nerd: &'static str, plain: &'static str) -> Self {
+        Self { key, nerd, plain }
+    }
+
+    /// Resolve the icon: custom override → NerdFont → plain.
+    pub fn resolve(self) -> &'static str {
+        if let Some(overrides) = OVERRIDES.get() {
+            if let Some(&custom) = overrides.get(self.key) {
+                return custom;
+            }
+        }
+        if NERD_FONTS_ENABLED.load(Ordering::Relaxed) { self.nerd } else { self.plain }
+    }
+
+    /// Check whether `symbol` matches any variant of this icon
+    /// (custom override, NerdFont, or plain).
+    pub fn matches(self, symbol: &str) -> bool {
+        if symbol == self.nerd || symbol == self.plain {
+            return true;
+        }
+        if let Some(overrides) = OVERRIDES.get() {
+            if let Some(&custom) = overrides.get(self.key) {
+                return symbol == custom;
+            }
+        }
+        false
+    }
+}
+
+// ── Declarative icon registry ────────────────────────────────────────
+
+macro_rules! define_icon_functions {
+    ($(
+        $(#[$meta:meta])*
+        $fn_name:ident => $const_name:ident ($nerd:literal, $plain:literal);
+    )+) => {
+        $(
+            const $const_name: Icon = Icon::new(stringify!($fn_name), $nerd, $plain);
+
+            $(#[$meta])*
+            pub fn $fn_name() -> &'static str {
+                $const_name.resolve()
+            }
+        )+
+
+        /// Every registered icon, for iteration/documentation/export.
+        pub const ALL_ICONS: &[Icon] = &[$($const_name),+];
+    };
+}
+
+// ── Public API ───────────────────────────────────────────────────────
+
+/// Initialise the icon system.  Call once at startup.
+///
+/// * `nerd_fonts` – enable NerdFont glyphs.
+/// * `overrides` – per-key overrides from `[tui.icons]` (may be empty).
+pub fn init(nerd_fonts: bool, overrides: HashMap<String, String>) {
+    NERD_FONTS_ENABLED.store(nerd_fonts, Ordering::Relaxed);
+    if !overrides.is_empty() {
+        let leaked: HashMap<&'static str, &'static str> = overrides
+            .into_iter()
+            .map(|(k, v)| {
+                let k: &'static str = Box::leak(k.into_boxed_str());
+                let v: &'static str = Box::leak(v.into_boxed_str());
+                (k, v)
+            })
+            .collect();
+        let _ = OVERRIDES.set(leaked);
+    }
+}
+
+/// Toggle NerdFont mode at runtime (e.g. from the settings UI).
 pub fn set_nerd_fonts(enabled: bool) {
     NERD_FONTS_ENABLED.store(enabled, Ordering::Relaxed);
 }
 
-/// Whether NerdFont mode is active.
+/// Whether NerdFont mode is currently active.
 pub fn nerd_fonts_enabled() -> bool {
     NERD_FONTS_ENABLED.load(Ordering::Relaxed)
 }
 
-/// Pick between a NerdFont glyph and a plain Unicode fallback.
-#[inline]
-fn pick(nerd: &'static str, plain: &'static str) -> &'static str {
-    if NERD_FONTS_ENABLED.load(Ordering::Relaxed) { nerd } else { plain }
+// ── Icon definitions ─────────────────────────────────────────────────
+
+define_icon_functions! {
+    // ── Gutter indicators (history cell types) ─────────────────────────
+
+    /// User input message.
+    gutter_user      => GUTTER_USER       ("\u{f007}", "›");       // nf-fa-user
+    /// Assistant / AI response.
+    gutter_assistant => GUTTER_ASSISTANT   ("\u{f108}", "•");       // nf-fa-desktop
+    /// Proposed plan.
+    gutter_plan      => GUTTER_PLAN        ("\u{f0c5}", "≡");       // nf-fa-copy
+    /// Error.
+    gutter_error     => GUTTER_ERROR       ("\u{f057}", "✗");       // nf-fa-times_circle
+    /// Tool / operation running.
+    gutter_running   => GUTTER_RUNNING     ("\u{f110}", "…");       // nf-fa-spinner
+    /// Tool / operation success.
+    gutter_success   => GUTTER_SUCCESS     ("\u{f058}", "✓");       // nf-fa-check_circle
+    /// Tool / operation failure.
+    gutter_failure   => GUTTER_FAILURE     ("\u{f057}", "✗");       // nf-fa-times_circle
+    /// Shell / exec prompt.
+    gutter_exec      => GUTTER_EXEC        ("\u{f120}", "❯");       // nf-fa-terminal
+    /// Patch / diff.
+    gutter_patch     => GUTTER_PATCH       ("\u{f126}", "↯");       // nf-fa-code_fork
+    /// Background event.
+    gutter_background => GUTTER_BACKGROUND ("\u{f0e7}", "»");       // nf-fa-bolt
+    /// Notice / important.
+    gutter_notice    => GUTTER_NOTICE      ("\u{f005}", "★");       // nf-fa-star
+    /// Compaction summary.
+    gutter_compaction => GUTTER_COMPACTION ("\u{f066}", "§");       // nf-fa-compress
+    /// Context / info.
+    gutter_context   => GUTTER_CONTEXT     ("\u{f05a}", "◆");       // nf-fa-info_circle
+
+    // ── Status indicators ──────────────────────────────────────────────
+
+    /// Operation succeeded.
+    status_ok        => STATUS_OK          ("\u{f058}", "✓");       // nf-fa-check_circle
+    /// Operation failed.
+    status_fail      => STATUS_FAIL        ("\u{f057}", "✗");       // nf-fa-times_circle
+    /// Warning.
+    status_warn      => STATUS_WARN        ("\u{f06a}", "⚠");       // nf-fa-exclamation_circle
+    /// Informational.
+    status_info      => STATUS_INFO        ("\u{f05a}", "•");       // nf-fa-info_circle
+
+    // ── Navigation arrows ──────────────────────────────────────────────
+
+    /// Left navigation.
+    arrow_left       => ARROW_LEFT         ("\u{f053}", "◂");       // nf-fa-chevron_left
+    /// Right navigation.
+    arrow_right      => ARROW_RIGHT        ("\u{f054}", "▸");       // nf-fa-chevron_right
+    /// Up navigation.
+    arrow_up         => ARROW_UP           ("\u{f077}", "↑");       // nf-fa-chevron_up
+    /// Down navigation.
+    arrow_down       => ARROW_DOWN         ("\u{f078}", "↓");       // nf-fa-chevron_down
+    /// Collapse indicator.
+    arrow_collapse   => ARROW_COLLAPSE     ("\u{f053}", "◂");       // nf-fa-chevron_left
+    /// Expand indicator.
+    arrow_expand     => ARROW_EXPAND       ("\u{f054}", "▸");       // nf-fa-chevron_right
+
+    // ── Sidebar collapse/expand ────────────────────────────────────────
+
+    /// Sidebar hide (with label).
+    sidebar_hide     => SIDEBAR_HIDE       ("\u{f104} hide", "◂ hide");  // nf-fa-angle_double_left
+    /// Sidebar show (chevron only).
+    sidebar_show     => SIDEBAR_SHOW       ("\u{f105}", "▸");            // nf-fa-angle_double_right
+
+    // ── Plan progress ──────────────────────────────────────────────────
+
+    /// Idea / lightbulb.
+    plan_lightbulb   => PLAN_LIGHTBULB     ("\u{f0eb}", "!");       // nf-fa-lightbulb_o
+    /// Launch / rocket.
+    plan_rocket      => PLAN_ROCKET        ("\u{f135}", "↑");       // nf-fa-rocket
+    /// Clipboard / checklist.
+    plan_clipboard   => PLAN_CLIPBOARD     ("\u{f0c5}", "≡");       // nf-fa-copy
+    /// Progress: empty.
+    progress_empty   => PROGRESS_EMPTY     ("\u{f10c}", "○");       // nf-fa-circle_o
+    /// Progress: ¼.
+    progress_quarter => PROGRESS_QUARTER   ("\u{f123}", "◔");       // nf-fa-star_half
+    /// Progress: ½.
+    progress_half    => PROGRESS_HALF      ("\u{f042}", "◑");       // nf-fa-adjust
+    /// Progress: ¾.
+    progress_three_quarter => PROGRESS_THREE_QUARTER ("\u{f111}", "◕"); // nf-fa-circle
+    /// Progress: complete.
+    progress_full    => PROGRESS_FULL      ("\u{f058}", "●");       // nf-fa-check_circle
+
+    // ── Agent status ───────────────────────────────────────────────────
+
+    /// Agent running.
+    agent_running    => AGENT_RUNNING      ("\u{f04b}", "▶");       // nf-fa-play
+    /// Agent completed.
+    agent_completed  => AGENT_COMPLETED    ("\u{f058}", "✓");       // nf-fa-check_circle
+    /// Agent failed.
+    agent_failed     => AGENT_FAILED       ("\u{f071}", "!");       // nf-fa-warning
+    /// Agent cancelled.
+    agent_cancelled  => AGENT_CANCELLED    ("\u{f04d}", "▮");       // nf-fa-stop
+    /// Agent pending.
+    agent_pending    => AGENT_PENDING      ("\u{f110}", "…");       // nf-fa-spinner
+
+    // ── Web search ─────────────────────────────────────────────────────
+
+    /// Search info.
+    search_info      => SEARCH_INFO        ("\u{f05a}", "•");       // nf-fa-info_circle
+    /// Search success.
+    search_success   => SEARCH_SUCCESS     ("\u{f058}", "✓");       // nf-fa-check_circle
+    /// Search error.
+    search_error     => SEARCH_ERROR       ("\u{f057}", "✗");       // nf-fa-times_circle
+
+    // ── Breadcrumb / hierarchy separator ───────────────────────────────
+
+    /// Breadcrumb separator.
+    breadcrumb_sep   => BREADCRUMB_SEP     ("\u{f054}", "▸");       // nf-fa-chevron_right
+
+    // ── Selection pointer ──────────────────────────────────────────────
+
+    /// Active item pointer.
+    pointer_active   => POINTER_ACTIVE     ("\u{f054}", "›");       // nf-fa-chevron_right
+    /// Focused item pointer.
+    pointer_focused  => POINTER_FOCUSED    ("\u{f101}", "»");       // nf-fa-angle_double_right
+
+    // ── Misc ───────────────────────────────────────────────────────────
+
+    /// List bullet / separator.
+    bullet           => BULLET             ("\u{f111}", "•");       // nf-fa-circle
+    /// Small separator dot.
+    separator_dot    => SEPARATOR_DOT      ("\u{f111}", "·");       // nf-fa-circle
+    /// Version transition arrow.
+    upgrade_arrow    => UPGRADE_ARROW      ("\u{f061}", "→");       // nf-fa-arrow_right
+    /// Collapse toggle (▼ when expanded).
+    collapse_open    => COLLAPSE_OPEN      ("\u{f078}", "▼");       // nf-fa-chevron_down
+    /// Collapse toggle (▶ when collapsed).
+    collapse_closed  => COLLAPSE_CLOSED    ("\u{f054}", "▶");       // nf-fa-chevron_right
+    /// MCP / tools play indicator.
+    tool_play        => TOOL_PLAY          ("\u{f04b}", "▶");       // nf-fa-play
+    /// File tree branch connector.
+    tree_branch      => TREE_BRANCH        ("\u{f105}", "└");       // nf-fa-angle_right
+    /// File tree start connector.
+    tree_start       => TREE_START         ("\u{f105}", "┌");       // nf-fa-angle_right
+    /// Rename / transition arrow.
+    rename_arrow     => RENAME_ARROW       ("\u{f061}", "→");       // nf-fa-arrow_right
 }
-
-// ── Gutter indicators (history cell types) ───────────────────────────
-
-/// User input message.
-pub fn gutter_user() -> &'static str { pick("\u{f007}", "›") }       // nf-fa-user
-/// Assistant / AI response.
-pub fn gutter_assistant() -> &'static str { pick("\u{f108}", "•") }   // nf-fa-desktop (model)
-/// Proposed plan.
-pub fn gutter_plan() -> &'static str { pick("\u{f0c5}", "≡") }       // nf-fa-copy (clipboard)
-/// Error.
-pub fn gutter_error() -> &'static str { pick("\u{f057}", "✗") }      // nf-fa-times_circle
-/// Tool / operation running.
-pub fn gutter_running() -> &'static str { pick("\u{f110}", "…") }    // nf-fa-spinner
-/// Tool / operation success.
-pub fn gutter_success() -> &'static str { pick("\u{f058}", "✓") }    // nf-fa-check_circle
-/// Tool / operation failure.
-pub fn gutter_failure() -> &'static str { pick("\u{f057}", "✗") }    // nf-fa-times_circle
-/// Shell / exec prompt.
-pub fn gutter_exec() -> &'static str { pick("\u{f120}", "❯") }       // nf-fa-terminal
-/// Patch / diff.
-pub fn gutter_patch() -> &'static str { pick("\u{f126}", "↯") }      // nf-fa-code_fork
-/// Background event.
-pub fn gutter_background() -> &'static str { pick("\u{f0e7}", "»") }  // nf-fa-bolt
-/// Notice / important.
-pub fn gutter_notice() -> &'static str { pick("\u{f005}", "★") }     // nf-fa-star
-/// Compaction summary.
-pub fn gutter_compaction() -> &'static str { pick("\u{f066}", "§") }  // nf-fa-compress
-/// Context / info.
-pub fn gutter_context() -> &'static str { pick("\u{f05a}", "◆") }    // nf-fa-info_circle
-
-// ── Status indicators ────────────────────────────────────────────────
-
-pub fn status_ok() -> &'static str { pick("\u{f058}", "✓") }         // nf-fa-check_circle
-pub fn status_fail() -> &'static str { pick("\u{f057}", "✗") }       // nf-fa-times_circle
-pub fn status_warn() -> &'static str { pick("\u{f06a}", "⚠") }       // nf-fa-exclamation_circle
-pub fn status_info() -> &'static str { pick("\u{f05a}", "•") }       // nf-fa-info_circle
-
-// ── Navigation arrows ────────────────────────────────────────────────
-
-pub fn arrow_left() -> &'static str { pick("\u{f053}", "◂") }        // nf-fa-chevron_left
-pub fn arrow_right() -> &'static str { pick("\u{f054}", "▸") }       // nf-fa-chevron_right
-pub fn arrow_up() -> &'static str { pick("\u{f077}", "↑") }          // nf-fa-chevron_up
-pub fn arrow_down() -> &'static str { pick("\u{f078}", "↓") }        // nf-fa-chevron_down
-pub fn arrow_collapse() -> &'static str { pick("\u{f053}", "◂") }    // nf-fa-chevron_left
-pub fn arrow_expand() -> &'static str { pick("\u{f054}", "▸") }      // nf-fa-chevron_right
-
-// ── Sidebar collapse/expand ──────────────────────────────────────────
-
-pub fn sidebar_hide() -> &'static str { pick("\u{f104} hide", "◂ hide") }  // nf-fa-angle_double_left
-pub fn sidebar_show() -> &'static str { pick("\u{f105}", "▸") }            // nf-fa-angle_double_right
-
-// ── Plan progress ────────────────────────────────────────────────────
-
-pub fn plan_lightbulb() -> &'static str { pick("\u{f0eb}", "!") }    // nf-fa-lightbulb_o
-pub fn plan_rocket() -> &'static str { pick("\u{f135}", "↑") }       // nf-fa-rocket
-pub fn plan_clipboard() -> &'static str { pick("\u{f0c5}", "≡") }    // nf-fa-copy
-
-pub fn progress_empty() -> &'static str { pick("\u{f10c}", "○") }    // nf-fa-circle_o
-pub fn progress_quarter() -> &'static str { pick("\u{f123}", "◔") }  // nf-fa-star_half (approx)
-pub fn progress_half() -> &'static str { pick("\u{f042}", "◑") }     // nf-fa-adjust
-pub fn progress_three_quarter() -> &'static str { pick("\u{f111}", "◕") } // nf-fa-circle (mostly filled)
-pub fn progress_full() -> &'static str { pick("\u{f058}", "●") }     // nf-fa-check_circle
-
-// ── Agent status ─────────────────────────────────────────────────────
-
-pub fn agent_running() -> &'static str { pick("\u{f04b}", "▶") }     // nf-fa-play
-pub fn agent_completed() -> &'static str { pick("\u{f058}", "✓") }   // nf-fa-check_circle
-pub fn agent_failed() -> &'static str { pick("\u{f071}", "!") }      // nf-fa-warning
-pub fn agent_cancelled() -> &'static str { pick("\u{f04d}", "▮") }   // nf-fa-stop
-pub fn agent_pending() -> &'static str { pick("\u{f110}", "…") }     // nf-fa-spinner
-
-// ── Web search ───────────────────────────────────────────────────────
-
-pub fn search_info() -> &'static str { pick("\u{f05a}", "•") }       // nf-fa-info_circle
-pub fn search_success() -> &'static str { pick("\u{f058}", "✓") }    // nf-fa-check_circle
-pub fn search_error() -> &'static str { pick("\u{f057}", "✗") }      // nf-fa-times_circle
 
 // ── Settings sidebar section icons ───────────────────────────────────
-// These return "icon label" when NerdFont is on, or just "" for plain mode
-// (the caller prepends the icon to the existing label).
+
+const SECTION_ICONS: &[(&str, &str)] = &[
+    ("Model",            "\u{f108} "),   // nf-fa-desktop
+    ("Theme",            "\u{f1fc} "),   // nf-fa-paint_brush
+    ("Interface",        "\u{f085} "),   // nf-fa-cogs
+    ("Experimental",     "\u{f0c3} "),   // nf-fa-flask
+    ("Shell",            "\u{f120} "),   // nf-fa-terminal
+    ("Shell escalation", "\u{f132} "),   // nf-fa-shield
+    ("Shell profiles",   "\u{f2c0} "),   // nf-fa-id_badge
+    ("Exec limits",      "\u{f023} "),   // nf-fa-lock
+    ("Planning",         "\u{f073} "),   // nf-fa-calendar
+    ("Updates",          "\u{f019} "),   // nf-fa-download
+    ("Accounts",         "\u{f0c0} "),   // nf-fa-users
+    ("Secrets",          "\u{f084} "),   // nf-fa-key
+    ("Apps",             "\u{f1b2} "),   // nf-fa-cube
+    ("Agents",           "\u{f1b0} "),   // nf-fa-paw
+    ("Memories",         "\u{f1c0} "),   // nf-fa-database
+    ("Auto Drive",       "\u{f04b} "),   // nf-fa-play
+    ("Review",           "\u{f002} "),   // nf-fa-search
+    ("Validation",       "\u{f00c} "),   // nf-fa-check
+    ("Limits",           "\u{f0e4} "),   // nf-fa-tachometer
+    ("Chrome",           "\u{f268} "),   // nf-fa-chrome
+    ("MCP",              "\u{f1e0} "),   // nf-fa-share_alt
+    ("JS REPL",          "\u{f121} "),   // nf-fa-code
+    ("Network",          "\u{f0ac} "),   // nf-fa-globe
+    ("Notifications",    "\u{f0f3} "),   // nf-fa-bell
+    ("Prompts",          "\u{f27a} "),   // nf-fa-commenting
+    ("Skills",           "\u{f0ad} "),   // nf-fa-wrench
+    ("Plugins",          "\u{f12e} "),   // nf-fa-puzzle_piece
+];
 
 pub fn section_icon(section: &str) -> &'static str {
-    if !NERD_FONTS_ENABLED.load(Ordering::Relaxed) {
+    if !nerd_fonts_enabled() {
         return "";
     }
-    match section {
-        "Model" => "\u{f108} ",           // nf-fa-desktop
-        "Theme" => "\u{f1fc} ",           // nf-fa-paint_brush
-        "Interface" => "\u{f085} ",       // nf-fa-cogs
-        "Experimental" => "\u{f0c3} ",    // nf-fa-flask
-        "Shell" => "\u{f120} ",           // nf-fa-terminal
-        "Shell escalation" => "\u{f132} ",// nf-fa-shield
-        "Shell profiles" => "\u{f2c0} ",  // nf-fa-id_badge
-        "Exec limits" => "\u{f023} ",     // nf-fa-lock
-        "Planning" => "\u{f073} ",        // nf-fa-calendar
-        "Updates" => "\u{f019} ",         // nf-fa-download
-        "Accounts" => "\u{f0c0} ",        // nf-fa-users
-        "Secrets" => "\u{f084} ",         // nf-fa-key
-        "Apps" => "\u{f1b2} ",            // nf-fa-cube
-        "Agents" => "\u{f1b0} ",          // nf-fa-paw
-        "Memories" => "\u{f1c0} ",        // nf-fa-database
-        "Auto Drive" => "\u{f04b} ",      // nf-fa-play
-        "Review" => "\u{f002} ",          // nf-fa-search
-        "Validation" => "\u{f00c} ",      // nf-fa-check
-        "Limits" => "\u{f0e4} ",          // nf-fa-tachometer
-        "Chrome" => "\u{f268} ",          // nf-fa-chrome
-        "MCP" => "\u{f1e0} ",             // nf-fa-share_alt
-        "JS REPL" => "\u{f121} ",         // nf-fa-code
-        "Network" => "\u{f0ac} ",         // nf-fa-globe
-        "Notifications" => "\u{f0f3} ",   // nf-fa-bell
-        "Prompts" => "\u{f27a} ",         // nf-fa-commenting
-        "Skills" => "\u{f0ad} ",          // nf-fa-wrench
-        "Plugins" => "\u{f12e} ",         // nf-fa-puzzle_piece
-        _ => "",
-    }
+    SECTION_ICONS
+        .iter()
+        .find_map(|(name, icon)| (*name == section).then_some(*icon))
+        .unwrap_or("")
 }
-
-// ── Breadcrumb / hierarchy separator ─────────────────────────────────
-
-pub fn breadcrumb_sep() -> &'static str { pick("\u{f054}", "▸") }    // nf-fa-chevron_right
-
-// ── Selection pointer ────────────────────────────────────────────────
-
-pub fn pointer_active() -> &'static str { pick("\u{f054}", "›") }    // nf-fa-chevron_right
-pub fn pointer_focused() -> &'static str { pick("\u{f101}", "»") }   // nf-fa-angle_double_right
-
-// ── Misc ─────────────────────────────────────────────────────────────
-
-pub fn bullet() -> &'static str { pick("\u{f111}", "•") }            // nf-fa-circle
-pub fn separator_dot() -> &'static str { pick("\u{f111}", "·") }     // nf-fa-circle (small)
-pub fn upgrade_arrow() -> &'static str { pick("\u{f061}", "→") }     // nf-fa-arrow_right
 
 // ── Symbol recognizers ───────────────────────────────────────────────
-// Used by cell_paint and other renderers that match gutter symbols for
-// coloring. Must recognize both NerdFont and plain variants.
 
-pub fn is_exec_prompt(s: &str) -> bool { s == "❯" || s == "\u{f120}" }
-pub fn is_patch(s: &str) -> bool { s == "↯" || s == "\u{f126}" }
-pub fn is_user(s: &str) -> bool { s == "›" || s == "\u{f007}" }
-pub fn is_assistant(s: &str) -> bool { s == "•" || s == "\u{f108}" }
-pub fn is_running(s: &str) -> bool { s == "…" || s == "\u{f110}" }
-pub fn is_success(s: &str) -> bool { s == "✓" || s == "\u{f058}" }
-pub fn is_failure(s: &str) -> bool { s == "✗" || s == "\u{f057}" }
-pub fn is_notice(s: &str) -> bool { s == "★" || s == "\u{f005}" }
-pub fn is_progress(s: &str) -> bool {
-    matches!(s, "○" | "◔" | "◑" | "◕" | "●"
-        | "\u{f10c}" | "\u{f123}" | "\u{f042}" | "\u{f111}" | "\u{f058}")
-}
-pub fn is_spinner(s: &str) -> bool {
-    matches!(s, "◐" | "◓" | "◑" | "◒")
-}
+const PROGRESS_ICONS: &[Icon] = &[
+    PROGRESS_EMPTY,
+    PROGRESS_QUARTER,
+    PROGRESS_HALF,
+    PROGRESS_THREE_QUARTER,
+    PROGRESS_FULL,
+];
+
+pub fn is_exec_prompt(s: &str) -> bool { GUTTER_EXEC.matches(s) }
+pub fn is_patch(s: &str) -> bool       { GUTTER_PATCH.matches(s) }
+pub fn is_user(s: &str) -> bool        { GUTTER_USER.matches(s) }
+pub fn is_assistant(s: &str) -> bool   { GUTTER_ASSISTANT.matches(s) }
+pub fn is_running(s: &str) -> bool     { GUTTER_RUNNING.matches(s) }
+pub fn is_success(s: &str) -> bool     { GUTTER_SUCCESS.matches(s) || STATUS_OK.matches(s) }
+pub fn is_failure(s: &str) -> bool     { GUTTER_FAILURE.matches(s) || STATUS_FAIL.matches(s) }
+pub fn is_notice(s: &str) -> bool      { GUTTER_NOTICE.matches(s) }
+pub fn is_progress(s: &str) -> bool    { PROGRESS_ICONS.iter().any(|icon| icon.matches(s)) }
+pub fn is_spinner(s: &str) -> bool     { matches!(s, "◐" | "◓" | "◑" | "◒") }
+pub fn is_context(s: &str) -> bool     { GUTTER_CONTEXT.matches(s) }
+pub fn is_compaction(s: &str) -> bool  { GUTTER_COMPACTION.matches(s) }
+pub fn is_background(s: &str) -> bool  { GUTTER_BACKGROUND.matches(s) }
+

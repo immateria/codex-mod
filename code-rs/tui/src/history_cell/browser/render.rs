@@ -646,7 +646,7 @@ impl HistoryCell for BrowserSessionCell {
 
     fn gutter_symbol(&self) -> Option<&'static str> {
         if self.completed {
-            Some("✓")
+            Some(crate::icons::gutter_success())
         } else {
             None
         }

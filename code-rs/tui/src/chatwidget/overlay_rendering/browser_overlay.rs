@@ -137,7 +137,7 @@ impl ChatWidget<'_> {
             };
 
             let mut left_spans: Vec<Span> = Vec::new();
-            left_spans.push(Span::styled("•", dot_style));
+            left_spans.push(Span::styled(crate::icons::bullet(), dot_style));
             if !summary_value.is_empty() {
                 left_spans.push(Span::raw(" "));
                 left_spans.push(Span::raw(summary_value));
@@ -284,7 +284,7 @@ impl ChatWidget<'_> {
             } else {
                 for (idx, entry) in history.iter().enumerate() {
                     let mut spans: Vec<Span> = Vec::new();
-                    let marker = if idx == selected_index { "◉" } else { "•" };
+                    let marker = if idx == selected_index { "◉" } else { crate::icons::bullet() };
                     let marker_style = if idx == selected_index {
                         Style::default().fg(crate::colors::primary())
                     } else {
@@ -324,7 +324,7 @@ impl ChatWidget<'_> {
             } else {
                 for (time, label, detail) in entries {
                     let mut spans: Vec<Span> = vec![
-                        Span::styled("•", secondary_style),
+                        Span::styled(crate::icons::bullet(), secondary_style),
                         Span::raw(" "),
                         Span::styled(
                             self.normalize_action_time_label(time.as_str()),

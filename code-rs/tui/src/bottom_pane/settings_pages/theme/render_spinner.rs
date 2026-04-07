@@ -78,7 +78,7 @@ impl ThemeSelectionView {
                 let mut spans = Vec::new();
                 let is_selected = index == self.selected_spinner_index;
                 spans.push(Span::styled(
-                    if is_selected { "› " } else { "  " },
+                    if is_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
                     Style::default().fg(if is_selected {
                         theme.keyword
                     } else {
@@ -132,7 +132,7 @@ impl ThemeSelectionView {
 
             let mut spans: Vec<Span> = Vec::new();
             spans.push(Span::styled(
-                if is_selected { "› " } else { "  " },
+                if is_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
                 Style::default().fg(if is_selected {
                     theme.keyword
                 } else {

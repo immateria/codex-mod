@@ -187,7 +187,7 @@ impl ThemeSelectionView {
             if allow_custom && i >= options.len() {
                 let mut spans = vec![Span::raw(" ")];
                 if is_selected {
-                    spans.push(Span::styled("› ", Style::default().fg(palette.keyword)));
+                    spans.push(Span::styled(format!("{} ", crate::icons::pointer_active()), Style::default().fg(palette.keyword)));
                 } else if is_hovered {
                     spans.push(Span::styled("• ", Style::default().fg(palette.info)));
                 } else {
@@ -209,7 +209,7 @@ impl ThemeSelectionView {
             let is_original = *theme_enum == self.original_theme;
             let mut spans = vec![Span::raw(" ")];
             if is_selected {
-                spans.push(Span::styled("› ", Style::default().fg(palette.keyword)));
+                spans.push(Span::styled(format!("{} ", crate::icons::pointer_active()), Style::default().fg(palette.keyword)));
             } else if is_hovered {
                 spans.push(Span::styled("• ", Style::default().fg(palette.info)));
             } else {

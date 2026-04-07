@@ -881,7 +881,7 @@ fn sections_to_ratatui_lines(
                 } => {
                     let indent_spaces = (*indent as usize).saturating_mul(2);
                     let marker_text = match marker {
-                        BulletMarker::Dash => "•".to_string(),
+                        BulletMarker::Dash => crate::icons::bullet().to_string(),
                         BulletMarker::Numbered(n) => format!("{n}."),
                         BulletMarker::Custom(s) => s.clone(),
                     };
