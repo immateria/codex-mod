@@ -330,7 +330,7 @@ impl LimitsSettingsContent {
         widest.saturating_add(2).min(u16::MAX as usize) as u16
     }
 
-    fn tab_at(&self, tabs_area: Rect, mouse_event: MouseEvent) -> Option<usize> {
+    fn tab_at(&self, tabs_area: Rect, mouse_event: MouseEvent) -> Option<TabHit> {
         if self.overlay.tab_count() <= 1 || tabs_area.width == 0 || tabs_area.height == 0 {
             return None;
         }
@@ -344,20 +344,12 @@ impl LimitsSettingsContent {
         }
 
         let tabs = self.overlay.tabs()?;
-        let mut x = tabs_area.x;
-        for (idx, tab) in tabs.iter().enumerate() {
-            let tab_width = UnicodeWidthStr::width(tab.title.as_str()) as u16 + 2;
-            let start = x;
-            let end = start.saturating_add(tab_width);
-            if mouse_event.column >= start && mouse_event.column < end {
-                return Some(idx);
-            }
-            x = end.saturating_add(1);
-            if x >= tabs_area.x.saturating_add(tabs_area.width) {
-                break;
-            }
-        }
-        None
+        LimitsTabsRowWidget::hit_at(
+            tabs,
+            self.overlay.selected_tab(),
+            tabs_area,
+            mouse_event.column,
+        )
     }
 
     fn content_areas(area: Rect, has_tabs: bool) -> (Rect, Option<Rect>, Rect) {

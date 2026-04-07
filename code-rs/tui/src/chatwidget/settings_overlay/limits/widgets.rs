@@ -36,9 +36,126 @@ impl Widget for LimitsHintRowWidget {
     }
 }
 
+/// Visible window of tabs after overflow windowing.
+struct TabWindow {
+    /// Index of the first visible tab.
+    start: usize,
+    /// One past the last visible tab.
+    end: usize,
+    /// Whether tabs are hidden to the left.
+    has_left_overflow: bool,
+    /// Whether tabs are hidden to the right.
+    has_right_overflow: bool,
+}
+
+/// Per-tab display width: " title " (padding + unicode width) + " " separator.
+fn tab_display_width(tab: &LimitsTab) -> usize {
+    UnicodeWidthStr::width(tab.title.as_str()) + 3
+}
+
+/// Compute which tabs are visible given the available width and selected tab.
+fn compute_tab_window(tabs: &[LimitsTab], selected: usize, width: usize) -> TabWindow {
+    let n = tabs.len();
+    let selected = selected.min(n.saturating_sub(1));
+    let tab_widths: Vec<usize> = tabs.iter().map(tab_display_width).collect();
+    let total: usize = tab_widths.iter().sum();
+
+    if total <= width || n == 0 {
+        return TabWindow { start: 0, end: n, has_left_overflow: false, has_right_overflow: false };
+    }
+
+    const LEFT_IND: usize = 2; // "◂ "
+    const RIGHT_IND: usize = 2; // " ▸"
+
+    let mut start = selected;
+    let mut end = selected + 1;
+    let mut used = tab_widths[selected];
+
+    loop {
+        let mut expanded = false;
+
+        if end < n {
+            let left_cost = if start > 0 { LEFT_IND } else { 0 };
+            let right_cost = if end + 1 < n { RIGHT_IND } else { 0 };
+            if used + tab_widths[end] + left_cost + right_cost <= width {
+                used += tab_widths[end];
+                end += 1;
+                expanded = true;
+            }
+        }
+
+        if start > 0 {
+            let left_cost = if start - 1 > 0 { LEFT_IND } else { 0 };
+            let right_cost = if end < n { RIGHT_IND } else { 0 };
+            if used + tab_widths[start - 1] + left_cost + right_cost <= width {
+                start -= 1;
+                used += tab_widths[start];
+                expanded = true;
+            }
+        }
+
+        if !expanded {
+            break;
+        }
+    }
+
+    TabWindow {
+        start,
+        end,
+        has_left_overflow: start > 0,
+        has_right_overflow: end < n,
+    }
+}
+
 struct LimitsTabsRowWidget<'a> {
     tabs: &'a [LimitsTab],
     selected_tab: usize,
+}
+
+/// Result of a click in the tab row area.
+enum TabHit {
+    /// Clicked on a specific tab (by global index).
+    Tab(usize),
+    /// Clicked the left overflow indicator — navigate to previous tab.
+    PrevTab,
+    /// Clicked the right overflow indicator — navigate to next tab.
+    NextTab,
+}
+
+impl LimitsTabsRowWidget<'_> {
+    /// Returns what was clicked at the given column within `tabs_area`,
+    /// accounting for the same overflow windowing the renderer uses.
+    fn hit_at(tabs: &[LimitsTab], selected: usize, tabs_area: Rect, col: u16) -> Option<TabHit> {
+        if tabs.len() <= 1 || tabs_area.width == 0 {
+            return None;
+        }
+        let window = compute_tab_window(tabs, selected, tabs_area.width as usize);
+        let mut x = tabs_area.x;
+
+        // Left overflow indicator region
+        if window.has_left_overflow {
+            if col >= x && col < x.saturating_add(2) {
+                return Some(TabHit::PrevTab);
+            }
+            x = x.saturating_add(2);
+        }
+
+        // Individual tab regions
+        for idx in window.start..window.end {
+            let w = UnicodeWidthStr::width(tabs[idx].title.as_str()) as u16 + 2;
+            if col >= x && col < x.saturating_add(w) {
+                return Some(TabHit::Tab(idx));
+            }
+            x = x.saturating_add(w).saturating_add(1);
+        }
+
+        // Right overflow indicator region
+        if window.has_right_overflow && col >= x {
+            return Some(TabHit::NextTab);
+        }
+
+        None
+    }
 }
 
 impl Widget for LimitsTabsRowWidget<'_> {
@@ -47,92 +164,17 @@ impl Widget for LimitsTabsRowWidget<'_> {
             return;
         }
 
-        let width = area.width as usize;
-
-        // Compute each tab's display width: " title " + " " separator
-        let tab_widths: Vec<usize> = self
-            .tabs
-            .iter()
-            .map(|tab| tab.title.chars().count() + 2 + 1) // " title " + " "
-            .collect();
-
-        let total_width: usize = tab_widths.iter().sum();
-
-        // If everything fits, render normally
-        if total_width <= width {
-            let mut spans = Vec::new();
-            for (idx, tab) in self.tabs.iter().enumerate() {
-                let selected = idx == self.selected_tab;
-                let style = if selected {
-                    Style::default()
-                        .fg(crate::colors::text())
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(crate::colors::text_dim())
-                };
-                spans.push(Span::styled(format!(" {} ", tab.title), style));
-                spans.push(Span::raw(" "));
-            }
-            Paragraph::new(Line::from(spans))
-                .style(Style::default().bg(crate::colors::background()))
-                .render(area, buf);
-            return;
-        }
-
-        // Overflow: show a scrollable window of tabs around the selected one.
-        // Reserve space for overflow indicators: "◂ " (2) and " ▸" (2).
+        let window = compute_tab_window(self.tabs, self.selected_tab, area.width as usize);
         let indicator_style = Style::default().fg(crate::colors::text_dim());
-        let selected = self.selected_tab.min(self.tabs.len().saturating_sub(1));
-        let n = self.tabs.len();
-
-        // Find the window of tabs that fits, centered on the selected tab.
-        // Start with just the selected tab, then expand outward alternating.
-        let mut start = selected;
-        let mut end = selected + 1; // exclusive
-        let left_indicator_cost = 2usize; // "◂ "
-        let right_indicator_cost = 2usize; // " ▸"
-
-        let mut used: usize = tab_widths[selected];
-
-        // Expand right, then left, alternating until nothing more fits.
-        loop {
-            let mut expanded = false;
-
-            // Try expanding right
-            if end < n {
-                let left_cost = if start > 0 { left_indicator_cost } else { 0 };
-                let right_cost = if end + 1 < n { right_indicator_cost } else { 0 };
-                if used + tab_widths[end] + left_cost + right_cost <= width {
-                    used += tab_widths[end];
-                    end += 1;
-                    expanded = true;
-                }
-            }
-
-            // Try expanding left
-            if start > 0 {
-                let left_cost = if start - 1 > 0 { left_indicator_cost } else { 0 };
-                let right_cost = if end < n { right_indicator_cost } else { 0 };
-                if used + tab_widths[start - 1] + left_cost + right_cost <= width {
-                    start -= 1;
-                    used += tab_widths[start];
-                    expanded = true;
-                }
-            }
-
-            if !expanded {
-                break;
-            }
-        }
 
         let mut spans = Vec::new();
 
-        if start > 0 {
+        if window.has_left_overflow {
             spans.push(Span::styled("◂ ", indicator_style));
         }
 
-        for idx in start..end {
-            let is_selected = idx == selected;
+        for idx in window.start..window.end {
+            let is_selected = idx == self.selected_tab;
             let style = if is_selected {
                 Style::default()
                     .fg(crate::colors::text())
@@ -144,7 +186,7 @@ impl Widget for LimitsTabsRowWidget<'_> {
             spans.push(Span::raw(" "));
         }
 
-        if end < n {
+        if window.has_right_overflow {
             spans.push(Span::styled(" ▸", indicator_style));
         }
 

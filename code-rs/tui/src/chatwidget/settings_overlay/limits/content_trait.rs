@@ -69,9 +69,13 @@ impl SettingsContent for LimitsSettingsContent {
                 }
 
                 if let Some(tabs_rect) = tabs_area
-                    && let Some(tab_idx) = self.tab_at(tabs_rect, mouse_event)
+                    && let Some(hit) = self.tab_at(tabs_rect, mouse_event)
                 {
-                    return self.overlay.select_tab(tab_idx);
+                    return match hit {
+                        TabHit::Tab(idx) => self.overlay.select_tab(idx),
+                        TabHit::PrevTab => self.overlay.select_prev_tab(),
+                        TabHit::NextTab => self.overlay.select_next_tab(),
+                    };
                 }
 
                 if let Some(snapshot) = self.wide_snapshot_for_body(body_area)
