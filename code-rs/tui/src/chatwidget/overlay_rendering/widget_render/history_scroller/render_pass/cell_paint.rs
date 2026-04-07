@@ -441,6 +441,7 @@ impl ChatWidget<'_> {
                     && let Some(assistant) = visible
                         .cell
                         .and_then(|c| c.as_any().downcast_ref::<crate::history_cell::AssistantMarkdownCell>())
+                    && !assistant.is_collapsed()
                 {
                     if skip_rows < plan.total_rows() && item_area.height > 0 {
                         assistant.render_with_layout(plan.as_ref(), item_area, buf, skip_rows);
@@ -491,16 +492,21 @@ impl ChatWidget<'_> {
                 }
 
                 // Register fold toggle click target for foldable cells.
-                // Cover the gutter fold indicator area (gutter x, below gutter symbol).
+                // The target covers the gutter (fold indicator) plus a generous
+                // portion of the first two content rows so it's easy to click.
                 if item.is_fold_toggleable() && visible_height > 0 {
                     let gutter_x = content_area.x;
+                    let fold_click_width = GUTTER_WIDTH.saturating_add(
+                        item_area.width.min(20)
+                    );
+                    let fold_click_height = 2.min(visible_height).max(1);
                     self.clickable_regions.borrow_mut().push(
                         crate::chatwidget::ClickableRegion {
                             rect: Rect::new(
                                 gutter_x,
                                 item_area.y,
-                                GUTTER_WIDTH,
-                                2.min(visible_height).max(1),
+                                fold_click_width,
+                                fold_click_height,
                             ),
                             action: crate::chatwidget::ClickableAction::ToggleFoldAtIndex(idx),
                         },

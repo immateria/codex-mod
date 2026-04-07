@@ -327,7 +327,11 @@ impl HistoryRenderState {
                 let assistant_plan = if settings.width == 0 {
                     None
                 } else if let Some(assistant_cell) = req.assistant {
-                    Some(assistant_cell.ensure_layout(settings.width))
+                    if assistant_cell.is_collapsed() {
+                        None
+                    } else {
+                        Some(assistant_cell.ensure_layout(settings.width))
+                    }
                 } else if let RenderRequestKind::Assistant { id } = req.kind {
                     history_state
                         .record(id)

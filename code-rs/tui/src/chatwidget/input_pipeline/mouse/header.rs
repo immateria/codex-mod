@@ -3,11 +3,12 @@ impl ChatWidget<'_> {
         let (x, y) = pos;
 
         // Check clickable regions from last render and find matching action.
+        // Iterate in reverse so later-registered (more specific) regions take
+        // priority over earlier (broader) ones when they overlap.
         let action_opt: Option<ClickableAction> = {
             let regions = self.clickable_regions.borrow();
 
-            regions.iter().find_map(|region| {
-                // Check if click is inside this region
+            regions.iter().rev().find_map(|region| {
                 if x >= region.rect.x
                     && x < region.rect.x + region.rect.width
                     && y >= region.rect.y
