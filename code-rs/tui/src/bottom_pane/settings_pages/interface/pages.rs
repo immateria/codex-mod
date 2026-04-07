@@ -34,7 +34,7 @@ impl InterfaceSettingsView {
         ];
         let footer_lines = vec![self.main_footer_line_for_row(selected_row)];
         SettingsMenuPage::new("Interface", Self::panel_style(), Vec::new(), footer_lines)
-            .with_shortcuts(shortcuts)
+            .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, shortcuts)
     }
 
     pub(super) fn edit_width_page(error: Option<&str>) -> SettingsEditorPage<'static> {

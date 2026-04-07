@@ -62,6 +62,6 @@ impl NotificationsSettingsView {
             vec![self.status_line(), Line::from("")],
             footer_lines,
         )
-        .with_shortcuts(shortcuts)
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, shortcuts)
     }
 }

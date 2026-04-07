@@ -47,10 +47,7 @@ impl AppsSettingsView {
             Style::new().fg(colors::text_dim()),
         ))];
 
-        let profile_label = snapshot
-            .active_profile
-            .as_deref()
-            .unwrap_or("default");
+        let profile_label = snapshot.active_profile.as_deref().unwrap_or("default");
         header_lines.push(Line::from(Span::styled(
             format!("Profile: {profile_label}"),
             Style::new().fg(colors::text_dim()),
@@ -130,7 +127,10 @@ impl AppsSettingsView {
             header_lines,
             Vec::new(),
         )
-        .with_shortcuts(shortcuts)
+        .with_shortcuts(
+            crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom,
+            shortcuts,
+        )
     }
 
     pub(super) fn overview_rows(
@@ -138,17 +138,20 @@ impl AppsSettingsView {
         snapshot: &AppsSharedState,
     ) -> Vec<SettingsMenuRow<'static, usize>> {
         if snapshot.accounts_snapshot.is_empty() {
-            return vec![SettingsMenuRow::new(0usize, "No accounts found")
-                .with_detail(StyledText::new(
-                    "Press `a` to open Accounts settings.".to_string(),
-                    Style::new().fg(colors::text_dim()),
-                ))
-                .disabled()];
+            return vec![
+                SettingsMenuRow::new(0usize, "No accounts found")
+                    .with_detail(StyledText::new(
+                        "Press `a` to open Accounts settings.".to_string(),
+                        Style::new().fg(colors::text_dim()),
+                    ))
+                    .disabled(),
+            ];
         }
 
         let enabled = self.enabled_source_ids(snapshot);
         let enabled_lookup = |id: &str| enabled.iter().any(|item| item == id);
-        let pinned_lookup = |id: &str| self.draft_sources.pinned_account_ids.iter().any(|item| item == id);
+        let pinned_lookup =
+            |id: &str| self.draft_sources.pinned_account_ids.iter().any(|item| item == id);
 
         snapshot
             .accounts_snapshot
@@ -167,6 +170,7 @@ impl AppsSettingsView {
                 if pinned_lookup(&account.id) {
                     tags.push("pinned");
                 }
+
                 let value = if tags.is_empty() {
                     None
                 } else {
@@ -177,20 +181,25 @@ impl AppsSettingsView {
                 };
 
                 let detail = match snapshot.status_by_account_id.get(&account.id) {
-                    Some(crate::chatwidget::AppsAccountStatusState::Loading) => Some(StyledText::new(
-                        "loading...".to_string(),
-                        Style::new().fg(colors::function()),
-                    )),
-                    Some(crate::chatwidget::AppsAccountStatusState::Ready { connected_apps, .. }) => {
+                    Some(crate::chatwidget::AppsAccountStatusState::Loading) => {
                         Some(StyledText::new(
-                            format!("apps: {}", connected_apps.len()),
-                            Style::new().fg(colors::info()),
+                            "loading...".to_string(),
+                            Style::new().fg(colors::function()),
                         ))
                     }
-                    Some(crate::chatwidget::AppsAccountStatusState::Failed { error, .. }) => Some(StyledText::new(
-                        format!("error: {error}"),
-                        Style::new().fg(colors::warning()),
+                    Some(crate::chatwidget::AppsAccountStatusState::Ready {
+                        connected_apps,
+                        ..
+                    }) => Some(StyledText::new(
+                        format!("apps: {}", connected_apps.len()),
+                        Style::new().fg(colors::info()),
                     )),
+                    Some(crate::chatwidget::AppsAccountStatusState::Failed { error, .. }) => {
+                        Some(StyledText::new(
+                            format!("error: {error}"),
+                            Style::new().fg(colors::warning()),
+                        ))
+                    }
                     _ => None,
                 };
 
@@ -281,8 +290,9 @@ impl AppsSettingsView {
             KeyHint::new("a", " accounts").with_key_style(Style::new().fg(colors::primary())),
             hint_esc(" back"),
         ];
-        if let Some(crate::chatwidget::AppsAccountStatusState::Failed { needs_login: true, .. }) =
-            snapshot.status_by_account_id.get(account_id)
+        if let Some(crate::chatwidget::AppsAccountStatusState::Failed {
+            needs_login: true, ..
+        }) = snapshot.status_by_account_id.get(account_id)
         {
             shortcuts.insert(
                 2,
@@ -296,6 +306,9 @@ impl AppsSettingsView {
             header_lines,
             Vec::new(),
         )
-        .with_shortcuts(shortcuts)
+        .with_shortcuts(
+            crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom,
+            shortcuts,
+        )
     }
 }

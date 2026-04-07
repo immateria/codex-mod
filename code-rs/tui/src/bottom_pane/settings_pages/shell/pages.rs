@@ -56,7 +56,7 @@ impl ShellSelectionView {
             header_lines,
             Vec::new(),
         )
-        .with_shortcuts(shortcuts)
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, shortcuts)
     }
 
     pub(super) fn list_runs(&self) -> Vec<SelectableLineRun<'_, usize>> {

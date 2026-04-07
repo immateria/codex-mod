@@ -51,6 +51,8 @@ impl ValidationSettingsView {
             self.render_header_lines(),
             self.render_footer_lines(),
         )
-        .with_shortcuts(self.shortcuts())
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, 
+            self.shortcuts(),
+        )
     }
 }

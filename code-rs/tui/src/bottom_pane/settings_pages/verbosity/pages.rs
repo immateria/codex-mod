@@ -30,6 +30,6 @@ impl VerbositySelectionView {
             header_lines,
             Vec::new(),
         )
-        .with_shortcuts(shortcuts)
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, shortcuts)
     }
 }

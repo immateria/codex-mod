@@ -217,7 +217,7 @@ impl PluginsSettingsView {
             header_lines,
             Vec::new(),
         )
-        .with_shortcuts(shortcuts)
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, shortcuts)
     }
 
     pub(super) fn list_rows(&self, snapshot: &PluginsSharedState) -> Vec<SettingsMenuRow<'static, usize>> {
@@ -350,7 +350,9 @@ impl PluginsSettingsView {
             header_lines,
             Vec::new(),
         )
-        .with_shortcuts(vec![
+        .with_shortcuts(
+            crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom,
+            vec![
                 hint_nav(" navigate"),
                 hint_enter(" edit"),
                 KeyHint::new("a", " add repo").with_key_style(Style::new().fg(colors::primary())),
@@ -358,7 +360,8 @@ impl PluginsSettingsView {
                 KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
                 KeyHint::new("R", " sync").with_key_style(Style::new().fg(colors::info())),
                 hint_esc(" back"),
-            ])
+            ],
+        )
     }
 
     pub(super) fn sources_list_rows(

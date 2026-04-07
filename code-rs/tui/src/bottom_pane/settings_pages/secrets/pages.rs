@@ -90,7 +90,9 @@ impl SecretsSettingsView {
             header_lines,
             Vec::new(),
         )
-        .with_shortcuts(self.list_shortcuts(deleting))
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, 
+            self.list_shortcuts(deleting),
+        )
     }
 
     fn list_shortcuts(&self, deleting: bool) -> Vec<KeyHint<'static>> {

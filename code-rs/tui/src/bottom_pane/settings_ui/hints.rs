@@ -35,6 +35,39 @@ impl<'a> KeyHint<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ShortcutPlacement {
+    Top,
+    Bottom,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ShortcutBar {
+    placement: ShortcutPlacement,
+    hints: Vec<KeyHint<'static>>,
+}
+
+impl ShortcutBar {
+    pub(crate) fn at(placement: ShortcutPlacement, hints: Vec<KeyHint<'static>>) -> Self {
+        Self {
+            placement,
+            hints,
+        }
+    }
+
+    pub(crate) fn placement(&self) -> ShortcutPlacement {
+        self.placement
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.hints.is_empty()
+    }
+
+    pub(crate) fn line(&self) -> Line<'static> {
+        shortcut_line(&self.hints)
+    }
+}
+
 pub(crate) fn title_line(text: impl Into<Cow<'static, str>>) -> Line<'static> {
     Line::from(Span::styled(
         text.into().into_owned(),

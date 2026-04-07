@@ -55,6 +55,8 @@ impl UpdateSettingsView {
             self.header_lines(),
             Vec::new(),
         )
-        .with_shortcuts(Self::shortcuts())
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, 
+            Self::shortcuts(),
+        )
     }
 }

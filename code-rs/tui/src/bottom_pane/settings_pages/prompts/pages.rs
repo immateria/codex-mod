@@ -104,13 +104,15 @@ impl PromptsSettingsView {
             self.list_header_lines(),
             Vec::new(),
         )
-        .with_shortcuts(vec![
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, 
+            vec![
                 hint_nav(" navigate"),
                 hint_enter(" edit"),
                 KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("N"), " new")
                     .with_key_style(Style::new().fg(colors::info())),
                 hint_esc(" close"),
-            ])
+            ],
+        )
     }
 
     pub(super) fn list_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {

@@ -21,13 +21,16 @@ impl AccountSwitchSettingsView {
             Vec::new(),
             Vec::new(),
         )
-        .with_shortcuts(vec![
+        .with_shortcuts(
+            crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom,
+            vec![
                 KeyHint::new("↑↓/Tab", " navigate")
                     .with_key_style(Style::new().fg(colors::function())),
                 KeyHint::new("Enter/Space", " activate")
                     .with_key_style(Style::new().fg(colors::success())),
                 hint_esc(" close"),
-            ])
+            ],
+        )
     }
 
     pub(super) fn main_runs(
@@ -145,7 +148,7 @@ impl AccountSwitchSettingsView {
             header_lines,
             Vec::new(),
         )
-        .with_shortcuts(shortcuts)
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, shortcuts)
     }
 
     pub(super) fn confirm_rows(&self) -> Vec<SettingsMenuRow<'static, usize>> {

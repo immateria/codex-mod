@@ -11,7 +11,7 @@ use crate::live_wrap::RowBuilder;
 use crate::ui_interaction::split_header_body_footer;
 use crate::util::buffer::{fill_rect, write_line};
 
-use super::hints::{shortcut_line, KeyHint};
+use super::hints::{KeyHint, ShortcutBar, ShortcutPlacement};
 use super::line_runs::{
     render_selectable_runs,
     SelectableLineRun,
@@ -31,7 +31,7 @@ pub(crate) struct SettingsMenuPage<'a> {
     style: SettingsPanelStyle,
     header_lines: Vec<Line<'static>>,
     footer_lines: Vec<Line<'static>>,
-    shortcut_hints: Vec<KeyHint<'static>>,
+    shortcut_bar: Option<ShortcutBar>,
     render_detail_pane: bool,
 }
 
@@ -55,13 +55,18 @@ impl<'a> SettingsMenuPage<'a> {
             style,
             header_lines,
             footer_lines,
-            shortcut_hints: Vec::new(),
+            shortcut_bar: None,
             render_detail_pane: false,
         }
     }
 
-    pub(crate) fn with_shortcuts(mut self, shortcut_hints: Vec<KeyHint<'static>>) -> Self {
-        self.shortcut_hints = shortcut_hints;
+    pub(crate) fn with_shortcuts(
+        mut self,
+        placement: ShortcutPlacement,
+        hints: Vec<KeyHint<'static>>,
+    ) -> Self {
+        let shortcut_bar = ShortcutBar::at(placement, hints);
+        self.shortcut_bar = (!shortcut_bar.is_empty()).then_some(shortcut_bar);
         self
     }
 
@@ -82,7 +87,7 @@ impl<'a> SettingsMenuPage<'a> {
         SettingsSectionedPanel::new(
             self.title.clone(),
             self.style,
-            self.header_lines.len(),
+            self.header_line_count(),
             self.footer_line_count(),
         )
         .with_min_body_rows(2)
@@ -95,7 +100,7 @@ impl<'a> SettingsMenuPage<'a> {
     fn layout_content(&self, area: Rect) -> Option<SettingsSectionedPanelLayout> {
         split_header_body_footer(
             area,
-            self.header_lines.len(),
+            self.header_line_count(),
             self.footer_line_count(),
             1,
         )
@@ -109,7 +114,8 @@ impl<'a> SettingsMenuPage<'a> {
     ) -> Option<SettingsSectionedPanelLayout> {
         let layout = self.sectioned_panel().render(area, buf)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
-        render_lines(layout.header, buf, &self.header_lines, base);
+        let header_lines = self.combined_header_lines();
+        render_lines(layout.header, buf, &header_lines, base);
         let footer_lines = self.combined_footer_lines();
         render_lines(layout.footer, buf, &footer_lines, base);
         Some(layout)
@@ -123,22 +129,53 @@ impl<'a> SettingsMenuPage<'a> {
         let layout = self.layout_content(area)?;
         let base = Style::new().bg(colors::background()).fg(colors::text());
         fill_rect(buf, area, Some(' '), base);
-        render_lines(layout.header, buf, &self.header_lines, base);
+        let header_lines = self.combined_header_lines();
+        render_lines(layout.header, buf, &header_lines, base);
         let footer_lines = self.combined_footer_lines();
         render_lines(layout.footer, buf, &footer_lines, base);
         Some(layout)
     }
 
+    fn header_line_count(&self) -> usize {
+        self.header_lines
+            .len()
+            .saturating_add(usize::from(self.shortcuts_in_header()))
+    }
+
     fn footer_line_count(&self) -> usize {
         self.footer_lines
             .len()
-            .saturating_add(usize::from(!self.shortcut_hints.is_empty()))
+            .saturating_add(usize::from(self.shortcuts_in_footer()))
+    }
+
+    fn shortcuts_in_header(&self) -> bool {
+        self.shortcut_bar
+            .as_ref()
+            .is_some_and(|bar| bar.placement() == ShortcutPlacement::Top)
+    }
+
+    fn shortcuts_in_footer(&self) -> bool {
+        self.shortcut_bar
+            .as_ref()
+            .is_some_and(|bar| bar.placement() == ShortcutPlacement::Bottom)
+    }
+
+    fn combined_header_lines(&self) -> Vec<Line<'static>> {
+        let mut lines = self.header_lines.clone();
+        if self.shortcuts_in_header() {
+            if let Some(shortcut_bar) = self.shortcut_bar.as_ref() {
+                lines.push(shortcut_bar.line());
+            }
+        }
+        lines
     }
 
     fn combined_footer_lines(&self) -> Vec<Line<'static>> {
         let mut lines = self.footer_lines.clone();
-        if !self.shortcut_hints.is_empty() {
-            lines.push(shortcut_line(&self.shortcut_hints));
+        if self.shortcuts_in_footer() {
+            if let Some(shortcut_bar) = self.shortcut_bar.as_ref() {
+                lines.push(shortcut_bar.line());
+            }
         }
         lines
     }

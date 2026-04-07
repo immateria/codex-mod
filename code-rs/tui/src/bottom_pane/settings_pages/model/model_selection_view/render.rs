@@ -25,7 +25,9 @@ impl ModelSelectionView {
             self.header_lines(),
             self.footer_lines(),
         )
-        .with_shortcuts(self.shortcuts())
+        .with_shortcuts(crate::bottom_pane::settings_ui::hints::ShortcutPlacement::Bottom, 
+            self.shortcuts(),
+        )
     }
 
     fn dim_style() -> Style {
