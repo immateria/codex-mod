@@ -67,7 +67,7 @@ fn context_window_detail_spans(
     if let Some(context_label) =
         context_window_footer_label(context_window, context_mode, auto_context_phase)
     {
-        spans.push(Span::from(" • ").style(label_style));
+        spans.push(Span::from(format!(" {} ", crate::icons::bullet())).style(label_style));
         spans.push(Span::from(context_label).style(label_style.add_modifier(Modifier::BOLD)));
     }
     spans.push(Span::from(")").style(label_style));

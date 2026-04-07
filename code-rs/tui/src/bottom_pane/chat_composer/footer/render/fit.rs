@@ -23,7 +23,8 @@ pub(super) fn fit_sections_to_width(
     let token_spans_full = &built.token_spans_full;
     let token_spans_compact = &built.token_spans_compact;
 
-    let separator = Span::from("  •  ").style(label_style);
+    let sep_char = crate::icons::bullet();
+    let separator = Span::from(format!("  {sep_char}  ")).style(label_style);
     let separator_len = UnicodeWidthStr::width(separator.content.as_ref());
 
     let base_left_pad = Span::from("  ").style(label_style);
@@ -55,7 +56,7 @@ pub(super) fn fit_sections_to_width(
         let mut last_section_was_separator = false;
 
         let is_separator = |section: &[Span<'static>]| {
-            section.len() == 1 && section[0].content.trim() == "•"
+            section.len() == 1 && section[0].content.trim() == sep_char
         };
 
         for section in left_sections {

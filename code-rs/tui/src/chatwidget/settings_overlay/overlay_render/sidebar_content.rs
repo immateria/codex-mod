@@ -48,19 +48,19 @@ impl SettingsOverlayView {
 
             let selection_indicator = if is_active {
                 if self.is_sidebar_focused() {
-                    "»"
+                    crate::icons::pointer_focused()
                 } else {
-                    "›"
+                    crate::icons::pointer_active()
                 }
             } else if is_hovered {
-                "▸"
+                crate::icons::arrow_right()
             } else {
                 " "
             };
             let overflow_indicator = if is_first_visible && start > 0 {
-                "↑"
+                crate::icons::arrow_up()
             } else if is_last_visible && end < total {
-                "↓"
+                crate::icons::arrow_down()
             } else {
                 " "
             };
@@ -75,8 +75,10 @@ impl SettingsOverlayView {
                 Style::default().fg(crate::colors::text_dim()),
             ));
             spans.push(Span::raw(" "));
+            let icon_prefix = crate::icons::section_icon(section.label());
+            let label_text = format!("{}{}", icon_prefix, section.label());
             spans.push(Span::styled(
-                section.label(),
+                label_text,
                 if is_active {
                     Style::default()
                         .fg(crate::colors::text())

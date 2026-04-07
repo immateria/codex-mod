@@ -150,17 +150,18 @@ fn progress_meter(progress: &PlanProgress, width: usize) -> ProgressMeter {
 }
 
 fn icon_symbol(icon: &PlanIcon) -> &'static str {
+    use crate::icons;
     match icon {
-        PlanIcon::LightBulb => "!",
-        PlanIcon::Rocket => "↑",
-        PlanIcon::Clipboard => "≡",
+        PlanIcon::LightBulb => icons::plan_lightbulb(),
+        PlanIcon::Rocket => icons::plan_rocket(),
+        PlanIcon::Clipboard => icons::plan_clipboard(),
         PlanIcon::Custom(kind) => match kind.as_str() {
-            "progress-empty" => "○",
-            "progress-start" => "◔",
-            "progress-mid" => "◑",
-            "progress-late" => "◕",
-            "progress-complete" => "●",
-            _ => "•",
+            "progress-empty" => icons::progress_empty(),
+            "progress-start" => icons::progress_quarter(),
+            "progress-mid" => icons::progress_half(),
+            "progress-late" => icons::progress_three_quarter(),
+            "progress-complete" => icons::progress_full(),
+            _ => icons::bullet(),
         },
     }
 }

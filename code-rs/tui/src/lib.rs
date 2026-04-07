@@ -86,6 +86,8 @@ mod auto_drive_style;
 mod header_wave;
 mod history_cell;
 mod history;
+#[allow(dead_code)]
+pub(crate) mod icons;
 mod insert_history;
 pub mod live_wrap;
 mod markdown;
@@ -848,6 +850,10 @@ fn run_ratatui_app(
         resume_session_id: _,
         ..
     } = cli;
+
+    // Activate NerdFont glyphs if the user opted in via config.toml [tui].
+    icons::set_nerd_fonts(config.tui.nerd_fonts);
+
     let mut app = App::new(app::AppInitArgs {
         config: config.clone(),
         cli_kv_overrides,

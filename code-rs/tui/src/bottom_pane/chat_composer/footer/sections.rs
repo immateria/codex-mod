@@ -137,7 +137,7 @@ impl ChatComposer {
                 };
                 vec![
                     Span::styled("Auto Review: ", label_style),
-                    Span::styled("•", key_hint_style),
+                    Span::styled(crate::icons::status_info(), key_hint_style),
                     Span::from(" "),
                     Span::styled(phase_label, key_hint_style),
                 ]
@@ -145,7 +145,7 @@ impl ChatComposer {
             AutoReviewIndicatorStatus::Clean => {
                 vec![
                     Span::styled("Auto Review: ", label_style),
-                    Span::styled("✓", key_hint_style),
+                    Span::styled(crate::icons::status_ok(), key_hint_style),
                     Span::from(" "),
                     Span::styled("Correct", key_hint_style),
                 ]
@@ -160,7 +160,7 @@ impl ChatComposer {
                 };
                 vec![
                     Span::styled("Auto Review: ", label_style),
-                    Span::styled("✓", icon_style),
+                    Span::styled(crate::icons::status_ok(), icon_style),
                     Span::from(" "),
                     Span::styled(text, icon_style),
                 ]
@@ -169,7 +169,7 @@ impl ChatComposer {
                 let icon_style = Style::default().fg(crate::colors::error());
                 vec![
                     Span::styled("Auto Review: ", label_style),
-                    Span::styled("✗", icon_style),
+                    Span::styled(crate::icons::status_fail(), icon_style),
                     Span::from(" "),
                     Span::styled("Failed", icon_style),
                 ]

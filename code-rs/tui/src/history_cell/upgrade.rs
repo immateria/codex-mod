@@ -67,7 +67,7 @@ impl UpgradeNoticeCell {
         lines.push(Line::from(vec![
             Span::styled("Latest release: ", dim_style),
             Span::styled(
-                format!("{} → {}", self.state.current_version, self.state.latest_version),
+                format!("{} {} {}", self.state.current_version, crate::icons::upgrade_arrow(), self.state.latest_version),
                 highlight_style,
             ),
         ]));

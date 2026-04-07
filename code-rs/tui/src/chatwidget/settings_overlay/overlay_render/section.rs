@@ -72,7 +72,7 @@ impl SettingsOverlayView {
             Style::default().bg(crate::colors::background()),
         );
 
-        let symbol = if collapsed { "▸" } else { "◂ hide" };
+        let symbol = if collapsed { crate::icons::sidebar_show() } else { crate::icons::sidebar_hide() };
         let style = Style::default()
             .fg(crate::colors::function())
             .bg(crate::colors::background());

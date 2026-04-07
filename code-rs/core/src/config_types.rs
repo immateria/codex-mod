@@ -2309,6 +2309,11 @@ pub struct Tui {
     /// Keyboard shortcut preferences (for status line quick actions).
     #[serde(default)]
     pub hotkeys: TuiHotkeysConfig,
+
+    /// Use NerdFont glyphs for UI icons (requires a NerdFont-patched terminal font).
+    /// When false (the default), only standard Unicode symbols are used.
+    #[serde(default)]
+    pub nerd_fonts: bool,
 }
 
 fn deserialize_theme_config<'de, D>(deserializer: D) -> Result<ThemeConfig, D::Error>
@@ -2487,6 +2492,7 @@ impl Default for Tui {
             limits: LimitsUiConfig::default(),
             settings_menu: SettingsMenuConfig::default(),
             hotkeys: TuiHotkeysConfig::default(),
+            nerd_fonts: false,
         }
     }
 }

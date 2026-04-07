@@ -285,8 +285,11 @@ impl BottomPaneView<'_> for ListSelectionView {
             .enumerate()
             .map(|(i, it)| {
                 let is_selected = self.state.selected_idx == Some(i);
-                // Use a nicer selector: '›' when selected, otherwise space
-                let prefix = if is_selected { '›' } else { ' ' };
+                let prefix = if is_selected {
+                    crate::icons::pointer_active()
+                } else {
+                    " "
+                };
                 let name_with_marker = if it.is_current {
                     format!("{} (current)", it.name)
                 } else {

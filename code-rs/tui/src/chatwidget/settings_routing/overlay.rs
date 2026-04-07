@@ -97,6 +97,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn apply_reloaded_config(&mut self, config: code_core::config::Config) {
+        crate::icons::set_nerd_fonts(config.tui.nerd_fonts);
         self.config = config;
         self.refresh_settings_overview_rows();
         let skills_content = self.build_skills_settings_content();
@@ -114,6 +115,7 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn apply_reloaded_config_keep_settings_state(&mut self, config: code_core::config::Config) {
+        crate::icons::set_nerd_fonts(config.tui.nerd_fonts);
         self.config = config;
         self.plugins_set_sources_snapshot(self.config.plugins.clone());
         self.apps_set_sources_snapshot(self.config.active_profile.clone(), self.config.apps_sources.clone());

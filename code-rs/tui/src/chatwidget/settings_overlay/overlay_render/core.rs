@@ -44,16 +44,18 @@ impl SettingsOverlayView {
     }
 
     fn block_title_line(&self) -> Line<'static> {
+        let sep = format!(" {} ", crate::icons::breadcrumb_sep());
+        let sep_style = Style::default().fg(crate::colors::text_dim());
         if self.is_menu_active() {
             Line::from(vec![
                 Span::styled("Settings", Style::default().fg(crate::colors::text())),
-                Span::styled(" ▸ ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled(sep, sep_style),
                 Span::styled("Overview", Style::default().fg(crate::colors::text())),
             ])
         } else {
             Line::from(vec![
                 Span::styled("Settings", Style::default().fg(crate::colors::text())),
-                Span::styled(" ▸ ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled(sep, sep_style),
                 Span::styled(
                     self.active_section().label(),
                     Style::default().fg(crate::colors::text()),
@@ -119,7 +121,7 @@ impl SettingsOverlayView {
 
         for (idx, row) in self.overview_rows.iter().enumerate() {
             let is_active = row.section == active_section;
-            let indicator = if is_active { "›" } else { " " };
+            let indicator = if is_active { crate::icons::pointer_active() } else { " " };
 
             if row.section == SettingsSection::Limits && !lines.is_empty() {
                 lines.push(Line::from(""));
@@ -149,7 +151,9 @@ impl SettingsOverlayView {
                 Style::default().fg(crate::colors::text_mid())
             };
 
-            let label_text = format!("{:<width$}", row.section.label(), width = LABEL_COLUMN_WIDTH);
+            let icon_prefix = crate::icons::section_icon(row.section.label());
+            let label_raw = format!("{}{}", icon_prefix, row.section.label());
+            let label_text = format!("{:<width$}", label_raw, width = LABEL_COLUMN_WIDTH);
 
             let summary_src = row.summary.as_deref().unwrap_or("—");
             let base_width = 1 + 1 + LABEL_COLUMN_WIDTH;

@@ -21,7 +21,10 @@ impl Widget for LimitsHintRowWidget {
             Span::styled(format!(" focus:{}  ", self.pane_focus.label()), hint_style),
         ];
         if self.has_tabs {
-            spans.push(Span::styled("◂ ▸", accent_style));
+            spans.push(Span::styled(
+                format!("{} {}", crate::icons::arrow_left(), crate::icons::arrow_right()),
+                accent_style,
+            ));
             spans.push(Span::styled(" tab  ", hint_style));
             spans.push(Span::styled("S", accent_style));
             spans.push(Span::styled(" switch  ", hint_style));
@@ -172,7 +175,10 @@ impl Widget for LimitsTabsRowWidget<'_> {
         let mut spans = Vec::new();
 
         if window.has_left_overflow {
-            spans.push(Span::styled("◂ ", indicator_style));
+            spans.push(Span::styled(
+                format!("{} ", crate::icons::arrow_left()),
+                indicator_style,
+            ));
         }
 
         for idx in window.start..window.end {
@@ -189,7 +195,10 @@ impl Widget for LimitsTabsRowWidget<'_> {
         }
 
         if window.has_right_overflow {
-            spans.push(Span::styled(" ▸", indicator_style));
+            spans.push(Span::styled(
+                format!(" {}", crate::icons::arrow_right()),
+                indicator_style,
+            ));
         }
 
         Paragraph::new(Line::from(spans))

@@ -49,10 +49,11 @@ enum WebSearchActionKind {
 
 impl WebSearchActionKind {
     fn glyph(self) -> &'static str {
+        use crate::icons;
         match self {
-            WebSearchActionKind::Info => "•",
-            WebSearchActionKind::Success => "✓",
-            WebSearchActionKind::Error => "✗",
+            WebSearchActionKind::Info => icons::search_info(),
+            WebSearchActionKind::Success => icons::search_success(),
+            WebSearchActionKind::Error => icons::search_error(),
         }
     }
 }

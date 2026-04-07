@@ -87,12 +87,13 @@ pub(crate) enum AgentStatusKind {
 
 impl AgentStatusKind {
     fn glyph(self) -> &'static str {
+        use crate::icons;
         match self {
-            AgentStatusKind::Running => "▶",
-            AgentStatusKind::Completed => "✓",
-            AgentStatusKind::Failed => "!",
-            AgentStatusKind::Cancelled => "▮",
-            AgentStatusKind::Pending => "…",
+            AgentStatusKind::Running => icons::agent_running(),
+            AgentStatusKind::Completed => icons::agent_completed(),
+            AgentStatusKind::Failed => icons::agent_failed(),
+            AgentStatusKind::Cancelled => icons::agent_cancelled(),
+            AgentStatusKind::Pending => icons::agent_pending(),
         }
     }
 
