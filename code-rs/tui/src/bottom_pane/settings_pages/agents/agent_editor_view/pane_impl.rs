@@ -1,4 +1,4 @@
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
@@ -21,6 +21,30 @@ impl<'a> BottomPaneView<'a> for AgentEditorView {
         redraw_if(self.handle_key_internal(key_event))
     }
 
+    fn handle_mouse_event(
+        &mut self,
+        _pane: &mut BottomPane<'a>,
+        mouse_event: MouseEvent,
+        _area: Rect,
+    ) -> ConditionalUpdate {
+        match mouse_event.kind {
+            MouseEventKind::ScrollUp => {
+                let cur = self.scroll_offset.get();
+                if cur > 0 {
+                    self.scroll_offset.set(cur.saturating_sub(3));
+                    return ConditionalUpdate::NeedsRedraw;
+                }
+            }
+            MouseEventKind::ScrollDown => {
+                let cur = self.scroll_offset.get();
+                self.scroll_offset.set(cur.saturating_add(3));
+                return ConditionalUpdate::NeedsRedraw;
+            }
+            _ => {}
+        }
+        ConditionalUpdate::NoRedraw
+    }
+
     fn handle_paste(&mut self, text: String) -> ConditionalUpdate {
         if self.paste_into_current_field(&text) {
             ConditionalUpdate::NeedsRedraw
@@ -35,7 +59,7 @@ impl<'a> BottomPaneView<'a> for AgentEditorView {
 
     fn desired_height(&self, width: u16) -> u16 {
         let content_width = width.saturating_sub(4).max(1);
-        let layout = self.layout(content_width, None);
+        let layout = self.layout(content_width);
         u16::try_from(layout.lines.len())
             .unwrap_or(u16::MAX)
             .saturating_add(2)

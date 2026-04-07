@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crate::app_event_sender::AppEventSender;
 use crate::components::form_text_field::{FormTextField, InputFilter};
 
@@ -23,6 +25,9 @@ pub(crate) struct AgentEditorView {
     pub(super) install_hint: String,
     pub(super) description_error: Option<String>,
     pub(super) name_error: Option<String>,
+    /// Scroll offset for the form viewport (uses Cell for interior mutability
+    /// during render, where `&self` is required by the trait).
+    pub(super) scroll_offset: Cell<u16>,
 }
 
 pub(crate) struct AgentEditorInit {
@@ -137,6 +142,7 @@ impl AgentEditorView {
             install_hint: String::new(),
             description_error: None,
             name_error: None,
+            scroll_offset: Cell::new(0),
         };
 
         if let Some(ro) = args_read_only {

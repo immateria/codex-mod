@@ -9,10 +9,12 @@ pub(super) struct AgentEditorLayout {
     pub(super) lines: Vec<Line<'static>>,
     pub(super) name_offset: u16,
     pub(super) command_offset: u16,
+    pub(super) toggle_offset: u16,
     pub(super) ro_offset: u16,
     pub(super) wr_offset: u16,
     pub(super) desc_offset: u16,
     pub(super) instr_offset: u16,
+    pub(super) buttons_offset: u16,
     pub(super) ro_height: u16,
     pub(super) wr_height: u16,
     pub(super) desc_height: u16,
@@ -22,81 +24,21 @@ pub(super) struct AgentEditorLayout {
 }
 
 impl AgentEditorView {
-    pub(super) fn layout(
-        &self,
-        content_width: u16,
-        max_height: Option<u16>,
-    ) -> AgentEditorLayout {
+    /// Compute the full form layout. The form is always laid out at its natural
+    /// height; the viewport scroll offset handles overflow instead of squishing
+    /// fields.
+    pub(super) fn layout(&self, content_width: u16) -> AgentEditorLayout {
         let inner_width = content_width.saturating_sub(4);
-        let desired_instr_inner = self.instr.desired_height(inner_width).min(8);
-        let mut instr_box_h = desired_instr_inner.saturating_add(2);
+        let instr_box_h = self.instr.desired_height(inner_width).min(8).saturating_add(2);
+        let ro_box_h = self.params_ro.desired_height(inner_width).min(6).saturating_add(2);
+        let wr_box_h = self.params_wr.desired_height(inner_width).min(6).saturating_add(2);
+        let desc_box_h = self.description_field.desired_height(inner_width).min(6).saturating_add(2);
 
-        let desired_ro_inner = self.params_ro.desired_height(inner_width).min(6);
-        let ro_box_h = desired_ro_inner.saturating_add(2);
-        let desired_wr_inner = self.params_wr.desired_height(inner_width).min(6);
-        let wr_box_h = desired_wr_inner.saturating_add(2);
-        let desired_desc_inner = self.description_field.desired_height(inner_width).min(6);
-        let desc_box_h = desired_desc_inner.saturating_add(2);
-
-        let title_block: u16 = 2; // title + blank
+        let title_block: u16 = 2;
         let desc_style = Style::default().fg(crate::colors::text_dim());
         let name_box_h: u16 = 3;
         let command_box_h: u16 = 3;
-        let top_block = title_block;
-        let enabled_block: u16 = 2; // toggle row + spacer
-        let desc_hint_lines: u16 = 2; // guidance line + spacer
-        let instr_desc_lines: u16 = 1;
-        let spacer_before_buttons: u16 = 1;
-        let buttons_block: u16 = 1;
-        let footer_lines_default: u16 = 0;
-
-        let base_fixed_top = top_block
-            + name_box_h
-            + 1
-            + command_box_h
-            + 1
-            + enabled_block
-            + ro_box_h
-            + 1
-            + wr_box_h
-            + 1
-            + desc_box_h
-            + desc_hint_lines;
-
-        let mut footer_lines = footer_lines_default;
-        let mut include_gap_before_buttons = spacer_before_buttons > 0;
-
-        if let Some(height) = max_height {
-            let mut fixed_after_box =
-                instr_desc_lines + spacer_before_buttons + buttons_block + footer_lines;
-            if base_fixed_top
-                .saturating_add(instr_box_h)
-                .saturating_add(fixed_after_box)
-                > height
-            {
-                footer_lines = 0;
-            }
-            fixed_after_box = instr_desc_lines + spacer_before_buttons + buttons_block + footer_lines;
-            if base_fixed_top
-                .saturating_add(instr_box_h)
-                .saturating_add(fixed_after_box)
-                > height
-            {
-                let min_ih: u16 = 3;
-                let available_for_box = height
-                    .saturating_sub(base_fixed_top)
-                    .saturating_sub(fixed_after_box);
-                instr_box_h = instr_box_h.min(available_for_box).max(min_ih);
-            }
-            fixed_after_box = instr_desc_lines + spacer_before_buttons + buttons_block + footer_lines;
-            if base_fixed_top
-                .saturating_add(instr_box_h)
-                .saturating_add(fixed_after_box)
-                > height
-            {
-                include_gap_before_buttons = false;
-            }
-        }
+        let enabled_block: u16 = 2;
 
         let sel = |idx: usize| {
             if self.field == idx {
@@ -108,16 +50,20 @@ impl AgentEditorView {
             }
         };
 
-        let name_offset = top_block;
+        let name_offset = title_block;
         let command_offset = name_offset + name_box_h + 1;
         let toggle_offset = command_offset + command_box_h + 1;
         let ro_offset = toggle_offset + enabled_block;
         let wr_offset = ro_offset + ro_box_h + 1;
         let desc_offset = wr_offset + wr_box_h + 1;
+        let desc_hint_lines: u16 = 2;
         let instr_offset = desc_offset + desc_box_h + desc_hint_lines;
+        let instr_desc_lines: u16 = 1;
+        let buttons_offset = instr_offset + instr_box_h + instr_desc_lines + 1;
+
         let mut lines: Vec<Line<'static>> = Vec::new();
 
-        // Title, spacer
+        // Title
         lines.push(Line::from(Span::styled(
             format!("Agents » Edit Agent » {}", self.name),
             Style::default().add_modifier(Modifier::BOLD),
@@ -137,7 +83,7 @@ impl AgentEditorView {
             lines.push(Line::from(""));
         }
 
-        // Reserve space for Name box
+        // Name box
         for _ in 0..name_box_h {
             lines.push(Line::from(""));
         }
@@ -149,13 +95,13 @@ impl AgentEditorView {
         } else {
             lines.push(Line::from(""));
         }
-        // Reserve space for Command box
+        // Command box
         for _ in 0..command_box_h {
             lines.push(Line::from(""));
         }
         lines.push(Line::from(""));
 
-        // Enabled toggle + spacer
+        // Enabled toggle
         let enabled_style = if self.enabled {
             Style::default()
                 .fg(crate::colors::success())
@@ -177,14 +123,22 @@ impl AgentEditorView {
         } else {
             Style::default().fg(crate::colors::text())
         };
-        let enabled_text = format!("[{}] Enabled", if self.enabled { 'x' } else { ' ' });
-        let disabled_text = format!("[{}] Disabled", if self.enabled { ' ' } else { 'x' });
+        let enabled_marker = if self.enabled {
+            crate::icons::checkbox_on()
+        } else {
+            crate::icons::checkbox_off()
+        };
+        let disabled_marker = if self.enabled {
+            crate::icons::checkbox_off()
+        } else {
+            crate::icons::checkbox_on()
+        };
         lines.push(Line::from(vec![
             Span::styled("Status:", label_style),
             Span::raw("  "),
-            Span::styled(enabled_text, enabled_style),
+            Span::styled(format!("{enabled_marker} Enabled"), enabled_style),
             Span::raw("  "),
-            Span::styled(disabled_text, disabled_style),
+            Span::styled(format!("{disabled_marker} Disabled"), disabled_style),
         ]));
         lines.push(Line::from(""));
 
@@ -229,9 +183,6 @@ impl AgentEditorView {
         lines.push(Line::from(""));
 
         // Buttons row
-        if include_gap_before_buttons {
-            lines.push(Line::from(""));
-        }
         let save_style = sel(FIELD_SAVE).fg(crate::colors::success());
         let cancel_style = sel(FIELD_CANCEL).fg(crate::colors::text());
         lines.push(Line::from(vec![
@@ -252,10 +203,12 @@ impl AgentEditorView {
             lines,
             name_offset,
             command_offset,
+            toggle_offset,
             ro_offset,
             wr_offset,
             desc_offset,
             instr_offset,
+            buttons_offset,
             ro_height: ro_box_h,
             wr_height: wr_box_h,
             desc_height: desc_box_h,
