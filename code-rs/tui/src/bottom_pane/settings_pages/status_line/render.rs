@@ -99,7 +99,11 @@ impl StatusLineSetupView {
 
         for (idx, choice) in self.choices_for_active_lane().iter().enumerate() {
             let selected = idx == self.selected_index_for_active_lane();
-            let marker = if choice.enabled { "[x]" } else { "[ ]" };
+            let marker = if choice.enabled {
+                crate::icons::checkbox_on()
+            } else {
+                crate::icons::checkbox_off()
+            };
             let pointer = if selected { crate::icons::pointer_active() } else { " " };
             let mut line = Line::from(vec![
                 Span::styled(pointer, Style::default().fg(crate::colors::light_blue())),

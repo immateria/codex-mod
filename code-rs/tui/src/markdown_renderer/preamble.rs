@@ -236,14 +236,14 @@ impl MarkdownRenderer {
             let mut checkbox_spans: Vec<Span<'static>> = Vec::new();
             if let Some(rest) = content.strip_prefix("[ ] ") {
                 content = rest.trim_start();
-                checkbox_spans.push(Span::raw("☐ "));
+                checkbox_spans.push(Span::raw(format!("{} ", crate::icons::task_pending())));
             } else if let Some(rest) = content
                 .strip_prefix("[x] ")
                 .or_else(|| content.strip_prefix("[X] "))
             {
                 content = rest.trim_start();
                 checkbox_spans.push(Span::styled(
-                    "✓ ",
+                    format!("{} ", crate::icons::task_done()),
                     Style::default().fg(crate::colors::success()),
                 ));
             }
@@ -262,10 +262,10 @@ impl MarkdownRenderer {
             // Determine nesting level from indent (2 spaces per level approximation)
             let level = (indent / 2) + 1;
             let bullet = match level {
-                1 => "-",
-                2 => "·",
-                3 => "-",
-                _ => "⋅",
+                1 => crate::icons::list_bullet_l1(),
+                2 => crate::icons::list_bullet_l2(),
+                3 => crate::icons::list_bullet_l3(),
+                _ => crate::icons::list_bullet_deep(),
             };
             // Color by nesting level:
             // 1 → text, 2 → midpoint between text and text_dim, 3+ → text_dim

@@ -265,6 +265,30 @@ define_icon_functions! {
     tree_start       => TREE_START         ("\u{f105}", "┌");       // nf-fa-angle_right
     /// Rename / transition arrow.
     rename_arrow     => RENAME_ARROW       ("\u{f061}", "→");       // nf-fa-arrow_right
+
+    // ── Checkboxes / toggles ───────────────────────────────────────────
+
+    /// Checkbox checked.
+    checkbox_on      => CHECKBOX_ON        ("\u{f046}", "[x]");     // nf-fa-check_square_o
+    /// Checkbox unchecked.
+    checkbox_off     => CHECKBOX_OFF       ("\u{f096}", "[ ]");     // nf-fa-square_o
+    /// Dismiss / close button.
+    dismiss          => DISMISS            ("\u{f00d}", "[x]");     // nf-fa-times
+    /// Markdown task list: done.
+    task_done        => TASK_DONE          ("\u{f058}", "✓");       // nf-fa-check_circle
+    /// Markdown task list: pending.
+    task_pending     => TASK_PENDING       ("\u{f096}", "☐");       // nf-fa-square_o
+
+    // ── Markdown list bullets ──────────────────────────────────────────
+
+    /// Level-1 list bullet.
+    list_bullet_l1   => LIST_BULLET_L1     ("\u{f111}", "-");       // nf-fa-circle
+    /// Level-2 list bullet.
+    list_bullet_l2   => LIST_BULLET_L2     ("\u{f10c}", "·");       // nf-fa-circle_o
+    /// Level-3 list bullet.
+    list_bullet_l3   => LIST_BULLET_L3     ("\u{f111}", "-");       // nf-fa-circle
+    /// Level-4+ list bullet.
+    list_bullet_deep => LIST_BULLET_DEEP   ("\u{f10c}", "⋅");       // nf-fa-circle_o
 }
 
 // ── Settings sidebar section icons ───────────────────────────────────
@@ -320,16 +344,16 @@ const PROGRESS_ICONS: &[Icon] = &[
 ];
 
 pub fn is_exec_prompt(s: &str) -> bool { GUTTER_EXEC.matches(s) }
-pub fn is_patch(s: &str) -> bool       { GUTTER_PATCH.matches(s) }
-pub fn is_user(s: &str) -> bool        { GUTTER_USER.matches(s) }
-pub fn is_assistant(s: &str) -> bool   { GUTTER_ASSISTANT.matches(s) }
-pub fn is_running(s: &str) -> bool     { GUTTER_RUNNING.matches(s) }
-pub fn is_success(s: &str) -> bool     { GUTTER_SUCCESS.matches(s) || STATUS_OK.matches(s) }
-pub fn is_failure(s: &str) -> bool     { GUTTER_FAILURE.matches(s) || STATUS_FAIL.matches(s) }
-pub fn is_notice(s: &str) -> bool      { GUTTER_NOTICE.matches(s) }
-pub fn is_progress(s: &str) -> bool    { PROGRESS_ICONS.iter().any(|icon| icon.matches(s)) }
-pub fn is_spinner(s: &str) -> bool     { matches!(s, "◐" | "◓" | "◑" | "◒") }
-pub fn is_context(s: &str) -> bool     { GUTTER_CONTEXT.matches(s) }
-pub fn is_compaction(s: &str) -> bool  { GUTTER_COMPACTION.matches(s) }
-pub fn is_background(s: &str) -> bool  { GUTTER_BACKGROUND.matches(s) }
+pub fn is_patch(s:       &str) -> bool { GUTTER_PATCH.matches(s) }
+pub fn is_user(s:        &str) -> bool { GUTTER_USER.matches(s) }
+pub fn is_assistant(s:   &str) -> bool { GUTTER_ASSISTANT.matches(s) }
+pub fn is_running(s:     &str) -> bool { GUTTER_RUNNING.matches(s) }
+pub fn is_success(s:     &str) -> bool { GUTTER_SUCCESS.matches(s) || STATUS_OK.matches(s) }
+pub fn is_failure(s:     &str) -> bool { GUTTER_FAILURE.matches(s) || STATUS_FAIL.matches(s) }
+pub fn is_notice(s:      &str) -> bool { GUTTER_NOTICE.matches(s) }
+pub fn is_progress(s:    &str) -> bool { PROGRESS_ICONS.iter().any(|icon| icon.matches(s)) }
+pub fn is_spinner(s:     &str) -> bool { matches!(s, "◐" | "◓" | "◑" | "◒") }
+pub fn is_context(s:     &str) -> bool { GUTTER_CONTEXT.matches(s) }
+pub fn is_compaction(s:  &str) -> bool { GUTTER_COMPACTION.matches(s) }
+pub fn is_background(s:  &str) -> bool { GUTTER_BACKGROUND.matches(s) }
 

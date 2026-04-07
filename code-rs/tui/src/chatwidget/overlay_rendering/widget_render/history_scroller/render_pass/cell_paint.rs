@@ -491,7 +491,7 @@ impl ChatWidget<'_> {
                 ) && visible_height > 0
                     && item_area.width >= 3
                 {
-                    let label = "[x]";
+                    let label = crate::icons::dismiss();
                     let x = item_area
                         .x
                         .saturating_add(item_area.width.saturating_sub(label.len() as u16));

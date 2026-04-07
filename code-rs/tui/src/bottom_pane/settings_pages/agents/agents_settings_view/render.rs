@@ -73,9 +73,9 @@ impl SubagentEditorView {
             }
 
             let checked = if self.selected_agent_indices.contains(&idx) {
-                "[x]"
+                crate::icons::checkbox_on()
             } else {
-                "[ ]"
+                crate::icons::checkbox_off()
             };
             let mut style = if self.selected_agent_indices.contains(&idx) {
                 Style::new().fg(colors::success()).bold()

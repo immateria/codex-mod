@@ -711,7 +711,17 @@ fn trim_code_line_padding(mut line: Line<'static>) -> Line<'static> {
 pub(crate) fn detect_bullet_prefix(
     line: &ratatui::text::Line<'_>,
 ) -> Option<(usize, String)> {
-    let bullets = ["-", "•", "◦", "·", "∘", "⋅", "☐", "✓"];
+    let bullets = [
+        "-", "•", "◦", "·", "∘", "⋅",
+        // Checkbox/task markers (plain + NerdFont)
+        "☐", "✓",
+        "\u{f096}", // nf-fa-square_o (checkbox_off / task_pending)
+        "\u{f058}", // nf-fa-check_circle (task_done)
+        "\u{f046}", // nf-fa-check_square_o (checkbox_on)
+        // List bullet NerdFont variants
+        "\u{f111}", // nf-fa-circle (bullet_l1/l3)
+        "\u{f10c}", // nf-fa-circle_o (bullet_l2/deep)
+    ];
     let spans = &line.spans;
     if spans.is_empty() {
         return None;

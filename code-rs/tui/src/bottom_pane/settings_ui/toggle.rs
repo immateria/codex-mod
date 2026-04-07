@@ -6,21 +6,21 @@ use super::rows::StyledText;
 
 pub(crate) fn checkbox_marker(checked: bool) -> StyledText<'static> {
     if checked {
-        StyledText::new("[x]", Style::new().fg(colors::success()))
+        StyledText::new(crate::icons::checkbox_on(), Style::new().fg(colors::success()))
     } else {
-        StyledText::new("[ ]", Style::new().fg(colors::text_dim()))
+        StyledText::new(crate::icons::checkbox_off(), Style::new().fg(colors::text_dim()))
     }
 }
 
 pub(crate) fn checkbox_label(checked: bool, label: &str) -> StyledText<'static> {
     if checked {
         StyledText::new(
-            format!("[x] {label}"),
+            format!("{} {label}", crate::icons::checkbox_on()),
             Style::new().fg(colors::success()),
         )
     } else {
         StyledText::new(
-            format!("[ ] {label}"),
+            format!("{} {label}", crate::icons::checkbox_off()),
             Style::new().fg(colors::text_dim()),
         )
     }
@@ -57,22 +57,22 @@ mod tests {
     #[test]
     fn checkbox_marker_matches_expected_text_and_color() {
         let on = checkbox_marker(true);
-        assert_eq!(on.text.as_ref(), "[x]");
+        assert_eq!(on.text.as_ref(), crate::icons::checkbox_on());
         assert_eq!(on.style.fg, Some(colors::success()));
 
         let off = checkbox_marker(false);
-        assert_eq!(off.text.as_ref(), "[ ]");
+        assert_eq!(off.text.as_ref(), crate::icons::checkbox_off());
         assert_eq!(off.style.fg, Some(colors::text_dim()));
     }
 
     #[test]
     fn checkbox_label_includes_text_and_uses_same_palette() {
         let on = checkbox_label(true, "read-only");
-        assert_eq!(on.text.as_ref(), "[x] read-only");
+        assert_eq!(on.text.as_ref(), format!("{} read-only", crate::icons::checkbox_on()));
         assert_eq!(on.style.fg, Some(colors::success()));
 
         let off = checkbox_label(false, "read-only");
-        assert_eq!(off.text.as_ref(), "[ ] read-only");
+        assert_eq!(off.text.as_ref(), format!("{} read-only", crate::icons::checkbox_off()));
         assert_eq!(off.style.fg, Some(colors::text_dim()));
     }
 

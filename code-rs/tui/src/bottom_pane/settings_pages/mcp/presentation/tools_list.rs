@@ -51,7 +51,11 @@ impl McpSettingsView {
             } else {
                 Style::default()
             };
-            let marker = if entry.enabled { "[x]" } else { "[ ]" };
+            let marker = if entry.enabled {
+                crate::icons::checkbox_on()
+            } else {
+                crate::icons::checkbox_off()
+            };
             let expansion = if self.is_tool_expanded(entry.name) {
                 crate::icons::collapse_open()
             } else {

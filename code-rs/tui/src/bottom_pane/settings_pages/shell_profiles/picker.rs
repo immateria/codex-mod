@@ -448,7 +448,11 @@ impl ShellProfilesSettingsView {
             fill_rect(buf, row_area, Some(' '), base);
 
             let checked = state.checked.get(idx).copied().unwrap_or(false);
-            let check = if checked { "[x]" } else { "[ ]" };
+            let check = if checked {
+                crate::icons::checkbox_on()
+            } else {
+                crate::icons::checkbox_off()
+            };
             let mut suffix = String::new();
             let conflict_key = if item.is_no_filter_option {
                 String::new()

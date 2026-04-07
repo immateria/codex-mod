@@ -145,7 +145,11 @@ pub(super) fn handle_mouse_event_direct_in_chrome(
 
                     let item = &state.items[idx];
                     let checked = state.checked.get(idx).copied().unwrap_or(false);
-                    let check = if checked { "[x]" } else { "[ ]" };
+                    let check = if checked {
+                        crate::icons::checkbox_on()
+                    } else {
+                        crate::icons::checkbox_off()
+                    };
 
                     let conflict_label = ShellProfilesSettingsView::picker_conflict_label(state.target);
                     let mut suffix = String::new();

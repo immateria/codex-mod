@@ -161,24 +161,18 @@ impl UndoTimelineView {
     }
 
     fn footer_lines(&self, entry: &UndoTimelineEntry) -> Vec<Line<'static>> {
-        let files_status = if entry.files_available {
-            if self.restore_files {
-                Span::styled("[x] Files", Style::default().fg(crate::colors::success()))
-            } else {
-                Span::styled("[ ] Files", Style::default().fg(crate::colors::text_dim()))
-            }
-        } else {
-            Span::styled("[ ] Files", Style::default().fg(crate::colors::text_dim()))
+        let files_checked = entry.files_available && self.restore_files;
+        let files_status = {
+            let marker = if files_checked { crate::icons::checkbox_on() } else { crate::icons::checkbox_off() };
+            let color = if files_checked { crate::colors::success() } else { crate::colors::text_dim() };
+            Span::styled(format!("{marker} Files"), Style::default().fg(color))
         };
 
-        let convo_status = if entry.conversation_available {
-            if self.restore_conversation {
-                Span::styled("[x] Conversation", Style::default().fg(crate::colors::success()))
-            } else {
-                Span::styled("[ ] Conversation", Style::default().fg(crate::colors::text_dim()))
-            }
-        } else {
-            Span::styled("[ ] Conversation", Style::default().fg(crate::colors::text_dim()))
+        let convo_checked = entry.conversation_available && self.restore_conversation;
+        let convo_status = {
+            let marker = if convo_checked { crate::icons::checkbox_on() } else { crate::icons::checkbox_off() };
+            let color = if convo_checked { crate::colors::success() } else { crate::colors::text_dim() };
+            Span::styled(format!("{marker} Conversation"), Style::default().fg(color))
         };
 
         vec![
