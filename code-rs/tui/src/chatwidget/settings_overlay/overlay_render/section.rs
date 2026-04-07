@@ -23,14 +23,11 @@ impl SettingsOverlayView {
             return;
         }
 
-        // Toggle button: 1-column-wide strip above the sidebar.
-        // When collapsed, it's the only sidebar remnant. The arrow symbol
-        // indicates which direction clicking/pressing will move things.
-        let toggle_width: u16 = 3; // " ◂ " or " ▸ "
         let collapsed = self.sidebar_collapsed.get();
 
         if collapsed {
-            // Collapsed: just the toggle strip + full-width content.
+            // Collapsed: thin 2-col toggle strip + full-width content.
+            let toggle_width: u16 = 2;
             let [toggle_col, main] =
                 Layout::horizontal([Constraint::Length(toggle_width), Constraint::Fill(1)])
                     .areas(area);
@@ -38,16 +35,26 @@ impl SettingsOverlayView {
             *self.last_sidebar_area.borrow_mut() = Rect::default();
             self.render_section_panel(main, buf);
         } else {
-            // Expanded: toggle strip + sidebar + content.
-            let [toggle_col, sidebar, main] = Layout::horizontal([
-                Constraint::Length(toggle_width),
-                Constraint::Length(22),
-                Constraint::Fill(1),
-            ])
-            .areas(area);
-            self.render_sidebar_toggle(toggle_col, buf, collapsed);
-            *self.last_sidebar_area.borrow_mut() = sidebar;
-            self.render_sidebar(sidebar, buf);
+            // Expanded: sidebar (with toggle row on top) + content.
+            // The toggle sits in a 1-row strip above the sidebar items,
+            // inside the same 22-col column — no extra horizontal space.
+            let [sidebar_col, main] =
+                Layout::horizontal([Constraint::Length(22), Constraint::Fill(1)])
+                    .areas(area);
+
+            if sidebar_col.height > 1 {
+                let [toggle_row, sidebar_body] =
+                    Layout::vertical([Constraint::Length(1), Constraint::Fill(1)])
+                        .areas(sidebar_col);
+                self.render_sidebar_toggle(toggle_row, buf, collapsed);
+                *self.last_sidebar_area.borrow_mut() = sidebar_body;
+                self.render_sidebar(sidebar_body, buf);
+            } else {
+                // Extremely short — just render sidebar, no toggle row.
+                *self.last_sidebar_area.borrow_mut() = sidebar_col;
+                *self.last_sidebar_toggle_area.borrow_mut() = Rect::default();
+                self.render_sidebar(sidebar_col, buf);
+            }
             self.render_section_panel(main, buf);
         }
     }
@@ -65,16 +72,18 @@ impl SettingsOverlayView {
             Style::default().bg(crate::colors::background()),
         );
 
-        // Draw the toggle arrow at the top of the column.
-        let symbol = if collapsed { " ▸ " } else { " ◂ " };
+        let symbol = if collapsed { "▸" } else { "◂ hide" };
         let style = Style::default()
             .fg(crate::colors::function())
             .bg(crate::colors::background());
-        let toggle_cell = Rect::new(area.x, area.y, area.width.min(3), 1);
+        let draw_width = area.width.min(unicode_width::UnicodeWidthStr::width(symbol) as u16);
+        let toggle_cell = Rect::new(area.x, area.y, draw_width, 1);
         Paragraph::new(Line::from(vec![Span::styled(symbol, style)]))
             .render(toggle_cell, buf);
 
-        *self.last_sidebar_toggle_area.borrow_mut() = toggle_cell;
+        // Hit area covers the full row so it's easy to tap.
+        let hit_area = Rect::new(area.x, area.y, area.width, 1);
+        *self.last_sidebar_toggle_area.borrow_mut() = hit_area;
     }
 
     fn render_section_panel(&self, area: Rect, buf: &mut Buffer) {
