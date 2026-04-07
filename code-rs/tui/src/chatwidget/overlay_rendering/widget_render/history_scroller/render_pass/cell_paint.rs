@@ -399,7 +399,8 @@ impl ChatWidget<'_> {
                         }
                         // Show fold indicator for foldable cells.
                         if item.is_fold_toggleable() {
-                            let fold_icon = if item.is_collapsed() {
+                            let collapsed = item.is_collapsed();
+                            let fold_icon = if collapsed {
                                 crate::icons::collapse_closed()
                             } else {
                                 crate::icons::collapse_open()
@@ -407,7 +408,7 @@ impl ChatWidget<'_> {
                             let fold_style = Style::default()
                                 .fg(crate::colors::text_dim())
                                 .bg(gutter_bg);
-                            if item.is_collapsed() {
+                            if collapsed {
                                 // Collapsed: show ▶ in the gutter gap (after the icon, same row).
                                 let gap_x = symbol_x.saturating_add(2);
                                 if gap_x < gutter_area.x.saturating_add(gutter_area.width) {
@@ -550,7 +551,7 @@ impl ChatWidget<'_> {
                 // this cell's area. Indented 1 row down and 2 cols from right edge.
                 if visible_height > 2
                     && item_area.width >= 8
-                    && item.copyable_markdown().is_some()
+                    && item.has_copyable_content()
                 {
                     let mouse_in_cell = self.last_mouse_pos.get().is_some_and(|(mx, my)| {
                         mx >= item_area.x

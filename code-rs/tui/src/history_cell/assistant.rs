@@ -78,18 +78,20 @@ impl AssistantMarkdownCell {
 
     pub(crate) fn toggle_body_collapsed(&self) {
         self.collapsed.set(!self.collapsed.get());
+        // Invalidate cached layouts so stale full-content layouts are not reused.
+        self.layout_cache.borrow_mut().clear();
+        self.rendered_lines_cache.borrow_mut().take();
     }
 
     fn collapsed_summary_line(&self) -> Line<'static> {
         let md = &self.state.markdown;
         let first_line = md.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
         let preview = crate::text_formatting::truncate_chars_with_ellipsis(first_line.trim(), 72);
+        let dim = Style::new().fg(crate::colors::text_dim());
         Line::from(vec![
-            Span::styled(
-                format!("{} ", crate::icons::collapse_closed()),
-                Style::new().fg(crate::colors::text_dim()),
-            ),
-            Span::styled(preview, Style::new().fg(crate::colors::text_dim())),
+            Span::styled(crate::icons::collapse_closed(), dim),
+            Span::styled(" ", dim),
+            Span::styled(preview, dim),
         ])
     }
 

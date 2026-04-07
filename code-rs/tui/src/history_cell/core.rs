@@ -287,14 +287,22 @@ pub(crate) trait HistoryCell {
         if lines.is_empty() {
             return None;
         }
-        let text: String = lines
-            .iter()
-            .map(|line| {
-                line.spans.iter().map(|s| s.content.as_ref()).collect::<String>()
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
+        let mut text = String::new();
+        for (i, line) in lines.iter().enumerate() {
+            if i > 0 {
+                text.push('\n');
+            }
+            for span in &line.spans {
+                text.push_str(span.content.as_ref());
+            }
+        }
         Some(text)
+    }
+
+    /// Cheap check for whether this cell has content worth copying.
+    /// Override to avoid the allocation that `copyable_markdown().is_some()` incurs.
+    fn has_copyable_content(&self) -> bool {
+        true
     }
 }
 
@@ -368,5 +376,9 @@ impl HistoryCell for Box<dyn HistoryCell> {
 
     fn copyable_markdown(&self) -> Option<String> {
         self.as_ref().copyable_markdown()
+    }
+
+    fn has_copyable_content(&self) -> bool {
+        self.as_ref().has_copyable_content()
     }
 }
