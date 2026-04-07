@@ -23,12 +23,58 @@ impl SettingsOverlayView {
             return;
         }
 
-        let [sidebar, main] =
-            Layout::horizontal([Constraint::Length(22), Constraint::Fill(1)]).areas(area);
-        *self.last_sidebar_area.borrow_mut() = sidebar;
+        // Toggle button: 1-column-wide strip above the sidebar.
+        // When collapsed, it's the only sidebar remnant. The arrow symbol
+        // indicates which direction clicking/pressing will move things.
+        let toggle_width: u16 = 3; // " ◂ " or " ▸ "
+        let collapsed = self.sidebar_collapsed.get();
 
-        self.render_sidebar(sidebar, buf);
-        self.render_section_panel(main, buf);
+        if collapsed {
+            // Collapsed: just the toggle strip + full-width content.
+            let [toggle_col, main] =
+                Layout::horizontal([Constraint::Length(toggle_width), Constraint::Fill(1)])
+                    .areas(area);
+            self.render_sidebar_toggle(toggle_col, buf, collapsed);
+            *self.last_sidebar_area.borrow_mut() = Rect::default();
+            self.render_section_panel(main, buf);
+        } else {
+            // Expanded: toggle strip + sidebar + content.
+            let [toggle_col, sidebar, main] = Layout::horizontal([
+                Constraint::Length(toggle_width),
+                Constraint::Length(22),
+                Constraint::Fill(1),
+            ])
+            .areas(area);
+            self.render_sidebar_toggle(toggle_col, buf, collapsed);
+            *self.last_sidebar_area.borrow_mut() = sidebar;
+            self.render_sidebar(sidebar, buf);
+            self.render_section_panel(main, buf);
+        }
+    }
+
+    fn render_sidebar_toggle(&self, area: Rect, buf: &mut Buffer, collapsed: bool) {
+        if area.width == 0 || area.height == 0 {
+            *self.last_sidebar_toggle_area.borrow_mut() = Rect::default();
+            return;
+        }
+
+        fill_rect(
+            buf,
+            area,
+            Some(' '),
+            Style::default().bg(crate::colors::background()),
+        );
+
+        // Draw the toggle arrow at the top of the column.
+        let symbol = if collapsed { " ▸ " } else { " ◂ " };
+        let style = Style::default()
+            .fg(crate::colors::function())
+            .bg(crate::colors::background());
+        let toggle_cell = Rect::new(area.x, area.y, area.width.min(3), 1);
+        Paragraph::new(Line::from(vec![Span::styled(symbol, style)]))
+            .render(toggle_cell, buf);
+
+        *self.last_sidebar_toggle_area.borrow_mut() = toggle_cell;
     }
 
     fn render_section_panel(&self, area: Rect, buf: &mut Buffer) {

@@ -1,4 +1,4 @@
-use crossterm::event::{MouseEvent, MouseEventKind};
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 
 use crate::bottom_pane::SettingsSection;
@@ -86,6 +86,17 @@ impl SettingsOverlayView {
     }
 
     fn handle_section_mouse_event(&mut self, mouse_event: MouseEvent) -> bool {
+        // Check for clicks on the sidebar toggle button first.
+        if matches!(mouse_event.kind, MouseEventKind::Down(MouseButton::Left)) {
+            let toggle_area = *self.last_sidebar_toggle_area.borrow();
+            if toggle_area.width > 0
+                && toggle_area.height > 0
+                && contains_point(toggle_area, mouse_event.column, mouse_event.row)
+            {
+                return self.toggle_sidebar_collapsed();
+            }
+        }
+
         match mouse_event.kind {
             MouseEventKind::Moved => {
                 // Ignore movement in the sidebar itself to avoid expensive

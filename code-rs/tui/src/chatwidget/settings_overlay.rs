@@ -1,5 +1,5 @@
 use ratatui::layout::Rect;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use crate::bottom_pane::SettingsSection;
 
@@ -109,6 +109,10 @@ pub(crate) struct SettingsOverlayView {
     last_panel_inner_area: RefCell<Rect>,
     /// Currently hovered section in sidebar (for visual feedback)
     hovered_section: RefCell<Option<SettingsSection>>,
+    /// Whether the sidebar is collapsed (hidden) in section view.
+    sidebar_collapsed: Cell<bool>,
+    /// Rectangle of the sidebar toggle button for mouse hit testing.
+    last_sidebar_toggle_area: RefCell<Rect>,
 }
 
 impl SettingsOverlayView {
@@ -157,6 +161,8 @@ impl SettingsOverlayView {
             last_overview_scroll: RefCell::new(0),
             last_panel_inner_area: RefCell::new(Rect::default()),
             hovered_section: RefCell::new(None),
+            sidebar_collapsed: Cell::new(false),
+            last_sidebar_toggle_area: RefCell::new(Rect::default()),
         }
     }
 
@@ -177,6 +183,19 @@ impl SettingsOverlayView {
 
     pub(crate) fn is_content_focused(&self) -> bool {
         matches!(self.focus, SettingsOverlayFocus::Content)
+    }
+
+    pub(crate) fn is_sidebar_collapsed(&self) -> bool {
+        self.sidebar_collapsed.get()
+    }
+
+    pub(crate) fn toggle_sidebar_collapsed(&mut self) -> bool {
+        let collapsed = !self.sidebar_collapsed.get();
+        self.sidebar_collapsed.set(collapsed);
+        if collapsed && self.is_sidebar_focused() {
+            self.focus = SettingsOverlayFocus::Content;
+        }
+        true
     }
 
     pub(crate) fn set_focus_sidebar(&mut self) -> bool {

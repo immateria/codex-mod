@@ -146,6 +146,19 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
         return changed;
     }
 
+    // Ctrl+B toggles the sidebar in section view (like VS Code / many editors).
+    if key_event.modifiers.contains(KeyModifiers::CONTROL)
+        && matches!(key_event.code, KeyCode::Char('b'))
+    {
+        if let Some(overlay) = chat.settings.overlay.as_mut() {
+            if !overlay.is_menu_active() {
+                overlay.toggle_sidebar_collapsed();
+                chat.request_redraw();
+                return true;
+            }
+        }
+    }
+
     let sidebar_focused = chat
         .settings
         .overlay
@@ -175,27 +188,27 @@ pub(super) fn handle_settings_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent
             return true;
         }
         KeyCode::BackTab if content_focused => {
-            let changed = chat
-                .settings
-                .overlay
-                .as_mut()
-                .is_some_and(super::settings_overlay::SettingsOverlayView::set_focus_sidebar);
-            if changed {
-                chat.request_redraw();
+            // Expand sidebar if collapsed, then focus it.
+            if let Some(overlay) = chat.settings.overlay.as_mut() {
+                if overlay.is_sidebar_collapsed() {
+                    overlay.toggle_sidebar_collapsed();
+                }
+                overlay.set_focus_sidebar();
             }
+            chat.request_redraw();
             return true;
         }
         // Esc in content pane (when no sub-editor is active) returns to sidebar.
         // This is a Termux-friendly fallback for Shift+Tab.
         KeyCode::Esc if content_focused => {
-            let changed = chat
-                .settings
-                .overlay
-                .as_mut()
-                .is_some_and(super::settings_overlay::SettingsOverlayView::set_focus_sidebar);
-            if changed {
-                chat.request_redraw();
+            // Expand sidebar if collapsed, then focus it.
+            if let Some(overlay) = chat.settings.overlay.as_mut() {
+                if overlay.is_sidebar_collapsed() {
+                    overlay.toggle_sidebar_collapsed();
+                }
+                overlay.set_focus_sidebar();
             }
+            chat.request_redraw();
             return true;
         }
         _ => {}

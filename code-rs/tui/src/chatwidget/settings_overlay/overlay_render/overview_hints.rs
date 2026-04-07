@@ -101,20 +101,41 @@ impl SettingsOverlayView {
             "Content"
         };
 
-        let line = Line::from(vec![
+        let mut spans = vec![
             Span::styled("Tab", key),
             Span::styled(" Content  ", hint),
             Span::styled("Shift+Tab", key),
             Span::styled(" Sidebar  ", hint),
+            Span::styled("Ctrl+B", key),
+            Span::styled(
+                if self.sidebar_collapsed.get() { " Show  " } else { " Hide  " },
+                hint,
+            ),
             Span::styled("Esc", key),
             Span::styled(" Overview  ", hint),
             Span::styled("?", key),
             Span::styled(" Help  ", hint),
             Span::styled("Focus:", hint),
             Span::styled(format!(" {focus_label}"), focus),
-        ]);
+        ];
 
-        Paragraph::new(line)
+        // On narrow screens, drop the less-critical hints.
+        let full_width: usize = spans.iter().map(|s| s.width()).sum();
+        if full_width > area.width as usize {
+            spans = vec![
+                Span::styled("^B", key),
+                Span::styled(
+                    if self.sidebar_collapsed.get() { " Show  " } else { " Hide  " },
+                    hint,
+                ),
+                Span::styled("Esc", key),
+                Span::styled(" Back  ", hint),
+                Span::styled("Focus:", hint),
+                Span::styled(format!(" {focus_label}"), focus),
+            ];
+        }
+
+        Paragraph::new(Line::from(spans))
             .style(Style::default().bg(crate::colors::background()))
             .alignment(Alignment::Left)
             .render(area, buf);
