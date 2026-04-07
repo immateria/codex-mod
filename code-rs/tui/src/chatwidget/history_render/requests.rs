@@ -37,6 +37,13 @@ impl<'a> RenderRequest<'a> {
     /// `HistoryCell` cache (which may include per-cell layout bridges) and fall
     /// back to semantic lines derived from the record state.
     fn build_lines(&self, history_state: &HistoryState) -> Vec<Line<'static>> {
+        // If the cell is collapsed, always use its display_lines (collapsed summary).
+        if let Some(cell) = self.cell {
+            if cell.is_collapsed() {
+                return cell.display_lines_trimmed();
+            }
+        }
+
         if let RenderRequestKind::Exec { id } = self.kind
             && let Some(HistoryRecord::Exec(record)) = history_state.record(id) {
                 return exec_display_lines_from_record(record);
