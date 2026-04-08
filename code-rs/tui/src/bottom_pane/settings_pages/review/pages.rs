@@ -16,7 +16,7 @@ impl ReviewSettingsView {
                 Style::new().fg(colors::text_dim()),
             )),
             Line::from(Span::styled(
-                "Use ↑↓ to navigate · Enter select/open · Space toggle · ←→ adjust values · Esc close",
+                format!("Use {ud} to navigate · Enter select/open · Space toggle · {lr} adjust values · Esc close", ud = crate::icons::nav_up_down(), lr = crate::icons::nav_left_right()),
                 Style::new().fg(colors::text_dim()),
             )),
             Line::from(""),
@@ -29,7 +29,7 @@ impl ReviewSettingsView {
             hint_enter(" Select"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " Toggle")
                 .with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new("←→", " Adjust").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new(crate::icons::nav_left_right(), " Adjust").with_key_style(Style::new().fg(colors::function())),
             hint_esc(" Close"),
         ]
     }

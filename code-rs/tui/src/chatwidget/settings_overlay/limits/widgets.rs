@@ -13,7 +13,7 @@ impl Widget for LimitsHintRowWidget {
         let hint_style = Style::default().fg(crate::colors::text_dim());
         let accent_style = Style::default().fg(crate::colors::function());
         let mut spans = vec![
-            Span::styled("↑↓", accent_style),
+            Span::styled(crate::icons::nav_up_down(), accent_style),
             Span::styled(" scroll  ", hint_style),
             Span::styled("V", accent_style),
             Span::styled(format!(" layout:{}  ", self.layout_mode.label()), hint_style),

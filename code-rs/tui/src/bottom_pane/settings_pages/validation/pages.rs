@@ -16,7 +16,7 @@ impl ValidationSettingsView {
                 Style::new().fg(colors::text_dim()),
             )),
             Line::from(Span::styled(
-                "Use ↑↓ to navigate · Enter/Space toggle · Esc close",
+                format!("Use {ud} to navigate · Enter/Space toggle · Esc close", ud = crate::icons::nav_up_down()),
                 Style::new().fg(colors::text_dim()),
             )),
             Line::from(""),

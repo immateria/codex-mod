@@ -115,7 +115,7 @@ impl MemoriesSettingsView {
     fn render_footer_lines(&self) -> Vec<Line<'static>> {
         vec![shortcut_line(&[
             hint_nav(" move"),
-            KeyHint::new("←/→", " cycle").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new(crate::icons::nav_left_right(), " cycle").with_key_style(Style::new().fg(colors::function())),
             hint_enter(" edit/activate"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " apply")
                 .with_key_style(Style::new().fg(colors::success())),

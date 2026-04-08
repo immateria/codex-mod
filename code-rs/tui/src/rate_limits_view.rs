@@ -733,7 +733,7 @@ fn build_status_line(metrics: &RateLimitMetrics) -> Line<'static> {
     } else {
         Line::from(vec![
             Span::styled(
-                "✓ Within current limits".to_string(),
+                format!("{} Within current limits", crate::icons::status_ok()),
                 Style::default().fg(colors::success()),
             ),
         ])

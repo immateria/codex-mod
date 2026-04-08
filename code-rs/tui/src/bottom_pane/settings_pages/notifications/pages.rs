@@ -41,7 +41,7 @@ impl NotificationsSettingsView {
         let (footer_lines, shortcuts) = match &self.mode {
             NotificationsMode::Toggle { .. } => (Vec::new(), vec![
                 hint_nav(" navigate"),
-                KeyHint::new("←→/Space", " toggle")
+                KeyHint::new(format!("{lr}/Space", lr = crate::icons::nav_left_right()), " toggle")
                     .with_key_style(Style::new().fg(colors::success())),
                 hint_enter(" toggle/close"),
                 hint_esc(" close"),

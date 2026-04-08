@@ -69,7 +69,7 @@ impl SettingsOverlayView {
         }
 
         let line = Line::from(vec![
-            Span::styled("↑ ↓", Style::default().fg(crate::colors::text())),
+            Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::text())),
             Span::styled(" Move    ", Style::default().fg(crate::colors::text_dim())),
             Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::text())),
             Span::styled(" Open    ", Style::default().fg(crate::colors::text_dim())),

@@ -225,7 +225,7 @@ impl McpSettingsView {
     fn render_hints(&self, hint_area: Rect, buf: &mut Buffer) {
         match self.mode {
             McpSettingsMode::Main => Paragraph::new(Line::from(vec![
-                Span::styled("↑↓", Style::default().fg(crate::colors::function())),
+                Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
                 Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
                 Span::styled(crate::icons::space(), Style::default().fg(crate::colors::success())),
                 Span::styled(" toggle tool  ", Style::default().fg(crate::colors::text_dim())),
@@ -247,7 +247,7 @@ impl McpSettingsView {
             .render(hint_area, buf),
             McpSettingsMode::EditServerScheduling(_) | McpSettingsMode::EditToolScheduling(_) => {
                 Paragraph::new(Line::from(vec![
-                    Span::styled("↑↓", Style::default().fg(crate::colors::function())),
+                    Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
                     Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
                     Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
                     Span::styled(

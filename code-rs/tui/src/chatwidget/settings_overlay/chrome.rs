@@ -153,7 +153,7 @@ mod imp {
             }
 
             lines.push(Line::from(vec![
-                Span::styled("↑↓/jk", Style::default().fg(crate::colors::function())),
+                Span::styled(format!("{ud}/jk", ud = crate::icons::nav_up_down()), Style::default().fg(crate::colors::function())),
                 Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
                 Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::function())),
                 Span::styled(" select  ", Style::default().fg(crate::colors::text_dim())),

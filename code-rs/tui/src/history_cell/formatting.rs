@@ -582,9 +582,9 @@ fn is_title_line(line: &Line) -> bool {
             | "reasoning effort"
             | "error"
     ) || text.starts_with("…")
-        || text.starts_with("✓") || text.starts_with("\u{f058}")
-        || text.starts_with("✗") || text.starts_with("\u{f057}")
-        || text.starts_with("↯") || text.starts_with("\u{f126}")
+        || text.starts_with(&crate::icons::status_ok().to_lowercase())
+        || text.starts_with(&crate::icons::status_fail().to_lowercase())
+        || text.starts_with(&crate::icons::gutter_patch().to_lowercase())
         || text.starts_with("proposed patch")
         || text.starts_with("applying patch")
         || text.starts_with("updating")

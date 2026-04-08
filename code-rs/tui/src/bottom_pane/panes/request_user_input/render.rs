@@ -218,11 +218,13 @@ impl RequestUserInputView {
         let footer = if has_options {
             if accepts_freeform {
                 format!(
-                    "↑/↓ select | Type other answer | Enter {enter_label} | Esc type in composer | PgUp/PgDn prev/next"
+                    "{ud} select | Type other answer | Enter {enter_label} | Esc type in composer | PgUp/PgDn prev/next",
+                    ud = crate::icons::nav_up_down(),
                 )
             } else {
                 format!(
-                    "↑/↓ select | Enter {enter_label} | Esc type in composer | PgUp/PgDn prev/next"
+                    "{ud} select | Enter {enter_label} | Esc type in composer | PgUp/PgDn prev/next",
+                    ud = crate::icons::nav_up_down(),
                 )
             }
         } else {

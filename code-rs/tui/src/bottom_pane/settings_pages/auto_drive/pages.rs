@@ -88,7 +88,7 @@ impl AutoDriveSettingsView {
                 .map(|message| crate::bottom_pane::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
             &[
                 hint_enter(" select/toggle"),
-                KeyHint::new("←/→", " adjust delay"),
+                KeyHint::new(crate::icons::nav_left_right(), " adjust delay"),
                 hint_esc(" close"),
                 KeyHint::new(key_ctrl("S"), " close"),
             ],
@@ -226,7 +226,7 @@ impl AutoDriveSettingsView {
             SettingsMenuRow::new(RoutingEditorField::Reasoning, "Reasoning")
                 .with_label_pad_cols(label_pad_cols)
                 .with_detail(StyledText::new(reasoning, Style::new().fg(colors::text_dim())))
-                .with_selected_hint("←/→ move, Space toggle"),
+                .with_selected_hint(format!("{lr} move, Space toggle", lr = crate::icons::nav_left_right())),
             SettingsMenuRow::new(RoutingEditorField::Description, "Description")
                 .with_label_pad_cols(label_pad_cols)
                 .with_detail(StyledText::new(description, Style::new().fg(colors::text_dim()))),

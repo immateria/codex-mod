@@ -96,7 +96,7 @@ pub(crate) fn shortcut_line(hints: &[KeyHint<'_>]) -> Line<'static> {
 
 /// Navigate (↑↓) hint with `colors::function()` key style.
 pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
-    KeyHint::new("↑↓", description).with_key_style(Style::new().fg(colors::function()))
+    KeyHint::new(icons::nav_up_down(), description).with_key_style(Style::new().fg(colors::function()))
 }
 
 pub(crate) fn key_tab() -> &'static str {

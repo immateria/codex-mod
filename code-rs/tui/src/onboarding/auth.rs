@@ -263,7 +263,7 @@ impl AuthModeWidget {
 
     fn render_chatgpt_success_message(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            Line::from("✓ Signed in with your ChatGPT account")
+            Line::from(format!("{} Signed in with your ChatGPT account", crate::icons::status_ok()))
                 .fg(crate::colors::success()),
             Line::from(""),
             Line::from("> Before you start:"),
@@ -301,7 +301,7 @@ impl AuthModeWidget {
     }
 
     fn render_chatgpt_success(&self, area: Rect, buf: &mut Buffer) {
-        let lines = vec![Line::from("✓ Signed in with your ChatGPT account").fg(crate::colors::success())];
+        let lines = vec![Line::from(format!("{} Signed in with your ChatGPT account", crate::icons::status_ok())).fg(crate::colors::success())];
 
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
@@ -309,7 +309,7 @@ impl AuthModeWidget {
     }
 
     fn render_env_var_found(&self, area: Rect, buf: &mut Buffer) {
-        let lines = vec![Line::from("✓ Using OPENAI_API_KEY").fg(crate::colors::success())];
+        let lines = vec![Line::from(format!("{} Using OPENAI_API_KEY", crate::icons::status_ok())).fg(crate::colors::success())];
 
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })

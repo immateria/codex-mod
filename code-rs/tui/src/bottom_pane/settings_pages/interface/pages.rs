@@ -28,7 +28,7 @@ impl InterfaceSettingsView {
         let shortcuts = vec![
             hint_nav(" navigate"),
             hint_enter(" activate"),
-            KeyHint::new("←→", " adjust").with_key_style(Style::new().fg(crate::colors::function())),
+            KeyHint::new(crate::icons::nav_left_right(), " adjust").with_key_style(Style::new().fg(crate::colors::function())),
             KeyHint::new(key_ctrl("S"), " save").with_key_style(Style::new().fg(crate::colors::success())),
             hint_esc(" close"),
         ];

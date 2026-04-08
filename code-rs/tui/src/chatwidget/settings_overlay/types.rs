@@ -96,14 +96,16 @@ impl SettingsHelpOverlay {
             .add_modifier(Modifier::BOLD);
         let hint = Style::default().fg(crate::colors::text_dim());
         let mut lines = vec![Line::from(vec![Span::styled("Settings Overview", title)]), Line::default()];
-        for text in [
-            "• ↑/↓  Move between sections",
-            "• Enter  Open selected section",
-            "• Tab    Jump forward between sections",
-            "• Esc    Close settings",
-            "• ?      Toggle this help",
-        ] {
-            lines.push(Line::from(vec![Span::styled(text.to_string(), hint)]));
+        let nav = crate::icons::nav_up_down();
+        let items: &[String] = &[
+            format!("• {nav}  Move between sections"),
+            "• Enter  Open selected section".into(),
+            "• Tab    Jump forward between sections".into(),
+            "• Esc    Close settings".into(),
+            "• ?      Toggle this help".into(),
+        ];
+        for text in items {
+            lines.push(Line::from(vec![Span::styled(text.clone(), hint)]));
         }
         lines.push(Line::default());
         lines.push(Line::from(vec![Span::styled(
@@ -128,7 +130,7 @@ impl SettingsHelpOverlay {
             Line::from(vec![Span::styled("• Tab    Focus content", hint)]),
             Line::from(vec![Span::styled("• Shift+Tab  Focus sidebar", hint)]),
             Line::from(vec![Span::styled(
-                "• ↑/↓    Change section (sidebar focus)",
+                format!("• {}    Change section (sidebar focus)", crate::icons::nav_up_down()),
                 hint,
             )]),
         ];

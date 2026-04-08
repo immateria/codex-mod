@@ -36,7 +36,7 @@ impl StatusLineSetupView {
             Span::styled(" primary  ", Style::default().fg(crate::colors::text_dim())),
             Span::styled(crate::icons::space(), Style::default().fg(crate::colors::success())),
             Span::styled(" toggle  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("←/→", Style::default().fg(crate::colors::light_blue())),
+            Span::styled(crate::icons::nav_left_right(), Style::default().fg(crate::colors::light_blue())),
             Span::styled(" reorder  ", Style::default().fg(crate::colors::text_dim())),
             Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
             Span::styled(" apply  ", Style::default().fg(crate::colors::text_dim())),

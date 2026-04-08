@@ -128,7 +128,7 @@ impl PluginsSettingsView {
             .as_ref()
             .map(|err| StyledText::new(err.clone(), Style::new().fg(colors::error())));
         let shortcuts = [
-            KeyHint::new("←→", " actions").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new(crate::icons::nav_left_right(), " actions").with_key_style(Style::new().fg(colors::function())),
             hint_enter(" activate"),
             hint_esc(" back"),
         ];
@@ -194,7 +194,7 @@ impl PluginsSettingsView {
             .as_ref()
             .map(|err| StyledText::new(err.clone(), Style::new().fg(colors::error())));
         let shortcuts = [
-            KeyHint::new("←→", " actions").with_key_style(Style::new().fg(colors::function())),
+            KeyHint::new(crate::icons::nav_left_right(), " actions").with_key_style(Style::new().fg(colors::function())),
             hint_enter(" activate"),
             hint_esc(" back"),
         ];

@@ -209,6 +209,16 @@ pub fn shift_combo(key: &str) -> String {
     format!("{}+{key}", shift())
 }
 
+/// Vertical arrow pair for navigation hints (e.g. "↑↓").
+pub fn nav_up_down() -> String {
+    format!("{}{}", arrow_up(), arrow_down())
+}
+
+/// Horizontal arrow pair for adjust hints (e.g. "←→").
+pub fn nav_left_right() -> String {
+    format!("{}{}", arrow_left(), arrow_right())
+}
+
 // ── Icon definitions ─────────────────────────────────────────────────
 
 define_icon_functions! {

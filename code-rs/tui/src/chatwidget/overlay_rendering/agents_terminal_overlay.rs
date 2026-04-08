@@ -550,7 +550,7 @@ impl ChatWidget<'_> {
                 ])
             } else {
                 Line::from(vec![
-                    Span::styled("[↑/↓/←/→]", Style::default().fg(crate::colors::function())),
+                    Span::styled(format!("[{ud}/{lr}]", ud = crate::icons::nav_up_down(), lr = crate::icons::nav_left_right()), Style::default().fg(crate::colors::function())),
                     Span::styled(" Navigate   ", Style::default().fg(crate::colors::text_dim())),
                     Span::styled("[1-5]", Style::default().fg(crate::colors::function())),
                     Span::styled(" Filter   ", Style::default().fg(crate::colors::text_dim())),

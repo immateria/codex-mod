@@ -172,7 +172,7 @@ impl ReviewSettingsView {
                     review_attempts_value,
                     Style::new().fg(colors::function()),
                 ))
-                .with_selected_hint("(←/→ to adjust)")
+                .with_selected_hint(format!("({lr} to adjust)", lr = crate::icons::nav_left_right()))
                 .into_run(Some(selected_idx)),
         );
         selection_idx = selection_idx.saturating_add(1);
@@ -265,7 +265,7 @@ impl ReviewSettingsView {
                     auto_review_attempts_value,
                     Style::new().fg(colors::function()),
                 ))
-                .with_selected_hint("(←/→ to adjust)")
+                .with_selected_hint(format!("({lr} to adjust)", lr = crate::icons::nav_left_right()))
                 .into_run(Some(selected_idx)),
         );
 

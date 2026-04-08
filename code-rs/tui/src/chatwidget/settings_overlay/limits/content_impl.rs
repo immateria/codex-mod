@@ -529,7 +529,8 @@ impl LimitsSettingsContent {
 
     fn hint_line_text(&self, has_tabs: bool) -> String {
         let mut text = format!(
-            "↑↓ scroll  PgUp/PgDn page  Home/End jump  V layout:{}  F focus:{}  ",
+            "{} scroll  PgUp/PgDn page  Home/End jump  V layout:{}  F focus:{}  ",
+            crate::icons::nav_up_down(),
             self.layout_mode.label(),
             self.effective_focus_mode().label()
         );

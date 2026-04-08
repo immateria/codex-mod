@@ -47,7 +47,7 @@ impl CloudTasksView {
             state,
             env_label: env_label.unwrap_or_else(|| "All environments".to_string()),
             env_filter,
-            footer_hint: "↑↓ select · Enter actions · r refresh · n new · e environments · Esc close".to_string(),
+            footer_hint: format!("{ud} select · Enter actions · r refresh · n new · e environments · Esc close", ud = crate::icons::nav_up_down()),
             app_event_tx,
             complete: false,
         };

@@ -335,7 +335,7 @@ impl ShellProfilesSettingsView {
 
     pub(super) fn picker_footer_lines() -> Vec<Line<'static>> {
         vec![Line::from(Span::styled(
-            "↑↓ move  •  Space/Enter toggle  •  Ctrl+S save  •  Esc cancel",
+            format!("{ud} move  •  Space/Enter toggle  •  Ctrl+S save  •  Esc cancel", ud = crate::icons::nav_up_down()),
             Style::default().fg(crate::colors::text_dim()),
         ))]
     }

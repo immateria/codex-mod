@@ -864,7 +864,7 @@ impl AutoDriveCardCell {
                 let description = match action.kind {
                     AutoDriveActionKind::Info => action.text.trim().to_string(),
                     AutoDriveActionKind::Warning => format!("! {}", action.text.trim()),
-                    AutoDriveActionKind::Error => format!("✗ {}", action.text.trim()),
+                    AutoDriveActionKind::Error => format!("{} {}", crate::icons::status_fail(), action.text.trim()),
                 };
                 let display = truncate_with_ellipsis(description.as_str(), remaining);
                 let mut description_segment =

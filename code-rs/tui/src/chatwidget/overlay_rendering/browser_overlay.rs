@@ -350,7 +350,7 @@ impl ChatWidget<'_> {
 
         info_lines.push(RLine::from(vec![Span::raw(String::new())]));
         info_lines.push(RLine::from(vec![Span::styled(
-            "Controls: ←/→ or ↑/↓ select screenshot • Shift+↑/↓ or j/k scroll actions",
+            format!("Controls: {lr} or {ud} select screenshot • Shift+{ud} or j/k scroll actions", lr = crate::icons::nav_left_right(), ud = crate::icons::nav_up_down()),
             secondary_style,
         )]));
 

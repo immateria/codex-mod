@@ -178,7 +178,7 @@ impl UndoTimelineView {
         vec![
             Line::from(vec![files_status, Span::raw("  "), convo_status]),
             Line::from(vec![
-                Span::styled("↑↓ PgUp PgDn", Style::default().fg(crate::colors::light_blue())),
+                Span::styled(format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()), Style::default().fg(crate::colors::light_blue())),
                 Span::raw(" Navigate  "),
                 Span::styled(crate::icons::space(), Style::default().fg(crate::colors::success())),
                 Span::raw(" Toggle files  "),

@@ -109,7 +109,7 @@ impl LoginAccountsState {
     fn account_footer_lines(&self) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
         lines.push(Line::from(vec![
-            Span::styled("↑↓", Style::default().fg(crate::colors::function())),
+            Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
             Span::styled(" Navigate  ", Style::default().fg(crate::colors::text_dim())),
             Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
             Span::styled(" Select  ", Style::default().fg(crate::colors::text_dim())),
