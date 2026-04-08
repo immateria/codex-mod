@@ -73,19 +73,17 @@ impl ChatWidget<'_> {
             false
         };
 
-        // Precompute 1-indexed reply number for each assistant cell so
-        // collapsed summaries can show "R #N".
-        let assistant_reply_numbers: Vec<usize> = {
-            let mut nums = vec![0usize; history_len];
-            let mut counter = 0usize;
-            for (i, cell) in self.history_cells.iter().enumerate() {
-                if matches!(cell.kind(), crate::history_cell::HistoryCellType::Assistant) {
-                    counter += 1;
-                    nums[i] = counter;
-                }
-            }
-            nums
-        };
+        // Running counter for 1-indexed reply numbers. Count assistant
+        // cells before the visible window up front, then increment inline.
+        let mut reply_counter: usize = self.history_cells[..start_idx]
+            .iter()
+            .filter(|c| matches!(c.kind(), crate::history_cell::HistoryCellType::Assistant))
+            .count();
+
+        // Hoist RefCell borrows outside the per-cell loop to avoid
+        // repeated lock/unlock overhead (up to 6 borrow_mut per cell).
+        let hovered_action_ref = self.hovered_clickable_action.borrow();
+        let mut regions = self.clickable_regions.borrow_mut();
 
         for (offset, visible) in visible_slice.iter().enumerate() {
             let idx = start_idx + offset;
@@ -96,14 +94,22 @@ impl ChatWidget<'_> {
             let item_kind = item.kind();
             let content_width = content_area.width.saturating_sub(GUTTER_WIDTH);
 
+            // Cache common downcasts to avoid repeated vtable lookups.
+            let cached_assistant: Option<&crate::history_cell::AssistantMarkdownCell> =
+                if matches!(item_kind, crate::history_cell::HistoryCellType::Assistant) {
+                    item.as_any().downcast_ref()
+                } else {
+                    None
+                };
+            let cached_exec: Option<&crate::history_cell::ExecCell> = match item_kind {
+                crate::history_cell::HistoryCellType::Exec { .. } => item.as_any().downcast_ref(),
+                _ => None,
+            };
+
             // Set reply number on assistant cells so collapsed summaries show "R #N".
-            if matches!(item_kind, crate::history_cell::HistoryCellType::Assistant) {
-                if let Some(assistant) = item.as_any()
-                    .downcast_ref::<crate::history_cell::AssistantMarkdownCell>()
-                {
-                    let rn = assistant_reply_numbers.get(idx).copied().unwrap_or(0);
-                    assistant.set_reply_number(rn);
-                }
+            if let Some(assistant) = cached_assistant {
+                reply_counter += 1;
+                assistant.set_reply_number(reply_counter);
             }
 
             let mut layout_for_render: Option<Rc<CachedLayout>> = visible
@@ -178,9 +184,6 @@ impl ChatWidget<'_> {
                 };
 
                 if logging_enabled {
-                    let maybe_assistant = item
-                        .as_any()
-                        .downcast_ref::<crate::history_cell::AssistantMarkdownCell>();
                     let is_streaming = item
                         .as_any()
                         .downcast_ref::<crate::history_cell::StreamingContentCell>()
@@ -203,7 +206,7 @@ impl ChatWidget<'_> {
                         item_height,
                         content_y,
                         cache_hit,
-                        assistant = maybe_assistant.is_some(),
+                        assistant = cached_assistant.is_some(),
                         streaming = is_streaming,
                         custom = item.has_custom_render(),
                         animating = item.is_animating(),
@@ -273,10 +276,7 @@ impl ChatWidget<'_> {
                                 kind: crate::history_cell::ExecKind::Run,
                                 status: _,
                             } => {
-                                if let Some(exec) = item
-                                    .as_any()
-                                    .downcast_ref::<crate::history_cell::ExecCell>()
-                                {
+                                if let Some(exec) = cached_exec {
                                     match &exec.output {
                                         None => crate::colors::text(),
                                         Some(o) if o.exit_code == 0 => crate::colors::text(),
@@ -295,10 +295,7 @@ impl ChatWidget<'_> {
                             _ => crate::colors::text_dim(),
                         }
                     } else if crate::icons::is_exec_prompt(symbol) {
-                        if let Some(exec) = item
-                            .as_any()
-                            .downcast_ref::<crate::history_cell::ExecCell>()
-                        {
+                        if let Some(exec) = cached_exec {
                             match &exec.output {
                                 None => crate::colors::text(),
                                 Some(o) if o.exit_code == 0 => crate::colors::text(),
@@ -319,7 +316,7 @@ impl ChatWidget<'_> {
                             }
                         }
                     } else if crate::icons::is_patch(symbol) {
-                        match item.kind() {
+                        match item_kind {
                             crate::history_cell::HistoryCellType::Patch {
                                 kind: crate::history_cell::PatchKind::ApplySuccess,
                             } => crate::colors::success(),
@@ -411,7 +408,7 @@ impl ChatWidget<'_> {
                             );
                         }
                         if let Some(parent_call_id) = parent_call_id {
-                            self.clickable_regions.borrow_mut().push(
+                            regions.push(
                                 crate::chatwidget::ClickableRegion {
                                     rect: Rect::new(
                                         symbol_x,
@@ -469,9 +466,7 @@ impl ChatWidget<'_> {
 
                 let mut handled_assistant = false;
                 if let Some(plan) = visible.assistant_plan.as_ref()
-                    && let Some(assistant) = visible
-                        .cell
-                        .and_then(|c| c.as_any().downcast_ref::<crate::history_cell::AssistantMarkdownCell>())
+                    && let Some(assistant) = cached_assistant
                     && !assistant.is_collapsed()
                 {
                     if skip_rows < plan.total_rows() && item_area.height > 0 {
@@ -510,7 +505,7 @@ impl ChatWidget<'_> {
                         let y = item_area.y.saturating_add(rel as u16);
                         let w = width.min(item_area.width.saturating_sub(start_col));
                         if w > 0 {
-                            self.clickable_regions.borrow_mut().push(
+                            regions.push(
                                 crate::chatwidget::ClickableRegion {
                                     rect: Rect::new(x, y, w, 1),
                                     action: crate::chatwidget::ClickableAction::JumpToCallId(
@@ -536,7 +531,7 @@ impl ChatWidget<'_> {
                     let click_y = fold_icon_y.unwrap_or(item_area.y);
                     let max_y = item_area.y.saturating_add(visible_height);
                     let fold_click_height = max_y.saturating_sub(click_y).min(2).max(1);
-                    self.clickable_regions.borrow_mut().push(
+                    regions.push(
                         crate::chatwidget::ClickableRegion {
                             rect: Rect::new(
                                 gutter_x,
@@ -551,7 +546,6 @@ impl ChatWidget<'_> {
 
                 // Background events can be noisy (e.g. transient MCP failures); let the user
                 // dismiss them with a small close affordance.
-                let hovered_action_ref = self.hovered_clickable_action.borrow();
                 if matches!(
                     item_kind,
                     crate::history_cell::HistoryCellType::BackgroundEvent
@@ -575,7 +569,7 @@ impl ChatWidget<'_> {
                             .fg(crate::colors::text_dim())
                     };
                     buf.set_string(x, y, label, style);
-                    self.clickable_regions.borrow_mut().push(
+                    regions.push(
                         crate::chatwidget::ClickableRegion {
                             rect: Rect::new(x, y, label.len() as u16, 1),
                             action,
@@ -625,7 +619,7 @@ impl ChatWidget<'_> {
                                 .fg(crate::colors::text_dim())
                         };
                         buf.set_string(btn_x, btn_y, label, style);
-                        self.clickable_regions.borrow_mut().push(
+                        regions.push(
                             crate::chatwidget::ClickableRegion {
                                 rect: Rect::new(btn_x, btn_y, label_w.max(1), 1),
                                 action,
@@ -661,14 +655,13 @@ impl ChatWidget<'_> {
                             .fg(crate::colors::text_bright())
                     };
                     buf.set_string(px, py, icon, icon_style);
-                    self.clickable_regions.borrow_mut().push(
+                    regions.push(
                         crate::chatwidget::ClickableRegion {
                             rect: Rect::new(px, py, icon_w.max(1), 1),
                             action: scroll_action,
                         },
                     );
                 }
-                drop(hovered_action_ref);
 
                 if self.show_order_overlay
                     && let Some(Some(info)) = self.cell_order_dbg.get(idx)
@@ -691,15 +684,15 @@ impl ChatWidget<'_> {
                         if text.width() > maxw {
                             crate::live_wrap::take_prefix_by_width(&text, maxw).0
                         } else {
-                            text.clone()
+                            text
                         }
                     };
                     if item_area.width > 0 {
                         if below_y < bottom_y {
-                            buf.set_string(item_area.x, below_y, draw_text.clone(), style);
+                            buf.set_string(item_area.x, below_y, &draw_text, style);
                         } else if item_area.y > content_area.y {
                             let above_y = item_area.y.saturating_sub(1);
-                            buf.set_string(item_area.x, above_y, draw_text.clone(), style);
+                            buf.set_string(item_area.x, above_y, &draw_text, style);
                         }
                     }
                 }
@@ -754,6 +747,10 @@ impl ChatWidget<'_> {
                 }
             }
         }
+
+        // Release hoisted RefCell borrows before post-loop work.
+        drop(regions);
+        drop(hovered_action_ref);
 
         #[cfg(debug_assertions)]
         if let Some(first) = height_mismatches.first() {
