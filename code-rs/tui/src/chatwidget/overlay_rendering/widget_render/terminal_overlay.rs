@@ -59,11 +59,7 @@ impl ChatWidget<'_> {
             block.render(window_area, buf);
 
             let inner_bg = Style::default().bg(crate::colors::background());
-            for y in inner.y..inner.y + inner.height {
-                for x in inner.x..inner.x + inner.width {
-                    buf[(x, y)].set_style(inner_bg);
-                }
-            }
+            fill_rect(buf, inner, None, inner_bg);
 
             let content = inner.inner(ratatui::layout::Margin::new(1, 0));
             if content.height == 0 || content.width == 0 {

@@ -121,11 +121,7 @@ impl ChatWidget<'_> {
                 } else {
                     None
                 };
-                for y in inner.y..inner.y + inner.height {
-                    for x in inner.x..inner.x + inner.width {
-                        buf[(x, y)].set_style(inner_bg);
-                    }
-                }
+                fill_rect(buf, inner, None, inner_bg);
                 if let Some(t0) = _perf_overlay_inner_bg_start {
                     let dt = t0.elapsed().as_nanos();
                     let mut p = self.perf_state.stats.borrow_mut();
@@ -186,11 +182,7 @@ impl ChatWidget<'_> {
                         // Both selected and unselected tabs use the normal background
                         let tab_bg = crate::colors::background();
                         let bg_style = Style::default().bg(tab_bg);
-                        for y in rect.y..rect.y + rect.height {
-                            for x in rect.x..rect.x + rect.width {
-                                buf[(x, y)].set_style(bg_style);
-                            }
-                        }
+                        fill_rect(buf, rect, None, bg_style);
 
                         // Render label at the top line, with padding
                         let label_rect = Rect {

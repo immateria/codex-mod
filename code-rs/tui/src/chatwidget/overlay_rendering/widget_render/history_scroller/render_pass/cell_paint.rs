@@ -18,7 +18,7 @@ impl ChatWidget<'_> {
     pub(super) fn paint_visible_cells_window<'a>(
         &'a self,
         args: PaintVisibleCellsArgs<'a>,
-    ) -> u16 {
+    ) -> (u16, bool) {
         let PaintVisibleCellsArgs {
             history_area,
             content_area,
@@ -33,6 +33,7 @@ impl ChatWidget<'_> {
             buf,
         } = args;
         let mut screen_y = start_y;
+        let mut has_visible_animation = false;
         let spacing = 1u16;
         let history_len = self.history_cells.len();
         const GUTTER_WIDTH: u16 = 4; // icon (2 cols) + gap (2 cols)
@@ -105,6 +106,16 @@ impl ChatWidget<'_> {
                 crate::history_cell::HistoryCellType::Exec { .. } => item.as_any().downcast_ref(),
                 _ => None,
             };
+            let cached_reasoning: Option<&crate::history_cell::CollapsibleReasoningCell> =
+                match item_kind {
+                    crate::history_cell::HistoryCellType::Reasoning => {
+                        item.as_any().downcast_ref()
+                    }
+                    _ => None,
+                };
+
+            // Accumulate animation flag to avoid a separate full-scan pass.
+            has_visible_animation |= item.is_animating();
 
             // Set reply number on assistant cells so collapsed summaries show "R #N".
             if let Some(assistant) = cached_assistant {
@@ -667,10 +678,7 @@ impl ChatWidget<'_> {
                     && let Some(Some(info)) = self.cell_order_dbg.get(idx)
                 {
                     let mut text = format!("⟦{info}⟧");
-                    if let Some(rc) = item
-                        .as_any()
-                        .downcast_ref::<crate::history_cell::CollapsibleReasoningCell>()
-                    {
+                    if let Some(rc) = cached_reasoning {
                         let snap = rc.debug_title_overlay();
                         text.push_str(" | ");
                         text.push_str(&snap);
@@ -723,9 +731,7 @@ impl ChatWidget<'_> {
 
             let mut should_add_spacing = idx < request_count.saturating_sub(1) && visible_height > 0;
             if should_add_spacing {
-                let this_is_collapsed_reasoning = item
-                    .as_any()
-                    .downcast_ref::<crate::history_cell::CollapsibleReasoningCell>()
+                let this_is_collapsed_reasoning = cached_reasoning
                     .map(crate::history_cell::CollapsibleReasoningCell::is_collapsed)
                     .unwrap_or(false);
                 if this_is_collapsed_reasoning {
@@ -790,6 +796,6 @@ impl ChatWidget<'_> {
             }
         }
 
-        screen_y
+        (screen_y, has_visible_animation)
     }
 }

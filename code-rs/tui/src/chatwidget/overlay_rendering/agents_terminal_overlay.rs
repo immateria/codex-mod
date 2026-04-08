@@ -53,12 +53,7 @@ impl ChatWidget<'_> {
         let inner = block.inner(window_area);
         block.render(window_area, buf);
 
-        let inner_bg = Style::default().bg(crate::colors::background());
-        for y in inner.y..inner.y + inner.height {
-            for x in inner.x..inner.x + inner.width {
-                buf[(x, y)].set_style(inner_bg);
-            }
-        }
+        fill_rect(buf, inner, None, Style::default().bg(crate::colors::background()));
 
         // Remove vertical padding so the filter row sits directly below the title.
         let content = inner.inner(Margin {

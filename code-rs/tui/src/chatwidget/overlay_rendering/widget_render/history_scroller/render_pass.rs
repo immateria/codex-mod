@@ -63,36 +63,32 @@ impl ChatWidget<'_> {
         }
 
         let visible_slice = selection.visible_cells.as_slice();
-        if !ChatWidget::auto_reduced_motion_preference() {
-            let has_visible_animation = visible_slice.iter().any(|visible| {
-                visible
-                    .cell
-                    .map(crate::history_cell::HistoryCell::is_animating)
-                    .unwrap_or(false)
-            });
-            if has_visible_animation {
-                tracing::debug!("Visible animation detected, scheduling next frame");
-                self.app_event_tx
-                    .send(AppEvent::ScheduleFrameIn(HISTORY_ANIMATION_FRAME_INTERVAL));
-            }
-        }
 
         let ps_ref = self.history_render.prefix_sums.borrow();
         let ps: &[u16] = &ps_ref;
-        let screen_y = self.paint_visible_cells_window(cell_paint::PaintVisibleCellsArgs {
-            history_area,
-            content_area,
-            request_count,
-            start_idx: selection.start_idx,
-            start_y,
-            scroll_pos,
-            visible_slice,
-            visible_requests_slice,
-            rendered_cells_from_subset: selection.visible_cells.is_owned(),
-            ps,
-            buf,
-        });
+        let (screen_y, has_visible_animation) =
+            self.paint_visible_cells_window(cell_paint::PaintVisibleCellsArgs {
+                history_area,
+                content_area,
+                request_count,
+                start_idx: selection.start_idx,
+                start_y,
+                scroll_pos,
+                visible_slice,
+                visible_requests_slice,
+                rendered_cells_from_subset: selection.visible_cells.is_owned(),
+                ps,
+                buf,
+            });
         drop(ps_ref);
+
+        // Schedule next frame if any visible cell is animating (flag accumulated
+        // during the paint loop to avoid a separate O(n) scan).
+        if has_visible_animation && !ChatWidget::auto_reduced_motion_preference() {
+            tracing::debug!("Visible animation detected, scheduling next frame");
+            self.app_event_tx
+                .send(AppEvent::ScheduleFrameIn(HISTORY_ANIMATION_FRAME_INTERVAL));
+        }
 
         self.render_history_post_paint(
             post_paint::PostPaintArgs {
