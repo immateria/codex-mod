@@ -629,46 +629,43 @@ impl ChatWidget<'_> {
                             },
                         );
                     }
+                }
 
-                    // Scroll-to-top button: always shown when cell header is
-                    // scrolled above the viewport (skip_top > 0). This is a
-                    // navigation aid — not gated on mouse hover.
-                    if skip_top > 0 && btn_visible {
-                        let scroll_label = crate::icons::scroll_to_top();
-                        let scroll_w = {
-                            use unicode_width::UnicodeWidthStr as _;
-                            scroll_label.width() as u16
-                        };
-                        // Position to the left of where the copy button sits.
-                        let copy_w: u16 = {
-                            use unicode_width::UnicodeWidthStr as _;
-                            crate::icons::copy_content().width() as u16
-                        };
-                        let sx = item_area
-                            .x
-                            .saturating_add(item_area.width)
-                            .saturating_sub(copy_w + 2)
-                            .saturating_sub(scroll_w + 1);
-                        let sy = btn_y;
-                        let scroll_action = crate::chatwidget::ClickableAction::ScrollToTopOfCell(idx);
-                        let scroll_hovered = hovered_action_ref.as_ref() == Some(&scroll_action);
-                        let scroll_style = if scroll_hovered {
-                            Style::default()
-                                .bg(crate::colors::background())
-                                .fg(crate::colors::primary())
-                        } else {
-                            Style::default()
-                                .bg(crate::colors::background())
-                                .fg(crate::colors::text_bright())
-                        };
-                        buf.set_string(sx, sy, scroll_label, scroll_style);
-                        self.clickable_regions.borrow_mut().push(
-                            crate::chatwidget::ClickableRegion {
-                                rect: Rect::new(sx, sy, scroll_w.max(1), 1),
-                                action: scroll_action,
-                            },
-                        );
-                    }
+                // Scroll-to-top pill: always rendered when the cell's header
+                // is scrolled above the viewport (skip_top > 0). Drawn as a
+                // high-contrast labeled pill " ↑ Top " so it's unmissable.
+                // Deliberately outside the copy-button block so it works for
+                // ALL cell types and isn't gated on mouse hover.
+                if skip_top > 0 && visible_height > 1 && item_area.width >= 10 {
+                    let pill = " ↑ Top ";
+                    let pill_w = {
+                        use unicode_width::UnicodeWidthStr as _;
+                        pill.width() as u16
+                    };
+                    // Place at the top-right of the visible cell area.
+                    let px = item_area
+                        .x
+                        .saturating_add(item_area.width)
+                        .saturating_sub(pill_w + 1);
+                    let py = item_area.y;
+                    let scroll_action = crate::chatwidget::ClickableAction::ScrollToTopOfCell(idx);
+                    let scroll_hovered = hovered_action_ref.as_ref() == Some(&scroll_action);
+                    let pill_style = if scroll_hovered {
+                        Style::default()
+                            .bg(crate::colors::primary())
+                            .fg(crate::colors::background())
+                    } else {
+                        Style::default()
+                            .bg(crate::colors::text_dim())
+                            .fg(crate::colors::background())
+                    };
+                    buf.set_string(px, py, pill, pill_style);
+                    self.clickable_regions.borrow_mut().push(
+                        crate::chatwidget::ClickableRegion {
+                            rect: Rect::new(px, py, pill_w.max(1), 1),
+                            action: scroll_action,
+                        },
+                    );
                 }
                 drop(hovered_action_ref);
 

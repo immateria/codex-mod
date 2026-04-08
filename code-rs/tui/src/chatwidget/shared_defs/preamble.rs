@@ -1067,6 +1067,9 @@ pub(crate) struct ChatWidget<'a> {
     scrollbar_drag_offset: Cell<Option<usize>>,
     // Last known mouse position for hover-dependent rendering (e.g. copy button).
     last_mouse_pos: Cell<Option<(u16, u16)>>,
+    // When true, mouse capture is temporarily disabled so the terminal can
+    // handle native text selection. Re-enabled on the next key event.
+    pub(crate) mouse_capture_paused: Cell<bool>,
 }
 
 #[derive(Clone, Debug, Default)]

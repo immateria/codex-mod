@@ -6,10 +6,21 @@ impl ChatWidget<'_> {
         use crossterm::event::KeyModifiers;
         use crossterm::event::MouseEventKind;
 
-        // Check if Shift is held - if so, let the terminal handle selection
+        // When Shift is held, temporarily disable mouse capture so the
+        // terminal handles native text selection. Capture is re-enabled
+        // on the next key event (see handle_key_event).
         if mouse_event.modifiers.contains(KeyModifiers::SHIFT) {
-            // Don't handle any mouse events when Shift is held
-            // This allows the terminal's native text selection to work
+            if !self.mouse_capture_paused.get() {
+                let _ = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::event::DisableMouseCapture
+                );
+                self.mouse_capture_paused.set(true);
+                self.bottom_pane.flash_footer_notice(
+                    "Selection mode — select text, then press any key to resume".into(),
+                );
+                self.request_redraw();
+            }
             return;
         }
 

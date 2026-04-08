@@ -1,5 +1,14 @@
 impl ChatWidget<'_> {
     pub(crate) fn handle_key_event(&mut self, key_event: KeyEvent) {
+        // Re-enable mouse capture if it was paused for text selection.
+        if self.mouse_capture_paused.get() {
+            let _ = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::event::EnableMouseCapture
+            );
+            self.mouse_capture_paused.set(false);
+            self.request_redraw();
+        }
         if settings_handlers::handle_settings_key(self, key_event) {
             self.sync_limits_layout_mode_preference();
             return;

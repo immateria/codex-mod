@@ -328,6 +328,7 @@ impl ChatWidget<'_> {
             mouse_drag_exceeded: Cell::new(false),
             scrollbar_drag_offset: Cell::new(None),
             last_mouse_pos: Cell::new(None),
+            mouse_capture_paused: Cell::new(false),
         };
         w.load_auto_review_baseline_marker();
         if let Ok(Some(active_id)) = auth_accounts::get_active_account_id(&config.code_home)
