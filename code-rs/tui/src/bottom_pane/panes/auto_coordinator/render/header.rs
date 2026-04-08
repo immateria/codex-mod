@@ -83,10 +83,10 @@ pub(super) fn intro_state<'a>(header_text: &'a str, model: &AutoActiveViewModel)
         let mut remaining = if next_target > elapsed {
             next_target - elapsed
         } else {
-            Duration::from_millis(0)
+            Duration::ZERO
         };
 
-        if remaining == Duration::from_millis(0) {
+        if remaining == Duration::ZERO {
             remaining = Duration::from_millis(MIN_FRAME_MS);
         }
 

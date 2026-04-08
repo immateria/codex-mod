@@ -13,6 +13,7 @@ use super::card_style::{
     CARD_BORDER_TOP as BORDER_TOP,
     CARD_BORDER_BODY as BORDER_BODY,
     CARD_BORDER_BOTTOM as BORDER_BOTTOM,
+    CARD_HINT_SETTINGS_STOP as HINT_TEXT,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::card_theme;
@@ -32,7 +33,6 @@ use std::f32;
 use std::time::{Duration, Instant};
 use std::env;
 
-const HINT_TEXT: &str = " [Ctrl+S] Settings · [Esc] Stop";
 const ACTION_TIME_INDENT: usize = 1;
 const ACTION_TIME_SEPARATOR_WIDTH: usize = 2;
 const ACTION_TIME_COLUMN_MIN_WIDTH: usize = 6;

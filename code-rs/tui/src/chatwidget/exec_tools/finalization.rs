@@ -125,7 +125,7 @@ pub(in super::super) fn finalize_all_running_as_interrupted(chat: &mut ChatWidge
                         let completed = history_cell::new_completed_custom_tool_call(
                             "custom".to_string(),
                             None,
-                            std::time::Duration::from_millis(0),
+                            std::time::Duration::ZERO,
                             false,
                             "Cancelled by user.".to_string(),
                         );

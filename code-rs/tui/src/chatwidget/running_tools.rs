@@ -196,7 +196,7 @@ pub(super) fn finalize_all_due_to_answer(chat: &mut ChatWidget<'_>) {
         let completed = history_cell::new_completed_custom_tool_call(
             "custom".to_string(),
             None,
-            std::time::Duration::from_millis(0),
+            std::time::Duration::ZERO,
             true,
             "Final answer received".to_string(),
         );

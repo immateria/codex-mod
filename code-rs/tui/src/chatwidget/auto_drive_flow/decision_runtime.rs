@@ -392,7 +392,7 @@ Have we met every part of this goal and is there no further work to do?"#
                         AutoDriveActionKind::Info,
                     );
                     self.schedule_auto_drive_card_celebration(
-                        Duration::from_secs(0),
+                        Duration::ZERO,
                         self.auto_state.last_completion_explanation.clone(),
                     );
                     self.auto_turn_review_state = None;

@@ -433,7 +433,7 @@ impl ChatWidget<'_> {
         browser_card.set_url("https://example.dev/releases");
         browser_card.set_headless(Some(false));
         browser_card.record_action(
-            Duration::from_millis(0),
+            Duration::ZERO,
             Duration::from_millis(420),
             "open".to_string(),
             Some("https://example.dev/releases".to_string()),

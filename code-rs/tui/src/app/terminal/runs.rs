@@ -32,7 +32,7 @@ pub(super) fn start_terminal_run_inner(
         app.app_event_tx.send(AppEvent::TerminalExit {
             id,
             exit_code: Some(1),
-            _duration: Duration::from_millis(0),
+            _duration: Duration::ZERO,
         });
         return;
     }
@@ -89,13 +89,13 @@ pub(super) fn start_terminal_run_inner(
                 });
                 let _ = ctrl.send(TerminalRunEvent::Exit {
                     exit_code: Some(1),
-                    _duration: Duration::from_millis(0),
+                    _duration: Duration::ZERO,
                 });
             }
             app.app_event_tx.send(AppEvent::TerminalExit {
                 id,
                 exit_code: Some(1),
-                _duration: Duration::from_millis(0),
+                _duration: Duration::ZERO,
             });
             return;
         }
@@ -121,13 +121,13 @@ pub(super) fn start_terminal_run_inner(
                     });
                     let _ = ctrl.send(TerminalRunEvent::Exit {
                         exit_code: Some(1),
-                        _duration: Duration::from_millis(0),
+                        _duration: Duration::ZERO,
                     });
                 }
                 app.app_event_tx.send(AppEvent::TerminalExit {
                     id,
                     exit_code: Some(1),
-                    _duration: Duration::from_millis(0),
+                    _duration: Duration::ZERO,
                 });
                 return;
             }
@@ -150,13 +150,13 @@ pub(super) fn start_terminal_run_inner(
                     });
                     let _ = ctrl.send(TerminalRunEvent::Exit {
                         exit_code: Some(1),
-                        _duration: Duration::from_millis(0),
+                        _duration: Duration::ZERO,
                     });
                 }
                 app.app_event_tx.send(AppEvent::TerminalExit {
                     id,
                     exit_code: Some(1),
-                    _duration: Duration::from_millis(0),
+                    _duration: Duration::ZERO,
                 });
                 return;
             }
@@ -180,13 +180,13 @@ pub(super) fn start_terminal_run_inner(
                     });
                     let _ = ctrl.send(TerminalRunEvent::Exit {
                         exit_code: Some(1),
-                        _duration: Duration::from_millis(0),
+                        _duration: Duration::ZERO,
                     });
                 }
                 app.app_event_tx.send(AppEvent::TerminalExit {
                     id,
                     exit_code: Some(1),
-                    _duration: Duration::from_millis(0),
+                    _duration: Duration::ZERO,
                 });
                 return;
             }
@@ -209,13 +209,13 @@ pub(super) fn start_terminal_run_inner(
                     });
                     let _ = ctrl.send(TerminalRunEvent::Exit {
                         exit_code: Some(1),
-                        _duration: Duration::from_millis(0),
+                        _duration: Duration::ZERO,
                     });
                 }
                 app.app_event_tx.send(AppEvent::TerminalExit {
                     id,
                     exit_code: Some(1),
-                    _duration: Duration::from_millis(0),
+                    _duration: Duration::ZERO,
                 });
                 return;
             }
@@ -244,13 +244,13 @@ pub(super) fn start_terminal_run_inner(
                 });
                 let _ = ctrl.send(TerminalRunEvent::Exit {
                     exit_code: Some(1),
-                    _duration: Duration::from_millis(0),
+                    _duration: Duration::ZERO,
                 });
             }
             app.app_event_tx.send(AppEvent::TerminalExit {
                 id,
                 exit_code: Some(1),
-                _duration: Duration::from_millis(0),
+                _duration: Duration::ZERO,
             });
             return;
         }

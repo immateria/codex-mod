@@ -67,6 +67,8 @@ pub(crate) const CARD_BORDER_TOP: &str = "╭─";
 pub(crate) const CARD_BORDER_BODY: &str = "│";
 pub(crate) const CARD_BORDER_BOTTOM: &str = "╰─";
 
+pub(crate) const CARD_HINT_SETTINGS_STOP: &str = " [Ctrl+S] Settings · [Esc] Stop";
+
 pub(crate) fn agent_card_style(_write_enabled: Option<bool>) -> CardStyle {
     // Agent batches share the calmer green theme in full-color terminals.
     // In ANSI-16 mode we keep the surface transparent and rely on inverted text.

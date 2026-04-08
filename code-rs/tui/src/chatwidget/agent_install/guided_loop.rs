@@ -272,7 +272,7 @@ fn run_guided_loop(runtime: &tokio::runtime::Runtime, args: GuidedLoopArgs<'_>) 
             app_event_tx.send(AppEvent::TerminalExit {
                 id: terminal_id,
                 exit_code: None,
-                _duration: Duration::from_millis(0),
+                _duration: Duration::ZERO,
             });
             return Ok(());
         }
