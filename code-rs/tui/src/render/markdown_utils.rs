@@ -18,10 +18,10 @@ pub fn is_inside_unclosed_fence(source: &str) -> bool {
 // blank lines inside). Preserves a single blank line in place so that
 // subsequent headings or content start on a new line, matching the
 // expectations of the streaming renderer.
-pub fn strip_empty_fenced_code_blocks(source: &str) -> String {
-    // Fast path: if there's no fence, return as-is.
+pub fn strip_empty_fenced_code_blocks<'a>(source: &'a str) -> std::borrow::Cow<'a, str> {
+    // Fast path: if there's no fence, borrow without allocating.
     if !source.contains("```") {
-        return source.to_string();
+        return std::borrow::Cow::Borrowed(source);
     }
 
     let mut out = String::with_capacity(source.len());
@@ -96,5 +96,5 @@ pub fn strip_empty_fenced_code_blocks(source: &str) -> String {
             }
         }
     }
-    out
+    std::borrow::Cow::Owned(out)
 }

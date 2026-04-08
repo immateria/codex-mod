@@ -17,10 +17,12 @@ pub struct UserMessage {
 
 impl From<String> for UserMessage {
     fn from(text: String) -> Self {
-        let mut ordered = Vec::new();
-        if !text.trim().is_empty() {
-            ordered.push(InputItem::Text { text: text.clone() });
-        }
+        let has_content = !text.trim().is_empty();
+        let ordered = if has_content {
+            vec![InputItem::Text { text: text.clone() }]
+        } else {
+            Vec::new()
+        };
         Self {
             display_text: text,
             ordered_items: ordered,
@@ -33,8 +35,11 @@ pub fn create_initial_user_message(text: String, image_paths: Vec<PathBuf>) -> O
     if text.is_empty() && image_paths.is_empty() {
         None
     } else {
-        let mut ordered: Vec<InputItem> = Vec::new();
-        if !text.trim().is_empty() {
+        let has_text = !text.trim().is_empty();
+        let mut ordered: Vec<InputItem> = Vec::with_capacity(
+            usize::from(has_text) + image_paths.len() * 2,
+        );
+        if has_text {
             ordered.push(InputItem::Text { text: text.clone() });
         }
         for path in image_paths {

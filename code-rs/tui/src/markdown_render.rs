@@ -17,6 +17,11 @@ pub fn render_markdown_text(input: &str) -> Text<'static> {
 }
 
 fn is_code_lang_sentinel_line(line: &Line<'_>) -> bool {
-    let flat: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
-    flat.strip_prefix("⟦LANG:").is_some_and(|tail| tail.contains('⟧'))
+    // Check the sentinel marker without allocating a temporary String.
+    // The marker is always emitted as a single span, so checking
+    // the first span is sufficient.
+    line.spans.first().is_some_and(|s| {
+        let c = s.content.as_ref();
+        c.starts_with("⟦LANG:") && c.contains('⟧')
+    })
 }

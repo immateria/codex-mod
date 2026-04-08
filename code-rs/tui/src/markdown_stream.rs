@@ -370,7 +370,7 @@ impl MarkdownStreamCollector {
         };
         let source = unwrap_markdown_language_fence_if_enabled(&source);
         
-        strip_empty_fenced_code_blocks(&source)
+        strip_empty_fenced_code_blocks(&source).into_owned()
     }
 
     /// Returns true if the internal buffer currently ends with a newline.
