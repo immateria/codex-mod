@@ -294,9 +294,5 @@ fn is_status_line(text: &str) -> bool {
 }
 
 fn line_text(line: &RtLine<'static>) -> String {
-    line
-        .spans
-        .iter()
-        .map(|span| span.content.as_ref())
-        .collect::<String>()
+    crate::render::line_utils::line_text(line)
 }

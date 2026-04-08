@@ -190,10 +190,7 @@ impl MarkdownStreamCollector {
         // logical lines ("- " then "item"), which would otherwise duplicate content.
         if self.buffer.ends_with("\n\n") && complete_line_count > 0 {
             let last = &rendered[complete_line_count - 1];
-            let mut text = String::new();
-            for s in &last.spans {
-                text.push_str(&s.content);
-            }
+            let text = crate::render::line_utils::line_text(last);
             if text.starts_with("- ") && text.trim() != "-" {
                 complete_line_count = complete_line_count.saturating_sub(1);
             }
@@ -225,10 +222,7 @@ impl MarkdownStreamCollector {
             let mut safe_count = complete_line_count;
             while safe_count > self.committed_line_count {
                 let l = &rendered[safe_count - 1];
-                let mut text = String::new();
-                for s in &l.spans {
-                    text.push_str(&s.content);
-                }
+                let text = crate::render::line_utils::line_text(l);
                 let listish = is_potentially_volatile_list_line(&text);
                 if listish {
                     safe_count -= 1;
@@ -256,10 +250,7 @@ impl MarkdownStreamCollector {
         // that might become the first ordered-list item once the next delta
         // arrives (e.g., next line starts with "2 " or "2. ").
         if out_slice.len() == 1 {
-            let mut s = String::new();
-            for sp in &out_slice[0].spans {
-                s.push_str(&sp.content);
-            }
+            let s = crate::render::line_utils::line_text(&out_slice[0]);
             if is_short_plain_word(&s) {
                 return Vec::new();
             }
@@ -307,10 +298,7 @@ impl MarkdownStreamCollector {
 
         if relax_list_holdback && end > self.committed_line_count {
             let last = &rendered[end - 1];
-            let mut s = String::new();
-            for sp in &last.spans {
-                s.push_str(&sp.content);
-            }
+            let s = crate::render::line_utils::line_text(last);
             if is_bare_list_marker(&s) {
                 end = end.saturating_sub(1);
             }

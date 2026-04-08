@@ -1078,11 +1078,7 @@ mod tests {
     use super::*;
 
     fn plain_text(line: &Line<'static>) -> String {
-        let mut text = String::new();
-        for span in &line.spans {
-            text.push_str(span.content.as_ref());
-        }
-        text
+        crate::render::line_utils::line_text(line)
     }
 
     fn base_snapshot() -> RateLimitSnapshotEvent {

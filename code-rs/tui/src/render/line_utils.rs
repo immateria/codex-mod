@@ -1,5 +1,20 @@
 use ratatui::text::Line;
 
+/// Flatten a line's spans into a single owned `String`.
+///
+/// This is the canonical way to extract the plain-text content of a
+/// `ratatui::text::Line`.  Prefer this over ad-hoc `String::new()` +
+/// `for span in &line.spans { text.push_str(...) }` loops scattered
+/// throughout the codebase.
+pub fn line_text(line: &Line<'_>) -> String {
+    let len: usize = line.spans.iter().map(|s| s.content.len()).sum();
+    let mut out = String::with_capacity(len);
+    for s in &line.spans {
+        out.push_str(&s.content);
+    }
+    out
+}
+
 /// Consider a line blank if it has no spans or only spans whose contents are
 /// empty or consist solely of spaces (no tabs/newlines).
 pub fn is_blank_line_spaces_only(line: &Line<'_>) -> bool {

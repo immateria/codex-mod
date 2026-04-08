@@ -335,10 +335,7 @@ impl ChatWidget<'_> {
         const MAX_CHARS: usize = 120;
         let mut previews: Vec<String> = Vec::new();
         for line in lines.iter().take(MAX_LINES) {
-            let mut text = String::new();
-            for span in &line.spans {
-                text.push_str(span.content.as_ref());
-            }
+            let text = crate::render::line_utils::line_text(line);
             if text.chars().count() > MAX_CHARS {
                 let mut truncated: String = text.chars().take(MAX_CHARS).collect();
                 truncated.push('…');

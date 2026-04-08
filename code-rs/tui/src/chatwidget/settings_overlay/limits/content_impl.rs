@@ -255,10 +255,7 @@ impl LimitsSettingsContent {
     }
 
     fn line_text(line: &Line<'static>) -> String {
-        line.spans
-            .iter()
-            .map(|span| span.content.as_ref())
-            .collect::<String>()
+        crate::render::line_utils::line_text(line)
     }
 
     fn line_is_blank(line: &Line<'static>) -> bool {
