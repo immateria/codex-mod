@@ -215,210 +215,210 @@ define_icon_functions! {
     // ── Gutter indicators (history cell types) ─────────────────────────
 
     /// User input message.
-    gutter_user               => GUTTER_USER                 ("\u{f007}", "›", ">");                     //     nf-fa-user
+    gutter_user               => GUTTER_USER                 ("\u{f007}", "›", ">");                     //   nf-fa-user
     /// Assistant / AI response.
-    gutter_assistant          => GUTTER_ASSISTANT            ("\u{f108}", "•", "*");                     //     nf-fa-desktop
+    gutter_assistant          => GUTTER_ASSISTANT            ("\u{f108}", "•", "*");                     //   nf-fa-desktop
     /// Proposed plan.
-    gutter_plan               => GUTTER_PLAN                 ("\u{f0c5}", "≡", "=");                     //     nf-fa-copy
+    gutter_plan               => GUTTER_PLAN                 ("\u{f0c5}", "≡", "=");                     //   nf-fa-copy
     /// Error.
-    gutter_error              => GUTTER_ERROR                ("\u{f057}", "✗", "x");                     //     nf-fa-times_circle
+    gutter_error              => GUTTER_ERROR                ("\u{f057}", "✗", "x");                     //   nf-fa-times_circle
     /// Tool / operation running.
-    gutter_running            => GUTTER_RUNNING              ("\u{f110}", "…", "..");                    //     nf-fa-spinner
+    gutter_running            => GUTTER_RUNNING              ("\u{f110}", "…", "..");                    //   nf-fa-spinner
     /// Tool / operation success.
-    gutter_success            => GUTTER_SUCCESS              ("\u{f058}", "✓", "+");                     //     nf-fa-check_circle
+    gutter_success            => GUTTER_SUCCESS              ("\u{f058}", "✓", "+");                     //   nf-fa-check_circle
     /// Tool / operation failure.
-    gutter_failure            => GUTTER_FAILURE              ("\u{f057}", "✗", "x");                     //     nf-fa-times_circle
+    gutter_failure            => GUTTER_FAILURE              ("\u{f057}", "✗", "x");                     //   nf-fa-times_circle
     /// Shell / exec prompt.
-    gutter_exec               => GUTTER_EXEC                 ("\u{f120}", "❯", ">");                     //     nf-fa-terminal
+    gutter_exec               => GUTTER_EXEC                 ("\u{f120}", "❯", ">");                     //   nf-fa-terminal
     /// Patch / diff.
-    gutter_patch              => GUTTER_PATCH                ("\u{f126}", "↯", "~");                     //     nf-fa-code_fork
+    gutter_patch              => GUTTER_PATCH                ("\u{f126}", "↯", "~");                     //   nf-fa-code_fork
     /// Background event.
-    gutter_background         => GUTTER_BACKGROUND           ("\u{f0e7}", "»", ">>");                    //     nf-fa-bolt (alias: nf-fa-flash)
+    gutter_background         => GUTTER_BACKGROUND           ("\u{f0e7}", "»", ">>");                    //   nf-fa-bolt
     /// Notice / important.
-    gutter_notice             => GUTTER_NOTICE               ("\u{f005}", "★", "*");                     //     nf-fa-star
+    gutter_notice             => GUTTER_NOTICE               ("\u{f005}", "★", "*");                     //   nf-fa-star
     /// Compaction summary.
-    gutter_compaction         => GUTTER_COMPACTION           ("\u{f066}", "§", "S");                     //     nf-fa-compress
+    gutter_compaction         => GUTTER_COMPACTION           ("\u{f066}", "§", "S");                     //   nf-fa-compress
     /// Context / info.
-    gutter_context            => GUTTER_CONTEXT              ("\u{f05a}", "◆", "*");                     //     nf-fa-info_circle
+    gutter_context            => GUTTER_CONTEXT              ("\u{f05a}", "◆", "*");                     //   nf-fa-info_circle
 
     // ── Status indicators ──────────────────────────────────────────────
 
     /// Operation succeeded.
-    status_ok                 => STATUS_OK                   ("\u{f058}", "✓", "+");                     //     nf-fa-check_circle
+    status_ok                 => STATUS_OK                   ("\u{f058}", "✓", "+");                     //   nf-fa-check_circle
     /// Operation failed.
-    status_fail               => STATUS_FAIL                 ("\u{f057}", "✗", "x");                     //     nf-fa-times_circle
+    status_fail               => STATUS_FAIL                 ("\u{f057}", "✗", "x");                     //   nf-fa-times_circle
     /// Warning.
-    status_warn               => STATUS_WARN                 ("\u{f06a}", "⚠", "!");                     //     nf-fa-exclamation_circle
+    status_warn               => STATUS_WARN                 ("\u{f06a}", "⚠", "!");                     //   nf-fa-exclamation_circle
     /// Informational.
-    status_info               => STATUS_INFO                 ("\u{f05a}", "•", "*");                     //     nf-fa-info_circle
+    status_info               => STATUS_INFO                 ("\u{f05a}", "•", "*");                     //   nf-fa-info_circle
 
     // ── Navigation arrows ──────────────────────────────────────────────
 
     /// Left navigation.
-    arrow_left                => ARROW_LEFT                  ("\u{f053}", "◂", "<");                     //     nf-fa-chevron_left
+    arrow_left                => ARROW_LEFT                  ("\u{f053}", "◂", "<");                     //   nf-fa-chevron_left
     /// Right navigation.
-    arrow_right               => ARROW_RIGHT                 ("\u{f054}", "▸", ">");                     //     nf-fa-chevron_right
+    arrow_right               => ARROW_RIGHT                 ("\u{f054}", "▸", ">");                     //   nf-fa-chevron_right
     /// Up navigation.
-    arrow_up                  => ARROW_UP                    ("\u{f077}", "↑", "^");                     //     nf-fa-chevron_up
+    arrow_up                  => ARROW_UP                    ("\u{f077}", "↑", "^");                     //   nf-fa-chevron_up
     /// Down navigation.
-    arrow_down                => ARROW_DOWN                  ("\u{f078}", "↓", "v");                     //     nf-fa-chevron_down
+    arrow_down                => ARROW_DOWN                  ("\u{f078}", "↓", "v");                     //   nf-fa-chevron_down
     /// Collapse indicator.
-    arrow_collapse            => ARROW_COLLAPSE              ("\u{f053}", "◂", "<");                     //     nf-fa-chevron_left
+    arrow_collapse            => ARROW_COLLAPSE              ("\u{f053}", "◂", "<");                     //   nf-fa-chevron_left
     /// Expand indicator.
-    arrow_expand              => ARROW_EXPAND                ("\u{f054}", "▸", ">");                     //     nf-fa-chevron_right
+    arrow_expand              => ARROW_EXPAND                ("\u{f054}", "▸", ">");                     //   nf-fa-chevron_right
 
     // ── Sidebar collapse/expand ────────────────────────────────────────
 
     /// Sidebar hide (with label).
     sidebar_hide              => SIDEBAR_HIDE                ("\u{f104} hide", "◂ hide", "< hide");      //  hide   hide  nf-fa-angle_left
     /// Sidebar show (chevron only).
-    sidebar_show              => SIDEBAR_SHOW                ("\u{f105}", "▸", ">");                     //     nf-fa-angle_right
+    sidebar_show              => SIDEBAR_SHOW                ("\u{f105}", "▸", ">");                     //   nf-fa-angle_right
 
     // ── Plan progress ──────────────────────────────────────────────────
 
     /// Idea / lightbulb.
-    plan_lightbulb            => PLAN_LIGHTBULB              ("\u{f0eb}", "!", "!");                     //     nf-fa-lightbulb_o
+    plan_lightbulb            => PLAN_LIGHTBULB              ("\u{f0eb}", "!", "!");                     //   nf-fa-lightbulb_o
     /// Launch / rocket.
-    plan_rocket               => PLAN_ROCKET                 ("\u{f135}", "↑", "^");                     //     nf-fa-rocket
+    plan_rocket               => PLAN_ROCKET                 ("\u{f135}", "↑", "^");                     //   nf-fa-rocket
     /// Clipboard / checklist.
-    plan_clipboard            => PLAN_CLIPBOARD              ("\u{f0c5}", "≡", "=");                     //     nf-fa-copy
+    plan_clipboard            => PLAN_CLIPBOARD              ("\u{f0c5}", "≡", "=");                     //   nf-fa-copy
     /// Progress: empty.
-    progress_empty            => PROGRESS_EMPTY              ("\u{f10c}", "○", "o");                     //     nf-fa-circle_o
+    progress_empty            => PROGRESS_EMPTY              ("\u{f10c}", "○", "o");                     //   nf-fa-circle_o
     /// Progress: ¼.
-    progress_quarter          => PROGRESS_QUARTER            ("\u{f123}", "◔", "o");                     //     nf-fa-star_half_o
+    progress_quarter          => PROGRESS_QUARTER            ("\u{f123}", "◔", "o");                     //   nf-fa-star_half_o
     /// Progress: ½.
-    progress_half             => PROGRESS_HALF               ("\u{f042}", "◑", "O");                     //     nf-fa-circle_half_stroke (alias: nf-fa-adjust)
+    progress_half             => PROGRESS_HALF               ("\u{f042}", "◑", "O");                     //   nf-fa-circle_half_stroke
     /// Progress: ¾.
-    progress_three_quarter    => PROGRESS_THREE_QUARTER      ("\u{f111}", "◕", "O");                     //     nf-fa-circle
+    progress_three_quarter    => PROGRESS_THREE_QUARTER      ("\u{f111}", "◕", "O");                     //   nf-fa-circle
     /// Progress: complete.
-    progress_full             => PROGRESS_FULL               ("\u{f058}", "●", "@");                     //     nf-fa-check_circle
+    progress_full             => PROGRESS_FULL               ("\u{f058}", "●", "@");                     //   nf-fa-check_circle
 
     // ── Agent status ───────────────────────────────────────────────────
 
     /// Agent running.
-    agent_running             => AGENT_RUNNING               ("\u{f04b}", "▶", ">");                     //     nf-fa-play
+    agent_running             => AGENT_RUNNING               ("\u{f04b}", "▶", ">");                     //   nf-fa-play
     /// Agent completed.
-    agent_completed           => AGENT_COMPLETED             ("\u{f058}", "✓", "+");                     //     nf-fa-check_circle
+    agent_completed           => AGENT_COMPLETED             ("\u{f058}", "✓", "+");                     //   nf-fa-check_circle
     /// Agent failed.
-    agent_failed              => AGENT_FAILED                ("\u{f071}", "!", "!");                     //     nf-fa-triangle_exclamation (alias: nf-fa-warning)
+    agent_failed              => AGENT_FAILED                ("\u{f071}", "!", "!");                     //   nf-fa-triangle_exclamation
     /// Agent cancelled.
-    agent_cancelled           => AGENT_CANCELLED             ("\u{f04d}", "▮", "|");                     //     nf-fa-stop
+    agent_cancelled           => AGENT_CANCELLED             ("\u{f04d}", "▮", "|");                     //   nf-fa-stop
     /// Agent pending.
-    agent_pending             => AGENT_PENDING               ("\u{f110}", "…", "..");                    //     nf-fa-spinner
+    agent_pending             => AGENT_PENDING               ("\u{f110}", "…", "..");                    //   nf-fa-spinner
 
     // ── Web search ─────────────────────────────────────────────────────
 
     /// Search info.
-    search_info               => SEARCH_INFO                 ("\u{f05a}", "•", "*");                     //     nf-fa-info_circle
+    search_info               => SEARCH_INFO                 ("\u{f05a}", "•", "*");                     //   nf-fa-info_circle
     /// Search success.
-    search_success            => SEARCH_SUCCESS              ("\u{f058}", "✓", "+");                     //     nf-fa-check_circle
+    search_success            => SEARCH_SUCCESS              ("\u{f058}", "✓", "+");                     //   nf-fa-check_circle
     /// Search error.
-    search_error              => SEARCH_ERROR                ("\u{f057}", "✗", "x");                     //     nf-fa-times_circle
+    search_error              => SEARCH_ERROR                ("\u{f057}", "✗", "x");                     //   nf-fa-times_circle
 
     // ── Breadcrumb / hierarchy separator ───────────────────────────────
 
     /// Breadcrumb separator.
-    breadcrumb_sep            => BREADCRUMB_SEP              ("\u{f054}", "▸", ">");                     //     nf-fa-chevron_right
+    breadcrumb_sep            => BREADCRUMB_SEP              ("\u{f054}", "▸", ">");                     //   nf-fa-chevron_right
 
     // ── Keyboard / modifier labels ─────────────────────────────────────
 
     /// Escape key label.
-    escape                    => ESCAPE                      ("\u{f12b7}", "Esc", "Esc");                // 󱊷  󱊷  nf-md-keyboard_esc
+    escape                    => ESCAPE                      ("\u{f12b7}", "Esc", "Esc");                // 󱊷  nf-md-keyboard_esc
     /// Control key label.
-    control                   => CONTROL                     ("\u{f0634}", "Ctrl", "Ctrl");              // 󰘴  󰘴  nf-md-apple_keyboard_control
+    control                   => CONTROL                     ("\u{f0634}", "Ctrl", "Ctrl");              // 󰘴  nf-md-apple_keyboard_control
     /// Option / Alt key label.
-    option                    => OPTION                      ("\u{f0635}", "Alt", "Alt");                // 󰘵  󰘵  nf-md-apple_keyboard_option
+    option                    => OPTION                      ("\u{f0635}", "Alt", "Alt");                // 󰘵  nf-md-apple_keyboard_option
     /// Shift key label.
-    shift                     => SHIFT                       ("\u{f0636}", "Shift", "Shift");            // 󰘶  󰘶  nf-md-apple_keyboard_shift
+    shift                     => SHIFT                       ("\u{f0636}", "Shift", "Shift");            // 󰘶  nf-md-apple_keyboard_shift
     /// Enter / return key label.
-    enter                     => ENTER                       ("\u{f0311}", "Enter", "Enter");            // 󰌑  󰌑  nf-md-keyboard_return
+    enter                     => ENTER                       ("\u{f0311}", "Enter", "Enter");            // 󰌑  nf-md-keyboard_return
     /// Backspace key label.
-    backspace                 => BACKSPACE                   ("\u{f030d}", "Backspace", "Backspace");    // 󰌍  󰌍  nf-md-keyboard_backspace
+    backspace                 => BACKSPACE                   ("\u{f030d}", "Backspace", "Backspace");    // 󰌍  nf-md-keyboard_backspace
     /// Tab key label.
-    tab                       => TAB                         ("\u{f0312}", "Tab", "Tab");                // 󰌒  󰌒  nf-md-keyboard_tab
+    tab                       => TAB                         ("\u{f0312}", "Tab", "Tab");                // 󰌒  nf-md-keyboard_tab
     /// Reverse tab / shift+tab key label.
-    reverse_tab               => REVERSE_TAB                 ("\u{f0325}", "Shift+Tab", "Shift+Tab");    // 󰌥  󰌥  nf-md-keyboard_tab_reverse
+    reverse_tab               => REVERSE_TAB                 ("\u{f0325}", "Shift+Tab", "Shift+Tab");    // 󰌥  nf-md-keyboard_tab_reverse
     /// Space key label.
-    space                     => SPACE                       ("\u{f1050}", "Space", "Space");            // 󱁐  󱁐  nf-md-keyboard_space
+    space                     => SPACE                       ("\u{f1050}", "Space", "Space");            // 󱁐  nf-md-keyboard_space
 
     // ── Selection pointer ──────────────────────────────────────────────
 
     /// Active item pointer.
-    pointer_active            => POINTER_ACTIVE              ("\u{f054}", "›", ">");                     //     nf-fa-chevron_right
+    pointer_active            => POINTER_ACTIVE              ("\u{f054}", "›", ">");                     //   nf-fa-chevron_right
     /// Focused item pointer.
-    pointer_focused           => POINTER_FOCUSED             ("\u{f101}", "»", ">>");                    //     nf-fa-angle_double_right
+    pointer_focused           => POINTER_FOCUSED             ("\u{f101}", "»", ">>");                    //   nf-fa-angle_double_right
 
     // ── Misc ───────────────────────────────────────────────────────────
 
     /// List bullet / separator.
-    bullet                    => BULLET                      ("\u{f111}", "•", "*");                     //     nf-fa-circle
+    bullet                    => BULLET                      ("\u{f111}", "•", "*");                     //   nf-fa-circle
     /// Small separator dot.
-    separator_dot             => SEPARATOR_DOT               ("\u{f111}", "·", "-");                     //     nf-fa-circle
+    separator_dot             => SEPARATOR_DOT               ("\u{f111}", "·", "-");                     //   nf-fa-circle
     /// Version transition arrow.
-    upgrade_arrow             => UPGRADE_ARROW               ("\u{f061}", "→", "->");                    //     nf-fa-arrow_right
+    upgrade_arrow             => UPGRADE_ARROW               ("\u{f061}", "→", "->");                    //   nf-fa-arrow_right
     /// Collapse toggle (▼ when expanded).
-    collapse_open             => COLLAPSE_OPEN               ("\u{f078}", "▼", "v");                     //     nf-fa-chevron_down
+    collapse_open             => COLLAPSE_OPEN               ("\u{f078}", "▼", "v");                     //   nf-fa-chevron_down
     /// Collapse toggle (▶ when collapsed).
-    collapse_closed           => COLLAPSE_CLOSED             ("\u{f054}", "▶", ">");                     //     nf-fa-chevron_right
+    collapse_closed           => COLLAPSE_CLOSED             ("\u{f054}", "▶", ">");                     //   nf-fa-chevron_right
     /// MCP / tools play indicator.
-    tool_play                 => TOOL_PLAY                   ("\u{f04b}", "▶", ">");                     //     nf-fa-play
+    tool_play                 => TOOL_PLAY                   ("\u{f04b}", "▶", ">");                     //   nf-fa-play
     /// File tree branch connector.
-    tree_branch               => TREE_BRANCH                 ("\u{f105}", "└", "`");                     //     nf-fa-angle_right
+    tree_branch               => TREE_BRANCH                 ("\u{f105}", "└", "`");                     //   nf-fa-angle_right
     /// File tree start connector.
-    tree_start                => TREE_START                  ("\u{f105}", "┌", ",");                     //     nf-fa-angle_right
+    tree_start                => TREE_START                  ("\u{f105}", "┌", ",");                     //   nf-fa-angle_right
     /// Rename / transition arrow.
-    rename_arrow              => RENAME_ARROW                ("\u{f061}", "→", "->");                    //     nf-fa-arrow_right
+    rename_arrow              => RENAME_ARROW                ("\u{f061}", "→", "->");                    //   nf-fa-arrow_right
     /// JavaScript language icon.
-    javascript_icon           => JAVASCRIPT_ICON             ("\u{f2ee}", "JS", "JS");                   //     nf-fa-js
+    javascript_icon           => JAVASCRIPT_ICON             ("\u{f2ee}", "JS", "JS");                   //   nf-fa-js
     /// Python language icon.
-    python_icon               => PYTHON_ICON                 ("\u{e606}", "PY", "PY");                   //     nf-seti-python
+    python_icon               => PYTHON_ICON                 ("\u{e606}", "PY", "PY");                   //   nf-seti-python
     /// TypeScript language icon.
-    typescript_icon           => TYPESCRIPT_ICON             ("\u{e628}", "TS", "TS");                   //     nf-seti-typescript
+    typescript_icon           => TYPESCRIPT_ICON             ("\u{e628}", "TS", "TS");                   //   nf-seti-typescript
     /// Go language icon.
-    go_icon                   => GO_ICON                     ("\u{e626}", "GO", "GO");                   //     nf-custom-go
+    go_icon                   => GO_ICON                     ("\u{e626}", "GO", "GO");                   //   nf-custom-go
     /// HTML language icon.
-    html_icon                 => HTML_ICON                   ("\u{f13b}", "HT", "HT");                   //     nf-fa-html5
+    html_icon                 => HTML_ICON                   ("\u{f13b}", "HT", "HT");                   //   nf-fa-html5
     /// CSS language icon.
-    css_icon                  => CSS_ICON                    ("\u{f13c}", "CS", "CS");                   //     nf-fa-css3
+    css_icon                  => CSS_ICON                    ("\u{f13c}", "CS", "CS");                   //   nf-fa-css3
     /// Rust language icon.
-    rust_icon                 => RUST_ICON                   ("\u{e7a8}", "RS", "RS");                   //     nf-dev-rust
+    rust_icon                 => RUST_ICON                   ("\u{e7a8}", "RS", "RS");                   //   nf-dev-rust
     /// Bash / shell language icon.
-    bash_icon                 => BASH_ICON                   ("\u{e760}", "SH", "SH");                   //     nf-dev-bash
+    bash_icon                 => BASH_ICON                   ("\u{e760}", "SH", "SH");                   //   nf-dev-bash
     /// Markdown language icon.
-    markdown_icon             => MARKDOWN_ICON               ("\u{f0354}", "MD", "MD");                  // 󰍔  󰍔  nf-md-language_markdown
+    markdown_icon             => MARKDOWN_ICON               ("\u{f0354}", "MD", "MD");                  // 󰍔  nf-md-language_markdown
     /// Markdown outline icon.
-    markdown_icon_outline     => MARKDOWN_ICON_OUTLINE       ("\u{f0f5b}", "MDO", "MDO");                // 󰽛  󰽛  nf-md-language_markdown_outline
+    markdown_icon_outline     => MARKDOWN_ICON_OUTLINE       ("\u{f0f5b}", "MDO", "MDO");                // 󰽛  nf-md-language_markdown_outline
     /// Informational circle icon.
-    info_circle               => INFO_CIRCLE                 ("\u{f05a}", "Info", "Info");               //     nf-fa-info_circle
+    info_circle               => INFO_CIRCLE                 ("\u{f05a}", "Info", "Info");               //   nf-fa-info_circle
     /// Lambda symbol icon.
-    lambda                    => LAMBDA                      ("\u{f0627}", "λ", "\\");                    // 󰘧  󰘧  nf-md-lambda
+    lambda                    => LAMBDA                      ("\u{f0627}", "λ", "\\");                    // 󰘧  nf-md-lambda
     /// Undo action icon.
-    undo                      => UNDO                        ("\u{f0e2}", "Undo", "Undo");               //     nf-fa-arrow_rotate_left
+    undo                      => UNDO                        ("\u{f0e2}", "Undo", "Undo");               //   nf-fa-arrow_rotate_left
     /// Redo action icon.
-    redo                      => REDO                        ("\u{f01e}", "Redo", "Redo");               //     nf-fa-arrow_rotate_right
+    redo                      => REDO                        ("\u{f01e}", "Redo", "Redo");               //   nf-fa-arrow_rotate_right
     /// Add / create action icon.
-    add                       => ADD                         ("\u{ea60}", "Add", "Add");                 //     nf-cod-add
+    add                       => ADD                         ("\u{ea60}", "Add", "Add");                 //   nf-cod-add
 
     // ── Checkboxes / toggles ───────────────────────────────────────────
 
     /// Checkbox checked.
-    checkbox_on               => CHECKBOX_ON                 ("\u{f046}", "[x]", "[x]");                 //     nf-fa-check_square_o
+    checkbox_on               => CHECKBOX_ON                 ("\u{f046}", "[x]", "[x]");                 //   nf-fa-check_square_o
     /// Checkbox unchecked.
-    checkbox_off              => CHECKBOX_OFF                ("\u{f096}", "[ ]", "[ ]");                 //     nf-fa-square_o
+    checkbox_off              => CHECKBOX_OFF                ("\u{f096}", "[ ]", "[ ]");                 //   nf-fa-square_o
     /// Dismiss / close button.
-    dismiss                   => DISMISS                     ("\u{f00d}", "[x]", "[x]");                 //     nf-fa-xmark (alias: nf-fa-times)
+    dismiss                   => DISMISS                     ("\u{f00d}", "[x]", "[x]");                 //   nf-fa-xmark
     /// Markdown task list: done.
-    task_done                 => TASK_DONE                   ("\u{f058}", "✓", "+");                     //     nf-fa-check_circle
+    task_done                 => TASK_DONE                   ("\u{f058}", "✓", "+");                     //   nf-fa-check_circle
     /// Markdown task list: pending.
-    task_pending              => TASK_PENDING                ("\u{f096}", "☐", "[ ]");                   //     nf-fa-square_o
+    task_pending              => TASK_PENDING                ("\u{f096}", "☐", "[ ]");                   //   nf-fa-square_o
     /// Copy content action.
-    copy_content              => COPY_CONTENT                ("\u{f018f}", "Copy", "Copy");              // 󰆏  󰆏  nf-md-content_copy
+    copy_content              => COPY_CONTENT                ("\u{f018f}", "Copy", "Copy");              // 󰆏  nf-md-content_copy
     /// Paste content action.
-    paste_content             => PASTE_CONTENT               ("\u{f0192}", "Paste", "Paste");            // 󰆒  󰆒  nf-md-content_paste
+    paste_content             => PASTE_CONTENT               ("\u{f0192}", "Paste", "Paste");            // 󰆒  nf-md-content_paste
     /// Cut content action.
-    cut_content               => CUT_CONTENT                 ("\u{f0190}", "Cut", "Cut");                // 󰆐  󰆐  nf-md-content_cut
+    cut_content               => CUT_CONTENT                 ("\u{f0190}", "Cut", "Cut");                // 󰆐  nf-md-content_cut
     /// Scroll to top of a cell.
-    scroll_to_top             => SCROLL_TO_TOP               ("\u{eaf4}", "↑Top", "^Top");               //     nf-cod-fold_up
+    scroll_to_top             => SCROLL_TO_TOP               ("\u{eaf4}", "↑Top", "^Top");               //   nf-cod-fold_up
 
     // ── Number glyphs ──────────────────────────────────────────────────
 
@@ -447,102 +447,102 @@ define_icon_functions! {
     // ── Markdown list bullets ──────────────────────────────────────────
 
     /// Level-1 list bullet.
-    list_bullet_l1            => LIST_BULLET_L1              ("\u{f111}", "-", "-");                     //     nf-fa-circle
+    list_bullet_l1            => LIST_BULLET_L1              ("\u{f111}", "-", "-");                     //   nf-fa-circle
     /// Level-2 list bullet.
-    list_bullet_l2            => LIST_BULLET_L2              ("\u{f10c}", "·", "-");                     //     nf-fa-circle_o
+    list_bullet_l2            => LIST_BULLET_L2              ("\u{f10c}", "·", "-");                     //   nf-fa-circle_o
     /// Level-3 list bullet.
-    list_bullet_l3            => LIST_BULLET_L3              ("\u{f111}", "-", "-");                     //     nf-fa-circle
+    list_bullet_l3            => LIST_BULLET_L3              ("\u{f111}", "-", "-");                     //   nf-fa-circle
     /// Level-4+ list bullet.
-    list_bullet_deep          => LIST_BULLET_DEEP            ("\u{f10c}", "⋅", ".");                     //     nf-fa-circle_o
+    list_bullet_deep          => LIST_BULLET_DEEP            ("\u{f10c}", "⋅", ".");                     //   nf-fa-circle_o
 
     // ── File system ────────────────────────────────────────────────────
 
     /// Generic file.
-    file                      => FILE                        ("\u{f15b}", "⊡", "F");                     //     nf-fa-file
+    file                      => FILE                        ("\u{f15b}", "⊡", "F");                     //   nf-fa-file
     /// Closed folder.
-    folder                    => FOLDER                      ("\u{f07b}", "▤", "D");                     //     nf-fa-folder
+    folder                    => FOLDER                      ("\u{f07b}", "▤", "D");                     //   nf-fa-folder
     /// Open folder.
-    folder_open               => FOLDER_OPEN                 ("\u{f07c}", "▥", "D");                     //     nf-fa-folder_open
+    folder_open               => FOLDER_OPEN                 ("\u{f07c}", "▥", "D");                     //   nf-fa-folder_open
 
     // ── Actions ────────────────────────────────────────────────────────
 
     /// Edit / pencil.
-    edit_pencil               => EDIT_PENCIL                 ("\u{f040}", "✎", "Ed");                    //     nf-fa-pencil
+    edit_pencil               => EDIT_PENCIL                 ("\u{f040}", "✎", "Ed");                    //   nf-fa-pencil
     /// Delete / trash.
-    trash                     => TRASH                       ("\u{f1f8}", "✕", "X");                     //     nf-fa-trash
+    trash                     => TRASH                       ("\u{f1f8}", "✕", "X");                     //   nf-fa-trash
     /// Save / floppy disk.
-    save                      => SAVE                        ("\u{f0c7}", "⊟", "Sv");                    //     nf-fa-floppy_o
+    save                      => SAVE                        ("\u{f0c7}", "⊟", "Sv");                    //   nf-fa-floppy_o
     /// Refresh / reload.
-    refresh                   => REFRESH                     ("\u{f021}", "↺", "~");                     //     nf-fa-refresh
+    refresh                   => REFRESH                     ("\u{f021}", "↺", "~");                     //   nf-fa-refresh
     /// Search / magnify.
-    search                    => SEARCH                      ("\u{f002}", "⌕", "?");                     //     nf-fa-search
+    search                    => SEARCH                      ("\u{f002}", "⌕", "?");                     //   nf-fa-search
     /// Filter / funnel.
-    filter                    => FILTER                      ("\u{f0b0}", "▽", "Y");                     //     nf-fa-filter
+    filter                    => FILTER                      ("\u{f0b0}", "▽", "Y");                     //   nf-fa-filter
     /// Hyperlink.
-    link                      => LINK                        ("\u{f0c1}", "⌁", "@");                     //     nf-fa-link
+    link                      => LINK                        ("\u{f0c1}", "⌁", "@");                     //   nf-fa-link
     /// External link (opens outside).
-    external_link             => EXTERNAL_LINK               ("\u{f08e}", "↗", "->");                    //     nf-fa-external_link
+    external_link             => EXTERNAL_LINK               ("\u{f08e}", "↗", "->");                    //   nf-fa-external_link
     /// Send / submit.
-    send                      => SEND                        ("\u{f1d9}", "↵", "=>");                    //     nf-fa-paper_plane
+    send                      => SEND                        ("\u{f1d9}", "↵", "=>");                    //   nf-fa-paper_plane
 
     // ── State toggles ──────────────────────────────────────────────────
 
     /// Locked.
-    lock                      => LOCK                        ("\u{f023}", "⊘", "[L]");                   //     nf-fa-lock
+    lock                      => LOCK                        ("\u{f023}", "⊘", "[L]");                   //   nf-fa-lock
     /// Unlocked.
-    unlock                    => UNLOCK                      ("\u{f09c}", "⊙", "[U]");                   //     nf-fa-unlock
+    unlock                    => UNLOCK                      ("\u{f09c}", "⊙", "[U]");                   //   nf-fa-unlock
     /// Visible / show.
-    eye_show                  => EYE_SHOW                    ("\u{f06e}", "◉", "(o)");                   //     nf-fa-eye
+    eye_show                  => EYE_SHOW                    ("\u{f06e}", "◉", "(o)");                   //   nf-fa-eye
     /// Hidden / masked.
-    eye_hide                  => EYE_HIDE                    ("\u{f070}", "◎", "(-)");                   //     nf-fa-eye_slash
+    eye_hide                  => EYE_HIDE                    ("\u{f070}", "◎", "(-)");                   //   nf-fa-eye_slash
     /// Pinned.
-    pin                       => PIN                         ("\u{f08d}", "♦", "*");                     //     nf-fa-thumb_tack
+    pin                       => PIN                         ("\u{f08d}", "♦", "*");                     //   nf-fa-thumb_tack
     /// Favourite (empty star).
-    star_empty                => STAR_EMPTY                  ("\u{f006}", "☆", "*");                     //     nf-fa-star_o
+    star_empty                => STAR_EMPTY                  ("\u{f006}", "☆", "*");                     //   nf-fa-star_o
     /// Bookmarked.
-    bookmark                  => BOOKMARK                    ("\u{f02e}", "⊲", "[B]");                   //     nf-fa-bookmark
+    bookmark                  => BOOKMARK                    ("\u{f02e}", "⊲", "[B]");                   //   nf-fa-bookmark
 
     // ── Time & reference ──────────────────────────────────────────────
 
     /// Clock / timestamp.
-    clock                     => CLOCK                       ("\u{f017}", "◷", "Tm");                    //     nf-fa-clock_o
+    clock                     => CLOCK                       ("\u{f017}", "◷", "Tm");                    //   nf-fa-clock_o
     /// Tag / label.
-    tag                       => TAG                         ("\u{f02b}", "◈", "#");                     //     nf-fa-tag
+    tag                       => TAG                         ("\u{f02b}", "◈", "#");                     //   nf-fa-tag
     /// Hash / number sign.
-    hash_symbol               => HASH_SYMBOL                 ("\u{f292}", "#", "#");                     //     nf-fa-hashtag
+    hash_symbol               => HASH_SYMBOL                 ("\u{f292}", "#", "#");                     //   nf-fa-hashtag
 
     // ── Navigation & layout ────────────────────────────────────────────
 
     /// Home / root.
-    home                      => HOME                        ("\u{f015}", "⌂", "~");                     //     nf-fa-home
+    home                      => HOME                        ("\u{f015}", "⌂", "~");                     //   nf-fa-home
     /// Horizontal ellipsis (more items).
-    ellipsis_h                => ELLIPSIS_H                  ("\u{f141}", "…", "..");                    //     nf-fa-ellipsis_h
+    ellipsis_h                => ELLIPSIS_H                  ("\u{f141}", "…", "..");                    //   nf-fa-ellipsis_h
     /// Vertical ellipsis (more items).
-    ellipsis_v                => ELLIPSIS_V                  ("\u{f142}", "⋮", ":");                     //     nf-fa-ellipsis_vertical
+    ellipsis_v                => ELLIPSIS_V                  ("\u{f142}", "⋮", ":");                     //   nf-fa-ellipsis_vertical
     /// Word wrap toggle.
-    word_wrap                 => WORD_WRAP                   ("\u{f035}", "↩", "<-");                    //     nf-fa-text_width
+    word_wrap                 => WORD_WRAP                   ("\u{f035}", "↩", "<-");                    //   nf-fa-text_width
 
     // ── Git ────────────────────────────────────────────────────────────
 
     /// Git branch.
-    git_branch                => GIT_BRANCH                  ("\u{e725}", "⎇", "Br");                    //     nf-dev-git_branch
+    git_branch                => GIT_BRANCH                  ("\u{e725}", "⎇", "Br");                    //   nf-dev-git_branch
     /// Git commit.
-    git_commit                => GIT_COMMIT                  ("\u{e729}", "○", "Cm");                    //     nf-dev-git_commit
+    git_commit                => GIT_COMMIT                  ("\u{e729}", "○", "Cm");                    //   nf-dev-git_commit
     /// Git merge.
-    git_merge                 => GIT_MERGE                   ("\u{e727}", "⊕", "Mg");                    //     nf-dev-git_merge
+    git_merge                 => GIT_MERGE                   ("\u{e727}", "⊕", "Mg");                    //   nf-dev-git_merge
 
     // ── System / environment ───────────────────────────────────────────
 
     /// Settings gear / cog.
-    settings_gear             => SETTINGS_GEAR               ("\u{f013}", "⚙", "Cfg");                   //     nf-fa-gear (alias: nf-fa-cog)
+    settings_gear             => SETTINGS_GEAR               ("\u{f013}", "⚙", "Cfg");                   //   nf-fa-gear
     /// Cloud / remote.
-    cloud                     => CLOUD                       ("\u{f0c2}", "☁", "Cld");                   //     nf-fa-cloud
+    cloud                     => CLOUD                       ("\u{f0c2}", "☁", "Cld");                   //   nf-fa-cloud
     /// Notification bell.
-    bell                      => BELL                        ("\u{f0f3}", "◔", "(!)");                   //     nf-fa-bell
+    bell                      => BELL                        ("\u{f0f3}", "◔", "(!)");                   //   nf-fa-bell
     /// Muted bell.
-    bell_off                  => BELL_OFF                    ("\u{f1f6}", "○", "(-)");                   //     nf-fa-bell_slash
+    bell_off                  => BELL_OFF                    ("\u{f1f6}", "○", "(-)");                   //   nf-fa-bell_slash
     /// Robot / AI agent.
-    robot                     => ROBOT                       ("\u{ee0d}", "⊛", "Bot");                   //     nf-fa-robot
+    robot                     => ROBOT                       ("\u{ee0d}", "⊛", "Bot");                   //   nf-fa-robot
 }
 
 // ── Settings sidebar section icons ───────────────────────────────────
