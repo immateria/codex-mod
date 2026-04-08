@@ -24,44 +24,76 @@ pub(super) fn handle_help_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent) ->
 
     // Overlay active: process navigation + close + tab switching
     let Some(ref mut overlay) = chat.help.overlay else { return false };
+
+    use super::internals::state::{HelpFocus, HelpTab};
+    let focus = chat.help.focus.get();
+
     match key_event.code {
-        // Tab switching
-        KeyCode::Left => {
-            overlay.active_tab = overlay.active_tab.prev();
-            chat.request_redraw();
-            true
-        }
-        KeyCode::Right => {
-            overlay.active_tab = overlay.active_tab.next();
-            chat.request_redraw();
-            true
-        }
-        KeyCode::Char('1') => {
-            overlay.active_tab = super::internals::state::HelpTab::Shortcuts;
-            chat.request_redraw();
-            true
-        }
-        KeyCode::Char('2') => {
-            overlay.active_tab = super::internals::state::HelpTab::Commands;
-            chat.request_redraw();
-            true
-        }
-        KeyCode::Char('3') => {
-            overlay.active_tab = super::internals::state::HelpTab::Tips;
-            chat.request_redraw();
-            true
-        }
+        // Tab/BackTab cycle focus: Content → PrevArrow → NextArrow → Close → Content
         KeyCode::Tab => {
-            overlay.active_tab = overlay.active_tab.next();
+            chat.help.focus.set(focus.next());
             chat.request_redraw();
             true
         }
         KeyCode::BackTab => {
+            chat.help.focus.set(focus.prev());
+            chat.request_redraw();
+            true
+        }
+        // Enter activates the focused element
+        KeyCode::Enter => {
+            match focus {
+                HelpFocus::Content => false,
+                HelpFocus::PrevArrow => {
+                    overlay.active_tab = overlay.active_tab.prev();
+                    chat.request_redraw();
+                    true
+                }
+                HelpFocus::NextArrow => {
+                    overlay.active_tab = overlay.active_tab.next();
+                    chat.request_redraw();
+                    true
+                }
+                HelpFocus::CloseButton => {
+                    let _ = overlay;
+                    chat.help.overlay = None;
+                    chat.help.focus.set(HelpFocus::Content);
+                    chat.request_redraw();
+                    true
+                }
+            }
+        }
+        // Direct tab switching via arrow keys (when focus is on Content)
+        KeyCode::Left if focus == HelpFocus::Content => {
             overlay.active_tab = overlay.active_tab.prev();
             chat.request_redraw();
             true
         }
-        // Scrolling
+        KeyCode::Right if focus == HelpFocus::Content => {
+            overlay.active_tab = overlay.active_tab.next();
+            chat.request_redraw();
+            true
+        }
+        // Number keys always switch tabs regardless of focus
+        KeyCode::Char('1') => {
+            overlay.active_tab = HelpTab::Shortcuts;
+            chat.help.focus.set(HelpFocus::Content);
+            chat.request_redraw();
+            true
+        }
+        KeyCode::Char('2') => {
+            overlay.active_tab = HelpTab::Commands;
+            chat.help.focus.set(HelpFocus::Content);
+            chat.request_redraw();
+            true
+        }
+        KeyCode::Char('3') => {
+            overlay.active_tab = HelpTab::Tips;
+            chat.help.focus.set(HelpFocus::Content);
+            chat.request_redraw();
+            true
+        }
+        // Scrolling (when focus is on Content, or always for Up/Down/Page)
         KeyCode::Up => {
             let s = overlay.scroll_mut();
             *s = s.saturating_sub(1);
@@ -103,9 +135,15 @@ pub(super) fn handle_help_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent) ->
             chat.request_redraw();
             true
         }
-        KeyCode::Esc | KeyCode::F(1) => {
-            // Close on Esc or F1
+        KeyCode::Esc | KeyCode::F(1) | KeyCode::Char('q') => {
             chat.help.overlay = None;
+            chat.help.focus.set(HelpFocus::Content);
+            chat.request_redraw();
+            true
+        }
+        KeyCode::Char('/') if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            chat.help.overlay = None;
+            chat.help.focus.set(HelpFocus::Content);
             chat.request_redraw();
             true
         }

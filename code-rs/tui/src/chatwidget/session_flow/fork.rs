@@ -207,10 +207,7 @@ impl ChatWidget<'_> {
                 confirm: None,
                 body_visible_rows: std::cell::Cell::new(0),
             },
-            help: HelpState {
-                overlay: None,
-                body_visible_rows: std::cell::Cell::new(0),
-            },
+            help: HelpState::default(),
             settings: SettingsState::default(),
             pending_settings_return: None,
             limits: LimitsState::default(),

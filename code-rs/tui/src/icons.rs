@@ -342,26 +342,27 @@ define_icon_functions! {
 
     // ── Number glyphs ──────────────────────────────────────────────────
 
-    /// Number one icon.
-    number_one       => NUMBER_ONE         ("\u{f0b3a}", "1");
-    /// Number two icon.
-    number_two       => NUMBER_TWO         ("\u{f0b3b}", "2");
-    /// Number three icon.
-    number_three     => NUMBER_THREE       ("\u{f0b3c}", "3");
-    /// Number four icon.
-    number_four      => NUMBER_FOUR        ("\u{f0b3d}", "4");
-    /// Number five icon.
-    number_five      => NUMBER_FIVE        ("\u{f0b3e}", "5");
-    /// Number six icon.
-    number_six       => NUMBER_SIX         ("\u{f0b3f}", "6");
-    /// Number seven icon.
-    number_seven     => NUMBER_SEVEN       ("\u{f0b40}", "7");
-    /// Number eight icon.
-    number_eight     => NUMBER_EIGHT       ("\u{f0b41}", "8");
-    /// Number nine icon.
-    number_nine      => NUMBER_NINE        ("\u{f0b42}", "9");
     /// Number zero icon.
-    number_zero      => NUMBER_ZERO        ("\u{f0b39}", "0");
+    number_zero      => NUMBER_ZERO        ("\u{1F100}", "0.");
+    /// Number one icon.
+    number_one       => NUMBER_ONE         ("\u{2488}", "1.");
+    /// Number two icon.
+    number_two       => NUMBER_TWO         ("\u{2489}", "2.");
+    /// Number three icon.
+    number_three     => NUMBER_THREE       ("\u{248A}", "3.");
+    /// Number four icon.
+    number_four      => NUMBER_FOUR        ("\u{248B}", "4.");
+    /// Number five icon.
+    number_five      => NUMBER_FIVE        ("\u{248C}", "5.");
+    /// Number six icon.
+    number_six       => NUMBER_SIX         ("\u{248D}", "6.");
+    /// Number seven icon.
+    number_seven     => NUMBER_SEVEN       ("\u{248E}", "7.");
+    /// Number eight icon.
+    number_eight     => NUMBER_EIGHT       ("\u{248F}", "8.");
+    /// Number nine icon.
+    number_nine      => NUMBER_NINE        ("\u{2490}", "9.");
+    
 
     // ── Markdown list bullets ──────────────────────────────────────────
 

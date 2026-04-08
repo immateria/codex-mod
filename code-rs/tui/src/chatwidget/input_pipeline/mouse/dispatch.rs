@@ -46,6 +46,12 @@ impl ChatWidget<'_> {
             return;
         }
 
+        // Help overlay is modal when visible: consume all mouse input.
+        if self.help.overlay.is_some() {
+            self.handle_help_mouse(mouse_event);
+            return;
+        }
+
         let bottom_pane_area = self.layout.last_bottom_pane_area.get();
         let mouse_pos = (mouse_event.column, mouse_event.row);
 
@@ -227,6 +233,120 @@ impl ChatWidget<'_> {
             }
             InputResult::None | InputResult::ScrollUp | InputResult::ScrollDown => {
                 self.request_redraw();
+            }
+        }
+    }
+
+    /// Handle mouse events when the help overlay is active.
+    fn handle_help_mouse(&mut self, mouse_event: crossterm::event::MouseEvent) {
+        use crossterm::event::{MouseButton, MouseEventKind};
+        use crate::chatwidget::internals::state::HelpTab;
+
+        let pos = (mouse_event.column, mouse_event.row);
+        let window_rect = self.help.window_rect.get();
+
+        match mouse_event.kind {
+            MouseEventKind::Moved => {
+                let mut changed = false;
+
+                let close_rect = self.help.close_rect.get();
+                let close_hov = close_rect.width > 0
+                    && close_rect.height > 0
+                    && Self::pos_in_rect(pos, close_rect);
+                if self.help.close_hovered.replace(close_hov) != close_hov {
+                    changed = true;
+                }
+
+                let prev_rect = self.help.prev_arrow_rect.get();
+                let prev_hov = prev_rect.width > 0 && Self::pos_in_rect(pos, prev_rect);
+                if self.help.prev_hovered.replace(prev_hov) != prev_hov {
+                    changed = true;
+                }
+
+                let next_rect = self.help.next_arrow_rect.get();
+                let next_hov = next_rect.width > 0 && Self::pos_in_rect(pos, next_rect);
+                if self.help.next_hovered.replace(next_hov) != next_hov {
+                    changed = true;
+                }
+
+                let tab_hov = {
+                    let rects = self.help.tab_rects.borrow();
+                    rects.iter().position(|r| Self::pos_in_rect(pos, *r))
+                };
+                if self.help.hovered_tab.replace(tab_hov) != tab_hov {
+                    changed = true;
+                }
+
+                if changed {
+                    self.request_redraw();
+                }
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                // Close button
+                if Self::pos_in_rect(pos, self.help.close_rect.get()) {
+                    self.help.overlay = None;
+                    self.request_redraw();
+                    return;
+                }
+                // Click outside window closes overlay
+                if !Self::pos_in_rect(pos, window_rect) {
+                    self.help.overlay = None;
+                    self.request_redraw();
+                    return;
+                }
+                // Prev/next arrow clicks
+                if Self::pos_in_rect(pos, self.help.prev_arrow_rect.get()) {
+                    if let Some(ref mut overlay) = self.help.overlay {
+                        overlay.active_tab = overlay.active_tab.prev();
+                    }
+                    self.request_redraw();
+                    return;
+                }
+                if Self::pos_in_rect(pos, self.help.next_arrow_rect.get()) {
+                    if let Some(ref mut overlay) = self.help.overlay {
+                        overlay.active_tab = overlay.active_tab.next();
+                    }
+                    self.request_redraw();
+                    return;
+                }
+                // Tab clicks
+                let tab_rects = self.help.tab_rects.borrow();
+                for (i, rect) in tab_rects.iter().enumerate() {
+                    if Self::pos_in_rect(pos, *rect) {
+                        if let Some(&tab) = HelpTab::ALL.get(i) {
+                            drop(tab_rects);
+                            if let Some(ref mut overlay) = self.help.overlay {
+                                overlay.active_tab = tab;
+                            }
+                            self.request_redraw();
+                            return;
+                        }
+                    }
+                }
+            }
+            MouseEventKind::ScrollUp => {
+                if Self::pos_in_rect(pos, window_rect) {
+                    if let Some(ref mut overlay) = self.help.overlay {
+                        let s = overlay.scroll_mut();
+                        *s = s.saturating_sub(3);
+                    }
+                    self.request_redraw();
+                }
+            }
+            MouseEventKind::ScrollDown => {
+                if Self::pos_in_rect(pos, window_rect) {
+                    if let Some(ref mut overlay) = self.help.overlay {
+                        let visible_rows = self.help.body_visible_rows.get() as usize;
+                        let max_off = overlay.lines().len().saturating_sub(visible_rows.max(1));
+                        let cur = overlay.scroll() as usize;
+                        let next = cur.saturating_add(3).min(max_off);
+                        *overlay.scroll_mut() = next as u16;
+                    }
+                    self.request_redraw();
+                }
+            }
+            _ => {
+                // Consume all other mouse events while overlay is active
             }
         }
     }

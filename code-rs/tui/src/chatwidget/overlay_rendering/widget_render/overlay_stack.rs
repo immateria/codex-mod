@@ -365,7 +365,13 @@ impl ChatWidget<'_> {
                         width: history_area.width.saturating_sub(padding * 2),
                         height: history_area.height,
                     };
+                    self.help.window_rect.set(window_area);
                     Clear.render(window_area, buf);
+
+                    let border_style = Style::default()
+                        .fg(crate::colors::border())
+                        .bg(crate::colors::background());
+
                     let block = Block::default()
                         .borders(Borders::ALL)
                         .title(ratatui::text::Line::from(vec![
@@ -386,18 +392,94 @@ impl ChatWidget<'_> {
                                 Style::default().fg(crate::colors::text()),
                             ),
                             ratatui::text::Span::styled(
-                                " close ",
+                                " close",
                                 Style::default().fg(crate::colors::text_dim()),
                             ),
                         ]))
                         .style(Style::default().bg(crate::colors::background()))
-                        .border_style(
-                            Style::default()
-                                .fg(crate::colors::border())
-                                .bg(crate::colors::background()),
-                        );
+                        .border_style(border_style);
                     let inner = block.inner(window_area);
                     block.render(window_area, buf);
+
+                    // Inset close button (same as settings overlay)
+                    {
+                        let box_w: u16 = 5;
+                        let right_edge = window_area.x.saturating_add(window_area.width).saturating_sub(1);
+                        let box_left = right_edge.saturating_sub(box_w.saturating_sub(1));
+                        let box_top = window_area.y;
+
+                        if box_left > window_area.x.saturating_add(2) && window_area.height >= 3 {
+                            use crate::chatwidget::internals::state::HelpFocus;
+                            let hovered = self.help.close_hovered.get();
+                            let focused = self.help.focus.get() == HelpFocus::CloseButton;
+                            let lit = hovered || focused;
+                            let button_bg = if lit {
+                                crate::colors::selection()
+                            } else {
+                                crate::colors::background()
+                            };
+                            let glyph_style = Style::default()
+                                .fg(if lit {
+                                    crate::colors::text_bright()
+                                } else {
+                                    crate::colors::text_dim()
+                                })
+                                .bg(button_bg)
+                                .add_modifier(if lit { ratatui::style::Modifier::BOLD } else { ratatui::style::Modifier::empty() });
+
+                            let dismiss_glyph = crate::icons::dismiss();
+                            let dismiss_glyph = if unicode_width::UnicodeWidthStr::width(dismiss_glyph) == 1 {
+                                dismiss_glyph
+                            } else {
+                                "x"
+                            };
+
+                            // Top border
+                            buf.set_string(box_left, box_top, "┬", border_style);
+                            crate::util::buffer::fill_rect(
+                                buf,
+                                Rect::new(box_left.saturating_add(1), box_top, box_w.saturating_sub(2), 1),
+                                Some('─'),
+                                border_style,
+                            );
+
+                            // Content row
+                            let content_y = box_top.saturating_add(1);
+                            buf.set_string(box_left, content_y, "│", border_style);
+                            buf.set_string(right_edge, content_y, "│", border_style);
+                            crate::util::buffer::fill_rect(
+                                buf,
+                                Rect::new(box_left.saturating_add(1), content_y, box_w.saturating_sub(2), 1),
+                                Some(' '),
+                                Style::default().bg(button_bg),
+                            );
+                            buf.set_string(box_left.saturating_add(2), content_y, dismiss_glyph, glyph_style);
+
+                            // Bottom border
+                            let mut hit_height = 2u16;
+                            if window_area.height >= 4 {
+                                let bottom_y = content_y.saturating_add(1);
+                                buf.set_string(box_left, bottom_y, "└", border_style);
+                                crate::util::buffer::fill_rect(
+                                    buf,
+                                    Rect::new(box_left.saturating_add(1), bottom_y, box_w.saturating_sub(2), 1),
+                                    Some('─'),
+                                    border_style,
+                                );
+                                buf.set_string(right_edge, bottom_y, "┤", border_style);
+                                hit_height = 3;
+                            }
+
+                            self.help.close_rect.set(Rect {
+                                x: box_left,
+                                y: box_top,
+                                width: box_w,
+                                height: hit_height,
+                            });
+                        } else {
+                            self.help.close_rect.set(Rect::default());
+                        }
+                    }
 
                     // Paint inner bg
                     let inner_bg = Style::default().bg(crate::colors::background());
@@ -415,32 +497,122 @@ impl ChatWidget<'_> {
                         height: 1.min(inner.height),
                     };
                     if tab_area.height > 0 {
-                        let active_style = Style::default()
+                        let active_num_style = Style::default()
+                            .fg(crate::colors::text());
+                        let active_label_style = Style::default()
                             .fg(crate::colors::text())
                             .add_modifier(ratatui::style::Modifier::BOLD | ratatui::style::Modifier::UNDERLINED);
+                        let hover_style = Style::default()
+                            .fg(crate::colors::text());
                         let inactive_style = Style::default()
                             .fg(crate::colors::text_dim());
                         let sep_style = Style::default()
                             .fg(crate::colors::border());
 
-                        let mut spans: Vec<ratatui::text::Span<'_>> = Vec::new();
+                        let tab_numbers: [&str; 3] = [
+                            crate::icons::number_one(),
+                            crate::icons::number_two(),
+                            crate::icons::number_three(),
+                        ];
+
+                        // For ambiguous-width glyphs (eaw=A) the terminal may render 2 cells.
+                        // Use CJK width (treats A=2) to match what most terminal emulators do.
+                        let num_display_w = |s: &str| -> u16 {
+                            s.chars().map(|c| unicode_width::UnicodeWidthChar::width_cjk(c).unwrap_or(1) as u16).sum()
+                        };
+
+                        let mut tab_rects: Vec<Rect> = Vec::with_capacity(HelpTab::ALL.len());
+                        let mut col = tab_area.x;
                         for (i, tab) in HelpTab::ALL.iter().enumerate() {
                             if i > 0 {
-                                spans.push(ratatui::text::Span::styled(" │ ", sep_style));
+                                let sep = " │ ";
+                                buf.set_string(col, tab_area.y, sep, sep_style);
+                                col += sep.len() as u16;
                             }
-                            let label = format!(" {} {} ", i + 1, tab.label());
-                            if *tab == overlay.active_tab {
-                                spans.push(ratatui::text::Span::styled(label, active_style));
+
+                            let num = tab_numbers[i];
+                            let label_text = tab.label();
+                            let is_active = *tab == overlay.active_tab;
+                            let is_hovered = !is_active && self.help.hovered_tab.get() == Some(i);
+
+                            let tab_start = col;
+
+                            // Left pad + number: no underline (avoids gap on ambiguous-width glyphs)
+                            let (prefix_style, suffix_style) = if is_active {
+                                (active_num_style, active_label_style)
+                            } else if is_hovered {
+                                (hover_style, hover_style)
                             } else {
-                                spans.push(ratatui::text::Span::styled(label, inactive_style));
+                                (inactive_style, inactive_style)
+                            };
+
+                            buf.set_string(col, tab_area.y, " ", prefix_style);
+                            col += 1;
+
+                            buf.set_string(col, tab_area.y, num, prefix_style);
+                            let nw = num_display_w(num);
+                            // Clear continuation cells if terminal rendered as 2-wide
+                            for cx in (col + 1)..=(col + nw.saturating_sub(1)) {
+                                if buf[(cx, tab_area.y)].symbol().is_empty() {
+                                    buf[(cx, tab_area.y)].set_symbol(" ");
+                                }
                             }
+                            col += nw;
+
+                            // Space + label text + trailing space: underlined for active
+                            let text_part = format!(" {label_text} ");
+                            let text_w = unicode_width::UnicodeWidthStr::width(text_part.as_str()) as u16;
+                            buf.set_string(col, tab_area.y, &text_part, suffix_style);
+                            col += text_w;
+
+                            let total_w = col - tab_start;
+                            tab_rects.push(Rect {
+                                x: tab_start,
+                                y: tab_area.y,
+                                width: total_w,
+                                height: 1,
+                            });
                         }
-                        spans.push(ratatui::text::Span::styled(
-                            "     ◀ ▶ switch",
-                            Style::default().fg(crate::colors::text_dim()),
-                        ));
-                        let tab_line = ratatui::text::Line::from(spans);
-                        buf.set_line(tab_area.x, tab_area.y, &tab_line, tab_area.width);
+                        // Clickable arrows with spacing
+                        use crate::chatwidget::internals::state::HelpFocus;
+                        let focus = self.help.focus.get();
+
+                        let arrow_normal = Style::default().fg(crate::colors::text_dim());
+                        let arrow_highlight = Style::default()
+                            .fg(crate::colors::text_bright())
+                            .add_modifier(ratatui::style::Modifier::BOLD);
+
+                        let spacer = "   ";
+                        buf.set_string(col, tab_area.y, spacer, arrow_normal);
+                        col += spacer.len() as u16;
+
+                        let prev_arrow = crate::icons::arrow_left();
+                        let prev_w = unicode_width::UnicodeWidthStr::width(prev_arrow).max(1) as u16;
+                        let prev_lit = self.help.prev_hovered.get() || focus == HelpFocus::PrevArrow;
+                        buf.set_string(col, tab_area.y, prev_arrow, if prev_lit { arrow_highlight } else { arrow_normal });
+                        self.help.prev_arrow_rect.set(Rect {
+                            x: col,
+                            y: tab_area.y,
+                            width: prev_w,
+                            height: 1,
+                        });
+                        col += prev_w;
+
+                        buf.set_string(col, tab_area.y, " ", arrow_normal);
+                        col += 1;
+
+                        let next_arrow = crate::icons::arrow_right();
+                        let next_w = unicode_width::UnicodeWidthStr::width(next_arrow).max(1) as u16;
+                        let next_lit = self.help.next_hovered.get() || focus == HelpFocus::NextArrow;
+                        buf.set_string(col, tab_area.y, next_arrow, if next_lit { arrow_highlight } else { arrow_normal });
+                        self.help.next_arrow_rect.set(Rect {
+                            x: col,
+                            y: tab_area.y,
+                            width: next_w,
+                            height: 1,
+                        });
+
+                        *self.help.tab_rects.borrow_mut() = tab_rects;
                     }
 
                     // Body area below tab bar with one cell padding

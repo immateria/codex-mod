@@ -266,10 +266,63 @@ pub(crate) struct DiffsState {
     pub(crate) body_visible_rows: std::cell::Cell<u16>,
 }
 
+/// Which interactive element in the help overlay has keyboard focus.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum HelpFocus {
+    /// No focus ring — arrow keys scroll, number keys switch tabs.
+    #[default]
+    Content,
+    /// Focus is on the prev (◀) arrow button.
+    PrevArrow,
+    /// Focus is on the next (▶) arrow button.
+    NextArrow,
+    /// Focus is on the close (×) button.
+    CloseButton,
+}
+
+impl HelpFocus {
+    pub(crate) fn next(self) -> Self {
+        match self {
+            Self::Content => Self::PrevArrow,
+            Self::PrevArrow => Self::NextArrow,
+            Self::NextArrow => Self::CloseButton,
+            Self::CloseButton => Self::Content,
+        }
+    }
+    pub(crate) fn prev(self) -> Self {
+        match self {
+            Self::Content => Self::CloseButton,
+            Self::PrevArrow => Self::Content,
+            Self::NextArrow => Self::PrevArrow,
+            Self::CloseButton => Self::NextArrow,
+        }
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct HelpState {
     pub(crate) overlay: Option<HelpOverlay>,
     pub(crate) body_visible_rows: std::cell::Cell<u16>,
+    /// Layout rect of each tab label, set during render.
+    pub(crate) tab_rects: std::cell::RefCell<Vec<ratatui::layout::Rect>>,
+    /// Layout rect of the close button, set during render.
+    pub(crate) close_rect: std::cell::Cell<ratatui::layout::Rect>,
+    /// Whether the close button is currently hovered (mouse).
+    pub(crate) close_hovered: std::cell::Cell<bool>,
+    /// Layout rect of the prev (◀) arrow, set during render.
+    pub(crate) prev_arrow_rect: std::cell::Cell<ratatui::layout::Rect>,
+    /// Whether the prev arrow is currently hovered (mouse).
+    pub(crate) prev_hovered: std::cell::Cell<bool>,
+    /// Layout rect of the next (▶) arrow, set during render.
+    pub(crate) next_arrow_rect: std::cell::Cell<ratatui::layout::Rect>,
+    /// Whether the next arrow is currently hovered (mouse).
+    pub(crate) next_hovered: std::cell::Cell<bool>,
+    /// Which element has keyboard focus (Tab cycles through).
+    pub(crate) focus: std::cell::Cell<HelpFocus>,
+    /// Layout rect of the overlay window (for mouse containment).
+    pub(crate) window_rect: std::cell::Cell<ratatui::layout::Rect>,
+    /// Index of the tab currently under the mouse cursor (for hover state).
+    pub(crate) hovered_tab: std::cell::Cell<Option<usize>>,
 }
 
 #[derive(Default)]
