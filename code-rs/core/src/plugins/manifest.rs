@@ -294,7 +294,11 @@ fn resolve_default_prompts(
 }
 
 fn resolve_default_prompt_str(plugin_root: &Path, field: &str, prompt: &str) -> Option<String> {
-    let prompt = prompt.split_whitespace().collect::<Vec<_>>().join(" ");
+    let prompt = prompt.split_whitespace().fold(String::new(), |mut acc, w| {
+        if !acc.is_empty() { acc.push(' '); }
+        acc.push_str(w);
+        acc
+    });
     if prompt.is_empty() {
         warn_invalid_default_prompt(plugin_root, field, "prompt must not be empty");
         return None;

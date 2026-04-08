@@ -25,10 +25,6 @@ const GEMINI_PRO_READ_ONLY:       &[&str] = &[];
 const GEMINI_PRO_WRITE:           &[&str] = &["-y"];
 const GEMINI_FLASH_READ_ONLY:     &[&str] = &[];
 const GEMINI_FLASH_WRITE:         &[&str] = &["-y"];
-#[allow(dead_code)]
-const COPILOT_READ_ONLY:          &[&str] = &["--autopilot", "--allow-all-tools", "--no-ask-user", "-s"];
-#[allow(dead_code)]
-const COPILOT_WRITE:              &[&str] = &["--autopilot", "--yolo", "--no-ask-user", "-s"];
 const QWEN_3_CODER_READ_ONLY:     &[&str] = &[];
 const QWEN_3_CODER_WRITE:         &[&str] = &["-y"];
 const CLOUD_GPT5_CODEX_READ_ONLY: &[&str] = &[];
