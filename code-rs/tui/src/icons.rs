@@ -374,6 +374,108 @@ define_icon_functions! {
     list_bullet_l3   => LIST_BULLET_L3     ("\u{f111}", "-");       // nf-fa-circle
     /// Level-4+ list bullet.
     list_bullet_deep => LIST_BULLET_DEEP   ("\u{f10c}", "⋅");       // nf-fa-circle_o
+
+    // ── File system ────────────────────────────────────────────────────
+
+    /// Generic file.
+    file             => FILE               ("\u{f15b}", "⊡");       // nf-fa-file
+    /// Closed folder.
+    folder           => FOLDER             ("\u{f07b}", "▤");       // nf-fa-folder
+    /// Open folder.
+    folder_open      => FOLDER_OPEN        ("\u{f07c}", "▥");       // nf-fa-folder_open
+
+    // ── Actions ────────────────────────────────────────────────────────
+
+    /// Edit / pencil.
+    edit_pencil      => EDIT_PENCIL        ("\u{f040}", "✎");       // nf-fa-pencil
+    /// Delete / trash.
+    trash            => TRASH              ("\u{f1f8}", "✕");       // nf-fa-trash
+    /// Save / floppy disk.
+    save             => SAVE               ("\u{f0c7}", "⊟");       // nf-fa-floppy_o
+    /// Refresh / reload.
+    refresh          => REFRESH            ("\u{f021}", "↺");       // nf-fa-refresh
+    /// Search / magnify.
+    search           => SEARCH             ("\u{f002}", "⌕");       // nf-fa-search
+    /// Filter / funnel.
+    filter           => FILTER             ("\u{f0b0}", "▽");       // nf-fa-filter
+    /// Hyperlink.
+    link             => LINK               ("\u{f0c1}", "⌁");       // nf-fa-link
+    /// External link (opens outside).
+    external_link    => EXTERNAL_LINK      ("\u{f08e}", "↗");       // nf-fa-external_link
+    /// Send / submit.
+    send             => SEND               ("\u{f1d9}", "↵");       // nf-fa-paper_plane
+
+    // ── State toggles ──────────────────────────────────────────────────
+
+    /// Locked.
+    lock             => LOCK               ("\u{f023}", "⊘");       // nf-fa-lock
+    /// Unlocked.
+    unlock           => UNLOCK             ("\u{f09c}", "⊙");       // nf-fa-unlock
+    /// Visible / show.
+    eye_show         => EYE_SHOW           ("\u{f06e}", "◉");       // nf-fa-eye
+    /// Hidden / masked.
+    eye_hide         => EYE_HIDE           ("\u{f070}", "◎");       // nf-fa-eye_slash
+    /// Pinned.
+    pin              => PIN                ("\u{f08d}", "♦");       // nf-fa-thumb_tack
+    /// Favourite (empty star).
+    star_empty       => STAR_EMPTY         ("\u{f006}", "☆");       // nf-fa-star_o
+    /// Bookmarked.
+    bookmark         => BOOKMARK           ("\u{f02e}", "⊲");       // nf-fa-bookmark
+
+    // ── Time & reference ──────────────────────────────────────────────
+
+    /// Clock / timestamp.
+    clock            => CLOCK              ("\u{f017}", "◷");       // nf-fa-clock_o
+    /// Tag / label.
+    tag              => TAG                ("\u{f02b}", "◈");       // nf-fa-tag
+    /// Hash / number sign.
+    hash_symbol      => HASH_SYMBOL        ("\u{f292}", "#");       // nf-fa-hashtag
+
+    // ── Navigation & layout ────────────────────────────────────────────
+
+    /// Home / root.
+    home             => HOME               ("\u{f015}", "⌂");       // nf-fa-home
+    /// Horizontal ellipsis (more items).
+    ellipsis_h       => ELLIPSIS_H         ("\u{f141}", "…");       // nf-fa-ellipsis_h
+    /// Vertical ellipsis (more items).
+    ellipsis_v       => ELLIPSIS_V         ("\u{f142}", "⋮");       // nf-fa-ellipsis_v
+    /// Word wrap toggle.
+    word_wrap        => WORD_WRAP          ("\u{f035}", "↩");       // nf-fa-text_width
+
+    // ── Git ────────────────────────────────────────────────────────────
+
+    /// Git branch.
+    git_branch       => GIT_BRANCH         ("\u{e725}", "⎇");       // nf-dev-git_branch
+    /// Git commit.
+    git_commit       => GIT_COMMIT         ("\u{e729}", "○");       // nf-dev-git_commit
+    /// Git merge.
+    git_merge        => GIT_MERGE          ("\u{e727}", "⊕");       // nf-dev-git_merge
+
+    // ── Additional language icons ──────────────────────────────────────
+
+    /// Python language icon.
+    python_icon      => PYTHON_ICON        ("\u{e606}", "PY");      // nf-dev-python
+    /// TypeScript language icon.
+    typescript_icon  => TYPESCRIPT_ICON    ("\u{e628}", "TS");      // nf-dev-typescript
+    /// Go language icon.
+    go_icon          => GO_ICON            ("\u{e626}", "GO");      // nf-dev-go
+    /// HTML language icon.
+    html_icon        => HTML_ICON          ("\u{f13b}", "HT");      // nf-fa-html5
+    /// CSS language icon.
+    css_icon         => CSS_ICON           ("\u{f13c}", "CS");      // nf-fa-css3
+
+    // ── System / environment ───────────────────────────────────────────
+
+    /// Settings gear / cog.
+    settings_gear    => SETTINGS_GEAR      ("\u{f013}", "⚙");       // nf-fa-cog
+    /// Cloud / remote.
+    cloud            => CLOUD              ("\u{f0c2}", "☁");       // nf-fa-cloud
+    /// Notification bell.
+    bell             => BELL               ("\u{f0f3}", "◔");       // nf-fa-bell
+    /// Muted bell.
+    bell_off         => BELL_OFF           ("\u{f1f6}", "○");       // nf-fa-bell_slash
+    /// Robot / AI agent.
+    robot            => ROBOT              ("\u{f544}", "⊛");       // nf-fa-robot
 }
 
 // ── Settings sidebar section icons ───────────────────────────────────
