@@ -18,6 +18,7 @@ use crate::history_cell::{
     stream_lines_from_state,
     AssistantLayoutCache,
     AssistantMarkdownCell,
+    CollapsedContext,
     HistoryCell,
 };
 use code_core::config::Config;

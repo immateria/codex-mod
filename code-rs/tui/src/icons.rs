@@ -337,6 +337,8 @@ define_icon_functions! {
     paste_content    => PASTE_CONTENT      ("\u{f0192}", "Paste");
     /// Cut content action.
     cut_content      => CUT_CONTENT        ("\u{f0190}", "Cut");
+    /// Scroll to top of a cell.
+    scroll_to_top    => SCROLL_TO_TOP      ("\u{f55c}", "↑Top"); // nf-mdi-arrow_collapse_up
 
     // ── Number glyphs ──────────────────────────────────────────────────
 

@@ -73,6 +73,20 @@ impl ChatWidget<'_> {
             false
         };
 
+        // Precompute 1-indexed reply number for each assistant cell so
+        // collapsed summaries can show "R #N".
+        let assistant_reply_numbers: Vec<usize> = {
+            let mut nums = vec![0usize; history_len];
+            let mut counter = 0usize;
+            for (i, cell) in self.history_cells.iter().enumerate() {
+                if matches!(cell.kind(), crate::history_cell::HistoryCellType::Assistant) {
+                    counter += 1;
+                    nums[i] = counter;
+                }
+            }
+            nums
+        };
+
         for (offset, visible) in visible_slice.iter().enumerate() {
             let idx = start_idx + offset;
             let Some(item) = visible.cell else {
@@ -81,6 +95,16 @@ impl ChatWidget<'_> {
 
             let item_kind = item.kind();
             let content_width = content_area.width.saturating_sub(GUTTER_WIDTH);
+
+            // Set reply number on assistant cells so collapsed summaries show "R #N".
+            if matches!(item_kind, crate::history_cell::HistoryCellType::Assistant) {
+                if let Some(assistant) = item.as_any()
+                    .downcast_ref::<crate::history_cell::AssistantMarkdownCell>()
+                {
+                    let rn = assistant_reply_numbers.get(idx).copied().unwrap_or(0);
+                    assistant.set_reply_number(rn);
+                }
+            }
 
             let mut layout_for_render: Option<Rc<CachedLayout>> = visible
                 .layout
@@ -493,8 +517,10 @@ impl ChatWidget<'_> {
                 }
 
                 // Register fold toggle click target for foldable cells.
-                // The target covers the gutter (fold indicator) plus a generous
-                // portion of the first two content rows so it's easy to click.
+                // The target covers the gutter plus generous content width.
+                // When the cell is partially scrolled (skip_top > 0), we still
+                // register the fold region at the first visible row so the user
+                // can always click to collapse/expand.
                 if item.is_fold_toggleable() && visible_height > 0 {
                     let gutter_x = content_area.x;
                     let fold_click_width = GUTTER_WIDTH.saturating_add(
@@ -566,12 +592,12 @@ impl ChatWidget<'_> {
                             label.width() as u16
                         };
                         // Inset: 1 row from top, 2 cols from right.
-                        let x = item_area
+                        let btn_x = item_area
                             .x
                             .saturating_add(item_area.width)
                             .saturating_sub(label_w + 2);
-                        let y = item_area.y.saturating_add(1);
-                        if y < item_area.y.saturating_add(visible_height) {
+                        let btn_y = item_area.y.saturating_add(1);
+                        if btn_y < item_area.y.saturating_add(visible_height) {
                             let action = crate::chatwidget::ClickableAction::CopyMarkdownAtIndex(idx);
                             let hovered = self.hovered_clickable_action.borrow().as_ref() == Some(&action);
                             let style = if hovered {
@@ -583,13 +609,43 @@ impl ChatWidget<'_> {
                                     .bg(crate::colors::background())
                                     .fg(crate::colors::text_dim())
                             };
-                            buf.set_string(x, y, label, style);
+                            buf.set_string(btn_x, btn_y, label, style);
                             self.clickable_regions.borrow_mut().push(
                                 crate::chatwidget::ClickableRegion {
-                                    rect: Rect::new(x, y, label_w.max(1), 1),
+                                    rect: Rect::new(btn_x, btn_y, label_w.max(1), 1),
                                     action,
                                 },
                             );
+
+                            // Scroll-to-top button: shown when the cell's header
+                            // is scrolled above the viewport (skip_top > 0).
+                            if skip_top > 0 {
+                                let scroll_label = crate::icons::scroll_to_top();
+                                let scroll_w = {
+                                    use unicode_width::UnicodeWidthStr as _;
+                                    scroll_label.width() as u16
+                                };
+                                let sx = btn_x.saturating_sub(scroll_w + 1);
+                                let sy = btn_y;
+                                let scroll_action = crate::chatwidget::ClickableAction::ScrollToTopOfCell(idx);
+                                let scroll_hovered = self.hovered_clickable_action.borrow().as_ref() == Some(&scroll_action);
+                                let scroll_style = if scroll_hovered {
+                                    Style::default()
+                                        .bg(crate::colors::background())
+                                        .fg(crate::colors::primary())
+                                } else {
+                                    Style::default()
+                                        .bg(crate::colors::background())
+                                        .fg(crate::colors::text_dim())
+                                };
+                                buf.set_string(sx, sy, scroll_label, scroll_style);
+                                self.clickable_regions.borrow_mut().push(
+                                    crate::chatwidget::ClickableRegion {
+                                        rect: Rect::new(sx, sy, scroll_w.max(1), 1),
+                                        action: scroll_action,
+                                    },
+                                );
+                            }
                         }
                     }
                 }

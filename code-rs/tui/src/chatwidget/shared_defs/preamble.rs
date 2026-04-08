@@ -689,6 +689,8 @@ enum ClickableAction {
     DismissHistoryCellAtIndex(usize),
     /// Copy markdown content of a history cell to system clipboard via OSC 52.
     CopyMarkdownAtIndex(usize),
+    /// Scroll the viewport so the top of this cell is visible.
+    ScrollToTopOfCell(usize),
 }
 
 /// A clickable region with its screen coordinates and associated action

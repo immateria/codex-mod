@@ -23,9 +23,12 @@ pub(crate) struct AssistantMarkdownCell {
     state: AssistantMessageState,
     file_opener: UriBasedFileOpener,
     cwd: PathBuf,
+    model_name: String,
     layout_cache: RefCell<HashMap<u16, Rc<AssistantLayoutCache>>>,
     rendered_lines_cache: RefCell<Option<Rc<Vec<Line<'static>>>>>,
     collapsed: Cell<bool>,
+    /// 1-indexed position among assistant cells; set by the render loop.
+    reply_number: Cell<usize>,
 }
 
 impl AssistantMarkdownCell {
@@ -37,9 +40,11 @@ impl AssistantMarkdownCell {
             state,
             file_opener: cfg.file_opener,
             cwd: cfg.cwd.clone(),
+            model_name: cfg.model.clone(),
             layout_cache: RefCell::new(HashMap::new()),
             rendered_lines_cache: RefCell::new(None),
             collapsed: Cell::new(false),
+            reply_number: Cell::new(0),
         }
     }
 
@@ -51,6 +56,7 @@ impl AssistantMarkdownCell {
         self.state = state;
         self.file_opener = cfg.file_opener;
         self.cwd = cfg.cwd.clone();
+        self.model_name = cfg.model.clone();
         self.layout_cache.borrow_mut().clear();
         self.rendered_lines_cache.borrow_mut().take();
     }
@@ -83,16 +89,60 @@ impl AssistantMarkdownCell {
         self.rendered_lines_cache.borrow_mut().take();
     }
 
-    fn collapsed_summary_line(&self) -> Line<'static> {
+    pub(crate) fn set_reply_number(&self, n: usize) {
+        self.reply_number.set(n);
+    }
+
+    /// Build collapsed display lines for this cell.
+    /// `reply_number` is the 1-indexed position among assistant cells in the history.
+    pub(crate) fn collapsed_summary_lines(&self, reply_number: usize) -> Vec<Line<'static>> {
+        let dim = Style::new().fg(crate::colors::text_dim());
+        let bright = Style::new().fg(crate::colors::text_bright());
+
+        // Line 1: R #N · model · timestamp
+        let mut header_spans = vec![
+            Span::styled(format!("R #{reply_number}"), bright),
+        ];
+        if !self.model_name.is_empty() {
+            header_spans.push(Span::styled(" · ", dim));
+            header_spans.push(Span::styled(self.model_name.clone(), dim));
+        }
+        // Timestamp
+        let ts = self.state.created_at;
+        if let Ok(elapsed) = ts.elapsed() {
+            let secs = elapsed.as_secs();
+            let ago = if secs < 60 {
+                format!("{secs}s ago")
+            } else if secs < 3600 {
+                format!("{}m ago", secs / 60)
+            } else {
+                format!("{}h {}m ago", secs / 3600, (secs % 3600) / 60)
+            };
+            header_spans.push(Span::styled(" · ", dim));
+            header_spans.push(Span::styled(ago, dim));
+        }
+        // Token summary
+        if let Some(usage) = self.state.token_usage.as_ref() {
+            header_spans.push(Span::styled(" · ", dim));
+            header_spans.push(Span::styled(
+                format!("in:{} out:{}", usage.input_tokens, usage.output_tokens),
+                dim,
+            ));
+        }
+
+        // Line 2: ▶ content preview
         let md = &self.state.markdown;
         let first_line = md.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
         let preview = crate::text_formatting::truncate_chars_with_ellipsis(first_line.trim(), 72);
-        let dim = Style::new().fg(crate::colors::text_dim());
-        Line::from(vec![
-            Span::styled(crate::icons::collapse_closed(), dim),
-            Span::styled(" ", dim),
-            Span::styled(preview, dim),
-        ])
+
+        vec![
+            Line::from(header_spans),
+            Line::from(vec![
+                Span::styled(crate::icons::collapse_closed(), dim),
+                Span::styled(" ", dim),
+                Span::styled(preview, dim),
+            ]),
+        ]
     }
 
     pub(crate) fn state_mut(&mut self) -> &mut AssistantMessageState {
@@ -320,9 +370,17 @@ impl HistoryCell for AssistantMarkdownCell {
         self.collapsed.get()
     }
 
+    fn collapsed_display_lines(&self, ctx: &super::CollapsedContext) -> Vec<Line<'static>> {
+        self.collapsed_summary_lines(ctx.reply_number)
+    }
+
+    fn collapsed_height(&self) -> u16 {
+        2
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
         if self.collapsed.get() {
-            return vec![self.collapsed_summary_line()];
+            return self.collapsed_summary_lines(self.reply_number.get());
         }
         assistant_markdown_lines_with_context(&self.state, self.file_opener, &self.cwd)
     }
@@ -333,7 +391,7 @@ impl HistoryCell for AssistantMarkdownCell {
 
     fn desired_height(&self, width: u16) -> u16 {
         if self.collapsed.get() {
-            return 1;
+            return self.collapsed_height();
         }
         self.ensure_layout(width).total_rows()
     }

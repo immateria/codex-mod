@@ -52,6 +52,7 @@ pub(crate) use background::{
 };
 pub(crate) use context::ContextCell;
 pub(crate) use core::{
+    CollapsedContext,
     CommandOutput,
     ExecKind,
     gutter_symbol_for_kind,

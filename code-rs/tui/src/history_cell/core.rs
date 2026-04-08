@@ -148,6 +148,13 @@ pub(crate) enum PatchKind {
     ApplyFailure,
 }
 
+/// Context passed to `collapsed_display_lines()` with metadata
+/// that the cell itself doesn't track (e.g. its ordinal position).
+pub(crate) struct CollapsedContext {
+    /// 1-indexed position among cells of the same kind (e.g. assistant reply #3).
+    pub reply_number: usize,
+}
+
 /// Represents an event to display in the conversation history.
 /// Returns its `Vec<Line<'static>>` representation to make it easier
 /// to display in a scrollable list.
@@ -279,6 +286,19 @@ pub(crate) trait HistoryCell {
         false
     }
 
+    /// Returns the display lines to show when this cell is collapsed.
+    /// `ctx` provides metadata that the cell doesn't track internally
+    /// (e.g. its position among siblings of the same kind).
+    fn collapsed_display_lines(&self, _ctx: &CollapsedContext) -> Vec<Line<'static>> {
+        vec![]
+    }
+
+    /// Height of this cell when collapsed. Override if collapsed state
+    /// uses more than 1 line.
+    fn collapsed_height(&self) -> u16 {
+        1
+    }
+
     /// Returns the content of this cell as markdown text for clipboard copy.
     /// Default extracts plain text from display_lines(); cells with richer
     /// content (e.g. AssistantMarkdownCell) override to return the raw markdown.
@@ -372,6 +392,14 @@ impl HistoryCell for Box<dyn HistoryCell> {
 
     fn is_collapsed(&self) -> bool {
         self.as_ref().is_collapsed()
+    }
+
+    fn collapsed_display_lines(&self, ctx: &CollapsedContext) -> Vec<Line<'static>> {
+        self.as_ref().collapsed_display_lines(ctx)
+    }
+
+    fn collapsed_height(&self) -> u16 {
+        self.as_ref().collapsed_height()
     }
 
     fn copyable_markdown(&self) -> Option<String> {

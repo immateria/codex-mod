@@ -360,11 +360,11 @@ impl HistoryRenderState {
                     None
                 } else if use_cache && req.history_id != HistoryId::ZERO {
                     Some(self.render_cached(req.history_id, settings, || {
-                        req.build_lines(history_state)
+                        req.build_lines(history_state, None)
                     }))
                 } else {
                     Some(self.render_adhoc(settings.width, || {
-                        req.build_lines(history_state)
+                        req.build_lines(history_state, None)
                     }))
                 };
 

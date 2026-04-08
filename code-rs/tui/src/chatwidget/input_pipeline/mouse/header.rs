@@ -131,6 +131,9 @@ impl ChatWidget<'_> {
                     }
                 }
             }
+            ClickableAction::ScrollToTopOfCell(idx) => {
+                layout_scroll::jump_to_history_index(self, idx);
+            }
         }
     }
 

@@ -321,6 +321,10 @@ impl HistoryCell for PlainHistoryCell {
         self.collapsed.get()
     }
 
+    fn collapsed_display_lines(&self, _ctx: &super::CollapsedContext) -> Vec<Line<'static>> {
+        vec![self.collapsed_summary_line()]
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
         if self.collapsed.get() {
             return vec![self.collapsed_summary_line()];
