@@ -139,12 +139,8 @@ impl InterfaceSettingsView {
                             Style::new().fg(crate::colors::function()),
                         )),
                         RowKind::NerdFonts => Some(StyledText::new(
-                            if self.nerd_fonts { "on" } else { "off" },
-                            if self.nerd_fonts {
-                                Style::new().fg(crate::colors::success())
-                            } else {
-                                Style::new().fg(crate::colors::text_dim())
-                            },
+                            self.icon_mode.label(),
+                            Style::new().fg(crate::colors::function()),
                         )),
                         RowKind::HotkeyScope => Some(StyledText::new(
                             self.hotkey_scope.label(),
@@ -154,7 +150,7 @@ impl InterfaceSettingsView {
                         RowKind::Apply => {
                             let is_dirty = self.dirty_settings
                                 || self.dirty_hotkeys
-                                || self.nerd_fonts != self.nerd_fonts_baseline;
+                                || self.icon_mode != self.icon_mode_baseline;
                             Some(StyledText::new(
                                 if is_dirty { "Pending" } else { "Saved" },
                                 if is_dirty {

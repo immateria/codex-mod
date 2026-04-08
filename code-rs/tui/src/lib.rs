@@ -852,8 +852,8 @@ fn run_ratatui_app(
         ..
     } = cli;
 
-    // Activate NerdFont glyphs if the user opted in via config.toml [tui].
-    icons::init(config.tui.nerd_fonts, config.tui.icons.clone());
+    // Activate icon mode from config.toml [tui].
+    icons::init(config.tui.effective_icon_mode(), config.tui.icons.clone());
 
     let mut app = App::new(app::AppInitArgs {
         config: config.clone(),

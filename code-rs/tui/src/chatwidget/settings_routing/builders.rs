@@ -40,7 +40,7 @@ impl ChatWidget<'_> {
             self.config.code_home.clone(),
             self.config.tui.settings_menu.clone(),
             self.config.tui.hotkeys.clone(),
-            self.config.tui.nerd_fonts,
+            self.config.tui.effective_icon_mode(),
             self.app_event_tx.clone(),
         )
     }

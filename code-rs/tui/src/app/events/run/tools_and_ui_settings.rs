@@ -124,20 +124,20 @@
                     }
                     self.schedule_redraw();
                 }
-                AppEvent::SetNerdFonts(enabled) => {
-                    crate::icons::set_nerd_fonts(enabled);
-                    match code_core::config::set_tui_nerd_fonts(&self.config.code_home, enabled) {
+                AppEvent::SetIconMode(mode) => {
+                    crate::icons::set_icon_mode(mode);
+                    match code_core::config::set_tui_icon_mode(&self.config.code_home, mode) {
                         Ok(()) => {
-                            self.config.tui.nerd_fonts = enabled;
+                            self.config.tui.icon_mode = Some(mode);
+                            self.config.tui.nerd_fonts = None; // clear legacy
                             if let AppState::Chat { widget } = &mut self.app_state {
-                                let label = if enabled { "on" } else { "off" };
-                                widget.flash_footer_notice(format!("NerdFont icons: {label}"));
+                                widget.flash_footer_notice(format!("Icon mode: {}", mode.label()));
                             }
                         }
                         Err(err) => {
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.flash_footer_notice(format!(
-                                    "Failed to persist NerdFont setting: {err}",
+                                    "Failed to persist icon mode: {err}",
                                 ));
                             }
                         }

@@ -1583,9 +1583,10 @@ pub fn set_tui_alternate_screen(code_home: &Path, enabled: bool) -> anyhow::Resu
     Ok(())
 }
 
-/// Persist the NerdFont icon preference into
-/// `CODEX_HOME/config.toml` at `[tui].nerd_fonts`.
-pub fn set_tui_nerd_fonts(code_home: &Path, enabled: bool) -> anyhow::Result<()> {
+/// Persist the icon-mode preference into
+/// `CODEX_HOME/config.toml` at `[tui].icon_mode`, and remove the legacy
+/// `nerd_fonts` key if present.
+pub fn set_tui_icon_mode(code_home: &Path, mode: crate::config_types::IconMode) -> anyhow::Result<()> {
     let config_path = code_home.join(CONFIG_TOML_FILE);
     let read_path = resolve_code_path_for_read(code_home, Path::new(CONFIG_TOML_FILE));
     let mut doc = match std::fs::read_to_string(&read_path) {
@@ -1593,7 +1594,11 @@ pub fn set_tui_nerd_fonts(code_home: &Path, enabled: bool) -> anyhow::Result<()>
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => DocumentMut::new(),
         Err(e) => return Err(e.into()),
     };
-    doc["tui"]["nerd_fonts"] = toml_edit::value(enabled);
+    doc["tui"]["icon_mode"] = toml_edit::value(mode.as_str());
+    // Remove deprecated legacy key.
+    if let Some(tui) = doc.get_mut("tui").and_then(|v| v.as_table_mut()) {
+        tui.remove("nerd_fonts");
+    }
     std::fs::create_dir_all(code_home)?;
     let tmp_file = NamedTempFile::new_in(code_home)?;
     std::fs::write(tmp_file.path(), doc.to_string())?;

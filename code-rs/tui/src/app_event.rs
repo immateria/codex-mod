@@ -877,7 +877,7 @@ pub(crate) enum AppEvent {
     SetJsReplSettings(code_core::config::JsReplSettingsToml),
     SetTuiSettingsMenuConfig(SettingsMenuConfig),
     SetTuiHotkeysConfig(TuiHotkeysConfig),
-    SetNerdFonts(bool),
+    SetIconMode(code_core::config_types::IconMode),
     StatusLineSetup {
         top_items: Vec<StatusLineItem>,
         bottom_items: Vec<StatusLineItem>,

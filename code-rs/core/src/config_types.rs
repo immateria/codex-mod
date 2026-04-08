@@ -2196,6 +2196,106 @@ impl Default for SettingsMenuConfig {
     }
 }
 
+// ── Icon mode & per-icon override types ─────────────────────────────
+
+/// Icon display mode controlling which glyph tier is rendered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum IconMode {
+    /// NerdFont PUA glyphs (requires a NerdFont-patched terminal font).
+    NerdFonts,
+    /// Standard Unicode symbols (the default — works in any modern terminal).
+    Unicode,
+    /// Pure ASCII fallbacks (for minimal/legacy terminals).
+    Ascii,
+}
+
+impl Default for IconMode {
+    fn default() -> Self { Self::Unicode }
+}
+
+impl IconMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NerdFonts => "nerd_fonts",
+            Self::Unicode   => "unicode",
+            Self::Ascii     => "ascii",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::NerdFonts => "NerdFont",
+            Self::Unicode   => "Unicode",
+            Self::Ascii     => "ASCII",
+        }
+    }
+
+    pub fn next(self) -> Self {
+        match self {
+            Self::Unicode   => Self::NerdFonts,
+            Self::NerdFonts => Self::Ascii,
+            Self::Ascii     => Self::Unicode,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Self::Unicode   => Self::Ascii,
+            Self::NerdFonts => Self::Unicode,
+            Self::Ascii     => Self::NerdFonts,
+        }
+    }
+
+    /// Numeric representation for atomic storage.
+    pub fn as_u8(self) -> u8 {
+        match self {
+            Self::NerdFonts => 0,
+            Self::Unicode   => 1,
+            Self::Ascii     => 2,
+        }
+    }
+
+    /// Reconstruct from numeric representation.
+    pub fn from_u8(v: u8) -> Self {
+        match v {
+            0 => Self::NerdFonts,
+            2 => Self::Ascii,
+            _ => Self::Unicode,
+        }
+    }
+}
+
+/// Per-icon override — either a single string for all tiers, or per-tier strings.
+///
+/// ```toml
+/// [tui.icons]
+/// checkbox_on = "✅"             # override all tiers
+///
+/// [tui.icons.gutter_user]        # override individual tiers
+/// ascii = ">"
+/// unicode = "›"
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum IconOverrideValue {
+    /// Override all tiers with the same string.
+    All(String),
+    /// Override individual tiers.
+    PerTier(IconOverrideTiers),
+}
+
+/// Per-tier icon override strings.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, JsonSchema)]
+pub struct IconOverrideTiers {
+    #[serde(default)]
+    pub nerd: Option<String>,
+    #[serde(default)]
+    pub unicode: Option<String>,
+    #[serde(default)]
+    pub ascii: Option<String>,
+}
+
 #[derive(Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct Tui {
     /// Theme configuration for the TUI
@@ -2310,16 +2410,22 @@ pub struct Tui {
     #[serde(default)]
     pub hotkeys: TuiHotkeysConfig,
 
-    /// Use NerdFont glyphs for UI icons (requires a NerdFont-patched terminal font).
-    /// When false (the default), only standard Unicode symbols are used.
+    /// Icon display mode: `nerd_fonts`, `unicode`, or `ascii`.
+    /// Replaces the legacy `nerd_fonts` boolean.
     #[serde(default)]
-    pub nerd_fonts: bool,
+    pub icon_mode: Option<IconMode>,
+
+    /// **Deprecated** — use `icon_mode` instead.
+    /// Legacy boolean: `true` maps to `icon_mode = "nerd_fonts"`.
+    #[serde(default)]
+    pub nerd_fonts: Option<bool>,
 
     /// Per-icon overrides.  Keys match the accessor function names in
     /// `tui/src/icons.rs` (e.g. `gutter_user`, `bullet`, `arrow_left`).
-    /// Values are arbitrary Unicode strings displayed in place of the default.
+    /// A string value overrides all tiers; a table with `nerd`, `unicode`,
+    /// and/or `ascii` keys overrides individual tiers.
     #[serde(default)]
-    pub icons: std::collections::HashMap<String, String>,
+    pub icons: std::collections::HashMap<String, IconOverrideValue>,
 }
 
 fn deserialize_theme_config<'de, D>(deserializer: D) -> Result<ThemeConfig, D::Error>
@@ -2498,9 +2604,25 @@ impl Default for Tui {
             limits: LimitsUiConfig::default(),
             settings_menu: SettingsMenuConfig::default(),
             hotkeys: TuiHotkeysConfig::default(),
-            nerd_fonts: false,
+            icon_mode: None,
+            nerd_fonts: None,
             icons: std::collections::HashMap::new(),
         }
+    }
+}
+
+impl Tui {
+    /// Resolve the effective icon mode, honouring the legacy `nerd_fonts` boolean.
+    ///
+    /// Priority: `icon_mode` (if set) > `nerd_fonts = true` → NerdFonts > Unicode.
+    pub fn effective_icon_mode(&self) -> IconMode {
+        if let Some(mode) = self.icon_mode {
+            return mode;
+        }
+        if self.nerd_fonts == Some(true) {
+            return IconMode::NerdFonts;
+        }
+        IconMode::Unicode
     }
 }
 

@@ -130,7 +130,7 @@ pub use sources::{
     set_tui_header_show_bottom_line,
     set_tui_hotkeys,
     set_tui_limits_layout_mode,
-    set_tui_nerd_fonts,
+    set_tui_icon_mode,
     set_tui_notifications,
     set_tui_settings_menu,
     set_tui_status_line,

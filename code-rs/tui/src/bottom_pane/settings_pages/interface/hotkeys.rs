@@ -481,9 +481,9 @@ impl InterfaceSettingsView {
             saved_any = true;
         }
 
-        if self.nerd_fonts != self.nerd_fonts_baseline {
-            self.app_event_tx.send(AppEvent::SetNerdFonts(self.nerd_fonts));
-            self.nerd_fonts_baseline = self.nerd_fonts;
+        if self.icon_mode != self.icon_mode_baseline {
+            self.app_event_tx.send(AppEvent::SetIconMode(self.icon_mode));
+            self.icon_mode_baseline = self.icon_mode;
             saved_any = true;
         }
 
@@ -538,9 +538,15 @@ impl InterfaceSettingsView {
         self.status = Some((message, is_error));
     }
 
-    pub(super) fn toggle_nerd_fonts(&mut self) {
-        self.nerd_fonts = !self.nerd_fonts;
-        crate::icons::set_nerd_fonts(self.nerd_fonts);
+    pub(super) fn cycle_icon_mode_next(&mut self) {
+        self.icon_mode = self.icon_mode.next();
+        crate::icons::set_icon_mode(self.icon_mode);
+        self.status = None;
+    }
+
+    pub(super) fn cycle_icon_mode_prev(&mut self) {
+        self.icon_mode = self.icon_mode.prev();
+        crate::icons::set_icon_mode(self.icon_mode);
         self.status = None;
     }
 
