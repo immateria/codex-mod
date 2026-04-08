@@ -93,6 +93,42 @@ impl AssistantMarkdownCell {
         self.reply_number.set(n);
     }
 
+    /// Build a compact metadata header line for the expanded state.
+    /// Shows reply number, model, timestamp, and token usage.
+    fn metadata_header_line(&self) -> Line<'static> {
+        let reply_number = self.reply_number.get();
+        let dim = Style::new().fg(crate::colors::text_dim());
+
+        let mut spans = vec![
+            Span::styled(format!("R #{reply_number}"), dim),
+        ];
+        if !self.model_name.is_empty() {
+            spans.push(Span::styled(" · ", dim));
+            spans.push(Span::styled(self.model_name.clone(), dim));
+        }
+        let ts = self.state.created_at;
+        if let Ok(elapsed) = ts.elapsed() {
+            let secs = elapsed.as_secs();
+            let ago = if secs < 60 {
+                format!("{secs}s ago")
+            } else if secs < 3600 {
+                format!("{}m ago", secs / 60)
+            } else {
+                format!("{}h {}m ago", secs / 3600, (secs % 3600) / 60)
+            };
+            spans.push(Span::styled(" · ", dim));
+            spans.push(Span::styled(ago, dim));
+        }
+        if let Some(usage) = self.state.token_usage.as_ref() {
+            spans.push(Span::styled(" · ", dim));
+            spans.push(Span::styled(
+                format!("in:{} out:{}", usage.input_tokens, usage.output_tokens),
+                dim,
+            ));
+        }
+        Line::from(spans)
+    }
+
     /// Build collapsed display lines for this cell.
     /// `reply_number` is the 1-indexed position among assistant cells in the history.
     pub(crate) fn collapsed_summary_lines(&self, reply_number: usize) -> Vec<Line<'static>> {
@@ -225,6 +261,10 @@ impl AssistantMarkdownCell {
             && cur_y < end_y
             && area.height.saturating_sub(skip_rows) > 1
         {
+            // Render metadata header (R #N · model · time · tokens)
+            // in the first-row padding slot.
+            let header = self.metadata_header_line();
+            write_line(buf, area.x, cur_y, area.width, &header, bg_style);
             cur_y = cur_y.saturating_add(1);
         }
         remaining_skip = remaining_skip.saturating_sub(1);

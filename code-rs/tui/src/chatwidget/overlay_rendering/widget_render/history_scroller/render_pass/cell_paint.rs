@@ -375,6 +375,10 @@ impl ChatWidget<'_> {
                     }
                 };
 
+                // Track where the fold icon was drawn so the click target
+                // aligns with the visual affordance.
+                let mut fold_icon_y: Option<u16> = None;
+
                 if gutter_area.width >= 2 && (left_symbol.is_some() || right_symbol.is_some()) {
                     let anchor_offset: u16 = match item_kind {
                         crate::history_cell::HistoryCellType::Assistant => 1,
@@ -438,11 +442,13 @@ impl ChatWidget<'_> {
                                 if gap_x < gutter_area.x.saturating_add(gutter_area.width) {
                                     buf.set_string(gap_x, symbol_y, fold_icon, fold_style);
                                 }
+                                fold_icon_y = Some(symbol_y);
                             } else if visible_height > 1 {
                                 // Expanded: show ▼ on the row below the gutter symbol.
                                 let fold_y = symbol_y.saturating_add(1);
                                 if fold_y < gutter_area.y.saturating_add(gutter_area.height) {
                                     buf.set_string(symbol_x, fold_y, fold_icon, fold_style);
+                                    fold_icon_y = Some(fold_y);
                                 }
                             }
                         }
@@ -517,21 +523,24 @@ impl ChatWidget<'_> {
                 }
 
                 // Register fold toggle click target for foldable cells.
-                // The target covers the gutter plus generous content width.
-                // When the cell is partially scrolled (skip_top > 0), we still
-                // register the fold region at the first visible row so the user
-                // can always click to collapse/expand.
+                // The target covers the gutter plus generous content width,
+                // anchored at the fold icon's actual screen row so the click
+                // target aligns with the visual ▶/▼ indicator.
                 if item.is_fold_toggleable() && visible_height > 0 {
                     let gutter_x = content_area.x;
                     let fold_click_width = GUTTER_WIDTH.saturating_add(
                         item_area.width.min(20)
                     );
-                    let fold_click_height = 2.min(visible_height).max(1);
+                    // Anchor the click region at the fold icon row when known,
+                    // otherwise fall back to the first visible row.
+                    let click_y = fold_icon_y.unwrap_or(item_area.y);
+                    let max_y = item_area.y.saturating_add(visible_height);
+                    let fold_click_height = max_y.saturating_sub(click_y).min(2).max(1);
                     self.clickable_regions.borrow_mut().push(
                         crate::chatwidget::ClickableRegion {
                             rect: Rect::new(
                                 gutter_x,
-                                item_area.y,
+                                click_y,
                                 fold_click_width,
                                 fold_click_height,
                             ),
@@ -586,68 +595,79 @@ impl ChatWidget<'_> {
                             && my >= item_area.y
                             && my < item_area.y.saturating_add(visible_height)
                     });
-                    if mouse_in_cell {
+                    // Button y: 1 row from the top of the visible area.
+                    let btn_y = item_area.y.saturating_add(1);
+                    let btn_visible = btn_y < item_area.y.saturating_add(visible_height);
+
+                    if mouse_in_cell && btn_visible {
                         let label = crate::icons::copy_content();
                         let label_w = {
                             use unicode_width::UnicodeWidthStr as _;
                             label.width() as u16
                         };
-                        // Inset: 1 row from top, 2 cols from right.
+                        // Inset: 2 cols from right.
                         let btn_x = item_area
                             .x
                             .saturating_add(item_area.width)
                             .saturating_sub(label_w + 2);
-                        let btn_y = item_area.y.saturating_add(1);
-                        if btn_y < item_area.y.saturating_add(visible_height) {
-                            let action = crate::chatwidget::ClickableAction::CopyMarkdownAtIndex(idx);
-                            let hovered = hovered_action_ref.as_ref() == Some(&action);
-                            let style = if hovered {
-                                Style::default()
-                                    .bg(crate::colors::background())
-                                    .fg(crate::colors::primary())
-                            } else {
-                                Style::default()
-                                    .bg(crate::colors::background())
-                                    .fg(crate::colors::text_dim())
-                            };
-                            buf.set_string(btn_x, btn_y, label, style);
-                            self.clickable_regions.borrow_mut().push(
-                                crate::chatwidget::ClickableRegion {
-                                    rect: Rect::new(btn_x, btn_y, label_w.max(1), 1),
-                                    action,
-                                },
-                            );
+                        let action = crate::chatwidget::ClickableAction::CopyMarkdownAtIndex(idx);
+                        let hovered = hovered_action_ref.as_ref() == Some(&action);
+                        let style = if hovered {
+                            Style::default()
+                                .bg(crate::colors::background())
+                                .fg(crate::colors::primary())
+                        } else {
+                            Style::default()
+                                .bg(crate::colors::background())
+                                .fg(crate::colors::text_dim())
+                        };
+                        buf.set_string(btn_x, btn_y, label, style);
+                        self.clickable_regions.borrow_mut().push(
+                            crate::chatwidget::ClickableRegion {
+                                rect: Rect::new(btn_x, btn_y, label_w.max(1), 1),
+                                action,
+                            },
+                        );
+                    }
 
-                            // Scroll-to-top button: shown when the cell's header
-                            // is scrolled above the viewport (skip_top > 0).
-                            if skip_top > 0 {
-                                let scroll_label = crate::icons::scroll_to_top();
-                                let scroll_w = {
-                                    use unicode_width::UnicodeWidthStr as _;
-                                    scroll_label.width() as u16
-                                };
-                                let sx = btn_x.saturating_sub(scroll_w + 1);
-                                let sy = btn_y;
-                                let scroll_action = crate::chatwidget::ClickableAction::ScrollToTopOfCell(idx);
-                                let scroll_hovered = hovered_action_ref.as_ref() == Some(&scroll_action);
-                                let scroll_style = if scroll_hovered {
-                                    Style::default()
-                                        .bg(crate::colors::background())
-                                        .fg(crate::colors::primary())
-                                } else {
-                                    Style::default()
-                                        .bg(crate::colors::background())
-                                        .fg(crate::colors::text_dim())
-                                };
-                                buf.set_string(sx, sy, scroll_label, scroll_style);
-                                self.clickable_regions.borrow_mut().push(
-                                    crate::chatwidget::ClickableRegion {
-                                        rect: Rect::new(sx, sy, scroll_w.max(1), 1),
-                                        action: scroll_action,
-                                    },
-                                );
-                            }
-                        }
+                    // Scroll-to-top button: always shown when cell header is
+                    // scrolled above the viewport (skip_top > 0). This is a
+                    // navigation aid — not gated on mouse hover.
+                    if skip_top > 0 && btn_visible {
+                        let scroll_label = crate::icons::scroll_to_top();
+                        let scroll_w = {
+                            use unicode_width::UnicodeWidthStr as _;
+                            scroll_label.width() as u16
+                        };
+                        // Position to the left of where the copy button sits.
+                        let copy_w: u16 = {
+                            use unicode_width::UnicodeWidthStr as _;
+                            crate::icons::copy_content().width() as u16
+                        };
+                        let sx = item_area
+                            .x
+                            .saturating_add(item_area.width)
+                            .saturating_sub(copy_w + 2)
+                            .saturating_sub(scroll_w + 1);
+                        let sy = btn_y;
+                        let scroll_action = crate::chatwidget::ClickableAction::ScrollToTopOfCell(idx);
+                        let scroll_hovered = hovered_action_ref.as_ref() == Some(&scroll_action);
+                        let scroll_style = if scroll_hovered {
+                            Style::default()
+                                .bg(crate::colors::background())
+                                .fg(crate::colors::primary())
+                        } else {
+                            Style::default()
+                                .bg(crate::colors::background())
+                                .fg(crate::colors::text_bright())
+                        };
+                        buf.set_string(sx, sy, scroll_label, scroll_style);
+                        self.clickable_regions.borrow_mut().push(
+                            crate::chatwidget::ClickableRegion {
+                                rect: Rect::new(sx, sy, scroll_w.max(1), 1),
+                                action: scroll_action,
+                            },
+                        );
                     }
                 }
                 drop(hovered_action_ref);
