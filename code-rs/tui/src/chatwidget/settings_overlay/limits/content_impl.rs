@@ -135,7 +135,7 @@ impl LimitsSettingsContent {
     }
 
     fn render_single_column(&self, area: Rect, buf: &mut Buffer, lines: &[Line<'static>]) {
-        let max_scroll = lines.len().saturating_sub(area.height as usize) as u16;
+        let max_scroll = lines.len().saturating_sub(area.height as usize).min(u16::MAX as usize) as u16;
         self.overlay.set_max_scroll(max_scroll);
 
         let start = self.overlay.scroll() as usize;
@@ -384,8 +384,8 @@ impl LimitsSettingsContent {
     }
 
     fn update_wide_bounds(&self, left_lines: &[Line<'static>], right_lines: &[Line<'static>], height: u16) {
-        let left_max = left_lines.len().saturating_sub(height as usize) as u16;
-        let right_max = right_lines.len().saturating_sub(height as usize) as u16;
+        let left_max = left_lines.len().saturating_sub(height as usize).min(u16::MAX as usize) as u16;
+        let right_max = right_lines.len().saturating_sub(height as usize).min(u16::MAX as usize) as u16;
 
         self.left_max_scroll.set(left_max);
         self.right_max_scroll.set(right_max);
