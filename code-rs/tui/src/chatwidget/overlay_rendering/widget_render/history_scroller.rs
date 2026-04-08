@@ -149,6 +149,22 @@ impl ChatWidget<'_> {
             let content_width = content_area.width.saturating_sub(GUTTER_WIDTH);
             let mut spacing_ranges: Vec<(u16, u16)> = Vec::new();
 
+            // Precompute next_visible_idx for each cell in O(n) to avoid
+            // the O(n²) forward scan that was inside the per-cell loop.
+            let mut next_visible: Vec<Option<usize>> = vec![None; cells.len()];
+            {
+                let mut last_seen: Option<usize> = None;
+                for j in (0..cells.len()).rev() {
+                    next_visible[j] = last_seen;
+                    if cells[j].height > 0 {
+                        last_seen = Some(j);
+                    }
+                }
+            }
+            // Track the last visible index seen so far (replaces the per-cell
+            // backward scan that was O(n) per iteration → O(n²) total).
+            let mut last_visible_idx: Option<usize> = None;
+
             for (idx, vis) in cells.iter().enumerate() {
                 let Some(cell) = vis.cell else {
                     continue;
@@ -179,8 +195,8 @@ impl ChatWidget<'_> {
 
                 let mut should_add_spacing = idx < cells.len().saturating_sub(1) && line_count > 0;
                 if should_add_spacing {
-                    let prev_visible_idx = (0..idx).rev().find(|j| cells[*j].height > 0);
-                    let next_visible_idx = ((idx + 1)..cells.len()).find(|j| cells[*j].height > 0);
+                    let prev_visible_idx = last_visible_idx;
+                    let next_visible_idx = next_visible[idx];
 
                     if next_visible_idx.is_none() {
                         should_add_spacing = false;
@@ -222,6 +238,11 @@ impl ChatWidget<'_> {
                     spacing_ranges.push((spacing_start, acc));
                 }
                 prefix.push(acc);
+
+                // Update running tracker after processing this cell.
+                if line_count > 0 {
+                    last_visible_idx = Some(idx);
+                }
             }
 
             let total_height = *prefix.last().unwrap_or(&0);

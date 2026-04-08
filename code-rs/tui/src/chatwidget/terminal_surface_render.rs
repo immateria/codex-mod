@@ -23,13 +23,16 @@ impl ChatWidget<'_> {
             out.extend(self.render_lines_for_terminal(idx, cell.as_ref()));
         }
         // Include streaming preview if present (treat like assistant output)
-        let mut streaming_lines = self
-            .live_builder
-            .display_rows()
-            .into_iter()
-            .map(|r| ratatui::text::Line::from(r.text))
-            .collect::<Vec<_>>();
-        if !streaming_lines.is_empty() {
+        if !self.live_builder.is_empty() {
+            let row_count = self.live_builder.display_row_count();
+            let mut streaming_lines: Vec<ratatui::text::Line<'static>> =
+                Vec::with_capacity(row_count);
+            for r in self.live_builder.rows() {
+                streaming_lines.push(ratatui::text::Line::from(r.text.clone()));
+            }
+            if let Some(trailing) = self.live_builder.trailing_display_row() {
+                streaming_lines.push(ratatui::text::Line::from(trailing.text));
+            }
             // Apply gutter to streaming preview (first line gets " • ", continuations get 3 spaces)
             if let Some(first) = streaming_lines.first_mut() {
                 first.spans.insert(0, ratatui::text::Span::raw(" • "));

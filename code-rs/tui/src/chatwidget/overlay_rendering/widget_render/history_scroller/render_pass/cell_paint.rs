@@ -85,6 +85,14 @@ impl ChatWidget<'_> {
         // repeated lock/unlock overhead (up to 6 borrow_mut per cell).
         let hovered_action_ref = self.hovered_clickable_action.borrow();
         let mut regions = self.clickable_regions.borrow_mut();
+        // Ensure regions has capacity for the visible window to avoid
+        // repeated reallocation during the loop. Each cell typically adds
+        // 1-3 clickable regions (fold toggle, copy, scroll-to-top).
+        let needed = visible_slice.len().saturating_mul(3);
+        let current_cap = regions.capacity();
+        if current_cap < needed {
+            regions.reserve(needed - current_cap);
+        }
 
         for (offset, visible) in visible_slice.iter().enumerate() {
             let idx = start_idx + offset;

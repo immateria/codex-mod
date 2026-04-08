@@ -101,6 +101,27 @@ impl RowBuilder {
         &self.rows
     }
 
+    /// True when the builder has no content to display (no committed rows
+    /// and no partial current line).
+    pub fn is_empty(&self) -> bool {
+        self.rows.is_empty() && self.current_line.is_empty()
+    }
+
+    /// Number of display rows (committed + optional partial current line).
+    pub fn display_row_count(&self) -> usize {
+        self.rows.len() + usize::from(!self.current_line.is_empty())
+    }
+
+    /// Returns the in-progress (not yet committed) current line as a Row,
+    /// if non-empty. Avoids the full Vec clone that `display_rows()` performs.
+    pub fn trailing_display_row(&self) -> Option<Row> {
+        if self.current_line.is_empty() {
+            None
+        } else {
+            Some(make_row(self.current_line.clone(), false))
+        }
+    }
+
     /// Rows suitable for display, including the current partial line if any.
     pub fn display_rows(&self) -> Vec<Row> {
         let mut out = self.rows.clone();

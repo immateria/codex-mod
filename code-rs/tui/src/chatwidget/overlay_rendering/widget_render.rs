@@ -69,13 +69,18 @@ impl ChatWidget<'_> {
         // retain stale paint from previous frames.
         fill_rect(buf, history_area, Some(' '), base_style);
 
-        let streaming_lines = self
-            .live_builder
-            .display_rows()
-            .into_iter()
-            .map(|r| ratatui::text::Line::from(r.text))
-            .collect::<Vec<_>>();
-        let streaming_cell = if !streaming_lines.is_empty() {
+        // Build streaming cell only when the live builder actually has content,
+        // avoiding display_rows() Vec clone + collect on every idle frame.
+        let streaming_cell = if !self.live_builder.is_empty() {
+            let row_count = self.live_builder.display_row_count();
+            let mut streaming_lines: Vec<ratatui::text::Line<'static>> =
+                Vec::with_capacity(row_count);
+            for r in self.live_builder.rows() {
+                streaming_lines.push(ratatui::text::Line::from(r.text.clone()));
+            }
+            if let Some(trailing) = self.live_builder.trailing_display_row() {
+                streaming_lines.push(ratatui::text::Line::from(trailing.text));
+            }
             let state = self.synthesize_stream_state_from_lines(None, &streaming_lines, true);
             Some(history_cell::new_streaming_content(state, &self.config))
         } else {
