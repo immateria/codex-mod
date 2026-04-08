@@ -22,45 +22,84 @@ pub(super) fn handle_help_key(chat: &mut ChatWidget<'_>, key_event: KeyEvent) ->
         return false;
     }
 
-    // Overlay active: process navigation + close
+    // Overlay active: process navigation + close + tab switching
     let Some(ref mut overlay) = chat.help.overlay else { return false };
     match key_event.code {
+        // Tab switching
+        KeyCode::Left => {
+            overlay.active_tab = overlay.active_tab.prev();
+            chat.request_redraw();
+            true
+        }
+        KeyCode::Right => {
+            overlay.active_tab = overlay.active_tab.next();
+            chat.request_redraw();
+            true
+        }
+        KeyCode::Char('1') => {
+            overlay.active_tab = super::internals::state::HelpTab::Shortcuts;
+            chat.request_redraw();
+            true
+        }
+        KeyCode::Char('2') => {
+            overlay.active_tab = super::internals::state::HelpTab::Commands;
+            chat.request_redraw();
+            true
+        }
+        KeyCode::Char('3') => {
+            overlay.active_tab = super::internals::state::HelpTab::Tips;
+            chat.request_redraw();
+            true
+        }
+        KeyCode::Tab => {
+            overlay.active_tab = overlay.active_tab.next();
+            chat.request_redraw();
+            true
+        }
+        KeyCode::BackTab => {
+            overlay.active_tab = overlay.active_tab.prev();
+            chat.request_redraw();
+            true
+        }
+        // Scrolling
         KeyCode::Up => {
-            overlay.scroll = overlay.scroll.saturating_sub(1);
+            let s = overlay.scroll_mut();
+            *s = s.saturating_sub(1);
             chat.request_redraw();
             true
         }
         KeyCode::Down => {
             let visible_rows = chat.help.body_visible_rows.get() as usize;
-            let max_off = overlay.lines.len().saturating_sub(visible_rows.max(1));
-            let next = (overlay.scroll as usize).saturating_add(1).min(max_off);
-            overlay.scroll = next as u16;
+            let max_off = overlay.lines().len().saturating_sub(visible_rows.max(1));
+            let cur = overlay.scroll() as usize;
+            let next = cur.saturating_add(1).min(max_off);
+            *overlay.scroll_mut() = next as u16;
             chat.request_redraw();
             true
         }
         KeyCode::PageUp => {
             let h = chat.help.body_visible_rows.get() as usize;
-            let cur = overlay.scroll as usize;
-            overlay.scroll = cur.saturating_sub(h) as u16;
+            let cur = overlay.scroll() as usize;
+            *overlay.scroll_mut() = cur.saturating_sub(h) as u16;
             chat.request_redraw();
             true
         }
         KeyCode::PageDown | KeyCode::Char(' ') => {
             let h = chat.help.body_visible_rows.get() as usize;
-            let cur = overlay.scroll as usize;
+            let cur = overlay.scroll() as usize;
             let visible_rows = chat.help.body_visible_rows.get() as usize;
-            let max_off = overlay.lines.len().saturating_sub(visible_rows.max(1));
-            overlay.scroll = cur.saturating_add(h).min(max_off) as u16;
+            let max_off = overlay.lines().len().saturating_sub(visible_rows.max(1));
+            *overlay.scroll_mut() = cur.saturating_add(h).min(max_off) as u16;
             chat.request_redraw();
             true
         }
         KeyCode::Home => {
-            overlay.scroll = 0;
+            *overlay.scroll_mut() = 0;
             chat.request_redraw();
             true
         }
         KeyCode::End => {
-            overlay.scroll = u16::MAX;
+            *overlay.scroll_mut() = u16::MAX;
             chat.request_redraw();
             true
         }

@@ -347,6 +347,8 @@ impl ChatWidget<'_> {
             // Render help overlay (covering the history area) if active
             if self.settings.overlay.is_none()
                 && let Some(overlay) = &self.help.overlay {
+                    use crate::chatwidget::internals::state::HelpTab;
+
                     // Global scrim across widget
                     let scrim_bg = Style::default()
                         .bg(crate::colors::overlay_scrim())
@@ -405,17 +407,59 @@ impl ChatWidget<'_> {
                         }
                     }
 
-                    // Body area with one cell padding
-                    let body = inner.inner(ratatui::layout::Margin::new(1, 1));
+                    // Tab bar (1 row)
+                    let tab_area = Rect {
+                        x: inner.x + 1,
+                        y: inner.y,
+                        width: inner.width.saturating_sub(2),
+                        height: 1.min(inner.height),
+                    };
+                    if tab_area.height > 0 {
+                        let active_style = Style::default()
+                            .fg(crate::colors::text())
+                            .add_modifier(ratatui::style::Modifier::BOLD | ratatui::style::Modifier::UNDERLINED);
+                        let inactive_style = Style::default()
+                            .fg(crate::colors::text_dim());
+                        let sep_style = Style::default()
+                            .fg(crate::colors::border());
+
+                        let mut spans: Vec<ratatui::text::Span<'_>> = Vec::new();
+                        for (i, tab) in HelpTab::ALL.iter().enumerate() {
+                            if i > 0 {
+                                spans.push(ratatui::text::Span::styled(" │ ", sep_style));
+                            }
+                            let label = format!(" {} {} ", i + 1, tab.label());
+                            if *tab == overlay.active_tab {
+                                spans.push(ratatui::text::Span::styled(label, active_style));
+                            } else {
+                                spans.push(ratatui::text::Span::styled(label, inactive_style));
+                            }
+                        }
+                        spans.push(ratatui::text::Span::styled(
+                            "     ◀ ▶ switch",
+                            Style::default().fg(crate::colors::text_dim()),
+                        ));
+                        let tab_line = ratatui::text::Line::from(spans);
+                        buf.set_line(tab_area.x, tab_area.y, &tab_line, tab_area.width);
+                    }
+
+                    // Body area below tab bar with one cell padding
+                    let body = Rect {
+                        x: inner.x + 1,
+                        y: inner.y + if tab_area.height > 0 { 2 } else { 0 },
+                        width: inner.width.saturating_sub(2),
+                        height: inner.height.saturating_sub(if tab_area.height > 0 { 2 } else { 0 }),
+                    };
 
                     // Compute visible slice
+                    let lines = overlay.lines();
                     let visible_rows = body.height as usize;
                     self.help.body_visible_rows.set(body.height);
-                    let max_off = overlay.lines.len().saturating_sub(visible_rows.max(1));
-                    let skip = (overlay.scroll as usize).min(max_off);
-                    let end = (skip + visible_rows).min(overlay.lines.len());
-                    let visible = if skip < overlay.lines.len() {
-                        &overlay.lines[skip..end]
+                    let max_off = lines.len().saturating_sub(visible_rows.max(1));
+                    let skip = (overlay.scroll() as usize).min(max_off);
+                    let end = (skip + visible_rows).min(lines.len());
+                    let visible = if skip < lines.len() {
+                        &lines[skip..end]
                     } else {
                         &[]
                     };

@@ -441,6 +441,11 @@
                             if let Err(e) = code_login::logout(&self.config.code_home) { tracing::error!("failed to logout: {e}"); }
                             break 'main;
                         }
+                        SlashCommand::Help => {
+                            if let AppState::Chat { widget } = &mut self.app_state {
+                                widget.show_help_popup();
+                            }
+                        }
                         SlashCommand::Diff => {
                             let tx = self.app_event_tx.clone();
                             tokio::spawn(async move {

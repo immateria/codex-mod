@@ -134,18 +134,14 @@ impl ChatWidget<'_> {
     }
 
     pub(crate) fn show_help_popup(&mut self) {
+        use ratatui::text::Line as RtLine;
+        use ratatui::text::Span as RtSpan;
+
         let t_dim = Style::default().fg(crate::colors::text_dim());
         let t_fg = Style::default().fg(crate::colors::text());
 
-        let mut lines: Vec<RtLine<'static>> = Vec::new();
-        lines.push(RtLine::from(vec![RtSpan::styled(
-            "Keyboard shortcuts",
-            t_fg.add_modifier(Modifier::BOLD),
-        )]));
-
         let kv = |k: &str, v: &str| -> RtLine<'static> {
             RtLine::from(vec![
-                // Left-align the key column for improved readability
                 RtSpan::styled(format!("{k:<12}"), t_fg),
                 RtSpan::raw("  —  "),
                 RtSpan::styled(v.to_string(), t_dim),
@@ -154,147 +150,166 @@ impl ChatWidget<'_> {
         let ctrl = |key: &str| crate::icons::ctrl_combo(key);
         let alt = |key: &str| crate::icons::alt_combo(key);
         let shift = |key: &str| crate::icons::shift_combo(key);
-        // Top quick action
-        lines.push(kv(
-            &format!("{} / {}", alt("A"), crate::icons::reverse_tab()),
-            "Cycle access mode (Read Only / Approval / Full Access)",
-        ));
 
-        // Global
-        let hotkeys = self.config.tui.hotkeys.effective_for_runtime();
-        lines.push(kv(&format!("{} / F1", ctrl("/")), "Help overlay"));
-        let model_hotkey = hotkeys.model_selector.display_name();
-        lines.push(kv(
-            model_hotkey.as_ref(),
-            "Model + reasoning selector",
-        ));
-        let reasoning_hotkey = hotkeys.reasoning_effort.display_name();
-        lines.push(kv(
-            reasoning_hotkey.as_ref(),
-            "Cycle reasoning effort",
-        ));
-        let shell_hotkey = hotkeys.shell_selector.display_name();
-        lines.push(kv(
-            shell_hotkey.as_ref(),
-            "Shell selector",
-        ));
-        let network_hotkey = hotkeys.network_settings.display_name();
-        lines.push(kv(
-            network_hotkey.as_ref(),
-            "Network settings",
-        ));
-        let history_label = |hk: code_core::config_types::TuiHotkey, legacy_key: &str| -> String {
-            if hk.is_legacy() {
-                legacy_key.to_string()
-            } else {
-                hk.display_name().into_owned()
-            }
+        // ── Tab 1: Shortcuts ──
+        let shortcuts = {
+            let mut lines: Vec<RtLine<'static>> = Vec::new();
+            lines.push(RtLine::from(vec![RtSpan::styled(
+                "Keyboard shortcuts",
+                t_fg.add_modifier(Modifier::BOLD),
+            )]));
+
+            lines.push(kv(
+                &format!("{} / {}", alt("A"), crate::icons::reverse_tab()),
+                "Cycle access mode (Read Only / Approval / Full Access)",
+            ));
+
+            let hotkeys = self.config.tui.hotkeys.effective_for_runtime();
+            lines.push(kv(&format!("{} / F1", ctrl("/")), "Help overlay"));
+            let model_hotkey = hotkeys.model_selector.display_name();
+            lines.push(kv(model_hotkey.as_ref(), "Model + reasoning selector"));
+            let reasoning_hotkey = hotkeys.reasoning_effort.display_name();
+            lines.push(kv(reasoning_hotkey.as_ref(), "Cycle reasoning effort"));
+            let shell_hotkey = hotkeys.shell_selector.display_name();
+            lines.push(kv(shell_hotkey.as_ref(), "Shell selector"));
+            let network_hotkey = hotkeys.network_settings.display_name();
+            lines.push(kv(network_hotkey.as_ref(), "Network settings"));
+            let history_label = |hk: code_core::config_types::TuiHotkey, legacy_key: &str| -> String {
+                if hk.is_legacy() {
+                    legacy_key.to_string()
+                } else {
+                    hk.display_name().into_owned()
+                }
+            };
+            let fold_exec_hotkey = history_label(hotkeys.exec_output_fold, "[");
+            lines.push(kv(&fold_exec_hotkey, "Fold latest exec output/tool details (composer empty)"));
+            let fold_js_hotkey = history_label(hotkeys.js_repl_code_fold, "\\");
+            lines.push(kv(&fold_js_hotkey, "Fold latest JS REPL code (composer empty)"));
+            let jump_parent_hotkey = history_label(hotkeys.jump_to_parent_call, "]");
+            lines.push(kv(&jump_parent_hotkey, "Jump to parent tool call (composer empty)"));
+            let jump_child_hotkey = history_label(hotkeys.jump_to_latest_child_call, "}");
+            lines.push(kv(&jump_child_hotkey, "Jump to latest spawned tool call (composer empty)"));
+            lines.push(kv(&ctrl("G"), "Open external editor"));
+            lines.push(kv(&ctrl("R"), "Toggle reasoning"));
+            lines.push(kv(&ctrl("T"), "Toggle screen"));
+            lines.push(kv(&ctrl("D"), "Diff viewer"));
+            lines.push(kv(crate::icons::escape(), &format!("{} / close popups", Self::double_esc_hint_label())));
+            lines.push(kv(crate::icons::escape(), "End current task"));
+            lines.push(kv(&ctrl("C"), "End current task"));
+            lines.push(kv(&format!("{} twice", ctrl("C")), "Quit"));
+            lines.push(RtLine::from(""));
+
+            lines.push(RtLine::from(vec![RtSpan::styled(
+                "Compose field",
+                t_fg.add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(kv(crate::icons::enter(), "Send message"));
+            lines.push(kv(
+                &format!("{} / {}", ctrl("J"), shift(crate::icons::enter())),
+                "Insert newline",
+            ));
+            lines.push(kv(
+                &format!("{} / {}", ctrl("P"), shift("Up")),
+                "Previous input history",
+            ));
+            lines.push(kv(
+                &format!("{} / {}", ctrl("N"), shift("Down")),
+                "Next input history",
+            ));
+            lines.push(kv(&ctrl("B"), "Move left"));
+            lines.push(kv(&ctrl("F"), "Move right"));
+            lines.push(kv(&alt("Left"), "Move by word"));
+            lines.push(kv(&alt("Right"), "Move by word"));
+            lines.push(kv(&ctrl("W"), "Delete previous word"));
+            lines.push(kv(&ctrl("H"), "Delete previous char"));
+            lines.push(kv(&ctrl("D"), "Delete next char"));
+            lines.push(kv(&ctrl(crate::icons::backspace()), "Delete current line"));
+            lines.push(kv(&ctrl("U"), "Delete to line start"));
+            lines.push(kv(&ctrl("K"), "Delete to line end"));
+            lines.push(kv(
+                "Home/End",
+                "Jump to line start/end (jump to history start/end when input is empty)",
+            ));
+            lines
         };
-        let fold_exec_hotkey = history_label(hotkeys.exec_output_fold, "[");
-        lines.push(kv(
-            &fold_exec_hotkey,
-            "Fold latest exec output/tool details (composer empty)",
-        ));
-        let fold_js_hotkey = history_label(hotkeys.js_repl_code_fold, "\\");
-        lines.push(kv(
-            &fold_js_hotkey,
-            "Fold latest JS REPL code (composer empty)",
-        ));
-        let jump_parent_hotkey = history_label(hotkeys.jump_to_parent_call, "]");
-        lines.push(kv(
-            &jump_parent_hotkey,
-            "Jump to parent tool call (composer empty)",
-        ));
-        let jump_child_hotkey = history_label(hotkeys.jump_to_latest_child_call, "}");
-        lines.push(kv(
-            &jump_child_hotkey,
-            "Jump to latest spawned tool call (composer empty)",
-        ));
-        lines.push(kv(&ctrl("G"), "Open external editor"));
-        lines.push(kv(&ctrl("R"), "Toggle reasoning"));
-        lines.push(kv(&ctrl("T"), "Toggle screen"));
-        lines.push(kv(&ctrl("D"), "Diff viewer"));
-        lines.push(kv(crate::icons::escape(), &format!("{} / close popups", Self::double_esc_hint_label())));
-        // Task control shortcuts
-        lines.push(kv(crate::icons::escape(), "End current task"));
-        lines.push(kv(&ctrl("C"), "End current task"));
-        lines.push(kv(&format!("{} twice", ctrl("C")), "Quit"));
-        lines.push(RtLine::from(""));
 
-        // Composer
-        lines.push(RtLine::from(vec![RtSpan::styled(
-            "Compose field",
-            t_fg.add_modifier(Modifier::BOLD),
-        )]));
-        lines.push(kv(crate::icons::enter(), "Send message"));
-        lines.push(kv(
-            &format!("{} / {}", ctrl("J"), shift(crate::icons::enter())),
-            "Insert newline",
-        ));
-        lines.push(kv(
-            &format!("{} / {}", ctrl("P"), shift("Up")),
-            "Previous input history",
-        ));
-        lines.push(kv(
-            &format!("{} / {}", ctrl("N"), shift("Down")),
-            "Next input history",
-        ));
-        lines.push(kv(&ctrl("B"), "Move left"));
-        lines.push(kv(&ctrl("F"), "Move right"));
-        lines.push(kv(&alt("Left"), "Move by word"));
-        lines.push(kv(&alt("Right"), "Move by word"));
-        // Simplify delete shortcuts; remove Alt+Backspace/Backspace/Delete variants
-        lines.push(kv(&ctrl("W"), "Delete previous word"));
-        lines.push(kv(&ctrl("H"), "Delete previous char"));
-        lines.push(kv(&ctrl("D"), "Delete next char"));
-        lines.push(kv(&ctrl(crate::icons::backspace()), "Delete current line"));
-        lines.push(kv(&ctrl("U"), "Delete to line start"));
-        lines.push(kv(&ctrl("K"), "Delete to line end"));
-        lines.push(kv(
-            "Home/End",
-            "Jump to line start/end (jump to history start/end when input is empty)",
-        ));
-        lines.push(RtLine::from(""));
+        // ── Tab 2: Commands ──
+        let commands = {
+            let mut lines: Vec<RtLine<'static>> = Vec::new();
+            lines.push(RtLine::from(vec![RtSpan::styled(
+                "Input shortcuts",
+                t_fg.add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(kv(":?", "Show this help overlay"));
+            lines.push(kv("/command", "Run a slash command"));
+            lines.push(kv("$ command", "Run shell command directly"));
+            lines.push(kv("$$ prompt", "Request guided shell command help"));
+            lines.push(RtLine::from(""));
 
-        lines.push(RtLine::from(vec![RtSpan::styled(
-            "Terminal",
-            t_fg.add_modifier(Modifier::BOLD),
-        )]));
-        lines.push(kv("$", "Open shell terminal without a preset command"));
-        lines.push(kv("$ <command>", "Run shell command immediately"));
-        lines.push(kv("$$ <prompt>", "Request guided shell command help"));
-        lines.push(RtLine::from(""));
-
-        // Panels
-        lines.push(RtLine::from(vec![RtSpan::styled(
-            "Panels",
-            t_fg.add_modifier(Modifier::BOLD),
-        )]));
-        lines.push(kv(&ctrl("B"), "Toggle Browser overlay"));
-        lines.push(kv(&ctrl("A"), "Open Agents terminal"));
-
-        // Slash command reference
-        lines.push(RtLine::from(""));
-        lines.push(RtLine::from(vec![RtSpan::styled(
-            "Slash commands",
-            t_fg.add_modifier(Modifier::BOLD),
-        )]));
-        for (cmd_str, cmd) in crate::slash_command::built_in_slash_commands() {
-            // Hide internal test command from the Help panel
-            if cmd_str == "test-approval" {
-                continue;
+            lines.push(RtLine::from(vec![RtSpan::styled(
+                "Slash commands",
+                t_fg.add_modifier(Modifier::BOLD),
+            )]));
+            for (cmd_str, cmd) in crate::slash_command::built_in_slash_commands() {
+                if cmd_str == "test-approval" {
+                    continue;
+                }
+                let desc = cmd.description().replace("Codex", "Code");
+                lines.push(RtLine::from(vec![
+                    RtSpan::styled(format!("/{cmd_str:<12}"), t_fg),
+                    RtSpan::raw("  —  "),
+                    RtSpan::styled(desc.clone(), t_dim),
+                ]));
             }
-            // Prefer "Code" branding in the Help panel
-            let desc = cmd.description().replace("Codex", "Code");
-            // Render as "/command  —  description"
-            lines.push(RtLine::from(vec![
-                RtSpan::styled(format!("/{cmd_str:<12}"), t_fg),
-                RtSpan::raw("  —  "),
-                RtSpan::styled(desc.clone(), t_dim),
-            ]));
-        }
+            lines
+        };
 
-        self.help.overlay = Some(HelpOverlay::new(lines));
+        // ── Tab 3: Tips ──
+        let tips = {
+            let mut lines: Vec<RtLine<'static>> = Vec::new();
+            lines.push(RtLine::from(vec![RtSpan::styled(
+                "Usage tips",
+                t_fg.add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(RtLine::from(""));
+
+            lines.push(RtLine::from(vec![RtSpan::styled(
+                "Terminal",
+                t_fg.add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(kv("$", "Open shell terminal without a preset command"));
+            lines.push(kv("$ <command>", "Run shell command immediately"));
+            lines.push(kv("$$ <prompt>", "Request guided shell command help"));
+            lines.push(RtLine::from(""));
+
+            lines.push(RtLine::from(vec![RtSpan::styled(
+                "Panels",
+                t_fg.add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(kv(&ctrl("B"), "Toggle Browser overlay"));
+            lines.push(kv(&ctrl("A"), "Open Agents terminal"));
+            lines.push(RtLine::from(""));
+
+            lines.push(RtLine::from(vec![RtSpan::styled(
+                "Navigation",
+                t_fg.add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(kv("Scrollbar", "Click or drag to scroll through history"));
+            lines.push(kv("Shift+Click", "Select text in responses"));
+            lines.push(kv("Home/End", "Jump to start/end of history (when composer is empty)"));
+            lines.push(kv("Click ▶/▼", "Collapse or expand response blocks"));
+            lines.push(RtLine::from(""));
+
+            lines.push(RtLine::from(vec![RtSpan::styled(
+                "Filtering",
+                t_fg.add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(kv("/", "Type / to see slash command suggestions"));
+            lines.push(kv(":?", "Open this help overlay from the composer"));
+            lines
+        };
+
+        self.help.overlay = Some(HelpOverlay::new(shortcuts, commands, tips));
         self.request_redraw();
     }
 

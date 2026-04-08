@@ -354,14 +354,81 @@ pub(crate) struct LimitsState {
     pub(crate) cached_content: Option<LimitsOverlayContent>,
 }
 
+/// Tabs displayed across the top of the help overlay.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum HelpTab {
+    #[default]
+    Shortcuts,
+    Commands,
+    Tips,
+}
+
+impl HelpTab {
+    pub(crate) const ALL: &'static [HelpTab] = &[
+        HelpTab::Shortcuts,
+        HelpTab::Commands,
+        HelpTab::Tips,
+    ];
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            HelpTab::Shortcuts => "Shortcuts",
+            HelpTab::Commands => "Commands",
+            HelpTab::Tips => "Tips",
+        }
+    }
+
+    pub(crate) fn next(self) -> Self {
+        match self {
+            HelpTab::Shortcuts => HelpTab::Commands,
+            HelpTab::Commands => HelpTab::Tips,
+            HelpTab::Tips => HelpTab::Shortcuts,
+        }
+    }
+
+    pub(crate) fn prev(self) -> Self {
+        match self {
+            HelpTab::Shortcuts => HelpTab::Tips,
+            HelpTab::Commands => HelpTab::Shortcuts,
+            HelpTab::Tips => HelpTab::Commands,
+        }
+    }
+}
+
 pub(crate) struct HelpOverlay {
-    pub(crate) lines: Vec<RtLine<'static>>,
-    pub(crate) scroll: u16,
+    pub(crate) active_tab: HelpTab,
+    /// Lines for each tab, indexed by HelpTab ordinal.
+    pub(crate) tab_content: [Vec<RtLine<'static>>; 3],
+    /// Per-tab scroll offset.
+    pub(crate) tab_scroll: [u16; 3],
 }
 
 impl HelpOverlay {
-    pub(crate) fn new(lines: Vec<RtLine<'static>>) -> Self {
-        Self { lines, scroll: 0 }
+    pub(crate) fn new(
+        shortcuts: Vec<RtLine<'static>>,
+        commands: Vec<RtLine<'static>>,
+        tips: Vec<RtLine<'static>>,
+    ) -> Self {
+        Self {
+            active_tab: HelpTab::Shortcuts,
+            tab_content: [shortcuts, commands, tips],
+            tab_scroll: [0; 3],
+        }
+    }
+
+    /// Returns the lines for the currently active tab.
+    pub(crate) fn lines(&self) -> &[RtLine<'static>] {
+        &self.tab_content[self.active_tab as usize]
+    }
+
+    /// Returns the scroll offset for the currently active tab.
+    pub(crate) fn scroll(&self) -> u16 {
+        self.tab_scroll[self.active_tab as usize]
+    }
+
+    /// Mutable reference to the current tab's scroll offset.
+    pub(crate) fn scroll_mut(&mut self) -> &mut u16 {
+        &mut self.tab_scroll[self.active_tab as usize]
     }
 }
 #[derive(Default)]
