@@ -654,8 +654,7 @@ impl ChatWidget<'_> {
                     let scroll_hovered = hovered_action_ref.as_ref() == Some(&scroll_action);
                     let icon_style = if scroll_hovered {
                         Style::default()
-                            .bg(crate::colors::primary())
-                            .fg(crate::colors::background())
+                            .fg(crate::colors::primary())
                     } else {
                         Style::default()
                             .bg(crate::colors::border())
