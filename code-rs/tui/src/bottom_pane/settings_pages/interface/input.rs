@@ -205,7 +205,7 @@ impl InterfaceSettingsView {
                 if !ctrl && !alt {
                     self.mode = ViewMode::CaptureHotkey {
                         row,
-                        error: Some("Use Ctrl/Alt+letter or a function key.".to_owned()),
+                        error: Some(format!("Use Ctrl/{}+letter or a function key.", crate::platform_caps::alt_key_name())),
                     };
                     return true;
                 }

@@ -125,7 +125,7 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
                 // to keep scroll rendering stable and prevent duplicate visual tokens.
                 if is_short_preview_of_url(&label, &target) {
                     let mut url_only = s.clone();
-                    url_only.content = target.clone().into();
+                    url_only.content = target.into();
                     url_only.style = url_only.style.patch(Style::default().fg(link_fg));
                     out.push(url_only);
                 } else {
@@ -141,7 +141,7 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
                     out.push(open_span);
                     let mut url_span = s.clone();
                     url_span.style = url_span.style.patch(Style::default().fg(link_fg));
-                    url_span.content = target.clone().into();
+                    url_span.content = target.into();
                     out.push(url_span);
                     let mut close_span = s.clone();
                     close_span.content = ")".into();

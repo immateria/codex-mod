@@ -5,7 +5,7 @@ pub(super) fn begin_action_for(tool_name: &str, metadata: &InvocationMetadata) -
     let label = metadata
         .label
         .clone()
-        .or_else(|| metadata.agent_ids.clone().into_iter().next())
+        .or_else(|| metadata.agent_ids.first().cloned())
         .unwrap_or_else(|| "agent".to_string());
     let action = resolved_action(tool_name, metadata.action.as_deref());
 

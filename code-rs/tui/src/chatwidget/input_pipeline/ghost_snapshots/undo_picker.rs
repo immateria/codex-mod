@@ -401,7 +401,7 @@ impl ChatWidget<'_> {
             {
                 bump_snapshot_epoch_for(&self.config.cwd);
             }
-            parser(String::from_utf8_lossy(&output.stdout).to_string())
+            parser(String::from_utf8_lossy(&output.stdout).into_owned())
         }
     }
 

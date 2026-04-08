@@ -104,8 +104,9 @@ impl InterfaceSettingsView {
         });
 
         let max_key = self.hotkey_scope.max_function_key();
+        let ca = crate::platform_caps::ctrl_alt_label();
         body_lines.push(Line::from(Span::styled(
-            format!("Press F2-F{max_key} or Ctrl/Alt+letter (e.g. ctrl+h)."),
+            format!("Press F2-F{max_key} or {ca}+letter (e.g. ctrl+h)."),
             Style::new().fg(crate::colors::text_dim()),
         )));
 
@@ -147,44 +148,45 @@ impl InterfaceSettingsView {
         }
     }
 
-    fn help_for(row: RowKind) -> &'static str {
+    fn help_for(row: RowKind) -> String {
+        let ca = crate::platform_caps::ctrl_alt_label();
         match row {
-            RowKind::OpenMode => "Auto uses overlay on wide terminals; override with overlay/bottom.",
-            RowKind::OverlayMinWidth => "Terminal width (columns) at which auto prefers overlay.",
+            RowKind::OpenMode => "Auto uses overlay on wide terminals; override with overlay/bottom.".into(),
+            RowKind::OverlayMinWidth => "Terminal width (columns) at which auto prefers overlay.".into(),
             RowKind::NerdFonts => {
-                "Icon rendering mode. NerdFont uses private-use-area glyphs (requires a patched font). Unicode uses standard symbols. ASCII uses plain characters only."
+                "Icon rendering mode. NerdFont uses private-use-area glyphs (requires a patched font). Unicode uses standard symbols. ASCII uses plain characters only.".into()
             }
             RowKind::HotkeyScope => {
-                "Choose which scope to edit. Platform scopes write to [tui.hotkeys.<platform>] and can inherit."
+                "Choose which scope to edit. Platform scopes write to [tui.hotkeys.<platform>] and can inherit.".into()
             }
             RowKind::ModelSelectorHotkey => {
-                "Hotkey for opening model selector (F2-F24 or Ctrl/Alt+letter; macOS supports up to F20 for function keys)."
+                format!("Hotkey for opening model selector (F2-F24 or {ca}+letter; macOS supports up to F20 for function keys).")
             }
             RowKind::ReasoningEffortHotkey => {
-                "Hotkey for cycling reasoning effort (F2-F24 or Ctrl/Alt+letter; macOS supports up to F20 for function keys)."
+                format!("Hotkey for cycling reasoning effort (F2-F24 or {ca}+letter; macOS supports up to F20 for function keys).")
             }
             RowKind::ShellSelectorHotkey => {
-                "Hotkey for opening shell selector (F2-F24 or Ctrl/Alt+letter; macOS supports up to F20 for function keys)."
+                format!("Hotkey for opening shell selector (F2-F24 or {ca}+letter; macOS supports up to F20 for function keys).")
             }
             RowKind::NetworkSettingsHotkey => {
-                "Hotkey for opening Settings -> Network (F2-F24 or Ctrl/Alt+letter; macOS supports up to F20 for function keys)."
+                format!("Hotkey for opening Settings -> Network (F2-F24 or {ca}+letter; macOS supports up to F20 for function keys).")
             }
             RowKind::ExecOutputFoldHotkey => {
-                "Hotkey for folding/unfolding the latest exec output (function key or Ctrl/Alt+letter). Defaults to legacy `[`, while composer is empty."
+                format!("Hotkey for folding/unfolding the latest exec output (function key or {ca}+letter). Defaults to legacy `[`, while composer is empty.")
             }
             RowKind::JsReplCodeFoldHotkey => {
-                "Hotkey for folding/unfolding the latest JS REPL code (function key or Ctrl/Alt+letter). Defaults to legacy `\\`, while composer is empty."
+                format!("Hotkey for folding/unfolding the latest JS REPL code (function key or {ca}+letter). Defaults to legacy `\\`, while composer is empty.")
             }
             RowKind::JumpToParentCallHotkey => {
-                "Hotkey for jumping to a parent tool call when a nested call is shown (function key or Ctrl/Alt+letter). Defaults to legacy `]`, while composer is empty."
+                format!("Hotkey for jumping to a parent tool call when a nested call is shown (function key or {ca}+letter). Defaults to legacy `]`, while composer is empty.")
             }
             RowKind::JumpToLatestChildCallHotkey => {
-                "Hotkey for jumping to the latest tool call spawned by JS REPL (function key or Ctrl/Alt+letter). Defaults to legacy `}`, while composer is empty."
+                format!("Hotkey for jumping to the latest tool call spawned by JS REPL (function key or {ca}+letter). Defaults to legacy `}}`, while composer is empty.")
             }
-            RowKind::ShowConfigToml => "Open config.toml in your file manager (Finder/Explorer).",
-            RowKind::ShowCodeHome => "Open CODE_HOME in your file manager.",
-            RowKind::Apply => "Persist these preferences to config.toml.",
-            RowKind::Close => "Close this panel.",
+            RowKind::ShowConfigToml => "Open config.toml in your file manager (Finder/Explorer).".into(),
+            RowKind::ShowCodeHome => "Open CODE_HOME in your file manager.".into(),
+            RowKind::Apply => "Persist these preferences to config.toml.".into(),
+            RowKind::Close => "Close this panel.".into(),
         }
     }
 }

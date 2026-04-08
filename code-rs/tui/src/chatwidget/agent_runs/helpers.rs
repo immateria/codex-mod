@@ -159,7 +159,7 @@ fn trim_to_tail(text: &str, max_bytes: usize) -> (String, bool) {
     while start_idx < bytes.len() && (bytes[start_idx] & 0b1100_0000) == 0b1000_0000 {
         start_idx += 1;
     }
-    let trimmed = String::from_utf8_lossy(&bytes[start_idx..]).to_string();
+    let trimmed = String::from_utf8_lossy(&bytes[start_idx..]).into_owned();
     (format!("…{trimmed}"), true)
 }
 

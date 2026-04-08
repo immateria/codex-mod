@@ -1522,7 +1522,11 @@ impl TuiHotkeyChord {
             out.push_str("Ctrl+");
         }
         if self.alt {
-            out.push_str("Alt+");
+            if cfg!(target_os = "macos") {
+                out.push_str("Opt+");
+            } else {
+                out.push_str("Alt+");
+            }
         }
         out.push(self.key.to_ascii_uppercase());
         out

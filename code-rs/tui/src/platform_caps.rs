@@ -67,6 +67,17 @@ fn env_truthy(name: &str) -> bool {
 
 /// Returns `true` when running inside Termux on Android.
 /// Cached after the first call via `OnceLock`.
+/// Returns the platform name for the Alt modifier key.
+/// macOS terminals send the Option key as Alt, so we surface "Opt" there.
+pub(crate) const fn alt_key_name() -> &'static str {
+    if cfg!(target_os = "macos") { "Opt" } else { "Alt" }
+}
+
+/// Returns `"Ctrl/Opt"` on macOS and `"Ctrl/Alt"` elsewhere, for help text.
+pub(crate) const fn ctrl_alt_label() -> &'static str {
+    if cfg!(target_os = "macos") { "Ctrl/Opt" } else { "Ctrl/Alt" }
+}
+
 pub(crate) fn is_termux() -> bool {
     use std::sync::OnceLock;
     static CACHED: OnceLock<bool> = OnceLock::new();

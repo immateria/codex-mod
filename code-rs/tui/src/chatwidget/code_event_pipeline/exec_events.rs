@@ -32,7 +32,7 @@ impl ChatWidget<'_> {
             self.ensure_spinner_for_activity("exec-output");
         }
         if let Some(running) = self.exec.running_commands.get_mut(&call_id) {
-            let chunk = String::from_utf8_lossy(&ev.chunk).to_string();
+            let chunk = String::from_utf8_lossy(&ev.chunk).into_owned();
             let chunk_len = chunk.len();
             let (stdout_chunk, stderr_chunk) = match ev.stream {
                 ExecOutputStream::Stdout => {

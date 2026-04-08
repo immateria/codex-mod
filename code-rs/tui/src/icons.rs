@@ -327,7 +327,7 @@ define_icon_functions! {
     /// Control key label.
     control                   => CONTROL                     ("\u{f0634}", "Ctrl", "Ctrl");              // 󰘴  nf-md-apple_keyboard_control
     /// Option / Alt key label.
-    option                    => OPTION                      ("\u{f0635}", "Alt", "Alt");                // 󰘵  nf-md-apple_keyboard_option
+    option                    => OPTION                      ("\u{f0635}", "⌥", "Opt");                // 󰘵  nf-md-apple_keyboard_option
     /// Shift key label.
     shift                     => SHIFT                       ("\u{f0636}", "Shift", "Shift");            // 󰘶  nf-md-apple_keyboard_shift
     /// Enter / return key label.
@@ -458,11 +458,11 @@ define_icon_functions! {
     // ── File system ────────────────────────────────────────────────────
 
     /// Generic file.
-    file                      => FILE                        ("\u{f15b}", "⊡", "F");                     //   nf-fa-file
+    file                      => FILE                        ("\u{f15b}", "□", "File");                     //   nf-fa-file
     /// Closed folder.
-    folder                    => FOLDER                      ("\u{f07b}", "▤", "D");                     //   nf-fa-folder
+    folder                    => FOLDER                      ("\u{f07b}", "▣", "Dir");                     //   nf-fa-folder
     /// Open folder.
-    folder_open               => FOLDER_OPEN                 ("\u{f07c}", "▥", "D");                     //   nf-fa-folder_open
+    folder_open               => FOLDER_OPEN                 ("\u{f07c}", "▤", "Dir");                     //   nf-fa-folder_open
 
     // ── Actions ────────────────────────────────────────────────────────
 
@@ -471,7 +471,7 @@ define_icon_functions! {
     /// Delete / trash.
     trash                     => TRASH                       ("\u{f1f8}", "✕", "X");                     //   nf-fa-trash
     /// Save / floppy disk.
-    save                      => SAVE                        ("\u{f0c7}", "⊟", "Sv");                    //   nf-fa-floppy_o
+    save                      => SAVE                        ("\u{f0c7}", "⤓", "Sv");                    //   nf-fa-floppy_o
     /// Refresh / reload.
     refresh                   => REFRESH                     ("\u{f021}", "↺", "~");                     //   nf-fa-refresh
     /// Search / magnify.
@@ -479,28 +479,28 @@ define_icon_functions! {
     /// Filter / funnel.
     filter                    => FILTER                      ("\u{f0b0}", "▽", "Y");                     //   nf-fa-filter
     /// Hyperlink.
-    link                      => LINK                        ("\u{f0c1}", "⌁", "@");                     //   nf-fa-link
+    link                      => LINK                        ("\u{f0c1}", "≋", "@");                     //   nf-fa-link
     /// External link (opens outside).
     external_link             => EXTERNAL_LINK               ("\u{f08e}", "↗", "->");                    //   nf-fa-external_link
     /// Send / submit.
-    send                      => SEND                        ("\u{f1d9}", "↵", "=>");                    //   nf-fa-paper_plane
+    send                      => SEND                        ("\u{f1d9}", "⇢", "=>");                    //   nf-fa-paper_plane
 
     // ── State toggles ──────────────────────────────────────────────────
 
     /// Locked.
-    lock                      => LOCK                        ("\u{f023}", "⊘", "[L]");                   //   nf-fa-lock
+    lock                      => LOCK                        ("\u{f023}", "⛒", "[L]");                   //   nf-fa-lock
     /// Unlocked.
     unlock                    => UNLOCK                      ("\u{f09c}", "⊙", "[U]");                   //   nf-fa-unlock
     /// Visible / show.
     eye_show                  => EYE_SHOW                    ("\u{f06e}", "◉", "(o)");                   //   nf-fa-eye
     /// Hidden / masked.
-    eye_hide                  => EYE_HIDE                    ("\u{f070}", "◎", "(-)");                   //   nf-fa-eye_slash
+    eye_hide                  => EYE_HIDE                    ("\u{f070}", "⊘", "(-)");                   //   nf-fa-eye_slash
     /// Pinned.
-    pin                       => PIN                         ("\u{f08d}", "♦", "*");                     //   nf-fa-thumb_tack
+    pin                       => PIN                         ("\u{f08d}", "⟡", "*");                     //   nf-fa-thumb_tack
     /// Favourite (empty star).
     star_empty                => STAR_EMPTY                  ("\u{f006}", "☆", "*");                     //   nf-fa-star_o
     /// Bookmarked.
-    bookmark                  => BOOKMARK                    ("\u{f02e}", "⊲", "[B]");                   //   nf-fa-bookmark
+    bookmark                  => BOOKMARK                    ("\u{f02e}", "▮", "[B]");                   //   nf-fa-bookmark
 
     // ── Time & reference ──────────────────────────────────────────────
 

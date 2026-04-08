@@ -60,7 +60,7 @@ impl ChatComposer {
             let Some(first) = parts.next() else {
                 return false;
             };
-            if !matches!(first, "Ctrl" | "Alt" | "Shift" | "Meta" | "Cmd") {
+            if !matches!(first, "Ctrl" | "Alt" | "Opt" | "Option" | "Shift" | "Meta" | "Cmd") {
                 return false;
             }
             let mut last = first;
@@ -75,7 +75,7 @@ impl ChatComposer {
                 last = part;
                 saw_extra = true;
             }
-            return saw_extra && !matches!(last, "Ctrl" | "Alt" | "Shift" | "Meta" | "Cmd");
+            return saw_extra && !matches!(last, "Ctrl" | "Alt" | "Opt" | "Option" | "Shift" | "Meta" | "Cmd");
         }
         matches!(
             normalized,
