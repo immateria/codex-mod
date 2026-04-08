@@ -501,7 +501,18 @@ fn new_parsed_command(
     if !suppress_run_header {
         match output {
             None => {
-                if matches!(action, ExecAction::Run) {
+                if let Some(label) = action.tool_label() {
+                    let duration_suffix = if let Some(start) = start_time {
+                        let elapsed = start.elapsed();
+                        format!(" ({})", format_duration(elapsed))
+                    } else {
+                        String::new()
+                    };
+                    lines.push(Line::styled(
+                        format!("{label}{duration_suffix}"),
+                        Style::default().fg(crate::colors::text_dim()),
+                    ));
+                } else {
                     let mut message = match &ctx_path {
                         Some(p) => format!("Running... in {p}"),
                         None => "Running...".to_string(),
@@ -511,64 +522,12 @@ fn new_parsed_command(
                         message = format!("{message} ({})", format_duration(elapsed));
                     }
                     running_status = Some(running_status_line(message));
-                } else {
-                    let duration_suffix = if let Some(start) = start_time {
-                        let elapsed = start.elapsed();
-                        format!(" ({})", format_duration(elapsed))
-                    } else {
-                        String::new()
-                    };
-                    let header = match action {
-                        ExecAction::Read => "Read",
-                        ExecAction::Search => "Search",
-                        ExecAction::List => "List",
-                        ExecAction::Run => unreachable!(),
-                    };
-                    lines.push(Line::styled(
-                        format!("{header}{duration_suffix}"),
-                        Style::default().fg(crate::colors::text_dim()),
-                    ));
                 }
             }
-            Some(o) if o.exit_code == 0 => {
-                if matches!(
-                    action,
-                    ExecAction::Read | ExecAction::Search | ExecAction::List
-                ) {
+            Some(_) => {
+                if let Some(label) = action.tool_label() {
                     lines.push(Line::styled(
-                        match action {
-                            ExecAction::Read => "Read",
-                            ExecAction::Search => "Search",
-                            ExecAction::List => "List",
-                            ExecAction::Run => unreachable!(),
-                        },
-                        Style::default().fg(crate::colors::text()),
-                    ));
-                } else {
-                    let done = match ctx_path {
-                        Some(p) => format!("Ran in {p}"),
-                        None => "Ran".to_string(),
-                    };
-                    lines.push(Line::styled(
-                        done,
-                        Style::default()
-                            .fg(crate::colors::text_bright())
-                            .add_modifier(Modifier::BOLD),
-                    ));
-                }
-            }
-            Some(_o) => {
-                if matches!(
-                    action,
-                    ExecAction::Read | ExecAction::Search | ExecAction::List
-                ) {
-                    lines.push(Line::styled(
-                        match action {
-                            ExecAction::Read => "Read",
-                            ExecAction::Search => "Search",
-                            ExecAction::List => "List",
-                            ExecAction::Run => unreachable!(),
-                        },
+                        label,
                         Style::default().fg(crate::colors::text()),
                     ));
                 } else {

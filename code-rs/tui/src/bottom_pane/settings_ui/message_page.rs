@@ -104,9 +104,7 @@ impl<'a> SettingsMessagePage<'a> {
         Some(self.layout_from_page(page))
     }
 
-    fn render_framed(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsMessagePageLayout> {
-        let page = self.page.framed().render_shell(area, buf)?;
-        let layout = self.layout_from_page(page);
+    fn render_body_into(&self, layout: &SettingsMessagePageLayout, buf: &mut Buffer) {
         if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
             let mut paragraph = Paragraph::new(self.body_lines.clone())
                 .alignment(Alignment::Left)
@@ -116,21 +114,19 @@ impl<'a> SettingsMessagePage<'a> {
             }
             paragraph.render(layout.body, buf);
         }
+    }
+
+    fn render_framed(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsMessagePageLayout> {
+        let page = self.page.framed().render_shell(area, buf)?;
+        let layout = self.layout_from_page(page);
+        self.render_body_into(&layout, buf);
         Some(layout)
     }
 
     fn render_content_only(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsMessagePageLayout> {
         let page = self.page.content_only().render_shell(area, buf)?;
         let layout = self.layout_from_page(page);
-        if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
-            let mut paragraph = Paragraph::new(self.body_lines.clone())
-                .alignment(Alignment::Left)
-                .style(self.body_style);
-            if self.body_wrap {
-                paragraph = paragraph.wrap(Wrap { trim: true });
-            }
-            paragraph.render(layout.body, buf);
-        }
+        self.render_body_into(&layout, buf);
         Some(layout)
     }
 }

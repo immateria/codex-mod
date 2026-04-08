@@ -658,6 +658,19 @@ pub enum ExecAction {
     Run,
 }
 
+impl ExecAction {
+    /// Short human-readable label for the non-Run variants.
+    /// Returns `None` for `Run` since it uses a different display path.
+    pub fn tool_label(self) -> Option<&'static str> {
+        match self {
+            Self::Read => Some("Read"),
+            Self::Search => Some("Search"),
+            Self::List => Some("List"),
+            Self::Run => None,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExecStatus {
     Running,
