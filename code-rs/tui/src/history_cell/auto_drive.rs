@@ -1048,7 +1048,7 @@ impl AutoDriveCardCell {
     #[allow(clippy::disallowed_methods)]
     fn celebration_background_style() -> Style {
         if palette_mode() == PaletteMode::Ansi16 {
-            let fg = if is_dark_theme_active() {
+            let fg = if colors::is_dark_theme() {
                 Color::White
             } else {
                 Color::Black
@@ -1109,7 +1109,7 @@ impl AutoDriveCardCell {
                 theme.theme.reveal.map(|config| RevealRender {
                     progress,
                     variant: config.variant,
-                    intro_light: !is_dark_theme_active(),
+                    intro_light: !colors::is_dark_theme(),
                 })
             });
             GradientBackground::render(
@@ -1166,12 +1166,8 @@ impl AutoDriveCardCell {
     }
 }
 
-fn is_dark_theme_active() -> bool {
-    colors::is_dark_theme()
-}
-
 fn active_auto_drive_theme() -> card_theme::CardThemeDefinition {
-    if is_dark_theme_active() {
+    if colors::is_dark_theme() {
         card_theme::auto_drive_dark_theme()
     } else {
         card_theme::auto_drive_light_theme()

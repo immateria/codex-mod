@@ -111,6 +111,17 @@ impl<'a> BottomPane<'a> {
         self.set_view(Box::new(view), ActiveViewKind::Other, height_change);
     }
 
+    /// Show any view that implements `BottomPaneView`.
+    /// This replaces the ~20 trivial `show_*_settings` forwarding methods.
+    pub fn show_settings_view(&mut self, view: impl BottomPaneView<'a> + 'a) {
+        self.set_other_view(view, true);
+    }
+
+    /// Like `show_settings_view` but does not trigger a height recalculation.
+    pub fn show_settings_view_no_height_change(&mut self, view: impl BottomPaneView<'a> + 'a) {
+        self.set_other_view(view, false);
+    }
+
     pub(super) fn active_view_as<T: 'static>(&mut self) -> Option<&mut T> {
         self.active_view
             .as_mut()?
@@ -164,57 +175,6 @@ impl<'a> BottomPane<'a> {
         }
     }
 
-    pub fn show_notifications_settings(
-        &mut self,
-        view: settings_pages::notifications::NotificationsSettingsView,
-    ) {
-        self.set_other_view(view, true);
-    }
-
-    #[cfg(feature = "managed-network-proxy")]
-    pub fn show_network_settings(&mut self, view: settings_pages::network::NetworkSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_exec_limits_settings(
-        &mut self,
-        view: settings_pages::exec_limits::ExecLimitsSettingsView,
-    ) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_js_repl_settings(&mut self, view: settings_pages::js_repl::JsReplSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_interface_settings(
-        &mut self,
-        view: settings_pages::interface::InterfaceSettingsView,
-    ) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_experimental_features_settings(
-        &mut self,
-        view: settings_pages::experimental_features::ExperimentalFeaturesSettingsView,
-    ) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_shell_profiles_settings(
-        &mut self,
-        view: settings_pages::shell_profiles::ShellProfilesSettingsView,
-    ) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_shell_escalation_settings(
-        &mut self,
-        view: settings_pages::shell_escalation::ShellEscalationSettingsView,
-    ) {
-        self.set_other_view(view, true);
-    }
-
     pub(crate) fn apply_shell_profiles_generated_summary(
         &mut self,
         style: code_core::config_types::ShellScriptStyle,
@@ -245,73 +205,6 @@ impl<'a> BottomPane<'a> {
         shell_profiles.set_summary_generation_error(style, error);
         self.request_redraw();
         true
-    }
-
-    pub fn show_settings_overview(&mut self, view: settings_pages::overview::SettingsOverviewView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_update_settings(&mut self, view: settings_pages::updates::UpdateSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_status_line_setup(&mut self, view: settings_pages::status_line::StatusLineSetupView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_planning_settings(&mut self, view: settings_pages::planning::PlanningSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_review_settings(&mut self, view: settings_pages::review::ReviewSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_validation_settings(
-        &mut self,
-        view: settings_pages::validation::ValidationSettingsView,
-    ) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_prompts_settings(&mut self, view: settings_pages::prompts::PromptsSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_skills_settings(&mut self, view: settings_pages::skills::SkillsSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_plugins_settings(&mut self, view: settings_pages::plugins::PluginsSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_secrets_settings(&mut self, view: settings_pages::secrets::SecretsSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_apps_settings(&mut self, view: settings_pages::apps::AppsSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_memories_settings(&mut self, view: settings_pages::memories::MemoriesSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_auto_drive_settings_panel(&mut self, view: settings_pages::auto_drive::AutoDriveSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_account_switch_settings(&mut self, view: settings_pages::accounts::AccountSwitchSettingsView) {
-        self.set_other_view(view, true);
-    }
-
-    pub fn show_login_accounts(&mut self, view: settings_pages::accounts::LoginAccountsView) {
-        self.set_other_view(view, false);
-    }
-
-    pub fn show_login_add_account(&mut self, view: settings_pages::accounts::LoginAddAccountView) {
-        self.set_other_view(view, false);
     }
 
     pub fn set_using_chatgpt_auth(&mut self, using: bool) {

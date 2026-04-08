@@ -70,7 +70,7 @@ pub(crate) const CARD_BORDER_BOTTOM: &str = "╰─";
 pub(crate) fn agent_card_style(_write_enabled: Option<bool>) -> CardStyle {
     // Agent batches share the calmer green theme in full-color terminals.
     // In ANSI-16 mode we keep the surface transparent and rely on inverted text.
-    let is_dark = is_dark_theme_active();
+    let is_dark = colors::is_dark_theme();
     let definition = if is_dark {
         card_theme::agent_read_only_dark_theme()
     } else {
@@ -86,7 +86,7 @@ pub(crate) fn agent_card_style(_write_enabled: Option<bool>) -> CardStyle {
 }
 
 pub(crate) fn browser_card_style() -> CardStyle {
-    let is_dark = is_dark_theme_active();
+    let is_dark = colors::is_dark_theme();
     let definition = if is_dark {
         card_theme::browser_dark_theme()
     } else {
@@ -102,7 +102,7 @@ pub(crate) fn browser_card_style() -> CardStyle {
 }
 
 pub(crate) fn auto_drive_card_style() -> CardStyle {
-    let is_dark = is_dark_theme_active();
+    let is_dark = colors::is_dark_theme();
     let definition = if is_dark {
         card_theme::auto_drive_dark_theme()
     } else {
@@ -123,7 +123,7 @@ pub(crate) fn auto_drive_card_style() -> CardStyle {
 }
 
 pub(crate) fn web_search_card_style() -> CardStyle {
-    let is_dark = is_dark_theme_active();
+    let is_dark = colors::is_dark_theme();
     let definition = if is_dark {
         card_theme::search_dark_theme()
     } else {
@@ -139,7 +139,7 @@ pub(crate) fn web_search_card_style() -> CardStyle {
 }
 
 pub(crate) fn ansi16_inverse_color() -> Color {
-    if is_dark_theme_active() {
+    if colors::is_dark_theme() {
         Color::White
     } else {
         Color::Black
@@ -191,10 +191,6 @@ fn style_from_theme(definition: CardThemeDefinition, is_dark: bool) -> CardStyle
         title_text,
         gradient: adjust_gradient(theme.gradient, is_dark),
     }
-}
-
-fn is_dark_theme_active() -> bool {
-    colors::is_dark_theme()
 }
 
 fn adjust_gradient(gradient: GradientSpec, _is_dark: bool) -> GradientSpec {

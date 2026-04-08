@@ -190,7 +190,7 @@ impl ChatWidget<'_> {
             .map(|row| (row.section, row.summary))
             .collect();
         let view = SettingsOverviewView::new(rows, initial_section, self.app_event_tx.clone());
-        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_overview(view));
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_view(view));
         self.settings.bottom_route = Some(None);
     }
 

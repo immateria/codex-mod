@@ -172,15 +172,11 @@ pub struct BorderGradient {
 }
 
 fn auto_drive_accent_color() -> Color {
-    if is_dark_theme_active() {
+    if colors::is_dark_theme() {
         card_theme::auto_drive_dark_theme().theme.gradient.left
     } else {
         card_theme::auto_drive_light_theme().theme.gradient.left
     }
-}
-
-fn is_dark_theme_active() -> bool {
-    colors::is_dark_theme()
 }
 
 fn sentinel_style() -> AutoDriveStyle {
@@ -352,7 +348,7 @@ fn pulse_style() -> AutoDriveStyle {
 
 #[allow(clippy::disallowed_methods)]
 fn auto_drive_border_gradient() -> BorderGradient {
-    if is_dark_theme_active() {
+    if colors::is_dark_theme() {
         BorderGradient {
             left: Color::Rgb(0, 150, 255),
             right: Color::Rgb(255, 162, 0),

@@ -50,7 +50,7 @@ impl ChatWidget<'_> {
             initial_lane,
             self.app_event_tx.clone(),
         );
-        self.bottom_pane.show_status_line_setup(view);
+        self.bottom_pane.show_settings_view(view);
         self.request_redraw();
     }
 

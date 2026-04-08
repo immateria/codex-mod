@@ -151,7 +151,7 @@ impl ChatWidget<'_> {
                 return;
             }
 
-        self.bottom_pane.show_login_accounts(view);
+        self.bottom_pane.show_settings_view_no_height_change(view);
         self.request_redraw();
     }
 
@@ -177,7 +177,7 @@ impl ChatWidget<'_> {
                 return;
             }
 
-        self.bottom_pane.show_login_add_account(view);
+        self.bottom_pane.show_settings_view_no_height_change(view);
         self.request_redraw();
     }
 

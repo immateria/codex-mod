@@ -26,7 +26,7 @@ impl ChatWidget<'_> {
         let Some(view) = self.prepare_update_settings_view() else {
             return false;
         };
-        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_update_settings(view))
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_view(view))
     }
 
     fn open_accounts_settings_section(&mut self) -> bool {
@@ -37,76 +37,76 @@ impl ChatWidget<'_> {
             self.config.cli_auth_credentials_store_mode,
         );
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_account_switch_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_memories_settings_section(&mut self) -> bool {
         let view = self.build_memories_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_memories_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_prompts_settings_section(&mut self) -> bool {
         let view = self.build_prompts_settings_view();
-        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_prompts_settings(view))
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_view(view))
     }
 
     fn open_skills_settings_section(&mut self) -> bool {
         let view = self.build_skills_settings_view();
-        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_skills_settings(view))
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_view(view))
     }
 
     fn open_plugins_settings_section(&mut self) -> bool {
         let view = self.build_plugins_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_plugins_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_secrets_settings_section(&mut self) -> bool {
         let view = self.build_secrets_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_secrets_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_apps_settings_section(&mut self) -> bool {
         let view = self.build_apps_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_apps_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_auto_drive_settings_section(&mut self) -> bool {
         let view = self.build_auto_drive_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_auto_drive_settings_panel(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_review_settings_section(&mut self) -> bool {
         let view = self.build_review_settings_view();
-        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_review_settings(view))
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_view(view))
     }
 
     fn open_planning_settings_section(&mut self) -> bool {
         let view = self.build_planning_settings_view();
-        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_planning_settings(view))
+        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_settings_view(view))
     }
 
     fn open_validation_settings_section(&mut self) -> bool {
         let view = self.build_validation_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_validation_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_notifications_settings_section(&mut self) -> bool {
         let view = self.build_notifications_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_notifications_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
@@ -114,21 +114,21 @@ impl ChatWidget<'_> {
     fn open_network_settings_section(&mut self) -> bool {
         let view = self.build_network_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_network_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_exec_limits_settings_section(&mut self) -> bool {
         let view = self.build_exec_limits_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_exec_limits_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_js_repl_settings_section(&mut self) -> bool {
         let view = self.build_js_repl_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_js_repl_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
@@ -142,7 +142,7 @@ impl ChatWidget<'_> {
     fn open_shell_escalation_settings_section(&mut self) -> bool {
         let view = self.build_shell_escalation_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_shell_escalation_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
@@ -168,21 +168,21 @@ impl ChatWidget<'_> {
             self.app_event_tx.clone(),
         );
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_shell_profiles_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_interface_settings_section(&mut self) -> bool {
         let view = self.build_interface_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_interface_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
     fn open_experimental_features_settings_section(&mut self) -> bool {
         let view = self.build_experimental_features_settings_view();
         self.open_bottom_pane_settings(move |this| {
-            this.bottom_pane.show_experimental_features_settings(view);
+            this.bottom_pane.show_settings_view(view);
         })
     }
 
