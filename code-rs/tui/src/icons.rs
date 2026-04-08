@@ -163,7 +163,7 @@ define_icon_functions! {
     /// Patch / diff.
     gutter_patch     => GUTTER_PATCH       ("\u{f126}", "↯");       // nf-fa-code_fork
     /// Background event.
-    gutter_background => GUTTER_BACKGROUND ("\u{f0e7}", "»");       // nf-fa-bolt
+    gutter_background => GUTTER_BACKGROUND ("\u{f0e7}", "»");       // nf-fa-bolt (alias: nf-fa-flash)
     /// Notice / important.
     gutter_notice    => GUTTER_NOTICE      ("\u{f005}", "★");       // nf-fa-star
     /// Compaction summary.
@@ -200,9 +200,9 @@ define_icon_functions! {
     // ── Sidebar collapse/expand ────────────────────────────────────────
 
     /// Sidebar hide (with label).
-    sidebar_hide     => SIDEBAR_HIDE       ("\u{f104} hide", "◂ hide");  // nf-fa-angle_double_left
+    sidebar_hide     => SIDEBAR_HIDE       ("\u{f104} hide", "◂ hide");  // nf-fa-angle_left
     /// Sidebar show (chevron only).
-    sidebar_show     => SIDEBAR_SHOW       ("\u{f105}", "▸");            // nf-fa-angle_double_right
+    sidebar_show     => SIDEBAR_SHOW       ("\u{f105}", "▸");            // nf-fa-angle_right
 
     // ── Plan progress ──────────────────────────────────────────────────
 
@@ -215,9 +215,9 @@ define_icon_functions! {
     /// Progress: empty.
     progress_empty   => PROGRESS_EMPTY     ("\u{f10c}", "○");       // nf-fa-circle_o
     /// Progress: ¼.
-    progress_quarter => PROGRESS_QUARTER   ("\u{f123}", "◔");       // nf-fa-star_half
+    progress_quarter => PROGRESS_QUARTER   ("\u{f123}", "◔");       // nf-fa-star_half_o
     /// Progress: ½.
-    progress_half    => PROGRESS_HALF      ("\u{f042}", "◑");       // nf-fa-adjust
+    progress_half    => PROGRESS_HALF      ("\u{f042}", "◑");       // nf-fa-circle_half_stroke (alias: nf-fa-adjust)
     /// Progress: ¾.
     progress_three_quarter => PROGRESS_THREE_QUARTER ("\u{f111}", "◕"); // nf-fa-circle
     /// Progress: complete.
@@ -230,7 +230,7 @@ define_icon_functions! {
     /// Agent completed.
     agent_completed  => AGENT_COMPLETED    ("\u{f058}", "✓");       // nf-fa-check_circle
     /// Agent failed.
-    agent_failed     => AGENT_FAILED       ("\u{f071}", "!");       // nf-fa-warning
+    agent_failed     => AGENT_FAILED       ("\u{f071}", "!");       // nf-fa-triangle_exclamation (alias: nf-fa-warning)
     /// Agent cancelled.
     agent_cancelled  => AGENT_CANCELLED    ("\u{f04d}", "▮");       // nf-fa-stop
     /// Agent pending.
@@ -253,23 +253,23 @@ define_icon_functions! {
     // ── Keyboard / modifier labels ─────────────────────────────────────
 
     /// Escape key label.
-    escape           => ESCAPE             ("\u{f12b7}", "Esc");
+    escape           => ESCAPE             ("\u{f12b7}", "Esc");    // nf-md-keyboard_esc
     /// Control key label.
-    control          => CONTROL            ("\u{f0634}", "Ctrl");
+    control          => CONTROL            ("\u{f0634}", "Ctrl");   // nf-md-apple_keyboard_control
     /// Option / Alt key label.
-    option           => OPTION             ("\u{f0635}", "Alt");
+    option           => OPTION             ("\u{f0635}", "Alt");    // nf-md-apple_keyboard_option
     /// Shift key label.
-    shift            => SHIFT              ("\u{f0636}", "Shift");
+    shift            => SHIFT              ("\u{f0636}", "Shift");  // nf-md-apple_keyboard_shift
     /// Enter / return key label.
-    enter            => ENTER              ("\u{f0311}", "Enter");
+    enter            => ENTER              ("\u{f0311}", "Enter");  // nf-md-keyboard_return
     /// Backspace key label.
-    backspace        => BACKSPACE          ("\u{f030d}", "Backspace");
+    backspace        => BACKSPACE          ("\u{f030d}", "Backspace"); // nf-md-keyboard_backspace
     /// Tab key label.
-    tab              => TAB                ("\u{f0312}", "Tab");
+    tab              => TAB                ("\u{f0312}", "Tab");    // nf-md-keyboard_tab
     /// Reverse tab / shift+tab key label.
-    reverse_tab      => REVERSE_TAB        ("\u{f0325}", "Shift+Tab");
+    reverse_tab      => REVERSE_TAB        ("\u{f0325}", "Shift+Tab"); // nf-md-keyboard_tab_reverse
     /// Space key label.
-    space            => SPACE              ("\u{f1050}", "Space");
+    space            => SPACE              ("\u{f1050}", "Space");  // nf-md-keyboard_space
 
     // ── Selection pointer ──────────────────────────────────────────────
 
@@ -299,25 +299,25 @@ define_icon_functions! {
     /// Rename / transition arrow.
     rename_arrow     => RENAME_ARROW       ("\u{f061}", "→");       // nf-fa-arrow_right
     /// JavaScript language icon.
-    javascript_icon  => JAVASCRIPT_ICON    ("\u{f2ee}", "JS");
+    javascript_icon  => JAVASCRIPT_ICON    ("\u{f2ee}", "JS");      // nf-fa-js
     /// Rust language icon.
-    rust_icon        => RUST_ICON          ("\u{e7a8}", "RS");
+    rust_icon        => RUST_ICON          ("\u{e7a8}", "RS");      // nf-dev-rust
     /// Bash / shell language icon.
-    bash_icon        => BASH_ICON          ("\u{e760}", "SH");
+    bash_icon        => BASH_ICON          ("\u{e760}", "SH");      // nf-dev-bash
     /// Markdown language icon.
-    markdown_icon    => MARKDOWN_ICON      ("\u{f0354}", "MD");
+    markdown_icon    => MARKDOWN_ICON      ("\u{f0354}", "MD");     // nf-md-language_markdown
     /// Markdown outline icon.
-    markdown_icon_outline => MARKDOWN_ICON_OUTLINE ("\u{f0f5b}", "MDOutline");
+    markdown_icon_outline => MARKDOWN_ICON_OUTLINE ("\u{f0f5b}", "MDO"); // nf-md-language_markdown_outline
     /// Informational circle icon.
-    info_circle      => INFO_CIRCLE        ("\u{f05a}", "Info");
+    info_circle      => INFO_CIRCLE        ("\u{f05a}", "Info");    // nf-fa-info_circle
     /// Lambda symbol icon.
-    lambda           => LAMBDA             ("\u{f0627}", "λ");
+    lambda           => LAMBDA             ("\u{f0627}", "λ");      // nf-md-lambda
     /// Undo action icon.
-    undo             => UNDO               ("\u{f0e2}", "Undo");
+    undo             => UNDO               ("\u{f0e2}", "Undo");    // nf-fa-arrow_rotate_left
     /// Redo action icon.
-    redo             => REDO               ("\u{f01e}", "Redo");
+    redo             => REDO               ("\u{f01e}", "Redo");    // nf-fa-arrow_rotate_right
     /// Add / create action icon.
-    add              => ADD                ("\u{ea60}", "Add");
+    add              => ADD                ("\u{ea60}", "Add");     // nf-cod-add
 
     // ── Checkboxes / toggles ───────────────────────────────────────────
 
@@ -326,19 +326,19 @@ define_icon_functions! {
     /// Checkbox unchecked.
     checkbox_off     => CHECKBOX_OFF       ("\u{f096}", "[ ]");     // nf-fa-square_o
     /// Dismiss / close button.
-    dismiss          => DISMISS            ("\u{f00d}", "[x]");     // nf-fa-times
+    dismiss          => DISMISS            ("\u{f00d}", "[x]");     // nf-fa-xmark (alias: nf-fa-times)
     /// Markdown task list: done.
     task_done        => TASK_DONE          ("\u{f058}", "✓");       // nf-fa-check_circle
     /// Markdown task list: pending.
     task_pending     => TASK_PENDING       ("\u{f096}", "☐");       // nf-fa-square_o
     /// Copy content action.
-    copy_content     => COPY_CONTENT       ("\u{f018f}", "Copy");
+    copy_content     => COPY_CONTENT       ("\u{f018f}", "Copy");   // nf-md-content_copy
     /// Paste content action.
-    paste_content    => PASTE_CONTENT      ("\u{f0192}", "Paste");
+    paste_content    => PASTE_CONTENT      ("\u{f0192}", "Paste");  // nf-md-content_paste
     /// Cut content action.
-    cut_content      => CUT_CONTENT        ("\u{f0190}", "Cut");
+    cut_content      => CUT_CONTENT        ("\u{f0190}", "Cut");    // nf-md-content_cut
     /// Scroll to top of a cell.
-    scroll_to_top    => SCROLL_TO_TOP      ("\u{eaf4}", "↑Top"); // nf-mdi-arrow_collapse_up 
+    scroll_to_top    => SCROLL_TO_TOP      ("\u{eaf4}", "↑Top");    // nf-cod-fold_up
 
     // ── Number glyphs ──────────────────────────────────────────────────
 
@@ -438,7 +438,7 @@ define_icon_functions! {
     /// Horizontal ellipsis (more items).
     ellipsis_h       => ELLIPSIS_H         ("\u{f141}", "…");       // nf-fa-ellipsis_h
     /// Vertical ellipsis (more items).
-    ellipsis_v       => ELLIPSIS_V         ("\u{f142}", "⋮");       // nf-fa-ellipsis_v
+    ellipsis_v       => ELLIPSIS_V         ("\u{f142}", "⋮");       // nf-fa-ellipsis_vertical
     /// Word wrap toggle.
     word_wrap        => WORD_WRAP          ("\u{f035}", "↩");       // nf-fa-text_width
 
@@ -454,11 +454,11 @@ define_icon_functions! {
     // ── Additional language icons ──────────────────────────────────────
 
     /// Python language icon.
-    python_icon      => PYTHON_ICON        ("\u{e606}", "PY");      // nf-dev-python
+    python_icon      => PYTHON_ICON        ("\u{e606}", "PY");      // nf-seti-python
     /// TypeScript language icon.
-    typescript_icon  => TYPESCRIPT_ICON    ("\u{e628}", "TS");      // nf-dev-typescript
+    typescript_icon  => TYPESCRIPT_ICON    ("\u{e628}", "TS");      // nf-seti-typescript
     /// Go language icon.
-    go_icon          => GO_ICON            ("\u{e626}", "GO");      // nf-dev-go
+    go_icon          => GO_ICON            ("\u{e626}", "GO");      // nf-custom-go
     /// HTML language icon.
     html_icon        => HTML_ICON          ("\u{f13b}", "HT");      // nf-fa-html5
     /// CSS language icon.
@@ -467,7 +467,7 @@ define_icon_functions! {
     // ── System / environment ───────────────────────────────────────────
 
     /// Settings gear / cog.
-    settings_gear    => SETTINGS_GEAR      ("\u{f013}", "⚙");       // nf-fa-cog
+    settings_gear    => SETTINGS_GEAR      ("\u{f013}", "⚙");       // nf-fa-gear (alias: nf-fa-cog)
     /// Cloud / remote.
     cloud            => CLOUD              ("\u{f0c2}", "☁");       // nf-fa-cloud
     /// Notification bell.
@@ -475,7 +475,7 @@ define_icon_functions! {
     /// Muted bell.
     bell_off         => BELL_OFF           ("\u{f1f6}", "○");       // nf-fa-bell_slash
     /// Robot / AI agent.
-    robot            => ROBOT              ("\u{f544}", "⊛");       // nf-fa-robot
+    robot            => ROBOT              ("\u{ee0d}", "⊛");       // nf-fa-robot
 }
 
 // ── Settings sidebar section icons ───────────────────────────────────
@@ -487,7 +487,7 @@ const SECTION_ICONS: &[(&str, &str)] = &[
     ("Experimental",     "\u{f0c3} "),   // nf-fa-flask
     ("Shell",            "\u{f120} "),   // nf-fa-terminal
     ("Shell escalation", "\u{f132} "),   // nf-fa-shield
-    ("Shell profiles",   "\u{f2c0} "),   // nf-fa-id_badge
+    ("Shell profiles",   "\u{f2c1} "),   // nf-fa-id_badge
     ("Exec limits",      "\u{f023} "),   // nf-fa-lock
     ("Planning",         "\u{f073} "),   // nf-fa-calendar
     ("Updates",          "\u{f019} "),   // nf-fa-download
