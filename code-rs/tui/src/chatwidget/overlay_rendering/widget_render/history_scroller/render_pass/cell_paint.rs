@@ -584,7 +584,8 @@ impl ChatWidget<'_> {
                 }
 
                 // Copy-as-markdown button: only visible when mouse hovers over
-                // this cell's area. Indented 1 row down and 2 cols from right edge.
+                // this cell's area. Pushed down an extra row when the
+                // scroll-to-top arrow occupies row 0 (skip_top > 0).
                 if visible_height > 2
                     && item_area.width >= 8
                     && item.has_copyable_content()
@@ -595,8 +596,10 @@ impl ChatWidget<'_> {
                             && my >= item_area.y
                             && my < item_area.y.saturating_add(visible_height)
                     });
-                    // Button y: 1 row from the top of the visible area.
-                    let btn_y = item_area.y.saturating_add(1);
+                    // When the scroll-to-top arrow is visible (skip_top > 0),
+                    // push the copy button down by 1 extra row to leave a gap.
+                    let copy_offset: u16 = if skip_top > 0 { 2 } else { 1 };
+                    let btn_y = item_area.y.saturating_add(copy_offset);
                     let btn_visible = btn_y < item_area.y.saturating_add(visible_height);
 
                     if mouse_in_cell && btn_visible {
@@ -631,38 +634,37 @@ impl ChatWidget<'_> {
                     }
                 }
 
-                // Scroll-to-top pill: always rendered when the cell's header
-                // is scrolled above the viewport (skip_top > 0). Drawn as a
-                // high-contrast labeled pill " ↑ Top " so it's unmissable.
-                // Deliberately outside the copy-button block so it works for
-                // ALL cell types and isn't gated on mouse hover.
-                if skip_top > 0 && visible_height > 1 && item_area.width >= 10 {
-                    let pill = " ↑ Top ";
-                    let pill_w = {
+                // Scroll-to-top arrow: rendered when the cell's header is
+                // scrolled above the viewport (skip_top > 0). Uses the
+                // scroll_to_top icon with a subtle highlight background.
+                if skip_top > 0 && visible_height > 1 && item_area.width >= 6 {
+                    let icon = crate::icons::scroll_to_top();
+                    let icon_w = {
                         use unicode_width::UnicodeWidthStr as _;
-                        pill.width() as u16
+                        icon.width() as u16
                     };
-                    // Place at the top-right of the visible cell area.
+                    // Right-aligned, 2 cols from the right edge, on the first
+                    // visible row of the cell.
                     let px = item_area
                         .x
                         .saturating_add(item_area.width)
-                        .saturating_sub(pill_w + 1);
+                        .saturating_sub(icon_w + 2);
                     let py = item_area.y;
                     let scroll_action = crate::chatwidget::ClickableAction::ScrollToTopOfCell(idx);
                     let scroll_hovered = hovered_action_ref.as_ref() == Some(&scroll_action);
-                    let pill_style = if scroll_hovered {
+                    let icon_style = if scroll_hovered {
                         Style::default()
                             .bg(crate::colors::primary())
                             .fg(crate::colors::background())
                     } else {
                         Style::default()
-                            .bg(crate::colors::text_dim())
-                            .fg(crate::colors::background())
+                            .bg(crate::colors::border())
+                            .fg(crate::colors::text_bright())
                     };
-                    buf.set_string(px, py, pill, pill_style);
+                    buf.set_string(px, py, icon, icon_style);
                     self.clickable_regions.borrow_mut().push(
                         crate::chatwidget::ClickableRegion {
-                            rect: Rect::new(px, py, pill_w.max(1), 1),
+                            rect: Rect::new(px, py, icon_w.max(1), 1),
                             action: scroll_action,
                         },
                     );
