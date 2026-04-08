@@ -123,9 +123,9 @@ impl BrowserSessionCell {
         }
 
         let viewport_top = skip_rows as usize;
-        let viewport_bottom = viewport_top + area.height as usize;
+        let viewport_bottom = viewport_top.saturating_add(area.height as usize);
         let shot_top = layout.start_row;
-        let shot_bottom = layout.start_row + layout.height_rows;
+        let shot_bottom = shot_top.saturating_add(layout.height_rows);
 
         if shot_bottom <= viewport_top || shot_top >= viewport_bottom {
             return;

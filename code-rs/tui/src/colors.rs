@@ -52,10 +52,9 @@ pub(crate) fn border_dim() -> Color {
     match palette_mode() {
         PaletteMode::Ansi16 => indexed(8),
         PaletteMode::Ansi256 => {
-            let b = current_theme().border;
-            let bg = current_theme().background;
-            let (br, bg_g, bb) = color_to_rgb(b);
-            let (rr, rg, rb) = color_to_rgb(bg);
+            let theme = current_theme();
+            let (br, bg_g, bb) = color_to_rgb(theme.border);
+            let (rr, rg, rb) = color_to_rgb(theme.background);
             let t: f32 = 0.30; // 30% toward background
             let mix = |a: u8, b: u8| -> u8 { ((a as f32) * (1.0 - t) + (b as f32) * t).round() as u8 };
             let r = mix(br, rr);
@@ -101,9 +100,8 @@ pub(crate) fn text_mid() -> Color {
             }
         }
         PaletteMode::Ansi256 => {
-            let a = current_theme().text;
-            let b = current_theme().text_dim;
-            mix_toward(a, b, 0.5)
+            let theme = current_theme();
+            mix_toward(theme.text, theme.text_dim, 0.5)
         }
     }
 }
@@ -284,9 +282,8 @@ pub(crate) fn assistant_bg() -> Color {
             }
         }
         PaletteMode::Ansi256 => {
-            let bg = current_theme().background;
-            let info = current_theme().info;
-            mix_toward(bg, info, 0.05)
+            let theme = current_theme();
+            mix_toward(theme.background, theme.info, 0.05)
         }
     }
 }
@@ -298,9 +295,8 @@ pub(crate) fn assistant_mid_turn_bg() -> Color {
     match palette_mode() {
         PaletteMode::Ansi16 => assistant_bg(),
         PaletteMode::Ansi256 => {
-            let bg = current_theme().background;
-            let info = current_theme().info;
-            mix_toward(bg, info, 0.02)
+            let theme = current_theme();
+            mix_toward(theme.background, theme.info, 0.02)
         }
     }
 }
@@ -327,10 +323,9 @@ pub(crate) fn assistant_hr() -> Color {
             }
         }
         PaletteMode::Ansi256 => {
-            let bg = current_theme().background;
-            let info = current_theme().info;
+            let theme = current_theme();
             let cell = assistant_bg();
-            let candidate = mix_toward(bg, info, 0.15);
+            let candidate = mix_toward(theme.background, theme.info, 0.15);
             let cand_l = relative_luminance(color_to_rgb(candidate));
             let cell_l = relative_luminance(color_to_rgb(cell));
             let result = if cand_l < cell_l {

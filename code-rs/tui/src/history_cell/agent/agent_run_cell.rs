@@ -400,7 +400,7 @@ impl AgentRunCell {
             return Vec::new();
         }
 
-        let body_width = (available - 2) as usize;
+        let body_width = available.saturating_sub(2) as usize;
 
         let mut rows: Vec<CardRow> = Vec::new();
         rows.push(self.top_border_row(body_width, style));

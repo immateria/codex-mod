@@ -69,75 +69,55 @@ pub(crate) const CARD_BORDER_BOTTOM: &str = "╰─";
 
 pub(crate) const CARD_HINT_SETTINGS_STOP: &str = " [Ctrl+S] Settings · [Esc] Stop";
 
-pub(crate) fn agent_card_style(_write_enabled: Option<bool>) -> CardStyle {
-    // Agent batches share the calmer green theme in full-color terminals.
-    // In ANSI-16 mode we keep the surface transparent and rely on inverted text.
+/// Build a `CardStyle` from a pair of light/dark theme definitions, applying
+/// ANSI-16 fallback when needed.
+fn card_style_for(
+    dark_def: CardThemeDefinition,
+    light_def: CardThemeDefinition,
+) -> CardStyle {
     let is_dark = colors::is_dark_theme();
-    let definition = if is_dark {
-        card_theme::agent_read_only_dark_theme()
-    } else {
-        card_theme::agent_read_only_light_theme()
-    };
+    let definition = if is_dark { dark_def } else { light_def };
     let mut style = style_from_theme(definition, is_dark);
-
     if palette_mode() == PaletteMode::Ansi16 {
         strip_ansi16_background(&mut style);
     }
-
     style
+}
+
+pub(crate) fn agent_card_style(_write_enabled: Option<bool>) -> CardStyle {
+    card_style_for(
+        card_theme::agent_read_only_dark_theme(),
+        card_theme::agent_read_only_light_theme(),
+    )
 }
 
 pub(crate) fn browser_card_style() -> CardStyle {
-    let is_dark = colors::is_dark_theme();
-    let definition = if is_dark {
-        card_theme::browser_dark_theme()
-    } else {
-        card_theme::browser_light_theme()
-    };
-    let mut style = style_from_theme(definition, is_dark);
-
-    if palette_mode() == PaletteMode::Ansi16 {
-        strip_ansi16_background(&mut style);
-    }
-
-    style
+    card_style_for(
+        card_theme::browser_dark_theme(),
+        card_theme::browser_light_theme(),
+    )
 }
 
 pub(crate) fn auto_drive_card_style() -> CardStyle {
-    let is_dark = colors::is_dark_theme();
-    let definition = if is_dark {
-        card_theme::auto_drive_dark_theme()
-    } else {
-        card_theme::auto_drive_light_theme()
-    };
-    let mut style = style_from_theme(definition, is_dark);
-
+    let mut style = card_style_for(
+        card_theme::auto_drive_dark_theme(),
+        card_theme::auto_drive_light_theme(),
+    );
     if palette_mode() == PaletteMode::Ansi16 {
-        strip_ansi16_background(&mut style);
         let text_color = ansi16_inverse_color();
         style.title_text = text_color;
         style.accent_fg = text_color;
         style.text_primary = text_color;
         style.text_secondary = colors::warning();
     }
-
     style
 }
 
 pub(crate) fn web_search_card_style() -> CardStyle {
-    let is_dark = colors::is_dark_theme();
-    let definition = if is_dark {
-        card_theme::search_dark_theme()
-    } else {
-        card_theme::search_light_theme()
-    };
-    let mut style = style_from_theme(definition, is_dark);
-
-    if palette_mode() == PaletteMode::Ansi16 {
-        strip_ansi16_background(&mut style);
-    }
-
-    style
+    card_style_for(
+        card_theme::search_dark_theme(),
+        card_theme::search_light_theme(),
+    )
 }
 
 pub(crate) fn ansi16_inverse_color() -> Color {
