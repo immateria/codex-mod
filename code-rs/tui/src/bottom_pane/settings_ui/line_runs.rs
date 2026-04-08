@@ -46,6 +46,31 @@ pub(crate) fn render_selectable_runs<Id: Copy>(
     render_selectable_runs_inner(area, buf, scroll_top, runs, base_style, None);
 }
 
+#[cfg(test)]
+fn render_selectable_runs_with_rects<Id: Copy>(
+    area: Rect,
+    buf: &mut Buffer,
+    scroll_top: usize,
+    runs: &[SelectableLineRun<'_, Id>],
+    base_style: Style,
+    out_rects: &mut Vec<(Id, Rect)>,
+) {
+    render_selectable_runs_inner(area, buf, scroll_top, runs, base_style, Some(out_rects));
+}
+
+/// Test-only variant exposing the `out_rects` parameter to sibling modules.
+#[cfg(test)]
+pub(super) fn render_selectable_runs_inner_with_rects<Id: Copy>(
+    area: Rect,
+    buf: &mut Buffer,
+    scroll_top: usize,
+    runs: &[SelectableLineRun<'_, Id>],
+    base_style: Style,
+    out_rects: &mut Vec<(Id, Rect)>,
+) {
+    render_selectable_runs_inner(area, buf, scroll_top, runs, base_style, Some(out_rects));
+}
+
 
 
 fn render_selectable_runs_inner<Id: Copy>(
