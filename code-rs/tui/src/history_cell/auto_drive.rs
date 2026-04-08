@@ -10,6 +10,9 @@ use super::card_style::{
     CardSegment,
     CardStyle,
     CARD_ACCENT_WIDTH,
+    CARD_BORDER_TOP as BORDER_TOP,
+    CARD_BORDER_BODY as BORDER_BODY,
+    CARD_BORDER_BOTTOM as BORDER_BOTTOM,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::card_theme;
@@ -29,9 +32,6 @@ use std::f32;
 use std::time::{Duration, Instant};
 use std::env;
 
-const BORDER_TOP: &str = "╭─";
-const BORDER_BODY: &str = "│";
-const BORDER_BOTTOM: &str = "╰─";
 const HINT_TEXT: &str = " [Ctrl+S] Settings · [Esc] Stop";
 const ACTION_TIME_INDENT: usize = 1;
 const ACTION_TIME_SEPARATOR_WIDTH: usize = 2;
@@ -43,7 +43,7 @@ const CELEBRATION_ASCII: [&str; 4] = [
     "▝▚▄▄▖▝▚▄▞▘▐▌  ▐▌▐▌   ▐▙▄▄▖▐▙▄▄▖  █  ▐▙▄▄▖",
 ];
 const CELEBRATION_SPARKLE_CHOICES: &[char] = &['*', '+', 'x', '·', '•', '✶'];
-const CELEBRATION_FRAME_INTERVAL: Duration = Duration::from_millis(120);
+const CELEBRATION_FRAME_INTERVAL: Duration = crate::timing::ANIMATION_FRAME_INTERVAL;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AutoDriveStatus {
@@ -1167,9 +1167,7 @@ impl AutoDriveCardCell {
 }
 
 fn is_dark_theme_active() -> bool {
-    let (r, g, b) = colors::color_to_rgb(colors::background());
-    let luminance = (0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32) / 255.0;
-    luminance < 0.5
+    colors::is_dark_theme()
 }
 
 fn active_auto_drive_theme() -> card_theme::CardThemeDefinition {

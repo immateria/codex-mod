@@ -12,6 +12,9 @@ use super::card_style::{
     CardSegment,
     CardStyle,
     CARD_ACCENT_WIDTH,
+    CARD_BORDER_TOP as BORDER_TOP,
+    CARD_BORDER_BODY as BORDER_BODY,
+    CARD_BORDER_BOTTOM as BORDER_BOTTOM,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::colors;
@@ -25,9 +28,6 @@ use ratatui::widgets::{Paragraph, Widget, Wrap};
 use std::time::Duration;
 use unicode_width::UnicodeWidthStr;
 
-const BORDER_TOP: &str = "╭─";
-const BORDER_BODY: &str = "│";
-const BORDER_BOTTOM: &str = "╰─";
 const HINT_TEXT: &str = " [Ctrl+S] Settings · [Esc] Stop";
 const ACTION_TIME_INDENT: usize = 1;
 const ACTION_TIME_SEPARATOR_WIDTH: usize = 2;

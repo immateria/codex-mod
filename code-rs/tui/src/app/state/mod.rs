@@ -41,7 +41,7 @@ mod tests;
 /// Temporarily widened to ~30 FPS (33 ms) to coalesce bursts of updates while
 /// we smooth out per-frame hotspots; keeps redraws responsive without pegging
 /// the main thread.
-pub(super) const REDRAW_DEBOUNCE: Duration = Duration::from_millis(33);
+pub(super) const REDRAW_DEBOUNCE: Duration = crate::timing::REDRAW_DEBOUNCE;
 // Prevent bulk events (Codex output/tool completions) from being starved behind a
 // continuous stream of high-priority events (e.g., redraw scheduling).
 pub(super) const HIGH_EVENT_BURST_MAX: u32 = 32;

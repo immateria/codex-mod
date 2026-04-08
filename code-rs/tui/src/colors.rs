@@ -225,8 +225,7 @@ pub(crate) fn mix_toward(from: Color, to: Color, t: f32) -> Color {
 }
 
 fn is_dark_rgb(rgb: (u8, u8, u8)) -> bool {
-    let l = (0.2126 * rgb.0 as f32 + 0.7152 * rgb.1 as f32 + 0.0722 * rgb.2 as f32) / 255.0;
-    l < 0.55
+    relative_luminance(rgb) < 0.55
 }
 
 /// Lightly tint the terminal background toward an accent color. Matches the
@@ -250,12 +249,19 @@ fn blend_with_black(rgb: (u8, u8, u8), alpha: f32) -> (u8, u8, u8) {
 }
 
 fn is_light(rgb: (u8, u8, u8)) -> bool {
-    let l = (0.2126 * rgb.0 as f32 + 0.7152 * rgb.1 as f32 + 0.0722 * rgb.2 as f32) / 255.0;
-    l >= 0.6
+    relative_luminance(rgb) >= 0.6
 }
 
-fn relative_luminance(rgb: (u8, u8, u8)) -> f32 {
+/// Rec. 709 relative luminance of an sRGB triplet, normalized to 0.0–1.0.
+/// This is a simplified (gamma-unaware) version used for quick UI decisions;
+/// `theme.rs` has a linearized variant for WCAG-style calculations.
+pub(crate) fn relative_luminance(rgb: (u8, u8, u8)) -> f32 {
     (0.2126 * rgb.0 as f32 + 0.7152 * rgb.1 as f32 + 0.0722 * rgb.2 as f32) / 255.0
+}
+
+/// Returns `true` when the current terminal background is dark (luminance < 0.5).
+pub(crate) fn is_dark_theme() -> bool {
+    relative_luminance(color_to_rgb(background())) < 0.5
 }
 
 pub(crate) fn overlay_scrim() -> Color {

@@ -8,9 +8,11 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
-const BORDER_TOP: &str = "╭─";
-const BORDER_BODY: &str = "│";
-const BORDER_BOTTOM: &str = "╰─";
+use super::card_style::{
+    CARD_BORDER_TOP as BORDER_TOP,
+    CARD_BORDER_BODY as BORDER_BODY,
+    CARD_BORDER_BOTTOM as BORDER_BOTTOM,
+};
 
 const MAX_ACTIONS: usize = 24;
 const MAX_CONSOLE: usize = 12;

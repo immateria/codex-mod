@@ -507,9 +507,8 @@ impl ChatWidget<'_> {
             return false;
         }
 
-        let (r, g, b) = crate::colors::color_to_rgb(crate::colors::background());
-        let luminance = (0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32) / 255.0;
-        let theme_label = if luminance < 0.5 { "dark" } else { "light" };
+        let is_dark = crate::colors::is_dark_theme();
+        let theme_label = if is_dark { "dark" } else { "light" };
 
         self.history_push_plain_state(history_cell::plain_message_state_from_lines(
             vec![

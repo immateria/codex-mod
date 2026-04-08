@@ -61,7 +61,7 @@ impl App<'_> {
         // Some Windows/macOS terminals report an initial size that stabilizes
         // shortly after entering the alt screen. Schedule one follow‑up frame
         // to catch any late size change without polling.
-        app_event_tx.send(AppEvent::ScheduleFrameIn(Duration::from_millis(120)));
+        app_event_tx.send(AppEvent::ScheduleFrameIn(crate::timing::ANIMATION_FRAME_INTERVAL));
 
         'main: loop {
             let Some(event) = self.next_event_priority() else { break 'main };

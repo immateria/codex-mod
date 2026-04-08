@@ -63,6 +63,10 @@ impl CardRow {
 
 pub(crate) const CARD_ACCENT_WIDTH: usize = 2;
 
+pub(crate) const CARD_BORDER_TOP: &str = "╭─";
+pub(crate) const CARD_BORDER_BODY: &str = "│";
+pub(crate) const CARD_BORDER_BOTTOM: &str = "╰─";
+
 pub(crate) fn agent_card_style(_write_enabled: Option<bool>) -> CardStyle {
     // Agent batches share the calmer green theme in full-color terminals.
     // In ANSI-16 mode we keep the surface transparent and rely on inverted text.
@@ -190,9 +194,7 @@ fn style_from_theme(definition: CardThemeDefinition, is_dark: bool) -> CardStyle
 }
 
 fn is_dark_theme_active() -> bool {
-    let (r, g, b) = colors::color_to_rgb(colors::background());
-    let luminance = (0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32) / 255.0;
-    luminance < 0.5
+    colors::is_dark_theme()
 }
 
 fn adjust_gradient(gradient: GradientSpec, _is_dark: bool) -> GradientSpec {

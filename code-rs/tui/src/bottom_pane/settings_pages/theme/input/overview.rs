@@ -22,7 +22,7 @@ impl ThemeSelectionView {
                 self.revert_spinner_on_back = self.current_spinner.clone();
                 self.mode = Mode::Spinner;
                 self.app_event_tx.send(AppEvent::ScheduleFrameIn(
-                    std::time::Duration::from_millis(120),
+                    crate::timing::ANIMATION_FRAME_INTERVAL,
                 ));
                 self.just_entered_spinner = true;
             }

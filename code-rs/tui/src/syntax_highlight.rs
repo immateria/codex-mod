@@ -2,7 +2,7 @@ use once_cell::sync::OnceCell;
 use ratatui::text::{Line, Span};
 use std::sync::Arc;
 
-use crate::colors::color_to_rgb;
+use crate::colors::{color_to_rgb, relative_luminance};
 
 // syntect imports
 use syntect::easy::HighlightLines;
@@ -45,13 +45,9 @@ pub(crate) fn ui_aware_theme_builds_for_test() -> u64 {
 // ANSI-256 indexed colors resolve to the correct palette entries instead of a
 // flat grayscale fallback. This keeps luminance-detection accurate even on
 // terminals without truecolor support.
-fn relative_luminance(rgb: (u8, u8, u8)) -> f32 {
-    (0.2126 * rgb.0 as f32 + 0.7152 * rgb.1 as f32 + 0.0722 * rgb.2 as f32) / 255.0
-}
-
 fn is_light_bg() -> bool {
     let bg = crate::colors::background();
-    let lum = relative_luminance(color_to_rgb(bg));
+    let lum = crate::colors::relative_luminance(color_to_rgb(bg));
     lum >= 0.6
 }
 

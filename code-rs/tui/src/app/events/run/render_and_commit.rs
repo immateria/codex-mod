@@ -81,7 +81,7 @@
                         if self.stdout_backpressure_skips < BACKPRESSURE_FORCED_DRAW_SKIPS {
                             self.redraw_inflight.store(false, Ordering::Release);
                             self.app_event_tx
-                                .send(AppEvent::ScheduleFrameIn(Duration::from_millis(120)));
+                                .send(AppEvent::ScheduleFrameIn(crate::timing::ANIMATION_FRAME_INTERVAL));
                             continue;
                         }
 
@@ -124,7 +124,7 @@
                                 tracing::debug!("nonblocking redraw hit WouldBlock; rescheduling");
                             }
                             self.app_event_tx
-                                .send(AppEvent::ScheduleFrameIn(Duration::from_millis(120)));
+                                .send(AppEvent::ScheduleFrameIn(crate::timing::ANIMATION_FRAME_INTERVAL));
                             continue;
                         }
                         Err(e) => return Err(e.into()),

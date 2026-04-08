@@ -180,9 +180,7 @@ fn auto_drive_accent_color() -> Color {
 }
 
 fn is_dark_theme_active() -> bool {
-    let (r, g, b) = colors::color_to_rgb(colors::background());
-    let luminance = (0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32) / 255.0;
-    luminance < 0.5
+    colors::is_dark_theme()
 }
 
 fn sentinel_style() -> AutoDriveStyle {

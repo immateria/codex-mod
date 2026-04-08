@@ -12,6 +12,9 @@ use super::card_style::{
     CardSegment,
     CardStyle,
     CARD_ACCENT_WIDTH,
+    CARD_BORDER_TOP as BORDER_TOP,
+    CARD_BORDER_BODY as BORDER_BODY,
+    CARD_BORDER_BOTTOM as BORDER_BOTTOM,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::colors;
@@ -24,9 +27,6 @@ use ratatui::text::{Line, Text};
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 use std::time::{Duration, Instant};
 
-const BORDER_TOP: &str = "╭─";
-const BORDER_BODY: &str = "│";
-const BORDER_BOTTOM: &str = "╰─";
 use unicode_width::UnicodeWidthChar;
 
 const MAX_PLAN_LINES: usize = 4;

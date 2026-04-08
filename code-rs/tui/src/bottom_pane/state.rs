@@ -16,7 +16,7 @@ use super::{AgentHintLabel, AutoReviewFooterStatus, BottomPane, ChatComposer};
 
 impl<'a> BottomPane<'a> {
     fn schedule_redraw_after(&self, dur: Duration, task_name: &'static str) {
-        let redraw_delay = dur + Duration::from_millis(120);
+        let redraw_delay = dur + crate::timing::ANIMATION_FRAME_INTERVAL;
         let tx = self.app_event_tx.clone();
 
         // Snapshot tests construct a `ChatWidget` without an App event loop, so
