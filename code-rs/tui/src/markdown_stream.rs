@@ -162,6 +162,7 @@ impl MarkdownStreamCollector {
         // so fence markers never appear in streamed history.
         let source = unwrap_markdown_language_fence_if_enabled(&self.buffer);
         let source = strip_empty_fenced_code_blocks(&source);
+        let in_unclosed_fence = is_inside_unclosed_fence(&source);
 
         let mut rendered: Vec<Line<'static>> = Vec::new();
         if self.bold_first_sentence {
@@ -199,7 +200,7 @@ impl MarkdownStreamCollector {
             complete_line_count = complete_line_count.saturating_sub(1);
             // If we're inside an unclosed fenced code block, also drop the
             // last rendered line to avoid committing a partial code line.
-            if is_inside_unclosed_fence(&source) {
+            if in_unclosed_fence {
                 complete_line_count = complete_line_count.saturating_sub(1);
             }
             // If the next (incomplete) line appears to begin a list item,
@@ -241,7 +242,7 @@ impl MarkdownStreamCollector {
         // Strong correctness: while a fenced code block is open (no closing fence yet),
         // do not emit any new lines from inside it. Wait until the fence closes to emit
         // the entire block together. This avoids stray backticks and misformatted content.
-        if is_inside_unclosed_fence(&source) {
+        if in_unclosed_fence {
             return Vec::new();
         }
 
