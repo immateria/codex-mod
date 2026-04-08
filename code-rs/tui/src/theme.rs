@@ -11,13 +11,14 @@ use lazy_static::lazy_static;
 use ratatui::style::Color;
 use std::cmp::Ordering;
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::sync::LockResult;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
 lazy_static! {
-    static ref CURRENT_THEME: RwLock<Theme> = RwLock::new(Theme::default());
+    static ref CURRENT_THEME: RwLock<Arc<Theme>> = RwLock::new(Arc::new(Theme::default()));
     static ref CURRENT_THEME_NAME: RwLock<ThemeName> = RwLock::new(ThemeName::LightPhoton);
     static ref CUSTOM_THEME_LABEL: RwLock<Option<String>> = RwLock::new(None);
     static ref CUSTOM_THEME_COLORS: RwLock<Option<code_core::config_types::ThemeColors>> = RwLock::new(None);
@@ -98,7 +99,7 @@ pub fn init_theme(config: &ThemeConfig) {
     }
 
     let mut current = write_lock(&CURRENT_THEME);
-    *current = theme.clone();
+    *current = Arc::new(theme);
     *write_lock(&CURRENT_THEME_NAME) = mapped_name;
     // Track custom theme label for UI display
     if matches!(config.name, ThemeName::Custom) {
@@ -108,9 +109,9 @@ pub fn init_theme(config: &ThemeConfig) {
     }
 }
 
-/// Get the current theme
-pub fn current_theme() -> Theme {
-    read_lock(&CURRENT_THEME).clone()
+/// Get the current theme (cheap Arc clone instead of full struct copy)
+pub fn current_theme() -> Arc<Theme> {
+    Arc::clone(&read_lock(&CURRENT_THEME))
 }
 
 pub(crate) fn current_theme_name() -> ThemeName {
@@ -153,7 +154,7 @@ pub fn switch_theme(theme_name: ThemeName) {
         quantize_theme_to_ansi256(&mut theme);
     }
     let mut current = write_lock(&CURRENT_THEME);
-    *current = theme.clone();
+    *current = Arc::new(theme);
     *write_lock(&CURRENT_THEME_NAME) = mapped_name;
 }
 

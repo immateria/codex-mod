@@ -824,7 +824,7 @@ impl ChatWidget<'_> {
     fn restyle_history_after_theme_change(&mut self) {
         let old = self.last_theme.clone();
         let new = crate::theme::current_theme();
-        if old == new {
+        if std::sync::Arc::ptr_eq(&old, &new) || *old == *new {
             return;
         }
 

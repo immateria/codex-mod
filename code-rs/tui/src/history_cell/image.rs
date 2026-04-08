@@ -439,7 +439,7 @@ impl ImageOutputCell {
         }
 
         let style = browser_card_style();
-        let draw_width = area.width - 2;
+        let draw_width = area.width.saturating_sub(2);
         let render_area = Rect {
             width: draw_width,
             ..area
@@ -489,7 +489,7 @@ impl ImageOutputCell {
         }
 
         let viewport_top = skip_rows as usize;
-        let viewport_bottom = viewport_top + area.height as usize;
+        let viewport_bottom = viewport_top.saturating_add(area.height as usize);
         let shot_top = layout.start_row;
         let shot_bottom = layout.start_row + layout.height_rows;
 

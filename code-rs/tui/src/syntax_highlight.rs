@@ -474,7 +474,7 @@ fn build_ui_aware_theme() -> Theme {
 
 #[derive(Clone)]
 struct UiAwareThemeCache {
-    key: crate::theme::Theme,
+    key: Arc<crate::theme::Theme>,
     theme: Arc<Theme>,
 }
 
@@ -496,7 +496,7 @@ fn ui_aware_theme_cached() -> Arc<Theme> {
         let cache = cache_lock
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if cache.key == current_theme {
+        if Arc::ptr_eq(&cache.key, &current_theme) || *cache.key == *current_theme {
             return Arc::clone(&cache.theme);
         }
     }
@@ -504,7 +504,7 @@ fn ui_aware_theme_cached() -> Arc<Theme> {
     let mut cache = cache_lock
         .write()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if cache.key != current_theme {
+    if !Arc::ptr_eq(&cache.key, &current_theme) && *cache.key != *current_theme {
         #[cfg(feature = "test-helpers")]
         UI_AWARE_THEME_BUILDS.with(|c| c.set(c.get().saturating_add(1)));
 

@@ -942,7 +942,7 @@ pub(crate) struct ChatWidget<'a> {
     browser_is_external: bool,
 
     // Most recent theme snapshot used to retint pre-rendered lines
-    last_theme: crate::theme::Theme,
+    last_theme: std::sync::Arc<crate::theme::Theme>,
 
     // Performance tracing (opt-in via /perf)
     perf_state: PerfState,

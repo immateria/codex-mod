@@ -446,6 +446,15 @@ impl ChatWidget<'_> {
         use crate::history_cell::HistoryCellType;
         use crate::history_cell::PatchKind;
         use crate::history_cell::ToolCellStatus;
+
+        fn exec_status_label(s: ExecStatus) -> &'static str {
+            match s {
+                ExecStatus::Running => "Running",
+                ExecStatus::Success => "Success",
+                ExecStatus::Error => "Error",
+            }
+        }
+
         match item.kind() {
             HistoryCellType::Plain => "Plain".to_string(),
             HistoryCellType::User => "User".to_string(),
@@ -460,11 +469,7 @@ impl ChatWidget<'_> {
                     ExecKind::List => "List",
                     ExecKind::Run => "Run",
                 };
-                let s = match status {
-                    ExecStatus::Running => "Running",
-                    ExecStatus::Success => "Success",
-                    ExecStatus::Error => "Error",
-                };
+                let s = exec_status_label(status);
                 format!("Exec:{k}:{s}")
             }
             HistoryCellType::Tool { status } => {
@@ -494,11 +499,7 @@ impl ChatWidget<'_> {
             HistoryCellType::AnimatedWelcome => "AnimatedWelcome".to_string(),
             HistoryCellType::Loading => "Loading".to_string(),
             HistoryCellType::JsRepl { status } => {
-                let s = match status {
-                    ExecStatus::Running => "Running",
-                    ExecStatus::Success => "Success",
-                    ExecStatus::Error => "Error",
-                };
+                let s = exec_status_label(status);
                 format!("JsRepl:{s}")
             }
         }

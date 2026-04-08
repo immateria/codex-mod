@@ -1082,7 +1082,7 @@ impl AutoDriveCardCell {
         }
         let style = auto_drive_card_style();
 
-        let draw_width = area.width - 2;
+        let draw_width = area.width.saturating_sub(2);
         let render_area = Rect {
             width: draw_width,
             ..area

@@ -54,7 +54,7 @@ impl HistoryCell for AgentRunCell {
         }
 
         let style = agent_card_style(self.write_enabled);
-        let draw_width = area.width - 2;
+        let draw_width = area.width.saturating_sub(2);
         let render_area = Rect {
             width: draw_width,
             ..area
