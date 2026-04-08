@@ -69,8 +69,8 @@ fn compute_tab_window(tabs: &[LimitsTab], selected: usize, width: usize) -> TabW
         return TabWindow { start: 0, end: n, has_left_overflow: false, has_right_overflow: false };
     }
 
-    const LEFT_IND: usize = 2; // "◂ "
-    const RIGHT_IND: usize = 2; // " ▸"
+    const LEFT_IND: usize = 2; // tab_prev() + space
+    const RIGHT_IND: usize = 2; // space + tab_next()
 
     let mut start = selected;
     let mut end = selected + 1;

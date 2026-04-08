@@ -363,7 +363,7 @@ impl ChatWidget<'_> {
         total: Duration,
     ) -> Line<'static> {
         let width = width.max(20) as usize;
-        let prefix = "▶ ";
+        let prefix = format!("{} ", crate::icons::collapse_closed());
         let suffix = format!(
             " {} / {}",
             self.format_overlay_mm_ss(current),
@@ -389,7 +389,7 @@ impl ChatWidget<'_> {
         };
         for i in 0..slider_width {
             if i == pointer_idx {
-                slider.push('◉');
+                slider.push_str(crate::icons::radio_selected());
             } else {
                 slider.push('─');
             }

@@ -85,7 +85,7 @@ impl ChatWidget<'_> {
                 if has_tabs {
                     title_spans.extend_from_slice(&[
                         ratatui::text::Span::styled(" ——— ", t_dim),
-                        ratatui::text::Span::styled("◂ ▸", t_fg),
+                        ratatui::text::Span::styled(format!("{} {}", crate::icons::tab_prev(), crate::icons::tab_next()), t_fg),
                         ratatui::text::Span::styled(" change tabs ", t_dim),
                     ]);
                 }

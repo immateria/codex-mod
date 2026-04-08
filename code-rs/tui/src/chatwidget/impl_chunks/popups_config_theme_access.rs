@@ -297,7 +297,7 @@ impl ChatWidget<'_> {
             lines.push(kv("Scrollbar", "Click or drag to scroll through history"));
             lines.push(kv("Shift+Click", "Select text in responses"));
             lines.push(kv("Home/End", "Jump to start/end of history (when composer is empty)"));
-            lines.push(kv("Click ▶/▼", "Collapse or expand response blocks"));
+            lines.push(kv(&format!("Click {}/{}", crate::icons::collapse_closed(), crate::icons::collapse_open()), "Collapse or expand response blocks"));
             lines.push(RtLine::from(""));
 
             lines.push(RtLine::from(vec![RtSpan::styled(

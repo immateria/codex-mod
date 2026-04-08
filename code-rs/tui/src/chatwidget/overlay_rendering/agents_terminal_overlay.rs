@@ -134,7 +134,7 @@ impl ChatWidget<'_> {
                 Span::styled("Sort: ", Style::default().fg(crate::colors::text_dim())),
                 Span::raw("( "),
                 Span::styled(
-                    format!("{sort_label} ▼"),
+                    format!("{sort_label} {}", crate::icons::sort_desc()),
                     Style::default()
                         .fg(crate::colors::primary())
                         .add_modifier(Modifier::BOLD),

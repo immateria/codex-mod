@@ -81,7 +81,7 @@ impl PlanUpdateCell {
                 ));
             }
             StepStatus::InProgress => {
-                spans.push(Span::raw("□"));
+                spans.push(Span::raw(crate::icons::checkbox_off()));
                 spans.push(Span::raw(" "));
                 spans.push(Span::styled(
                     step.description.clone(),
@@ -89,7 +89,7 @@ impl PlanUpdateCell {
                 ));
             }
             StepStatus::Pending => {
-                spans.push(Span::raw("□"));
+                spans.push(Span::raw(crate::icons::checkbox_off()));
                 spans.push(Span::raw(" "));
                 spans.push(Span::styled(
                     step.description.clone(),

@@ -284,7 +284,7 @@ impl ChatWidget<'_> {
             } else {
                 for (idx, entry) in history.iter().enumerate() {
                     let mut spans: Vec<Span> = Vec::new();
-                    let marker = if idx == selected_index { "◉" } else { crate::icons::bullet() };
+                    let marker = if idx == selected_index { crate::icons::radio_selected() } else { crate::icons::bullet() };
                     let marker_style = if idx == selected_index {
                         Style::default().fg(crate::colors::primary())
                     } else {

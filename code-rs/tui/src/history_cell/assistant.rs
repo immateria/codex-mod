@@ -852,16 +852,20 @@ fn trim_code_line_padding(mut line: Line<'static>) -> Line<'static> {
 pub(crate) fn detect_bullet_prefix(
     line: &ratatui::text::Line<'_>,
 ) -> Option<(usize, String)> {
-    let bullets = [
-        "-", "•", "◦", "·", "∘", "⋅",
-        // Checkbox/task markers (plain + NerdFont)
-        "☐", "✓",
-        "\u{f096}", // nf-fa-square_o (checkbox_off / task_pending)
-        "\u{f058}", // nf-fa-check_circle (task_done)
-        "\u{f046}", // nf-fa-check_square_o (checkbox_on)
-        // List bullet NerdFont variants
-        "\u{f111}", // nf-fa-circle (bullet_l1/l3)
-        "\u{f10c}", // nf-fa-circle_o (bullet_l2/deep)
+    use crate::icons;
+    // Plain-text markdown bullet chars (from model content, not our icons)
+    const PLAIN_BULLETS: &[&str] = &["-", "•", "◦", "·", "∘", "⋅"];
+
+    // Icon-system bullets: these match across all icon modes (NF/Unicode/ASCII)
+    let icon_bullets: &[icons::Icon] = &[
+        icons::CHECKBOX_OFF,
+        icons::CHECKBOX_ON,
+        icons::TASK_DONE,
+        icons::TASK_PENDING,
+        icons::LIST_BULLET_L1,
+        icons::LIST_BULLET_L2,
+        icons::LIST_BULLET_L3,
+        icons::LIST_BULLET_DEEP,
     ];
     let spans = &line.spans;
     if spans.is_empty() {
@@ -890,7 +894,9 @@ pub(crate) fn detect_bullet_prefix(
     if has_trailing_space_in_bullet {
         bullet_text.pop();
     }
-    if bullets.contains(&bullet_text.as_str()) {
+    if PLAIN_BULLETS.contains(&bullet_text.as_str())
+        || icon_bullets.iter().any(|icon| icon.matches(&bullet_text))
+    {
         return Some((indent, bullet_text));
     }
     if bullet_text.len() >= 2
@@ -921,7 +927,8 @@ pub(crate) fn detect_bullet_prefix(
     }
     let has_space = matches!(chars.peek(), Some(c) if c.is_whitespace());
     if has_space
-        && (bullets.contains(&token.as_str())
+        && (PLAIN_BULLETS.contains(&token.as_str())
+            || icon_bullets.iter().any(|icon| icon.matches(&token))
             || (token.len() >= 2
                 && token.ends_with('.')
                 && token[..token.len() - 1].chars().all(|c| c.is_ascii_digit())))

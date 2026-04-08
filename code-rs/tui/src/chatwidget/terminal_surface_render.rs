@@ -481,13 +481,13 @@ impl ChatWidget<'_> {
             if hscroll > 0
                 && let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(padded_inner.x, padded_inner.y))
             {
-                cell.set_char('◂');
+                if let Some(c) = crate::icons::tab_prev().chars().next() { cell.set_char(c); }
                 cell.set_style(indicator_style);
             }
             if hscroll < max_hscroll {
                 let right_x = padded_inner.x.saturating_add(padded_inner.width).saturating_sub(1);
                 if let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(right_x, padded_inner.y)) {
-                    cell.set_char('▸');
+                    if let Some(c) = crate::icons::tab_next().chars().next() { cell.set_char(c); }
                     cell.set_style(indicator_style);
                 }
             }
@@ -759,13 +759,13 @@ impl ChatWidget<'_> {
             if hscroll > 0
                 && let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(line_area.x, line_area.y))
             {
-                cell.set_char('◂');
+                if let Some(c) = crate::icons::tab_prev().chars().next() { cell.set_char(c); }
                 cell.set_style(indicator_style);
             }
             if hscroll < max_hscroll {
                 let right_x = line_area.x.saturating_add(line_area.width).saturating_sub(1);
                 if let Some(cell) = buf.cell_mut(ratatui::layout::Position::new(right_x, line_area.y)) {
-                    cell.set_char('▸');
+                    if let Some(c) = crate::icons::tab_next().chars().next() { cell.set_char(c); }
                     cell.set_style(indicator_style);
                 }
             }

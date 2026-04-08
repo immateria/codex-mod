@@ -63,7 +63,7 @@ impl UpgradeNoticeCell {
     fn message_lines(&self) -> Vec<Line<'static>> {
         let (base_style, title_style, highlight_style, dim_style) = self.styles();
         let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from(vec![Span::styled("★ Upgrade Available ★", title_style)]));
+        lines.push(Line::from(vec![Span::styled(format!("{star} Upgrade Available {star}", star = crate::icons::upgrade_star()), title_style)]));
         lines.push(Line::from(vec![
             Span::styled("Latest release: ", dim_style),
             Span::styled(

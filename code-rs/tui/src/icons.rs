@@ -132,7 +132,7 @@ macro_rules! define_icon_functions {
         $fn_name:ident => $const_name:ident ($nerd:literal, $unicode:literal, $ascii:literal);
     )+) => {
         $(
-            const $const_name: Icon = Icon::new(
+            pub const $const_name: Icon = Icon::new(
                 stringify!($fn_name), $nerd, $unicode, $ascii,
             );
 
@@ -358,6 +358,16 @@ define_icon_functions! {
     /// Focused item pointer.
     pointer_focused           => POINTER_FOCUSED             ("\u{f101}", "»", ">>");                    //   nf-fa-angle_double_right
 
+
+    /// Selected radio / filled dot.
+    radio_selected            => RADIO_SELECTED              ("\u{f192}", "◉", "(*)");                   //   nf-fa-dot_circle_o
+
+    // ── Tab navigation ────────────────────────────────────────────────
+
+    /// Tab previous indicator.
+    tab_prev                  => TAB_PREV                    ("\u{f053}", "◂", "<");                     //   nf-fa-chevron_left
+    /// Tab next indicator.
+    tab_next                  => TAB_NEXT                    ("\u{f054}", "▸", ">");                     //   nf-fa-chevron_right
     // ── Misc ───────────────────────────────────────────────────────────
 
     /// List bullet / separator.
@@ -370,7 +380,11 @@ define_icon_functions! {
     collapse_open             => COLLAPSE_OPEN               ("\u{f078}", "▼", "v");                     //   nf-fa-chevron_down
     /// Collapse toggle (▶ when collapsed).
     collapse_closed           => COLLAPSE_CLOSED             ("\u{f054}", "▶", ">");                     //   nf-fa-chevron_right
-    /// MCP / tools play indicator.
+
+    /// Goal / objective marker.
+    goal_diamond              => GOAL_DIAMOND                ("\u{f219}", "◆", "*");                     //   nf-fa-diamond
+    /// Sort descending indicator.
+    sort_desc                 => SORT_DESC                   ("\u{f0dd}", "▼", "v");                     //   nf-fa-caret_down    /// MCP / tools play indicator.
     tool_play                 => TOOL_PLAY                   ("\u{f04b}", "▶", ">");                     //   nf-fa-play
     /// File tree branch connector.
     tree_branch               => TREE_BRANCH                 ("\u{f105}", "└", "`");                     //   nf-fa-angle_right
@@ -509,7 +523,9 @@ define_icon_functions! {
     pin                       => PIN                         ("\u{f08d}", "⟡", "*");                     //   nf-fa-thumb_tack
     /// Favourite (empty star).
     star_empty                => STAR_EMPTY                  ("\u{f006}", "☆", "*");                     //   nf-fa-star_o
-    /// Bookmarked.
+
+    /// Upgrade announcement star.
+    upgrade_star              => UPGRADE_STAR                ("\u{f005}", "★", "*");                     //   nf-fa-star    /// Bookmarked.
     bookmark                  => BOOKMARK                    ("\u{f02e}", "▮", "[B]");                   //   nf-fa-bookmark
 
     // ── Time & reference ──────────────────────────────────────────────

@@ -726,7 +726,7 @@ fn build_status_line(metrics: &RateLimitMetrics) -> Line<'static> {
         };
         Line::from(vec![
             Span::styled(
-                format!("✕ Rate limited: {reason}"),
+                format!("{} Rate limited: {reason}", crate::icons::status_fail()),
                 Style::default().fg(colors::error()),
             ),
         ])

@@ -535,7 +535,7 @@ impl LimitsSettingsContent {
             self.effective_focus_mode().label()
         );
         if has_tabs {
-            text.push_str("◂ ▸ change tab");
+            text.push_str(&format!("{} {} change tab", crate::icons::tab_prev(), crate::icons::tab_next()));
         }
         text
     }
