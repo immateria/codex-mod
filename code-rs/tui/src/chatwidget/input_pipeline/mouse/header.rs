@@ -9,15 +9,7 @@ impl ChatWidget<'_> {
             let regions = self.clickable_regions.borrow();
 
             regions.iter().rev().find_map(|region| {
-                if x >= region.rect.x
-                    && x < region.rect.x + region.rect.width
-                    && y >= region.rect.y
-                    && y < region.rect.y + region.rect.height
-                {
-                    Some(region.action.clone())
-                } else {
-                    None
-                }
+                region.contains(x, y).then(|| region.action.clone())
             })
         };
 
@@ -157,15 +149,7 @@ impl ChatWidget<'_> {
         let hovered = {
             let regions = self.clickable_regions.borrow();
             regions.iter().find_map(|region| {
-                if x >= region.rect.x
-                    && x < region.rect.x + region.rect.width
-                    && y >= region.rect.y
-                    && y < region.rect.y + region.rect.height
-                {
-                    Some(region.action.clone())
-                } else {
-                    None
-                }
+                region.contains(x, y).then(|| region.action.clone())
             })
         };
         let mut current = self.hovered_clickable_action.borrow_mut();

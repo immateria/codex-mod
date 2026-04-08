@@ -430,7 +430,7 @@ impl ChatWidget<'_> {
 
             let (mut start_idx, mut end_idx) = {
                 let ps_ref = self.history_render.prefix_sums.borrow();
-                let ps: &Vec<u16> = &ps_ref;
+                let ps: &[u16] = &ps_ref;
                 if ps.len() <= 1 {
                     return false;
                 }

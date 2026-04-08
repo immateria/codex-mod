@@ -34,7 +34,13 @@ pub(super) fn strip_frontmatter(body: &str) -> String {
 
     for line in lines.by_ref() {
         if line.trim() == "---" {
-            let rest: String = lines.collect::<Vec<_>>().join("\n");
+            let rest: String = lines.fold(String::new(), |mut acc, l| {
+                if !acc.is_empty() {
+                    acc.push('\n');
+                }
+                acc.push_str(l);
+                acc
+            });
             let rest = rest.trim_start_matches('\n').to_string();
             return if body.ends_with('\n') && !rest.ends_with('\n') {
                 format!("{rest}\n")

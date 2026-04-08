@@ -46,25 +46,7 @@ pub(crate) fn render_selectable_runs<Id: Copy>(
     render_selectable_runs_inner(area, buf, scroll_top, runs, base_style, None);
 }
 
-#[allow(dead_code)]
-pub(crate) fn render_selectable_runs_with_rects<Id: Copy>(
-    area: Rect,
-    buf: &mut Buffer,
-    scroll_top: usize,
-    runs: &[SelectableLineRun<'_, Id>],
-    base_style: Style,
-    out_rects: &mut Vec<(Id, Rect)>,
-) {
-    out_rects.clear();
-    render_selectable_runs_inner(
-        area,
-        buf,
-        scroll_top,
-        runs,
-        base_style,
-        Some(out_rects),
-    );
-}
+
 
 fn render_selectable_runs_inner<Id: Copy>(
     area: Rect,

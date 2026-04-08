@@ -542,6 +542,7 @@ impl ChatWidget<'_> {
 
                 // Background events can be noisy (e.g. transient MCP failures); let the user
                 // dismiss them with a small close affordance.
+                let hovered_action_ref = self.hovered_clickable_action.borrow();
                 if matches!(
                     item_kind,
                     crate::history_cell::HistoryCellType::BackgroundEvent
@@ -554,7 +555,7 @@ impl ChatWidget<'_> {
                         .saturating_add(item_area.width.saturating_sub(label.len() as u16));
                     let y = item_area.y;
                     let action = crate::chatwidget::ClickableAction::DismissHistoryCellAtIndex(idx);
-                    let hovered = self.hovered_clickable_action.borrow().as_ref() == Some(&action);
+                    let hovered = hovered_action_ref.as_ref() == Some(&action);
                     let style = if hovered {
                         Style::default()
                             .bg(crate::colors::background())
@@ -599,7 +600,7 @@ impl ChatWidget<'_> {
                         let btn_y = item_area.y.saturating_add(1);
                         if btn_y < item_area.y.saturating_add(visible_height) {
                             let action = crate::chatwidget::ClickableAction::CopyMarkdownAtIndex(idx);
-                            let hovered = self.hovered_clickable_action.borrow().as_ref() == Some(&action);
+                            let hovered = hovered_action_ref.as_ref() == Some(&action);
                             let style = if hovered {
                                 Style::default()
                                     .bg(crate::colors::background())
@@ -628,7 +629,7 @@ impl ChatWidget<'_> {
                                 let sx = btn_x.saturating_sub(scroll_w + 1);
                                 let sy = btn_y;
                                 let scroll_action = crate::chatwidget::ClickableAction::ScrollToTopOfCell(idx);
-                                let scroll_hovered = self.hovered_clickable_action.borrow().as_ref() == Some(&scroll_action);
+                                let scroll_hovered = hovered_action_ref.as_ref() == Some(&scroll_action);
                                 let scroll_style = if scroll_hovered {
                                     Style::default()
                                         .bg(crate::colors::background())
@@ -649,6 +650,7 @@ impl ChatWidget<'_> {
                         }
                     }
                 }
+                drop(hovered_action_ref);
 
                 if self.show_order_overlay
                     && let Some(Some(info)) = self.cell_order_dbg.get(idx)

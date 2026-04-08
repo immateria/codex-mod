@@ -38,7 +38,7 @@ impl ChatWidget<'_> {
         }
 
         let viewport_bottom = scroll_pos.saturating_add(viewport_height);
-        let ps: &Vec<u16> = &ps_ref;
+        let ps: &[u16] = &ps_ref;
 
         let mut start_idx = match ps.binary_search(&scroll_pos) {
             Ok(i) => i,

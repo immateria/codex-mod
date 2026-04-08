@@ -864,7 +864,11 @@ fn autodetect_lang(content: &str) -> Option<&'static str> {
         }
 
     // Narrow to a small sample for sniffing
-    let sample: String = s.lines().take(24).collect::<Vec<_>>().join("\n");
+    let sample: String = s.lines().take(24).fold(String::new(), |mut acc, l| {
+        if !acc.is_empty() { acc.push('\n'); }
+        acc.push_str(l);
+        acc
+    });
     let lower = sample.to_ascii_lowercase();
     let trimmed_all = s.trim();
 

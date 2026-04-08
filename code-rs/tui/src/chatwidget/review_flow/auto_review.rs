@@ -545,7 +545,11 @@ impl ChatWidget<'_> {
             .unwrap_or(text)
             .replace(['\n', '\r'], " ");
 
-        line = line.split_whitespace().collect::<Vec<_>>().join(" ");
+        line = line.split_whitespace().fold(String::new(), |mut acc, w| {
+            if !acc.is_empty() { acc.push(' '); }
+            acc.push_str(w);
+            acc
+        });
         if line.chars().count() <= max_chars {
             return line;
         }

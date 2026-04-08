@@ -700,6 +700,15 @@ struct ClickableRegion {
     action: ClickableAction,
 }
 
+impl ClickableRegion {
+    fn contains(&self, x: u16, y: u16) -> bool {
+        x >= self.rect.x
+            && x < self.rect.x + self.rect.width
+            && y >= self.rect.y
+            && y < self.rect.y + self.rect.height
+    }
+}
+
 #[derive(Debug, Clone)]
 enum AppsDirectoryCacheState {
     Uninitialized,

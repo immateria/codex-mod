@@ -78,7 +78,7 @@ impl ChatWidget<'_> {
         }
 
         let ps_ref = self.history_render.prefix_sums.borrow();
-        let ps: &Vec<u16> = &ps_ref;
+        let ps: &[u16] = &ps_ref;
         let screen_y = self.paint_visible_cells_window(cell_paint::PaintVisibleCellsArgs {
             history_area,
             content_area,

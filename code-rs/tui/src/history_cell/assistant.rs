@@ -241,7 +241,7 @@ impl AssistantMarkdownCell {
 
             match seg {
                 AssistantSeg::Text(lines) | AssistantSeg::Bullet(lines) => {
-                    let total = lines.len() as u16;
+                    let total = lines.len().min(u16::MAX as usize) as u16;
                     if total == 0 {
                         continue;
                     }
@@ -549,7 +549,7 @@ fn compute_assistant_layout_from_rendered_lines(
                 continue;
             }
 
-            let full_height = content_lines.len() as u16 + 2;
+            let full_height = content_lines.len().min(u16::MAX as usize - 2) as u16 + 2;
             let card_w = max_line_width.saturating_add(6).min(width.max(6));
 
             let temp_area = Rect::new(0, 0, card_w, full_height);
@@ -654,7 +654,7 @@ fn compute_assistant_layout_from_rendered_lines(
     let mut total: u16 = 0;
     for seg in &segs {
         let rows = match seg {
-            AssistantSeg::Text(lines) | AssistantSeg::Bullet(lines) => lines.len() as u16,
+            AssistantSeg::Text(lines) | AssistantSeg::Bullet(lines) => lines.len().min(u16::MAX as usize) as u16,
             AssistantSeg::Code { card } => card.area.height,
         };
         seg_rows.push(rows);
