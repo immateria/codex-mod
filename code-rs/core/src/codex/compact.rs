@@ -318,7 +318,7 @@ pub(super) async fn perform_compaction(
                 let now = Utc::now();
                 let retry_after = limit_err
                     .retry_after(now)
-                    .unwrap_or_else(|| RetryAfter::from_duration(Duration::from_secs(5 * 60), now));
+                    .unwrap_or_else(|| RetryAfter::from_duration(RetryAfter::DEFAULT_DELAY, now));
                 let mut message = format!("{limit_err} Auto-retrying");
                 message.push('…');
                 sess.notify_stream_error(&sub_id, message).await;
@@ -487,7 +487,7 @@ async fn run_compact_task_inner_inline(
                 let now = Utc::now();
                 let retry_after = limit_err
                     .retry_after(now)
-                    .unwrap_or_else(|| RetryAfter::from_duration(Duration::from_secs(5 * 60), now));
+                    .unwrap_or_else(|| RetryAfter::from_duration(RetryAfter::DEFAULT_DELAY, now));
                 let mut message = format!("{limit_err} Auto-retrying");
                 message.push('…');
                 sess.notify_stream_error(&sub_id, message).await;

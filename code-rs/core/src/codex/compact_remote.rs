@@ -23,7 +23,6 @@ use code_protocol::models::ResponseItem;
 use code_protocol::protocol::CompactedItem;
 use code_protocol::protocol::RolloutItem;
 use crate::util::backoff;
-use std::time::Duration;
 
 const MAX_REMOTE_COMPACT_CONTEXT_OVERFLOW_TRIMS: usize = 32;
 const MAX_REMOTE_COMPACT_USAGE_LIMIT_RETRIES: usize = 2;
@@ -179,7 +178,7 @@ async fn run_remote_compact_task_inner(
                 let now = chrono::Utc::now();
                 let retry_after = limit_err
                     .retry_after(now)
-                    .unwrap_or_else(|| RetryAfter::from_duration(Duration::from_secs(5 * 60), now));
+                    .unwrap_or_else(|| RetryAfter::from_duration(RetryAfter::DEFAULT_DELAY, now));
                 let mut message = format!("{limit_err} Auto-retrying");
                 message.push('…');
                 sess.notify_stream_error(sub_id, message).await;

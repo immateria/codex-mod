@@ -337,7 +337,7 @@ pub(super) async fn run_turn(
                 let now = Utc::now();
                 let retry_after = limit_err
                     .retry_after(now)
-                    .unwrap_or_else(|| RetryAfter::from_duration(std::time::Duration::from_secs(5 * 60), now));
+                    .unwrap_or_else(|| RetryAfter::from_duration(RetryAfter::DEFAULT_DELAY, now));
                 let eta = format_retry_eta(&retry_after);
                 let mut retry_message = format!("{limit_err} Auto-retrying");
                 if let Some(eta) = eta {

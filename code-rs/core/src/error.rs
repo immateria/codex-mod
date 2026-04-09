@@ -61,6 +61,9 @@ pub struct RetryAfter {
 }
 
 impl RetryAfter {
+    /// Default fallback delay when the server doesn't provide a retry-after hint.
+    pub const DEFAULT_DELAY: Duration = Duration::from_secs(5 * 60);
+
     pub fn from_duration(delay: Duration, now: DateTime<Utc>) -> Self {
         let resume_at = now
             + ChronoDuration::from_std(delay)
