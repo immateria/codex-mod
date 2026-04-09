@@ -1,5 +1,7 @@
 use super::card_style::{
+    accent_style,
     ansi16_inverse_color,
+    blank_border_row,
     card_body_width,
     fill_card_background,
     hint_text_style,
@@ -18,7 +20,6 @@ use super::card_style::{
     CARD_HINT_SETTINGS_STOP as HINT_TEXT,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
-use crate::colors;
 use crate::theme::{palette_mode, PaletteMode};
 use code_common::elapsed::format_duration_digital;
 use ratatui::buffer::Buffer;
@@ -160,14 +161,6 @@ impl WebSearchSessionCell {
         }
     }
 
-    fn accent_style(style: &CardStyle) -> Style {
-        if palette_mode() == PaletteMode::Ansi16 {
-            return Style::default().fg(ansi16_inverse_color());
-        }
-        let dim = colors::mix_toward(style.accent_fg, style.text_secondary, 0.85);
-        Style::default().fg(dim)
-    }
-
     fn build_card_rows(&self, width: u16, style: &CardStyle) -> Vec<CardRow> {
         let Some(body_width) = card_body_width(width) else {
             return Vec::new();
@@ -176,11 +169,11 @@ impl WebSearchSessionCell {
         let mut rows: Vec<CardRow> = Vec::new();
 
         rows.push(self.title_row(body_width, style));
-        rows.push(self.blank_border_row(body_width, style));
+        rows.push(blank_border_row(BORDER_BODY, body_width, style));
 
         rows.extend(self.actions_section_rows(body_width, style));
 
-        rows.push(self.blank_border_row(body_width, style));
+        rows.push(blank_border_row(BORDER_BODY, body_width, style));
         rows.push(self.bottom_border_row(body_width, style));
 
         rows
@@ -218,27 +211,8 @@ impl WebSearchSessionCell {
 
         CardRow::new(
             BORDER_TOP,
-            Self::accent_style(style),
+            accent_style(style),
             segments,
-            None,
-        )
-    }
-
-    fn blank_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        if body_width == 0 {
-            return CardRow::new(
-                BORDER_BODY,
-                Self::accent_style(style),
-                Vec::new(),
-                None,
-            );
-        }
-
-        let filler = " ".repeat(body_width);
-        CardRow::new(
-            BORDER_BODY,
-            Self::accent_style(style),
-            vec![CardSegment::new(filler, Style::default())],
             None,
         )
     }
@@ -286,7 +260,7 @@ impl WebSearchSessionCell {
             if remaining == 0 {
                 rows.push(CardRow::new(
                     BORDER_BODY,
-                    Self::accent_style(style),
+                    accent_style(style),
                     segments,
                     None,
                 ));
@@ -301,7 +275,7 @@ impl WebSearchSessionCell {
                 if remaining < ACTION_TIME_SEPARATOR_WIDTH {
                     rows.push(CardRow::new(
                         BORDER_BODY,
-                        Self::accent_style(style),
+                        accent_style(style),
                         segments,
                         None,
                     ));
@@ -314,7 +288,7 @@ impl WebSearchSessionCell {
             if remaining == 0 {
                 rows.push(CardRow::new(
                     BORDER_BODY,
-                    Self::accent_style(style),
+                    accent_style(style),
                     segments,
                     None,
                 ));
@@ -329,7 +303,7 @@ impl WebSearchSessionCell {
 
             rows.push(CardRow::new(
                 BORDER_BODY,
-                Self::accent_style(style),
+                accent_style(style),
                 segments,
                 None,
             ));
@@ -342,7 +316,7 @@ impl WebSearchSessionCell {
         if body_width == 0 {
             return CardRow::new(
                 BORDER_BODY,
-                Self::accent_style(style),
+                accent_style(style),
                 Vec::new(),
                 None,
             );
@@ -366,7 +340,7 @@ impl WebSearchSessionCell {
 
         CardRow::new(
             BORDER_BODY,
-            Self::accent_style(style),
+            accent_style(style),
             segments,
             None,
         )
@@ -376,7 +350,7 @@ impl WebSearchSessionCell {
         if body_width == 0 {
             return CardRow::new(
                 BORDER_BODY,
-                Self::accent_style(style),
+                accent_style(style),
                 Vec::new(),
                 None,
             );
@@ -400,7 +374,7 @@ impl WebSearchSessionCell {
 
         CardRow::new(
             BORDER_BODY,
-            Self::accent_style(style),
+            accent_style(style),
             segments,
             None,
         )
@@ -417,7 +391,7 @@ impl WebSearchSessionCell {
         segment.inherit_background = true;
         CardRow::new(
             BORDER_BOTTOM,
-            Self::accent_style(style),
+            accent_style(style),
             vec![segment],
             None,
         )

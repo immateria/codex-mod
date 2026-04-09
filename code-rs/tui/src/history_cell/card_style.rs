@@ -303,3 +303,66 @@ pub(crate) fn title_text_style(style: &CardStyle) -> Style {
 pub(crate) fn hint_text_style(style: &CardStyle) -> Style {
     Style::default().fg(style.text_secondary)
 }
+
+/// Card accent column style shared by browser, image, agent, and web_search
+/// cards. auto_drive uses a different formula.
+pub(crate) fn accent_style(style: &CardStyle) -> Style {
+    if palette_mode() == PaletteMode::Ansi16 {
+        return Style::default().fg(ansi16_inverse_color());
+    }
+    let dim = colors::mix_toward(style.accent_fg, style.text_secondary, 0.85);
+    Style::default().fg(dim)
+}
+
+/// Empty body row with a border glyph in the accent column.
+pub(crate) fn blank_border_row(
+    border: &'static str,
+    body_width: usize,
+    style: &CardStyle,
+) -> CardRow {
+    CardRow::new(
+        border,
+        accent_style(style),
+        vec![CardSegment::new(" ".repeat(body_width), Style::default())],
+        None,
+    )
+}
+
+/// Single-line text row inside a card body, with optional indent and right
+/// padding. Text is truncated with ellipsis when it exceeds the available
+/// width.
+pub(crate) fn body_text_row(
+    border: &'static str,
+    text: impl Into<String>,
+    body_width: usize,
+    style: &CardStyle,
+    text_style: Style,
+    indent_cols: usize,
+    right_padding_cols: usize,
+) -> CardRow {
+    if body_width == 0 {
+        return CardRow::new(border, accent_style(style), Vec::new(), None);
+    }
+    let indent = indent_cols.min(body_width.saturating_sub(1));
+    let available = body_width.saturating_sub(indent);
+    let mut segments = Vec::new();
+    if indent > 0 {
+        segments.push(CardSegment::new(" ".repeat(indent), Style::default()));
+    }
+    let text: String = text.into();
+    if available == 0 {
+        return CardRow::new(border, accent_style(style), segments, None);
+    }
+    let usable_width = available.saturating_sub(right_padding_cols);
+    let display = if usable_width == 0 {
+        String::new()
+    } else {
+        truncate_with_ellipsis(text.as_str(), usable_width)
+    };
+    segments.push(CardSegment::new(display, text_style));
+    if right_padding_cols > 0 && available > 0 {
+        let pad = right_padding_cols.min(available);
+        segments.push(CardSegment::new(" ".repeat(pad), Style::default()));
+    }
+    CardRow::new(border, accent_style(style), segments, None)
+}

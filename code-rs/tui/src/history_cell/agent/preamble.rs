@@ -1,6 +1,8 @@
 use super::card_style::{
+    accent_style,
     agent_card_style,
     ansi16_inverse_color,
+    blank_border_row,
     fill_card_background,
     hint_text_style,
     primary_text_style,

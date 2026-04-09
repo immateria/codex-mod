@@ -150,14 +150,6 @@ impl AgentRunCell {
         self.cell_key.as_deref()
     }
 
-    fn accent_style(style: &CardStyle) -> Style {
-        if palette_mode() == PaletteMode::Ansi16 {
-            return Style::default().fg(ansi16_inverse_color());
-        }
-        let dim = colors::mix_toward(style.accent_fg, style.text_secondary, 0.85);
-        Style::default().fg(dim)
-    }
-
     fn prompt_text_style(style: &CardStyle) -> Style {
         secondary_text_style(style)
     }
@@ -187,7 +179,7 @@ impl AgentRunCell {
         if body_width == 0 {
             return CardRow::new(
                 BORDER_TOP,
-                Self::accent_style(style),
+                accent_style(style),
                 segments,
                 None,
             );
@@ -229,13 +221,13 @@ impl AgentRunCell {
             remaining = remaining.saturating_sub(agents_width);
 
             if remaining == 0 {
-                return CardRow::new(BORDER_TOP, Self::accent_style(style), segments, None);
+                return CardRow::new(BORDER_TOP, accent_style(style), segments, None);
             }
         }
 
         if let Some(text_value) = title {
             if remaining == 0 {
-                return CardRow::new(BORDER_TOP, Self::accent_style(style), segments, None);
+                return CardRow::new(BORDER_TOP, accent_style(style), segments, None);
             }
             segments.push(CardSegment::new(" ", primary_text_style(style)));
             remaining = remaining.saturating_sub(1);
@@ -276,7 +268,7 @@ impl AgentRunCell {
 
         CardRow::new(
             BORDER_TOP,
-            Self::accent_style(style),
+            accent_style(style),
             segments,
             None,
         )
@@ -284,16 +276,6 @@ impl AgentRunCell {
 
     fn mode_label_style(style: &CardStyle) -> Style {
         Self::secondary_title_border_style(style)
-    }
-
-    fn blank_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        let filler = " ".repeat(body_width);
-        CardRow::new(
-            BORDER_BODY,
-            Self::accent_style(style),
-            vec![CardSegment::new(filler, Style::default())],
-            None,
-        )
     }
 
     fn body_text_row_with_indent(
@@ -305,10 +287,10 @@ impl AgentRunCell {
         indent: usize,
     ) -> CardRow {
         if body_width == 0 {
-            return CardRow::new(BORDER_BODY, Self::accent_style(style), Vec::new(), None);
+            return CardRow::new(BORDER_BODY, accent_style(style), Vec::new(), None);
         }
         if body_width <= indent {
-            return CardRow::new(BORDER_BODY, Self::accent_style(style), Vec::new(), None);
+            return CardRow::new(BORDER_BODY, accent_style(style), Vec::new(), None);
         }
         let mut segments = Vec::new();
         if indent > 0 {
@@ -318,7 +300,7 @@ impl AgentRunCell {
         let text: String = text.into();
         let display = truncate_with_ellipsis(text.as_str(), available);
         segments.push(CardSegment::new(display, text_style));
-        CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None)
+        CardRow::new(BORDER_BODY, accent_style(style), segments, None)
     }
 
     fn multiline_body_rows_with_indent(
@@ -349,7 +331,7 @@ impl AgentRunCell {
                 segments.push(CardSegment::new(truncated, text_style));
                 CardRow::new(
                     BORDER_BODY,
-                    Self::accent_style(style),
+                    accent_style(style),
                     segments,
                     None,
                 )
@@ -375,7 +357,7 @@ impl AgentRunCell {
             hint_text_style(style)
         };
         let segment = CardSegment::new(text, hint_style);
-        CardRow::new(BORDER_BOTTOM, Self::accent_style(style), vec![segment], None)
+        CardRow::new(BORDER_BOTTOM, accent_style(style), vec![segment], None)
     }
 
     pub(crate) fn set_batch_label(&mut self, batch: Option<String>) {
@@ -404,7 +386,7 @@ impl AgentRunCell {
 
         let mut rows: Vec<CardRow> = Vec::new();
         rows.push(self.top_border_row(body_width, style));
-        rows.push(self.blank_border_row(body_width, style));
+        rows.push(blank_border_row(BORDER_BODY, body_width, style));
 
         let prompt_rows = self.prompt_rows(body_width, style);
         if !prompt_rows.is_empty() {
@@ -416,7 +398,7 @@ impl AgentRunCell {
         let agent_rows = self.agent_section_rows(body_width, style);
         if !agent_rows.is_empty() {
             if inserted_section {
-                rows.push(self.blank_border_row(body_width, style));
+                rows.push(blank_border_row(BORDER_BODY, body_width, style));
             }
             rows.extend(agent_rows);
             inserted_section = true;
@@ -425,12 +407,12 @@ impl AgentRunCell {
         let action_rows = self.actions_section_rows(body_width, style);
         if !action_rows.is_empty() {
             if inserted_section {
-                rows.push(self.blank_border_row(body_width, style));
+                rows.push(blank_border_row(BORDER_BODY, body_width, style));
             }
             rows.extend(action_rows);
         }
 
-        rows.push(self.blank_border_row(body_width, style));
+        rows.push(blank_border_row(BORDER_BODY, body_width, style));
         rows.push(self.bottom_border_row(body_width, style));
 
         rows
@@ -722,7 +704,7 @@ impl AgentRunCell {
 
             rows.push(CardRow::new(
                 BORDER_BODY,
-                Self::accent_style(style),
+                accent_style(style),
                 segments,
                 None,
             ));
@@ -764,7 +746,7 @@ impl AgentRunCell {
             if remaining == 0 {
                 rows.push(CardRow::new(
                     BORDER_BODY,
-                    Self::accent_style(style),
+                    accent_style(style),
                     segments,
                     None,
                 ));
@@ -807,7 +789,7 @@ impl AgentRunCell {
 
             rows.push(CardRow::new(
                 BORDER_BODY,
-                Self::accent_style(style),
+                accent_style(style),
                 segments,
                 None,
             ));
@@ -896,7 +878,7 @@ impl AgentRunCell {
                 }
                 rows.push(CardRow::new(
                     BORDER_BODY,
-                    Self::accent_style(style),
+                    accent_style(style),
                     ellipsis_segments,
                     None,
                 ));
@@ -944,7 +926,7 @@ impl AgentRunCell {
 
             rows.push(CardRow::new(
                 BORDER_BODY,
-                Self::accent_style(style),
+                accent_style(style),
                 segments,
                 None,
             ));

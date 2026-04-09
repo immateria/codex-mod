@@ -4,7 +4,10 @@ use super::actions::{ActionDisplayLine, ActionEntry, format_action_line};
 use super::screenshot::ScreenshotLayout;
 use super::super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use super::super::card_style::{
+    accent_style,
     ansi16_inverse_color,
+    blank_border_row,
+    body_text_row,
     browser_card_style,
     card_body_width,
     fill_card_background,
@@ -57,14 +60,6 @@ impl BrowserSessionCell {
     pub(crate) fn summary_label(&self) -> String {
         self.display_label()
     }
-    fn accent_style(style: &CardStyle) -> Style {
-        if palette_mode() == PaletteMode::Ansi16 {
-            return Style::default().fg(ansi16_inverse_color());
-        }
-        let dim = colors::mix_toward(style.accent_fg, style.text_secondary, 0.85);
-        Style::default().fg(dim)
-    }
-
     fn normalized_title(&self) -> Option<String> {
         self.title
             .as_ref()
@@ -92,7 +87,7 @@ impl BrowserSessionCell {
         if body_width == 0 {
             return CardRow::new(
                 BORDER_TOP,
-                Self::accent_style(style),
+                accent_style(style),
                 segments,
                 None,
             );
@@ -110,52 +105,7 @@ impl BrowserSessionCell {
         if !text.is_empty() {
             segments.push(CardSegment::new(text, title_style));
         }
-        CardRow::new(BORDER_TOP, Self::accent_style(style), segments, None)
-    }
-
-    fn blank_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        CardRow::new(
-            BORDER_BODY,
-            Self::accent_style(style),
-            vec![CardSegment::new(" ".repeat(body_width), Style::default())],
-            None,
-        )
-    }
-
-    fn body_text_row(
-        &self,
-        text: impl Into<String>,
-        body_width: usize,
-        style: &CardStyle,
-        text_style: Style,
-        indent_cols: usize,
-        right_padding_cols: usize,
-    ) -> CardRow {
-        if body_width == 0 {
-            return CardRow::new(BORDER_BODY, Self::accent_style(style), Vec::new(), None);
-        }
-        let indent = indent_cols.min(body_width.saturating_sub(1));
-        let available = body_width.saturating_sub(indent);
-        let mut segments = Vec::new();
-        if indent > 0 {
-            segments.push(CardSegment::new(" ".repeat(indent), Style::default()));
-        }
-        let text: String = text.into();
-        if available == 0 {
-            return CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None);
-        }
-        let usable_width = available.saturating_sub(right_padding_cols);
-        let display = if usable_width == 0 {
-            String::new()
-        } else {
-            truncate_with_ellipsis(text.as_str(), usable_width)
-        };
-        segments.push(CardSegment::new(display, text_style));
-        if right_padding_cols > 0 && available > 0 {
-            let pad = right_padding_cols.min(available);
-            segments.push(CardSegment::new(" ".repeat(pad), Style::default()));
-        }
-        CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None)
+        CardRow::new(BORDER_TOP, accent_style(style), segments, None)
     }
 
     fn bottom_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
@@ -167,7 +117,7 @@ impl BrowserSessionCell {
             hint_text_style(style)
         };
         let segment = CardSegment::new(text, hint_style);
-        CardRow::new(BORDER_BOTTOM, Self::accent_style(style), vec![segment], None)
+        CardRow::new(BORDER_BOTTOM, accent_style(style), vec![segment], None)
     }
 
     fn display_host(&self) -> Option<String> {
@@ -197,7 +147,7 @@ impl BrowserSessionCell {
 
         let mut rows: Vec<CardRow> = Vec::new();
         rows.push(self.top_border_row(body_width, style));
-        rows.push(self.blank_border_row(body_width, style));
+        rows.push(blank_border_row(BORDER_BODY, body_width, style));
 
         let mut screenshot_layout = self.compute_screenshot_layout(body_width);
         let indent_cols = screenshot_layout
@@ -230,7 +180,7 @@ impl BrowserSessionCell {
             .unwrap_or(0)
             .max(ACTION_TIME_COLUMN_MIN_WIDTH);
 
-        rows.push(self.body_text_row(
+        rows.push(body_text_row(BORDER_BODY, 
             "Actions",
             body_width,
             style,
@@ -246,7 +196,7 @@ impl BrowserSessionCell {
                 indent_cols,
                 right_padding,
             ) {
-                rows.push(self.body_text_row(
+                rows.push(body_text_row(BORDER_BODY, 
                     wrapped,
                     body_width,
                     style,
@@ -290,7 +240,7 @@ impl BrowserSessionCell {
                         }
                         rows.push(CardRow::new(
                             BORDER_BODY,
-                            Self::accent_style(style),
+                            accent_style(style),
                             segments,
                             None,
                         ));
@@ -301,7 +251,7 @@ impl BrowserSessionCell {
 
         let console_rows = self.console_rows(body_width, style, indent_cols, right_padding);
         if !console_rows.is_empty() {
-            rows.push(self.blank_border_row(body_width, style));
+            rows.push(blank_border_row(BORDER_BODY, body_width, style));
             rows.extend(console_rows);
         }
 
@@ -311,7 +261,7 @@ impl BrowserSessionCell {
             if existing < layout.height_rows {
                 let missing = layout.height_rows - existing;
                 for _ in 0..missing {
-                    rows.push(self.body_text_row(
+                    rows.push(body_text_row(BORDER_BODY, 
                         "",
                         body_width,
                         style,
@@ -323,7 +273,7 @@ impl BrowserSessionCell {
             }
         }
 
-        rows.push(self.blank_border_row(body_width, style));
+        rows.push(blank_border_row(BORDER_BODY, body_width, style));
         rows.push(self.bottom_border_row(body_width, style));
 
         (rows, screenshot_layout)
@@ -352,7 +302,7 @@ impl BrowserSessionCell {
         wrap_card_lines(text.as_str(), body_width, indent_cols, right_padding)
             .into_iter()
             .map(|wrapped| {
-                self.body_text_row(
+                body_text_row(BORDER_BODY, 
                     wrapped,
                     body_width,
                     style,
@@ -551,7 +501,7 @@ impl BrowserSessionCell {
             }
         }
 
-        CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None)
+        CardRow::new(BORDER_BODY, accent_style(style), segments, None)
     }
 
     fn render_fallback_entry(
@@ -604,7 +554,7 @@ impl BrowserSessionCell {
 
         vec![CardRow::new(
             BORDER_BODY,
-            Self::accent_style(style),
+            accent_style(style),
             segments,
             None,
         )]

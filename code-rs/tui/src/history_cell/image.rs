@@ -1,5 +1,8 @@
 use super::card_style::{
+    accent_style,
     ansi16_inverse_color,
+    blank_border_row,
+    body_text_row,
     browser_card_style,
     card_body_width,
     fill_card_background,
@@ -121,14 +124,6 @@ impl ImageOutputCell {
             .unwrap_or_else(|| Picker::from_fontsize((8, 16)))
     }
 
-    fn accent_style(style: &CardStyle) -> Style {
-        if palette_mode() == PaletteMode::Ansi16 {
-            return Style::default().fg(ansi16_inverse_color());
-        }
-        let dim = colors::mix_toward(style.accent_fg, style.text_secondary, 0.85);
-        Style::default().fg(dim)
-    }
-
     fn display_label(&self) -> String {
         if let Some(alt) = self
             .record
@@ -203,7 +198,7 @@ impl ImageOutputCell {
         if body_width == 0 {
             return CardRow::new(
                 BORDER_TOP,
-                Self::accent_style(style),
+                accent_style(style),
                 segments,
                 None,
             );
@@ -221,52 +216,7 @@ impl ImageOutputCell {
         if !text.is_empty() {
             segments.push(CardSegment::new(text, title_style));
         }
-        CardRow::new(BORDER_TOP, Self::accent_style(style), segments, None)
-    }
-
-    fn blank_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        CardRow::new(
-            BORDER_BODY,
-            Self::accent_style(style),
-            vec![CardSegment::new(" ".repeat(body_width), Style::default())],
-            None,
-        )
-    }
-
-    fn body_text_row(
-        &self,
-        text: impl Into<String>,
-        body_width: usize,
-        style: &CardStyle,
-        text_style: Style,
-        indent_cols: usize,
-        right_padding_cols: usize,
-    ) -> CardRow {
-        if body_width == 0 {
-            return CardRow::new(BORDER_BODY, Self::accent_style(style), Vec::new(), None);
-        }
-        let indent = indent_cols.min(body_width.saturating_sub(1));
-        let available = body_width.saturating_sub(indent);
-        let mut segments = Vec::new();
-        if indent > 0 {
-            segments.push(CardSegment::new(" ".repeat(indent), Style::default()));
-        }
-        let text: String = text.into();
-        if available == 0 {
-            return CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None);
-        }
-        let usable_width = available.saturating_sub(right_padding_cols);
-        let display = if usable_width == 0 {
-            String::new()
-        } else {
-            truncate_with_ellipsis(text.as_str(), usable_width)
-        };
-        segments.push(CardSegment::new(display, text_style));
-        if right_padding_cols > 0 && available > 0 {
-            let pad = right_padding_cols.min(available);
-            segments.push(CardSegment::new(" ".repeat(pad), Style::default()));
-        }
-        CardRow::new(BORDER_BODY, Self::accent_style(style), segments, None)
+        CardRow::new(BORDER_TOP, accent_style(style), segments, None)
     }
 
     fn bottom_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
@@ -279,7 +229,7 @@ impl ImageOutputCell {
         let segment = CardSegment::new(text, hint_style);
         CardRow::new(
             BORDER_BOTTOM,
-            Self::accent_style(style),
+            accent_style(style),
             vec![segment],
             None,
         )
@@ -296,7 +246,7 @@ impl ImageOutputCell {
 
         let mut rows: Vec<CardRow> = Vec::new();
         rows.push(self.top_border_row(body_width, style));
-        rows.push(self.blank_border_row(body_width, style));
+        rows.push(blank_border_row(BORDER_BODY, body_width, style));
 
         let mut image_layout = self.compute_image_layout(body_width);
         let indent_cols = image_layout
@@ -308,7 +258,7 @@ impl ImageOutputCell {
 
         let content_start = rows.len();
 
-        rows.push(self.body_text_row(
+        rows.push(body_text_row(BORDER_BODY, 
             "Details",
             body_width,
             style,
@@ -325,7 +275,7 @@ impl ImageOutputCell {
                 indent_cols,
                 right_padding,
             ) {
-                rows.push(self.body_text_row(
+                rows.push(body_text_row(BORDER_BODY, 
                     wrapped,
                     body_width,
                     style,
@@ -342,7 +292,7 @@ impl ImageOutputCell {
                     indent_cols,
                     right_padding,
                 ) {
-                    rows.push(self.body_text_row(
+                    rows.push(body_text_row(BORDER_BODY, 
                         wrapped,
                         body_width,
                         style,
@@ -360,7 +310,7 @@ impl ImageOutputCell {
             if existing < layout.height_rows {
                 let missing = layout.height_rows - existing;
                 for _ in 0..missing {
-                    rows.push(self.body_text_row(
+                    rows.push(body_text_row(BORDER_BODY, 
                         "",
                         body_width,
                         style,
@@ -372,7 +322,7 @@ impl ImageOutputCell {
             }
         }
 
-        rows.push(self.blank_border_row(body_width, style));
+        rows.push(blank_border_row(BORDER_BODY, body_width, style));
         rows.push(self.bottom_border_row(body_width, style));
 
         (rows, image_layout)
