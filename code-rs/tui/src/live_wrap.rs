@@ -1,5 +1,4 @@
 use unicode_width::UnicodeWidthChar;
-use unicode_width::UnicodeWidthStr;
 
 /// A single visual row produced by RowBuilder.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -7,14 +6,12 @@ pub struct Row {
     pub text: String,
     /// True if this row ends with an explicit line break (as opposed to a hard wrap).
     pub explicit_break: bool,
-    #[allow(dead_code)]
-    width: usize,
 }
 
-#[allow(dead_code)]
-impl Row {
-    pub fn width(&self) -> usize {
-        self.width
+fn make_row(text: String, explicit_break: bool) -> Row {
+    Row {
+        text,
+        explicit_break,
     }
 }
 
@@ -29,15 +26,6 @@ pub struct RowBuilder {
     rows: Vec<Row>,
 }
 
-fn make_row(text: String, explicit_break: bool) -> Row {
-    let width = UnicodeWidthStr::width(text.as_str());
-    Row {
-        text,
-        explicit_break,
-        width,
-    }
-}
-
 impl RowBuilder {
     pub fn new(target_width: usize) -> Self {
         Self {
@@ -45,27 +33,6 @@ impl RowBuilder {
             current_line: String::new(),
             rows: Vec::new(),
         }
-    }
-
-    #[allow(dead_code)]
-    pub fn width(&self) -> usize {
-        self.target_width
-    }
-
-    #[allow(dead_code)]
-    pub fn set_width(&mut self, width: usize) {
-        self.target_width = width.max(1);
-        // Rewrap everything we have (simple approach for Step 1).
-        let mut all = String::new();
-        for row in self.rows.drain(..) {
-            all.push_str(&row.text);
-            if row.explicit_break {
-                all.push('\n');
-            }
-        }
-        all.push_str(&self.current_line);
-        self.current_line.clear();
-        self.push_fragment(&all);
     }
 
     /// Push an input fragment. May contain newlines.
@@ -88,18 +55,6 @@ impl RowBuilder {
             self.current_line.push_str(&fragment[start..]);
             self.wrap_current_line();
         }
-    }
-
-    /// Mark the end of the current logical line (equivalent to pushing a '\n').
-    #[allow(dead_code)]
-    pub fn end_line(&mut self) {
-        self.flush_current_line(true);
-    }
-
-    /// Drain and return all produced rows.
-    #[allow(dead_code)]
-    pub fn drain_rows(&mut self) -> Vec<Row> {
-        std::mem::take(&mut self.rows)
     }
 
     /// Return a snapshot of produced rows (non-draining).
@@ -135,20 +90,6 @@ impl RowBuilder {
             out.push(make_row(self.current_line.clone(), false));
         }
         out
-    }
-
-    /// Drain the oldest rows that exceed `max_keep` display rows (including the
-    /// current partial line, if any). Returns the drained rows in order.
-    #[allow(dead_code)]
-    pub fn drain_commit_ready(&mut self, max_keep: usize) -> Vec<Row> {
-        let display_count = self.rows.len() + if self.current_line.is_empty() { 0 } else { 1 };
-        if display_count <= max_keep {
-            return Vec::new();
-        }
-        let to_commit = display_count - max_keep;
-        let commit_count = to_commit.min(self.rows.len());
-        let drained: Vec<_> = self.rows.drain(..commit_count).collect();
-        drained
     }
 
     fn flush_current_line(&mut self, explicit_break: bool) {

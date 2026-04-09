@@ -910,29 +910,8 @@ fn is_low_saturation((r, g, b): (u8, u8, u8)) -> bool {
     (max_v - min_v) <= 30
 }
 
-fn color_to_rgb(color: Color) -> (u8, u8, u8) {
-    match color {
-        Color::Rgb(r, g, b) => (r, g, b),
-        Color::Black => (0, 0, 0),
-        Color::Red => (205, 0, 0),
-        Color::Green => (0, 205, 0),
-        Color::Yellow => (205, 205, 0),
-        Color::Blue => (0, 0, 205),
-        Color::Magenta => (205, 0, 205),
-        Color::Cyan => (0, 205, 205),
-        Color::Gray => (192, 192, 192),
-        Color::DarkGray => (128, 128, 128),
-        Color::LightRed => (255, 102, 102),
-        Color::LightGreen => (102, 255, 178),
-        Color::LightYellow => (255, 255, 102),
-        Color::LightBlue => (102, 153, 255),
-        Color::LightMagenta => (255, 102, 255),
-        Color::LightCyan => (102, 255, 255),
-        Color::White => (255, 255, 255),
-        Color::Indexed(idx) => crate::colors::ansi256_to_rgb(idx),
-        Color::Reset => (255, 255, 255),
-    }
-}
+// Reuse the canonical color_to_rgb from the colors module.
+use crate::colors::color_to_rgb;
 
 /// Get a predefined theme by name
 fn get_predefined_theme(name: ThemeName) -> Theme {

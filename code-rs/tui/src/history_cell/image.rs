@@ -34,12 +34,12 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 
-const IMAGE_GAP: usize = 2;
-const IMAGE_LEFT_PAD: usize = 1;
 const MIN_IMAGE_ROWS: usize = 4;
 const HINT_TEXT: &str = "Image output";
 
 use super::card_style::{
+    MEDIA_GAP as IMAGE_GAP,
+    MEDIA_LEFT_PAD as IMAGE_LEFT_PAD,
     MEDIA_MAX_ROWS as MAX_IMAGE_ROWS,
     MEDIA_MAX_WIDTH as IMAGE_MAX_WIDTH,
     MEDIA_MIN_TEXT_WIDTH as MIN_TEXT_WIDTH,

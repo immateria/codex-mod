@@ -92,6 +92,10 @@ pub(crate) const MEDIA_MAX_WIDTH: usize = 64;
 pub(crate) const MEDIA_MAX_ROWS: usize = 60;
 pub(crate) const MEDIA_TEXT_RIGHT_PADDING: usize = 2;
 pub(crate) const MEDIA_MIN_TEXT_WIDTH: usize = 28;
+/// Gap between the media/image column and the text column in side-by-side layout.
+pub(crate) const MEDIA_GAP: usize = 2;
+/// Left padding before the media/image column.
+pub(crate) const MEDIA_LEFT_PAD: usize = 1;
 
 // Shared layout constants for action/time column cards (browser, auto_drive,
 // web_search, agent runs).

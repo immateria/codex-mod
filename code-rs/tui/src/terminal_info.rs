@@ -5,6 +5,8 @@ use std::io::Write;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::timing::TERMINAL_QUERY_TIMEOUT;
+
 const ANSI_16_TO_RGB: [(u8, u8, u8); 16] = [
     (0, 0, 0),
     (205, 0, 0),
@@ -111,7 +113,7 @@ pub fn get_cell_size_pixels() -> Option<(u16, u16)> {
     // Try direct cell size query (CSI 16 t) -> expect: CSI 6;height;width t
     tty_w.write_all(b"\x1b[16t").ok()?;
     tty_w.flush().ok()?;
-    if let Some(reply) = read_reply(&mut tty_r, Duration::from_millis(100))
+    if let Some(reply) = read_reply(&mut tty_r, TERMINAL_QUERY_TIMEOUT)
         && let Some((kind, height, width)) = parse_three_nums(&reply)
             && kind == 6 && width > 0 && height > 0 {
                 return Some((width as u16, height as u16));
@@ -121,7 +123,7 @@ pub fn get_cell_size_pixels() -> Option<(u16, u16)> {
     tty_w.write_all(b"\x1b[14t").ok()?;
     tty_w.flush().ok()?;
     let (mut win_h, mut win_w) = (0u32, 0u32);
-    if let Some(reply) = read_reply(&mut tty_r, Duration::from_millis(100))
+    if let Some(reply) = read_reply(&mut tty_r, TERMINAL_QUERY_TIMEOUT)
         && let Some((kind, h, w)) = parse_three_nums(&reply)
             && kind == 4 {
                 win_h = h;
@@ -132,7 +134,7 @@ pub fn get_cell_size_pixels() -> Option<(u16, u16)> {
     tty_w.write_all(b"\x1b[18t").ok()?;
     tty_w.flush().ok()?;
     let (mut rows, mut cols) = (0u32, 0u32);
-    if let Some(reply) = read_reply(&mut tty_r, Duration::from_millis(100))
+    if let Some(reply) = read_reply(&mut tty_r, TERMINAL_QUERY_TIMEOUT)
         && let Some((kind, r, c)) = parse_three_nums(&reply)
             && kind == 8 {
                 rows = r;
