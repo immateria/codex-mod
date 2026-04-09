@@ -287,11 +287,7 @@ pub(crate) fn build_output_lines(text: &str) -> Vec<Line<'static>> {
     let stripped_plain = sanitize_for_tui(
         text,
         SanitizeMode::Plain,
-        SanitizeOptions {
-            expand_tabs: true,
-            tabstop: 4,
-            debug_markers: false,
-        },
+        SanitizeOptions::default(),
     );
     if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&stripped_plain) {
         let pretty =
@@ -305,11 +301,7 @@ pub(crate) fn build_output_lines(text: &str) -> Vec<Line<'static>> {
     let processed = sanitize_for_tui(
         &processed,
         SanitizeMode::AnsiPreserving,
-        SanitizeOptions {
-            expand_tabs: true,
-            tabstop: 4,
-            debug_markers: false,
-        },
+        SanitizeOptions::default(),
     );
 
     fn ansi_line_with_theme_bg(s: &str) -> Line<'static> {
@@ -341,11 +333,7 @@ fn build_preview_lines_windowed(
     let stripped_plain = sanitize_for_tui(
         text,
         SanitizeMode::Plain,
-        SanitizeOptions {
-            expand_tabs: true,
-            tabstop: 4,
-            debug_markers: false,
-        },
+        SanitizeOptions::default(),
     );
     if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&stripped_plain) {
         let pretty =
@@ -361,11 +349,7 @@ fn build_preview_lines_windowed(
     let processed = sanitize_for_tui(
         &processed,
         SanitizeMode::AnsiPreserving,
-        SanitizeOptions {
-            expand_tabs: true,
-            tabstop: 4,
-            debug_markers: false,
-        },
+        SanitizeOptions::default(),
     );
     let non_empty: Vec<&str> = processed.lines().filter(|line| !line.is_empty()).collect();
 
@@ -467,11 +451,7 @@ pub(crate) fn output_lines(
         let stderr_norm = sanitize_for_tui(
             &normalize_overwrite_sequences(stderr),
             SanitizeMode::AnsiPreserving,
-            SanitizeOptions {
-                expand_tabs: true,
-                tabstop: 4,
-                debug_markers: false,
-            },
+            SanitizeOptions::default(),
         );
         for line in stderr_norm.lines().filter(|line| !line.is_empty()) {
             lines.push(ansi_escape_line(line).style(Style::default().fg(crate::colors::error())));

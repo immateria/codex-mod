@@ -237,10 +237,7 @@ impl TerminalOverlay {
         let sanitized = sanitize_for_tui(
             trimmed,
             SanitizeMode::AnsiPreserving,
-            SanitizeOptions {
-                expand_tabs: true,
-                ..Default::default()
-            },
+            SanitizeOptions::default(),
         );
         let mut line = ansi_escape_line(&sanitized);
         line.spans.insert(
@@ -321,18 +318,12 @@ impl TerminalOverlay {
             let sanitized = sanitize_for_tui(
                 &filtered,
                 SanitizeMode::AnsiPreserving,
-                SanitizeOptions {
-                    expand_tabs: true,
-                    ..Default::default()
-                },
+                SanitizeOptions::default(),
             );
             let plain = sanitize_for_tui(
                 &filtered,
                 SanitizeMode::Plain,
-                SanitizeOptions {
-                    expand_tabs: true,
-                    ..Default::default()
-                },
+                SanitizeOptions::default(),
             );
             let plain_trimmed = plain.trim_end_matches(' ').to_string();
 

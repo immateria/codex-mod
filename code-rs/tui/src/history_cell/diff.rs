@@ -88,11 +88,7 @@ pub(crate) fn diff_record_from_string(title: String, diff: &str) -> DiffRecord {
         let line = sanitize_for_tui(
             raw_line,
             SanitizeMode::Plain,
-            SanitizeOptions {
-                expand_tabs: true,
-                tabstop: 4,
-                debug_markers: false,
-            },
+            SanitizeOptions::default(),
         );
         if line.starts_with("@@") {
             let prev_lines = std::mem::take(&mut current_lines);

@@ -137,11 +137,7 @@ impl ChatWidget<'_> {
             sanitize_for_tui(
                 &normalized,
                 SanitizeMode::AnsiPreserving,
-                SanitizeOptions {
-                    expand_tabs: true,
-                    tabstop: 4,
-                    debug_markers: false,
-                },
+                SanitizeOptions::default(),
             )
         }
 

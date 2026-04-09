@@ -17,7 +17,7 @@ fn sanitize_diff_text(s: &str) -> String {
     sanitize_for_tui(
         s,
         SanitizeMode::Plain,
-        SanitizeOptions { expand_tabs: true, tabstop: 4, debug_markers: false },
+        SanitizeOptions::default(),
     )
 }
 

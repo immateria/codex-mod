@@ -634,11 +634,7 @@ pub(crate) fn new_user_prompt(message: String) -> PlainMessageState {
     let sanitized = sanitize_for_tui(
         &normalized,
         SanitizeMode::AnsiPreserving,
-        SanitizeOptions {
-            expand_tabs: true,
-            tabstop: 4,
-            debug_markers: false,
-        },
+        SanitizeOptions::default(),
     );
     // Build content lines with ANSI converted to styled spans
     let content: Vec<Line<'static>> = sanitized.lines().map(ansi_escape_line).collect();
@@ -665,11 +661,7 @@ pub(crate) fn new_queued_user_prompt(message: String) -> PlainMessageState {
     let sanitized = sanitize_for_tui(
         &normalized,
         SanitizeMode::AnsiPreserving,
-        SanitizeOptions {
-            expand_tabs: true,
-            tabstop: 4,
-            debug_markers: false,
-        },
+        SanitizeOptions::default(),
     );
     let content: Vec<Line<'static>> = sanitized.lines().map(ansi_escape_line).collect();
     let content = trim_empty_lines(content);

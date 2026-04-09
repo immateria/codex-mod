@@ -351,11 +351,7 @@ pub(crate) fn new_patch_apply_failure(stderr: String) -> PlainMessageState {
     let norm = sanitize_for_tui(
         &norm,
         SanitizeMode::AnsiPreserving,
-        SanitizeOptions {
-            expand_tabs: true,
-            tabstop: 4,
-            debug_markers: false,
-        },
+        SanitizeOptions::default(),
     );
     for line in norm.lines() {
         if !line.is_empty() {
