@@ -758,6 +758,9 @@ pub(crate) struct ChatWidget<'a> {
     /// Startup-only MCP init error summary. We keep this out of history so the
     /// welcome intro doesn't jump when MCP status changes.
     startup_mcp_error_summary: Option<String>,
+    /// Full original error message from the MCP startup failure, shown in the
+    /// MCP settings page for detailed diagnostics.
+    startup_mcp_error_detail: Option<String>,
 
     /// Optional remote-merged presets list delivered asynchronously.
     /// When absent, the TUI falls back to built-in presets.

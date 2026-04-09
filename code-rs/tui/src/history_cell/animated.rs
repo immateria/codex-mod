@@ -66,6 +66,10 @@ impl HistoryCell for AnimatedWelcomeCell {
         HistoryCellType::AnimatedWelcome
     }
 
+    fn has_copyable_content(&self) -> bool {
+        false
+    }
+
     fn display_lines(&self) -> Vec<Line<'static>> {
         let welcome_title = if self
             .brand_title

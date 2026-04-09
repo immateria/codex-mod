@@ -96,6 +96,7 @@ impl ChatWidget<'_> {
             mcp_server_failures: HashMap::new(),
             mcp_auth_statuses: HashMap::new(),
             startup_mcp_error_summary: None,
+            startup_mcp_error_detail: None,
             remote_model_presets: None,
             allow_remote_default_at_startup: !config.model_explicit,
             chat_model_selected_explicitly: false,

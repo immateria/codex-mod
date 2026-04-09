@@ -117,6 +117,9 @@ struct SummaryMetrics {
 
 pub(crate) struct McpSettingsView {
     rows: McpServerRows,
+    /// Startup MCP error message displayed as a banner when the settings
+    /// page has no server rows (e.g. server failed before session config).
+    startup_error: Option<String>,
     selected: usize,
     focus: McpSettingsFocus,
     mode: McpSettingsMode,
@@ -139,9 +142,14 @@ pub(crate) struct McpSettingsView {
 }
 
 impl McpSettingsView {
-    pub fn new(rows: McpServerRows, app_event_tx: AppEventSender) -> Self {
+    pub fn new(
+        rows: McpServerRows,
+        startup_error: Option<String>,
+        app_event_tx: AppEventSender,
+    ) -> Self {
         Self {
             rows,
+            startup_error,
             selected: 0,
             focus: McpSettingsFocus::Servers,
             mode: McpSettingsMode::Main,

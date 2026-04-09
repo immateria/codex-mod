@@ -15,6 +15,7 @@ impl ChatWidget<'_> {
             self.clear_resume_placeholder();
             let summarized = Self::summarize_startup_mcp_error(&message);
             self.startup_mcp_error_summary = Some(summarized.clone());
+            self.startup_mcp_error_detail = Some(message);
             self.bottom_pane.flash_footer_notice_for(
                 summarized,
                 Duration::from_secs(10),

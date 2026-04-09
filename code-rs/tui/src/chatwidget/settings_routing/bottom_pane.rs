@@ -190,7 +190,11 @@ impl ChatWidget<'_> {
         let Some(rows) = self.build_mcp_server_rows() else {
             return false;
         };
-        self.open_bottom_pane_settings(move |this| this.bottom_pane.show_mcp_settings(rows))
+        let startup_error = self.startup_mcp_error_detail.clone()
+            .or_else(|| self.startup_mcp_error_summary.clone());
+        self.open_bottom_pane_settings(move |this| {
+            this.bottom_pane.show_mcp_settings(rows, startup_error)
+        })
     }
 
     pub(crate) fn open_settings_section_in_bottom_pane(

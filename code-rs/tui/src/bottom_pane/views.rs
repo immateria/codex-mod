@@ -369,8 +369,16 @@ impl<'a> BottomPane<'a> {
     }
 
     /// Show MCP servers status/toggle UI
-    pub fn show_mcp_settings(&mut self, rows: settings_pages::mcp::McpServerRows) {
-        let view = settings_pages::mcp::McpSettingsView::new(rows, self.app_event_tx.clone());
+    pub fn show_mcp_settings(
+        &mut self,
+        rows: settings_pages::mcp::McpServerRows,
+        startup_error: Option<String>,
+    ) {
+        let view = settings_pages::mcp::McpSettingsView::new(
+            rows,
+            startup_error,
+            self.app_event_tx.clone(),
+        );
         self.set_other_view(view, true);
     }
 

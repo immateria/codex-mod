@@ -19,7 +19,28 @@ impl McpSettingsView {
         let label_width = content_width.saturating_sub(3);
         let hovered_style = Style::default().fg(crate::colors::function());
 
-        if self.rows.is_empty() {
+        if let Some(err) = &self.startup_error {
+            let error_style = Style::default().fg(crate::colors::error());
+            let header = " ⚠ MCP Startup Error";
+            lines.push(Line::from(vec![Span::styled(
+                crate::text_formatting::truncate_to_display_width_with_suffix(
+                    header,
+                    content_width,
+                    "…",
+                ),
+                error_style.add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(Line::from(""));
+            for chunk in textwrap::wrap(err, content_width) {
+                lines.push(Line::from(vec![Span::styled(
+                    chunk.into_owned(),
+                    error_style,
+                )]));
+            }
+            lines.push(Line::from(""));
+        }
+
+        if self.rows.is_empty() && self.startup_error.is_none() {
             lines.push(Line::from(vec![Span::styled(
                 crate::text_formatting::truncate_to_display_width_with_suffix(
                     "No MCP servers configured.",

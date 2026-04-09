@@ -525,6 +525,7 @@ impl ChatWidget<'_> {
                 self.mcp_auth_statuses = ev.auth_statuses;
                 if self.mcp_server_failures.is_empty() {
                     self.startup_mcp_error_summary = None;
+                    self.startup_mcp_error_detail = None;
                 }
                 self.refresh_mcp_settings_overlay();
                 if let Some(account_ids) = self.apps_take_pending_status_refresh_account_ids() {

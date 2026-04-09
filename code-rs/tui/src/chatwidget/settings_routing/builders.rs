@@ -363,7 +363,9 @@ impl ChatWidget<'_> {
 
     pub(super) fn build_mcp_settings_content(&mut self) -> Option<McpSettingsContent> {
         let rows = self.build_mcp_server_rows()?;
-        let view = McpSettingsView::new(rows, self.app_event_tx.clone());
+        let startup_error = self.startup_mcp_error_detail.clone()
+            .or_else(|| self.startup_mcp_error_summary.clone());
+        let view = McpSettingsView::new(rows, startup_error, self.app_event_tx.clone());
         Some(McpSettingsContent::new(view))
     }
 
