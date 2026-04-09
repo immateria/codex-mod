@@ -53,20 +53,8 @@ impl<'a> KeyValueRow<'a> {
         self
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn with_detail(mut self, detail: StyledText<'a>) -> Self {
-        self.detail = Some(detail);
-        self
-    }
-
     pub(crate) fn with_selected_hint(mut self, hint: impl Into<Cow<'a, str>>) -> Self {
         self.selected_hint = Some(hint.into());
-        self
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn with_label_pad_cols(mut self, cols: u16) -> Self {
-        self.label_pad_cols = Some(cols);
         self
     }
 }
@@ -248,41 +236,6 @@ mod tests {
         let body = Rect::new(4, 7, 30, 5);
         assert_eq!(row_area(body, 0), Rect::new(4, 7, 30, 1));
         assert_eq!(row_area(body, 3), Rect::new(4, 10, 30, 1));
-    }
-
-    #[test]
-    fn key_value_row_supports_detail_builder() {
-        let row = KeyValueRow::new("Label").with_detail(StyledText::new("detail", Style::new()));
-        assert_eq!(
-            row.detail.expect("detail").text.as_ref(),
-            "detail"
-        );
-    }
-
-    #[test]
-    fn kv_row_uses_page_level_label_padding() {
-        let rows = [
-            KeyValueRow::new("A").with_value(StyledText::new("one", Style::new())),
-            KeyValueRow::new("Long label").with_value(StyledText::new("two", Style::new())),
-        ];
-        let default_pad_cols = default_label_pad_cols(&rows);
-        let first = kv_row_line(false, &rows[0], default_pad_cols);
-
-        assert_eq!(line_text(&first), "  A         : one");
-    }
-
-    #[test]
-    fn kv_row_explicit_label_padding_overrides_page_default() {
-        let rows = [
-            KeyValueRow::new("A")
-                .with_label_pad_cols(4)
-                .with_value(StyledText::new("one", Style::new())),
-            KeyValueRow::new("Long label").with_value(StyledText::new("two", Style::new())),
-        ];
-        let default_pad_cols = default_label_pad_cols(&rows);
-        let first = kv_row_line(false, &rows[0], default_pad_cols);
-
-        assert_eq!(line_text(&first), "  A   : one");
     }
 
     #[test]

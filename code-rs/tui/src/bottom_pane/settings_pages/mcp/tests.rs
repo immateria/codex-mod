@@ -42,12 +42,12 @@
 
     fn make_view(rows: Vec<McpServerRow>) -> McpSettingsView {
         let (tx, _rx) = channel();
-        McpSettingsView::new(rows, AppEventSender::new(tx))
+        McpSettingsView::new(rows, None, AppEventSender::new(tx))
     }
 
     fn make_view_with_rx(rows: Vec<McpServerRow>) -> (McpSettingsView, std::sync::mpsc::Receiver<AppEvent>) {
         let (tx, rx) = channel();
-        (McpSettingsView::new(rows, AppEventSender::new(tx)), rx)
+        (McpSettingsView::new(rows, None, AppEventSender::new(tx)), rx)
     }
 
     fn mouse_event(kind: MouseEventKind, x: u16, y: u16) -> MouseEvent {

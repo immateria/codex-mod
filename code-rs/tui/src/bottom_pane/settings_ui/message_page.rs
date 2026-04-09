@@ -65,14 +65,6 @@ impl<'a> SettingsMessagePage<'a> {
         SettingsMessagePageContentOnly { page: self }
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn layout_in_chrome(&self, chrome: ChromeMode, area: Rect) -> Option<SettingsMessagePageLayout> {
-        match chrome {
-            ChromeMode::Framed => self.framed().layout(area),
-            ChromeMode::ContentOnly => self.content_only().layout(area),
-        }
-    }
-
     pub(crate) fn render_in_chrome(
         &self,
         chrome: ChromeMode,
@@ -95,12 +87,6 @@ impl<'a> SettingsMessagePage<'a> {
 
     fn layout_framed(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
         let page = self.page.framed().layout(area)?;
-        Some(self.layout_from_page(page))
-    }
-
-    #[allow(dead_code)]
-    fn layout_content_only(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
-        let page = self.page.content_only().layout(area)?;
         Some(self.layout_from_page(page))
     }
 
@@ -142,11 +128,6 @@ impl<'p, 'a> SettingsMessagePageFramed<'p, 'a> {
 }
 
 impl<'p, 'a> SettingsMessagePageContentOnly<'p, 'a> {
-    #[allow(dead_code)]
-    pub(crate) fn layout(&self, area: Rect) -> Option<SettingsMessagePageLayout> {
-        self.page.layout_content_only(area)
-    }
-
     pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) -> Option<SettingsMessagePageLayout> {
         self.page.render_content_only(area, buf)
     }
@@ -191,24 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn content_only_layout_and_render_agree() {
-        let page = SettingsMessagePage::new(
-            "Test",
-            SettingsPanelStyle::bottom_pane_padded(),
-            vec![Line::from("header")],
-            vec![Line::from("body")],
-            vec![Line::from("footer")],
-        )
-        .with_min_body_rows(3);
-        let area = Rect::new(0, 0, 30, 10);
-        let layout = page.content_only().layout(area).expect("layout");
-        let mut buf = Buffer::empty(area);
-        let rendered = page.content_only().render(area, &mut buf).expect("render");
-        assert_eq!(layout, rendered);
-    }
-
-    #[test]
-    fn chrome_helpers_match_concrete_helpers() {
+    fn render_in_chrome_matches_concrete_helpers() {
         let page = SettingsMessagePage::new(
             "Test",
             SettingsPanelStyle::bottom_pane(),
@@ -217,15 +181,6 @@ mod tests {
             vec![Line::from("footer")],
         );
         let area = Rect::new(0, 0, 30, 10);
-
-        assert_eq!(
-            page.layout_in_chrome(ChromeMode::Framed, area),
-            page.framed().layout(area)
-        );
-        assert_eq!(
-            page.layout_in_chrome(ChromeMode::ContentOnly, area),
-            page.content_only().layout(area)
-        );
 
         let mut chrome_buf = Buffer::empty(area);
         let mut concrete_buf = Buffer::empty(area);

@@ -32,7 +32,6 @@ impl Default for StorageConfig {
     }
 }
 
-#[allow(dead_code)]
 impl StorageConfig {
     /// Creates a storage config for in-memory only (no persistence).
     pub fn memory_only() -> Self {
@@ -53,12 +52,10 @@ impl StorageConfig {
 ///
 /// Phase 2A: Placeholder implementations that do nothing.
 /// Future phases will implement actual persistence.
-#[allow(dead_code)]
 pub struct TimelineStorage {
     config: StorageConfig,
 }
 
-#[allow(dead_code)]
 impl TimelineStorage {
     pub fn new(config: StorageConfig) -> Self {
         Self { config }
