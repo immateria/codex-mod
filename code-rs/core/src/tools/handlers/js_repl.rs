@@ -7,8 +7,8 @@ use crate::tools::context::ToolPayload;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::unsupported_tool_call_output;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::tools::handlers::{tool_error, tool_output};
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
 use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use serde::Deserialize;
@@ -275,13 +275,7 @@ impl ToolHandler for JsReplToolHandler {
                         output: FunctionCallOutputPayload::from_text(result.output),
                     }
                 } else {
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: ctx.call_id,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(result.output),
-                            success: Some(true),
-                        },
-                    }
+                    tool_output(ctx.call_id, result.output)
                 }
             }
             Err(err) => {
@@ -302,13 +296,7 @@ impl ToolHandler for JsReplToolHandler {
                         output: FunctionCallOutputPayload::from_text(combined),
                     }
                 } else {
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: ctx.call_id,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(combined),
-                            success: Some(false),
-                        },
-                    }
+                    tool_error(ctx.call_id, combined)
                 }
             }
         }
@@ -349,13 +337,7 @@ impl ToolHandler for JsReplResetToolHandler {
             return unsupported_tool_call_output(&inv.ctx.call_id, outputs_custom, err);
         }
 
-        ResponseInputItem::FunctionCallOutput {
-            call_id: inv.ctx.call_id,
-            output: FunctionCallOutputPayload {
-                body: FunctionCallOutputBody::Text("js_repl kernel reset".to_string()),
-                success: Some(true),
-            },
-        }
+        tool_output(inv.ctx.call_id, "js_repl kernel reset")
     }
 }
 

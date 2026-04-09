@@ -3,8 +3,7 @@ use super::helpers::resolve_target_id_from_value;
 use crate::codex::Session;
 use crate::codex::ToolCallCtx;
 use crate::tools::events::execute_custom_tool;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
+use crate::tools::handlers::{tool_error, tool_output};
 use code_protocol::models::ResponseInputItem;
 use serde_json::Value;
 
@@ -19,34 +18,11 @@ pub(super) async fn handle_browser_cleanup(sess: &Session, ctx: &ToolCallCtx) ->
         || async move {
             if let Some(browser_manager) = get_browser_manager_for_session(sess_clone).await {
                 match browser_manager.cleanup().await {
-                    Ok(()) => ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "Browser cleanup completed".to_string(),
-                            ),
-                            success: Some(true),
-                        },
-                    },
-                    Err(e) => ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!("Cleanup failed: {e}")),
-                            success: Some(false),
-                        },
-                    },
+                    Ok(()) => tool_output(call_id_clone, "Browser cleanup completed"),
+                    Err(e) => tool_error(call_id_clone, format!("Cleanup failed: {e}")),
                 }
             } else {
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                }
+                tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.")
             }
         },
     )
@@ -81,16 +57,7 @@ pub(super) async fn handle_browser_open(
                         .unwrap_or("about:blank");
 
                     if url.trim().to_ascii_lowercase().starts_with("devtools://") {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(
-                                    "Developer tools are disabled for this browser session. Use the browser.console tool to inspect logs instead."
-                                        .to_string(),
-                                ),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone.clone(), "Developer tools are disabled for this browser session. Use the browser.console tool to inspect logs instead.");
                     }
 
                     // Use the global browser manager (create if needed)
@@ -124,15 +91,9 @@ pub(super) async fn handle_browser_open(
                                     url,
                                     step_start.elapsed()
                                 );
-                                ResponseInputItem::FunctionCallOutput {
-                                    call_id: call_id_clone.clone(),
-                                    output: FunctionCallOutputPayload {
-                                        body: FunctionCallOutputBody::Text(format!(
-                                            "Browser opened to: {url}"
-                                        )),
-                                        success: Some(true),
-                                    },
-                                }
+                                tool_output(call_id_clone.clone(), format!(
+                                    "Browser opened to: {url}"
+                                ))
                             }
                             Err(e) => {
                                 let error_string = e.to_string();
@@ -165,36 +126,16 @@ pub(super) async fn handle_browser_open(
                                         );
                                     }
                                 }
-                                ResponseInputItem::FunctionCallOutput {
-                                    call_id: call_id_clone.clone(),
-                                    output: FunctionCallOutputPayload {
-                                        body: FunctionCallOutputBody::Text(content),
-                                        success: Some(false),
-                                    },
-                                }
+                                tool_error(call_id_clone.clone(), content)
                             }
                         }
                     } else {
-                        ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(
-                                    "Failed to initialize browser manager.".to_string(),
-                                ),
-                                success: Some(false),
-                            },
-                        }
+                        tool_error(call_id_clone.clone(), "Failed to initialize browser manager.")
                     }
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to parse browser_open arguments: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to parse browser_open arguments: {e}"
+                )),
             }
         },
     )
@@ -221,36 +162,14 @@ pub(super) async fn handle_browser_close(sess: &Session, ctx: &ToolCallCtx) -> R
                     Ok(()) => {
                         // Clear the browser manager from global
                         code_browser::global::clear_browser_manager().await;
-                        ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(
-                                    "Browser closed. Screenshot capture disabled.".to_string(),
-                                ),
-                                success: Some(true),
-                            },
-                        }
+                        tool_output(call_id_clone, "Browser closed. Screenshot capture disabled.")
                     }
-                    Err(e) => ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "Failed to close browser: {e}"
-                            )),
-                            success: Some(false),
-                        },
-                    },
+                    Err(e) => tool_error(call_id_clone, format!(
+                        "Failed to close browser: {e}"
+                    )),
                 }
             } else {
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not currently open.".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                }
+                tool_error(call_id_clone, "Browser is not currently open.")
             }
         },
     )
@@ -283,24 +202,9 @@ pub(super) async fn handle_browser_status(sess: &Session, ctx: &ToolCallCtx) -> 
                     "Browser status: Disabled".to_string()
                 };
 
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(status_msg),
-                        success: Some(true),
-                    },
-                }
+                tool_output(call_id_clone, status_msg)
             } else {
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                }
+                tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.")
             }
         },
     )
@@ -337,35 +241,14 @@ pub(super) async fn handle_browser_targets(sess: &Session, ctx: &ToolCallCtx) ->
 
                         let pretty = serde_json::to_string_pretty(&payload)
                             .unwrap_or_else(|_| "{}".to_string());
-                        ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(pretty),
-                                success: Some(true),
-                            },
-                        }
+                        tool_output(call_id_clone, pretty)
                     }
-                    Err(e) => ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "Failed to list browser targets: {e}"
-                            )),
-                            success: Some(false),
-                        },
-                    },
+                    Err(e) => tool_error(call_id_clone, format!(
+                        "Failed to list browser targets: {e}"
+                    )),
                 }
             } else {
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                }
+                tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.")
             }
         },
     )
@@ -410,23 +293,11 @@ pub(super) async fn handle_browser_new_tab(
                     });
                     let pretty = serde_json::to_string_pretty(&payload)
                         .unwrap_or_else(|_| "{}".to_string());
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(pretty),
-                            success: Some(true),
-                        },
-                    }
+                    tool_output(call_id_clone, pretty)
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to open new tab: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to open new tab: {e}"
+                )),
             }
         },
     )
@@ -450,40 +321,17 @@ pub(super) async fn handle_browser_switch_target(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let Some(value) = params.as_ref() else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Missing target_id or index for action=switch_target".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Missing target_id or index for action=switch_target");
             };
 
             let target_id = match resolve_target_id_from_value(&browser_manager, value).await {
                 Ok(target_id) => target_id,
                 Err(message) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(message),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone.clone(), message);
                 }
             };
 
@@ -496,25 +344,13 @@ pub(super) async fn handle_browser_switch_target(
                         .get_current_url()
                         .await
                         .unwrap_or_else(|| "<unknown>".to_string());
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "Switched to target {target_id} ({current_url})"
-                            )),
-                            success: Some(true),
-                        },
-                    }
+                    tool_output(call_id_clone, format!(
+                        "Switched to target {target_id} ({current_url})"
+                    ))
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to switch browser target: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to switch browser target: {e}"
+                )),
             }
         },
     )
@@ -538,62 +374,27 @@ pub(super) async fn handle_browser_activate_target(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let Some(value) = params.as_ref() else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Missing target_id or index for action=activate_target".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Missing target_id or index for action=activate_target");
             };
 
             let target_id = match resolve_target_id_from_value(&browser_manager, value).await {
                 Ok(target_id) => target_id,
                 Err(message) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(message),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone.clone(), message);
                 }
             };
 
             match browser_manager.activate_target(&target_id).await {
-                Ok(()) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Activated target {target_id}"
-                        )),
-                        success: Some(true),
-                    },
-                },
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to activate target: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Ok(()) => tool_output(call_id_clone, format!(
+                    "Activated target {target_id}"
+                )),
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to activate target: {e}"
+                )),
             }
         },
     )
@@ -617,62 +418,27 @@ pub(super) async fn handle_browser_close_target(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let Some(value) = params.as_ref() else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Missing target_id or index for action=close_target".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Missing target_id or index for action=close_target");
             };
 
             let target_id = match resolve_target_id_from_value(&browser_manager, value).await {
                 Ok(target_id) => target_id,
                 Err(message) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(message),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone.clone(), message);
                 }
             };
 
             match browser_manager.close_target(&target_id).await {
-                Ok(()) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Closed target {target_id}"
-                        )),
-                        success: Some(true),
-                    },
-                },
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to close target: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Ok(()) => tool_output(call_id_clone, format!(
+                    "Closed target {target_id}"
+                )),
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to close target: {e}"
+                )),
             }
         },
     )

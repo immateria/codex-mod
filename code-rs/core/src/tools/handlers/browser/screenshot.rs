@@ -3,8 +3,7 @@ use super::helpers::selector_rect_after_scroll;
 use crate::codex::Session;
 use crate::codex::ToolCallCtx;
 use crate::tools::events::execute_custom_tool;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
+use crate::tools::handlers::{tool_error, tool_output};
 use code_protocol::models::ResponseInputItem;
 use serde_json::Value;
 
@@ -26,16 +25,7 @@ pub(super) async fn handle_browser_screenshot(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -44,15 +34,7 @@ pub(super) async fn handle_browser_screenshot(
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
             let Ok(json) = args else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Invalid screenshot arguments".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Invalid screenshot arguments");
             };
 
             let mode = json
@@ -77,13 +59,7 @@ pub(super) async fn handle_browser_screenshot(
                     match selector_rect_after_scroll(&browser_manager, selector, false).await {
                         Ok(rect) => rect,
                         Err(message) => {
-                            return ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone.clone(),
-                                output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text(message),
-                                    success: Some(false),
-                                },
-                            };
+                            return tool_error(call_id_clone.clone(), message);
                         }
                     };
 
@@ -93,15 +69,7 @@ pub(super) async fn handle_browser_screenshot(
                 let x1 = (x + w).ceil().min(vw as f64);
                 let y1 = (y + h).ceil().min(vh as f64);
                 if x1 <= x0 || y1 <= y0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "Selector region is empty; try a different selector.".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone.clone(), "Selector region is empty; try a different selector.");
                 }
 
                 let region = code_browser::page::ScreenshotRegion {
@@ -113,15 +81,7 @@ pub(super) async fn handle_browser_screenshot(
                 code_browser::page::ScreenshotMode::Region(region)
             } else if let Some(region_value) = region {
                 let Some(obj) = region_value.as_object() else {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "region must be an object with x/y/width/height".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone.clone(), "region must be an object with x/y/width/height");
                 };
 
                 let x = obj.get("x").and_then(serde_json::Value::as_f64).unwrap_or(0.0);
@@ -135,15 +95,7 @@ pub(super) async fn handle_browser_screenshot(
                     .and_then(serde_json::Value::as_f64)
                     .unwrap_or(0.0);
                 if w <= 0.0 || h <= 0.0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "region width/height must be > 0".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone.clone(), "region width/height must be > 0");
                 }
 
                 let (vw, vh) = browser_manager.get_viewport_size().await;
@@ -152,15 +104,7 @@ pub(super) async fn handle_browser_screenshot(
                 let x1 = (x + w).ceil().min(vw as f64);
                 let y1 = (y + h).ceil().min(vh as f64);
                 if x1 <= x0 || y1 <= y0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "region is out of bounds".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone.clone(), "region is out of bounds");
                 }
 
                 let region = code_browser::page::ScreenshotRegion {
@@ -190,21 +134,9 @@ pub(super) async fn handle_browser_screenshot(
                     });
                     let pretty = serde_json::to_string_pretty(&payload)
                         .unwrap_or_else(|_| "{}".to_string());
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(pretty),
-                            success: Some(true),
-                        },
-                    }
+                    tool_output(call_id_clone, pretty)
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!("Screenshot failed: {e}")),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!("Screenshot failed: {e}")),
             }
         },
     )

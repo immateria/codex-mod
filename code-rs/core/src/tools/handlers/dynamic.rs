@@ -1,10 +1,10 @@
 use crate::codex::Session;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
+use crate::tools::handlers::tool_error;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
 use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use crate::codex::ToolCallCtx;
@@ -21,15 +21,7 @@ impl ToolHandler for DynamicToolHandler {
         inv: ToolInvocation,
     ) -> ResponseInputItem {
         let ToolPayload::Function { arguments } = inv.payload else {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "dynamic tool expects function-call arguments".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(inv.ctx.call_id, "dynamic tool expects function-call arguments");
         };
 
         handle_dynamic_tool_call(sess, &inv.ctx, inv.tool_name, arguments).await
@@ -48,15 +40,7 @@ async fn handle_dynamic_tool_call(
         match serde_json::from_str::<serde_json::Value>(&arguments) {
             Ok(args) => args,
             Err(err) => {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: ctx.call_id.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "invalid dynamic tool arguments: {err}"
-                        )),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(ctx.call_id.clone(), format!("invalid dynamic tool arguments: {err}"));
             }
         }
     };
@@ -64,13 +48,7 @@ async fn handle_dynamic_tool_call(
     let rx_response = match sess.register_pending_dynamic_tool(ctx.call_id.clone()) {
         Ok(rx) => rx,
         Err(err) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(err),
-                    success: Some(false),
-                },
-            };
+            return tool_error(ctx.call_id.clone(), err);
         }
     };
 
@@ -88,15 +66,7 @@ async fn handle_dynamic_tool_call(
     let response = match rx_response.await {
         Ok(response) => response,
         Err(_) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "dynamic tool call was cancelled before receiving a response".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(ctx.call_id.clone(), "dynamic tool call was cancelled before receiving a response");
         }
     };
 

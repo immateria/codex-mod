@@ -8,8 +8,8 @@ use crate::turn_diff_tracker::TurnDiffTracker;
 use async_trait::async_trait;
 #[cfg(feature = "browser-automation")]
 use base64::Engine;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
+use crate::tools::handlers::tool_error;
+use crate::tools::handlers::tool_output;
 use code_protocol::models::ResponseInputItem;
 #[cfg(feature = "browser-automation")]
 use code_browser::BrowserConfig as CodexBrowserConfig;
@@ -39,15 +39,7 @@ impl ToolHandler for WebFetchToolHandler {
         inv: ToolInvocation,
     ) -> ResponseInputItem {
         let ToolPayload::Function { arguments } = inv.payload else {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "web_fetch expects function-call arguments".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(inv.ctx.call_id, "web_fetch expects function-call arguments");
         };
 
         handle_web_fetch(sess, &inv.ctx, arguments).await
@@ -88,13 +80,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
             let params = match parsed {
                 Ok(p) => p,
                 Err(e) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!("Invalid web_fetch arguments: {e}")),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone, format!("Invalid web_fetch arguments: {e}"));
                 }
             };
 
@@ -773,15 +759,9 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 let reqwest_proxy = match reqwest::Proxy::all(&proxy_url) {
                     Ok(proxy) => proxy.no_proxy(reqwest::NoProxy::from_string(no_proxy)),
                     Err(err) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone,
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to configure network proxy: {err}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone, format!(
+                            "Failed to configure network proxy: {err}"
+                        ));
                     }
                 };
                 http_client_builder = http_client_builder.proxy(reqwest_proxy);
@@ -798,30 +778,16 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
             let client = match http_client_builder.build() {
                 Ok(client) => client,
                 Err(err) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "Failed to build HTTP client: {err}"
-                            )),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone, format!(
+                        "Failed to build HTTP client: {err}"
+                    ));
                 }
             };
 
             #[cfg(not(feature = "browser-automation"))]
             if matches!(params.mode.as_deref(), Some("browser")) {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "web_fetch mode=browser requires browser automation, which is not available in this build."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone,
+                    "web_fetch mode=browser requires browser automation, which is not available in this build.");
             }
 
             #[cfg(feature = "browser-automation")]
@@ -841,15 +807,9 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         match convert_html_to_markdown_trimmed(browser_fetch.html, 120_000) {
                             Ok(t) => t,
                             Err(e) => {
-                                return ResponseInputItem::FunctionCallOutput {
-                                    call_id: call_id_clone,
-                                    output: FunctionCallOutputPayload {
-                                        body: FunctionCallOutputBody::Text(format!(
-                                            "Markdown conversion failed: {e}"
-                                        )),
-                                        success: Some(false),
-                                    },
-                                };
+                                return tool_error(call_id_clone, format!(
+                                    "Markdown conversion failed: {e}"
+                                ));
                             }
                         };
 
@@ -864,23 +824,14 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         "truncated": truncated,
                         "markdown": markdown,
                     });
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(body.to_string()),
-                            success: Some(true),
-                        },
-                    };
+                    return tool_output(call_id_clone, body.to_string());
                 }
             }
             // Attempt 1: Codex UA + polite headers
             let resp = match do_request(&client, &params.url, &code_ua, None).await {
                 Ok(r) => r,
                 Err(e) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(format!("Request failed: {e}")), success: Some(false) },
-                    };
+                    return tool_error(call_id_clone, format!("Request failed: {e}"));
                 }
             };
 
@@ -892,10 +843,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
             let mut body_text = match resp.text().await {
                 Ok(t) => t,
                 Err(e) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(format!("Failed to read response body: {e}")), success: Some(false) },
-                    };
+                    return tool_error(call_id_clone, format!("Failed to read response body: {e}"));
                 }
             };
             let mut used_browser_ua = false;
@@ -960,10 +908,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     let (markdown, truncated) = match convert_html_to_markdown_trimmed(browser_fetch.html, 120_000) {
                         Ok(t) => t,
                         Err(e) => {
-                            return ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone,
-                                output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(format!("Markdown conversion failed: {e}")), success: Some(false) },
-                            };
+                            return tool_error(call_id_clone, format!("Markdown conversion failed: {e}"));
                         }
                     };
 
@@ -983,10 +928,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         "truncated": truncated,
                         "markdown": markdown,
                     });
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(body.to_string()), success: Some(true) },
-                    };
+                    return tool_output(call_id_clone, body.to_string());
                 }
 
                 let (md_preview, _trunc) = match convert_html_to_markdown_trimmed(body_text, 2000) {
@@ -1005,10 +947,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     "markdown": md_preview,
                 });
 
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(body.to_string()), success: Some(false) },
-                };
+                return tool_error(call_id_clone, body.to_string());
             }
 
             // If not success, provide structured, minimal diagnostics without dumping content.
@@ -1050,10 +989,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     "markdown": md_preview,
                 });
 
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(body.to_string()), success: Some(false) },
-                };
+                return tool_error(call_id_clone, body.to_string());
             }
 
             // Domain-specific extraction first (e.g., GitHub issues)
@@ -1068,17 +1004,14 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         "truncated": false,
                         "markdown": md,
                     });
-                    return ResponseInputItem::FunctionCallOutput { call_id: call_id_clone, output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(body.to_string()), success: Some(true) } };
+                    return tool_output(call_id_clone, body.to_string());
                 }
 
             // Success: convert to markdown (sanitized and size-limited)
             let (markdown, truncated) = match convert_html_to_markdown_trimmed(body_text, 120_000) {
                 Ok(t) => t,
                 Err(e) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(format!("Markdown conversion failed: {e}")), success: Some(false) },
-                    };
+                    return tool_error(call_id_clone, format!("Markdown conversion failed: {e}"));
                 }
             };
 
@@ -1096,10 +1029,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     let (md2, truncated2) = match convert_html_to_markdown_trimmed(browser_fetch.html, 120_000) {
                         Ok(t) => t,
                         Err(e) => {
-                            return ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone,
-                                output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(format!("Markdown conversion failed: {e}")), success: Some(false) },
-                            };
+                            return tool_error(call_id_clone, format!("Markdown conversion failed: {e}"));
                         }
                     };
 
@@ -1114,10 +1044,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                         "truncated": truncated2,
                         "markdown": md2,
                     });
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(body.to_string()), success: Some(true) },
-                    };
+                    return tool_output(call_id_clone, body.to_string());
                 }
 
                 // If fallback not possible, return structured error rather than a useless challenge page
@@ -1128,7 +1055,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     "diagnostics": { "final_url": final_url, "content_type": content_type, "used_browser_ua": used_browser_ua, "blocked_by_waf": true, "vendor": "cloudflare", "detected_via": "markdown" },
                     "markdown": markdown.chars().take(2000).collect::<String>(),
                 });
-                return ResponseInputItem::FunctionCallOutput { call_id: call_id_clone, output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(body.to_string()), success: Some(false) } };
+                return tool_error(call_id_clone, body.to_string());
             }
 
             let body = serde_json::json!({
@@ -1141,7 +1068,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 "markdown": markdown,
             });
 
-            ResponseInputItem::FunctionCallOutput { call_id: call_id_clone, output: FunctionCallOutputPayload { body: FunctionCallOutputBody::Text(body.to_string()), success: Some(true) } }
+            tool_output(call_id_clone, body.to_string())
         },
     ).await
 }

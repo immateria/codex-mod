@@ -3,8 +3,7 @@ use super::helpers::unwrap_execute_javascript_value;
 use crate::codex::Session;
 use crate::codex::ToolCallCtx;
 use crate::tools::events::execute_custom_tool;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
+use crate::tools::handlers::{tool_error, tool_output};
 use code_protocol::models::ResponseInputItem;
 use serde_json::Value;
 
@@ -28,16 +27,7 @@ pub(super) async fn handle_browser_cookies_get(
 
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager.execute_cdp("Network.enable", json!({})).await;
@@ -68,23 +58,11 @@ pub(super) async fn handle_browser_cookies_get(
                 Ok(value) => {
                     let pretty =
                         serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_string());
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(pretty),
-                            success: Some(true),
-                        },
-                    }
+                    tool_output(call_id_clone, pretty)
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "cookies_get failed: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "cookies_get failed: {e}"
+                )),
             }
         },
     )
@@ -111,16 +89,7 @@ pub(super) async fn handle_browser_cookies_set(
 
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager.execute_cdp("Network.enable", json!({})).await;
@@ -129,15 +98,7 @@ pub(super) async fn handle_browser_cookies_set(
                 .ok()
                 .and_then(|v| v.get("cookies").cloned());
             let Some(Value::Array(cookies)) = cookies_value else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "cookies_set requires a 'cookies' array".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "cookies_set requires a 'cookies' array");
             };
 
             let resp = browser_manager
@@ -151,23 +112,11 @@ pub(super) async fn handle_browser_cookies_set(
                     });
                     let pretty = serde_json::to_string_pretty(&payload)
                         .unwrap_or_else(|_| "{}".to_string());
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(pretty),
-                            success: Some(true),
-                        },
-                    }
+                    tool_output(call_id_clone, pretty)
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "cookies_set failed: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "cookies_set failed: {e}"
+                )),
             }
         },
     )
@@ -192,29 +141,12 @@ pub(super) async fn handle_browser_storage_get(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
             let Ok(json) = args else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Invalid storage_get arguments".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Invalid storage_get arguments");
             };
 
             let storage_kind = json
@@ -261,33 +193,15 @@ pub(super) async fn handle_browser_storage_get(
                     Ok(value) => {
                         let pretty = serde_json::to_string_pretty(&value)
                             .unwrap_or_else(|_| "{}".to_string());
-                        ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(pretty),
-                                success: Some(true),
-                            },
-                        }
+                        tool_output(call_id_clone, pretty)
                     }
-                    Err(err) => ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "storage_get failed: {err}"
-                            )),
-                            success: Some(false),
-                        },
-                    },
+                    Err(err) => tool_error(call_id_clone, format!(
+                        "storage_get failed: {err}"
+                    )),
                 },
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "storage_get failed: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "storage_get failed: {e}"
+                )),
             }
         },
     )
@@ -312,29 +226,12 @@ pub(super) async fn handle_browser_storage_set(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
             let Ok(json) = args else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Invalid storage_set arguments".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Invalid storage_set arguments");
             };
 
             let storage_kind = json
@@ -392,33 +289,15 @@ pub(super) async fn handle_browser_storage_set(
                     Ok(value) => {
                         let pretty = serde_json::to_string_pretty(&value)
                             .unwrap_or_else(|_| "{}".to_string());
-                        ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(pretty),
-                                success: Some(true),
-                            },
-                        }
+                        tool_output(call_id_clone, pretty)
                     }
-                    Err(err) => ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "storage_set failed: {err}"
-                            )),
-                            success: Some(false),
-                        },
-                    },
+                    Err(err) => tool_error(call_id_clone, format!(
+                        "storage_set failed: {err}"
+                    )),
                 },
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "storage_set failed: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "storage_set failed: {e}"
+                )),
             }
         },
     )

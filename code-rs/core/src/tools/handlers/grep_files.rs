@@ -5,9 +5,8 @@ use crate::tools::events::execute_custom_tool;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::unsupported_tool_call_output;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::tools::handlers::{tool_error, tool_output};
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use serde::Deserialize;
 use std::path::Path;
@@ -72,54 +71,27 @@ impl ToolHandler for GrepFilesToolHandler {
                 let args: GrepFilesArgs = match serde_json::from_str(&arguments) {
                     Ok(args) => args,
                     Err(err) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "invalid grep_files arguments: {err}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(
+                            call_id.clone(),
+                            format!("invalid grep_files arguments: {err}"),
+                        );
                     }
                 };
 
                 let pattern = args.pattern.trim();
                 if pattern.is_empty() {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "pattern must not be empty".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), "pattern must not be empty");
                 }
 
                 if args.limit == 0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "limit must be greater than zero".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), "limit must be greater than zero");
                 }
 
                 let limit = args.limit.min(MAX_LIMIT);
 
                 let search_path = resolve_path(&cwd, args.path.as_deref());
                 if let Err(err) = verify_path_exists(&search_path).await {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(err),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), err);
                 }
 
                 let include = args
@@ -134,32 +106,14 @@ impl ToolHandler for GrepFilesToolHandler {
                     {
                         Ok(results) => results,
                         Err(err) => {
-                            return ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id.clone(),
-                                output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text(err),
-                                    success: Some(false),
-                                },
-                            };
+                            return tool_error(call_id.clone(), err);
                         }
                     };
 
                 if search_results.is_empty() {
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text("No matches found.".to_string()),
-                            success: Some(false),
-                        },
-                    }
+                    tool_error(call_id.clone(), "No matches found.")
                 } else {
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(search_results.join("\n")),
-                            success: Some(true),
-                        },
-                    }
+                    tool_output(call_id.clone(), search_results.join("\n"))
                 }
             },
         )

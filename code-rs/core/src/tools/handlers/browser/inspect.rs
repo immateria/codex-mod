@@ -3,8 +3,7 @@ use super::helpers::node_id_for_selector;
 use crate::codex::Session;
 use crate::codex::ToolCallCtx;
 use crate::tools::events::execute_custom_tool;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
+use crate::tools::handlers::{tool_error, tool_output};
 use code_protocol::models::ResponseInputItem;
 use serde_json::Value;
 
@@ -28,29 +27,12 @@ pub(super) async fn handle_browser_inspect_selector(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
             let Ok(json_args) = args else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Invalid inspect_selector arguments".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Invalid inspect_selector arguments");
             };
 
             let selector = json_args
@@ -59,27 +41,13 @@ pub(super) async fn handle_browser_inspect_selector(
                 .unwrap_or("")
                 .trim();
             if selector.is_empty() {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "selector must be non-empty".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "selector must be non-empty");
             }
 
             let node_id = match node_id_for_selector(&browser_manager, selector).await {
                 Ok(node_id) => node_id,
                 Err(message) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(message),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone.clone(), message);
                 }
             };
 
@@ -164,13 +132,7 @@ pub(super) async fn handle_browser_inspect_selector(
             }
             }
 
-            ResponseInputItem::FunctionCallOutput {
-                call_id: call_id_clone.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(out),
-                    success: Some(true),
-                },
-            }
+            tool_output(call_id_clone, out)
         },
     )
     .await
@@ -196,16 +158,7 @@ pub(super) async fn handle_browser_inspect(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
@@ -300,15 +253,7 @@ pub(super) async fn handle_browser_inspect(
                     let node_id = match node_id_value.and_then(|v| v.as_u64()) {
                         Some(id) => id,
                         None => {
-                            return ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone,
-                                output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text(
-                                        "Failed to resolve target node for inspection".to_string(),
-                                    ),
-                                    success: Some(false),
-                                },
-                            };
+                            return tool_error(call_id_clone, "Failed to resolve target node for inspection");
                         }
                     };
 
@@ -406,23 +351,11 @@ pub(super) async fn handle_browser_inspect(
 
                     // No inline screenshot capture; result reflects DOM details only.
 
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(out),
-                            success: Some(true),
-                        },
-                    }
+                    tool_output(call_id_clone, out)
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to parse browser_inspect arguments: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to parse browser_inspect arguments: {e}"
+                )),
             }
         },
     )

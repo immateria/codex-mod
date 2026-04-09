@@ -3,9 +3,8 @@ use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::tools::handlers::tool_error;
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 
 pub(crate) struct ShellHandler;
@@ -49,16 +48,10 @@ impl ToolHandler for ShellHandler {
                 )
                 .await
             }
-            _ => ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(format!(
-                        "unsupported shell payload for tool `{}`",
-                        inv.tool_name
-                    )),
-                    success: Some(false),
-                },
-            },
+            _ => tool_error(
+                inv.ctx.call_id.clone(),
+                format!("unsupported shell payload for tool `{}`", inv.tool_name),
+            ),
         }
     }
 }

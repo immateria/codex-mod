@@ -8,9 +8,8 @@ use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::tools::handlers::{tool_error, tool_output};
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use mcp_types::CallToolResult;
 use mcp_types::ContentBlock;
@@ -244,15 +243,7 @@ impl ToolHandler for McpResourceToolHandler {
         inv: ToolInvocation,
     ) -> ResponseInputItem {
         let ToolPayload::Function { arguments } = &inv.payload else {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "MCP resource tools expect function-call arguments".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(inv.ctx.call_id, "MCP resource tools expect function-call arguments");
         };
 
         let arguments_str = arguments.clone();
@@ -262,16 +253,10 @@ impl ToolHandler for McpResourceToolHandler {
             match serde_json::from_str(&arguments_str) {
                 Ok(value) => Some(value),
                 Err(err) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: inv.ctx.call_id,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "invalid {tool} arguments: {err}",
-                                tool = inv.tool_name
-                            )),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(
+                        inv.ctx.call_id,
+                        format!("invalid {tool} arguments: {err}", tool = inv.tool_name),
+                    );
                 }
             }
         };
@@ -318,24 +303,12 @@ impl ToolHandler for McpResourceToolHandler {
                     Ok(call_tool_result_from_content(output.as_str(), false)),
                 )
                 .await;
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: inv.ctx.call_id,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(output),
-                        success: Some(true),
-                    },
-                }
+                tool_output(inv.ctx.call_id, output)
             }
             Err(message) => {
                 emit_tool_call_end(sess, &inv.ctx, invocation, duration, Err(message.clone()))
                     .await;
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: inv.ctx.call_id,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(message),
-                        success: Some(false),
-                    },
-                }
+                tool_error(inv.ctx.call_id, message)
             }
         }
     }

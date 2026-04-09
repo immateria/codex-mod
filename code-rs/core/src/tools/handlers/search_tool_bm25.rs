@@ -5,12 +5,11 @@ use crate::tools::context::ToolPayload;
 use crate::tools::events::execute_custom_tool;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::tools::handlers::{tool_error, tool_output};
 use async_trait::async_trait;
 use bm25::Document;
 use bm25::Language;
 use bm25::SearchEngineBuilder;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use serde::Deserialize;
 use serde_json::json;
@@ -119,15 +118,10 @@ impl ToolHandler for SearchToolBm25Handler {
         inv: ToolInvocation,
     ) -> ResponseInputItem {
         let ToolPayload::Function { arguments } = &inv.payload else {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "search_tool_bm25 expects function-call arguments".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(
+                inv.ctx.call_id,
+                "search_tool_bm25 expects function-call arguments",
+            );
         };
 
         let params_for_event = serde_json::from_str::<serde_json::Value>(arguments).ok();
@@ -145,39 +139,23 @@ impl ToolHandler for SearchToolBm25Handler {
                 let args: SearchToolBm25Args = match serde_json::from_str(&arguments) {
                     Ok(args) => args,
                     Err(err) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "invalid search_tool_bm25 arguments: {err}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(
+                            call_id.clone(),
+                            format!("invalid search_tool_bm25 arguments: {err}"),
+                        );
                     }
                 };
 
                 let query = args.query.trim();
                 if query.is_empty() {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text("query must not be empty".to_string()),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), "query must not be empty");
                 }
 
                 if args.limit == 0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "limit must be greater than zero".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(
+                        call_id.clone(),
+                        "limit must be greater than zero",
+                    );
                 }
                 let limit = args.limit;
 
@@ -238,13 +216,7 @@ impl ToolHandler for SearchToolBm25Handler {
                         "tools": [],
                     })
                     .to_string();
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(content),
-                            success: Some(true),
-                        },
-                    };
+                    return tool_output(call_id.clone(), content);
                 }
 
                 let documents: Vec<Document<usize>> = entries
@@ -285,13 +257,7 @@ impl ToolHandler for SearchToolBm25Handler {
                 })
                 .to_string();
 
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(content),
-                        success: Some(true),
-                    },
-                }
+                tool_output(call_id.clone(), content)
             },
         )
         .await

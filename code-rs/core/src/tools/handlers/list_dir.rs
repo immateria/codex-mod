@@ -5,9 +5,8 @@ use crate::tools::events::execute_custom_tool;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::unsupported_tool_call_output;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::tools::handlers::{tool_error, tool_output};
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use serde::Deserialize;
 use std::collections::VecDeque;
@@ -80,89 +79,45 @@ impl ToolHandler for ListDirToolHandler {
                 let args: ListDirArgs = match serde_json::from_str(&arguments) {
                     Ok(args) => args,
                     Err(err) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "invalid list_dir arguments: {err}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(
+                            call_id.clone(),
+                            format!("invalid list_dir arguments: {err}"),
+                        );
                     }
                 };
 
                 if args.offset == 0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "offset must be a 1-indexed entry number".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(
+                        call_id.clone(),
+                        "offset must be a 1-indexed entry number",
+                    );
                 }
 
                 if args.limit == 0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "limit must be greater than zero".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), "limit must be greater than zero");
                 }
 
                 if args.depth == 0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "depth must be greater than zero".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), "depth must be greater than zero");
                 }
 
                 let path = resolve_path(&cwd, &args.dir_path);
                 if let Err(err) = verify_dir_exists(&path).await {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(err),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), err);
                 }
 
                 let entries = match list_dir_slice(&path, args.offset, args.limit, args.depth).await
                 {
                     Ok(entries) => entries,
                     Err(err) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(err),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id.clone(), err);
                     }
                 };
 
                 let mut output = Vec::with_capacity(entries.len() + 1);
                 output.push(format!("Absolute path: {}", path.display()));
                 output.extend(entries);
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(output.join("\n")),
-                        success: Some(true),
-                    },
-                }
+                tool_output(call_id.clone(), output.join("\n"))
             },
         )
         .await

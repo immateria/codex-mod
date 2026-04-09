@@ -2,8 +2,7 @@ use super::helpers::get_browser_manager_for_session;
 use crate::codex::Session;
 use crate::codex::ToolCallCtx;
 use crate::tools::events::execute_custom_tool;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
+use crate::tools::handlers::{tool_error, tool_output};
 use code_protocol::models::ResponseInputItem;
 use serde_json::Value;
 
@@ -25,16 +24,7 @@ pub(super) async fn handle_browser_javascript(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -96,13 +86,7 @@ pub(super) async fn handle_browser_javascript(
 
                             tracing::info!("Returning to LLM: {}", formatted_result);
 
-                            ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone.clone(),
-                                output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text(formatted_result),
-                                    success: Some(true),
-                                },
-                            }
+                            tool_output(call_id_clone.clone(), formatted_result)
                         }
                         Err(e) => {
                             let error_string = e.to_string();
@@ -110,25 +94,13 @@ pub(super) async fn handle_browser_javascript(
                             if error_string.to_ascii_lowercase().contains("oneshot") {
                                 content.push_str(" (CDP request was cancelled or the page session was reset; reconnecting the browser and retrying usually helps.)");
                             }
-                            ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone.clone(),
-                                output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text(content),
-                                    success: Some(false),
-                                },
-                            }
+                            tool_error(call_id_clone.clone(), content)
                         }
                     }
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to parse browser_javascript arguments: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to parse browser_javascript arguments: {e}"
+                )),
             }
         },
     )
@@ -153,16 +125,7 @@ pub(super) async fn handle_browser_console(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not enabled. Use browser_open to enable it first."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not enabled. Use browser_open to enable it first.");
             };
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
@@ -213,23 +176,11 @@ pub(super) async fn handle_browser_console(
                         "No console logs captured.".to_string()
                     };
 
-                    ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(formatted),
-                            success: Some(true),
-                        },
-                    }
+                    tool_output(call_id_clone, formatted)
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to get console logs: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to get console logs: {e}"
+                )),
             }
         },
     )
@@ -254,16 +205,7 @@ pub(super) async fn handle_browser_cdp(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -285,15 +227,7 @@ pub(super) async fn handle_browser_cdp(
                     let target = json.get("target").and_then(|v| v.as_str()).unwrap_or("page");
 
                     if method.is_empty() {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone,
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(
-                                    "Missing required field: method".to_string(),
-                                ),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone, "Missing required field: method");
                     }
 
                     let exec_res = if target == "browser" {
@@ -306,34 +240,16 @@ pub(super) async fn handle_browser_cdp(
                         Ok(result) => {
                             let pretty = serde_json::to_string_pretty(&result)
                                 .unwrap_or_else(|_| "<non-serializable result>".to_string());
-                            ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone,
-                                output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text(pretty),
-                                    success: Some(true),
-                                },
-                            }
+                            tool_output(call_id_clone, pretty)
                         }
-                        Err(e) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone,
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to execute CDP command: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        },
+                        Err(e) => tool_error(call_id_clone, format!(
+                            "Failed to execute CDP command: {e}"
+                        )),
                     }
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to parse browser_cdp arguments: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to parse browser_cdp arguments: {e}"
+                )),
             }
         },
     )

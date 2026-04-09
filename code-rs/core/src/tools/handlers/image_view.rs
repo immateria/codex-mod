@@ -7,11 +7,10 @@ use crate::tools::context::ToolPayload;
 use crate::tools::events::execute_custom_tool;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::tools::handlers::{tool_error, tool_output};
 use async_trait::async_trait;
 use base64::Engine;
 use code_protocol::models::ContentItem;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 
 pub(crate) struct ImageViewToolHandler;
@@ -25,15 +24,7 @@ impl ToolHandler for ImageViewToolHandler {
         inv: ToolInvocation,
     ) -> ResponseInputItem {
         let ToolPayload::Function { arguments } = inv.payload else {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "image_view expects function-call arguments".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(inv.ctx.call_id, "image_view expects function-call arguments");
         };
 
         handle_image_view(sess, &inv.ctx, arguments).await
@@ -56,15 +47,10 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
     let parsed: Params = match serde_json::from_str(&arguments) {
         Ok(p) => p,
         Err(e) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(format!(
-                        "Invalid image_view arguments: {e}"
-                    )),
-                    success: Some(false),
-                },
-            };
+            return tool_error(
+                ctx.call_id.clone(),
+                format!("Invalid image_view arguments: {e}"),
+            );
         }
     };
 
@@ -77,15 +63,7 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
             let call_id = ctx.call_id.clone();
             let path_str = parsed.path.trim();
             if path_str.is_empty() {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "image_view requires a non-empty path".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id, "image_view requires a non-empty path");
             }
 
             let mut resolved = PathBuf::from(path_str);
@@ -98,44 +76,26 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
             let metadata = match std::fs::metadata(&resolved) {
                 Ok(meta) => meta,
                 Err(err) => {
-                    return ResponseInputItem::FunctionCallOutput {
+                    return tool_error(
                         call_id,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "image_view could not read {}: {err}",
-                                resolved.display()
-                            )),
-                            success: Some(false),
-                        },
-                    };
+                        format!("image_view could not read {}: {err}", resolved.display()),
+                    );
                 }
             };
             if !metadata.is_file() {
-                return ResponseInputItem::FunctionCallOutput {
+                return tool_error(
                     call_id,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "image_view requires a file path, got {}",
-                            resolved.display()
-                        )),
-                        success: Some(false),
-                    },
-                };
+                    format!("image_view requires a file path, got {}", resolved.display()),
+                );
             }
 
             let bytes = match std::fs::read(&resolved) {
                 Ok(bytes) => bytes,
                 Err(err) => {
-                    return ResponseInputItem::FunctionCallOutput {
+                    return tool_error(
                         call_id,
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "image_view could not read {}: {err}",
-                                resolved.display()
-                            )),
-                            success: Some(false),
-                        },
-                    };
+                        format!("image_view could not read {}: {err}", resolved.display()),
+                    );
                 }
             };
             let mime = mime_guess::from_path(&resolved)
@@ -143,15 +103,10 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
                 .map(|m| m.essence_str().to_owned())
                 .unwrap_or_else(|| crate::util::MIME_OCTET_STREAM.to_string());
             if !mime.starts_with("image/") {
-                return ResponseInputItem::FunctionCallOutput {
+                return tool_error(
                     call_id,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "image_view only supports image files (got {mime})"
-                        )),
-                        success: Some(false),
-                    },
-                };
+                    format!("image_view only supports image files (got {mime})"),
+                );
             }
             let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
             let filename = resolved
@@ -185,16 +140,7 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
             )
             .await;
 
-            ResponseInputItem::FunctionCallOutput {
-                call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(format!(
-                        "attached image: {}",
-                        resolved.display()
-                    )),
-                    success: Some(true),
-                },
-            }
+            tool_output(call_id, format!("attached image: {}", resolved.display()))
         },
     )
     .await

@@ -4,8 +4,7 @@ use super::helpers::unwrap_execute_javascript_value;
 use crate::codex::Session;
 use crate::codex::ToolCallCtx;
 use crate::tools::events::execute_custom_tool;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
+use crate::tools::handlers::{tool_error, tool_output};
 use code_protocol::models::ResponseInputItem;
 use serde_json::Value;
 
@@ -27,16 +26,7 @@ pub(super) async fn handle_browser_click_selector(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -45,15 +35,7 @@ pub(super) async fn handle_browser_click_selector(
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
             let Ok(json) = args else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Invalid click_selector arguments".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Invalid click_selector arguments");
             };
 
             let selector = json.get("selector").and_then(|v| v.as_str()).unwrap_or("");
@@ -67,41 +49,20 @@ pub(super) async fn handle_browser_click_selector(
                 match selector_rect_after_scroll(&browser_manager, selector, false).await {
                     Ok(rect) => rect,
                     Err(message) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(message),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone.clone(), message);
                     }
                 };
 
             if w <= 0.0 || h <= 0.0 {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Element has zero size; try browser.wait_for with visible=true first."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Element has zero size; try browser.wait_for with visible=true first.");
             }
 
             let cx = x + (w / 2.0);
             let cy = y + (h / 2.0);
             if let Err(e) = browser_manager.move_mouse(cx, cy).await {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to move to selector: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), format!(
+                    "Failed to move to selector: {e}"
+                ));
             }
 
             let action_result = match click_type.as_str() {
@@ -114,24 +75,12 @@ pub(super) async fn handle_browser_click_selector(
             };
 
             match action_result {
-                Ok((mx, my, label)) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "{label} selector '{selector}' at ({mx}, {my})"
-                        )),
-                        success: Some(true),
-                    },
-                },
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to click selector: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Ok((mx, my, label)) => tool_output(call_id_clone, format!(
+                    "{label} selector '{selector}' at ({mx}, {my})"
+                )),
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to click selector: {e}"
+                )),
             }
         },
     )
@@ -156,16 +105,7 @@ pub(super) async fn handle_browser_type_selector(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -174,101 +114,48 @@ pub(super) async fn handle_browser_type_selector(
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
             let Ok(json) = args else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Invalid type_selector arguments".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Invalid type_selector arguments");
             };
 
             let selector = json.get("selector").and_then(|v| v.as_str()).unwrap_or("");
             let text = json.get("text").and_then(|v| v.as_str()).unwrap_or("");
             if text.trim().is_empty() {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text("text must be non-empty".to_string()),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "text must be non-empty");
             }
 
             let (x, y, w, h) =
                 match selector_rect_after_scroll(&browser_manager, selector, true).await {
                     Ok(rect) => rect,
                     Err(message) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(message),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone.clone(), message);
                     }
                 };
 
             if w <= 0.0 || h <= 0.0 {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Element has zero size; try browser.wait_for with visible=true first."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Element has zero size; try browser.wait_for with visible=true first.");
             }
 
             let cx = x + (w / 2.0);
             let cy = y + (h / 2.0);
             if let Err(e) = browser_manager.move_mouse(cx, cy).await {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to move to selector: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), format!(
+                    "Failed to move to selector: {e}"
+                ));
             }
 
             if let Err(e) = browser_manager.click_at_current().await {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to focus selector: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), format!(
+                    "Failed to focus selector: {e}"
+                ));
             }
 
             match browser_manager.type_text(text).await {
-                Ok(()) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Typed into selector '{selector}': {text}"
-                        )),
-                        success: Some(true),
-                    },
-                },
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to type into selector: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Ok(()) => tool_output(call_id_clone, format!(
+                    "Typed into selector '{selector}': {text}"
+                )),
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to type into selector: {e}"
+                )),
             }
         },
     )
@@ -293,16 +180,7 @@ pub(super) async fn handle_browser_scroll_into_view(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -311,15 +189,7 @@ pub(super) async fn handle_browser_scroll_into_view(
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
             let Ok(json) = args else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Invalid scroll_into_view arguments".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Invalid scroll_into_view arguments");
             };
 
             let selector = json.get("selector").and_then(|v| v.as_str()).unwrap_or("");
@@ -327,13 +197,7 @@ pub(super) async fn handle_browser_scroll_into_view(
                 match selector_rect_after_scroll(&browser_manager, selector, false).await {
                     Ok(rect) => rect,
                     Err(message) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(message),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone.clone(), message);
                     }
                 };
 
@@ -343,13 +207,7 @@ pub(super) async fn handle_browser_scroll_into_view(
             });
             let pretty = serde_json::to_string_pretty(&payload)
                 .unwrap_or_else(|_| "{}".to_string());
-            ResponseInputItem::FunctionCallOutput {
-                call_id: call_id_clone.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(pretty),
-                    success: Some(true),
-                },
-            }
+            tool_output(call_id_clone, pretty)
         },
     )
     .await
@@ -373,16 +231,7 @@ pub(super) async fn handle_browser_wait_for(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -391,15 +240,7 @@ pub(super) async fn handle_browser_wait_for(
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
             let Ok(json) = args else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Invalid wait_for arguments".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "Invalid wait_for arguments");
             };
 
             let selector = json
@@ -430,15 +271,7 @@ pub(super) async fn handle_browser_wait_for(
                 .clamp(100, 120_000);
 
             if selector.is_none() && ready_state.is_none() {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "wait_for requires selector and/or ready_state".to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone.clone(), "wait_for requires selector and/or ready_state");
             }
 
             let selector_json = match selector.as_deref() {
@@ -505,15 +338,9 @@ pub(super) async fn handle_browser_wait_for(
                 let raw = match browser_manager.execute_javascript(&script).await {
                     Ok(v) => v,
                     Err(e) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "wait_for JavaScript failed: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone.clone(), format!(
+                            "wait_for JavaScript failed: {e}"
+                        ));
                     }
                 };
 
@@ -531,13 +358,7 @@ pub(super) async fn handle_browser_wait_for(
                             });
                             let pretty = serde_json::to_string_pretty(&payload)
                                 .unwrap_or_else(|_| "{}".to_string());
-                            return ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone.clone(),
-                                output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text(pretty),
-                                    success: Some(true),
-                                },
-                            };
+                            return tool_output(call_id_clone, pretty);
                         }
                     }
                     Err(err) => {
@@ -554,15 +375,9 @@ pub(super) async fn handle_browser_wait_for(
                     });
                     let pretty = serde_json::to_string_pretty(&payload)
                         .unwrap_or_else(|_| "{}".to_string());
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id_clone.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "wait_for timed out.\n{pretty}"
-                            )),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id_clone, format!(
+                        "wait_for timed out.\n{pretty}"
+                    ));
                 }
 
                 tokio::time::sleep(tokio::time::Duration::from_millis(poll_ms)).await;

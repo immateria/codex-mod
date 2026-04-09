@@ -2,8 +2,7 @@ use super::helpers::get_browser_manager_for_session;
 use crate::codex::Session;
 use crate::codex::ToolCallCtx;
 use crate::tools::events::execute_custom_tool;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
+use crate::tools::handlers::{tool_error, tool_output};
 use code_protocol::models::ResponseInputItem;
 use serde_json::Value;
 
@@ -24,16 +23,7 @@ pub(super) async fn handle_browser_click(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -66,27 +56,15 @@ pub(super) async fn handle_browser_click(
                         let x = target_x.unwrap_or(cx);
                         let y = target_y.unwrap_or(cy);
                         if let Err(e) = browser_manager.move_mouse(x, y).await {
-                            return ResponseInputItem::FunctionCallOutput {
-                                call_id: call_id_clone.clone(),
-                                output: FunctionCallOutputPayload {
-                                    body: FunctionCallOutputBody::Text(format!(
-                                        "Failed to move before click: {e}"
-                                    )),
-                                    success: Some(false),
-                                },
-                            };
+                            return tool_error(call_id_clone.clone(), format!(
+                                "Failed to move before click: {e}"
+                            ));
                         }
                     }
                     Err(e) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to get current cursor position: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone.clone(), format!(
+                            "Failed to get current cursor position: {e}"
+                        ));
                     }
                 }
             }
@@ -102,22 +80,10 @@ pub(super) async fn handle_browser_click(
             };
 
             match action_result {
-                Ok((x, y, label)) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!("{label} at ({x}, {y})")),
-                        success: Some(true),
-                    },
-                },
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to perform mouse action: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Ok((x, y, label)) => tool_output(call_id_clone, format!("{label} at ({x}, {y})")),
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to perform mouse action: {e}"
+                )),
             }
         },
     )
@@ -142,16 +108,7 @@ pub(super) async fn handle_browser_move(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -195,35 +152,17 @@ pub(super) async fn handle_browser_move(
                     };
 
                     match result {
-                        Ok((x, y)) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Moved mouse position to ({x}, {y})"
-                                )),
-                                success: Some(true),
-                            },
-                        },
-                        Err(e) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to move mouse: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        },
+                        Ok((x, y)) => tool_output(call_id_clone, format!(
+                            "Moved mouse position to ({x}, {y})"
+                        )),
+                        Err(e) => tool_error(call_id_clone, format!(
+                            "Failed to move mouse: {e}"
+                        )),
                     }
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to parse browser_move arguments: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to parse browser_move arguments: {e}"
+                )),
             }
         },
     )
@@ -248,16 +187,7 @@ pub(super) async fn handle_browser_type(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -269,33 +199,15 @@ pub(super) async fn handle_browser_type(
                 Ok(json) => {
                     let text = json.get("text").and_then(|v| v.as_str()).unwrap_or("");
                     match browser_manager.type_text(text).await {
-                        Ok(()) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!("Typed: {text}")),
-                                success: Some(true),
-                            },
-                        },
-                        Err(e) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to type text: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        },
+                        Ok(()) => tool_output(call_id_clone, format!("Typed: {text}")),
+                        Err(e) => tool_error(call_id_clone, format!(
+                            "Failed to type text: {e}"
+                        )),
                     }
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to parse browser_type arguments: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to parse browser_type arguments: {e}"
+                )),
             }
         },
     )
@@ -320,16 +232,7 @@ pub(super) async fn handle_browser_key(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -346,46 +249,19 @@ pub(super) async fn handle_browser_key(
                         .collect::<String>()
                         .to_ascii_lowercase();
                     if matches!(normalized.as_str(), "f12" | "ctrl+shift+i" | "control+shift+i") {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(
-                                    "Developer tools are disabled for this browser session. Use the browser.console tool to inspect logs instead."
-                                        .to_string(),
-                                ),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone.clone(), "Developer tools are disabled for this browser session. Use the browser.console tool to inspect logs instead.");
                     }
 
                     match browser_manager.press_key(key).await {
-                        Ok(()) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!("Pressed key: {key}")),
-                                success: Some(true),
-                            },
-                        },
-                        Err(e) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to press key: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        },
+                        Ok(()) => tool_output(call_id_clone, format!("Pressed key: {key}")),
+                        Err(e) => tool_error(call_id_clone, format!(
+                            "Failed to press key: {e}"
+                        )),
                     }
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to parse browser_key arguments: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to parse browser_key arguments: {e}"
+                )),
             }
         },
     )
@@ -410,16 +286,7 @@ pub(super) async fn handle_browser_scroll(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let _ = browser_manager
@@ -438,35 +305,17 @@ pub(super) async fn handle_browser_scroll(
                         .and_then(serde_json::Value::as_f64)
                         .unwrap_or(0.0);
                     match browser_manager.scroll_by(dx, dy).await {
-                        Ok(()) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Scrolled by ({dx}, {dy})"
-                                )),
-                                success: Some(true),
-                            },
-                        },
-                        Err(e) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to scroll: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        },
+                        Ok(()) => tool_output(call_id_clone, format!(
+                            "Scrolled by ({dx}, {dy})"
+                        )),
+                        Err(e) => tool_error(call_id_clone, format!(
+                            "Failed to scroll: {e}"
+                        )),
                     }
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to parse browser_scroll arguments: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to parse browser_scroll arguments: {e}"
+                )),
             }
         },
     )
@@ -491,16 +340,7 @@ pub(super) async fn handle_browser_history(
         || async move {
             let browser_manager = get_browser_manager_for_session(sess_clone).await;
             let Some(browser_manager) = browser_manager else {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser is not initialized. Use browser_open to start the browser."
-                                .to_string(),
-                        ),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(call_id_clone, "Browser is not initialized. Use browser_open to start the browser.");
             };
 
             let args: Result<Value, _> = serde_json::from_str(&arguments_clone);
@@ -512,15 +352,9 @@ pub(super) async fn handle_browser_history(
                         .unwrap_or("");
 
                     if direction != "back" && direction != "forward" {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone,
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Unsupported direction: {direction} (expected 'back' or 'forward')"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id_clone, format!(
+                            "Unsupported direction: {direction} (expected 'back' or 'forward')"
+                        ));
                     }
 
                     let action_res = if direction == "back" {
@@ -530,35 +364,17 @@ pub(super) async fn handle_browser_history(
                     };
 
                     match action_res {
-                        Ok(()) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "History {direction} triggered"
-                                )),
-                                success: Some(true),
-                            },
-                        },
-                        Err(e) => ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to navigate history: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        },
+                        Ok(()) => tool_output(call_id_clone, format!(
+                            "History {direction} triggered"
+                        )),
+                        Err(e) => tool_error(call_id_clone, format!(
+                            "Failed to navigate history: {e}"
+                        )),
                     }
                 }
-                Err(e) => ResponseInputItem::FunctionCallOutput {
-                    call_id: call_id_clone,
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!(
-                            "Failed to parse browser_history arguments: {e}"
-                        )),
-                        success: Some(false),
-                    },
-                },
+                Err(e) => tool_error(call_id_clone, format!(
+                    "Failed to parse browser_history arguments: {e}"
+                )),
             }
         },
     )

@@ -5,9 +5,8 @@ use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::tools::handlers::{tool_error, tool_output};
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use code_utils_absolute_path::AbsolutePathBuf;
 use code_utils_absolute_path::AbsolutePathBufGuard;
@@ -24,15 +23,7 @@ impl ToolHandler for RequestPermissionsHandler {
         inv: ToolInvocation,
     ) -> ResponseInputItem {
         let ToolPayload::Function { arguments } = inv.payload else {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "request_permissions expects function-call arguments".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(inv.ctx.call_id, "request_permissions expects function-call arguments");
         };
 
         handle_request_permissions(sess, &inv.ctx, arguments).await
@@ -53,62 +44,42 @@ async fn handle_request_permissions(
     let mut args: RequestPermissionsArgs = match parse_request_permissions_args(sess.get_cwd(), &arguments) {
         Ok(args) => args,
         Err(err) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(format!(
-                        "invalid request_permissions arguments: {err}"
-                    )),
-                    success: Some(false),
-                },
-            };
+            return tool_error(
+                ctx.call_id.clone(),
+                format!("invalid request_permissions arguments: {err}"),
+            );
         }
     };
 
     normalize_request_permission_profile(&mut args.permissions);
 
     if args.permissions.is_empty() {
-        return ResponseInputItem::FunctionCallOutput {
-            call_id: ctx.call_id.clone(),
-            output: FunctionCallOutputPayload {
-                body: FunctionCallOutputBody::Text(
-                    "request_permissions requires at least one permission".to_string(),
-                ),
-                success: Some(false),
-            },
-        };
+        return tool_error(
+            ctx.call_id.clone(),
+            "request_permissions requires at least one permission",
+        );
     }
 
     match sess.get_approval_policy() {
         crate::protocol::AskForApproval::Never => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        serde_json::to_string(&RequestPermissionsResponse {
-                            permissions: RequestPermissionProfile::default(),
-                            scope: PermissionGrantScope::Turn,
-                        })
-                        .unwrap_or_else(|_| "{}".to_string()),
-                    ),
-                    success: Some(true),
-                },
-            };
+            return tool_output(
+                ctx.call_id.clone(),
+                serde_json::to_string(&RequestPermissionsResponse {
+                    permissions: RequestPermissionProfile::default(),
+                    scope: PermissionGrantScope::Turn,
+                })
+                .unwrap_or_else(|_| "{}".to_string()),
+            );
         }
         crate::protocol::AskForApproval::Reject(config) if config.rejects_request_permissions() => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        serde_json::to_string(&RequestPermissionsResponse {
-                            permissions: RequestPermissionProfile::default(),
-                            scope: PermissionGrantScope::Turn,
-                        })
-                        .unwrap_or_else(|_| "{}".to_string()),
-                    ),
-                    success: Some(true),
-                },
-            };
+            return tool_output(
+                ctx.call_id.clone(),
+                serde_json::to_string(&RequestPermissionsResponse {
+                    permissions: RequestPermissionProfile::default(),
+                    scope: PermissionGrantScope::Turn,
+                })
+                .unwrap_or_else(|_| "{}".to_string()),
+            );
         }
         crate::protocol::AskForApproval::UnlessTrusted
         | crate::protocol::AskForApproval::OnFailure
@@ -119,13 +90,7 @@ async fn handle_request_permissions(
     let rx_response = match sess.register_pending_request_permissions(ctx.sub_id.clone(), ctx.call_id.clone()) {
         Ok(rx) => rx,
         Err(err) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(err),
-                    success: Some(false),
-                },
-            };
+            return tool_error(ctx.call_id.clone(), err);
         }
     };
 
@@ -143,40 +108,24 @@ async fn handle_request_permissions(
     let response = match rx_response.await {
         Ok(response) => response,
         Err(_) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "request_permissions was cancelled before receiving a response".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(
+                ctx.call_id.clone(),
+                "request_permissions was cancelled before receiving a response",
+            );
         }
     };
 
     let content = match serde_json::to_string(&response) {
         Ok(content) => content,
         Err(err) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(format!(
-                        "failed to serialize request_permissions response: {err}"
-                    )),
-                    success: Some(false),
-                },
-            };
+            return tool_error(
+                ctx.call_id.clone(),
+                format!("failed to serialize request_permissions response: {err}"),
+            );
         }
     };
 
-    ResponseInputItem::FunctionCallOutput {
-        call_id: ctx.call_id.clone(),
-        output: FunctionCallOutputPayload {
-            body: FunctionCallOutputBody::Text(content),
-            success: Some(true),
-        },
-    }
+    tool_output(ctx.call_id.clone(), content)
 }
 
 fn parse_request_permissions_args(

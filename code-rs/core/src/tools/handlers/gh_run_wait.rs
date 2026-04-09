@@ -7,6 +7,7 @@ use crate::tools::events::execute_custom_tool;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use async_trait::async_trait;
+use crate::tools::handlers::tool_error;
 use code_protocol::models::FunctionCallOutputBody;
 use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
@@ -26,15 +27,7 @@ impl ToolHandler for GhRunWaitToolHandler {
         inv: ToolInvocation,
     ) -> ResponseInputItem {
         let ToolPayload::Function { arguments } = inv.payload else {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "gh_run_wait expects function-call arguments".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(inv.ctx.call_id, "gh_run_wait expects function-call arguments");
         };
 
         handle_gh_run_wait(sess, &inv.ctx, arguments).await
@@ -155,15 +148,9 @@ pub(crate) async fn handle_gh_run_wait(
     let parsed: Params = match serde_json::from_str(&arguments) {
         Ok(p) => p,
         Err(e) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(format!(
-                        "Invalid gh_run_wait arguments: {e}"
-                    )),
-                    success: Some(false),
-                },
-            };
+            return tool_error(ctx.call_id.clone(), format!(
+                "Invalid gh_run_wait arguments: {e}"
+            ));
         }
     };
 
@@ -335,13 +322,7 @@ pub(crate) async fn handle_gh_run_wait(
             wait_state = match wait_state.resolve(&cwd, parsed.clone()).await {
                 Ok(s) => s,
                 Err(e) => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(e),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), e);
                 }
             };
 
@@ -368,28 +349,16 @@ pub(crate) async fn handle_gh_run_wait(
                 let list = match list {
                     Ok(value) => value,
                     Err(e) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(e),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id.clone(), e);
                     }
                 };
 
                 let parsed_list: Value = match serde_json::from_str(&list) {
                     Ok(v) => v,
                     Err(e) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to parse gh run list output: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id.clone(), format!(
+                            "Failed to parse gh run list output: {e}"
+                        ));
                     }
                 };
 
@@ -414,13 +383,7 @@ pub(crate) async fn handle_gh_run_wait(
                     } else {
                         format!("No runs found on branch {branch}")
                     };
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(msg),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), msg);
                 };
 
                 let run_id = selected_run
@@ -433,15 +396,7 @@ pub(crate) async fn handle_gh_run_wait(
             let run_id = match wait_state.run_id.clone() {
                 Some(id) if !id.trim().is_empty() => id,
                 _ => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "Unable to determine a GitHub run id to wait for".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), "Unable to determine a GitHub run id to wait for");
                 }
             };
 
@@ -466,28 +421,16 @@ pub(crate) async fn handle_gh_run_wait(
                 let view = match view {
                     Ok(value) => value,
                     Err(e) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(e),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id.clone(), e);
                     }
                 };
 
                 let parsed_view: Value = match serde_json::from_str(&view) {
                     Ok(v) => v,
                     Err(e) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to parse gh run view output: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id.clone(), format!(
+                            "Failed to parse gh run view output: {e}"
+                        ));
                     }
                 };
 
@@ -514,28 +457,16 @@ pub(crate) async fn handle_gh_run_wait(
                 let list_jobs = match list_jobs {
                     Ok(value) => value,
                     Err(e) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(e),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id.clone(), e);
                     }
                 };
 
                 let parsed_jobs: Value = match serde_json::from_str(&list_jobs) {
                     Ok(v) => v,
                     Err(e) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "Failed to parse gh run jobs output: {e}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(call_id.clone(), format!(
+                            "Failed to parse gh run jobs output: {e}"
+                        ));
                     }
                 };
 
@@ -668,15 +599,9 @@ pub(crate) async fn handle_gh_run_wait(
                 }
 
                 if let Some(budget_text) = sess.maybe_nudge_time_budget() {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "{budget_text}\n\nRun {run_id} still in progress. Call gh_run_wait again to continue."
-                            )),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), format!(
+                        "{budget_text}\n\nRun {run_id} still in progress. Call gh_run_wait again to continue."
+                    ));
                 }
 
                 let (current_epoch, reason) = sess.wait_interrupt_snapshot();
@@ -690,15 +615,9 @@ pub(crate) async fn handle_gh_run_wait(
                         }
                         None => "wait ended".to_string(),
                     };
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(format!(
-                                "{message}\n\nRun {run_id} still in progress. Call gh_run_wait again to continue."
-                            )),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(call_id.clone(), format!(
+                        "{message}\n\nRun {run_id} still in progress. Call gh_run_wait again to continue."
+                    ));
                 }
 
                 tokio::time::sleep(interval).await;

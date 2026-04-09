@@ -20,3 +20,29 @@ pub(crate) mod search_tool_bm25;
 pub(crate) mod shell;
 pub(crate) mod wait;
 pub(crate) mod web_fetch;
+
+use code_protocol::models::{
+    FunctionCallOutputBody, FunctionCallOutputPayload, ResponseInputItem,
+};
+
+/// Build a `FunctionCallOutput` error response (success=false).
+pub(crate) fn tool_error(call_id: String, message: impl Into<String>) -> ResponseInputItem {
+    ResponseInputItem::FunctionCallOutput {
+        call_id,
+        output: FunctionCallOutputPayload {
+            body: FunctionCallOutputBody::Text(message.into()),
+            success: Some(false),
+        },
+    }
+}
+
+/// Build a `FunctionCallOutput` success response (success=true).
+pub(crate) fn tool_output(call_id: String, text: impl Into<String>) -> ResponseInputItem {
+    ResponseInputItem::FunctionCallOutput {
+        call_id,
+        output: FunctionCallOutputPayload {
+            body: FunctionCallOutputBody::Text(text.into()),
+            success: Some(true),
+        },
+    }
+}

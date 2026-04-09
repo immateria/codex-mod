@@ -19,11 +19,12 @@ use crate::codex::Session;
 use crate::codex::ToolCallCtx;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
+use crate::tools::handlers::tool_error;
+#[cfg(not(feature = "browser-automation"))]
+use crate::tools::handlers::tool_output;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use serde_json::Value;
 
@@ -38,15 +39,7 @@ impl ToolHandler for BrowserToolHandler {
         inv: ToolInvocation,
     ) -> ResponseInputItem {
         let ToolPayload::Function { arguments } = inv.payload else {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "browser expects function-call arguments".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(inv.ctx.call_id, "browser expects function-call arguments");
         };
 
         handle_browser_tool(sess, &inv.ctx, arguments).await
@@ -61,26 +54,12 @@ pub(crate) async fn handle_browser_tool(
     let parsed_value = match serde_json::from_str::<Value>(&arguments) {
         Ok(value) => value,
         Err(e) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(format!("Invalid browser arguments: {e}")),
-                    success: Some(false),
-                },
-            };
+            return tool_error(ctx.call_id.clone(), format!("Invalid browser arguments: {e}"));
         }
     };
 
     let Value::Object(mut object) = parsed_value else {
-        return ResponseInputItem::FunctionCallOutput {
-            call_id: ctx.call_id.clone(),
-            output: FunctionCallOutputPayload {
-                body: FunctionCallOutputBody::Text(
-                    "Invalid browser arguments: expected an object".to_string(),
-                ),
-                success: Some(false),
-            },
-        };
+        return tool_error(ctx.call_id.clone(), "Invalid browser arguments: expected an object");
     };
 
     let action_value = object.remove("action");
@@ -88,15 +67,7 @@ pub(crate) async fn handle_browser_tool(
     {
         Some(value) => value,
         None => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "Invalid browser arguments: missing 'action'".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(ctx.call_id.clone(), "Invalid browser arguments: missing 'action'");
         }
     };
 
@@ -116,15 +87,7 @@ pub(crate) async fn handle_browser_tool(
             }
             #[cfg(not(feature = "browser-automation"))]
             {
-                ResponseInputItem::FunctionCallOutput {
-                    call_id: ctx.call_id.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(
-                            "Browser automation is not available in this build.".to_string(),
-                        ),
-                        success: Some(true),
-                    },
-                }
+                tool_output(ctx.call_id.clone(), "Browser automation is not available in this build.")
             }
         }
         #[cfg(feature = "browser-automation")]
@@ -184,23 +147,17 @@ pub(crate) async fn handle_browser_tool(
         #[cfg(feature = "browser-automation")]
         "cleanup" => lifecycle::handle_browser_cleanup(sess, ctx).await,
         "fetch" => super::web_fetch::handle_web_fetch(sess, ctx, payload_string).await,
-        _ => ResponseInputItem::FunctionCallOutput {
-            call_id: ctx.call_id.clone(),
-            output: FunctionCallOutputPayload {
-                body: FunctionCallOutputBody::Text({
-                    #[cfg(feature = "browser-automation")]
-                    {
-                        format!("Unknown browser action: {action}")
-                    }
-                    #[cfg(not(feature = "browser-automation"))]
-                    {
-                        format!(
-                            "Browser automation is not available in this build (action: {action})."
-                        )
-                    }
-                }),
-                success: Some(false),
-            },
-        },
+        _ => tool_error(ctx.call_id.clone(), {
+            #[cfg(feature = "browser-automation")]
+            {
+                format!("Unknown browser action: {action}")
+            }
+            #[cfg(not(feature = "browser-automation"))]
+            {
+                format!(
+                    "Browser automation is not available in this build (action: {action})."
+                )
+            }
+        }),
     }
 }

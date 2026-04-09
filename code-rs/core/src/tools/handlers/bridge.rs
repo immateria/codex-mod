@@ -10,8 +10,8 @@ use crate::tools::context::ToolPayload;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
+use crate::tools::handlers::tool_error;
+use crate::tools::handlers::tool_output;
 use code_protocol::models::ResponseInputItem;
 use serde::Deserialize;
 use std::path::Path;
@@ -27,15 +27,7 @@ impl ToolHandler for BridgeToolHandler {
         inv: ToolInvocation,
     ) -> ResponseInputItem {
         let ToolPayload::Function { arguments } = inv.payload else {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: inv.ctx.call_id,
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(
-                        "code_bridge expects function-call arguments".to_string(),
-                    ),
-                    success: Some(false),
-                },
-            };
+            return tool_error(inv.ctx.call_id, "code_bridge expects function-call arguments");
         };
 
         handle_code_bridge(sess, &inv.ctx, arguments).await
@@ -85,13 +77,7 @@ async fn handle_code_bridge_with_cwd(
     let args = match parsed {
         Ok(a) => a,
         Err(e) => {
-            return ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text(format!("invalid arguments: {e}")),
-                    success: Some(false),
-                },
-            };
+            return tool_error(ctx.call_id.clone(), format!("invalid arguments: {e}"));
         }
     };
 
@@ -102,15 +88,7 @@ async fn handle_code_bridge_with_cwd(
             let level = match args.level.as_ref().and_then(|l| normalise_level(l)) {
                 Some(lvl) => lvl,
                 None => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: ctx.call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "invalid or missing level (use errors|warn|info|trace)".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    }
+                    return tool_error(ctx.call_id.clone(), "invalid or missing level (use errors|warn|info|trace)")
                 }
             };
 
@@ -121,75 +99,29 @@ async fn handle_code_bridge_with_cwd(
 
             set_session_subscription(Some(sub.clone()));
             if let Err(e) = persist_workspace_subscription(cwd, Some(sub.clone())) {
-                return ResponseInputItem::FunctionCallOutput {
-                    call_id: ctx.call_id.clone(),
-                    output: FunctionCallOutputPayload {
-                        body: FunctionCallOutputBody::Text(format!("persist failed: {e}")),
-                        success: Some(false),
-                    },
-                };
+                return tool_error(ctx.call_id.clone(), format!("persist failed: {e}"));
             }
             set_workspace_subscription(Some(sub));
 
-            ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text("ok".to_string()),
-                    success: Some(true),
-                },
-            }
+            tool_output(ctx.call_id.clone(), "ok")
         }
         "screenshot" => {
             send_bridge_control("screenshot", serde_json::json!({}));
-            ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text("requested screenshot".to_string()),
-                    success: Some(true),
-                },
-            }
+            tool_output(ctx.call_id.clone(), "requested screenshot")
         }
         "javascript" => {
             let code = match args.code.as_ref().map(|c| c.trim()).filter(|c| !c.is_empty()) {
                 Some(c) => c,
                 None => {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: ctx.call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "missing code for javascript action".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    }
+                    return tool_error(ctx.call_id.clone(), "missing code for javascript action")
                 }
             };
             send_bridge_control("javascript", serde_json::json!({ "code": code }));
-            ResponseInputItem::FunctionCallOutput {
-                call_id: ctx.call_id.clone(),
-                output: FunctionCallOutputPayload {
-                    body: FunctionCallOutputBody::Text("sent javascript".to_string()),
-                    success: Some(true),
-                },
-            }
+            tool_output(ctx.call_id.clone(), "sent javascript")
         }
         // Keep legacy actions for backward compatibility with older prompts/tools
-        "show" | "set" | "clear" => ResponseInputItem::FunctionCallOutput {
-            call_id: ctx.call_id.clone(),
-            output: FunctionCallOutputPayload {
-                body: FunctionCallOutputBody::Text(
-                    "deprecated action; use subscribe, screenshot, or javascript".to_string(),
-                ),
-                success: Some(false),
-            },
-        },
-        _ => ResponseInputItem::FunctionCallOutput {
-            call_id: ctx.call_id.clone(),
-            output: FunctionCallOutputPayload {
-                body: FunctionCallOutputBody::Text(format!("unsupported action: {action}")),
-                success: Some(false),
-            },
-        },
+        "show" | "set" | "clear" => tool_error(ctx.call_id.clone(), "deprecated action; use subscribe, screenshot, or javascript"),
+        _ => tool_error(ctx.call_id.clone(), format!("unsupported action: {action}")),
     }
 }
 

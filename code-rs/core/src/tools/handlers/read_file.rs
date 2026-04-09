@@ -5,9 +5,8 @@ use crate::tools::events::execute_custom_tool;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::unsupported_tool_call_output;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::tools::handlers::{tool_error, tool_output};
 use async_trait::async_trait;
-use code_protocol::models::FunctionCallOutputBody;
-use code_protocol::models::FunctionCallOutputPayload;
 use code_protocol::models::ResponseInputItem;
 use serde::Deserialize;
 use std::collections::VecDeque;
@@ -116,40 +115,25 @@ impl ToolHandler for ReadFileToolHandler {
                 let args: ReadFileArgs = match serde_json::from_str(&arguments) {
                     Ok(args) => args,
                     Err(err) => {
-                        return ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id.clone(),
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(format!(
-                                    "invalid read_file arguments: {err}"
-                                )),
-                                success: Some(false),
-                            },
-                        };
+                        return tool_error(
+                            call_id.clone(),
+                            format!("invalid read_file arguments: {err}"),
+                        );
                     }
                 };
 
                 if args.offset == 0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "offset must be a 1-indexed line number".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(
+                        call_id.clone(),
+                        "offset must be a 1-indexed line number",
+                    );
                 }
 
                 if args.limit == 0 {
-                    return ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(
-                                "limit must be greater than zero".to_string(),
-                            ),
-                            success: Some(false),
-                        },
-                    };
+                    return tool_error(
+                        call_id.clone(),
+                        "limit must be greater than zero",
+                    );
                 }
 
                 let path = resolve_path(&cwd, &args.file_path);
@@ -162,20 +146,8 @@ impl ToolHandler for ReadFileToolHandler {
                 };
 
                 match collected {
-                    Ok(lines) => ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(lines.join("\n")),
-                            success: Some(true),
-                        },
-                    },
-                    Err(err) => ResponseInputItem::FunctionCallOutput {
-                        call_id: call_id.clone(),
-                        output: FunctionCallOutputPayload {
-                            body: FunctionCallOutputBody::Text(err),
-                            success: Some(false),
-                        },
-                    },
+                    Ok(lines) => tool_output(call_id.clone(), lines.join("\n")),
+                    Err(err) => tool_error(call_id.clone(), err),
                 }
             },
         )
