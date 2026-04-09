@@ -49,11 +49,10 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
         );
         if !sp.partial_reasoning_summary.is_empty() {
             let s = &sp.partial_reasoning_summary;
-            // Take the last 800 characters, respecting UTF-8 boundaries
-            let start_idx = if s.chars().count() > 800 {
+            let start_idx = if s.chars().count() > crate::util::MAX_SNIPPET_CHARS {
                 s.char_indices()
                     .rev()
-                    .nth(800 - 1)
+                    .nth(crate::util::MAX_SNIPPET_CHARS - 1)
                     .map(|(i, _)| i)
                     .unwrap_or(0)
             } else {
@@ -64,11 +63,10 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
         }
         if !sp.partial_assistant_text.is_empty() {
             let s = &sp.partial_assistant_text;
-            // Take the last 800 characters, respecting UTF-8 boundaries
-            let start_idx = if s.chars().count() > 800 {
+            let start_idx = if s.chars().count() > crate::util::MAX_SNIPPET_CHARS {
                 s.char_indices()
                     .rev()
-                    .nth(800 - 1)
+                    .nth(crate::util::MAX_SNIPPET_CHARS - 1)
                     .map(|(i, _)| i)
                     .unwrap_or(0)
             } else {

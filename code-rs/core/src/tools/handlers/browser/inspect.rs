@@ -146,7 +146,7 @@ pub(super) async fn handle_browser_inspect_selector(
 
             if let Some(html) = outer.get("outerHTML").and_then(|v| v.as_str()) {
                 let one = html.replace('\n', " ");
-                let snippet: String = one.chars().take(800).collect();
+                let snippet: String = one.chars().take(crate::util::MAX_SNIPPET_CHARS).collect();
                 out.push_str("\nOuterHTML (truncated):\n");
                 out.push_str(&snippet);
                 if one.len() > snippet.len() {
@@ -382,7 +382,7 @@ pub(super) async fn handle_browser_inspect(
                     // Outer HTML.
                     if let Some(html) = outer.get("outerHTML").and_then(|v| v.as_str()) {
                         let one = html.replace('\n', " ");
-                        let snippet: String = one.chars().take(800).collect();
+                        let snippet: String = one.chars().take(crate::util::MAX_SNIPPET_CHARS).collect();
                         out.push_str("\nOuterHTML (truncated):\n");
                         out.push_str(&snippet);
                         if one.len() > snippet.len() {

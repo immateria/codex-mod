@@ -141,7 +141,7 @@ async fn handle_image_view(sess: &Session, ctx: &ToolCallCtx, arguments: String)
             let mime = mime_guess::from_path(&resolved)
                 .first()
                 .map(|m| m.essence_str().to_owned())
-                .unwrap_or_else(|| "application/octet-stream".to_string());
+                .unwrap_or_else(|| crate::util::MIME_OCTET_STREAM.to_string());
             if !mime.starts_with("image/") {
                 return ResponseInputItem::FunctionCallOutput {
                     call_id,

@@ -319,7 +319,7 @@ fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseInputItem {
                     let mime = mime_guess::from_path(&path)
                         .first()
                         .map(|m| m.essence_str().to_owned())
-                        .unwrap_or_else(|| "application/octet-stream".to_string());
+                        .unwrap_or_else(|| crate::util::MIME_OCTET_STREAM.to_string());
                     let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                     content_items.push(ContentItem::InputImage {
                         image_url: format!("data:{mime};base64,{encoded}"),
@@ -351,7 +351,7 @@ fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseInputItem {
                         let mime = mime_guess::from_path(&path)
                             .first()
                             .map(|m| m.essence_str().to_owned())
-                            .unwrap_or_else(|| "application/octet-stream".to_string());
+                            .unwrap_or_else(|| crate::util::MIME_OCTET_STREAM.to_string());
                         let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                         tracing::info!("Created ephemeral image data URL with mime: {}", mime);
                         content_items.push(ContentItem::InputImage {
@@ -637,7 +637,7 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
                                 let mime = mime_guess::from_path(&screenshot_path)
                                     .first()
                                     .map(|m| m.to_string())
-                                    .unwrap_or_else(|| "image/png".to_string());
+                                    .unwrap_or_else(|| crate::util::MIME_IMAGE_PNG.to_string());
                                 let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                                 screenshot_content = Some(ContentItem::InputImage {
                                     image_url: format!("data:{mime};base64,{encoded}"),
@@ -828,7 +828,7 @@ async fn build_turn_status_items_v2(sess: &Session) -> Vec<ResponseItem> {
                         let mime = mime_guess::from_path(&path)
                             .first()
                             .map(|m| m.to_string())
-                            .unwrap_or_else(|| "image/png".to_string());
+                            .unwrap_or_else(|| crate::util::MIME_IMAGE_PNG.to_string());
                         let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                         items.push(ResponseItem::Message {
                             id: Some(browser_stream_id),

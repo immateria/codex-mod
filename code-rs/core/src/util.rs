@@ -3,6 +3,14 @@ use std::time::Duration;
 use rand::Rng;
 use reqwest;
 
+// ── MIME type constants ──────────────────────────────────────────────
+pub const MIME_OCTET_STREAM: &str = "application/octet-stream";
+pub const MIME_IMAGE_PNG: &str = "image/png";
+
+/// Maximum number of characters to keep when truncating a text snippet
+/// for display or logging (e.g. browser inspect, auto-drive goal, scratchpad).
+pub const MAX_SNIPPET_CHARS: usize = 800;
+
 const INITIAL_DELAY_MS: u64 = 200;
 const BACKOFF_FACTOR: f64 = 2.0;
 

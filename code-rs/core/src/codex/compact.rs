@@ -908,7 +908,7 @@ pub(super) fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseI
                     let mime = mime_guess::from_path(&path)
                         .first()
                         .map(|m| m.essence_str().to_owned())
-                        .unwrap_or_else(|| "application/octet-stream".to_string());
+                        .unwrap_or_else(|| crate::util::MIME_OCTET_STREAM.to_string());
                     let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                     content_items.push(ContentItem::InputImage {
                         image_url: format!("data:{mime};base64,{encoded}"),
@@ -933,7 +933,7 @@ pub(super) fn response_input_from_core_items(items: Vec<InputItem>) -> ResponseI
                         let mime = mime_guess::from_path(&path)
                             .first()
                             .map(|m| m.essence_str().to_owned())
-                            .unwrap_or_else(|| "application/octet-stream".to_string());
+                            .unwrap_or_else(|| crate::util::MIME_OCTET_STREAM.to_string());
                         let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                         content_items.push(ContentItem::InputImage {
                             image_url: format!("data:{mime};base64,{encoded}"),
