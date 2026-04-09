@@ -977,9 +977,8 @@ pub(crate) fn wrap_bullet_line(
     }
 
     use unicode_segmentation::UnicodeSegmentation;
-    let rest_spans = spans.drain(i..).collect::<Vec<_>>();
     let mut clusters: Vec<(String, Style)> = Vec::new();
-    for sp in &rest_spans {
+    for sp in spans.drain(i..) {
         let st = sp.style;
         for g in sp.content.as_ref().graphemes(true) {
             clusters.push((g.to_string(), st));
@@ -1105,16 +1104,26 @@ pub(crate) fn wrap_bullet_line(
 }
 
 pub(crate) fn is_horizontal_rule_line(line: &ratatui::text::Line<'_>) -> bool {
-    let text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
-    let t = text.trim();
-    if t.is_empty() {
-        return false;
+    let mut dash = 0u32;
+    let mut star = 0u32;
+    let mut under = 0u32;
+    let mut has_other = false;
+    for span in &line.spans {
+        for c in span.content.as_ref().chars() {
+            match c {
+                '-' => dash += 1,
+                '*' => star += 1,
+                '_' => under += 1,
+                c if c.is_whitespace() => {}
+                _ => { has_other = true; break; }
+            }
+        }
+        if has_other { break; }
     }
-    let chars: Vec<char> = t.chars().collect();
-    let only = |ch: char| chars.iter().all(|c| *c == ch || c.is_whitespace());
-    (only('-') && chars.iter().filter(|c| **c == '-').count() >= 3)
-        || (only('*') && chars.iter().filter(|c| **c == '*').count() >= 3)
-        || (only('_') && chars.iter().filter(|c| **c == '_').count() >= 3)
+    if has_other { return false; }
+    // Exactly one rule-char kind used, with count >= 3
+    let kinds_used = u32::from(dash > 0) + u32::from(star > 0) + u32::from(under > 0);
+    kinds_used == 1 && (dash >= 3 || star >= 3 || under >= 3)
 }
 
 #[cfg(test)]

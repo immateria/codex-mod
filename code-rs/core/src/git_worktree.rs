@@ -621,12 +621,13 @@ async fn _ensure_origin_remote(git_root: &Path) -> Result<(), String> {
     if !remotes_out.status.success() {
         return Err("git remote returned error".to_string());
     }
-    let remotes: Vec<String> = String::from_utf8_lossy(&remotes_out.stdout)
+    let remotes_lossy = String::from_utf8_lossy(&remotes_out.stdout);
+    let remotes: Vec<&str> = remotes_lossy
         .lines()
-        .map(|s| s.trim().to_string())
+        .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .collect();
-    if remotes.iter().any(|r| r == "origin") {
+    if remotes.iter().any(|&r| r == "origin") {
         // Make sure origin/HEAD is set; ignore errors
         let _ = Command::new("git")
             .current_dir(git_root)
@@ -639,8 +640,8 @@ async fn _ensure_origin_remote(git_root: &Path) -> Result<(), String> {
     // Prefer candidates in this order
     let mut candidates = vec!["fork", "upstream-push", "upstream"]; // typical setups
     // Append any other remotes as fallbacks
-    for r in &remotes {
-        if !candidates.contains(&r.as_str()) { candidates.push(r); }
+    for &r in &remotes {
+        if !candidates.contains(&r) { candidates.push(r); }
     }
 
     // Find a candidate with a URL

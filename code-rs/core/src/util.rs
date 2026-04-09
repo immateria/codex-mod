@@ -82,7 +82,7 @@ pub(crate) fn header_map_to_json(headers: &reqwest::header::HeaderMap) -> serde_
         std::collections::BTreeMap::new();
     for (name, value) in headers.iter() {
         ordered
-            .entry(name.as_str().to_string())
+            .entry(name.as_str().to_owned())
             .or_default()
             .push(value.to_str().unwrap_or_default().to_string());
     }

@@ -154,7 +154,7 @@ pub(crate) async fn apply_mcp_access_selection(
             let mut exclude = mcp_access.style_exclude_servers.clone();
             exclude.remove(server_id.as_str());
             if !include.is_empty() {
-                include.insert(server_id.as_str().to_string());
+                include.insert(server_id.as_str().to_owned());
             }
             persist_style_mcp_server_filters(
                 sess,
@@ -175,7 +175,7 @@ pub(crate) async fn apply_mcp_access_selection(
             };
             let mut include = mcp_access.style_include_servers.clone();
             let mut exclude = mcp_access.style_exclude_servers.clone();
-            exclude.insert(server_id.as_str().to_string());
+            exclude.insert(server_id.as_str().to_owned());
             include.remove(server_id.as_str());
             persist_style_mcp_server_filters(
                 sess,

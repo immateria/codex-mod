@@ -798,7 +798,7 @@ impl Session {
 
         let mut env = hook.env.clone();
         env.entry("CODE_HOOK_EVENT".to_string())
-            .or_insert_with(|| event.as_str().to_string());
+            .or_insert_with(|| event.as_str().to_owned());
         env.entry("CODE_HOOK_TRIGGER".to_string())
             .or_insert_with(|| event.slug().to_string());
         env.insert("CODE_HOOK_CALL_ID".to_string(), call_id.clone());

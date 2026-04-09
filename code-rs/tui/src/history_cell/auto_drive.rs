@@ -518,10 +518,7 @@ impl AutoDriveCardCell {
 
         let mut segments = Vec::new();
         if ACTION_TIME_INDENT > 0 {
-            segments.push(CardSegment::new(
-                " ".to_string(),
-                secondary_text_style(style),
-            ));
+            segments.push(CardSegment::new(" ", secondary_text_style(style)));
         }
 
         let available = body_width.saturating_sub(ACTION_TIME_INDENT);
@@ -552,10 +549,7 @@ impl AutoDriveCardCell {
 
         let mut segments = Vec::new();
         if ACTION_TIME_INDENT > 0 {
-            segments.push(CardSegment::new(
-                " ".to_string(),
-                secondary_text_style(style),
-            ));
+            segments.push(CardSegment::new(" ", secondary_text_style(style)));
         }
 
         let available = body_width.saturating_sub(ACTION_TIME_INDENT);
@@ -586,10 +580,7 @@ impl AutoDriveCardCell {
 
         let mut segments = Vec::new();
         if ACTION_TIME_INDENT > 0 {
-            segments.push(CardSegment::new(
-                " ".to_string(),
-                secondary_text_style(style),
-            ));
+            segments.push(CardSegment::new(" ", secondary_text_style(style)));
         }
 
         let available = body_width.saturating_sub(ACTION_TIME_INDENT);
@@ -613,11 +604,6 @@ impl AutoDriveCardCell {
             return Vec::new();
         }
 
-        let indent_text = if ACTION_TIME_INDENT > 0 {
-            " ".to_string()
-        } else {
-            String::new()
-        };
         let indent_style = secondary_text_style(style);
         let content_style = primary_text_style(style);
         let available = body_width.saturating_sub(ACTION_TIME_INDENT);
@@ -637,7 +623,7 @@ impl AutoDriveCardCell {
             for segment in Self::wrap_segments(trimmed, available) {
                 let mut segments = Vec::new();
                 if ACTION_TIME_INDENT > 0 {
-                    segments.push(CardSegment::new(indent_text.clone(), indent_style));
+                    segments.push(CardSegment::new(" ", indent_style));
                 }
                 let mut body = CardSegment::new(segment, content_style);
                 body.inherit_background = true;
@@ -815,21 +801,15 @@ impl AutoDriveCardCell {
             .unwrap_or(0)
             .max(ACTION_TIME_COLUMN_MIN_WIDTH);
 
-        let indent_text = " ".to_string();
         let indent_style = secondary_text_style(style);
         let time_style = primary_text_style(style);
-        let separator_text = if ACTION_TIME_SEPARATOR_WIDTH > 0 {
-            Some(" ".repeat(ACTION_TIME_SEPARATOR_WIDTH))
-        } else {
-            None
-        };
 
         let mut rows = Vec::new();
 
         for (action, elapsed) in self.actions.iter().zip(elapsed_labels.iter()) {
             let mut segments = Vec::new();
             if ACTION_TIME_INDENT > 0 {
-                segments.push(CardSegment::new(indent_text.clone(), indent_style));
+                segments.push(CardSegment::new(" ", indent_style));
             }
 
             let mut remaining = body_width.saturating_sub(ACTION_TIME_INDENT);
@@ -847,7 +827,7 @@ impl AutoDriveCardCell {
             segments.push(CardSegment::new(padded_time, time_style));
             remaining = remaining.saturating_sub(time_width);
 
-            if let Some(separator) = separator_text.as_ref() {
+            if ACTION_TIME_SEPARATOR_WIDTH > 0 {
                 if remaining < ACTION_TIME_SEPARATOR_WIDTH {
                     rows.push(CardRow::new(
                         BORDER_BODY,
@@ -857,7 +837,7 @@ impl AutoDriveCardCell {
                     ));
                     continue;
                 }
-                segments.push(CardSegment::new(separator.clone(), Style::default()));
+                segments.push(CardSegment::new("  ", Style::default()));
                 remaining = remaining.saturating_sub(ACTION_TIME_SEPARATOR_WIDTH);
             }
 

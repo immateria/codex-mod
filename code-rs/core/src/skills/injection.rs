@@ -226,10 +226,10 @@ fn parse_skill_mcp_dependencies(
         let Some(server) = McpServerId::parse(server.as_str()) else {
             continue;
         };
-        if dedupe.insert((server.as_str().to_string(), None)) {
+        if dedupe.insert((server.as_str().to_owned(), None)) {
             out.push(SkillMcpDependency {
                 skill_name: skill_name.to_string(),
-                server: server.as_str().to_string(),
+                server: server.as_str().to_owned(),
                 tool: None,
             });
         }
