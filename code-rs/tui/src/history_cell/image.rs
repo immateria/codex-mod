@@ -18,6 +18,7 @@ use super::card_style::{
 };
 use super::*;
 use crate::colors;
+use crate::text_formatting::wrap_text;
 use crate::history::state::ImageRecord;
 use crate::theme::{palette_mode, PaletteMode};
 use code_protocol::num_format::format_with_separators_u64;
@@ -31,7 +32,6 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
-use unicode_width::UnicodeWidthChar;
 
 const DEFAULT_TEXT_INDENT: usize = 2;
 const IMAGE_GAP: usize = 2;
@@ -741,79 +741,5 @@ fn wrap_card_lines(text: &str, body_width: usize, indent_cols: usize, right_padd
 }
 
 fn wrap_line_to_width(text: &str, width: usize) -> Vec<String> {
-    if width == 0 {
-        return vec![String::new()];
-    }
-    if text.trim().is_empty() {
-        return vec![String::new()];
-    }
-
-    let mut lines: Vec<String> = Vec::new();
-    let mut current = String::new();
-    let mut current_width = 0;
-
-    for word in text.split_whitespace() {
-        let mut word_parts = if string_display_width(word) > width {
-            split_long_card_word(word, width)
-        } else {
-            vec![word.to_string()]
-        };
-
-        for part in word_parts.drain(..) {
-            let part_width = string_display_width(part.as_str());
-            if current.is_empty() {
-                current.push_str(part.as_str());
-                current_width = part_width;
-            } else if current_width + 1 + part_width > width {
-                lines.push(current);
-                current = part.clone();
-                current_width = part_width;
-            } else {
-                current.push(' ');
-                current.push_str(part.as_str());
-                current_width += 1 + part_width;
-            }
-        }
-    }
-
-    if !current.is_empty() {
-        lines.push(current);
-    }
-
-    if lines.is_empty() {
-        lines.push(String::new());
-    }
-    lines
+    wrap_text(text, width)
 }
-
-fn split_long_card_word(word: &str, width: usize) -> Vec<String> {
-    if width == 0 {
-        return vec![String::new()];
-    }
-
-    let mut parts = Vec::new();
-    let mut current = String::new();
-    let mut current_width = 0;
-
-    for ch in word.chars() {
-        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(1);
-        if current_width + ch_width > width && !current.is_empty() {
-            parts.push(current);
-            current = String::new();
-            current_width = 0;
-        }
-        current.push(ch);
-        current_width += ch_width;
-    }
-
-    if !current.is_empty() {
-        parts.push(current);
-    }
-
-    if parts.is_empty() {
-        parts.push(String::new());
-    }
-    parts
-}
-
-use crate::text_formatting::string_display_width;

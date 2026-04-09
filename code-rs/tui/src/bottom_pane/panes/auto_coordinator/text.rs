@@ -6,52 +6,7 @@ use super::*;
 
 impl AutoCoordinatorView {
     pub(super) fn wrap_text_segments(text: &str, width: usize) -> Vec<String> {
-        if width == 0 {
-            return vec![String::new()];
-        }
-
-        let mut lines: Vec<String> = Vec::new();
-        let mut current = String::new();
-        let mut current_width = 0usize;
-
-        for word in text.split_whitespace() {
-            let word_width = UnicodeWidthStr::width(word);
-            if word_width >= width {
-                if !current.is_empty() {
-                    lines.push(current);
-                    current = String::new();
-                    current_width = 0;
-                }
-                lines.push(crate::text_formatting::truncate_to_display_width(word, width));
-                continue;
-            }
-
-            let separator_width = if current.is_empty() { 0 } else { 1 };
-            if current_width + separator_width + word_width <= width {
-                if !current.is_empty() {
-                    current.push(' ');
-                    current_width += 1;
-                }
-                current.push_str(word);
-                current_width += word_width;
-            } else {
-                if !current.is_empty() {
-                    lines.push(current);
-                }
-                current = word.to_string();
-                current_width = word_width;
-            }
-        }
-
-        if current.is_empty() {
-            if lines.is_empty() {
-                lines.push(String::new());
-            }
-        } else {
-            lines.push(current);
-        }
-
-        lines
+        crate::text_formatting::wrap_text(text, width)
     }
 
 

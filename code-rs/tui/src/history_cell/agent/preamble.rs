@@ -28,8 +28,6 @@ use ratatui::text::{Line, Text};
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 use std::time::{Duration, Instant};
 
-use unicode_width::UnicodeWidthChar;
-
 const MAX_PLAN_LINES: usize = 4;
 const MAX_SUMMARY_LINES: usize = 4;
 const MAX_AGENT_DISPLAY: usize = 8;

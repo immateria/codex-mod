@@ -18,6 +18,7 @@ use super::super::card_style::{
     CardStyle,
     CARD_ACCENT_WIDTH,
 };
+use crate::text_formatting::split_long_word;
 use crate::colors;
 use crate::theme::{palette_mode, PaletteMode};
 use crate::ui_consts::CARD_HINT_BROWSER_STOP;
@@ -26,7 +27,6 @@ use ratatui::layout::Rect;
 use ratatui::prelude::Style;
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Paragraph, Widget, Wrap};
-use unicode_width::UnicodeWidthChar;
 use url::Url;
 
 use super::*;
@@ -766,7 +766,7 @@ fn wrap_line_to_width(text: &str, width: usize) -> Vec<String> {
 
     for word in text.split_whitespace() {
         if string_display_width(word) > width {
-            for part in split_long_card_word(word, width) {
+            for part in split_long_word(word, width) {
                 push_part(&mut lines, &mut current, &mut current_width, part, width);
             }
         } else {
@@ -782,35 +782,6 @@ fn wrap_line_to_width(text: &str, width: usize) -> Vec<String> {
         lines.push(String::new());
     }
     lines
-}
-
-fn split_long_card_word(word: &str, width: usize) -> Vec<String> {
-    if width == 0 {
-        return vec![String::new()];
-    }
-
-    let mut parts = Vec::new();
-    let mut current = String::with_capacity(width * 4);
-    let mut current_width = 0;
-
-    for ch in word.chars() {
-        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(1);
-        if current_width + ch_width > width && !current.is_empty() {
-            parts.push(std::mem::replace(&mut current, String::with_capacity(width * 4)));
-            current_width = 0;
-        }
-        current.push(ch);
-        current_width += ch_width;
-    }
-
-    if !current.is_empty() {
-        parts.push(current);
-    }
-
-    if parts.is_empty() {
-        parts.push(String::new());
-    }
-    parts
 }
 
 use crate::text_formatting::string_display_width;

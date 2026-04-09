@@ -277,3 +277,79 @@ pub(crate) fn parse_string_list(text: &str) -> Vec<String> {
         .map(String::from)
         .collect()
 }
+
+/// Split a single long word into chunks that each fit within `width` display
+/// columns. Uses pre-allocated buffers for efficiency.
+pub(crate) fn split_long_word(word: &str, width: usize) -> Vec<String> {
+    if width == 0 {
+        return vec![String::new()];
+    }
+
+    let mut parts = Vec::new();
+    let mut current = String::with_capacity(width * 4);
+    let mut current_width = 0;
+
+    for ch in word.chars() {
+        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(1);
+        if current_width + ch_width > width && !current.is_empty() {
+            parts.push(std::mem::replace(&mut current, String::with_capacity(width * 4)));
+            current_width = 0;
+        }
+        current.push(ch);
+        current_width += ch_width;
+    }
+
+    if !current.is_empty() {
+        parts.push(current);
+    }
+
+    if parts.is_empty() {
+        parts.push(String::new());
+    }
+    parts
+}
+
+/// Word-wrap `text` to fit within `width` display columns. Long words that
+/// exceed `width` are split character-by-character.
+pub(crate) fn wrap_text(text: &str, width: usize) -> Vec<String> {
+    if width == 0 {
+        return vec![String::new()];
+    }
+
+    let mut lines: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut current_width = 0;
+
+    for word in text.split_whitespace() {
+        let word_width = UnicodeWidthStr::width(word);
+        let parts: Vec<String> = if word_width > width {
+            split_long_word(word, width)
+        } else {
+            vec![word.to_string()]
+        };
+
+        for part in parts {
+            let part_width = UnicodeWidthStr::width(part.as_str());
+            if current.is_empty() {
+                current.push_str(&part);
+                current_width = part_width;
+            } else if current_width + 1 + part_width > width {
+                lines.push(std::mem::replace(&mut current, part));
+                current_width = part_width;
+            } else {
+                current.push(' ');
+                current.push_str(&part);
+                current_width += 1 + part_width;
+            }
+        }
+    }
+
+    if !current.is_empty() {
+        lines.push(current);
+    }
+
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+    lines
+}

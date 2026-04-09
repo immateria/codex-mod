@@ -337,7 +337,7 @@ impl AgentRunCell {
         }
 
         let content_width = body_width.saturating_sub(indent);
-        let lines = wrap_text_to_width(text.as_str(), content_width.max(1));
+        let lines = wrap_text(text.as_str(), content_width.max(1));
         lines
             .into_iter()
             .map(|line| {
