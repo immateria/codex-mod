@@ -1,5 +1,6 @@
 use super::*;
 use crate::history::state::AssistantMessageState;
+use crate::ui_consts::SEP_DOT;
 use code_core::config::Config;
 use code_core::config_types::UriBasedFileOpener;
 use std::cell::{Cell, RefCell};
@@ -103,7 +104,7 @@ impl AssistantMarkdownCell {
             Span::styled(format!("R #{reply_number}"), dim),
         ];
         if !self.model_name.is_empty() {
-            spans.push(Span::styled(" · ", dim));
+            spans.push(Span::styled(SEP_DOT, dim));
             spans.push(Span::styled(self.model_name.clone(), dim));
         }
         let ts = self.state.created_at;
@@ -116,11 +117,11 @@ impl AssistantMarkdownCell {
             } else {
                 format!("{}h {}m ago", secs / 3600, (secs % 3600) / 60)
             };
-            spans.push(Span::styled(" · ", dim));
+            spans.push(Span::styled(SEP_DOT, dim));
             spans.push(Span::styled(ago, dim));
         }
         if let Some(usage) = self.state.token_usage.as_ref() {
-            spans.push(Span::styled(" · ", dim));
+            spans.push(Span::styled(SEP_DOT, dim));
             spans.push(Span::styled(
                 format!("in:{} out:{}", usage.input_tokens, usage.output_tokens),
                 dim,
@@ -140,7 +141,7 @@ impl AssistantMarkdownCell {
             Span::styled(format!("R #{reply_number}"), bright),
         ];
         if !self.model_name.is_empty() {
-            header_spans.push(Span::styled(" · ", dim));
+            header_spans.push(Span::styled(SEP_DOT, dim));
             header_spans.push(Span::styled(self.model_name.clone(), dim));
         }
         // Timestamp
@@ -154,12 +155,12 @@ impl AssistantMarkdownCell {
             } else {
                 format!("{}h {}m ago", secs / 3600, (secs % 3600) / 60)
             };
-            header_spans.push(Span::styled(" · ", dim));
+            header_spans.push(Span::styled(SEP_DOT, dim));
             header_spans.push(Span::styled(ago, dim));
         }
         // Token summary
         if let Some(usage) = self.state.token_usage.as_ref() {
-            header_spans.push(Span::styled(" · ", dim));
+            header_spans.push(Span::styled(SEP_DOT, dim));
             header_spans.push(Span::styled(
                 format!("in:{} out:{}", usage.input_tokens, usage.output_tokens),
                 dim,

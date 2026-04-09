@@ -1763,6 +1763,7 @@ pub struct BrowserSnapshotEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model_provider_info::OPENAI_API_BASE_URL;
 
     /// Serialize Event to verify that its JSON representation has the expected
     /// amount of nesting.
@@ -1796,7 +1797,7 @@ mod tests {
         let op = Op::configure_session(ConfigureSessionOp {
             provider: ModelProviderInfo {
                 name: "OpenAI".to_string(),
-                base_url: Some("https://api.openai.com/v1".to_string()),
+                base_url: Some(OPENAI_API_BASE_URL.to_string()),
                 env_key: Some("OPENAI_API_KEY".to_string()),
                 env_key_instructions: None,
                 experimental_bearer_token: None,

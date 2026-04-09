@@ -171,6 +171,9 @@ pub struct BorderGradient {
     pub right: Color,
 }
 
+/// Pure white used for celebration/glow effects in Auto Drive animations.
+pub(crate) const EFFECT_WHITE: Color = Color::Rgb(255, 255, 255);
+
 fn auto_drive_accent_color() -> Color {
     if colors::is_dark_theme() {
         card_theme::auto_drive_dark_theme().theme.gradient.left

@@ -6,6 +6,7 @@ use ratatui::text::{Line, Span};
 use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
+use crate::ui_consts::SEP_DOT;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::rows::StyledText;
 use crate::colors;
@@ -175,7 +176,7 @@ impl AppsSettingsView {
                     None
                 } else {
                     Some(StyledText::new(
-                        tags.join(" · "),
+                        tags.join(SEP_DOT),
                         Style::new().fg(colors::success()),
                     ))
                 };

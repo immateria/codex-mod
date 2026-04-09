@@ -19,6 +19,7 @@ use super::card_style::{
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::colors;
 use crate::theme::{palette_mode, PaletteMode};
+use crate::ui_consts::{CARD_HINT_EXPAND, CARD_HINT_EXPAND_STOP, SEP_DOT};
 use code_common::elapsed::format_duration_digital;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;

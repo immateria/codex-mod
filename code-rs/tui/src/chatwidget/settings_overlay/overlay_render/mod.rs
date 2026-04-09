@@ -10,6 +10,7 @@ use crate::bottom_pane::{
     SettingsSection,
 };
 use crate::live_wrap::take_prefix_by_width;
+use crate::ui_consts::SEP_DOT;
 use crate::ui_interaction::ListWindow;
 use crate::util::buffer::fill_rect;
 

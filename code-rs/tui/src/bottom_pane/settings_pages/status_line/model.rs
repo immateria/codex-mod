@@ -4,6 +4,7 @@ use code_core::config_types::StatusLineLane;
 use strum::IntoEnumIterator;
 
 use crate::app_event::AppEvent;
+use crate::ui_consts::SEP_DOT;
 use crate::ui_interaction::{wrap_next, wrap_prev};
 
 use super::{StatusLineChoice, StatusLineItem, StatusLineSetupView};
@@ -76,7 +77,7 @@ impl StatusLineSetupView {
             .filter(|choice| choice.enabled)
             .map(|choice| choice.item.sample())
             .collect::<Vec<_>>()
-            .join(" · ")
+            .join(SEP_DOT)
     }
 
     pub(super) fn choices_for_lane(&self, lane: StatusLineLane) -> &[StatusLineChoice] {

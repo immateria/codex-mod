@@ -158,7 +158,7 @@ impl ChatWidget<'_> {
                     summary_parts.push(format!("Load errors: {}", marketplace_load_errors.len()));
                 }
 
-                Some(summary_parts.join(" · "))
+                Some(summary_parts.join(SEP_DOT))
             }
         }
     }
@@ -300,7 +300,7 @@ impl ChatWidget<'_> {
         {
             parts.push(format!("Profile: {profile}"));
         }
-        Some(parts.join(" · "))
+        Some(parts.join(SEP_DOT))
     }
 
     pub(super) fn settings_summary_planning(&self) -> Option<String> {
@@ -344,7 +344,7 @@ impl ChatWidget<'_> {
         {
             parts.push(format!("Latest available: {latest}"));
         }
-        Some(parts.join(" · "))
+        Some(parts.join(SEP_DOT))
     }
 
     pub(super) fn settings_summary_accounts(&self) -> Option<String> {
@@ -404,7 +404,7 @@ impl ChatWidget<'_> {
         if commands > 0 {
             parts.push(format!("Custom commands: {commands}"));
         }
-        Some(parts.join(" · "))
+        Some(parts.join(SEP_DOT))
     }
 
     pub(super) fn settings_summary_auto_drive(&self) -> Option<String> {

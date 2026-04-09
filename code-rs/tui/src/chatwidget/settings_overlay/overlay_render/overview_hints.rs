@@ -20,13 +20,13 @@ impl SettingsOverlayView {
         let label_style = Style::default().fg(crate::colors::text_mid());
         let dim_style = Style::default().fg(crate::colors::text_dim());
         let mut first = true;
-        for raw_segment in summary.split(" · ") {
+        for raw_segment in summary.split(SEP_DOT) {
             let segment = raw_segment.trim();
             if segment.is_empty() {
                 continue;
             }
             if !first {
-                line.spans.push(Span::styled(" · ".to_string(), dim_style));
+                line.spans.push(Span::styled(SEP_DOT.to_string(), dim_style));
             }
             first = false;
 

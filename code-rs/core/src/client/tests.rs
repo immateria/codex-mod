@@ -1,5 +1,5 @@
 use super::*;
-use crate::model_provider_info::{ModelProviderInfo, WireApi};
+use crate::model_provider_info::{ModelProviderInfo, WireApi, CHATGPT_CODEX_BASE_URL};
 use std::collections::HashMap;
 use serde_json::json;
 use tokio::sync::mpsc;
@@ -145,7 +145,7 @@ async fn responses_request_uses_beta_header_for_public_openai() {
 async fn responses_request_uses_experimental_for_backend() {
     let provider = ModelProviderInfo {
         name: "backend".to_string(),
-        base_url: Some("https://chatgpt.com/backend-api/codex".to_string()),
+        base_url: Some(CHATGPT_CODEX_BASE_URL.to_string()),
         env_key: None,
         env_key_instructions: None,
         experimental_bearer_token: None,

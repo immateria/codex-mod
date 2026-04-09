@@ -18,6 +18,7 @@ use super::super::card_style::{
 };
 use crate::colors;
 use crate::theme::{palette_mode, PaletteMode};
+use crate::ui_consts::CARD_HINT_BROWSER_STOP;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Style;
@@ -156,7 +157,7 @@ impl BrowserSessionCell {
     }
 
     fn bottom_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        let text_value = " [Ctrl+B] View · [Esc] Stop".to_string();
+        let text_value = CARD_HINT_BROWSER_STOP.to_string();
         let text = truncate_with_ellipsis(text_value.as_str(), body_width);
         let hint_style = if palette_mode() == PaletteMode::Ansi16 {
             Style::default().fg(ansi16_inverse_color())

@@ -29,6 +29,7 @@ use crate::chatwidget::settings_overlay::{
 };
 #[cfg(feature = "managed-network-proxy")]
 use crate::chatwidget::settings_overlay::NetworkSettingsContent;
+use crate::ui_consts::SEP_DOT;
 
 include!("overlay.rs");
 include!("builders.rs");

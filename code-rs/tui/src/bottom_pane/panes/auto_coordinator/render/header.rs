@@ -4,12 +4,13 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::prelude::Widget;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use unicode_width::UnicodeWidthStr;
 
 use crate::auto_drive_strings;
+use crate::auto_drive_style::EFFECT_WHITE;
 use crate::colors;
 use crate::glitch_animation::{gradient_multi, mix_rgb};
 use crate::spinner;
@@ -241,7 +242,7 @@ pub(super) fn render_header(view: &AutoCoordinatorView, buf: &mut Buffer, params
                 } else if idx == visible_chars.len().saturating_sub(1) {
                     #[allow(clippy::disallowed_methods)]
                     {
-                        color = mix_rgb(color, Color::Rgb(255, 255, 255), 0.35);
+                        color = mix_rgb(color, EFFECT_WHITE, 0.35);
                     }
                 }
                 base_spans.push(Span::styled(

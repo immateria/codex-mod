@@ -385,19 +385,19 @@ impl EnvironmentContextSnapshot {
         if self.approval_policy != previous.approval_policy {
             changes.insert(
                 "approval_policy".to_string(),
-                serde_json::to_value(self.approval_policy).unwrap_or(JsonValue::Null),
+                to_json_or_null(&self.approval_policy),
             );
         }
         if self.sandbox_mode != previous.sandbox_mode {
             changes.insert(
                 "sandbox_mode".to_string(),
-                serde_json::to_value(self.sandbox_mode).unwrap_or(JsonValue::Null),
+                to_json_or_null(&self.sandbox_mode),
             );
         }
         if self.network_access != previous.network_access {
             changes.insert(
                 "network_access".to_string(),
-                serde_json::to_value(&self.network_access).unwrap_or(JsonValue::Null),
+                to_json_or_null(&self.network_access),
             );
         }
         if self.writable_roots != previous.writable_roots {
@@ -409,7 +409,7 @@ impl EnvironmentContextSnapshot {
         if self.operating_system != previous.operating_system {
             changes.insert(
                 "operating_system".to_string(),
-                serde_json::to_value(&self.operating_system).unwrap_or(JsonValue::Null),
+                to_json_or_null(&self.operating_system),
             );
         }
         if self.common_tools != previous.common_tools {
@@ -421,7 +421,7 @@ impl EnvironmentContextSnapshot {
         if self.shell != previous.shell {
             changes.insert(
                 "shell".to_string(),
-                serde_json::to_value(&self.shell).unwrap_or(JsonValue::Null),
+                to_json_or_null(&self.shell),
             );
         }
         if self.git_branch != previous.git_branch {
@@ -921,6 +921,11 @@ fn option_string_to_json(value: &Option<String>) -> JsonValue {
         Some(v) => JsonValue::String(v.clone()),
         None => JsonValue::Null,
     }
+}
+
+/// Serialize any `Serialize` value to JSON, falling back to `null` on error.
+fn to_json_or_null(value: &impl serde::Serialize) -> JsonValue {
+    serde_json::to_value(value).unwrap_or(JsonValue::Null)
 }
 
 fn snapshot_to_response_item(

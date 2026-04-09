@@ -21,7 +21,11 @@ use crate::auth::AuthManager;
 use crate::config_types::Personality as ConfigPersonality;
 use crate::config_types::ReasoningSummary as ConfigReasoningSummary;
 use crate::model_family::{derive_default_model_family, find_family_for_model, ModelFamily};
-use crate::model_provider_info::ModelProviderInfo;
+use crate::model_provider_info::{
+    ModelProviderInfo,
+    CHATGPT_CODEX_BASE_URL,
+    OPENAI_API_BASE_URL,
+};
 use crate::tool_apply_patch::ApplyPatchToolType;
 use crate::CodexAuth;
 
@@ -329,9 +333,9 @@ impl RemoteModelsManager {
                     ..
                 })
             ) {
-                "https://chatgpt.com/backend-api/codex".to_string()
+                CHATGPT_CODEX_BASE_URL.to_string()
             } else {
-                "https://api.openai.com/v1".to_string()
+                OPENAI_API_BASE_URL.to_string()
             }
         });
 

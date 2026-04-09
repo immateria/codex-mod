@@ -1,4 +1,5 @@
 use super::*;
+use crate::ui_consts::SEP_DOT;
 
 impl ChatWidget<'_> {
     pub(crate) fn auto_rebuild_live_ring(&mut self) {
@@ -547,7 +548,7 @@ impl ChatWidget<'_> {
         match parts.len() {
             0 => String::new(),
             1 => parts.into_iter().next().unwrap_or_default(),
-            _ => parts.join(" · "),
+            _ => parts.join(SEP_DOT),
         }
     }
 

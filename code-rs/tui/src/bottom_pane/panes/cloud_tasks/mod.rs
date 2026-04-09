@@ -8,6 +8,7 @@ use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::{BottomPane, BottomPaneView, CancellationEvent};
 use crate::components::scroll_state::ScrollState;
 use crate::components::popup_frame::render_popup_frame;
+use crate::ui_consts::SEP_DOT;
 use crate::components::selection_popup_common::{render_rows, GenericDisplayRow};
 
 use ratatui::buffer::Buffer;
@@ -213,7 +214,7 @@ fn build_rows(tasks: &[TaskSummary]) -> Vec<GenericDisplayRow> {
             if let Some(env) = env_display {
                 description_parts.push(env);
             }
-            let description = description_parts.join(" · ");
+            let description = description_parts.join(SEP_DOT);
 
             GenericDisplayRow {
                 name,

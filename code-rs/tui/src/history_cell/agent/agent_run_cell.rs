@@ -364,9 +364,9 @@ impl AgentRunCell {
             .any(|agent| matches!(agent.status_kind, AgentStatusKind::Running | AgentStatusKind::Pending));
 
         let text_value = if has_running_agents {
-            " [Ctrl+A] Expand · [Esc] Stop".to_string()
+            CARD_HINT_EXPAND_STOP.to_string()
         } else {
-            " [Ctrl+A] Expand".to_string()
+            CARD_HINT_EXPAND.to_string()
         };
         let text = truncate_with_ellipsis(text_value.as_str(), body_width);
         let hint_style = if palette_mode() == PaletteMode::Ansi16 {
@@ -565,7 +565,7 @@ impl AgentRunCell {
                 let meta = if meta_parts.is_empty() {
                     String::new()
                 } else {
-                    format!("({})", meta_parts.join(" · "))
+                    format!("({})", meta_parts.join(SEP_DOT))
                 };
 
                 let name = Self::agent_display_name(preview);

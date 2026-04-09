@@ -16,6 +16,7 @@ use super::card_style::{
     CARD_HINT_SETTINGS_STOP as HINT_TEXT,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
+use crate::auto_drive_style::EFFECT_WHITE;
 use crate::card_theme;
 use crate::glitch_animation::{gradient_multi, mix_rgb};
 use crate::gradient_background::{GradientBackground, RevealRender};
@@ -1016,17 +1017,17 @@ impl AutoDriveCardCell {
 
         for (idx, ch) in chars.iter().copied().enumerate() {
             let style_for_char = if idx < left_pad || idx >= ascii_span_end {
-                (Color::Rgb(255, 255, 255), false)
+                (EFFECT_WHITE, false)
             } else {
                 let ascii_pos = idx - left_pad;
                 let ascii_ch = ascii_slice[ascii_pos];
                 if ascii_ch == ' ' {
-                    (Color::Rgb(255, 255, 255), false)
+                    (EFFECT_WHITE, false)
                 } else {
                     let denom = (ascii_len - 1).max(1) as f32;
                     let ratio = (ascii_pos as f32) / denom;
                     let base = gradient_multi(ratio);
-                    let neon = mix_rgb(base, Color::Rgb(255, 255, 255), 0.18);
+                    let neon = mix_rgb(base, EFFECT_WHITE, 0.18);
                     (neon, true)
                 }
             };
@@ -1056,7 +1057,7 @@ impl AutoDriveCardCell {
             return Style::default().fg(fg);
         }
 
-        Style::default().fg(Color::Rgb(255, 255, 255))
+        Style::default().fg(EFFECT_WHITE)
     }
 
     fn bottom_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {

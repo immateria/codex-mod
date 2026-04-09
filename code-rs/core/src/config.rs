@@ -2532,6 +2532,7 @@ mod tests {
     use crate::config_types::HistoryPersistence;
     use crate::config_types::McpServerTransportConfig;
     use crate::config_types::Notifications;
+    use crate::model_provider_info::OPENAI_API_BASE_URL;
 
     use super::*;
     use pretty_assertions::assert_eq;
@@ -3104,7 +3105,7 @@ model_verbosity = "high"
 
         let openai_chat_completions_provider = ModelProviderInfo {
             name: "OpenAI using Chat Completions".to_string(),
-            base_url: Some("https://api.openai.com/v1".to_string()),
+            base_url: Some(OPENAI_API_BASE_URL.to_string()),
             env_key: Some("OPENAI_API_KEY".to_string()),
             wire_api: crate::WireApi::Chat,
             env_key_instructions: None,

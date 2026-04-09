@@ -33,6 +33,13 @@ const MAX_STREAM_MAX_RETRIES: u64 = 100;
 /// Hard cap for user-configured `request_max_retries`.
 const MAX_REQUEST_MAX_RETRIES: u64 = 100;
 
+// ---------------------------------------------------------------------------
+// Provider URL defaults
+// ---------------------------------------------------------------------------
+pub(crate) const OPENAI_API_BASE_URL: &str = "https://api.openai.com/v1";
+pub(crate) const OPENAI_API_PROBE_URL: &str = "https://api.openai.com";
+pub(crate) const CHATGPT_CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct ProviderAuthCacheKey {
     command: String,
@@ -435,9 +442,9 @@ impl ModelProviderInfo {
             .as_ref()
             .is_some_and(|auth| auth.mode.is_chatgpt())
         {
-            "https://chatgpt.com/backend-api/codex"
+            CHATGPT_CODEX_BASE_URL
         } else {
-            "https://api.openai.com/v1"
+            OPENAI_API_BASE_URL
         };
         let query_string = self.get_query_string();
         let base_url = self
@@ -587,7 +594,7 @@ impl ModelProviderInfo {
     pub fn base_url_for_probe(&self) -> String {
         self.base_url
             .clone()
-            .unwrap_or_else(|| "https://api.openai.com".to_string())
+            .unwrap_or_else(|| OPENAI_API_PROBE_URL.to_string())
     }
 }
 
@@ -988,7 +995,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
         assert!(named_provider.is_azure_responses_endpoint());
 
         let negative_cases = [
-            "https://api.openai.com/v1",
+            OPENAI_API_BASE_URL,
             "https://example.com/openai",
             "https://myproxy.azurewebsites.net/openai",
         ];
