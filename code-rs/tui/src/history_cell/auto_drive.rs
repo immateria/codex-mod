@@ -32,6 +32,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Paragraph, Widget, Wrap};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use std::borrow::Cow;
 use std::f32;
 use std::time::{Duration, Instant};
 use std::env;
@@ -292,10 +293,10 @@ impl AutoDriveCardCell {
     fn title_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
         let mut segments: Vec<CardSegment> = Vec::with_capacity(4);
         let title_text = " Auto Drive";
-        let status_text = if self.celebration_started_at.is_some() {
-            " · Complete".to_string()
+        let status_text: Cow<'static, str> = if self.celebration_started_at.is_some() {
+            " · Complete".into()
         } else {
-            format!(" · {}", self.status.label())
+            format!(" · {}", self.status.label()).into()
         };
         let combined = format!("{title_text}{status_text}");
         let title_style = title_text_style(style);

@@ -6,6 +6,7 @@ use crate::history::compat::{
 };
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
+use std::borrow::Cow;
 
 const MAX_DELTA_PREVIEW: usize = 10;
 
@@ -66,10 +67,10 @@ fn build_lines(record: &ContextRecord) -> Vec<Line<'static>> {
     }
 
     if !record.deltas.is_empty() {
-        let label = if record.deltas.len() == 1 {
-            " 1 change ".to_string()
+        let label: Cow<'static, str> = if record.deltas.len() == 1 {
+            " 1 change ".into()
         } else {
-            format!(" {} changes ", record.deltas.len())
+            format!(" {} changes ", record.deltas.len()).into()
         };
         header_spans.push(Span::raw(" "));
         header_spans.push(Span::styled(label, badge_style));
@@ -182,8 +183,14 @@ fn build_delta_line(delta: &ContextDeltaRecord, primary: Style, dim: Style) -> L
     spans.push(Span::styled(field.to_string(), primary));
     spans.push(Span::styled(": ", dim));
 
-    let previous = delta.previous.as_deref().unwrap_or("—").to_string();
-    let current = delta.current.as_deref().unwrap_or("—").to_string();
+    let previous: Cow<'static, str> = match delta.previous.as_deref() {
+        Some(s) => s.to_string().into(),
+        None => "—".into(),
+    };
+    let current: Cow<'static, str> = match delta.current.as_deref() {
+        Some(s) => s.to_string().into(),
+        None => "—".into(),
+    };
 
     spans.push(Span::styled(previous, dim));
     spans.push(Span::styled(" → ", dim));

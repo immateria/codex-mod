@@ -45,9 +45,10 @@ impl WidgetRef for &WelcomeWidget {
 
 impl StepStateProvider for WelcomeWidget {
     fn get_step_state(&self) -> StepState {
-        match self.is_logged_in {
-            true => StepState::Hidden,
-            false => StepState::Complete,
+        if self.is_logged_in {
+            StepState::Hidden
+        } else {
+            StepState::Complete
         }
     }
 }

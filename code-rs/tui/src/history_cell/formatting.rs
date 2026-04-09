@@ -168,9 +168,7 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
                         let num: usize = chars[i + 2..j]
                             .iter()
                             .take_while(|c| c.is_ascii_digit())
-                            .collect::<String>()
-                            .parse()
-                            .unwrap_or(0);
+                            .fold(0usize, |n, &c| n * 10 + (c as usize - '0' as usize));
 
                         match cmd {
                             // Erase in Line: 0/None = cursor..end, 1 = start..cursor, 2 = entire line

@@ -650,7 +650,7 @@ fn render_argument(arg: &ToolArgument) -> Line<'static> {
             let compact = format_json_compact(&json.to_string()).unwrap_or_else(|| json.to_string());
             Span::styled(compact, Style::default().fg(crate::colors::text()))
         }
-        ArgumentValue::Secret => Span::styled("(secret)".to_string(), Style::default().fg(crate::colors::text_dim())),
+        ArgumentValue::Secret => Span::styled("(secret)", Style::default().fg(crate::colors::text_dim())),
     };
     spans.push(value_span);
     Line::from(spans)

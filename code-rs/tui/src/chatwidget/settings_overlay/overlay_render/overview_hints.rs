@@ -26,7 +26,7 @@ impl SettingsOverlayView {
                 continue;
             }
             if !first {
-                line.spans.push(Span::styled(SEP_DOT.to_string(), dim_style));
+                line.spans.push(Span::styled(SEP_DOT, dim_style));
             }
             first = false;
 
@@ -36,7 +36,7 @@ impl SettingsOverlayView {
                 line.spans
                     .push(Span::styled(format!("{label_trim}:"), label_style));
                 if !value_trim.is_empty() {
-                    line.spans.push(Span::styled(" ".to_string(), dim_style));
+                    line.spans.push(Span::styled(" ", dim_style));
                     let value_style = self.summary_value_style(value_trim);
                     line.spans
                         .push(Span::styled(value_trim.to_string(), value_style));

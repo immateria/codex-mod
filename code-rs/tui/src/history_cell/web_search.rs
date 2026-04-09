@@ -243,7 +243,7 @@ impl WebSearchSessionCell {
             .unwrap_or(0)
             .max(ACTION_TIME_COLUMN_MIN_WIDTH);
 
-        let indent_text = " ".to_string();
+        let indent_text: &str = " ";
         let indent_style = secondary_text_style(style);
         let time_style = primary_text_style(style);
         let separator_text = if ACTION_TIME_SEPARATOR_WIDTH > 0 {
@@ -254,7 +254,7 @@ impl WebSearchSessionCell {
 
         for (action, elapsed) in self.actions.iter().zip(elapsed_labels.iter()) {
             let mut segments = Vec::new();
-            segments.push(CardSegment::new(indent_text.clone(), indent_style));
+            segments.push(CardSegment::new(indent_text, indent_style));
 
             let mut remaining = body_width.saturating_sub(ACTION_TIME_INDENT);
             if remaining == 0 {
@@ -325,7 +325,7 @@ impl WebSearchSessionCell {
         let mut segments = Vec::new();
         if ACTION_TIME_INDENT > 0 {
             segments.push(CardSegment::new(
-                " ".to_string(),
+                " ",
                 secondary_text_style(style),
             ));
         }
@@ -359,7 +359,7 @@ impl WebSearchSessionCell {
         let mut segments = Vec::new();
         if ACTION_TIME_INDENT > 0 {
             segments.push(CardSegment::new(
-                " ".to_string(),
+                " ",
                 secondary_text_style(style),
             ));
         }

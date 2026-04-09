@@ -6,6 +6,7 @@ use super::terminal_surface_header::centered_clickable_regions_from_char_ranges;
 use super::terminal_surface_header::scrollable_clickable_regions_from_char_ranges;
 use super::terminal_surface_header::render_plain_header_template;
 use super::terminal_surface_header::render_dynamic_header_line;
+use std::borrow::Cow;
 use super::terminal_surface_header::render_styled_header_template;
 use crate::bottom_pane::settings_pages::status_line::StatusLineItem;
 use unicode_width::UnicodeWidthStr;
@@ -56,10 +57,10 @@ impl ChatWidget<'_> {
     ) -> Vec<ratatui::text::Line<'static>> {
         let mut lines = self.cell_lines_for_terminal_index(idx, cell);
         let _has_icon = cell.gutter_symbol().is_some();
-        let first_prefix = if let Some(sym) = cell.gutter_symbol() {
-            format!(" {sym} ") // one space, icon, one space
+        let first_prefix: Cow<'static, str> = if let Some(sym) = cell.gutter_symbol() {
+            format!(" {sym} ").into() // one space, icon, one space
         } else {
-            "   ".to_string() // three spaces when no icon
+            "   ".into() // three spaces when no icon
         };
         if let Some(first) = lines.first_mut() {
             first

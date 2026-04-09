@@ -28,9 +28,10 @@ pub(crate) fn exec_command_lines(
     stream_preview: Option<&CommandOutput>,
     start_time: Option<Instant>,
 ) -> Vec<Line<'static>> {
-    match parsed.is_empty() {
-        true => new_exec_command_generic(command, output, stream_preview, start_time),
-        false => new_parsed_command(parsed, output, stream_preview, start_time),
+    if parsed.is_empty() {
+        new_exec_command_generic(command, output, stream_preview, start_time)
+    } else {
+        new_parsed_command(parsed, output, stream_preview, start_time)
     }
 }
 

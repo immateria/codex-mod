@@ -188,35 +188,20 @@ fn cleanup_sessions(
     let year_dirs = list_dir_sorted(&sessions_root);
     for year_entry in year_dirs {
         let year_path = year_entry.path();
-        let year = match parse_u16(&year_entry.file_name()) {
-            Some(value) => value as i32,
-            None => continue,
-        };
+        let Some(year) = parse_u16(&year_entry.file_name()) else { continue };
+        let year = year as i32;
 
         let month_dirs = list_dir_sorted(&year_path);
         for month_entry in month_dirs {
             let month_path = month_entry.path();
-            let month_num = match parse_u8(&month_entry.file_name()) {
-                Some(value @ 1..=12) => value,
-                _ => continue,
-            };
-            let month = match time::Month::try_from(month_num) {
-                Ok(month) => month,
-                Err(_) => continue,
-            };
+            let Some(month_num @ 1..=12) = parse_u8(&month_entry.file_name()) else { continue };
+            let Ok(month) = time::Month::try_from(month_num) else { continue };
 
             let day_dirs = list_dir_sorted(&month_path);
             for day_entry in day_dirs {
                 let day_path = day_entry.path();
-                let day_num = match parse_u8(&day_entry.file_name()) {
-                    Some(value @ 1..=31) => value,
-                    _ => continue,
-                };
-
-                let date = match Date::from_calendar_date(year, month, day_num) {
-                    Ok(date) => date,
-                    Err(_) => continue,
-                };
+                let Some(day_num @ 1..=31) = parse_u8(&day_entry.file_name()) else { continue };
+                let Ok(date) = Date::from_calendar_date(year, month, day_num) else { continue };
 
                 if date >= today {
                     continue;

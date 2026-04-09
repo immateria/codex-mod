@@ -72,10 +72,13 @@
                                     // Fallback: start a new conversation instead of forking
                                     server.new_conversation(cfg_for_rt).await
                                 });
-                                if let Ok(new_conv) = result {
-                                    tx.send(AppEvent::JumpBackForked { cfg, new_conv: crate::app_event::Redacted(new_conv), prefix_items, prefill: prefill_clone });
-                                } else if let Err(e) = result {
-                                    tracing::error!("error forking conversation: {e:#}");
+                                match result {
+                                    Ok(new_conv) => {
+                                        tx.send(AppEvent::JumpBackForked { cfg, new_conv: crate::app_event::Redacted(new_conv), prefix_items, prefill: prefill_clone });
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("error forking conversation: {e:#}");
+                                    }
                                 }
                             })
                         {
