@@ -878,7 +878,21 @@ pub(crate) fn new_completed_exec_command(
 }
 
 pub(crate) fn display_lines_from_record(record: &ExecRecord) -> Vec<Line<'static>> {
-    ExecCell::from_record(record.clone()).display_lines_trimmed()
+    let output = super::formatting::record_output(record);
+    let stream_preview = super::formatting::build_streaming_preview(record);
+    let start_time = if matches!(record.status, ExecStatus::Running) {
+        Some(Instant::now())
+    } else {
+        None
+    };
+    let lines = crate::history_cell::exec_command_lines(
+        &record.command,
+        &record.parsed,
+        output.as_ref(),
+        stream_preview.as_ref(),
+        start_time,
+    );
+    trim_empty_lines(lines)
 }
 
 

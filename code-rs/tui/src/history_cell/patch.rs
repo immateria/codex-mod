@@ -29,7 +29,7 @@ use crate::sanitize::sanitize_for_tui;
 // diff lines align under their code indentation.
 
 pub(crate) struct PatchSummaryCell {
-    pub(crate) title: String,
+    pub(crate) title: &'static str,
     pub(crate) kind: PatchKind,
     pub(crate) record: PatchRecord,
     pub(crate) parent_call_id: Option<String>,
@@ -128,7 +128,7 @@ fn diff_contains_metadata_markers_excluding_rename(diff: &str) -> bool {
         || diff.contains("new mode")
 }
 
-fn patch_kind_and_title(record: &PatchRecord) -> (PatchKind, String) {
+fn patch_kind_and_title(record: &PatchRecord) -> (PatchKind, &'static str) {
     let kind = match record.patch_type {
         HistoryPatchEventType::ApprovalRequest => PatchKind::Proposed,
         HistoryPatchEventType::ApplyBegin { .. } => PatchKind::ApplyBegin,
@@ -138,15 +138,15 @@ fn patch_kind_and_title(record: &PatchRecord) -> (PatchKind, String) {
     let rename_only = patch_changes_are_rename_only(&record.changes);
     let noop_only = patch_changes_are_noop(&record.changes);
     let title = match record.patch_type {
-        HistoryPatchEventType::ApprovalRequest => "proposed patch".to_string(),
-        HistoryPatchEventType::ApplyFailure => "Patch failed".to_string(),
+        HistoryPatchEventType::ApprovalRequest => "proposed patch",
+        HistoryPatchEventType::ApplyFailure => "Patch failed",
         HistoryPatchEventType::ApplyBegin { .. } | HistoryPatchEventType::ApplySuccess => {
             if rename_only {
-                "Renamed".to_string()
+                "Renamed"
             } else if noop_only {
-                "No changes".to_string()
+                "No changes"
             } else {
-                "Updated".to_string()
+                "Updated"
             }
         }
     };

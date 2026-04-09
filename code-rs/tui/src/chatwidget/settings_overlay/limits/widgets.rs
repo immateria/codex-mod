@@ -251,7 +251,7 @@ impl Widget for LimitsPaneWidget {
 
         Paragraph::new(Line::from(vec![
             Span::styled(self.title.to_string(), title_style),
-            Span::styled(" ─".to_string(), Style::default().fg(crate::colors::text_dim())),
+            Span::styled(" ─", Style::default().fg(crate::colors::text_dim())),
         ]))
         .style(Style::default().bg(crate::colors::background()))
         .render(title_area, buf);

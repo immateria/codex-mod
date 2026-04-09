@@ -231,7 +231,7 @@ impl ShellProfilesSettingsView {
                 shell.to_string(),
                 Style::default().fg(crate::colors::text()),
             ),
-            Span::styled("  •  ".to_string(), Style::default().fg(crate::colors::text_dim())),
+            Span::styled("  •  ", Style::default().fg(crate::colors::text_dim())),
             Span::styled(styles_summary, Style::default().fg(crate::colors::text_dim())),
         ];
         if self.dirty {
