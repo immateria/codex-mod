@@ -62,7 +62,7 @@ impl HistoryCell for AgentRunCell {
 
         fill_card_background(buf, render_area, &style);
         let rows = self.build_card_rows(render_area.width, &style);
-        let lines = rows_to_lines(&rows, &style, render_area.width);
+        let lines = rows_to_lines(rows, &style, render_area.width);
         let text = Text::from(lines);
 
         Paragraph::new(text)

@@ -245,7 +245,7 @@ pub(crate) fn truncate_with_ellipsis(text: &str, width: usize) -> String {
     )
 }
 
-pub(crate) fn rows_to_lines(rows: &[CardRow], _style: &CardStyle, total_width: u16) -> Vec<Line<'static>> {
+pub(crate) fn rows_to_lines(rows: Vec<CardRow>, _style: &CardStyle, total_width: u16) -> Vec<Line<'static>> {
     if total_width == 0 {
         return Vec::new();
     }
@@ -256,8 +256,8 @@ pub(crate) fn rows_to_lines(rows: &[CardRow], _style: &CardStyle, total_width: u
         0
     };
     let body_width = total_width.saturating_sub(accent_width as u16) as usize;
-    let mut lines: Vec<Line<'static>> = Vec::new();
-    for row in rows.iter() {
+    let mut lines: Vec<Line<'static>> = Vec::with_capacity(rows.len());
+    for row in rows {
         let mut spans: Vec<Span<'static>> = Vec::new();
         if accent_width > 0 {
             let accent_text = pad_icon(&row.accent, accent_width);
@@ -267,14 +267,14 @@ pub(crate) fn rows_to_lines(rows: &[CardRow], _style: &CardStyle, total_width: u
 
         let row_bg = row.body_bg;
         let mut used_width = 0;
-        for segment in &row.segments {
+        for segment in row.segments {
             let mut seg_style = segment.style;
             if let (true, Some(bg)) = (segment.inherit_background, row_bg) {
                 seg_style = seg_style.bg(bg);
             }
             let width = UnicodeWidthStr::width(&*segment.text);
             used_width += width;
-            spans.push(Span::styled(segment.text.clone(), seg_style));
+            spans.push(Span::styled(segment.text, seg_style));
         }
         if used_width < body_width {
             let filler = " ".repeat(body_width - used_width);

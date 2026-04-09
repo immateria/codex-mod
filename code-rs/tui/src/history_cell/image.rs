@@ -351,7 +351,7 @@ impl ImageOutputCell {
             self.render_plain_summary(area, buf, skip_rows);
             return;
         }
-        let lines = rows_to_lines(&rows, &style, render_area.width);
+        let lines = rows_to_lines(rows, &style, render_area.width);
         let text = Text::from(lines);
 
         Paragraph::new(text)
