@@ -349,13 +349,13 @@ impl EnvironmentContextSnapshot {
             map.insert("git_project_root", git_project_root.clone());
         }
         if let Some(policy) = &self.approval_policy {
-            map.insert("approval_policy", format!("{policy}"));
+            map.insert("approval_policy", policy.to_string());
         }
         if let Some(mode) = &self.sandbox_mode {
-            map.insert("sandbox_mode", format!("{mode}"));
+            map.insert("sandbox_mode", mode.to_string());
         }
         if let Some(access) = &self.network_access {
-            map.insert("network_access", format!("{access}"));
+            map.insert("network_access", access.to_string());
         }
         if !self.writable_roots.is_empty() {
             map.insert("writable_roots", self.writable_roots.join("|"));

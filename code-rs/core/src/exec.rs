@@ -328,15 +328,8 @@ pub async fn process_exec_tool_call_with_managed_network(
 /// For now, we conservatively check for 'command not found' (exit code 127),
 /// and can add additional cases as necessary.
 fn is_likely_sandbox_denied(sandbox_type: SandboxType, exit_code: i32) -> bool {
-    if sandbox_type == SandboxType::None {
-        return false;
-    }
-
-    match exit_code {
-        126 => true,          // found but not executable (likely permission denial)
-        1 | 2 | 127 => false, // common non-sandbox failures
-        _ => false,
-    }
+    // Exit code 126 = found but not executable (likely permission denial)
+    sandbox_type != SandboxType::None && exit_code == 126
 }
 
 #[derive(Debug, Clone)]

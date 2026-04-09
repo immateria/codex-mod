@@ -139,7 +139,7 @@ fn spawn_apply(
             },
             Err(e) => app::AppEvent::ApplyFinished {
                 id: task_id,
-                result: Err(format!("{e}")),
+                result: Err(e.to_string()),
             },
         };
 
@@ -999,7 +999,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                                     let result = code_cloud_tasks_client::CloudBackend::create_task(&*backend, &env, &text, "main", false, best_of_n).await;
                                                     let evt = match result {
                                                         Ok(ok) => app::AppEvent::NewTaskSubmitted(Ok(ok)),
-                                                        Err(e) => app::AppEvent::NewTaskSubmitted(Err(format!("{e}"))),
+                                                        Err(e) => app::AppEvent::NewTaskSubmitted(Err(e.to_string())),
                                                     };
                                                     let _ = tx.send(evt);
                                                 });
@@ -1390,7 +1390,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                                                 let _ = tx.send(evt);
                                                             }
                                                             Err(e2) => {
-                                                                let _ = tx.send(app::AppEvent::DetailsFailed { id: diff_id, title: diff_title, error: format!("{e2}") });
+                                                                let _ = tx.send(app::AppEvent::DetailsFailed { id: diff_id, title: diff_title, error: e2.to_string() });
                                                             }
                                                         }
                                                     }
@@ -1411,7 +1411,7 @@ pub async fn run_main(cli: Cli, _code_linux_sandbox_exe: Option<PathBuf>) -> any
                                                                 let _ = tx.send(evt);
                                                             }
                                                             Err(e2) => {
-                                                                let _ = tx.send(app::AppEvent::DetailsFailed { id: diff_id, title: diff_title, error: format!("{e2}") });
+                                                                let _ = tx.send(app::AppEvent::DetailsFailed { id: diff_id, title: diff_title, error: e2.to_string() });
                                                             }
                                                         }
                                                     }

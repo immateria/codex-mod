@@ -1755,11 +1755,7 @@ impl AuthManager {
     }
 
     fn auths_equal(a: &Option<CodexAuth>, b: &Option<CodexAuth>) -> bool {
-        match (a, b) {
-            (None, None) => true,
-            (Some(a), Some(b)) => a == b,
-            _ => false,
-        }
+        a == b
     }
 
     fn auths_equal_for_refresh(a: &Option<CodexAuth>, b: &Option<CodexAuth>) -> bool {

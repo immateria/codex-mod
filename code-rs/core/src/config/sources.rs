@@ -2495,11 +2495,11 @@ pub fn set_project_access_mode(
     // Write fields
     proj_tbl.insert(
         "approval_policy",
-        TomlItem::Value(toml_edit::Value::from(format!("{approval}"))),
+        TomlItem::Value(toml_edit::Value::from(approval.to_string())),
     );
     proj_tbl.insert(
         "sandbox_mode",
-        TomlItem::Value(toml_edit::Value::from(format!("{sandbox_mode}"))),
+        TomlItem::Value(toml_edit::Value::from(sandbox_mode.to_string())),
     );
 
     // Harmonize trust_level with selected access mode:
