@@ -14,14 +14,16 @@ use super::card_style::{
     CardSegment,
     CardStyle,
     CARD_ACCENT_WIDTH,
-    CARD_BORDER_TOP as BORDER_TOP,
-    CARD_BORDER_BODY as BORDER_BODY,
-    CARD_BORDER_BOTTOM as BORDER_BOTTOM,
+    BORDER_TOP,
+    BORDER_BODY,
+    BORDER_BOTTOM,
+    HINT_EXPAND,
+    HINT_EXPAND_STOP,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::colors;
 use crate::theme::{palette_mode, PaletteMode};
-use crate::ui_consts::{CARD_HINT_EXPAND, CARD_HINT_EXPAND_STOP, SEP_DOT};
+use crate::ui_consts::SEP_DOT;
 use code_common::elapsed::format_duration_digital;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;

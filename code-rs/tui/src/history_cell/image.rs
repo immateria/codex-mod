@@ -12,9 +12,9 @@ use super::card_style::{
     CardRow,
     CardStyle,
     CARD_ACCENT_WIDTH,
-    CARD_BORDER_TOP as BORDER_TOP,
-    CARD_BORDER_BODY as BORDER_BODY,
-    CARD_BORDER_BOTTOM as BORDER_BOTTOM,
+    BORDER_TOP,
+    BORDER_BODY,
+    BORDER_BOTTOM,
 };
 use super::*;
 use crate::colors;

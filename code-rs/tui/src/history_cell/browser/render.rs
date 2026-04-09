@@ -19,10 +19,10 @@ use super::super::card_style::{
     CardRow,
     CardSegment,
     CardStyle,
+    HINT_BROWSER_STOP,
 };
 use crate::text_formatting::split_long_word;
 use crate::colors;
-use crate::ui_consts::CARD_HINT_BROWSER_STOP;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Style;
@@ -235,7 +235,7 @@ impl BrowserSessionCell {
         }
 
         rows.push(blank_border_row(BORDER_BODY, body_width, style));
-        rows.push(bottom_border_row_with_hint(BORDER_BOTTOM, CARD_HINT_BROWSER_STOP, body_width, style));
+        rows.push(bottom_border_row_with_hint(BORDER_BOTTOM, HINT_BROWSER_STOP, body_width, style));
 
         (rows, screenshot_layout)
     }

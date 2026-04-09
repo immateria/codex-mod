@@ -346,9 +346,9 @@ impl AgentRunCell {
             .any(|agent| matches!(agent.status_kind, AgentStatusKind::Running | AgentStatusKind::Pending));
 
         let hint = if has_running_agents {
-            CARD_HINT_EXPAND_STOP
+            HINT_EXPAND_STOP
         } else {
-            CARD_HINT_EXPAND
+            HINT_EXPAND
         };
         bottom_border_row_with_hint(BORDER_BOTTOM, hint, body_width, style)
     }

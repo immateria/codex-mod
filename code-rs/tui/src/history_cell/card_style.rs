@@ -74,11 +74,17 @@ pub(crate) fn card_body_width(total_width: u16) -> Option<usize> {
     if body == 0 { None } else { Some(body) }
 }
 
-pub(crate) const CARD_BORDER_TOP: &str = "╭─";
-pub(crate) const CARD_BORDER_BODY: &str = "│";
-pub(crate) const CARD_BORDER_BOTTOM: &str = "╰─";
+pub(crate) const BORDER_TOP: &str = "╭─";
+pub(crate) const BORDER_BODY: &str = "│";
+pub(crate) const BORDER_BOTTOM: &str = "╰─";
 
-pub(crate) const CARD_HINT_SETTINGS_STOP: &str = " [Ctrl+S] Settings · [Esc] Stop";
+pub(crate) const HINT_SETTINGS_STOP: &str = " [Ctrl+S] Settings · [Esc] Stop";
+/// Agent-run expand shortcut + stop hint.
+pub(crate) const HINT_EXPAND_STOP: &str = " [Ctrl+A] Expand · [Esc] Stop";
+/// Agent-run expand shortcut (no stop — run already finished).
+pub(crate) const HINT_EXPAND: &str = " [Ctrl+A] Expand";
+/// Browser view shortcut + stop hint.
+pub(crate) const HINT_BROWSER_STOP: &str = " [Ctrl+B] View · [Esc] Stop";
 
 // Shared layout constants for image and screenshot rendering.
 pub(crate) const MEDIA_MIN_WIDTH: usize = 18;

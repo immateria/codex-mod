@@ -10,10 +10,10 @@ use super::card_style::{
     CardRow,
     CardSegment,
     CardStyle,
-    CARD_BORDER_TOP as BORDER_TOP,
-    CARD_BORDER_BODY as BORDER_BODY,
-    CARD_BORDER_BOTTOM as BORDER_BOTTOM,
-    CARD_HINT_SETTINGS_STOP as HINT_TEXT,
+    BORDER_TOP,
+    BORDER_BODY,
+    BORDER_BOTTOM,
+    HINT_SETTINGS_STOP as HINT_TEXT,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::auto_drive_style::EFFECT_WHITE;
