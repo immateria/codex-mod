@@ -179,8 +179,8 @@ pub(crate) async fn apply_patch(
         apply_changes_from_apply_patch_and_report(&action, &mut stdout, &mut stderr, &StdFileSystem).await
     };
 
-    let stdout = String::from_utf8_lossy(&stdout).to_string();
-    let stderr = String::from_utf8_lossy(&stderr).to_string();
+    let stdout = String::from_utf8_lossy(&stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&stderr).into_owned();
     let success = result.is_ok();
 
     ApplyPatchResult::Applied(ApplyPatchRun {

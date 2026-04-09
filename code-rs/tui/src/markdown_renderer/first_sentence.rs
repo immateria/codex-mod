@@ -27,8 +27,21 @@ fn apply_first_sentence_style(spans: &mut Vec<Span<'static>>) -> bool {
                 continue;
             }
             if i >= 3 {
-                let tail: String = chars[i - 3..=i].iter().collect::<String>().to_lowercase();
-                if tail == "e.g." || tail == "i.e." {
+                let window = &chars[i - 3..=i];
+                if window.len() == 4
+                    && window[0].eq_ignore_ascii_case(&'e')
+                    && window[1] == '.'
+                    && window[2].eq_ignore_ascii_case(&'g')
+                    && window[3] == '.'
+                {
+                    continue;
+                }
+                if window.len() == 4
+                    && window[0].eq_ignore_ascii_case(&'i')
+                    && window[1] == '.'
+                    && window[2].eq_ignore_ascii_case(&'e')
+                    && window[3] == '.'
+                {
                     continue;
                 }
             }

@@ -762,7 +762,14 @@ pub(crate) fn new_status_output(
                 let mut chars = w.chars();
                 match chars.next() {
                     None => String::new(),
-                    Some(f) => f.to_uppercase().collect::<String>() + chars.as_str(),
+                    Some(f) => {
+                        let mut result = String::with_capacity(w.len());
+                        for c in f.to_uppercase() {
+                            result.push(c);
+                        }
+                        result.push_str(chars.as_str());
+                        result
+                    }
                 }
             })
             .collect::<Vec<_>>()

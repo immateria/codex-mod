@@ -524,8 +524,7 @@ pub(crate) fn select_preview_from_lines(
     tail: usize,
 ) -> Vec<Line<'static>> {
     fn is_non_empty(l: &Line<'_>) -> bool {
-        let s: String = l.spans.iter().map(|sp| sp.content.as_ref()).collect();
-        !s.trim().is_empty()
+        l.spans.iter().any(|sp| !sp.content.trim().is_empty())
     }
     let non_empty_idx: Vec<usize> = lines
         .iter()
@@ -587,9 +586,9 @@ fn is_title_line(line: &Line) -> bool {
             | "reasoning effort"
             | "error"
     ) || text.starts_with("…")
-        || text.starts_with(&crate::icons::status_ok().to_lowercase())
-        || text.starts_with(&crate::icons::status_fail().to_lowercase())
-        || text.starts_with(&crate::icons::gutter_patch().to_lowercase())
+        || text.starts_with(&crate::icons::status_ok())
+        || text.starts_with(&crate::icons::status_fail())
+        || text.starts_with(&crate::icons::gutter_patch())
         || text.starts_with("proposed patch")
         || text.starts_with("applying patch")
         || text.starts_with("updating")

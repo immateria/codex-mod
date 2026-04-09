@@ -258,19 +258,25 @@ fn format_action_entry(action: &BrowserAction, time_label: String) -> ActionEntr
 }
 
 fn titleize_action(raw: &str) -> String {
-    let mut words: Vec<String> = Vec::new();
-    for segment in raw.split(['_', '-']).filter(|part| !part.is_empty()) {
+    let mut result = String::new();
+    for (i, segment) in raw.split(['_', '-']).filter(|part| !part.is_empty()).enumerate() {
+        if i > 0 {
+            result.push(' ');
+        }
         let mut chars = segment.chars();
         if let Some(first) = chars.next() {
-            let first_upper = first.to_uppercase().collect::<String>();
-            let rest = chars.as_str().to_ascii_lowercase();
-            words.push(format!("{first_upper}{rest}"));
+            for c in first.to_uppercase() {
+                result.push(c);
+            }
+            for c in chars {
+                result.push(c.to_ascii_lowercase());
+            }
         }
     }
-    if words.is_empty() {
+    if result.is_empty() {
         raw.to_string()
     } else {
-        words.join(" ")
+        result
     }
 }
 
