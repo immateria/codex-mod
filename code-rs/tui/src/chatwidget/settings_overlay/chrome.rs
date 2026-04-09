@@ -242,7 +242,7 @@ pub(crate) use imp::ChromeSettingsContent;
 mod android_stub {
     use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
     use ratatui::buffer::Buffer;
-    use ratatui::layout::{Alignment, Margin, Rect};
+    use ratatui::layout::{Alignment, Rect};
     use ratatui::style::{Modifier, Style};
     use ratatui::text::{Line, Span};
     use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};

@@ -157,9 +157,8 @@ impl PlainHistoryCell {
             .unwrap_or_default();
         let preview = crate::text_formatting::truncate_chars_with_ellipsis(first_line.trim(), 72);
         let dim = Style::new().fg(crate::colors::text_dim());
+        // Fold icon is rendered in the gutter by cell_paint
         Line::from(vec![
-            Span::styled(crate::icons::collapse_closed(), dim),
-            Span::styled(" ", dim),
             Span::styled(preview, dim),
         ])
     }

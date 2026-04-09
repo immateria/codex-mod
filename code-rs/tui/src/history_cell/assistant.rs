@@ -167,7 +167,7 @@ impl AssistantMarkdownCell {
             ));
         }
 
-        // Line 2: ▶ content preview
+        // Line 2: content preview (fold icon is rendered in the gutter)
         let md = &self.state.markdown;
         let first_line = md.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
         let preview = crate::text_formatting::truncate_chars_with_ellipsis(first_line.trim(), 72);
@@ -175,8 +175,6 @@ impl AssistantMarkdownCell {
         vec![
             Line::from(header_spans),
             Line::from(vec![
-                Span::styled(crate::icons::collapse_closed(), dim),
-                Span::styled(" ", dim),
                 Span::styled(preview, dim),
             ]),
         ]

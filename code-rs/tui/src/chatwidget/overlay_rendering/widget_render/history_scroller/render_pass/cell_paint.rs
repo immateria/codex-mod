@@ -670,7 +670,6 @@ impl ChatWidget<'_> {
                             .fg(crate::colors::primary())
                     } else {
                         Style::default()
-                            .bg(crate::colors::border())
                             .fg(crate::colors::text_bright())
                     };
                     buf.set_string(px, py, icon, icon_style);

@@ -2,6 +2,27 @@ use super::*;
 
 impl ChatWidget<'_> {
     pub(in super::super::super) fn on_error(&mut self, message: String) {
+        // MCP startup failures must be checked first — their messages often
+        // contain "transport"/"connection" keywords that would otherwise match
+        // the transient heuristic below and cause infinite "Auto-retrying…".
+        if self.is_startup_mcp_error(&message) {
+            // Ensure reconnect banners are cleared if one was active.
+            if self.reconnect_notice_active {
+                self.reconnect_notice_active = false;
+                self.reconnect_notice_started_at = None;
+                self.bottom_pane.update_status_text(String::new());
+            }
+            self.clear_resume_placeholder();
+            let summarized = Self::summarize_startup_mcp_error(&message);
+            self.startup_mcp_error_summary = Some(summarized.clone());
+            self.bottom_pane.flash_footer_notice_for(
+                summarized,
+                Duration::from_secs(10),
+            );
+            self.mark_needs_redraw();
+            return;
+        }
+
         // Treat transient stream errors (which the core will retry) differently
         // from fatal errors so the status spinner remains visible while we wait.
         let lower = message.to_lowercase();
@@ -29,18 +50,6 @@ impl ChatWidget<'_> {
             self.reconnect_notice_started_at = None;
             self.bottom_pane.update_status_text(String::new());
             self.request_redraw();
-        }
-
-        if self.is_startup_mcp_error(&message) {
-            self.clear_resume_placeholder();
-            let summarized = Self::summarize_startup_mcp_error(&message);
-            self.startup_mcp_error_summary = Some(summarized.clone());
-            self.bottom_pane.flash_footer_notice_for(
-                summarized,
-                Duration::from_secs(10),
-            );
-            self.mark_needs_redraw();
-            return;
         }
 
         // Error path: show an error cell and clear running state.
