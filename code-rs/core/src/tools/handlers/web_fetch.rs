@@ -23,6 +23,58 @@ const JS_EXEC_TIMEOUT: Duration = Duration::from_millis(1500);
 /// Sleep between browser readiness polls.
 #[cfg(feature = "browser-automation")]
 const READINESS_POLL_INTERVAL: Duration = Duration::from_millis(800);
+/// Maximum number of readiness poll iterations.
+#[cfg(feature = "browser-automation")]
+const READINESS_POLL_ROUNDS: usize = 6;
+/// JS snippet that checks whether structured content has loaded.
+#[cfg(feature = "browser-automation")]
+const CHECK_JS: &str = r#"(function(){
+  const discuss = document.querySelectorAll('[data-test-selector="issue-comment-body"]');
+  const timeline = document.querySelectorAll('.js-timeline-item');
+  const article = document.querySelectorAll('article, main');
+  return (discuss.length + timeline.length + article.length);
+})()"#;
+/// JS snippet that extracts the full outer HTML and title.
+#[cfg(feature = "browser-automation")]
+const HTML_JS: &str =
+    "(function(){ return { html: document.documentElement.outerHTML, title: document.title||'' }; })()";
+
+/// Poll up to [`READINESS_POLL_ROUNDS`] times until the page has structured
+/// content (discussion bodies, timeline items, articles).
+#[cfg(feature = "browser-automation")]
+async fn poll_content_readiness(manager: &BrowserManager, label: &str) {
+    for _ in 0..READINESS_POLL_ROUNDS {
+        match tokio::time::timeout(JS_EXEC_TIMEOUT, manager.execute_javascript(CHECK_JS)).await {
+            Ok(Ok(val)) => {
+                let count = val
+                    .get("value")
+                    .and_then(serde_json::Value::as_i64)
+                    .unwrap_or(0);
+                if count > 0 {
+                    return;
+                }
+            }
+            Ok(Err(e)) => {
+                tracing::debug!("{label} readiness check failed: {e}");
+                return;
+            }
+            Err(_) => {
+                tracing::debug!("{label} readiness check timed out");
+                return;
+            }
+        }
+        tokio::time::sleep(READINESS_POLL_INTERVAL).await;
+    }
+}
+
+/// Extract the outer HTML string from the JS evaluation result.
+#[cfg(feature = "browser-automation")]
+fn extract_html(val: &serde_json::Value) -> Option<&str> {
+    val.get("value")
+        .and_then(|v| v.get("html"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty())
+}
 
 pub(crate) struct WebFetchToolHandler;
 
@@ -114,15 +166,6 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 let manager = BrowserManager::new(config);
                 manager.set_enabled_sync(true);
 
-                const CHECK_JS: &str = r#"(function(){
-  const discuss = document.querySelectorAll('[data-test-selector=\"issue-comment-body\"]');
-  const timeline = document.querySelectorAll('.js-timeline-item');
-  const article = document.querySelectorAll('article, main');
-  return (discuss.length + timeline.length + article.length);
-})()"#;
-                const HTML_JS: &str =
-                    "(function(){ return { html: document.documentElement.outerHTML, title: document.title||'' }; })()";
-
                 let goto_result = match tokio::time::timeout(timeout, manager.goto(url)).await {
                     Ok(Ok(res)) => res,
                     Ok(Err(e)) => {
@@ -135,28 +178,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     }
                 };
 
-                for _ in 0..6 {
-                    match tokio::time::timeout(JS_EXEC_TIMEOUT, manager.execute_javascript(CHECK_JS)).await {
-                        Ok(Ok(val)) => {
-                            let count = val
-                                .get("value")
-                                .and_then(serde_json::Value::as_i64)
-                                .unwrap_or(0);
-                            if count > 0 {
-                                break;
-                            }
-                        }
-                        Ok(Err(e)) => {
-                            tracing::debug!("Headless readiness check failed: {}", e);
-                            break;
-                        }
-                        Err(_) => {
-                            tracing::debug!("Headless readiness check timed out");
-                            break;
-                        }
-                    }
-                    tokio::time::sleep(READINESS_POLL_INTERVAL).await;
-                }
+                poll_content_readiness(&manager, "Headless").await;
 
                 let html_value = match tokio::time::timeout(timeout, manager.execute_javascript(HTML_JS)).await {
                     Ok(Ok(val)) => val,
@@ -170,19 +192,15 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                     }
                 };
 
-                let html = html_value
-                    .get("value")
-                    .and_then(|v| v.get("html"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
+                let html = match extract_html(&html_value) {
+                    Some(h) => h.to_string(),
+                    None => {
+                        let _ = manager.stop().await;
+                        return Err("Headless browser returned empty HTML".to_string());
+                    }
+                };
 
-                if html.trim().is_empty() {
-                    let _ = manager.stop().await;
-                    return Err("Headless browser returned empty HTML".to_string());
-                }
-
-                let final_url = Some(goto_result.url.clone());
+                let final_url = Some(goto_result.url);
                 let _ = manager.stop().await;
 
                 Ok(BrowserFetchOutcome {
@@ -200,50 +218,16 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 proxy_server: Option<&str>,
                 proxy_authorization: Option<&str>,
             ) -> Option<BrowserFetchOutcome> {
-                const HTML_JS: &str =
-                    "(function(){ return { html: document.documentElement.outerHTML, title: document.title||'' }; })()";
-                const CHECK_JS: &str = r#"(function(){
-  const discuss = document.querySelectorAll('[data-test-selector=\"issue-comment-body\"]');
-  const timeline = document.querySelectorAll('.js-timeline-item');
-  const article = document.querySelectorAll('article, main');
-  return (discuss.length + timeline.length + article.length);
-})()"#;
-
                 if prefer_global
                     && let Some(manager) = code_browser::global::get_browser_manager().await {
                         if manager.is_enabled_sync() {
                             match tokio::time::timeout(timeout, manager.goto(url)).await {
                                 Ok(Ok(res)) => {
-                                    for _ in 0..6 {
-                                        match tokio::time::timeout(JS_EXEC_TIMEOUT, manager.execute_javascript(CHECK_JS)).await {
-                                            Ok(Ok(val)) => {
-                                                let count = val
-                                                    .get("value")
-                                                    .and_then(serde_json::Value::as_i64)
-                                                    .unwrap_or(0);
-                                                if count > 0 {
-                                                    break;
-                                                }
-                                            }
-                                            Ok(Err(e)) => {
-                                                tracing::debug!("Global browser readiness check failed: {}", e);
-                                                break;
-                                            }
-                                            Err(_) => {
-                                                tracing::debug!("Global browser readiness timed out");
-                                                break;
-                                            }
-                                        }
-                                        tokio::time::sleep(READINESS_POLL_INTERVAL).await;
-                                    }
+                                    poll_content_readiness(&manager, "Global browser").await;
 
                                     match tokio::time::timeout(timeout, manager.execute_javascript(HTML_JS)).await {
                                         Ok(Ok(val)) => {
-                                            if let Some(html) = val
-                                                .get("value")
-                                                .and_then(|v| v.get("html"))
-                                                .and_then(|v| v.as_str())
-                                                && !html.trim().is_empty() {
+                                            if let Some(html) = extract_html(&val) {
                                                     return Some(BrowserFetchOutcome {
                                                         html: html.to_string(),
                                                         final_url: Some(res.url.clone()),
@@ -252,7 +236,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                                                 }
                                         }
                                         Ok(Err(e)) => {
-                                            tracing::debug!("Global browser HTML extraction failed: {}", e);
+                                            tracing::debug!("Global browser HTML extraction failed: {e}");
                                         }
                                         Err(_) => {
                                             tracing::debug!("Global browser HTML extraction timed out");
@@ -260,7 +244,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                                     }
                                 }
                                 Ok(Err(e)) => {
-                                    tracing::warn!("Global browser navigation failed: {}", e);
+                                    tracing::warn!("Global browser navigation failed: {e}");
                                 }
                                 Err(_) => {
                                     tracing::warn!("Global browser navigation timed out");
@@ -274,7 +258,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 match fetch_html_via_headless_browser(url, timeout, proxy_server, proxy_authorization).await {
                     Ok(outcome) => Some(outcome),
                     Err(err) => {
-                        tracing::warn!("Headless browser fallback failed for {}: {}", url, err);
+                        tracing::warn!("Headless browser fallback failed for {url}: {err}");
                         None
                     }
                 }

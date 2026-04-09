@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -257,7 +258,7 @@ impl BottomPaneView<'_> for ListSelectionView {
             let sub_h = subtitle_rows;
             if sub_h > 0 {
                 let subtitle_area = Rect { x: inner.x.saturating_add(1), y: next_y, width: content_width, height: sub_h };
-                Paragraph::new(sub.clone())
+                Paragraph::new(sub.as_str())
                     .style(Style::default().fg(crate::colors::text_dim()))
                     .render(subtitle_area, buf);
                 next_y = next_y.saturating_add(sub_h);
@@ -290,12 +291,12 @@ impl BottomPaneView<'_> for ListSelectionView {
                 } else {
                     " "
                 };
-                let name_with_marker = if it.is_current {
-                    format!("{} (current)", it.name)
+                let name_with_marker: Cow<str> = if it.is_current {
+                    Cow::Owned(format!("{} (current)", it.name))
                 } else {
-                    it.name.clone()
+                    Cow::Borrowed(&it.name)
                 };
-                let display_name = format!("{} {}. {}", prefix, i + 1, name_with_marker);
+                let display_name = format!("{prefix} {}. {name_with_marker}", i + 1);
                 GenericDisplayRow {
                     name: display_name,
                     match_indices: None,
