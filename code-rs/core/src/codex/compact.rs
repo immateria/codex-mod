@@ -258,7 +258,7 @@ pub(super) async fn perform_compaction(
 ) -> CodexResult<()> {
     // Convert core InputItem -> ResponseInputItem using the same logic as the main turn flow
     let initial_input_for_turn: ResponseInputItem = response_input_from_core_items(input);
-    let mut turn_input = sess.turn_input_with_history(vec![initial_input_for_turn.clone().into()]);
+    let mut turn_input = sess.turn_input_with_history(vec![initial_input_for_turn.into()]);
 
     turn_input = sanitize_items_for_compact(turn_input);
 
@@ -434,7 +434,7 @@ async fn run_compact_task_inner_inline(
 ) -> Vec<ResponseItem> {
     // Convert core InputItem -> ResponseInputItem and build prompt
     let initial_input_for_turn: ResponseInputItem = response_input_from_core_items(input);
-    let mut turn_input = sess.turn_input_with_history(vec![initial_input_for_turn.clone().into()]);
+    let mut turn_input = sess.turn_input_with_history(vec![initial_input_for_turn.into()]);
 
     turn_input = sanitize_items_for_compact(turn_input);
 

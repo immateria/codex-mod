@@ -544,7 +544,7 @@ index {ZERO_OID}..{right_oid}
         let update_changes = HashMap::from([(
             file.clone(),
             FileChange::Update {
-                unified_diff: "".to_owned(),
+                unified_diff: String::new(),
                 move_path: None,
                 original_content: String::new(),
                 new_content: String::new(),
@@ -616,7 +616,7 @@ index {left_oid}..{ZERO_OID}
         let mv_changes = HashMap::from([(
             src.clone(),
             FileChange::Update {
-                unified_diff: "".to_owned(),
+                unified_diff: String::new(),
                 move_path: Some(dest.clone()),
                 original_content: String::new(),
                 new_content: String::new(),
@@ -658,7 +658,7 @@ index {left_oid}..{right_oid}
         let mv_changes = HashMap::from([(
             src.clone(),
             FileChange::Update {
-                unified_diff: "".to_owned(),
+                unified_diff: String::new(),
                 move_path: Some(dest.clone()),
                 original_content: String::new(),
                 new_content: String::new(),
@@ -724,7 +724,7 @@ index {ZERO_OID}..{right_oid}
         let update_a = HashMap::from([(
             a.clone(),
             FileChange::Update {
-                unified_diff: "".to_owned(),
+                unified_diff: String::new(),
                 move_path: None,
                 original_content: String::new(),
                 new_content: String::new(),
@@ -801,7 +801,7 @@ index {left_oid_b}..{ZERO_OID}
         let update_changes = HashMap::from([(
             file.clone(),
             FileChange::Update {
-                unified_diff: "".to_owned(),
+                unified_diff: String::new(),
                 move_path: None,
                 original_content: String::new(),
                 new_content: String::new(),
@@ -869,7 +869,7 @@ index {ZERO_OID}..{right_oid}
         let update_changes = HashMap::from([(
             file.clone(),
             FileChange::Update {
-                unified_diff: "".to_owned(),
+                unified_diff: String::new(),
                 move_path: None,
                 original_content: String::new(),
                 new_content: String::new(),

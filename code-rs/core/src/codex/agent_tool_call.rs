@@ -696,12 +696,11 @@ pub(crate) async fn handle_run_agent(
 
             // Collect requested models from the `models` field.
             let explicit_models = params.models.iter().any(|model| !model.trim().is_empty());
-            let raw_models: Vec<String> = params.models.clone();
 
             // Split comma-delimited strings, trim whitespace, and deduplicate case-insensitively.
             let mut seen_models = HashSet::new();
             let mut models: Vec<String> = Vec::new();
-            for entry in raw_models {
+            for entry in &params.models {
                 for candidate in entry.split(',') {
                     let trimmed = candidate.trim();
                     if trimmed.is_empty() {

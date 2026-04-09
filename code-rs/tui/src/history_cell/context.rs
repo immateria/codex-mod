@@ -182,8 +182,8 @@ fn build_delta_line(delta: &ContextDeltaRecord, primary: Style, dim: Style) -> L
     spans.push(Span::styled(field.to_string(), primary));
     spans.push(Span::styled(": ", dim));
 
-    let previous = delta.previous.clone().unwrap_or_else(|| "—".to_string());
-    let current = delta.current.clone().unwrap_or_else(|| "—".to_string());
+    let previous = delta.previous.as_deref().unwrap_or("—").to_string();
+    let current = delta.current.as_deref().unwrap_or("—").to_string();
 
     spans.push(Span::styled(previous, dim));
     spans.push(Span::styled(" → ", dim));
