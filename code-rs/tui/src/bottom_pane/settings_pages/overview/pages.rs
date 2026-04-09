@@ -1,4 +1,3 @@
-use ratatui::layout::Margin;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
@@ -13,7 +12,7 @@ impl SettingsOverviewView {
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
         SettingsMenuPage::new(
             "Settings",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             Vec::new(),
             vec![Line::from(vec![Span::styled(
                 self.selected_section()

@@ -44,6 +44,11 @@ impl SettingsPanelStyle {
         }
     }
 
+    /// `bottom_pane()` with the standard horizontal padding `Margin::new(1, 0)`.
+    pub(crate) fn bottom_pane_padded() -> Self {
+        Self::bottom_pane().with_margin(Margin::new(1, 0))
+    }
+
     pub(crate) fn with_margin(mut self, margin: Margin) -> Self {
         self.content_margin = margin;
         self
@@ -134,7 +139,7 @@ mod tests {
     fn layout_and_render_match_content_rect() {
         let panel = SettingsPanel::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
         );
         let area = Rect::new(0, 0, 20, 6);
         let layout = panel.layout(area).expect("layout");
@@ -147,7 +152,7 @@ mod tests {
     fn with_margin_applies_once_to_content_rect() {
         let panel = SettingsPanel::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
         );
         let area = Rect::new(0, 0, 20, 6);
         let layout = panel.layout(area).expect("layout");

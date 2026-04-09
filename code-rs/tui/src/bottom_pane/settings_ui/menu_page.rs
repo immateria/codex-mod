@@ -537,7 +537,7 @@ mod tests {
     fn render_shell_and_layout_agree() {
         let page = SettingsMenuPage::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             vec![Line::from("header")],
             vec![Line::from("footer")],
         );
@@ -553,7 +553,7 @@ mod tests {
     fn selection_menu_id_uses_body_rect() {
         let page = SettingsMenuPage::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             vec![Line::from("header")],
             vec![Line::from("footer")],
         );
@@ -587,7 +587,7 @@ mod tests {
     fn shell_less_layout_matches_header_body_footer_math() {
         let page = SettingsMenuPage::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             vec![Line::from("header")],
             vec![Line::from("footer")],
         );
@@ -625,7 +625,7 @@ mod tests {
     fn render_shell_in_chrome_matches_concrete_impls() {
         let page = SettingsMenuPage::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             vec![Line::from("header")],
             vec![Line::from("footer")],
         );

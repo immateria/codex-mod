@@ -174,6 +174,9 @@ pub struct BorderGradient {
 /// Pure white used for celebration/glow effects in Auto Drive animations.
 pub(crate) const EFFECT_WHITE: Color = Color::Rgb(255, 255, 255);
 
+/// Title label shared across all Auto Drive style variants.
+const AUTO_DRIVE_TITLE: &str = "Auto Drive";
+
 fn auto_drive_accent_color() -> Color {
     if colors::is_dark_theme() {
         card_theme::auto_drive_dark_theme().theme.gradient.left
@@ -187,7 +190,7 @@ fn sentinel_style() -> AutoDriveStyle {
     let accent = auto_drive_accent_color();
     AutoDriveStyle {
         frame: FrameStyle {
-            title_text: "Auto Drive",
+            title_text: AUTO_DRIVE_TITLE,
             title_style: Style::default()
                 .fg(colors::text())
                 .add_modifier(Modifier::BOLD),
@@ -220,7 +223,7 @@ fn whisper_style() -> AutoDriveStyle {
     let border = colors::border_dim();
     AutoDriveStyle {
         frame: FrameStyle {
-            title_text: "Auto Drive",
+            title_text: AUTO_DRIVE_TITLE,
             title_style: Style::default()
                 .fg(colors::text_dim())
                 .add_modifier(Modifier::ITALIC),
@@ -250,7 +253,7 @@ fn whisper_style() -> AutoDriveStyle {
 fn beacon_style() -> AutoDriveStyle {
     AutoDriveStyle {
         frame: FrameStyle {
-            title_text: "Auto Drive",
+            title_text: AUTO_DRIVE_TITLE,
             title_style: Style::default()
                 .fg(colors::keyword())
                 .add_modifier(Modifier::BOLD),
@@ -283,7 +286,7 @@ fn horizon_style() -> AutoDriveStyle {
     let info = colors::info();
     AutoDriveStyle {
         frame: FrameStyle {
-            title_text: "Auto Drive",
+            title_text: AUTO_DRIVE_TITLE,
             title_style: Style::default()
                 .fg(info)
                 .add_modifier(Modifier::BOLD),
@@ -318,7 +321,7 @@ fn pulse_style() -> AutoDriveStyle {
     let success = colors::success();
     AutoDriveStyle {
         frame: FrameStyle {
-            title_text: "Auto Drive",
+            title_text: AUTO_DRIVE_TITLE,
             title_style: Style::default()
                 .fg(success)
                 .add_modifier(Modifier::BOLD),

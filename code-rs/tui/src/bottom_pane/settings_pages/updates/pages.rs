@@ -1,4 +1,3 @@
-use ratatui::layout::Margin;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
@@ -51,7 +50,7 @@ impl UpdateSettingsView {
     pub(super) fn page(&self) -> SettingsMenuPage<'static> {
         SettingsMenuPage::new(
             Self::PANEL_TITLE,
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             self.header_lines(),
             Vec::new(),
         )

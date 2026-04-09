@@ -109,7 +109,6 @@ impl OnboardingScreen {
             event_tx: event_tx.clone(),
             chat_widget_args: shared_chat_args,
         })));
-        // TODO: add git warning.
         Self { event_tx, steps }
     }
 

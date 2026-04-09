@@ -154,7 +154,7 @@ mod tests {
     fn compact_and_split_switch_at_thresholds() {
         let page = SettingsListDetailPage::new(
             "Accounts",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             1,
             1,
             30,

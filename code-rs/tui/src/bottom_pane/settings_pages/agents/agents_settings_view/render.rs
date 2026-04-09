@@ -22,7 +22,7 @@ use super::model::{Focus, SubagentEditorView};
 
 impl SubagentEditorView {
     fn panel_style() -> SettingsPanelStyle {
-        SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0))
+        SettingsPanelStyle::bottom_pane_padded()
     }
 
     fn header_lines(&self) -> Vec<Line<'static>> {

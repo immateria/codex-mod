@@ -368,7 +368,7 @@ mod tests {
     fn layout_and_render_match_action_rects() {
         let page = SettingsActionPage::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             vec![Line::from("header")],
             vec![Line::from("footer")],
         );
@@ -387,7 +387,7 @@ mod tests {
     fn layout_places_status_above_actions_and_footer_below() {
         let page = SettingsActionPage::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             vec![],
             vec![Line::from("footer")],
         )
@@ -447,7 +447,7 @@ mod tests {
     fn action_hit_testing_uses_action_row_geometry() {
         let page = SettingsActionPage::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             vec![],
             vec![],
         );

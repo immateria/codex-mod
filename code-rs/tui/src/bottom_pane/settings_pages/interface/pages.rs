@@ -1,6 +1,5 @@
 use super::*;
 
-use ratatui::layout::Margin;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 
@@ -14,7 +13,7 @@ use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 
 impl InterfaceSettingsView {
     fn panel_style() -> SettingsPanelStyle {
-        SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0))
+        SettingsPanelStyle::bottom_pane_padded()
     }
 
     pub(super) fn main_page(&self) -> SettingsMenuPage<'static> {

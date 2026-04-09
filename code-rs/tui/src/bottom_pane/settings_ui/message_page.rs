@@ -161,7 +161,7 @@ mod tests {
     fn layout_and_render_agree() {
         let page = SettingsMessagePage::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             vec![Line::from("header")],
             vec![Line::from("body")],
             vec![Line::from("footer")],
@@ -195,7 +195,7 @@ mod tests {
     fn content_only_layout_and_render_agree() {
         let page = SettingsMessagePage::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             vec![Line::from("header")],
             vec![Line::from("body")],
             vec![Line::from("footer")],

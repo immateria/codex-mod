@@ -148,7 +148,7 @@ mod tests {
     fn render_produces_expected_section_rects() {
         let panel = SettingsSectionedPanel::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             1,
             1,
         );
@@ -164,7 +164,7 @@ mod tests {
     fn margin_applies_before_section_split() {
         let panel = SettingsSectionedPanel::new(
             "Test",
-            SettingsPanelStyle::bottom_pane().with_margin(Margin::new(1, 0)),
+            SettingsPanelStyle::bottom_pane_padded(),
             1,
             1,
         );
