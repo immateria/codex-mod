@@ -36,7 +36,7 @@ impl BackgroundEventCell {
 
         if !self.state.description.trim().is_empty() {
             if !lines.is_empty() {
-                lines.push(Line::from(String::new()));
+                lines.push(Line::from(""));
             }
             for line in self.state.description.lines() {
                 lines.push(Line::from(Span::styled(line.to_string(), dim_style)));
@@ -44,7 +44,7 @@ impl BackgroundEventCell {
         }
 
         if lines.is_empty() {
-            lines.push(Line::from(String::new()));
+            lines.push(Line::from(""));
         }
 
         lines

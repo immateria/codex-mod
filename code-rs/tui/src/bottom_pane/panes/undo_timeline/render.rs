@@ -96,7 +96,7 @@ impl UndoTimelineView {
                     Style::default().bg(crate::colors::selection()),
                 )));
             } else {
-                lines.push(Line::from(String::new()));
+                lines.push(Line::from(""));
             }
         }
 

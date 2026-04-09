@@ -116,7 +116,7 @@ fn build_lines(record: &ContextRecord) -> Vec<Line<'static>> {
     }
 
     if lines.is_empty() {
-        lines.push(Line::from(String::new()));
+        lines.push(Line::from(""));
     }
 
     lines

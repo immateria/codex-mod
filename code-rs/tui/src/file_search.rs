@@ -92,7 +92,7 @@ impl FileSearchManager {
     }
 
     /// Call whenever the user edits the `@` token.
-    pub fn on_user_query(&self, query: String) {
+    pub fn on_user_query(&self, query: &str) {
         {
             let mut st = lock_search_state(&self.state);
             if query == st.latest_query {

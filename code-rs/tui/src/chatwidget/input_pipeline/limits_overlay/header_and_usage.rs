@@ -40,7 +40,7 @@ impl ChatWidget<'_> {
             format!("(API would cost {formatted_cost})")
         };
 
-        lines.push(RtLine::from(String::new()));
+        lines.push(RtLine::from(""));
 
         lines.push(RtLine::from(vec![
             RtSpan::raw(status_field_prefix("Type")),

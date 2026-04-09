@@ -913,7 +913,7 @@ fn sections_to_ratatui_lines(
                     }
                     out.push(Line::from(line_spans));
                 }
-                ReasoningBlock::Separator => out.push(Line::from(String::new())),
+                ReasoningBlock::Separator => out.push(Line::from("")),
             }
         }
     }

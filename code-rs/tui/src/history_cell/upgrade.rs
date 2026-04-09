@@ -71,7 +71,7 @@ impl UpgradeNoticeCell {
                 highlight_style,
             ),
         ]));
-        lines.push(Line::from(vec![Span::styled(String::new(), base_style)]));
+        lines.push(Line::from(vec![Span::styled("", base_style)]));
         lines.push(Line::from(format_upgrade_message(
             &self.state.message,
             base_style,

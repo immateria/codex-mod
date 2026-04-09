@@ -586,7 +586,7 @@ impl PendingCommand {
 }
 
 fn blank_line() -> RtLine<'static> {
-    ratatui::text::Line::from(vec![ratatui::text::Span::raw(String::new())])
+    ratatui::text::Line::from("")
 }
 
 fn line_is_blank(line: &RtLine<'_>) -> bool {

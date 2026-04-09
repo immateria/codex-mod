@@ -171,7 +171,7 @@ impl LimitsSettingsContent {
                 let mut left = Vec::new();
                 if !tab.header.is_empty() {
                     left.extend(tab.header.clone());
-                    left.push(Line::from(String::new()));
+                    left.push(Line::from(""));
                 }
 
                 let summary = Self::summary_lines_without_chart_header(&view.summary_lines);
@@ -179,7 +179,7 @@ impl LimitsSettingsContent {
                 if !view.footer_lines.is_empty() {
                     let left_last_is_blank = left.last().is_none_or(Self::line_is_blank);
                     if !left_last_is_blank {
-                        left.push(Line::from(String::new()));
+                        left.push(Line::from(""));
                     }
                     left.extend(view.footer_lines.clone());
                 }
@@ -191,7 +191,7 @@ impl LimitsSettingsContent {
                 if !tab.extra.is_empty() {
                     let right_last_is_blank = right.last().is_none_or(Self::line_is_blank);
                     if !right_last_is_blank {
-                        right.push(Line::from(String::new()));
+                        right.push(Line::from(""));
                     }
                     right.extend(tab.extra.clone());
                 }

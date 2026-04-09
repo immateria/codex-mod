@@ -212,7 +212,7 @@ impl LimitsTab {
         if !self.header.is_empty() {
             lines.extend(self.header.clone());
             if !body_lines.is_empty() {
-                lines.push(RtLine::from(String::new()));
+                lines.push(RtLine::from(""));
             }
         }
         lines.extend(body_lines);
@@ -223,7 +223,7 @@ impl LimitsTab {
                     .map(|line| line.spans.is_empty())
                     .unwrap_or(false)
             {
-                lines.push(RtLine::from(String::new()));
+                lines.push(RtLine::from(""));
             }
             lines.extend(self.extra.clone());
         }

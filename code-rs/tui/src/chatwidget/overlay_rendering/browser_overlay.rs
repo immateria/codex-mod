@@ -311,7 +311,7 @@ impl ChatWidget<'_> {
             )]));
         }
 
-        info_lines.push(RLine::from(vec![Span::raw(String::new())]));
+        info_lines.push(RLine::from(""));
         info_lines.push(RLine::from(vec![Span::styled("Actions", header_style)]));
 
         if let Some(cell) = cell_opt {
@@ -348,7 +348,7 @@ impl ChatWidget<'_> {
             )]));
         }
 
-        info_lines.push(RLine::from(vec![Span::raw(String::new())]));
+        info_lines.push(RLine::from(""));
         info_lines.push(RLine::from(vec![Span::styled(
             format!("Controls: {lr} or {ud} select screenshot • Shift+{ud} or j/k scroll actions", lr = crate::icons::nav_left_right(), ud = crate::icons::nav_up_down()),
             secondary_style,

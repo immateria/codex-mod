@@ -90,7 +90,7 @@ fn message_line_from_ratatui_line(line: Line<'static>, theme: &Theme) -> Message
 
 fn message_line_to_line(line: &MessageLine, theme: &Theme) -> Line<'static> {
     match line.kind {
-        MessageLineKind::Blank => Line::from(String::new()),
+        MessageLineKind::Blank => Line::from(""),
         _ => {
             let spans: Vec<Span<'static>> = line
                 .spans

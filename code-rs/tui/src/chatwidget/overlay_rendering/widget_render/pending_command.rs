@@ -93,7 +93,7 @@ pub(super) fn pending_command_box_lines(
         .fg(crate::colors::background());
 
     if !lines.is_empty() {
-        lines.push(ratatui::text::Line::from(vec![ratatui::text::Span::raw(String::new())]));
+        lines.push(ratatui::text::Line::from(""));
     }
 
     for (idx, line) in command_lines.iter().enumerate() {
