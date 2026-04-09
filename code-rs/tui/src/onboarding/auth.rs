@@ -383,7 +383,8 @@ impl AuthModeWidget {
         }
     }
 
-    /// TODO: Read/write from the correct hierarchy config overrides + auth json + OPENAI_API_KEY.
+    /// Check whether the user already has an API key or auth credential
+    /// configured. If so, skip straight to the "found" state.
     fn verify_api_key(&mut self) {
         if matches!(self.login_status, LoginStatus::AuthMode(AuthMode::ApiKey)) {
             // We already have an API key configured (e.g., from auth.json or env),
