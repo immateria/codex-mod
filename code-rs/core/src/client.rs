@@ -2918,7 +2918,9 @@ async fn process_sse<S>(
                 }
             }
             "response.reasoning_summary_text.done" => {}
-            _ => {}
+            other => {
+                tracing::trace!("unhandled SSE event type: {other}");
+            }
         }
     }
 }
