@@ -32,7 +32,7 @@ pub(super) async fn try_run_turn(
         .supports_parallel_tool_calls;
 
     let mut turn_latency_guard = TurnLatencyGuard::new(sess, attempt_req, prompt.as_ref());
-    let mut stream = match sess.client.clone().stream(&prompt).await {
+    let mut stream = match sess.client.stream(&prompt).await {
         Ok(stream) => stream,
         Err(e) => {
             turn_latency_guard.mark_failed(Some(format!("stream_init_failed: {e}")));
