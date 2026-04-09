@@ -1,5 +1,6 @@
 use super::card_style::{
     auto_drive_card_style,
+    card_body_width,
     hint_text_style,
     primary_text_style,
     rows_to_lines,
@@ -9,7 +10,6 @@ use super::card_style::{
     CardRow,
     CardSegment,
     CardStyle,
-    CARD_ACCENT_WIDTH,
     CARD_BORDER_TOP as BORDER_TOP,
     CARD_BORDER_BODY as BORDER_BODY,
     CARD_BORDER_BOTTOM as BORDER_BOTTOM,
@@ -214,20 +214,11 @@ impl AutoDriveCardCell {
     }
 
     fn build_card_rows(&self, width: u16, style: &CardStyle) -> Vec<CardRow> {
-        if width == 0 {
+        let Some(body_width) = card_body_width(width) else {
             return Vec::new();
-        }
-
-        let accent_width = CARD_ACCENT_WIDTH.min(width as usize);
-        let body_width = width
-            .saturating_sub(accent_width as u16)
-            .saturating_sub(1) as usize;
-        if body_width == 0 {
-            return Vec::new();
-        }
+        };
 
         let mut rows: Vec<CardRow> = Vec::new();
-
         if self.celebration_started_at.is_some() {
             rows.extend(self.build_celebration_rows(body_width, style));
             return rows;

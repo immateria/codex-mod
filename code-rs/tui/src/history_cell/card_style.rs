@@ -63,6 +63,17 @@ impl CardRow {
 
 pub(crate) const CARD_ACCENT_WIDTH: usize = 2;
 
+/// Compute the usable body width inside a card given the total available
+/// terminal columns. Returns `None` when there is no room for content.
+pub(crate) fn card_body_width(total_width: u16) -> Option<usize> {
+    if total_width == 0 {
+        return None;
+    }
+    let accent = CARD_ACCENT_WIDTH.min(total_width as usize);
+    let body = total_width.saturating_sub(accent as u16).saturating_sub(1) as usize;
+    if body == 0 { None } else { Some(body) }
+}
+
 pub(crate) const CARD_BORDER_TOP: &str = "╭─";
 pub(crate) const CARD_BORDER_BODY: &str = "│";
 pub(crate) const CARD_BORDER_BOTTOM: &str = "╰─";

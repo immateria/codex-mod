@@ -1,6 +1,7 @@
 use super::card_style::{
     ansi16_inverse_color,
     browser_card_style,
+    card_body_width,
     fill_card_background,
     hint_text_style,
     primary_text_style,
@@ -289,17 +290,9 @@ impl ImageOutputCell {
         width: u16,
         style: &CardStyle,
     ) -> (Vec<CardRow>, Option<ImagePreviewLayout>) {
-        if width == 0 {
+        let Some(body_width) = card_body_width(width) else {
             return (Vec::new(), None);
-        }
-
-        let accent_width = CARD_ACCENT_WIDTH.min(width as usize);
-        let body_width = width
-            .saturating_sub(accent_width as u16)
-            .saturating_sub(1) as usize;
-        if body_width == 0 {
-            return (Vec::new(), None);
-        }
+        };
 
         let mut rows: Vec<CardRow> = Vec::new();
         rows.push(self.top_border_row(body_width, style));

@@ -6,6 +6,7 @@ use super::super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use super::super::card_style::{
     ansi16_inverse_color,
     browser_card_style,
+    card_body_width,
     fill_card_background,
     hint_text_style,
     primary_text_style,
@@ -16,7 +17,6 @@ use super::super::card_style::{
     CardRow,
     CardSegment,
     CardStyle,
-    CARD_ACCENT_WIDTH,
 };
 use crate::text_formatting::split_long_word;
 use crate::colors;
@@ -191,17 +191,9 @@ impl BrowserSessionCell {
     }
 
     fn build_card_rows(&self, width: u16, style: &CardStyle) -> (Vec<CardRow>, Option<ScreenshotLayout>) {
-        if width == 0 {
+        let Some(body_width) = card_body_width(width) else {
             return (Vec::new(), None);
-        }
-
-        let accent_width = CARD_ACCENT_WIDTH.min(width as usize);
-        let body_width = width
-            .saturating_sub(accent_width as u16)
-            .saturating_sub(1) as usize;
-        if body_width == 0 {
-            return (Vec::new(), None);
-        }
+        };
 
         let mut rows: Vec<CardRow> = Vec::new();
         rows.push(self.top_border_row(body_width, style));

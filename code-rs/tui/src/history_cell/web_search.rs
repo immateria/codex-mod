@@ -1,5 +1,6 @@
 use super::card_style::{
     ansi16_inverse_color,
+    card_body_width,
     fill_card_background,
     hint_text_style,
     primary_text_style,
@@ -11,7 +12,6 @@ use super::card_style::{
     CardRow,
     CardSegment,
     CardStyle,
-    CARD_ACCENT_WIDTH,
     CARD_BORDER_TOP as BORDER_TOP,
     CARD_BORDER_BODY as BORDER_BODY,
     CARD_BORDER_BOTTOM as BORDER_BOTTOM,
@@ -169,17 +169,9 @@ impl WebSearchSessionCell {
     }
 
     fn build_card_rows(&self, width: u16, style: &CardStyle) -> Vec<CardRow> {
-        if width == 0 {
+        let Some(body_width) = card_body_width(width) else {
             return Vec::new();
-        }
-
-        let accent_width = CARD_ACCENT_WIDTH.min(width as usize);
-        let body_width = width
-            .saturating_sub(accent_width as u16)
-            .saturating_sub(1) as usize;
-        if body_width == 0 {
-            return Vec::new();
-        }
+        };
 
         let mut rows: Vec<CardRow> = Vec::new();
 
