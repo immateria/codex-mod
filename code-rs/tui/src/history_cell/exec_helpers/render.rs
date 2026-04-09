@@ -161,30 +161,22 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
             }
             match &*label {
                 "Search" => {
-                    let remaining = line_text.to_string();
-                    let (terms_part, path_part) = if let Some(idx) = remaining.rfind(" (in ") {
-                        (
-                            remaining[..idx].to_string(),
-                            Some(remaining[idx..].to_string()),
-                        )
-                    } else if let Some(idx) = remaining.rfind(" in ") {
-                        let suffix = &remaining[idx + 1..];
+                    let (terms_part, path_part): (&str, Option<&str>) = if let Some(idx) = line_text.rfind(" (in ") {
+                        (&line_text[..idx], Some(&line_text[idx..]))
+                    } else if let Some(idx) = line_text.rfind(" in ") {
+                        let suffix = &line_text[idx + 1..];
                         if suffix.trim_end().ends_with('/') {
-                            (
-                                remaining[..idx].to_string(),
-                                Some(remaining[idx..].to_string()),
-                            )
+                            (&line_text[..idx], Some(&line_text[idx..]))
                         } else {
-                            (remaining.clone(), None)
+                            (line_text, None)
                         }
                     } else {
-                        (remaining.clone(), None)
+                        (line_text, None)
                     };
-                    let tmp = terms_part.clone();
-                    let chunks: Vec<String> = if tmp.contains(", ") {
-                        tmp.split(", ").map(ToString::to_string).collect()
+                    let chunks: Vec<&str> = if terms_part.contains(", ") {
+                        terms_part.split(", ").collect()
                     } else {
-                        vec![tmp.clone()]
+                        vec![terms_part]
                     };
                     for (i, chunk) in chunks.iter().enumerate() {
                         if i > 0 {
@@ -209,20 +201,20 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                                 ));
                             } else {
                                 spans.push(Span::styled(
-                                    chunk.clone(),
+                                    chunk.to_string(),
                                     Style::default().fg(crate::colors::text()),
                                 ));
                             }
                         } else {
                             spans.push(Span::styled(
-                                chunk.clone(),
+                                chunk.to_string(),
                                 Style::default().fg(crate::colors::text()),
                             ));
                         }
                     }
                     if let Some(p) = path_part {
                         spans.push(Span::styled(
-                            p,
+                            p.to_string(),
                             Style::default().fg(crate::colors::text_dim()),
                         ));
                     }
@@ -467,34 +459,26 @@ fn new_parsed_command(
 
             match &*label {
                 "Search" => {
-                    let remaining = line_text.to_string();
                     // Split off optional path suffix. Support both " (in ...)" and " in <dir>/" forms.
-                    let (terms_part, path_part) = if let Some(idx) = remaining.rfind(" (in ") {
-                        (
-                            remaining[..idx].to_string(),
-                            Some(remaining[idx..].to_string()),
-                        )
-                    } else if let Some(idx) = remaining.rfind(" in ") {
-                        let suffix = &remaining[idx + 1..]; // keep leading space for styling
+                    let (terms_part, path_part): (&str, Option<&str>) = if let Some(idx) = line_text.rfind(" (in ") {
+                        (&line_text[..idx], Some(&line_text[idx..]))
+                    } else if let Some(idx) = line_text.rfind(" in ") {
+                        let suffix = &line_text[idx + 1..]; // keep leading space for styling
                         // Heuristic: treat as path if it ends with '/'
                         if suffix.trim_end().ends_with('/') {
-                            (
-                                remaining[..idx].to_string(),
-                                Some(remaining[idx..].to_string()),
-                            )
+                            (&line_text[..idx], Some(&line_text[idx..]))
                         } else {
-                            (remaining.clone(), None)
+                            (line_text, None)
                         }
                     } else {
-                        (remaining.clone(), None)
+                        (line_text, None)
                     };
                     // Tokenize terms by ", " and " and " while preserving separators
-                    let tmp = terms_part.clone();
                     // First, split by ", "
-                    let chunks: Vec<String> = if tmp.contains(", ") {
-                        tmp.split(", ").map(ToString::to_string).collect()
+                    let chunks: Vec<&str> = if terms_part.contains(", ") {
+                        terms_part.split(", ").collect()
                     } else {
-                        vec![tmp.clone()]
+                        vec![terms_part]
                     };
                     for (i, chunk) in chunks.iter().enumerate() {
                         if i > 0 {
@@ -521,13 +505,13 @@ fn new_parsed_command(
                                 ));
                             } else {
                                 spans.push(Span::styled(
-                                    chunk.clone(),
+                                    chunk.to_string(),
                                     Style::default().fg(crate::colors::text()),
                                 ));
                             }
                         } else {
                             spans.push(Span::styled(
-                                chunk.clone(),
+                                chunk.to_string(),
                                 Style::default().fg(crate::colors::text()),
                             ));
                         }
@@ -535,7 +519,7 @@ fn new_parsed_command(
                     if let Some(p) = path_part {
                         // Dim the entire path portion including the " in " or " (in " prefix
                         spans.push(Span::styled(
-                            p,
+                            p.to_string(),
                             Style::default().fg(crate::colors::text_dim()),
                         ));
                     }

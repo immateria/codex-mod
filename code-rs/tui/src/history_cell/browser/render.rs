@@ -749,27 +749,28 @@ fn wrap_line_to_width(text: &str, width: usize) -> Vec<String> {
     let mut current = String::new();
     let mut current_width = 0;
 
-    for word in text.split_whitespace() {
-        let mut word_parts = if string_display_width(word) > width {
-            split_long_card_word(word, width)
+    let push_part = |lines: &mut Vec<String>, current: &mut String, current_width: &mut usize, part: String, width: usize| {
+        let part_width = string_display_width(&part);
+        if current.is_empty() {
+            *current = part;
+            *current_width = part_width;
+        } else if *current_width + 1 + part_width > width {
+            lines.push(std::mem::replace(current, part));
+            *current_width = part_width;
         } else {
-            vec![word.to_string()]
-        };
+            current.push(' ');
+            current.push_str(&part);
+            *current_width += 1 + part_width;
+        }
+    };
 
-        for part in word_parts.drain(..) {
-            let part_width = string_display_width(part.as_str());
-            if current.is_empty() {
-                current.push_str(part.as_str());
-                current_width = part_width;
-            } else if current_width + 1 + part_width > width {
-                lines.push(current);
-                current = part.clone();
-                current_width = part_width;
-            } else {
-                current.push(' ');
-                current.push_str(part.as_str());
-                current_width += 1 + part_width;
+    for word in text.split_whitespace() {
+        if string_display_width(word) > width {
+            for part in split_long_card_word(word, width) {
+                push_part(&mut lines, &mut current, &mut current_width, part, width);
             }
+        } else {
+            push_part(&mut lines, &mut current, &mut current_width, word.to_string(), width);
         }
     }
 
@@ -789,14 +790,13 @@ fn split_long_card_word(word: &str, width: usize) -> Vec<String> {
     }
 
     let mut parts = Vec::new();
-    let mut current = String::new();
+    let mut current = String::with_capacity(width * 4);
     let mut current_width = 0;
 
     for ch in word.chars() {
         let ch_width = UnicodeWidthChar::width(ch).unwrap_or(1);
         if current_width + ch_width > width && !current.is_empty() {
-            parts.push(current);
-            current = String::new();
+            parts.push(std::mem::replace(&mut current, String::with_capacity(width * 4)));
             current_width = 0;
         }
         current.push(ch);
