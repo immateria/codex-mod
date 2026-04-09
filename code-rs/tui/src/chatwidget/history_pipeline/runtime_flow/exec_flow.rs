@@ -81,7 +81,7 @@ impl ChatWidget<'_> {
         let tx = self.app_event_tx.clone();
         let fallback_tx = tx.clone();
         if thread_spawner::spawn_lightweight("exec-flush", move || {
-            std::thread::sleep(std::time::Duration::from_millis(120));
+            std::thread::sleep(crate::timing::ANIMATION_FRAME_INTERVAL);
             tx.send(crate::app_event::AppEvent::FlushPendingExecEnds);
         })
         .is_none()

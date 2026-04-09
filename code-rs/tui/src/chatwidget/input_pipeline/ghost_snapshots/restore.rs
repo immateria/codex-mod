@@ -387,7 +387,7 @@ impl ChatWidget<'_> {
             // Fire a CommitTick after ~10s to ensure the watchdog runs even when
             // no streaming/animation is active.
             if thread_spawner::spawn_lightweight("queue-watchdog", move || {
-                std::thread::sleep(Duration::from_secs(10));
+                std::thread::sleep(crate::timing::QUEUE_WATCHDOG_TIMEOUT);
                 tx.send(crate::app_event::AppEvent::CommitTick);
             })
             .is_none()
@@ -399,7 +399,7 @@ impl ChatWidget<'_> {
                 if let Ok(handle) = tokio::runtime::Handle::try_current() {
                     let tx = self.app_event_tx.clone();
                     handle.spawn(async move {
-                        tokio::time::sleep(Duration::from_secs(10)).await;
+                        tokio::time::sleep(crate::timing::QUEUE_WATCHDOG_TIMEOUT).await;
                         tx.send(crate::app_event::AppEvent::CommitTick);
                     });
                 } else {
@@ -407,14 +407,14 @@ impl ChatWidget<'_> {
                     if std::thread::Builder::new()
                         .name("queue-watchdog-fallback".to_string())
                         .spawn(move || {
-                            std::thread::sleep(Duration::from_secs(10));
+                            std::thread::sleep(crate::timing::QUEUE_WATCHDOG_TIMEOUT);
                             tx.send(crate::app_event::AppEvent::CommitTick);
                         })
                         .is_err()
                     {
                         // No way to schedule a delayed tick; force the timer to appear expired
                         // and emit a tick now to avoid indefinite blocking.
-                        self.queue_block_started_at = Some(Instant::now() - Duration::from_secs(10));
+                        self.queue_block_started_at = Some(Instant::now() - crate::timing::QUEUE_WATCHDOG_TIMEOUT);
                         self.app_event_tx.send(crate::app_event::AppEvent::CommitTick);
                     }
                 }

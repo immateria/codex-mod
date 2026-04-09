@@ -212,7 +212,7 @@ impl ChatWidget<'_> {
             return;
         };
 
-        if started.elapsed() < Duration::from_secs(10) {
+        if started.elapsed() < crate::timing::QUEUE_WATCHDOG_TIMEOUT {
             return;
         }
 

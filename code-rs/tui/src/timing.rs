@@ -11,3 +11,7 @@ pub(crate) const REDRAW_DEBOUNCE: Duration = Duration::from_millis(33);
 /// Timeout for individual terminal escape-sequence queries (cell size, bg color,
 /// etc.) sent during startup.
 pub(crate) const TERMINAL_QUERY_TIMEOUT: Duration = Duration::from_millis(100);
+
+/// Queue-watchdog sleep — how long the ghost-snapshot queue waits before
+/// emitting a forced `CommitTick` when no streaming activity drives it.
+pub(crate) const QUEUE_WATCHDOG_TIMEOUT: Duration = Duration::from_secs(10);
