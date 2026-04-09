@@ -122,7 +122,7 @@ impl ReviewSettingsView {
             format!(
                 "{} ({})",
                 crate::text_formatting::format_model_label(&self.review_model),
-                Self::reasoning_label(self.review_reasoning)
+                crate::text_formatting::reasoning_effort_label(self.review_reasoning)
             )
         };
         runs.push(
@@ -143,7 +143,7 @@ impl ReviewSettingsView {
             format!(
                 "{} ({})",
                 crate::text_formatting::format_model_label(&self.review_resolve_model),
-                Self::reasoning_label(self.review_resolve_reasoning)
+                crate::text_formatting::reasoning_effort_label(self.review_resolve_reasoning)
             )
         };
         runs.push(
@@ -215,7 +215,7 @@ impl ReviewSettingsView {
             format!(
                 "{} ({})",
                 crate::text_formatting::format_model_label(&self.auto_review_model),
-                Self::reasoning_label(self.auto_review_reasoning)
+                crate::text_formatting::reasoning_effort_label(self.auto_review_reasoning)
             )
         };
         runs.push(
@@ -236,7 +236,7 @@ impl ReviewSettingsView {
             format!(
                 "{} ({})",
                 crate::text_formatting::format_model_label(&self.auto_review_resolve_model),
-                Self::reasoning_label(self.auto_review_resolve_reasoning)
+                crate::text_formatting::reasoning_effort_label(self.auto_review_resolve_reasoning)
             )
         };
         runs.push(
@@ -270,16 +270,5 @@ impl ReviewSettingsView {
         );
 
         runs
-    }
-
-    fn reasoning_label(effort: ReasoningEffort) -> &'static str {
-        match effort {
-            ReasoningEffort::XHigh => "XHigh",
-            ReasoningEffort::High => "High",
-            ReasoningEffort::Medium => "Medium",
-            ReasoningEffort::Low => "Low",
-            ReasoningEffort::Minimal => "Minimal",
-            ReasoningEffort::None => "None",
-        }
     }
 }

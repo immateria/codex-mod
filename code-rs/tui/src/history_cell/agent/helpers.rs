@@ -1,9 +1,4 @@
-fn string_width(text: &str) -> usize {
-    text
-        .chars()
-        .map(|ch| UnicodeWidthChar::width(ch).unwrap_or(0))
-        .sum()
-}
+use crate::text_formatting::string_display_width as string_width;
 
 fn wrap_text_to_width(text: &str, width: usize) -> Vec<String> {
     if width == 0 {

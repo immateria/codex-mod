@@ -120,7 +120,7 @@ impl AutoDriveSettingsView {
                 format!(
                     "{} · {}",
                     crate::text_formatting::format_model_label(model_label),
-                    Self::reasoning_label(self.model_reasoning)
+                    crate::text_formatting::reasoning_effort_label(self.model_reasoning)
                 )
             }
         };
@@ -204,7 +204,7 @@ impl AutoDriveSettingsView {
                 format!(
                     "{cursor}{}{}",
                     checkbox.text,
-                    Self::reasoning_label(*level).to_ascii_lowercase()
+                    crate::text_formatting::reasoning_effort_label(*level).to_ascii_lowercase()
                 )
             })
             .collect::<Vec<_>>()

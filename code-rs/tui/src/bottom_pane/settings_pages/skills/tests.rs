@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used)]
 
 use super::*;
+use std::path::PathBuf;
 use std::sync::mpsc::channel;
 
 fn make_view(profiles: HashMap<ShellScriptStyle, ShellStyleProfileConfig>) -> SkillsSettingsView {

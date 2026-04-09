@@ -1,6 +1,11 @@
 use unicode_width::UnicodeWidthChar;
 use unicode_width::UnicodeWidthStr;
 
+/// Display width of a string in terminal columns.
+pub(crate) fn string_display_width(text: &str) -> usize {
+    UnicodeWidthStr::width(text)
+}
+
 /// Truncate a tool result to fit within the given height and width. If the text is valid JSON, we format it in a
 /// compact way before truncating. This is a best-effort approach that may not work perfectly for text where one
 /// grapheme spans multiple terminal cells.
@@ -240,4 +245,35 @@ pub(crate) fn format_path_list(paths: &[std::path::PathBuf]) -> String {
         .map(|path| path.to_string_lossy().into_owned())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Human-readable label for a reasoning effort level.
+pub(crate) fn reasoning_effort_label(effort: code_core::config_types::ReasoningEffort) -> &'static str {
+    use code_core::config_types::ReasoningEffort;
+    match effort {
+        ReasoningEffort::XHigh => "XHigh",
+        ReasoningEffort::High => "High",
+        ReasoningEffort::Medium => "Medium",
+        ReasoningEffort::Low => "Low",
+        ReasoningEffort::Minimal => "Minimal",
+        ReasoningEffort::None => "None",
+    }
+}
+
+/// Parse newline-separated text into a list of paths, trimming and filtering empties.
+pub(crate) fn parse_path_list(text: &str) -> Vec<std::path::PathBuf> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(std::path::PathBuf::from)
+        .collect()
+}
+
+/// Parse newline-separated text into a list of strings, trimming and filtering empties.
+pub(crate) fn parse_string_list(text: &str) -> Vec<String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(String::from)
+        .collect()
 }

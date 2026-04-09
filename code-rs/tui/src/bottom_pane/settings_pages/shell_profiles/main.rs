@@ -1,5 +1,6 @@
 use super::*;
-use super::persistence::{parse_path_list, style_profile_is_empty};
+use super::persistence::style_profile_is_empty;
+use crate::text_formatting::parse_path_list;
 
 use crate::bottom_pane::chrome::ChromeMode;
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;

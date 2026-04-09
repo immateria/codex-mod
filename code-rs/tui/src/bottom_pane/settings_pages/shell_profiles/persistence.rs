@@ -19,8 +19,8 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn stage_pending_profile_from_fields(&mut self) {
-        let references = parse_path_list(self.references_field.text());
-        let skill_roots = parse_path_list(self.skill_roots_field.text());
+        let references = crate::text_formatting::parse_path_list(self.references_field.text());
+        let skill_roots = crate::text_formatting::parse_path_list(self.skill_roots_field.text());
         let summary = {
             let text = self.summary_field.text();
             let trimmed = text.trim();
@@ -146,14 +146,6 @@ impl ShellProfilesSettingsView {
 
 pub(super) fn normalize_list_key(value: &str) -> String {
     value.trim().to_ascii_lowercase()
-}
-
-pub(super) fn parse_path_list(text: &str) -> Vec<PathBuf> {
-    text.lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(PathBuf::from)
-        .collect()
 }
 
 pub(super) fn style_profile_is_empty(profile: &ShellStyleProfileConfig) -> bool {

@@ -158,7 +158,7 @@ impl AutoDriveSettingsView {
         let levels = entry
             .reasoning_levels
             .iter()
-            .map(|level| Self::reasoning_label(*level).to_ascii_lowercase())
+            .map(|level| crate::text_formatting::reasoning_effort_label(*level).to_ascii_lowercase())
             .collect::<Vec<_>>()
             .join("/");
         let mut description = if entry.description.trim().is_empty() {
@@ -228,17 +228,6 @@ impl AutoDriveSettingsView {
         self.cross_check_enabled = enabled;
         self.qa_automation_enabled = enabled;
         self.diagnostics_enabled = self.qa_automation_enabled && (self.review_enabled || self.cross_check_enabled);
-    }
-
-    pub(super) fn reasoning_label(effort: ReasoningEffort) -> &'static str {
-        match effort {
-            ReasoningEffort::XHigh => "XHigh",
-            ReasoningEffort::High => "High",
-            ReasoningEffort::Medium => "Medium",
-            ReasoningEffort::Low => "Low",
-            ReasoningEffort::Minimal => "Minimal",
-            ReasoningEffort::None => "None",
-        }
     }
 
     pub(super) fn cycle_continue_mode(&mut self, forward: bool) {

@@ -813,12 +813,7 @@ fn split_long_card_word(word: &str, width: usize) -> Vec<String> {
     parts
 }
 
-fn string_display_width(text: &str) -> usize {
-    text
-        .chars()
-        .map(|ch| UnicodeWidthChar::width(ch).unwrap_or(0))
-        .sum()
-}
+use crate::text_formatting::string_display_width;
 
 impl crate::chatwidget::tool_cards::ToolCardCell for BrowserSessionCell {
     fn tool_card_key(&self) -> Option<&str> {

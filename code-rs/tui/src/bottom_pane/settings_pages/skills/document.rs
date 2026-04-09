@@ -219,19 +219,3 @@ pub(super) fn format_string_list(values: &[String]) -> String {
         .collect::<Vec<_>>()
         .join("\n")
 }
-
-pub(super) fn parse_path_list(text: &str) -> Vec<PathBuf> {
-    text.lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(PathBuf::from)
-        .collect()
-}
-
-pub(super) fn parse_string_list(text: &str) -> Vec<String> {
-    text.lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(str::to_string)
-        .collect()
-}

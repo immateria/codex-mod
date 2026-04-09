@@ -18,7 +18,7 @@ impl PlanningSettingsView {
             format!(
                 "{} ({})",
                 crate::text_formatting::format_model_label(&self.planning_model),
-                Self::reasoning_label(self.planning_reasoning)
+                crate::text_formatting::reasoning_effort_label(self.planning_reasoning)
             )
         };
         vec![SettingsMenuRow::new(PlanningRow::CustomModel, "Planning model")
@@ -28,16 +28,5 @@ impl PlanningSettingsView {
 
     pub(super) fn selected_row(&self) -> Option<PlanningRow> {
         self.rows().get(self.state.selected_idx.unwrap_or(0)).copied()
-    }
-
-    fn reasoning_label(effort: code_core::config_types::ReasoningEffort) -> &'static str {
-        match effort {
-            code_core::config_types::ReasoningEffort::XHigh => "XHigh",
-            code_core::config_types::ReasoningEffort::High => "High",
-            code_core::config_types::ReasoningEffort::Medium => "Medium",
-            code_core::config_types::ReasoningEffort::Low => "Low",
-            code_core::config_types::ReasoningEffort::Minimal => "Minimal",
-            code_core::config_types::ReasoningEffort::None => "None",
-        }
     }
 }

@@ -68,8 +68,8 @@ impl SkillsSettingsView {
             return Ok(false);
         }
 
-        let references = parse_path_list(self.editor.style_references_field.text());
-        let skill_roots = parse_path_list(self.editor.style_skill_roots_field.text());
+        let references = crate::text_formatting::parse_path_list(self.editor.style_references_field.text());
+        let skill_roots = crate::text_formatting::parse_path_list(self.editor.style_skill_roots_field.text());
 
         let Some(style) = style else {
             if references.is_empty() && skill_roots.is_empty() {
@@ -107,8 +107,8 @@ impl SkillsSettingsView {
             return Ok(false);
         }
 
-        let include = parse_string_list(self.editor.style_mcp_include_field.text());
-        let exclude = parse_string_list(self.editor.style_mcp_exclude_field.text());
+        let include = crate::text_formatting::parse_string_list(self.editor.style_mcp_include_field.text());
+        let exclude = crate::text_formatting::parse_string_list(self.editor.style_mcp_exclude_field.text());
 
         let Some(style) = style else {
             if include.is_empty() && exclude.is_empty() {

@@ -46,8 +46,8 @@ pub(super) fn save_current_inner(view: &mut SkillsSettingsView) {
         return;
     }
     if parsed_shell_style.is_none() && view.editor.style_resource_paths_dirty() {
-        let references = parse_path_list(view.editor.style_references_field.text());
-        let skill_roots = parse_path_list(view.editor.style_skill_roots_field.text());
+        let references = crate::text_formatting::parse_path_list(view.editor.style_references_field.text());
+        let skill_roots = crate::text_formatting::parse_path_list(view.editor.style_skill_roots_field.text());
         if !references.is_empty() || !skill_roots.is_empty() {
             view.status = Some((
                 "Style references/skill roots require a shell style value.".to_string(),
@@ -57,8 +57,8 @@ pub(super) fn save_current_inner(view: &mut SkillsSettingsView) {
         }
     }
     if parsed_shell_style.is_none() && view.editor.style_mcp_filters_dirty() {
-        let mcp_include = parse_string_list(view.editor.style_mcp_include_field.text());
-        let mcp_exclude = parse_string_list(view.editor.style_mcp_exclude_field.text());
+        let mcp_include = crate::text_formatting::parse_string_list(view.editor.style_mcp_include_field.text());
+        let mcp_exclude = crate::text_formatting::parse_string_list(view.editor.style_mcp_exclude_field.text());
         if !mcp_include.is_empty() || !mcp_exclude.is_empty() {
             view.status = Some((
                 "Style MCP include/exclude requires a shell style value.".to_string(),
