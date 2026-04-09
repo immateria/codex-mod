@@ -587,15 +587,14 @@ fn header_badge_style(theme: &Theme) -> Style {
 }
 
 fn line_plain_text(line: &Line<'_>) -> String {
-    if line.spans.is_empty() {
-        String::new()
-    } else {
-        line.spans
-            .iter()
-            .map(|span| span.content.to_string())
-            .collect::<Vec<String>>()
-            .join("")
+    if line.spans.len() == 1 {
+        return line.spans[0].content.to_string();
     }
+    let mut out = String::new();
+    for span in &line.spans {
+        out.push_str(&span.content);
+    }
+    out
 }
 
 pub(crate) fn new_session_info(

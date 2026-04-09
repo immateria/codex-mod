@@ -45,14 +45,14 @@ pub(super) fn jump_to_history_index(chat: &mut ChatWidget<'_>, idx: usize) {
 }
 
 pub(super) fn autoscroll_if_near_bottom(chat: &mut ChatWidget<'_>) {
-    if chat.layout.scroll_offset.get() == 0 {
-        let before = chat.layout.scroll_offset.get();
-        chat.layout.scroll_offset.set(0);
+    let offset = chat.layout.scroll_offset.get();
+    if offset == 0 {
+        // Already at bottom — just record the no-op and keep compact compose off.
         chat.bottom_pane.set_compact_compose(false);
         chat.height_manager
             .borrow_mut()
             .record_event(HeightEvent::ComposerModeChange);
-        chat.perf_track_scroll_delta(before, chat.layout.scroll_offset.get());
+        chat.perf_track_scroll_delta(offset, offset);
         chat.sync_history_virtualization();
     }
 }

@@ -102,6 +102,7 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
             continue;
         }
         let text = s.content.clone();
+        let base_style = s.style;
         let mut cursor = 0usize;
         let mut changed = false;
 
@@ -115,37 +116,22 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
                 let abs_start = cursor + start;
                 let abs_end = cursor + end;
                 if cursor < abs_start {
-                    let mut span = s.clone();
-                    span.content = text[cursor..abs_start].to_string().into();
-                    out.push(span);
+                    out.push(Span::styled(text[cursor..abs_start].to_string(), base_style));
                 }
                 // Special case: when the label is just a short preview of the target URL
                 // (e.g., "front.com" for "https://front.com/integrations/…"), emit ONLY
                 // the full URL so terminals can auto‑link it. Avoid underlines/parentheses
                 // to keep scroll rendering stable and prevent duplicate visual tokens.
                 if is_short_preview_of_url(&label, &target) {
-                    let mut url_only = s.clone();
-                    url_only.content = target.into();
-                    url_only.style = url_only.style.patch(Style::default().fg(link_fg));
-                    out.push(url_only);
+                    out.push(Span::styled(target, base_style.patch(Style::default().fg(link_fg))));
                 } else {
                     // Default behavior: underlined label followed by dimmed URL in parens
-                    let mut lbl_span = s.clone();
-                    let mut st = lbl_span.style;
+                    let mut st = base_style;
                     st.add_modifier.insert(Modifier::UNDERLINED);
-                    lbl_span.style = st;
-                    lbl_span.content = label.into();
-                    out.push(lbl_span);
-                    let mut open_span = s.clone();
-                    open_span.content = " (".into();
-                    out.push(open_span);
-                    let mut url_span = s.clone();
-                    url_span.style = url_span.style.patch(Style::default().fg(link_fg));
-                    url_span.content = target.into();
-                    out.push(url_span);
-                    let mut close_span = s.clone();
-                    close_span.content = ")".into();
-                    out.push(close_span);
+                    out.push(Span::styled(label, st));
+                    out.push(Span::styled(" (", base_style));
+                    out.push(Span::styled(target, base_style.patch(Style::default().fg(link_fg))));
+                    out.push(Span::styled(")", base_style));
                 }
                 cursor = abs_end;
                 changed = true;
@@ -157,21 +143,14 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
                 let start = cursor + m.start();
                 let end = cursor + m.end();
                 if cursor < start {
-                    let mut span = s.clone();
-                    span.content = text[cursor..start].to_string().into();
-                    out.push(span);
+                    out.push(Span::styled(text[cursor..start].to_string(), base_style));
                 }
                 let raw = &text[start..end];
                 let (core, trailing) = split_trailing_punct(raw);
                 // Emit URL text verbatim; terminal will make it clickable.
-                let mut core_span = s.clone();
-                core_span.content = core.to_string().into();
-                core_span.style = core_span.style.patch(Style::default().fg(link_fg));
-                out.push(core_span);
+                out.push(Span::styled(core.to_string(), base_style.patch(Style::default().fg(link_fg))));
                 if !trailing.is_empty() {
-                    let mut span = s.clone();
-                    span.content = trailing.to_string().into();
-                    out.push(span);
+                    out.push(Span::styled(trailing.to_string(), base_style));
                 }
                 cursor = start + core.len() + trailing.len();
                 changed = true;
@@ -183,30 +162,21 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
                 let start = cursor + m.start();
                 let end = cursor + m.end();
                 if cursor < start {
-                    let mut span = s.clone();
-                    span.content = text[cursor..start].to_string().into();
-                    out.push(span);
+                    out.push(Span::styled(text[cursor..start].to_string(), base_style));
                 }
                 let raw = &text[start..end];
                 let (core_dom, trailing) = split_trailing_punct(raw);
                 if is_probable_domain(core_dom) {
-                    let mut core_span = s.clone();
-                    core_span.content = core_dom.to_string().into();
-                    core_span.style = core_span.style.patch(Style::default().fg(link_fg));
-                    out.push(core_span);
+                    out.push(Span::styled(core_dom.to_string(), base_style.patch(Style::default().fg(link_fg))));
                     if !trailing.is_empty() {
-                        let mut span = s.clone();
-                        span.content = trailing.to_string().into();
-                        out.push(span);
+                        out.push(Span::styled(trailing.to_string(), base_style));
                     }
                     cursor = start + core_dom.len() + trailing.len();
                     changed = true;
                     continue;
                 }
                 // Not a probable domain; emit raw text
-                let mut span = s.clone();
-                span.content = raw.to_string().into();
-                out.push(span);
+                out.push(Span::styled(raw.to_string(), base_style));
                 cursor = end;
                 changed = true;
                 continue;
@@ -218,9 +188,7 @@ fn autolink_spans(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
 
         if changed {
             if cursor < text.len() {
-                let mut span = s.clone();
-                span.content = text[cursor..].to_string().into();
-                out.push(span);
+                out.push(Span::styled(text[cursor..].to_string(), base_style));
             }
         } else {
             out.push(s);

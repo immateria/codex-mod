@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 use code_common::elapsed::format_duration;
@@ -149,122 +150,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
     let use_content_connectors = !(matches!(action, ExecAction::Run) && output.is_none());
 
     for parsed in parsed_commands.iter() {
-        let (label, content) = match parsed {
-            ParsedCommand::Read { name, cmd, .. } => {
-                let mut c = name.clone();
-                if let Some(ann) = parse_read_line_annotation(cmd) {
-                    c = format!("{c} {ann}");
-                }
-                ("Read".to_string(), c)
-            }
-            ParsedCommand::ListFiles { cmd: _, path } => match path {
-                Some(p) => {
-                    if search_paths.contains(p) {
-                        (String::new(), String::new())
-                    } else {
-                        let display_p = if p.ends_with('/') {
-                            p.clone()
-                        } else {
-                            format!("{p}/")
-                        };
-                        ("List".to_string(), display_p)
-                    }
-                }
-                None => ("List".to_string(), "./".to_string()),
-            },
-            ParsedCommand::Search { query, path, cmd } => {
-                // Make search terms human-readable:
-                // - Unescape any backslash-escaped character (e.g., "\?" -> "?")
-                // - Close unbalanced pairs for '(' and '{' to avoid dangling text in UI
-                let prettify_term = |s: &str| -> String {
-                    // General unescape: remove backslashes that escape the next char
-                    let mut out = String::with_capacity(s.len());
-                    let mut iter = s.chars();
-                    while let Some(ch) = iter.next() {
-                        if ch == '\\' {
-                            if let Some(next) = iter.next() {
-                                out.push(next);
-                            } else {
-                                out.push('\\');
-                            }
-                        } else {
-                            out.push(ch);
-                        }
-                    }
-
-                    // Balance parentheses
-                    let opens_paren = out.matches('(').count();
-                    let closes_paren = out.matches(')').count();
-                    for _ in 0..opens_paren.saturating_sub(closes_paren) {
-                        out.push(')');
-                    }
-
-                    // Balance curly braces
-                    let opens_curly = out.matches('{').count();
-                    let closes_curly = out.matches('}').count();
-                    for _ in 0..opens_curly.saturating_sub(closes_curly) {
-                        out.push('}');
-                    }
-
-                    out
-                };
-                let fmt_query = |q: &str| -> String {
-                    let mut parts: Vec<String> = q
-                        .split('|')
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .map(prettify_term)
-                        .collect();
-                    match parts.len() {
-                        0 => String::new(),
-                        1 => parts.remove(0),
-                        2 => format!("{} and {}", parts[0], parts[1]),
-                        _ => {
-                            let last = parts.last().cloned().unwrap_or_default();
-                            let head = &parts[..parts.len() - 1];
-                            format!("{} and {}", head.join(", "), last)
-                        }
-                    }
-                };
-                match (query, path) {
-                    (Some(q), Some(p)) => {
-                        let display_p = if p.ends_with('/') {
-                            p.clone()
-                        } else {
-                            format!("{p}/")
-                        };
-                        (
-                            "Search".to_string(),
-                            format!("{} in {}", fmt_query(q), display_p),
-                        )
-                    }
-                    (Some(q), None) => ("Search".to_string(), fmt_query(q).clone()),
-                    (None, Some(p)) => {
-                        let display_p = if p.ends_with('/') {
-                            p.clone()
-                        } else {
-                            format!("{p}/")
-                        };
-                        ("Search".to_string(), format!(" in {display_p}"))
-                    }
-                    (None, None) => ("Search".to_string(), cmd.clone()),
-                }
-            }
-            ParsedCommand::ReadCommand { cmd } => ("Run".to_string(), cmd.clone()),
-            // Upstream variants not present in our core parser are ignored or treated as generic runs
-            ParsedCommand::Unknown { cmd } => {
-                // Suppress separator helpers like `echo ---` which are used
-                // internally to delimit chunks when reading files.
-                let t = cmd.trim();
-                let lower = t.to_lowercase();
-                if lower.starts_with("echo") && lower.contains("---") {
-                    (String::new(), String::new()) // drop from preamble
-                } else {
-                    ("Run".to_string(), format_inline_script_for_display(cmd))
-                }
-            } // Noop variant not present in our core parser
-              // ParsedCommand::Noop { .. } => continue,
-        };
+        let (label, content) = command_label_content(parsed, search_paths);
         // Enforce per-action grouping: only keep entries matching this cell's action.
         if let Some(exp) = expected_label {
             if label != exp {
@@ -565,115 +451,7 @@ fn new_parsed_command(
     };
 
     for parsed in parsed_commands.iter() {
-        // Produce a logical label and content string without icons
-        let (label, content) = match parsed {
-            ParsedCommand::Read { name, cmd, .. } => {
-                let mut c = name.clone();
-                if let Some(ann) = parse_read_line_annotation(cmd) {
-                    c = format!("{c} {ann}");
-                }
-                ("Read".to_string(), c)
-            }
-            ParsedCommand::ListFiles { cmd: _, path } => match path {
-                Some(p) => {
-                    if search_paths.contains(p) {
-                        (String::new(), String::new()) // suppressed
-                    } else {
-                        let display_p = if p.ends_with('/') {
-                            p.clone()
-                        } else {
-                            format!("{p}/")
-                        };
-                        ("List".to_string(), display_p)
-                    }
-                }
-                None => ("List".to_string(), "./".to_string()),
-            },
-            ParsedCommand::Search { query, path, cmd } => {
-                // Format query for display: unescape backslash-escapes and close common unbalanced delimiters
-                let prettify_term = |s: &str| -> String {
-                    // General unescape: turn "\X" into "X" for any X
-                    let mut out = String::with_capacity(s.len());
-                    let mut iter = s.chars();
-                    while let Some(ch) = iter.next() {
-                        if ch == '\\' {
-                            if let Some(next) = iter.next() {
-                                out.push(next);
-                            } else {
-                                out.push('\\');
-                            }
-                        } else {
-                            out.push(ch);
-                        }
-                    }
-                    // Balance parentheses
-                    let opens_paren = out.matches('(').count();
-                    let closes_paren = out.matches(')').count();
-                    for _ in 0..opens_paren.saturating_sub(closes_paren) {
-                        out.push(')');
-                    }
-                    // Balance curly braces
-                    let opens_curly = out.matches('{').count();
-                    let closes_curly = out.matches('}').count();
-                    for _ in 0..opens_curly.saturating_sub(closes_curly) {
-                        out.push('}');
-                    }
-                    out
-                };
-                let fmt_query = |q: &str| -> String {
-                    let mut parts: Vec<String> = q
-                        .split('|')
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .map(prettify_term)
-                        .collect();
-                    match parts.len() {
-                        0 => String::new(),
-                        1 => parts.remove(0),
-                        2 => format!("{} and {}", parts[0], parts[1]),
-                        _ => {
-                            let last = parts.last().cloned().unwrap_or_default();
-                            let head = &parts[..parts.len() - 1];
-                            format!("{} and {}", head.join(", "), last)
-                        }
-                    }
-                };
-                match (query, path) {
-                    (Some(q), Some(p)) => {
-                        let display_p = if p.ends_with('/') {
-                            p.clone()
-                        } else {
-                            format!("{p}/")
-                        };
-                        (
-                            "Search".to_string(),
-                            format!("{} in {}", fmt_query(q), display_p),
-                        )
-                    }
-                    (Some(q), None) => ("Search".to_string(), fmt_query(q).clone()),
-                    (None, Some(p)) => {
-                        let display_p = if p.ends_with('/') {
-                            p.clone()
-                        } else {
-                            format!("{p}/")
-                        };
-                        ("Search".to_string(), format!(" in {display_p}"))
-                    }
-                    (None, None) => ("Search".to_string(), cmd.clone()),
-                }
-            }
-            ParsedCommand::ReadCommand { cmd } => ("Run".to_string(), cmd.clone()),
-            // Upstream-only variants handled as generic runs in this fork
-            ParsedCommand::Unknown { cmd } => {
-                let t = cmd.trim();
-                let lower = t.to_lowercase();
-                if lower.starts_with("echo") && lower.contains("---") {
-                    (String::new(), String::new())
-                } else {
-                    ("Run".to_string(), format_inline_script_for_display(cmd))
-                }
-            } // ParsedCommand::Noop { .. } => continue,
-        };
+        let (label, content) = command_label_content(parsed, search_paths);
 
         // Keep only entries that match the primary action grouping.
         if let Some(exp) = expected_label {
@@ -882,6 +660,123 @@ fn new_parsed_command(
     lines.extend(preview_lines);
     lines.push(Line::from(""));
     lines
+}
+
+/// Unescape backslashes and balance unmatched `(` / `{` so UI text doesn't look broken.
+fn prettify_search_term(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut iter = s.chars();
+    while let Some(ch) = iter.next() {
+        if ch == '\\' {
+            if let Some(next) = iter.next() {
+                out.push(next);
+            } else {
+                out.push('\\');
+            }
+        } else {
+            out.push(ch);
+        }
+    }
+    let opens_paren = out.matches('(').count();
+    let closes_paren = out.matches(')').count();
+    for _ in 0..opens_paren.saturating_sub(closes_paren) {
+        out.push(')');
+    }
+    let opens_curly = out.matches('{').count();
+    let closes_curly = out.matches('}').count();
+    for _ in 0..opens_curly.saturating_sub(closes_curly) {
+        out.push('}');
+    }
+    out
+}
+
+/// Format a pipe-separated query string into a readable comma/and list.
+fn format_search_query(q: &str) -> String {
+    let mut parts: Vec<String> = q
+        .split('|')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(prettify_search_term)
+        .collect();
+    match parts.len() {
+        0 => String::new(),
+        1 => parts.remove(0),
+        2 => format!("{} and {}", parts[0], parts[1]),
+        _ => {
+            let last = parts.last().cloned().unwrap_or_default();
+            let head = &parts[..parts.len() - 1];
+            format!("{} and {}", head.join(", "), last)
+        }
+    }
+}
+
+/// Map a single `ParsedCommand` to its display `(label, content)` pair.
+///
+/// Returns empty strings for entries that should be suppressed (e.g. directory
+/// lines already covered by a search command).
+fn command_label_content(
+    parsed: &ParsedCommand,
+    search_paths: &HashSet<String>,
+) -> (String, String) {
+    match parsed {
+        ParsedCommand::Read { name, cmd, .. } => {
+            let mut c = name.clone();
+            if let Some(ann) = parse_read_line_annotation(cmd) {
+                c = format!("{c} {ann}");
+            }
+            ("Read".to_string(), c)
+        }
+        ParsedCommand::ListFiles { cmd: _, path } => match path {
+            Some(p) => {
+                if search_paths.contains(p) {
+                    (String::new(), String::new())
+                } else {
+                    let display_p = if p.ends_with('/') {
+                        p.clone()
+                    } else {
+                        format!("{p}/")
+                    };
+                    ("List".to_string(), display_p)
+                }
+            }
+            None => ("List".to_string(), "./".to_string()),
+        },
+        ParsedCommand::Search { query, path, cmd } => {
+            match (query.as_deref(), path.as_deref()) {
+                (Some(q), Some(p)) => {
+                    let display_p = if p.ends_with('/') {
+                        p.to_string()
+                    } else {
+                        format!("{p}/")
+                    };
+                    (
+                        "Search".to_string(),
+                        format!("{} in {}", format_search_query(q), display_p),
+                    )
+                }
+                (Some(q), None) => ("Search".to_string(), format_search_query(q)),
+                (None, Some(p)) => {
+                    let display_p = if p.ends_with('/') {
+                        p.to_string()
+                    } else {
+                        format!("{p}/")
+                    };
+                    ("Search".to_string(), format!(" in {display_p}"))
+                }
+                (None, None) => ("Search".to_string(), cmd.clone()),
+            }
+        }
+        ParsedCommand::ReadCommand { cmd } => ("Run".to_string(), cmd.clone()),
+        ParsedCommand::Unknown { cmd } => {
+            let t = cmd.trim();
+            let lower = t.to_lowercase();
+            if lower.starts_with("echo") && lower.contains("---") {
+                (String::new(), String::new())
+            } else {
+                ("Run".to_string(), format_inline_script_for_display(cmd))
+            }
+        }
+    }
 }
 
 fn new_exec_command_generic(
