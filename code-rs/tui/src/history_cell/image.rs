@@ -730,9 +730,5 @@ fn wrap_card_lines(text: &str, body_width: usize, indent_cols: usize, right_padd
     if available == 0 {
         return vec![String::new()];
     }
-    wrap_line_to_width(text, available)
-}
-
-fn wrap_line_to_width(text: &str, width: usize) -> Vec<String> {
-    wrap_text(text, width)
+    wrap_text(text, available)
 }

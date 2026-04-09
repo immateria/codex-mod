@@ -5,12 +5,6 @@ use unicode_width::UnicodeWidthStr;
 use super::*;
 
 impl AutoCoordinatorView {
-    pub(super) fn wrap_text_segments(text: &str, width: usize) -> Vec<String> {
-        crate::text_formatting::wrap_text(text, width)
-    }
-
-
-
     pub(super) fn wrap_count(text: &str, width: u16) -> usize {
         if width == 0 {
             return text.lines().count().max(1);

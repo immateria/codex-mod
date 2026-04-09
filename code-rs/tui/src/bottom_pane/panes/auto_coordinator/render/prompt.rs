@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
 use crate::colors;
-use crate::text_formatting::pad_to_display_width;
+use crate::text_formatting::{pad_to_display_width, wrap_text};
 
 use super::clear;
 use super::super::{AutoActiveViewModel, AutoCoordinatorView};
@@ -54,7 +54,7 @@ pub(super) fn pending_prompt_content_lines(
             return;
         }
 
-        for segment in AutoCoordinatorView::wrap_text_segments(text, text_width) {
+        for segment in wrap_text(text, text_width) {
             let body = format!("{indent}{segment}");
             let padded = pad_to_display_width(&body, inner_width);
             rows.push((padded, style));
