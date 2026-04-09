@@ -190,7 +190,8 @@ pub fn audit_everyone_writable(
     if !flagged.is_empty() {
         let mut list = String::new();
         for p in &flagged {
-            list.push_str(&format!("\n - {}", p.display()));
+            use std::fmt::Write;
+            write!(list, "\n - {}", p.display()).unwrap();
         }
         crate::logging::log_note(
             &format!(

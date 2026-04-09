@@ -24,10 +24,11 @@ pub fn summarize_sandbox_policy(sandbox_policy: &SandboxPolicy) -> String {
             writable_entries.extend(
                 writable_roots
                     .iter()
-                    .map(|p| p.to_string_lossy().to_string()),
+                    .map(|p| p.to_string_lossy().into_owned()),
             );
 
-            summary.push_str(&format!(" [{}]", writable_entries.join(", ")));
+            use std::fmt::Write;
+            write!(summary, " [{}]", writable_entries.join(", ")).unwrap();
             if *network_access {
                 summary.push_str(" (network access enabled)");
             }

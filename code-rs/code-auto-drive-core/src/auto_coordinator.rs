@@ -2063,7 +2063,8 @@ fn run_auto_loop(inputs: AutoLoopInputs) -> Result<()> {
         }
         if !routing_lines.is_empty() {
             base_developer_intro.push_str("\n\nConfigured CLI routing entries:");
-            base_developer_intro.push_str(&format!("\n{}", routing_lines.join("\n")));
+            use std::fmt::Write;
+            write!(base_developer_intro, "\n{}", routing_lines.join("\n")).unwrap();
         }
     }
     let mut schema_features = SchemaFeatures::from_auto_settings(&config.auto_drive);

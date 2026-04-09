@@ -152,7 +152,7 @@ impl EscalateServer {
         let env_overlay = session.env().clone();
         let client_socket = Arc::clone(&session.client_socket);
         let command = vec![
-            self.shell_path.to_string_lossy().to_string(),
+            self.shell_path.to_string_lossy().into_owned(),
             if params.login == Some(false) {
                 "-c".to_string()
             } else {
@@ -208,7 +208,7 @@ impl EscalateServer {
         );
         env.insert(
             EXEC_WRAPPER_ENV_VAR.to_string(),
-            self.execve_wrapper.to_string_lossy().to_string(),
+            self.execve_wrapper.to_string_lossy().into_owned(),
         );
         Ok(EscalationSession {
             env,
@@ -455,7 +455,7 @@ mod tests {
             _execution: EscalationExecution,
         ) -> anyhow::Result<PreparedExec> {
             Ok(PreparedExec {
-                command: std::iter::once(program.to_string_lossy().to_string())
+                command: std::iter::once(program.to_string_lossy().into_owned())
                     .chain(argv.iter().skip(1).cloned())
                     .collect(),
                 cwd: workdir.to_path_buf(),
@@ -495,7 +495,7 @@ mod tests {
                 EscalationExecution::Permissions(self.expected_permissions.clone())
             );
             Ok(PreparedExec {
-                command: std::iter::once(program.to_string_lossy().to_string())
+                command: std::iter::once(program.to_string_lossy().into_owned())
                     .chain(argv.iter().skip(1).cloned())
                     .collect(),
                 cwd: workdir.to_path_buf(),
@@ -597,7 +597,7 @@ mod tests {
     async fn start_session_exposes_wrapper_env_overlay() -> anyhow::Result<()> {
         let _guard = ESCALATE_SERVER_TEST_LOCK.lock().await;
         let execve_wrapper = PathBuf::from("/tmp/codex-execve-wrapper");
-        let execve_wrapper_str = execve_wrapper.to_string_lossy().to_string();
+        let execve_wrapper_str = execve_wrapper.to_string_lossy().into_owned();
         let server = EscalateServer::new(
             PathBuf::from("/bin/zsh"),
             execve_wrapper.clone(),

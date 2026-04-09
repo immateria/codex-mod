@@ -65,7 +65,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let policy = match args.policy {
         Some(policy) => {
-            let policy_source = policy.to_string_lossy().to_string();
+            let policy_source = policy.to_string_lossy().into_owned();
             let unparsed_policy = std::fs::read_to_string(policy)?;
             let parser = PolicyParser::new(&policy_source, &unparsed_policy);
             parser.parse()

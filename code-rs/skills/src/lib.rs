@@ -104,14 +104,14 @@ fn collect_fingerprint_items(dir: &Dir<'_>, items: &mut Vec<(String, Option<u64>
     for entry in dir.entries() {
         match entry {
             include_dir::DirEntry::Dir(subdir) => {
-                items.push((subdir.path().to_string_lossy().to_string(), None));
+                items.push((subdir.path().to_string_lossy().into_owned(), None));
                 collect_fingerprint_items(subdir, items);
             }
             include_dir::DirEntry::File(file) => {
                 let mut file_hasher = DefaultHasher::new();
                 file.contents().hash(&mut file_hasher);
                 items.push((
-                    file.path().to_string_lossy().to_string(),
+                    file.path().to_string_lossy().into_owned(),
                     Some(file_hasher.finish()),
                 ));
             }

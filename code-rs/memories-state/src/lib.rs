@@ -1008,9 +1008,9 @@ WHERE memory_threads.rollout_path != excluded.rollout_path
                 "#,
             )
             .bind(thread.thread_id.to_string())
-            .bind(thread.rollout_path.to_string_lossy().to_string())
+            .bind(thread.rollout_path.to_string_lossy().into_owned())
             .bind(session_source_label(&thread.source))
-            .bind(thread.cwd.to_string_lossy().to_string())
+            .bind(thread.cwd.to_string_lossy().into_owned())
             .bind(&thread.cwd_display)
             .bind(thread.updated_at)
             .bind(&thread.updated_at_label)
@@ -1022,7 +1022,7 @@ WHERE memory_threads.rollout_path != excluded.rollout_path
                 thread
                     .git_project_root
                     .as_ref()
-                    .map(|path| path.to_string_lossy().to_string()),
+                    .map(|path| path.to_string_lossy().into_owned()),
             )
             .bind(thread.git_branch.as_deref())
             .bind(thread.last_user_snippet.as_deref())

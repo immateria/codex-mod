@@ -368,7 +368,7 @@ impl BrowserManager {
             loop {
                 // Profile dir
                 let (user_data_path, is_temp_profile) = if let Some(dir) = &config.user_data_dir {
-                    (dir.to_string_lossy().to_string(), false)
+                    (dir.to_string_lossy().into_owned(), false)
                 } else {
                     let pid = std::process::id();
                     let timestamp = std::time::SystemTime::now()

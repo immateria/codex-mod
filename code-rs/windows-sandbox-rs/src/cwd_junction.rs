@@ -84,8 +84,8 @@ pub fn create_cwd_junction(requested_cwd: &Path, log_dir: Option<&Path>) -> Opti
         }
     }
 
-    let link = junction_path.to_string_lossy().to_string();
-    let target = requested_cwd.to_string_lossy().to_string();
+    let link = junction_path.to_string_lossy().into_owned();
+    let target = requested_cwd.to_string_lossy().into_owned();
 
     // Use `cmd /c` so we can call `mklink` (a cmd builtin). We must quote paths so CWDs
     // containing spaces work reliably.

@@ -828,7 +828,7 @@ impl MessageProcessor {
             Ok(mut entries) => loop {
                 match entries.next_entry().await {
                     Ok(Some(entry)) => {
-                        let file_name = entry.file_name().to_string_lossy().to_string();
+                        let file_name = entry.file_name().to_string_lossy().into_owned();
                         let file_type = match entry.file_type().await {
                             Ok(file_type) => file_type,
                             Err(err) => {
@@ -1719,7 +1719,7 @@ impl MessageProcessor {
                     return;
                 }
             };
-            let cwd_override = entry.cwd_real.to_string_lossy().to_string();
+            let cwd_override = entry.cwd_real.to_string_lossy().into_owned();
             match self.load_effective_config(Some(&cwd_override)) {
                 Ok(config) => config,
                 Err(error) => {

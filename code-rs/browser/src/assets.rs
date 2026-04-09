@@ -68,7 +68,7 @@ impl AssetManager {
         .to_string();
 
         let image_ref = ImageRef {
-            path: path.to_string_lossy().to_string(),
+            path: path.to_string_lossy().into_owned(),
             mime,
             width,
             height,

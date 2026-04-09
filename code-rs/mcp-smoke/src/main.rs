@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     // Fast server
     let fast = McpServerConfig {
         transport: McpServerTransportConfig::Stdio {
-            command: server.to_string_lossy().to_string(),
+            command: server.to_string_lossy().into_owned(),
             args: vec![],
             env: None,
         },

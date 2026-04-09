@@ -143,7 +143,7 @@ mod tests {
             exclude_slash_tmp: false,
         };
         let mut env_map = HashMap::new();
-        env_map.insert("TEMP".into(), temp_dir.to_string_lossy().to_string());
+        env_map.insert("TEMP".into(), temp_dir.to_string_lossy().into_owned());
 
         let paths = compute_allow_paths(&policy, &command_cwd, &command_cwd, &env_map);
 

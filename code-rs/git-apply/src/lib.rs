@@ -56,7 +56,7 @@ pub fn apply_git_patch(req: &ApplyGitRequest) -> io::Result<ApplyGitResult> {
         }
     }
 
-    args.push(patch_path.to_string_lossy().to_string());
+    args.push(patch_path.to_string_lossy().into_owned());
 
     // Optional preflight: dry-run only; do not modify working tree
     if req.preflight {
@@ -64,7 +64,7 @@ pub fn apply_git_patch(req: &ApplyGitRequest) -> io::Result<ApplyGitResult> {
         if req.revert {
             check_args.push("-R".to_string());
         }
-        check_args.push(patch_path.to_string_lossy().to_string());
+        check_args.push(patch_path.to_string_lossy().into_owned());
         let rendered = render_command_for_log(&git_root, &cfg_parts, &check_args);
         let (c_code, c_out, c_err) = run_git(&git_root, &cfg_parts, &check_args)?;
         let (mut applied_paths, mut skipped_paths, mut conflicted_paths) =
