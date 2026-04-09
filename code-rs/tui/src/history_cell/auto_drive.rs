@@ -1258,7 +1258,7 @@ mod tests {
 
         let lines = cell.celebration_body_lines_at_with_reduced_motion(
             TEST_WIDTH,
-            start + Duration::from_millis(120),
+            start + CELEBRATION_FRAME_INTERVAL,
             false,
         );
         assert!(!lines.is_empty());
@@ -1275,7 +1275,7 @@ mod tests {
 
         let first = cell.celebration_body_lines_at_with_reduced_motion(
             TEST_WIDTH,
-            start + Duration::from_millis(120),
+            start + CELEBRATION_FRAME_INTERVAL,
             false,
         );
         let second = cell.celebration_body_lines_at_with_reduced_motion(

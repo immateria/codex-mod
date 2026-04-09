@@ -2,9 +2,9 @@ use super::card_style::{
     accent_style,
     ansi16_inverse_color,
     blank_border_row,
+    bottom_border_row_with_hint,
     card_body_width,
     fill_card_background,
-    hint_text_style,
     primary_text_style,
     rows_to_lines,
     secondary_text_style,
@@ -381,20 +381,11 @@ impl WebSearchSessionCell {
     }
 
     fn bottom_border_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        let text = truncate_with_ellipsis(HINT_TEXT, body_width);
-        let hint_style = if palette_mode() == PaletteMode::Ansi16 {
-            Style::default().fg(ansi16_inverse_color())
-        } else {
-            hint_text_style(style)
-        };
-        let mut segment = CardSegment::new(text, hint_style);
-        segment.inherit_background = true;
-        CardRow::new(
-            BORDER_BOTTOM,
-            accent_style(style),
-            vec![segment],
-            None,
-        )
+        let mut row = bottom_border_row_with_hint(BORDER_BOTTOM, HINT_TEXT, body_width, style);
+        for seg in &mut row.segments {
+            seg.inherit_background = true;
+        }
+        row
     }
 
     fn desired_rows(&self, width: u16) -> usize {
