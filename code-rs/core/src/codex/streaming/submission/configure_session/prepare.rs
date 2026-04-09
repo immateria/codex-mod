@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 impl Runner<'_> {
@@ -205,7 +207,7 @@ impl Runner<'_> {
                 let mut message =
                     "Shell escalation (zsh-fork) is enabled but not ready:".to_string();
                 for reason in reasons {
-                    message.push_str(&format!("\n- {reason}"));
+                    let _ = write!(message, "\n- {reason}");
                 }
                 message.push_str(
                     "\n\nTo enable: set zsh_path to a patched zsh, install codex-execve-wrapper (sibling or PATH) or set main_execve_wrapper_exe, and ensure the session shell is zsh.",

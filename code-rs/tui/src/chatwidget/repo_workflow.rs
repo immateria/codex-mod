@@ -514,9 +514,10 @@ impl ChatWidget<'_> {
                 if let (Some(remote_name), Some(remote_url)) =
                     (meta.remote_name.as_ref(), meta.remote_url.as_ref())
                 {
-                    note.push_str(&format!(
+                    let _ = write!(
+                        note,
                         " The remote '{remote_name}' points to {remote_url}."
-                    ));
+                    );
                 }
                 note
             } else {

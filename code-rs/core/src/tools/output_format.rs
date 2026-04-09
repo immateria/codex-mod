@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use crate::exec::EXEC_CAPTURE_MAX_BYTES;
 use crate::exec::ExecToolCallOutput;
 
@@ -27,9 +29,10 @@ pub(crate) fn format_exec_output_str(exec_output: &ExecToolCallOutput) -> String
             format!("command timed out after {timeout_ms} milliseconds\n{formatted_output}");
     }
     if let Some(truncated_after_lines) = aggregated_output.truncated_after_lines {
-        formatted_output.push_str(&format!(
+        let _ = write!(
+            formatted_output,
             "\n\n[Output truncated after {truncated_after_lines} lines: too many lines or bytes.]",
-        ));
+        );
     }
 
     formatted_output

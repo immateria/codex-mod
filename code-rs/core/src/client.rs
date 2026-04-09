@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::io::BufRead;
 use std::path::Path;
 use std::sync::OnceLock;
@@ -1758,10 +1759,10 @@ impl ModelClient {
                             // Build a single-line, actionable message for the UI and logs.
                             let mut msg = format!("server error {status}: {message}");
                             if let Some(id) = &x_request_id {
-                                msg.push_str(&format!(" (request-id: {id})"));
+                                let _ = write!(msg, " (request-id: {id})");
                             }
                             if let Some(excerpt) = &body_excerpt {
-                                msg.push_str(&format!(" | body: {excerpt}"));
+                                let _ = write!(msg, " | body: {excerpt}");
                             }
 
                             // Log detailed context to the debug logger and close the request log.

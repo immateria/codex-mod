@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
@@ -193,14 +195,16 @@ fn missing_server_warning(
         if !include_servers.is_empty() && !include_servers.contains(server) {
             let mut included: Vec<&str> = include_servers.iter().map(String::as_str).collect();
             included.sort();
-            message.push_str(&format!(
+            let _ = write!(
+                message,
                 " Active shell style `{style_label}` includes only: {}.",
                 included.join(", ")
-            ));
+            );
         } else if exclude_servers.contains(server) {
-            message.push_str(&format!(
+            let _ = write!(
+                message,
                 " Active shell style `{style_label}` explicitly excludes it."
-            ));
+            );
         }
     }
 

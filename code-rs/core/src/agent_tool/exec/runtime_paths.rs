@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 #[cfg(target_os = "windows")]
 fn default_pathext_or_default() -> Vec<String> {
     std::env::var("PATHEXT")
@@ -280,7 +282,8 @@ pub(super) fn format_agent_not_found_error(agent_name: &str, command: &str) -> S
 
     #[cfg(target_os = "windows")]
     {
-        msg.push_str(&format!(
+        let _ = write!(
+            msg,
             "\n\nTroubleshooting steps:\n\
             1. Check if '{}' is installed and available in your PATH\n\
             2. Try using an absolute path in your config.toml:\n\
@@ -291,12 +294,13 @@ pub(super) fn format_agent_not_found_error(agent_name: &str, command: &str) -> S
             4. On Windows, ensure the file has a valid extension (.exe, .cmd, .bat, .com)\n\n\
             For more information, see: https://github.com/just-every/code/blob/main/code-rs/config.md",
             command, agent_name, command, command
-        ));
+        );
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        msg.push_str(&format!(
+        let _ = write!(
+            msg,
             "\n\nTroubleshooting steps:\n\
             1. Check if '{command}' is installed: which {command}\n\
             2. Verify '{command}' is in your PATH: echo $PATH\n\
@@ -305,7 +309,7 @@ pub(super) fn format_agent_not_found_error(agent_name: &str, command: &str) -> S
                name = \"{agent_name}\"\n\
                command = \"/absolute/path/to/{command}\"\n\n\
             For more information, see: https://github.com/just-every/code/blob/main/code-rs/config.md"
-        ));
+        );
     }
 
     msg

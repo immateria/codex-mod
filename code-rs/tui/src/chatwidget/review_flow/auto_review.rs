@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::super::*;
 
 impl ChatWidget<'_> {
@@ -678,11 +680,11 @@ impl ChatWidget<'_> {
             line.push_str(". ");
             line.push_str(&summary_text);
         } else {
-            line.push_str(&format!(" in '{branch}'"));
+            let _ = write!(line, " in '{branch}'");
         }
         if has_path {
             line.push(' ');
-            line.push_str(&format!("Merge {path_text} to apply fixes."));
+            let _ = write!(line, "Merge {path_text} to apply fixes.");
         }
         line.push_str(" [Ctrl+A] Show");
 

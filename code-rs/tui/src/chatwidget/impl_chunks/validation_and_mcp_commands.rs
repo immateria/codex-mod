@@ -1,5 +1,3 @@
-use std::fmt::Write as _;
-
 impl ChatWidget<'_> {
     fn validation_tool_flag_mut(
         &mut self,

@@ -1,5 +1,7 @@
 //! Tool call history cells driven by structured argument/result state.
 
+use std::fmt::Write as _;
+
 use super::*;
 use crate::history::state::{
     ArgumentValue,
@@ -380,7 +382,7 @@ impl RunningToolCallCell {
         );
         if names.len() > max_items {
             let remaining = names.len() - max_items;
-            text.push_str(&format!(" +{remaining} more"));
+            let _ = write!(text, " +{remaining} more");
         }
         text
     }

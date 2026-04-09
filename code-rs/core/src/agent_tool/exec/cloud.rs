@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 pub(super) async fn execute_cloud_built_in_streaming(
@@ -108,7 +110,7 @@ pub(super) async fn execute_cloud_built_in_streaming(
         let omitted = stdout_buf.len() - MAX_BYTES;
         let mut truncated = String::with_capacity(MAX_BYTES + 128);
         truncated.push_str(&stdout_buf[..MAX_BYTES]);
-        truncated.push_str(&format!("\n… [truncated: {omitted} bytes omitted]"));
+        let _ = write!(truncated, "\n… [truncated: {omitted} bytes omitted]");
         Ok(truncated)
     } else {
         Ok(stdout_buf)

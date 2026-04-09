@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use crate::exec::ExecToolCallOutput;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use reqwest::StatusCode;
@@ -295,10 +297,11 @@ impl std::fmt::Display for ModelCapError {
             self.model
         );
         if let Some(seconds) = self.reset_after_seconds {
-            message.push_str(&format!(
+            let _ = write!(
+                message,
                 " Try again in {}.",
                 format_duration_short(seconds)
-            ));
+            );
         } else {
             message.push_str(" Try again later.");
         }

@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use crate::managed_network_proxy_api::ALLOW_LOCAL_BINDING_ENV_KEY;
 use crate::managed_network_proxy_api::PROXY_URL_ENV_KEYS;
 use crate::managed_network_proxy_api::has_proxy_url_env_vars;
@@ -147,9 +149,10 @@ fn dynamic_network_policy(
             policy.push_str("(allow network-outbound (remote ip \"localhost:*\"))\n");
         }
         for port in ports {
-            policy.push_str(&format!(
+            let _ = write!(
+                policy,
                 "(allow network-outbound (remote ip \"localhost:{port}\"))\n"
-            ));
+            );
         }
         return format!("{policy}{MACOS_SEATBELT_NETWORK_POLICY}");
     }

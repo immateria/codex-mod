@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
@@ -58,7 +60,7 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
                 0
             };
             let tail = &s[start_idx..];
-            hint.push_str(&format!("Last reasoning summary fragment:\n{tail}\n\n"));
+            let _ = write!(hint, "Last reasoning summary fragment:\n{tail}\n\n");
         }
         if !sp.partial_assistant_text.is_empty() {
             let s = &sp.partial_assistant_text;
@@ -73,7 +75,7 @@ pub(in crate::codex::streaming) fn inject_scratchpad_into_attempt_input(
                 0
             };
             let tail = &s[start_idx..];
-            hint.push_str(&format!("Last assistant text fragment:\n{tail}\n"));
+            let _ = write!(hint, "Last assistant text fragment:\n{tail}\n");
         }
         attempt_input.push(ResponseItem::Message {
             id: None,

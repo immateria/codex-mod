@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 pub(super) struct McpTurnAllowGuard {
@@ -247,7 +249,7 @@ pub(crate) async fn ensure_mcp_server_access_for_turn(
             "The model attempted to call {tool_label}, but MCP server `{server_name}` is blocked by your current MCP filters."
         );
         if mcp_access.style.is_some() {
-            question_text.push_str(&format!(" Active shell style: `{style_label}`."));
+            let _ = write!(question_text, " Active shell style: `{style_label}`.");
         }
         question_text.push_str("\n\nHow do you want to proceed?");
 
@@ -401,7 +403,7 @@ pub(super) async fn ensure_skill_mcp_access_for_turn(
             "{skill_list} require MCP server `{server_name}`, but it is blocked by your current MCP filters."
         );
         if let Some(style_label) = style_label.as_deref() {
-            question_text.push_str(&format!(" Active shell style: `{style_label}`."));
+            let _ = write!(question_text, " Active shell style: `{style_label}`.");
         }
         question_text.push_str("\n\nHow do you want to proceed?");
 

@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 impl ChatWidget<'_> {
@@ -102,7 +104,7 @@ impl ChatWidget<'_> {
                         m
                     });
                 if !call_id.is_empty() {
-                    message.push_str(&format!("\ncall_id: {call_id}"));
+                    let _ = write!(message, "\ncall_id: {call_id}");
                 }
                 let key = self.next_internal_key();
                 let _ = self.history_insert_with_key_global_tagged(
@@ -157,13 +159,13 @@ impl ChatWidget<'_> {
                     if !message.is_empty() {
                         message.push_str("\n\n");
                     }
-                    message.push_str(&format!("({metadata_summary})"));
+                    let _ = write!(message, "({metadata_summary})");
                 }
                 if !call_id.is_empty() {
                     if !message.is_empty() {
                         message.push('\n');
                     }
-                    message.push_str(&format!("call_id: {call_id}"));
+                    let _ = write!(message, "call_id: {call_id}");
                 }
                 if message.trim().is_empty() {
                     return;

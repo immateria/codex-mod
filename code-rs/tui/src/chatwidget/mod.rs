@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use once_cell::sync::Lazy;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
@@ -317,7 +319,7 @@ impl ChatWidget<'_> {
             "subscribe" => {
                 out.push_str("└ Subscribe");
                 if let Some(level) = args.get("level").and_then(|v| v.as_str()) {
-                    out.push_str(&format!("  level={level}"));
+                    let _ = write!(out, "  level={level}");
                 }
                 Some(out)
             }
@@ -341,7 +343,7 @@ impl ChatWidget<'_> {
     fn format_kill_call(&self, args: &JsonValue) -> Option<String> {
         if let Some(call_id) = args.get("call_id").and_then(|v| v.as_str()) {
             let mut out = String::from("Kill\n");
-            out.push_str(&format!("└ call_id: {call_id}"));
+            let _ = write!(out, "└ call_id: {call_id}");
             return Some(out);
         }
         None

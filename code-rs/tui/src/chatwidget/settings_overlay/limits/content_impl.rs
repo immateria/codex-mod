@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 impl LimitsSettingsContent {
     const WIDE_LAYOUT_MIN_WIDTH: u16 = 110;
     const WIDE_GUTTER_WIDTH: u16 = 1;
@@ -535,7 +537,7 @@ impl LimitsSettingsContent {
             self.effective_focus_mode().label()
         );
         if has_tabs {
-            text.push_str(&format!("{} {} change tab", crate::icons::tab_prev(), crate::icons::tab_next()));
+            let _ = write!(text, "{} {} change tab", crate::icons::tab_prev(), crate::icons::tab_next());
         }
         text
     }

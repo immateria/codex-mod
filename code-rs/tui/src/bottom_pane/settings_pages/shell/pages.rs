@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
@@ -27,7 +29,7 @@ impl ShellSelectionView {
                 .or_else(|| ShellScriptStyle::infer_from_shell_program(&current.path))
                 .map(|style| style.to_string())
                 .unwrap_or_else(|| "auto".to_string());
-            current_label.push_str(&format!(" (style: {style})"));
+            let _ = write!(current_label, " (style: {style})");
         }
 
         let header_lines = vec![

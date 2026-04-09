@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::actions::{ActionDisplayLine, ActionEntry, format_action_line};
 use super::screenshot::ScreenshotLayout;
 use super::super::{HistoryCell, HistoryCellType, ToolCellStatus};
@@ -80,7 +82,7 @@ impl BrowserSessionCell {
 
         let mut title = format!("{}: {}", label, self.display_label());
         if let Some(code) = &self.status_code {
-            title.push_str(&format!(" [{code}]"));
+            let _ = write!(title, " [{code}]");
         }
         title
     }

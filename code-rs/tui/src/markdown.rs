@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use crate::citation_regex::CITATION_REGEX;
 use crate::markdown_renderer::MarkdownRenderer;
 use code_core::config::Config;
@@ -190,7 +192,7 @@ fn rewrite_web_citations<'a>(src: &'a str) -> Cow<'a, str> {
         for (i, id) in parts.enumerate() {
             if i > 0 { out.push(' '); }
             // Use a stable placeholder target. Our renderer will show "label (target)".
-            out.push_str(&format!("[{id}](ref:{id})"));
+            let _ = write!(out, "[{id}](ref:{id})");
         }
         // Add a trailing space for readability between adjacent citations and text
         out.push(' ');

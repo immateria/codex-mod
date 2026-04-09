@@ -258,10 +258,10 @@ impl ChatWidget<'_> {
         if files_restored {
             let mut message = format!("Restored workspace files to snapshot {}", snapshot.short_id());
             if let Some(snippet) = snapshot.summary_snippet(60) {
-                message.push_str(&format!(" • {snippet}"));
+                let _ = write!(message, " • {snippet}");
             }
             if let Some(age) = snapshot.age_from(Local::now()) {
-                message.push_str(&format!(" • captured {} ago", format_duration(age)));
+                let _ = write!(message, " • captured {} ago", format_duration(age));
             }
             if !restore_conversation {
                 message.push_str(" • chat history unchanged");

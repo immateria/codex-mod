@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 use super::exec::{
     ApplyPatchCommandContext,
@@ -728,7 +730,7 @@ pub(crate) async fn handle_apply_patch_action(
                 if !content.is_empty() {
                     content.push('\n');
                 }
-                content.push_str(&format!("stderr: {}", run.stderr));
+                let _ = write!(content, "stderr: {}", run.stderr);
             }
             if let Some(summary) = run.harness_summary_json
                 && !summary.is_empty()

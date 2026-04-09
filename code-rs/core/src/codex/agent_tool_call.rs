@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 use super::fs_utils::{ensure_agent_dir, write_agent_file};
 use super::streaming::AgentTask;
@@ -19,9 +21,10 @@ fn preview_first_n_lines(s: &str, n: usize) -> (String, usize) {
         truncate_middle_bytes(&preview, AGENT_PREVIEW_MAX_BYTES);
     if was_truncated {
         preview = maybe_truncated;
-        preview.push_str(&format!(
+        let _ = write!(
+            preview,
             "\n…preview truncated to roughly {AGENT_PREVIEW_MAX_BYTES} bytes…"
-        ));
+        );
     } else {
         preview = maybe_truncated;
     }

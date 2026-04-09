@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 mod handle_item;
@@ -341,7 +343,7 @@ pub(super) async fn run_turn(
                 let eta = format_retry_eta(&retry_after);
                 let mut retry_message = format!("{limit_err} Auto-retrying");
                 if let Some(eta) = eta {
-                    retry_message.push_str(&format!(" at {eta}"));
+                    let _ = write!(retry_message, " at {eta}");
                 }
                 retry_message.push('…');
                 sess.notify_stream_error(&sub_id, retry_message).await;
@@ -463,7 +465,7 @@ pub(super) async fn run_turn(
                     let mut retry_message =
                         format!("stream error: {e}; retrying in {delay:?}");
                     if let Some(eta) = retry_eta {
-                        retry_message.push_str(&format!(" (next attempt at {eta})"));
+                        let _ = write!(retry_message, " (next attempt at {eta})");
                     }
                     retry_message.push('…');
                     sess.notify_stream_error(&sub_id, retry_message.clone()).await;

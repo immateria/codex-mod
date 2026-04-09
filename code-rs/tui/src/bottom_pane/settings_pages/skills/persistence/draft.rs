@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 pub(super) fn generate_draft_inner(view: &mut SkillsSettingsView) {
@@ -31,9 +33,10 @@ pub(super) fn generate_draft_inner(view: &mut SkillsSettingsView) {
         body.push_str(
             "This skill is intended for shell-style-aware loading. Configure it under `shell_style_profiles` when appropriate.\n\n",
         );
-        body.push_str(&format!(
+        let _ = write!(
+            body,
             "- Preferred shell style: `{shell_style}`\n- Consider wiring via `shell_style_profiles.{shell_style}.skill_roots`\n"
-        ));
+        );
     }
 
     view.editor.body_field.set_text(&body);

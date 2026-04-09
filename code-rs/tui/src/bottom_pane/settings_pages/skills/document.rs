@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 pub(super) fn skill_slug(skill: &Skill) -> String {
@@ -62,7 +64,7 @@ fn yaml_escape(value: &str) -> String {
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04X}", c as u32)),
+            c if (c as u32) < 0x20 => { let _ = write!(out, "\\u{:04X}", c as u32); }
             c => out.push(c),
         }
     }
@@ -88,7 +90,7 @@ pub(super) fn compose_skill_document(
     let shell_style = shell_style.trim();
     if !shell_style.is_empty() {
         let escaped_style = yaml_escape(shell_style);
-        header.push_str(&format!("shell_style: \"{escaped_style}\"\n"));
+        let _ = write!(header, "shell_style: \"{escaped_style}\"\n");
     }
     let extra_frontmatter = extra_frontmatter.trim();
     if !extra_frontmatter.is_empty() {

@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use crate::history::state::{
     ExecRecord,
     ExecStatus,
@@ -666,12 +668,13 @@ pub(crate) fn render_exec_stream(chunks: &[ExecStreamChunk], stream_name: &str) 
     if let Some(first) = chunks.first()
         && first.offset > 0 {
             let mut notice = String::new();
-            notice.push_str(&format!(
+            let _ = write!(
+                notice,
                 "… clipped {} from the start of {} (showing last {}).\n\n",
                 code_core::util::format_bytes(first.offset),
                 stream_name,
                 code_core::util::format_bytes(MAX_EXEC_STREAM_RETAINED_BYTES),
-            ));
+            );
             notice.push_str(&body);
             body = notice;
         }

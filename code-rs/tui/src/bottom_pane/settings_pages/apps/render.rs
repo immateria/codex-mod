@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use super::*;
 
 use ratatui::buffer::Buffer;
@@ -116,7 +118,7 @@ fn build_account_detail_lines(snapshot: &AppsSharedState, account_id: &str) -> V
                 if let Some(description) = app.description.as_ref()
                     && !description.is_empty()
                 {
-                    label.push_str(&format!(" - {description}"));
+                    let _ = write!(label, " - {description}");
                 }
                 lines.push(Line::from(Span::raw(label)));
             }

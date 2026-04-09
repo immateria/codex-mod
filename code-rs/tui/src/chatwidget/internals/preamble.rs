@@ -1,5 +1,4 @@
 use super::super::*;
-use std::fmt::Write as _;
 
 pub(crate) const DOUBLE_ESC_HINT: &str = "undo timeline";
 pub(crate) const AUTO_ESC_EXIT_HINT: &str = "Press Esc to exit Auto Drive";
