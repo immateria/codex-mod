@@ -240,13 +240,13 @@ impl BottomPaneView<'_> for ResumeSelectionView {
         // Footer hints
         // Draw a spacer line above footer (implicit by not drawing into that row)
         let footer = Rect { x: inner.x.saturating_add(1), y: inner.y.saturating_add(inner.height.saturating_sub(1)), width: inner.width.saturating_sub(1), height: 1 };
-        let footer_line = Line::from(vec![
-            Span::styled(format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()), Style::default().fg(crate::colors::light_blue())),
-            Span::raw(" Navigate  "),
-            Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
-            Span::raw(" Select  "),
-            Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-            Span::raw(" Cancel"),
+        let footer_line = crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+            crate::bottom_pane::settings_ui::hints::KeyHint::new(
+                format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()),
+                " Navigate",
+            ).with_key_style(Style::default().fg(crate::colors::function())),
+            crate::bottom_pane::settings_ui::hints::hint_enter(" Select"),
+            crate::bottom_pane::settings_ui::hints::hint_esc(" Cancel"),
         ]);
         Paragraph::new(footer_line)
             .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))

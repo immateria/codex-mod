@@ -177,17 +177,19 @@ impl UndoTimelineView {
 
         vec![
             Line::from(vec![files_status, Span::raw("  "), convo_status]),
-            Line::from(vec![
-                Span::styled(format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()), Style::default().fg(crate::colors::light_blue())),
-                Span::raw(" Navigate  "),
-                Span::styled(crate::icons::space(), Style::default().fg(crate::colors::success())),
-                Span::raw(" Toggle files  "),
-                Span::styled("C", Style::default().fg(crate::colors::success())),
-                Span::raw(" Toggle conversation  "),
-                Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
-                Span::raw(" Restore  "),
-                Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-                Span::raw(" Close"),
+            crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+                crate::bottom_pane::settings_ui::hints::KeyHint::new(
+                    format!("{ud} PgUp PgDn", ud = crate::icons::nav_up_down()),
+                    " Navigate",
+                ).with_key_style(Style::default().fg(crate::colors::function())),
+                crate::bottom_pane::settings_ui::hints::KeyHint::new(
+                    crate::icons::space(), " Toggle files",
+                ).with_key_style(Style::default().fg(crate::colors::success())),
+                crate::bottom_pane::settings_ui::hints::KeyHint::new(
+                    "C", " Toggle conversation",
+                ).with_key_style(Style::default().fg(crate::colors::success())),
+                crate::bottom_pane::settings_ui::hints::hint_enter(" Restore"),
+                crate::bottom_pane::settings_ui::hints::hint_esc(" Close"),
             ]),
         ]
     }

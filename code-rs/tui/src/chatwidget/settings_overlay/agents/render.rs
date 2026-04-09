@@ -215,13 +215,10 @@ impl AgentsSettingsContent {
         lines.push(Line::from(add_spans));
 
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
-            Span::styled(" Navigate  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
-            Span::styled(" Open", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(format!("  {}", crate::icons::escape()), Style::default().fg(crate::colors::error())),
-            Span::styled(" Close", Style::default().fg(crate::colors::text_dim())),
+        lines.push(crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+            crate::bottom_pane::settings_ui::hints::hint_nav(" Navigate"),
+            crate::bottom_pane::settings_ui::hints::hint_enter(" Open"),
+            crate::bottom_pane::settings_ui::hints::hint_esc(" Close"),
         ]));
 
         lines

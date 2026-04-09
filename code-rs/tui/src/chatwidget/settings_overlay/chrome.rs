@@ -301,7 +301,7 @@ mod android_stub {
                     Span::styled("Enter", Style::default().fg(crate::colors::success())),
                     Span::styled("/", Style::default().fg(crate::colors::text_dim())),
                     Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-                    Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled(" Close", Style::default().fg(crate::colors::text_dim())),
                 ]),
             ];
 

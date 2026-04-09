@@ -48,20 +48,20 @@ impl CloudTasksView {
             state,
             env_label: env_label.unwrap_or_else(|| "All environments".to_string()),
             env_filter,
-            footer_hint: Line::from(vec![
-                Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
-                Span::styled(" select   ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                Span::styled(" actions   ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("r", Style::default().fg(crate::colors::info())),
-                Span::styled(" refresh   ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("n", Style::default().fg(crate::colors::function())),
-                Span::styled(" new   ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("e", Style::default().fg(crate::colors::function())),
-                Span::styled(" environments   ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-                Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
-            ]),
+            footer_hint: {
+                use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_nav, shortcut_line, KeyHint};
+                shortcut_line(&[
+                    hint_nav(" select"),
+                    crate::bottom_pane::settings_ui::hints::hint_enter(" actions"),
+                    KeyHint::new("r", " refresh")
+                        .with_key_style(Style::default().fg(crate::colors::info())),
+                    KeyHint::new("n", " new")
+                        .with_key_style(Style::default().fg(crate::colors::function())),
+                    KeyHint::new("e", " environments")
+                        .with_key_style(Style::default().fg(crate::colors::function())),
+                    hint_esc(" close"),
+                ])
+            },
             app_event_tx,
             complete: false,
         };

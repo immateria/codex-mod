@@ -107,33 +107,16 @@ impl LoginAccountsState {
     }
 
     fn account_footer_lines(&self) -> Vec<Line<'static>> {
+        use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, shortcut_line, KeyHint};
         let mut lines = Vec::new();
-        lines.push(Line::from(vec![
-            Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
-            Span::styled(" Navigate  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
-            Span::styled(" Select  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(
-                "d",
-                Style::default()
-                    .fg(crate::colors::warning())
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(" Disconnect  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(
-                "p",
-                Style::default()
-                    .fg(crate::colors::info())
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(" Paths  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(
-                crate::icons::escape(),
-                Style::default()
-                    .fg(crate::colors::error())
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(" Close", Style::default().fg(crate::colors::text_dim())),
+        lines.push(shortcut_line(&[
+            hint_nav(" Navigate"),
+            hint_enter(" Select"),
+            KeyHint::new("d", " Disconnect")
+                .with_key_style(Style::default().fg(crate::colors::warning()).add_modifier(Modifier::BOLD)),
+            KeyHint::new("p", " Paths")
+                .with_key_style(Style::default().fg(crate::colors::info()).add_modifier(Modifier::BOLD)),
+            hint_esc(" Close"),
         ]));
 
         if self.is_confirm_remove_mode() {

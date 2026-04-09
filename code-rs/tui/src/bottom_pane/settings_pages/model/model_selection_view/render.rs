@@ -375,7 +375,7 @@ impl ModelSelectionView {
 
     fn shortcuts(&self) -> Vec<KeyHint<'static>> {
         let mut hints = vec![
-            KeyHint::new(crate::icons::nav_up_down(), " Navigate").with_key_style(Style::new().fg(colors::light_blue())),
+            KeyHint::new(crate::icons::nav_up_down(), " Navigate").with_key_style(Style::new().fg(colors::function())),
             KeyHint::new(format!("{lr} +/-", lr = crate::icons::nav_left_right()), " Adjust").with_key_style(Style::new().fg(colors::warning())),
             hint_enter(" Select/Edit"),
         ];

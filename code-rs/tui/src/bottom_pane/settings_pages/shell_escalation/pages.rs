@@ -41,13 +41,11 @@ impl ShellEscalationSettingsView {
                 profile,
                 Style::default().fg(crate::colors::text_dim()),
             )),
-            Line::from(vec![
-                Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                Span::styled(" activate  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Ctrl+S", Style::default().fg(crate::colors::success())),
-                Span::styled(" apply  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-                Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
+            crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+                crate::bottom_pane::settings_ui::hints::hint_enter(" activate"),
+                crate::bottom_pane::settings_ui::hints::KeyHint::new("Ctrl+S", " apply")
+                    .with_key_style(Style::default().fg(crate::colors::success())),
+                crate::bottom_pane::settings_ui::hints::hint_esc(" close"),
             ]),
             Line::from(""),
         ]

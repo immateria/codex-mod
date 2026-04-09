@@ -116,7 +116,11 @@ impl ExecLimitsSettingsView {
             SettingsPanelStyle::bottom_pane(),
             field_title,
             vec![
-                Line::from(Span::styled("Enter/Ctrl+S save · Esc cancel", hint)),
+                crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+                    crate::bottom_pane::settings_ui::hints::KeyHint::new("Enter/Ctrl+S", " save")
+                        .with_key_style(Style::default().fg(crate::colors::success())),
+                    crate::bottom_pane::settings_ui::hints::hint_esc(" cancel"),
+                ]),
                 Line::from(""),
             ],
             post_field_lines,

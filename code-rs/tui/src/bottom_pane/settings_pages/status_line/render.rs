@@ -29,20 +29,20 @@ impl StatusLineSetupView {
         let bottom_preview = self.preview_text_for_lane(StatusLineLane::Bottom);
 
         let mut lines = Vec::new();
-        lines.push(Line::from(vec![
-            Span::styled(crate::icons::tab(), Style::default().fg(crate::colors::light_blue())),
-            Span::styled(" lane  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("p", Style::default().fg(crate::colors::light_blue())),
-            Span::styled(" primary  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(crate::icons::space(), Style::default().fg(crate::colors::success())),
-            Span::styled(" toggle  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(crate::icons::nav_left_right(), Style::default().fg(crate::colors::light_blue())),
-            Span::styled(" reorder  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
-            Span::styled(" apply  ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-            Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
-        ]));
+        lines.push({
+            use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav_horizontal, shortcut_line, KeyHint};
+            shortcut_line(&[
+                KeyHint::new(crate::icons::tab(), " lane")
+                    .with_key_style(Style::default().fg(crate::colors::function())),
+                KeyHint::new("p", " primary")
+                    .with_key_style(Style::default().fg(crate::colors::function())),
+                KeyHint::new(crate::icons::space(), " toggle")
+                    .with_key_style(Style::default().fg(crate::colors::success())),
+                hint_nav_horizontal(" reorder"),
+                hint_enter(" apply"),
+                hint_esc(" cancel"),
+            ])
+        });
 
         lines.push(Line::from(vec![
             Span::styled(

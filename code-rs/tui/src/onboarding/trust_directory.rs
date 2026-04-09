@@ -116,7 +116,7 @@ impl WidgetRef for &TrustDirectoryWidget {
         }
         lines.push(Line::from(vec![
             Span::raw("  Press "),
-            Span::styled("Enter", Style::default().fg(colors::function())),
+            Span::styled("Enter", Style::default().fg(colors::success())),
             Span::raw(" to continue"),
         ]));
 

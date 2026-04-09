@@ -334,15 +334,14 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn picker_footer_lines() -> Vec<Line<'static>> {
-        vec![Line::from(vec![
-            Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
-            Span::styled(" move   ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Space/Enter", Style::default().fg(crate::colors::success())),
-            Span::styled(" toggle   ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("Ctrl+S", Style::default().fg(crate::colors::success())),
-            Span::styled(" save   ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-            Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
+        use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_nav, shortcut_line, KeyHint};
+        vec![shortcut_line(&[
+            hint_nav(" move"),
+            KeyHint::new("Space/Enter", " toggle")
+                .with_key_style(Style::default().fg(crate::colors::success())),
+            KeyHint::new("Ctrl+S", " save")
+                .with_key_style(Style::default().fg(crate::colors::success())),
+            hint_esc(" cancel"),
         ])]
     }
 

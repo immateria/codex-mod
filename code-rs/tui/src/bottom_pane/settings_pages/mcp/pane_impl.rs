@@ -2,7 +2,6 @@ use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::Style;
-use ratatui::text::{Line, Span};
 use ratatui::widgets::{
     Block,
     Borders,
@@ -224,41 +223,31 @@ impl McpSettingsView {
     }
 
     fn render_hints(&self, hint_area: Rect, buf: &mut Buffer) {
+        use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, shortcut_line, KeyHint};
         match self.mode {
-            McpSettingsMode::Main => Paragraph::new(Line::from(vec![
-                Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
-                Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled(crate::icons::space(), Style::default().fg(crate::colors::success())),
-                Span::styled(" toggle tool  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
-                Span::styled(" expand tool  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled(crate::icons::tab(), Style::default().fg(crate::colors::function())),
-                Span::styled(" /Click", Style::default().fg(crate::colors::function())),
-                Span::styled(" focus pane  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("E", Style::default().fg(crate::colors::function())),
-                Span::styled(
-                    " edit scheduling  ",
-                    Style::default().fg(crate::colors::text_dim()),
-                ),
-                Span::styled("W", Style::default().fg(crate::colors::function())),
-                Span::styled(" wrap  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-                Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
+            McpSettingsMode::Main => Paragraph::new(shortcut_line(&[
+                hint_nav(" move"),
+                KeyHint::new(crate::icons::space(), " toggle tool")
+                    .with_key_style(Style::default().fg(crate::colors::success())),
+                hint_enter(" expand tool"),
+                KeyHint::new(
+                    format!("{}/Click", crate::icons::tab()),
+                    " focus pane",
+                ).with_key_style(Style::default().fg(crate::colors::function())),
+                KeyHint::new("E", " edit scheduling")
+                    .with_key_style(Style::default().fg(crate::colors::function())),
+                KeyHint::new("W", " wrap")
+                    .with_key_style(Style::default().fg(crate::colors::function())),
+                hint_esc(" close"),
             ]))
             .render(hint_area, buf),
             McpSettingsMode::EditServerScheduling(_) | McpSettingsMode::EditToolScheduling(_) => {
-                Paragraph::new(Line::from(vec![
-                    Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
-                    Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::success())),
-                    Span::styled(
-                        " edit/toggle  ",
-                        Style::default().fg(crate::colors::text_dim()),
-                    ),
-                    Span::styled(crate::icons::ctrl_combo("S"), Style::default().fg(crate::colors::function())),
-                    Span::styled(" save  ", Style::default().fg(crate::colors::text_dim())),
-                    Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
-                    Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
+                Paragraph::new(shortcut_line(&[
+                    hint_nav(" move"),
+                    hint_enter(" edit/toggle"),
+                    KeyHint::new(crate::icons::ctrl_combo("S"), " save")
+                        .with_key_style(Style::default().fg(crate::colors::function())),
+                    hint_esc(" cancel"),
                 ]))
                 .render(hint_area, buf)
             }
