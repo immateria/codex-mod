@@ -9,6 +9,8 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::colors;
 
+use super::frame::clamp_u16;
+
 use super::hit_test::line_has_non_whitespace_at;
 
 const SPACES: &str = "                                                                ";
@@ -114,9 +116,6 @@ pub(crate) fn row_area(body: Rect, rel_idx: usize) -> Rect {
     )
 }
 
-fn clamp_u16(value: usize) -> u16 {
-    u16::try_from(value).unwrap_or(u16::MAX)
-}
 
 fn push_spaces<'a>(spans: &mut Vec<Span<'a>>, mut cols: u16) {
     while cols > 0 {

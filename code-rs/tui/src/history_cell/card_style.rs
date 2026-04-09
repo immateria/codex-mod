@@ -93,6 +93,13 @@ pub(crate) const MEDIA_MAX_ROWS: usize = 60;
 pub(crate) const MEDIA_TEXT_RIGHT_PADDING: usize = 2;
 pub(crate) const MEDIA_MIN_TEXT_WIDTH: usize = 28;
 
+// Shared layout constants for action/time column cards (browser, auto_drive,
+// web_search, agent runs).
+/// Space between the main content area and the time column.
+pub(crate) const ACTION_TIME_SEPARATOR_WIDTH: usize = 2;
+/// Default left indent for wrapped body text inside bordered cards.
+pub(crate) const DEFAULT_TEXT_INDENT: usize = 2;
+
 /// Build a `CardStyle` from a pair of light/dark theme definitions, applying
 /// ANSI-16 fallback when needed.
 fn card_style_for(

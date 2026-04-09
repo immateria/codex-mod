@@ -12,6 +12,7 @@ use super::card_style::{
     BORDER_TOP,
     BORDER_BODY,
     BORDER_BOTTOM,
+    DEFAULT_TEXT_INDENT,
     MEDIA_MAX_ROWS as MAX_SCREENSHOT_ROWS,
     MEDIA_MAX_WIDTH as SCREENSHOT_MAX_WIDTH,
     MEDIA_MIN_TEXT_WIDTH as MIN_TEXT_WIDTH,
@@ -24,7 +25,6 @@ const MAX_CONSOLE: usize = 12;
 const ACTION_DISPLAY_HEAD: usize = 4;
 const ACTION_DISPLAY_TAIL: usize = 4;
 const MIN_SCREENSHOT_ROWS: usize = 6;
-const DEFAULT_TEXT_INDENT: usize = 2;
 const SCREENSHOT_GAP: usize = 2;
 const SCREENSHOT_LEFT_PAD: usize = 1;
 const ACTION_LABEL_GAP: usize = 2;

@@ -425,7 +425,7 @@ impl ModelSelectionView {
             ],
             post_field_lines,
         )
-        .with_field_margin(Margin::new(2, 0))
+        .with_field_margin(crate::ui_consts::NESTED_HPAD)
     }
 
     fn render_main_in_chrome(&self, chrome: ChromeMode, area: Rect, buf: &mut Buffer) {

@@ -15,6 +15,7 @@ use super::card_style::{
     BORDER_TOP,
     BORDER_BODY,
     BORDER_BOTTOM,
+    DEFAULT_TEXT_INDENT,
 };
 use super::*;
 use crate::colors;
@@ -32,7 +33,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-const DEFAULT_TEXT_INDENT: usize = 2;
+
 const IMAGE_GAP: usize = 2;
 const IMAGE_LEFT_PAD: usize = 1;
 const MIN_IMAGE_ROWS: usize = 4;

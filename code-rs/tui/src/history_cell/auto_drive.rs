@@ -14,6 +14,7 @@ use super::card_style::{
     BORDER_BODY,
     BORDER_BOTTOM,
     HINT_SETTINGS_STOP as HINT_TEXT,
+    ACTION_TIME_SEPARATOR_WIDTH,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::auto_drive_style::EFFECT_WHITE;
@@ -36,7 +37,6 @@ use std::time::{Duration, Instant};
 use std::env;
 
 const ACTION_TIME_INDENT: usize = 1;
-const ACTION_TIME_SEPARATOR_WIDTH: usize = 2;
 const ACTION_TIME_COLUMN_MIN_WIDTH: usize = 6;
 const CELEBRATION_ASCII: [&str; 4] = [
     " ▗▄▄▖ ▗▄▖ ▗▖  ▗▖▗▄▄▖ ▗▖   ▗▄▄▄▖▗▄▄▄▖▗▄▄▄▖",

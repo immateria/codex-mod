@@ -102,7 +102,7 @@ impl ThemeSelectionView {
         }
 
         // Add one cell padding around the inside; body occupies full padded area.
-        inner.inner(ratatui::layout::Margin::new(1, 1))
+        inner.inner(crate::ui_consts::UNIFORM_PAD)
     }
 
     fn render_content_only_shell(&self, area: Rect, buf: &mut Buffer) -> Rect {

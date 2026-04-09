@@ -18,6 +18,7 @@ use super::card_style::{
     BORDER_BODY,
     BORDER_BOTTOM,
     HINT_SETTINGS_STOP as HINT_TEXT,
+    ACTION_TIME_SEPARATOR_WIDTH,
 };
 use super::{HistoryCell, HistoryCellType, ToolCellStatus};
 use crate::theme::{palette_mode, PaletteMode};
@@ -31,7 +32,6 @@ use std::time::Duration;
 use unicode_width::UnicodeWidthStr;
 
 const ACTION_TIME_INDENT: usize = 1;
-const ACTION_TIME_SEPARATOR_WIDTH: usize = 2;
 const ACTION_TIME_COLUMN_MIN_WIDTH: usize = 2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

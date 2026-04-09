@@ -209,7 +209,6 @@ impl<'p, 'a> SettingsEditorPageContentOnly<'p, 'a> {
 mod tests {
     use super::*;
     use crate::components::form_text_field::FormTextField;
-    use ratatui::layout::Margin;
     use ratatui::text::Span;
 
     #[test]
@@ -290,7 +289,7 @@ mod tests {
             vec![Line::from("hint")],
             vec![],
         )
-        .with_field_margin(Margin::new(2, 0));
+        .with_field_margin(crate::ui_consts::NESTED_HPAD);
         let area = Rect::new(0, 0, 20, 7);
         let layout = page.framed().layout(area).expect("layout");
 

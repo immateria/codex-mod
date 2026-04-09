@@ -1,6 +1,5 @@
 use super::*;
 
-use ratatui::layout::Margin;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
@@ -180,7 +179,7 @@ impl MemoriesSettingsView {
             ],
             post_field_lines,
         )
-        .with_field_margin(Margin::new(2, 0))
+        .with_field_margin(crate::ui_consts::NESTED_HPAD)
     }
 
     pub(super) fn main_page(&self) -> SettingsRowPage<'_> {

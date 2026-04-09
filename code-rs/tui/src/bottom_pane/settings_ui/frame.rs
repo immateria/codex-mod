@@ -25,7 +25,7 @@ pub(crate) struct SettingsFrameLayout {
     pub(crate) footer: Rect,
 }
 
-fn clamp_u16(value: usize) -> u16 {
+pub(super) fn clamp_u16(value: usize) -> u16 {
     value.min(u16::MAX as usize) as u16
 }
 

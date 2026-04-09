@@ -2,7 +2,6 @@ use super::*;
 
 use std::time::Duration;
 
-use ratatui::layout::Margin;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
@@ -125,6 +124,6 @@ impl ExecLimitsSettingsView {
             ],
             post_field_lines,
         )
-        .with_field_margin(Margin::new(2, 0))
+        .with_field_margin(crate::ui_consts::NESTED_HPAD)
     }
 }
