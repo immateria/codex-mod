@@ -122,7 +122,7 @@ impl ChatWidget<'_> {
                 if let Some(cell) = self.history_cells.get(idx) {
                     if let Some(md) = cell.copyable_markdown() {
                         crate::clipboard_copy::copy_to_clipboard_osc52(&md);
-                        self.bottom_pane.flash_footer_notice("Copied to clipboard".into());
+                        self.bottom_pane.flash_footer_notice("Copied to clipboard");
                     }
                 }
             }

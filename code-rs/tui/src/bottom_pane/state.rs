@@ -110,7 +110,7 @@ impl<'a> BottomPane<'a> {
     }
 
     /// Show an ephemeral footer notice for a custom duration.
-    pub(crate) fn flash_footer_notice_for(&mut self, text: String, dur: Duration) {
+    pub(crate) fn flash_footer_notice_for(&mut self, text: impl Into<std::borrow::Cow<'static, str>>, dur: Duration) {
         self.composer.flash_footer_notice_for(text, dur);
         // Ask app to clear it slightly after expiry to avoid flicker on boundary
         self.app_event_tx
@@ -237,7 +237,7 @@ impl<'a> BottomPane<'a> {
     // Immediate redraw path removed; all UI updates flow through the
     // debounced RequestRedraw/App::Redraw scheduler to reduce thrash.
 
-    pub(crate) fn flash_footer_notice(&mut self, text: String) {
+    pub(crate) fn flash_footer_notice(&mut self, text: impl Into<std::borrow::Cow<'static, str>>) {
         self.composer.flash_footer_notice(text);
         // Ask app to schedule a redraw shortly to clear the notice automatically
         self.app_event_tx.send(AppEvent::ScheduleFrameIn(

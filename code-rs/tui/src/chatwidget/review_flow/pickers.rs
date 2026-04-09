@@ -23,7 +23,7 @@ impl ChatWidget<'_> {
     pub(crate) fn present_review_commit_picker(&mut self, commits: Vec<CommitLogEntry>) {
         if commits.is_empty() {
             self.bottom_pane
-                .flash_footer_notice("No recent commits found for review".to_string());
+                .flash_footer_notice("No recent commits found for review");
             self.request_redraw();
             return;
         }
@@ -79,7 +79,7 @@ impl ChatWidget<'_> {
 
         if items.is_empty() {
             self.bottom_pane
-                .flash_footer_notice("No recent commits found for review".to_string());
+                .flash_footer_notice("No recent commits found for review");
             self.request_redraw();
             return;
         }
@@ -175,7 +175,7 @@ impl ChatWidget<'_> {
 
         if items.is_empty() {
             self.bottom_pane
-                .flash_footer_notice("No alternative branches found for review".to_string());
+                .flash_footer_notice("No alternative branches found for review");
             self.request_redraw();
             return;
         }

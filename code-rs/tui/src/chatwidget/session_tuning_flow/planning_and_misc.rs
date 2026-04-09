@@ -88,7 +88,7 @@ impl ChatWidget<'_> {
 
         if !updated {
             self.bottom_pane
-                .flash_footer_notice("Planning model unchanged.".to_string());
+                .flash_footer_notice("Planning model unchanged.");
             return;
         }
 
@@ -170,7 +170,7 @@ impl ChatWidget<'_> {
 
         if use_chat {
             self.bottom_pane
-                .flash_footer_notice("Planning model now follows Chat model".to_string());
+                .flash_footer_notice("Planning model now follows Chat model");
         } else {
             self.bottom_pane.flash_footer_notice(format!(
                 "Planning model set to {} ({} reasoning)",
@@ -215,7 +215,7 @@ impl ChatWidget<'_> {
 
         if !updated {
             self.bottom_pane
-                .flash_footer_notice("Auto Drive model unchanged.".to_string());
+                .flash_footer_notice("Auto Drive model unchanged.");
             return;
         }
 
@@ -320,7 +320,7 @@ impl ChatWidget<'_> {
             && self.config.model_auto_compact_token_limit == next_auto_compact
         {
             self.bottom_pane
-                .flash_footer_notice("Context settings unchanged.".to_string());
+                .flash_footer_notice("Context settings unchanged.");
             return;
         }
 

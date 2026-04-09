@@ -498,19 +498,19 @@ impl ChatWidget<'_> {
                 self.show_settings_overlay(Some(SettingsSection::Memories));
             }
             "status" => {
-                self.flash_footer_notice("Loading memories status…".to_string());
+                self.flash_footer_notice("Loading memories status…");
                 self.app_event_tx.send(AppEvent::RunMemoriesStatusLoad {
                     target: crate::app_event::MemoriesStatusLoadTarget::SlashCommand,
                 });
             }
             "refresh" => {
-                self.flash_footer_notice("Refreshing memories artifacts…".to_string());
+                self.flash_footer_notice("Refreshing memories artifacts…");
                 self.app_event_tx.send(AppEvent::RunMemoriesArtifactsAction {
                     action: crate::app_event::MemoriesArtifactsAction::Refresh,
                 });
             }
             "clear" => {
-                self.flash_footer_notice("Clearing generated memories artifacts…".to_string());
+                self.flash_footer_notice("Clearing generated memories artifacts…");
                 self.app_event_tx.send(AppEvent::RunMemoriesArtifactsAction {
                     action: crate::app_event::MemoriesArtifactsAction::Clear,
                 });

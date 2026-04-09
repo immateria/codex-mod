@@ -381,7 +381,7 @@ impl ChatWidget<'_> {
     pub(crate) fn show_cloud_task_create_progress(&mut self) {
         self.cloud_tasks_creation_inflight = true;
         self.bottom_pane
-            .flash_footer_notice("Submitting cloud task…".to_string());
+            .flash_footer_notice("Submitting cloud task…");
         self.request_redraw();
     }
 
@@ -491,7 +491,7 @@ impl ChatWidget<'_> {
 
         if self.git_init_inflight {
             self.bottom_pane
-                .flash_footer_notice("Initializing git repository...".to_string());
+                .flash_footer_notice("Initializing git repository...");
             return true;
         }
 
@@ -554,7 +554,7 @@ impl ChatWidget<'_> {
     pub(crate) fn confirm_git_init(&mut self, resume: GitInitResume) {
         if self.git_init_inflight {
             self.bottom_pane
-                .flash_footer_notice("Git init already running...".to_string());
+                .flash_footer_notice("Git init already running...");
             return;
         }
 

@@ -165,7 +165,7 @@ pub(crate) struct ChatComposer {
     custom_prompts: Vec<CustomPrompt>,
     subagent_commands: Vec<String>,
     // Ephemeral footer notice and its expiry
-    footer_notice: Option<(String, std::time::Instant)>,
+    footer_notice: Option<(std::borrow::Cow<'static, str>, std::time::Instant)>,
     // Persistent hint for specific modes (e.g., standard terminal mode)
     standard_terminal_hint: Option<String>,
     // Auto Review status displayed in the footer
@@ -312,9 +312,9 @@ impl ChatComposer {
         self.has_chat_history = has_history;
     }
 
-    pub fn flash_footer_notice(&mut self, text: String) {
+    pub fn flash_footer_notice(&mut self, text: impl Into<std::borrow::Cow<'static, str>>) {
         let expiry = std::time::Instant::now() + Self::DEFAULT_FOOTER_NOTICE_DURATION;
-        self.footer_notice = Some((text, expiry));
+        self.footer_notice = Some((text.into(), expiry));
     }
 
     pub(crate) fn set_embedded_mode(&mut self, enabled: bool) {
@@ -359,9 +359,9 @@ impl ChatComposer {
     }
 
     /// Show a footer notice for a specific duration.
-    pub fn flash_footer_notice_for(&mut self, text: String, dur: std::time::Duration) {
+    pub fn flash_footer_notice_for(&mut self, text: impl Into<std::borrow::Cow<'static, str>>, dur: std::time::Duration) {
         let expiry = std::time::Instant::now() + dur;
-        self.footer_notice = Some((text, expiry));
+        self.footer_notice = Some((text.into(), expiry));
     }
 
     // Control footer hint visibility

@@ -18,7 +18,7 @@ impl ChatWidget<'_> {
             );
             self.mouse_capture_paused.set(true);
             self.bottom_pane.flash_footer_notice(
-                "Mouse capture off — press Ctrl+M or any key to resume".into(),
+                "Mouse capture off — press Ctrl+M or any key to resume",
             );
         }
     }
@@ -38,7 +38,7 @@ impl ChatWidget<'_> {
                 );
                 self.mouse_capture_paused.set(true);
                 self.bottom_pane.flash_footer_notice(
-                    "Selection mode — select text, then press any key to resume".into(),
+                    "Selection mode — select text, then press any key to resume",
                 );
                 self.request_redraw();
             }

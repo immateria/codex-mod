@@ -780,7 +780,7 @@
                 }
                 AppEvent::ForkFrom(path) => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.flash_footer_notice("Forking session…".to_string());
+                        widget.flash_footer_notice("Forking session…");
                     }
 
                     let cfg = self.config.clone();
@@ -910,7 +910,7 @@
                     auto_compact_token_limit,
                 } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.flash_footer_notice("Saving context settings…".to_string());
+                        widget.flash_footer_notice("Saving context settings…");
                     }
                     self.schedule_redraw();
 

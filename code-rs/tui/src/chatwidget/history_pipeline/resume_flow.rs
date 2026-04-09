@@ -13,7 +13,7 @@ impl ChatWidget<'_> {
     fn show_session_picker(&mut self, action: SessionPickerAction) {
         if self.resume_picker_loading {
             self.bottom_pane
-                .flash_footer_notice("Still loading past sessions…".to_string());
+                .flash_footer_notice("Still loading past sessions…");
             return;
         }
         self.resume_picker_loading = true;
@@ -137,7 +137,7 @@ impl ChatWidget<'_> {
         self.resume_picker_loading = false;
         if candidates.is_empty() {
             self.bottom_pane
-                .flash_footer_notice("No past sessions found for this folder".to_string());
+                .flash_footer_notice("No past sessions found for this folder");
             self.request_redraw();
             return;
         }

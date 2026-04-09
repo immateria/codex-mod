@@ -116,7 +116,7 @@ impl ChatWidget<'_> {
         if tabs.is_empty() {
             // Nothing to show — surface a small notice so Ctrl+D feels responsive
             self.bottom_pane
-                .flash_footer_notice("No diffs recorded this session".to_string());
+                .flash_footer_notice("No diffs recorded this session");
             return;
         }
         self.diffs.overlay = Some(DiffOverlay::new(tabs));
@@ -456,7 +456,7 @@ impl ChatWidget<'_> {
         self.request_redraw();
     }
 
-    pub(crate) fn flash_footer_notice(&mut self, text: String) {
+    pub(crate) fn flash_footer_notice(&mut self, text: impl Into<std::borrow::Cow<'static, str>>) {
         self.bottom_pane.flash_footer_notice(text);
         self.request_redraw();
     }
@@ -511,7 +511,7 @@ impl ChatWidget<'_> {
     // Ctrl+Y syntax cycling disabled intentionally.
 
     /// Show a brief debug notice in the footer.
-    pub(crate) fn debug_notice(&mut self, text: String) {
+    pub(crate) fn debug_notice(&mut self, text: impl Into<std::borrow::Cow<'static, str>>) {
         self.bottom_pane.flash_footer_notice(text);
         self.request_redraw();
     }

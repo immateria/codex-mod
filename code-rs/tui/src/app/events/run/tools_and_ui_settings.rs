@@ -31,7 +31,7 @@
                                 match code_core::config::apply_exec_limits_settings(&settings) {
                                     Ok(()) => {
                                         widget.apply_exec_limits_settings(settings);
-                                        widget.flash_footer_notice("Exec limits: updated".to_string());
+                                        widget.flash_footer_notice("Exec limits: updated");
                                     }
                                     Err(err) => {
                                         widget.flash_footer_notice(format!(
@@ -111,7 +111,7 @@
                             self.config.tui.hotkeys = hotkeys.clone();
                             if let AppState::Chat { widget } = &mut self.app_state {
                                 widget.apply_tui_hotkeys(hotkeys.clone());
-                                widget.flash_footer_notice("Hotkeys saved".to_string());
+                                widget.flash_footer_notice("Hotkeys saved");
                             }
                         }
                         Err(err) => {
@@ -590,7 +590,7 @@
                         match result {
                             Ok(()) => {
                                 widget.plugins_set_action_error(None);
-                                widget.flash_footer_notice("Plugin uninstalled".to_string());
+                                widget.flash_footer_notice("Plugin uninstalled");
 
                                 match reload {
                                     Some(Ok(config)) => {
@@ -656,7 +656,7 @@
                         match result {
                             Ok(()) => {
                                 widget.plugins_set_action_error(None);
-                                widget.flash_footer_notice("Plugin setting updated".to_string());
+                                widget.flash_footer_notice("Plugin setting updated");
 
                                 match reload {
                                     Some(Ok(config)) => {
@@ -786,7 +786,7 @@
                 }
                 AppEvent::UpdateFeatureFlags { updates } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.flash_footer_notice("Saving experimental features...".to_string());
+                        widget.flash_footer_notice("Saving experimental features...");
                     }
                     self.schedule_redraw();
 
@@ -826,7 +826,7 @@
                                     }
                                 }
                             } else if let AppState::Chat { widget } = &mut self.app_state {
-                                widget.flash_footer_notice("Experimental features unchanged".to_string());
+                                widget.flash_footer_notice("Experimental features unchanged");
                             }
                         }
                         Err(err) => {
@@ -841,7 +841,7 @@
                 }
                 AppEvent::UpdateShellEscalationSettings { enabled, zsh_path, wrapper } => {
                     if let AppState::Chat { widget } = &mut self.app_state {
-                        widget.flash_footer_notice("Saving shell escalation settings...".to_string());
+                        widget.flash_footer_notice("Saving shell escalation settings...");
                     }
                     self.schedule_redraw();
 

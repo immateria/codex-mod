@@ -176,7 +176,7 @@ impl ChatWidget<'_> {
 
         if !updated {
             self.bottom_pane
-                .flash_footer_notice("Review model unchanged.".to_string());
+                .flash_footer_notice("Review model unchanged.");
             return;
         }
 
@@ -245,7 +245,7 @@ impl ChatWidget<'_> {
 
         if !updated {
             self.bottom_pane
-                .flash_footer_notice("Resolve model unchanged.".to_string());
+                .flash_footer_notice("Resolve model unchanged.");
             return;
         }
 
@@ -383,7 +383,7 @@ impl ChatWidget<'_> {
 
         if !updated {
             self.bottom_pane
-                .flash_footer_notice("Auto Review model unchanged.".to_string());
+                .flash_footer_notice("Auto Review model unchanged.");
             return;
         }
 
@@ -486,7 +486,7 @@ impl ChatWidget<'_> {
 
         if !updated {
             self.bottom_pane
-                .flash_footer_notice("Auto Review resolve model unchanged.".to_string());
+                .flash_footer_notice("Auto Review resolve model unchanged.");
             return;
         }
 

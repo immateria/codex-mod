@@ -84,7 +84,7 @@ impl ChatWidget<'_> {
 
         if top_items.is_empty() && bottom_items.is_empty() {
             self.bottom_pane
-                .flash_footer_notice("Status line reset to default layout".to_string());
+                .flash_footer_notice("Status line reset to default layout");
         } else {
             self.bottom_pane.flash_footer_notice(format!(
                 "Status line updated (top {}, bottom {}, primary {})",
@@ -98,7 +98,7 @@ impl ChatWidget<'_> {
 
     pub(crate) fn cancel_status_line_setup(&mut self) {
         self.bottom_pane
-            .flash_footer_notice("Status line setup cancelled".to_string());
+            .flash_footer_notice("Status line setup cancelled");
         self.request_redraw();
     }
 
