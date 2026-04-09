@@ -17,6 +17,13 @@ use code_browser::BrowserConfig as CodexBrowserConfig;
 use code_browser::BrowserManager;
 use std::time::Duration;
 
+/// Timeout for browser JavaScript execution checks.
+#[cfg(feature = "browser-automation")]
+const JS_EXEC_TIMEOUT: Duration = Duration::from_millis(1500);
+/// Sleep between browser readiness polls.
+#[cfg(feature = "browser-automation")]
+const READINESS_POLL_INTERVAL: Duration = Duration::from_millis(800);
+
 pub(crate) struct WebFetchToolHandler;
 
 #[async_trait]
@@ -143,7 +150,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                 };
 
                 for _ in 0..6 {
-                    match tokio::time::timeout(Duration::from_millis(1500), manager.execute_javascript(CHECK_JS)).await {
+                    match tokio::time::timeout(JS_EXEC_TIMEOUT, manager.execute_javascript(CHECK_JS)).await {
                         Ok(Ok(val)) => {
                             let count = val
                                 .get("value")
@@ -162,7 +169,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                             break;
                         }
                     }
-                    tokio::time::sleep(Duration::from_millis(800)).await;
+                    tokio::time::sleep(READINESS_POLL_INTERVAL).await;
                 }
 
                 let html_value = match tokio::time::timeout(timeout, manager.execute_javascript(HTML_JS)).await {
@@ -222,7 +229,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                             match tokio::time::timeout(timeout, manager.goto(url)).await {
                                 Ok(Ok(res)) => {
                                     for _ in 0..6 {
-                                        match tokio::time::timeout(Duration::from_millis(1500), manager.execute_javascript(CHECK_JS)).await {
+                                        match tokio::time::timeout(JS_EXEC_TIMEOUT, manager.execute_javascript(CHECK_JS)).await {
                                             Ok(Ok(val)) => {
                                                 let count = val
                                                     .get("value")
@@ -241,7 +248,7 @@ pub(crate) async fn handle_web_fetch(sess: &Session, ctx: &ToolCallCtx, argument
                                                 break;
                                             }
                                         }
-                                        tokio::time::sleep(Duration::from_millis(800)).await;
+                                        tokio::time::sleep(READINESS_POLL_INTERVAL).await;
                                     }
 
                                     match tokio::time::timeout(timeout, manager.execute_javascript(HTML_JS)).await {
