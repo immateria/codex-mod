@@ -120,7 +120,7 @@ pub(super) fn create_diff_summary_with_width(
         }
     };
 
-    let mut files: Vec<FileSummary> = Vec::new();
+    let mut files: Vec<FileSummary> = Vec::with_capacity(changes.len());
     for (path, change) in changes.iter() {
         match change {
             FileChange::Add { content } => {
@@ -189,10 +189,8 @@ pub(super) fn create_diff_summary_with_width(
     let total_removed: usize = files.iter().map(|f| f.removed).sum();
     let noun = if file_count == 1 { "file" } else { "files" };
 
-    let mut out: Vec<RtLine<'static>> = Vec::new();
-
-    // Header
-    let mut header_spans: Vec<RtSpan<'static>> = Vec::new();
+    let mut out: Vec<RtLine<'static>> = Vec::with_capacity(files.len() + 2);
+    let mut header_spans: Vec<RtSpan<'static>> = Vec::with_capacity(4);
     // Colorize title: success for apply events, keep primary for approval requests
     let title_style = match event_type {
         PatchEventType::ApplyBegin { .. } | PatchEventType::ApplySuccess => Style::default()
@@ -226,8 +224,7 @@ pub(super) fn create_diff_summary_with_width(
 
     // Per-file lines with prefix
     for (idx, f) in files.iter().enumerate() {
-        let mut spans: Vec<RtSpan<'static>> = Vec::new();
-        // Prefix
+        let mut spans: Vec<RtSpan<'static>> = Vec::with_capacity(6);
         let prefix = if idx == 0 { "└ " } else { "  " };
         spans.push(RtSpan::styled(
             prefix,
@@ -546,7 +543,7 @@ fn push_wrapped_diff_line_with_width(
         remaining_text = rest;
 
         if first {
-            let mut spans: Vec<RtSpan<'static>> = Vec::new();
+            let mut spans: Vec<RtSpan<'static>> = Vec::with_capacity(5);
             spans.push(RtSpan::raw(indent));
             spans.push(RtSpan::styled(ln_str.clone(), style_dim()));
             spans.push(RtSpan::raw(" ".repeat(gap_after_ln)));

@@ -252,7 +252,7 @@ fn dynamic_welcome_lines(
     // much block art as fits (cropping is preferable to dropping the logo).
     let used_text_fallback = matches!(size, IntroArtSize::Tiny) && wrapped.len() > block_capacity;
 
-    let mut core_lines = Vec::new();
+    let mut core_lines = Vec::with_capacity(6);
     core_lines.push(center_line(
         &compose_meta_line(brand_title, version, max_width),
         max_width,
@@ -446,7 +446,7 @@ fn render_wrapped_block_lines(
     max_width: usize,
     max_block_rows: usize,
 ) -> Vec<String> {
-    let mut rows = Vec::new();
+    let mut rows = Vec::with_capacity(wrapped.len().saturating_mul(4).min(max_block_rows));
     for (line_index, line) in wrapped.iter().enumerate() {
         let line_rows = render_block_text_lines(line, scale);
         let line_rows = apply_drop_shadow(&line_rows);
@@ -1087,7 +1087,7 @@ mod tests {
     }
 
     fn buffer_to_strings(buf: &Buffer, area: Rect) -> Vec<String> {
-        let mut lines = Vec::new();
+        let mut lines = Vec::with_capacity(area.height as usize);
         for y in area.y..area.y + area.height {
             let mut line = String::with_capacity(area.width as usize);
             for x in area.x..area.x + area.width {

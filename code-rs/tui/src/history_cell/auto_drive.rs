@@ -218,7 +218,7 @@ impl AutoDriveCardCell {
             return Vec::new();
         };
 
-        let mut rows: Vec<CardRow> = Vec::new();
+        let mut rows: Vec<CardRow> = Vec::with_capacity(16);
         if self.celebration_started_at.is_some() {
             rows.extend(self.build_celebration_rows(body_width, style));
             return rows;
@@ -262,7 +262,7 @@ impl AutoDriveCardCell {
     }
 
     fn build_celebration_rows(&self, body_width: usize, style: &CardStyle) -> Vec<CardRow> {
-        let mut rows: Vec<CardRow> = Vec::new();
+        let mut rows: Vec<CardRow> = Vec::with_capacity(CELEBRATION_ASCII.len() + 6);
 
         rows.push(self.title_row(body_width, style));
         rows.push(self.blank_row(body_width, style));
@@ -290,7 +290,7 @@ impl AutoDriveCardCell {
     }
 
     fn title_row(&self, body_width: usize, style: &CardStyle) -> CardRow {
-        let mut segments: Vec<CardSegment> = Vec::new();
+        let mut segments: Vec<CardSegment> = Vec::with_capacity(4);
         let title_text = " Auto Drive";
         let status_text = if self.celebration_started_at.is_some() {
             " · Complete".to_string()
@@ -675,7 +675,7 @@ impl AutoDriveCardCell {
             .map(|started| Self::celebration_frame_index_at(started, now, reduced_motion))
             .unwrap_or(0);
 
-        let mut lines: Vec<String> = Vec::new();
+        let mut lines: Vec<String> = Vec::with_capacity(CELEBRATION_ASCII.len() + 4);
         lines.push(pad_to_display_width("", body_width));
 
         let ascii_block_width = CELEBRATION_ASCII
