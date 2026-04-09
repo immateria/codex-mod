@@ -7,7 +7,7 @@ use super::types::{OpenAiTool, ResponsesApiTool};
 // Background waiting tool (for long-running shell calls)
 // ——————————————————————————————————————————————————————————————
 
-pub fn create_wait_tool() -> OpenAiTool {
+pub(crate) fn create_wait_tool() -> OpenAiTool {
     let mut properties = BTreeMap::new();
     properties.insert(
         "call_id".to_string(),
@@ -37,7 +37,7 @@ pub fn create_wait_tool() -> OpenAiTool {
     })
 }
 
-pub fn create_kill_tool() -> OpenAiTool {
+pub(crate) fn create_kill_tool() -> OpenAiTool {
     let mut properties = BTreeMap::new();
     properties.insert(
         "call_id".to_string(),
@@ -59,7 +59,7 @@ pub fn create_kill_tool() -> OpenAiTool {
     })
 }
 
-pub fn create_gh_run_wait_tool() -> OpenAiTool {
+pub(crate) fn create_gh_run_wait_tool() -> OpenAiTool {
     let mut properties = BTreeMap::new();
     properties.insert(
         "run_id".to_string(),
@@ -114,7 +114,7 @@ pub fn create_gh_run_wait_tool() -> OpenAiTool {
     })
 }
 
-pub fn create_bridge_tool() -> OpenAiTool {
+pub(crate) fn create_bridge_tool() -> OpenAiTool {
     let mut properties = BTreeMap::new();
 
     properties.insert(

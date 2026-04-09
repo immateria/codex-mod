@@ -7,7 +7,7 @@ use crate::openai_tools::ResponsesApiTool;
 pub const EXEC_COMMAND_TOOL_NAME: &str = "exec_command";
 pub const WRITE_STDIN_TOOL_NAME: &str = "write_stdin";
 
-pub fn create_exec_command_tool_for_responses_api() -> ResponsesApiTool {
+pub(crate) fn create_exec_command_tool_for_responses_api() -> ResponsesApiTool {
     let mut properties = BTreeMap::<String, JsonSchema>::new();
     properties.insert(
         "cmd".to_string(),
@@ -101,7 +101,7 @@ pub fn create_exec_command_tool_for_responses_api() -> ResponsesApiTool {
     }
 }
 
-pub fn create_write_stdin_tool_for_responses_api() -> ResponsesApiTool {
+pub(crate) fn create_write_stdin_tool_for_responses_api() -> ResponsesApiTool {
     let mut properties = BTreeMap::<String, JsonSchema>::new();
     properties.insert(
         "session_id".to_string(),

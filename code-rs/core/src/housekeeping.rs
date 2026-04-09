@@ -307,7 +307,7 @@ fn cleanup_worktrees(
             let branch_name = branch_entry.file_name().to_string_lossy().into_owned();
             let repo_root = detect_repo_root(&branch_path);
 
-            let canonical = canonicalize_or_original(&branch_path);
+            let canonical = crate::util::canonicalize_or_original(&branch_path);
             if active.contains(&canonical) || active.contains(&branch_path) {
                 stats.skipped_active += 1;
                 continue;
@@ -691,10 +691,6 @@ fn parse_u16(name: &std::ffi::OsStr) -> Option<u16> {
 
 fn dir_is_empty(path: &Path) -> bool {
     fs::read_dir(path).is_ok_and(|mut it| it.next().is_none())
-}
-
-fn canonicalize_or_original(path: &Path) -> PathBuf {
-    crate::util::canonicalize_or_original(path)
 }
 
 fn acquire_lock(path: &Path) -> io::Result<Option<File>> {

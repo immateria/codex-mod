@@ -40,7 +40,7 @@ fn is_in_github_dir(path: &Path, cwd: &Path) -> bool {
 /// Run `actionlint` against a temporary workspace containing the proposed
 /// workflow changes. Returns diagnostic lines when the tool is available and
 /// produced output.
-pub fn maybe_run_actionlint(
+pub(crate) fn maybe_run_actionlint(
     action: &ApplyPatchAction,
     cwd: &Path,
     config: &GithubConfig,

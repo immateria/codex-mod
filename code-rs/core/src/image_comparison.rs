@@ -23,7 +23,7 @@ fn dhash_256(img: &DynamicImage) -> ImageHash<[u8; 32]> {
 }
 
 /// Compute a hash for an image that can be stored and compared later
-pub fn compute_image_hash<P: AsRef<Path>>(path: P) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
+pub(crate) fn compute_image_hash<P: AsRef<Path>>(path: P) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
     let img = ImageReader::open(path)?.decode()?;
     let phash = phash_256(&img);
     let dhash = dhash_256(&img);
@@ -32,7 +32,7 @@ pub fn compute_image_hash<P: AsRef<Path>>(path: P) -> anyhow::Result<(Vec<u8>, V
 }
 
 /// Compare image hashes to determine if images are similar
-pub fn are_hashes_similar(phash1: &[u8], dhash1: &[u8], phash2: &[u8], dhash2: &[u8]) -> bool {
+pub(crate) fn are_hashes_similar(phash1: &[u8], dhash1: &[u8], phash2: &[u8], dhash2: &[u8]) -> bool {
     if phash1.len() != 32 || dhash1.len() != 32 || phash2.len() != 32 || dhash2.len() != 32 {
         return false;
     }

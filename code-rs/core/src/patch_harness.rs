@@ -17,7 +17,7 @@ const ESLINT_MIN_TIMEOUT_SECS: u64 = 15;
 const RUST_LINTER_MIN_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, Clone)]
-pub struct HarnessFinding {
+pub(crate) struct HarnessFinding {
     pub tool: String,
     pub file: Option<PathBuf>,
     pub message: String,
@@ -25,7 +25,7 @@ pub struct HarnessFinding {
 
 /// Run fast validations on the files touched by a patch. Returns `None` when the
 /// harness is disabled and no checks were executed.
-pub fn run_patch_harness(
+pub(crate) fn run_patch_harness(
     action: &ApplyPatchAction,
     cwd: &Path,
     cfg: &ValidationConfig,
