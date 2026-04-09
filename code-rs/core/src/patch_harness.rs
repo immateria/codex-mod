@@ -9,6 +9,13 @@ use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use tempfile::TempDir;
 
+/// Minimum timeout (seconds) for most linter invocations.
+const DEFAULT_LINTER_MIN_TIMEOUT_SECS: u64 = 20;
+/// Minimum timeout (seconds) for eslint / general JS linting.
+const ESLINT_MIN_TIMEOUT_SECS: u64 = 15;
+/// Minimum timeout (seconds) for Rust (cargo check/clippy).
+const RUST_LINTER_MIN_TIMEOUT_SECS: u64 = 30;
+
 #[derive(Debug, Clone)]
 pub struct HarnessFinding {
     pub tool: String,
@@ -267,7 +274,7 @@ pub fn run_patch_harness(
     if functional_enabled && cfg.tools.tsc.unwrap_or(true) && !ts_files.is_empty() && is_allowed("tsc")
         && let Some(exe) = which(Path::new("tsc")) {
             record_ran("tsc");
-            let ts_timeout = timeout.max(20);
+            let ts_timeout = timeout.max(DEFAULT_LINTER_MIN_TIMEOUT_SECS);
             let project = find_nearest_config(cwd, &ts_files, &["tsconfig.json", "tsconfig.base.json", "tsconfig.app.json", "tsconfig.build.json", "tsconfig.lib.json"]);
             match WorkspaceOverlay::apply(action) {
                 Ok(_overlay) => {
@@ -323,7 +330,7 @@ pub fn run_patch_harness(
         && has_eslint_config(cwd, &eslint_files)
         && let Some(exe) = which(Path::new("eslint")) {
             record_ran("eslint");
-            let lint_timeout = timeout.max(15);
+            let lint_timeout = timeout.max(ESLINT_MIN_TIMEOUT_SECS);
             match WorkspaceOverlay::apply(action) {
                 Ok(_overlay) => {
                     let mut cmd = std::process::Command::new(&exe);
@@ -371,7 +378,7 @@ pub fn run_patch_harness(
         && has_phpstan_config(cwd, &php_files)
         && let Some(exe) = which(Path::new("phpstan")) {
             record_ran("phpstan");
-            let phpstan_timeout = timeout.max(20);
+            let phpstan_timeout = timeout.max(DEFAULT_LINTER_MIN_TIMEOUT_SECS);
             match WorkspaceOverlay::apply(action) {
                 Ok(_overlay) => {
                     let mut cmd = std::process::Command::new(&exe);
@@ -414,7 +421,7 @@ pub fn run_patch_harness(
         && has_psalm_config(cwd, &php_files)
         && let Some(exe) = which(Path::new("psalm")) {
             record_ran("psalm");
-            let psalm_timeout = timeout.max(20);
+            let psalm_timeout = timeout.max(DEFAULT_LINTER_MIN_TIMEOUT_SECS);
             match WorkspaceOverlay::apply(action) {
                 Ok(_overlay) => {
                     let mut cmd = std::process::Command::new(&exe);
@@ -458,7 +465,7 @@ pub fn run_patch_harness(
     if functional_enabled && cfg.tools.mypy.unwrap_or(true) && !py_files.is_empty() && is_allowed("mypy")
         && let Some(exe) = which(Path::new("mypy")) {
             record_ran("mypy");
-            let mypy_timeout = timeout.max(20);
+            let mypy_timeout = timeout.max(DEFAULT_LINTER_MIN_TIMEOUT_SECS);
             match WorkspaceOverlay::apply(action) {
                 Ok(_overlay) => {
                     let mut cmd = std::process::Command::new(&exe);
@@ -497,7 +504,7 @@ pub fn run_patch_harness(
     if functional_enabled && cfg.tools.pyright.unwrap_or(true) && !py_files.is_empty() && is_allowed("pyright")
         && let Some(exe) = which(Path::new("pyright")) {
             record_ran("pyright");
-            let pyright_timeout = timeout.max(20);
+            let pyright_timeout = timeout.max(DEFAULT_LINTER_MIN_TIMEOUT_SECS);
             match WorkspaceOverlay::apply(action) {
                 Ok(_overlay) => {
                     let mut cmd = std::process::Command::new(&exe);
@@ -543,7 +550,7 @@ pub fn run_patch_harness(
         && has_go_module(cwd)
         && let Some(exe) = which(Path::new("golangci-lint")) {
             record_ran("golangci-lint");
-            let lint_timeout = timeout.max(20);
+            let lint_timeout = timeout.max(DEFAULT_LINTER_MIN_TIMEOUT_SECS);
             match WorkspaceOverlay::apply(action) {
                 Ok(_overlay) => {
                     let mut cmd = std::process::Command::new(&exe);
@@ -588,7 +595,7 @@ pub fn run_patch_harness(
             Ok(overlay) => {
                 let manifests = collect_rust_manifests(cwd, &rust_files);
                 let manifest_hints = compute_rust_target_hints(cwd, &rust_files);
-                let rust_timeout = timeout.max(30);
+                let rust_timeout = timeout.max(RUST_LINTER_MIN_TIMEOUT_SECS);
                 for manifest in manifests {
                     let label = manifest
                         .strip_prefix(cwd)

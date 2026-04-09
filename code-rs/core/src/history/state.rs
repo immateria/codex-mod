@@ -1678,7 +1678,8 @@ impl HistoryState {
         }
     }
 
-    pub fn truncate_after(&mut self, id: HistoryId) -> Vec<HistoryRecord> {
+    #[cfg(test)]
+    pub(crate) fn truncate_after(&mut self, id: HistoryId) -> Vec<HistoryRecord> {
         if id == HistoryId::ZERO {
             let removed = std::mem::take(&mut self.records);
             self.exec_call_lookup.clear();
@@ -1854,6 +1855,7 @@ impl HistoryState {
         id
     }
 
+    #[cfg(test)]
     fn recompute_next_id(&mut self) {
         let next = self
             .records
