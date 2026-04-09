@@ -2618,7 +2618,6 @@ persistence = "save-all"
         assert_eq!(
             Some(History {
                 persistence: HistoryPersistence::SaveAll,
-                max_bytes: None,
             }),
             history_with_persistence_cfg.history
         );
@@ -2633,7 +2632,6 @@ persistence = "none"
         assert_eq!(
             Some(History {
                 persistence: HistoryPersistence::None,
-                max_bytes: None,
             }),
             history_no_persistence_cfg.history
         );

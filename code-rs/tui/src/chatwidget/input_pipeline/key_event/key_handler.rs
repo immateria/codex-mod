@@ -1,7 +1,9 @@
 impl ChatWidget<'_> {
     pub(crate) fn handle_key_event(&mut self, key_event: KeyEvent) {
         // Re-enable mouse capture if it was paused for text selection.
-        // Consume the key so it doesn't leak into the input box.
+        // Don't consume the key — let it flow through so the user doesn't
+        // perceive a "stuck" keypress (especially on Android/Termux where
+        // accidental Shift+touch can pause capture).
         if self.mouse_capture_paused.get() {
             let _ = crossterm::execute!(
                 std::io::stdout(),
@@ -9,7 +11,6 @@ impl ChatWidget<'_> {
             );
             self.mouse_capture_paused.set(false);
             self.request_redraw();
-            return;
         }
         if settings_handlers::handle_settings_key(self, key_event) {
             self.sync_limits_layout_mode_preference();

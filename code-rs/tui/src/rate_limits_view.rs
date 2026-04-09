@@ -91,10 +91,16 @@ pub(crate) const DEFAULT_DISPLAY_CONFIG: RateLimitDisplayConfig = RateLimitDispl
 
 impl LimitsView {
     pub(crate) fn lines_for_width(&self, width: u16) -> Vec<Line<'static>> {
-        let mut lines = self.summary_lines.clone();
-        lines.extend(self.gauge_lines(width));
-        lines.extend(self.legend_lines.clone());
-        lines.extend(self.footer_lines.clone());
+        let gauge = self.gauge_lines(width);
+        let cap = self.summary_lines.len()
+            + gauge.len()
+            + self.legend_lines.len()
+            + self.footer_lines.len();
+        let mut lines = Vec::with_capacity(cap);
+        lines.extend_from_slice(&self.summary_lines);
+        lines.extend(gauge);
+        lines.extend_from_slice(&self.legend_lines);
+        lines.extend_from_slice(&self.footer_lines);
         lines
     }
 

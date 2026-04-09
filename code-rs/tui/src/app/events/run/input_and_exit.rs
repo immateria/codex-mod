@@ -94,20 +94,17 @@
                             kind: KeyEventKind::Press,
                             ..
                         } => {
-                            // Toggle mouse capture to allow text selection
-                            use crossterm::event::DisableMouseCapture;
-                            use crossterm::event::EnableMouseCapture;
-                            use crossterm::execute;
-                            use std::io::stdout;
-                            use std::sync::atomic::{AtomicBool, Ordering};
-
-                            static MOUSE_CAPTURE_ENABLED: AtomicBool = AtomicBool::new(true);
-
-                            let was_enabled = MOUSE_CAPTURE_ENABLED.fetch_xor(true, Ordering::Relaxed);
-                            if !was_enabled {
-                                let _ = execute!(stdout(), EnableMouseCapture);
-                            } else {
-                                let _ = execute!(stdout(), DisableMouseCapture);
+                            // Toggle mouse capture to allow text selection.
+                            // Route through ChatWidget so the toggle uses the
+                            // same `mouse_capture_paused` Cell as Shift+click,
+                            // preventing state desynchronization.
+                            match &mut self.app_state {
+                                AppState::Chat { widget } => {
+                                    widget.toggle_mouse_capture();
+                                }
+                                AppState::Onboarding { .. } => {
+                                    // No mouse-capture state to track outside chat.
+                                }
                             }
                             self.app_event_tx.send(AppEvent::RequestRedraw);
                         }

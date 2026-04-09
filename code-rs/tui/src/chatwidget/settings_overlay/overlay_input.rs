@@ -203,6 +203,9 @@ impl SettingsOverlayView {
                     }
                 }
             }
+            // Forward Up events to content so it can complete click-on-release
+            // if needed (some content panels may track Down→Up pairs).
+            MouseEventKind::Up(_) => self.forward_mouse_to_content(mouse_event),
             _ => false,
         }
     }

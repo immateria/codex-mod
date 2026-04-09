@@ -2,6 +2,27 @@ impl ChatWidget<'_> {
     /// Drag threshold in columns — movement beyond this invalidates a click.
     const CLICK_DRAG_THRESHOLD: u16 = 3;
 
+    /// Toggle mouse capture on/off (Ctrl+M). Uses the same `mouse_capture_paused`
+    /// Cell as Shift+click so both mechanisms stay in sync.
+    pub(crate) fn toggle_mouse_capture(&mut self) {
+        if self.mouse_capture_paused.get() {
+            let _ = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::event::EnableMouseCapture
+            );
+            self.mouse_capture_paused.set(false);
+        } else {
+            let _ = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::event::DisableMouseCapture
+            );
+            self.mouse_capture_paused.set(true);
+            self.bottom_pane.flash_footer_notice(
+                "Mouse capture off — press Ctrl+M or any key to resume".into(),
+            );
+        }
+    }
+
     pub(crate) fn handle_mouse_event(&mut self, mouse_event: crossterm::event::MouseEvent) {
         use crossterm::event::KeyModifiers;
         use crossterm::event::MouseEventKind;
@@ -22,6 +43,18 @@ impl ChatWidget<'_> {
                 self.request_redraw();
             }
             return;
+        }
+
+        // Auto-recovery: if we receive a non-Shift mouse event while
+        // capture was paused, re-enable capture. This prevents permanent
+        // "stuck" states on Android/Termux where Shift can be triggered
+        // accidentally by virtual keyboard or touch gestures.
+        if self.mouse_capture_paused.get() {
+            let _ = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::event::EnableMouseCapture
+            );
+            self.mouse_capture_paused.set(false);
         }
 
         // Settings overlay is modal: while visible, mouse input must be consumed
