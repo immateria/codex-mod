@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike, Utc};
 use rand::Rng;
 use reqwest;
 
@@ -130,4 +131,33 @@ pub fn is_env_truthy(var: &str) -> bool {
     std::env::var(var)
         .ok()
         .is_some_and(|v| is_truthy(&v))
+}
+
+// ── DateTime truncation helpers ──────────────────────────────────────
+
+/// Truncate a UTC timestamp to the start of its hour.
+pub fn truncate_to_hour(ts: DateTime<Utc>) -> DateTime<Utc> {
+    let naive = ts.naive_utc();
+    let trimmed = naive
+        .with_minute(0)
+        .and_then(|dt| dt.with_second(0))
+        .and_then(|dt| dt.with_nanosecond(0))
+        .unwrap_or(naive);
+    Utc.from_utc_datetime(&trimmed)
+}
+
+/// Truncate a UTC timestamp to the start of its day (midnight).
+pub fn truncate_to_day(ts: DateTime<Utc>) -> DateTime<Utc> {
+    let date = ts.date_naive();
+    let start = date.and_hms_opt(0, 0, 0).unwrap_or_else(|| ts.naive_utc());
+    Utc.from_utc_datetime(&start)
+}
+
+/// Truncate a UTC timestamp to the start of its month.
+pub fn truncate_to_month(ts: DateTime<Utc>) -> DateTime<Utc> {
+    let date = ts.date_naive();
+    let month_start = NaiveDate::from_ymd_opt(date.year(), date.month(), 1)
+        .and_then(|month| month.and_hms_opt(0, 0, 0))
+        .unwrap_or_else(|| ts.naive_utc());
+    Utc.from_utc_datetime(&month_start)
 }

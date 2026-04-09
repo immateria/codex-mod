@@ -3,7 +3,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Timelike, Utc};
+use chrono::{DateTime, Duration, Utc};
 use crate::protocol::RateLimitSnapshotEvent;
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
@@ -185,7 +185,7 @@ impl AccountUsageData {
             if entry.timestamp >= recent_cutoff {
                 recent.push(entry);
             } else {
-                let bucket = truncate_to_hour(entry.timestamp);
+                let bucket = crate::util::truncate_to_hour(entry.timestamp);
                 rollover
                     .entry(bucket)
                     .or_default()
@@ -196,7 +196,7 @@ impl AccountUsageData {
         self.hourly_entries = recent;
 
         for (period_start, tokens) in rollover {
-            let day_start = truncate_to_day(period_start);
+            let day_start = crate::util::truncate_to_day(period_start);
             add_to_bucket(&mut self.daily_buckets, day_start, tokens.clone());
             add_to_bucket(&mut self.hourly_buckets, period_start, tokens);
         }
@@ -210,7 +210,7 @@ impl AccountUsageData {
             return;
         }
 
-        let current_hour = truncate_to_hour(now);
+        let current_hour = crate::util::truncate_to_hour(now);
         let cutoff = current_hour - Duration::hours(24);
         let mut remaining: Vec<AggregatedUsageEntry> = Vec::new();
 
@@ -229,14 +229,14 @@ impl AccountUsageData {
             return;
         }
 
-        let today = truncate_to_day(now);
+        let today = crate::util::truncate_to_day(now);
         let cutoff = today - Duration::days(30);
         let mut remaining: Vec<AggregatedUsageEntry> = Vec::new();
         let mut monthly_rollover: BTreeMap<DateTime<Utc>, TokenTotals> = BTreeMap::new();
 
         for entry in self.daily_buckets.drain(..) {
             if entry.period_start < cutoff {
-                let month_key = truncate_to_month(entry.period_start);
+                let month_key = crate::util::truncate_to_month(entry.period_start);
                 monthly_rollover
                     .entry(month_key)
                     .or_default()
@@ -272,30 +272,6 @@ fn add_to_bucket(
             );
         }
     }
-}
-
-fn truncate_to_hour(ts: DateTime<Utc>) -> DateTime<Utc> {
-    let naive = ts.naive_utc();
-    let trimmed = naive
-        .with_minute(0)
-        .and_then(|dt| dt.with_second(0))
-        .and_then(|dt| dt.with_nanosecond(0))
-        .unwrap_or(naive);
-    Utc.from_utc_datetime(&trimmed)
-}
-
-fn truncate_to_day(ts: DateTime<Utc>) -> DateTime<Utc> {
-    let date = ts.date_naive();
-    let start = date.and_hms_opt(0, 0, 0).unwrap_or_else(|| ts.naive_utc());
-    Utc.from_utc_datetime(&start)
-}
-
-fn truncate_to_month(ts: DateTime<Utc>) -> DateTime<Utc> {
-    let date = ts.date_naive();
-    let month_start = NaiveDate::from_ymd_opt(date.year(), date.month(), 1)
-        .and_then(|month| month.and_hms_opt(0, 0, 0))
-        .unwrap_or_else(|| ts.naive_utc());
-    Utc.from_utc_datetime(&month_start)
 }
 
 #[derive(Debug, Clone)]

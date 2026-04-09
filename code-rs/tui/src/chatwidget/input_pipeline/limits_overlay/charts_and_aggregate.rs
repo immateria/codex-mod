@@ -24,15 +24,7 @@ impl ChatWidget<'_> {
     }
 
     pub(in super::super) fn truncate_utc_hour(ts: DateTime<Utc>) -> DateTime<Utc> {
-        let naive = ts.naive_utc();
-        let Some(trimmed) = naive
-            .with_minute(0)
-            .and_then(|dt| dt.with_second(0))
-            .and_then(|dt| dt.with_nanosecond(0))
-        else {
-            return ts;
-        };
-        Utc.from_utc_datetime(&trimmed)
+        code_core::util::truncate_to_hour(ts)
     }
 
     pub(in super::super) fn aggregate_hourly_totals(

@@ -203,7 +203,7 @@ use crate::rate_limits_view::{
 };
 use crate::session_log;
 use code_core::review_format::format_review_findings_block;
-use chrono::{DateTime, Datelike, Duration as ChronoDuration, Local, TimeZone, Timelike, Utc};
+use chrono::{DateTime, Datelike, Duration as ChronoDuration, Local, Timelike, Utc};
 use crossterm::event::KeyCode;
 use crossterm::event::KeyModifiers;
 use ratatui::style::Stylize;
