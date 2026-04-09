@@ -29,9 +29,9 @@ pub(crate) struct ChatComposerHistory {
     /// indicates the user is *not* currently browsing history.
     history_cursor: Option<isize>,
 
-    /// The text that was last inserted into the composer as a result of
-    /// history navigation. Used to decide if further Up/Down presses should be
-    /// treated as navigation versus normal cursor movement.
+    /// The text that was last *shown to the user* via history navigation.
+    /// Used for dedup (skip consecutive identical entries) and to decide
+    /// whether further Up/Down should be treated as navigation.
     last_history_text: Option<String>,
 
     /// The original text that was in the composer before starting history navigation.
@@ -163,16 +163,21 @@ impl ChatComposerHistory {
         // Skip consecutive duplicates (only for synchronously-available entries).
         loop {
             self.history_cursor = Some(next_idx);
-            let text = self.populate_history_at_index(next_idx as usize, app_event_tx);
-            match text {
-                Some(ref t) if self.is_duplicate(t) => {
+            match self.peek_text_at_index(next_idx as usize, app_event_tx) {
+                Some(text) if self.is_duplicate(&text) => {
                     if next_idx == 0 {
-                        // Hit the bottom — show it even if duplicate.
-                        return text;
+                        // Hit the bottom — commit and return even if dup.
+                        self.last_history_text = Some(text.clone());
+                        return Some(text);
                     }
                     next_idx -= 1;
                 }
-                _ => return text, // distinct entry or async fetch pending
+                Some(text) => {
+                    // Distinct entry — commit and return.
+                    self.last_history_text = Some(text.clone());
+                    return Some(text);
+                }
+                None => return None, // async fetch pending
             }
         }
     }
@@ -196,13 +201,16 @@ impl ChatComposerHistory {
             match next_idx_opt {
                 Some(idx) => {
                     self.history_cursor = Some(idx);
-                    let text = self.populate_history_at_index(idx as usize, app_event_tx);
-                    match text {
-                        Some(ref t) if self.is_duplicate(t) => {
-                            // Continue looping to skip this duplicate.
-                            continue;
+                    match self.peek_text_at_index(idx as usize, app_event_tx) {
+                        Some(text) if self.is_duplicate(&text) => {
+                            continue; // skip duplicate
                         }
-                        _ => return text, // distinct or async
+                        Some(text) => {
+                            // Distinct entry — commit and return.
+                            self.last_history_text = Some(text.clone());
+                            return Some(text);
+                        }
+                        None => return None, // async fetch pending
                     }
                 }
                 None => {
@@ -218,8 +226,8 @@ impl ChatComposerHistory {
     }
 
     /// Integrate a GetHistoryEntryResponse event. If the fetched text is a
-    /// duplicate of the currently shown entry, returns `None` and triggers
-    /// continued navigation via `pending_skip` so the caller can auto-advance.
+    /// duplicate of the currently shown entry, auto-advances in the last
+    /// navigation direction.
     pub fn on_entry_response(
         &mut self,
         log_id: u64,
@@ -235,9 +243,11 @@ impl ChatComposerHistory {
 
         if self.history_cursor == Some(offset as isize) {
             // If this resolves to a duplicate, auto-skip in the same direction.
+            // Use a dummy current_text — navigate_up only uses it to set
+            // original_text on first browse, which is already set by now.
             if self.is_duplicate(&text) {
                 return match self.last_nav_direction {
-                    NavDirection::Up => self.navigate_up(&text, app_event_tx),
+                    NavDirection::Up => self.navigate_up("", app_event_tx),
                     NavDirection::Down => self.navigate_down(app_event_tx),
                 };
             }
@@ -256,24 +266,27 @@ impl ChatComposerHistory {
         self.last_history_text.as_deref() == Some(text)
     }
 
-    fn populate_history_at_index(
+    /// Return the text at `global_idx` if synchronously available (local or
+    /// cached persistent entry). For uncached persistent entries, fires an
+    /// async fetch and returns `None`.
+    ///
+    /// This is a *pure peek* — it does NOT update `last_history_text`.
+    fn peek_text_at_index(
         &mut self,
         global_idx: usize,
         app_event_tx: &AppEventSender,
     ) -> Option<String> {
         if global_idx >= self.history_entry_count {
             // Local entry.
-            if let Some(text) = self
+            return self
                 .local_history
                 .get(global_idx - self.history_entry_count)
-            {
-                self.last_history_text = Some(text.clone());
-                return Some(text.clone());
-            }
-        } else if let Some(text) = self.fetched_history.get(&global_idx) {
-            self.last_history_text = Some(text.clone());
+                .cloned();
+        }
+        if let Some(text) = self.fetched_history.get(&global_idx) {
             return Some(text.clone());
-        } else if let Some(log_id) = self.history_log_id {
+        }
+        if let Some(log_id) = self.history_log_id {
             let op = Op::GetHistoryEntryRequest {
                 offset: global_idx,
                 log_id,
