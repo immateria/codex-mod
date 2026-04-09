@@ -60,7 +60,7 @@ impl<'a> SettingsMessagePage<'a> {
     }
 
     /// Set the vertical scroll offset (in lines) for the body content.
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn with_body_scroll(mut self, scroll: u16) -> Self {
         self.body_scroll = scroll;
         self
@@ -68,7 +68,7 @@ impl<'a> SettingsMessagePage<'a> {
 
     /// Return the number of wrapped body lines that overflow the given
     /// `body_height`.  Returns 0 when all content fits.
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn body_overflow(&self, body_width: u16, body_height: u16) -> usize {
         if self.body_lines.is_empty() || body_width == 0 || body_height == 0 {
             return 0;
@@ -79,6 +79,18 @@ impl<'a> SettingsMessagePage<'a> {
         }
         let total = paragraph.line_count(body_width);
         total.saturating_sub(body_height as usize)
+    }
+
+    /// Scroll the body content up by the given number of lines.
+    #[allow(dead_code)]
+    pub(crate) fn scroll_up(&mut self, lines: u16) {
+        self.body_scroll = self.body_scroll.saturating_sub(lines);
+    }
+
+    /// Scroll the body content down by the given number of lines.
+    #[allow(dead_code)]
+    pub(crate) fn scroll_down(&mut self, lines: u16) {
+        self.body_scroll = self.body_scroll.saturating_add(lines);
     }
 
     pub(crate) fn framed(&self) -> SettingsMessagePageFramed<'_, 'a> {
@@ -118,12 +130,15 @@ impl<'a> SettingsMessagePage<'a> {
         if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
             let mut paragraph = Paragraph::new(self.body_lines.clone())
                 .alignment(Alignment::Left)
-                .style(self.body_style)
-                .scroll((self.body_scroll, 0));
+                .style(self.body_style);
             if self.body_wrap {
                 paragraph = paragraph.wrap(Wrap { trim: true });
             }
-            paragraph.render(layout.body, buf);
+            // Clamp scroll so we never scroll past the last line of content.
+            let total = paragraph.line_count(layout.body.width);
+            let max_scroll = total.saturating_sub(layout.body.height as usize) as u16;
+            let clamped = self.body_scroll.min(max_scroll);
+            paragraph.scroll((clamped, 0)).render(layout.body, buf);
         }
     }
 

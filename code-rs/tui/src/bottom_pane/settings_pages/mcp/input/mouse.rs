@@ -131,6 +131,25 @@ impl McpSettingsView {
         }
         let hover_changed = self.set_hovered_pane(hit);
         if layout.stacked && layout.stack_max_scroll > 0 {
+            // When the mouse is over the summary pane and its content
+            // overflows, scroll the inner summary text instead of the
+            // outer stacked column so the user can read long error
+            // messages.
+            if hit == McpPaneHit::Summary {
+                let metrics = self.summary_metrics_for_viewport(layout.summary_inner);
+                if metrics.total_lines > metrics.visible_lines {
+                    self.apply_focus_from_hit(hit);
+                    self.clear_tool_hover();
+                    self.clear_list_hover();
+                    self.scroll_summary_with_wheel(
+                        delta * SUMMARY_SCROLL_STEP as isize,
+                        layout.summary_inner,
+                        mouse_event.modifiers,
+                    );
+                    return true;
+                }
+            }
+
             let focus_changed = self.apply_focus_from_hit(hit);
             let hover_details_changed = match hit {
                 McpPaneHit::Servers => {
