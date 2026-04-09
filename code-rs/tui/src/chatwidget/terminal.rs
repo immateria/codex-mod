@@ -387,10 +387,8 @@ impl TerminalOverlay {
 
     pub(crate) fn rebuild_lines(&mut self) {
         let mut combined: VecDeque<RtLine<'static>> =
-            self.terminal_lines.iter().cloned().collect();
-        for info in &self.info_lines {
-            combined.push_back(info.clone());
-        }
+            VecDeque::from(self.terminal_lines.clone());
+        combined.extend(self.info_lines.iter().cloned());
 
         let mut dropped = 0usize;
         while combined.len() > TERMINAL_MAX_LINES {

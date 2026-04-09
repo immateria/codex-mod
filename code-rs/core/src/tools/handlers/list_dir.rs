@@ -260,15 +260,18 @@ fn format_entry_component(name: &OsStr) -> String {
 }
 
 fn format_entry_line(entry: &DirEntry) -> String {
-    let indent = " ".repeat(entry.depth * INDENTATION_SPACES);
-    let mut name = entry.display_name.clone();
-    match entry.kind {
-        DirEntryKind::Directory => name.push('/'),
-        DirEntryKind::Symlink => name.push('@'),
-        DirEntryKind::Other => name.push('?'),
-        DirEntryKind::File => {}
-    }
-    format!("{indent}{name}")
+    let pad = entry.depth * INDENTATION_SPACES;
+    let suffix = match entry.kind {
+        DirEntryKind::Directory => "/",
+        DirEntryKind::Symlink => "@",
+        DirEntryKind::Other => "?",
+        DirEntryKind::File => "",
+    };
+    let mut out = String::with_capacity(pad + entry.display_name.len() + suffix.len());
+    out.extend(std::iter::repeat(' ').take(pad));
+    out.push_str(&entry.display_name);
+    out.push_str(suffix);
+    out
 }
 
 #[derive(Clone)]

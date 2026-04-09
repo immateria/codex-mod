@@ -112,8 +112,15 @@ impl TruncatingCollector {
         }
 
         let prefix_str = String::from_utf8_lossy(&self.prefix).into_owned();
-        let suffix_bytes: Vec<u8> = self.suffix.iter().copied().collect();
-        let suffix_str = String::from_utf8_lossy(&suffix_bytes).into_owned();
+        let (front, back) = self.suffix.as_slices();
+        let suffix_str = if back.is_empty() {
+            String::from_utf8_lossy(front).into_owned()
+        } else {
+            let mut buf = Vec::with_capacity(front.len() + back.len());
+            buf.extend_from_slice(front);
+            buf.extend_from_slice(back);
+            String::from_utf8_lossy(&buf).into_owned()
+        };
 
         let mut guess_tokens = est_tokens;
         for _ in 0..4 {
