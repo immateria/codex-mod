@@ -495,7 +495,7 @@ pub(crate) fn compute_expires_at_millis(response: &OAuthTokenResponse) -> Option
     let expires_in = response.expires_in()?;
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|_| Duration::from_secs(0));
+        .unwrap_or_else(|_| Duration::ZERO);
     let expiry = now.checked_add(expires_in)?;
     let millis = expiry.as_millis();
     if millis > u128::from(u64::MAX) {
@@ -508,7 +508,7 @@ pub(crate) fn compute_expires_at_millis(response: &OAuthTokenResponse) -> Option
 fn expires_in_from_timestamp(expires_at: u64) -> Option<u64> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|_| Duration::from_secs(0));
+        .unwrap_or_else(|_| Duration::ZERO);
     let now_ms = now.as_millis() as u64;
 
     if expires_at <= now_ms {
@@ -526,7 +526,7 @@ fn token_needs_refresh(expires_at: Option<u64>) -> bool {
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap_or_else(|_| Duration::from_secs(0))
+        .unwrap_or_else(|_| Duration::ZERO)
         .as_millis() as u64;
 
     now.saturating_add(REFRESH_SKEW_MILLIS) >= expires_at

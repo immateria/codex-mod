@@ -125,7 +125,7 @@ impl BrowserManager {
             info!("Connecting to Chrome via WebSocket: {}", ws);
             // Use the same guarded connect strategy as connect_to_chrome_only
             let attempt_timeout = Duration::from_millis(config.connect_attempt_timeout_ms);
-            let attempts = std::cmp::max(1, config.connect_attempts as i32);
+            let attempts = config.connect_attempts.max(1);
             let mut last_err: Option<String> = None;
 
             for attempt in 1..=attempts {
@@ -258,7 +258,7 @@ impl BrowserManager {
                 let connect_start = tokio::time::Instant::now();
                 // Use guarded connect strategy with retries
                 let attempt_timeout = Duration::from_millis(config.connect_attempt_timeout_ms);
-                let attempts = std::cmp::max(1, config.connect_attempts as i32);
+                let attempts = config.connect_attempts.max(1);
                 let mut last_err: Option<String> = None;
 
                 for attempt in 1..=attempts {

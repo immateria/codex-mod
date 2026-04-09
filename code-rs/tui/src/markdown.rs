@@ -251,8 +251,7 @@ fn split_text_and_fences(src: &str) -> Vec<Segment> {
             if let Some(tok) = open {
                 // Flush pending text segment.
                 if !curr_text.is_empty() {
-                    segments.push(Segment::Text(curr_text.clone()));
-                    curr_text.clear();
+                    segments.push(Segment::Text(std::mem::take(&mut curr_text)));
                 }
                 fence_token = tok;
                 // Capture language after the token on this line (before newline).
@@ -313,8 +312,7 @@ fn split_text_and_fences(src: &str) -> Vec<Segment> {
             if starts_indented_code {
                 // Flush pending text and begin an indented code block.
                 if !curr_text.is_empty() {
-                    segments.push(Segment::Text(curr_text.clone()));
-                    curr_text.clear();
+                    segments.push(Segment::Text(std::mem::take(&mut curr_text)));
                 }
                 code_mode = CodeMode::Indented;
                 code_content.clear();

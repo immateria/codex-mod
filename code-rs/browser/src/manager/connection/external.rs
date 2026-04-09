@@ -36,7 +36,7 @@ impl BrowserManager {
         if let Some(ws) = config.connect_ws.clone() {
             info!("[cdp/bm] Connecting to Chrome via configured WebSocket: {}", ws);
             let attempt_timeout = Duration::from_millis(config.connect_attempt_timeout_ms);
-            let attempts = std::cmp::max(1, config.connect_attempts as i32);
+            let attempts = config.connect_attempts.max(1);
             let mut last_err: Option<String> = None;
 
             for attempt in 1..=attempts {
@@ -178,7 +178,7 @@ impl BrowserManager {
 
                 // Enforce per-attempt timeouts via spawned task to avoid hangs
                 let attempt_timeout = Duration::from_millis(config.connect_attempt_timeout_ms);
-                let attempts = std::cmp::max(1, config.connect_attempts as i32);
+                let attempts = config.connect_attempts.max(1);
                 let mut last_err: Option<String> = None;
 
                 for attempt in 1..=attempts {
