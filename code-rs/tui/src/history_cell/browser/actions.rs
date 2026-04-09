@@ -27,12 +27,11 @@ pub(super) struct BrowserAction {
 
 impl BrowserSessionCell {
     pub(crate) fn full_action_entries(&self) -> Vec<(String, String, String)> {
-        let show_minutes = self.total_duration.as_secs() >= 60;
         let mut entries: Vec<(String, String, String)> = Vec::new();
         if self.actions.is_empty() {
             if let Some(url) = self.url.as_ref() {
                 let time_label =
-                    format!(" {}", Self::format_elapsed_label(Duration::ZERO, show_minutes));
+                    format!(" {}", format_duration_digital(Duration::ZERO));
                 entries.push((time_label, "Opened".to_string(), url.clone()));
             }
             return entries;
@@ -41,7 +40,7 @@ impl BrowserSessionCell {
         for action in &self.actions {
             let time_label = format!(
                 " {}",
-                Self::format_elapsed_label(action.timestamp, show_minutes)
+                format_duration_digital(action.timestamp)
             );
             let entry = format_action_entry(action, time_label);
             entries.push((entry.time_label, entry.label, entry.detail));
@@ -50,7 +49,7 @@ impl BrowserSessionCell {
         entries
     }
 
-    pub(super) fn formatted_action_display(&self, show_minutes: bool) -> Vec<ActionDisplayLine> {
+    pub(super) fn formatted_action_display(&self) -> Vec<ActionDisplayLine> {
         let mut entries: Vec<ActionEntry> = Vec::new();
         let has_actions = !self.actions.is_empty();
         if !has_actions
@@ -61,7 +60,7 @@ impl BrowserSessionCell {
                 detail: url.clone(),
                 time_label: format!(
                     " {}",
-                    Self::format_elapsed_label(Duration::ZERO, show_minutes)
+                    format_duration_digital(Duration::ZERO)
                 ),
             });
         }
@@ -69,7 +68,7 @@ impl BrowserSessionCell {
         entries.extend(self.actions.iter().map(|action| {
             let time_label = format!(
                 " {}",
-                Self::format_elapsed_label(action.timestamp, show_minutes)
+                format_duration_digital(action.timestamp)
             );
             format_action_entry(action, time_label)
         }));
@@ -102,9 +101,6 @@ impl BrowserSessionCell {
         }
     }
 
-    pub(crate) fn format_elapsed_label(duration: Duration, _show_minutes: bool) -> String {
-        format_duration_digital(duration)
-    }
 }
 
 fn format_action_summary(action: &BrowserAction) -> String {

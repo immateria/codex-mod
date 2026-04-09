@@ -194,3 +194,50 @@ pub(crate) fn truncate_utf8_bytes_with_ellipsis(text: &str, max_bytes: usize) ->
         format!("{safe_slice}{ELLIPSIS}")
     }
 }
+
+/// Format a model identifier for display (e.g. "gpt-4o-mini" → "GPT-4o-Mini").
+///
+/// Strips the internal "code-" prefix from agent models so user-facing labels
+/// display the canonical model name.
+pub(crate) fn format_model_label(model: &str) -> String {
+    let model = if model.to_ascii_lowercase().starts_with("code-") {
+        &model[5..]
+    } else {
+        model
+    };
+
+    let mut parts = Vec::new();
+    for (idx, part) in model.split('-').enumerate() {
+        if idx == 0 {
+            parts.push(part.to_ascii_uppercase());
+            continue;
+        }
+        let mut chars = part.chars();
+        let formatted = match chars.next() {
+            Some(first) if first.is_ascii_alphabetic() => {
+                let mut s = String::new();
+                s.push(first.to_ascii_uppercase());
+                s.push_str(chars.as_str());
+                s
+            }
+            Some(first) => {
+                let mut s = String::new();
+                s.push(first);
+                s.push_str(chars.as_str());
+                s
+            }
+            None => String::new(),
+        };
+        parts.push(formatted);
+    }
+    parts.join("-")
+}
+
+/// Format a list of paths as newline-separated strings.
+pub(crate) fn format_path_list(paths: &[std::path::PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("\n")
+}

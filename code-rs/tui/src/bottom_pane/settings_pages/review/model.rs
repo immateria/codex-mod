@@ -121,7 +121,7 @@ impl ReviewSettingsView {
         } else {
             format!(
                 "{} ({})",
-                Self::format_model_label(&self.review_model),
+                crate::text_formatting::format_model_label(&self.review_model),
                 Self::reasoning_label(self.review_reasoning)
             )
         };
@@ -142,7 +142,7 @@ impl ReviewSettingsView {
         } else {
             format!(
                 "{} ({})",
-                Self::format_model_label(&self.review_resolve_model),
+                crate::text_formatting::format_model_label(&self.review_resolve_model),
                 Self::reasoning_label(self.review_resolve_reasoning)
             )
         };
@@ -214,7 +214,7 @@ impl ReviewSettingsView {
         } else {
             format!(
                 "{} ({})",
-                Self::format_model_label(&self.auto_review_model),
+                crate::text_formatting::format_model_label(&self.auto_review_model),
                 Self::reasoning_label(self.auto_review_reasoning)
             )
         };
@@ -235,7 +235,7 @@ impl ReviewSettingsView {
         } else {
             format!(
                 "{} ({})",
-                Self::format_model_label(&self.auto_review_resolve_model),
+                crate::text_formatting::format_model_label(&self.auto_review_resolve_model),
                 Self::reasoning_label(self.auto_review_resolve_reasoning)
             )
         };
@@ -281,33 +281,5 @@ impl ReviewSettingsView {
             ReasoningEffort::Minimal => "Minimal",
             ReasoningEffort::None => "None",
         }
-    }
-
-    fn format_model_label(model: &str) -> String {
-        let mut parts = Vec::new();
-        for (idx, part) in model.split('-').enumerate() {
-            if idx == 0 {
-                parts.push(part.to_ascii_uppercase());
-                continue;
-            }
-            let mut chars = part.chars();
-            let formatted = match chars.next() {
-                Some(first) if first.is_ascii_alphabetic() => {
-                    let mut s = String::new();
-                    s.push(first.to_ascii_uppercase());
-                    s.push_str(chars.as_str());
-                    s
-                }
-                Some(first) => {
-                    let mut s = String::new();
-                    s.push(first);
-                    s.push_str(chars.as_str());
-                    s
-                }
-                None => String::new(),
-            };
-            parts.push(formatted);
-        }
-        parts.join("-")
     }
 }

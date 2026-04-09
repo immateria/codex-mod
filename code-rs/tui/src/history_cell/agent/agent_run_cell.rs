@@ -828,7 +828,7 @@ impl AgentRunCell {
             .actions
             .iter()
             .map(|entry| {
-                let formatted = Self::format_elapsed_label(entry.elapsed);
+                let formatted = format_duration_digital(entry.elapsed);
                 let width = string_width(formatted.as_str());
                 (formatted, width)
             })
@@ -1015,9 +1015,6 @@ impl AgentRunCell {
         })
     }
 
-    fn format_elapsed_label(duration: Duration) -> String {
-        format_duration_digital(duration)
-    }
     fn agent_counts(&self) -> AgentCountSummary {
         let mut summary = AgentCountSummary::default();
         for agent in &self.agents {

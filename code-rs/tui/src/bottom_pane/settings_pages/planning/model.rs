@@ -17,7 +17,7 @@ impl PlanningSettingsView {
         } else {
             format!(
                 "{} ({})",
-                Self::format_model_label(&self.planning_model),
+                crate::text_formatting::format_model_label(&self.planning_model),
                 Self::reasoning_label(self.planning_reasoning)
             )
         };
@@ -39,33 +39,5 @@ impl PlanningSettingsView {
             code_core::config_types::ReasoningEffort::Minimal => "Minimal",
             code_core::config_types::ReasoningEffort::None => "None",
         }
-    }
-
-    fn format_model_label(model: &str) -> String {
-        let mut parts = Vec::new();
-        for (idx, part) in model.split('-').enumerate() {
-            if idx == 0 {
-                parts.push(part.to_ascii_uppercase());
-                continue;
-            }
-            let mut chars = part.chars();
-            let formatted = match chars.next() {
-                Some(first) if first.is_ascii_alphabetic() => {
-                    let mut s = String::new();
-                    s.push(first.to_ascii_uppercase());
-                    s.push_str(chars.as_str());
-                    s
-                }
-                Some(first) => {
-                    let mut s = String::new();
-                    s.push(first);
-                    s.push_str(chars.as_str());
-                    s
-                }
-                None => String::new(),
-            };
-            parts.push(formatted);
-        }
-        parts.join("-")
     }
 }

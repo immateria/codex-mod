@@ -14,8 +14,8 @@ impl ShellProfilesSettingsView {
             };
 
         self.summary_field.set_text(summary.as_str());
-        self.references_field.set_text(&format_path_list(&references));
-        self.skill_roots_field.set_text(&format_path_list(&skill_roots));
+        self.references_field.set_text(&crate::text_formatting::format_path_list(&references));
+        self.skill_roots_field.set_text(&crate::text_formatting::format_path_list(&skill_roots));
     }
 
     pub(super) fn stage_pending_profile_from_fields(&mut self) {
@@ -142,14 +142,6 @@ impl ShellProfilesSettingsView {
             self.status = Some("No changes to apply.".to_string());
         }
     }
-}
-
-pub(super) fn format_path_list(paths: &[PathBuf]) -> String {
-    paths
-        .iter()
-        .map(|path| path.to_string_lossy().into_owned())
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 pub(super) fn normalize_list_key(value: &str) -> String {

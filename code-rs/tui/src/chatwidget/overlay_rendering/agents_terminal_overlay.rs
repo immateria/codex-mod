@@ -164,8 +164,8 @@ impl ChatWidget<'_> {
                 let label = entry
                     .model
                     .as_ref()
-                    .map(|m| Self::format_model_label(m))
-                    .unwrap_or_else(|| Self::format_model_label(&entry.name));
+                    .map(|m| crate::text_formatting::format_model_label(m))
+                    .unwrap_or_else(|| crate::text_formatting::format_model_label(&entry.name));
                 UnicodeWidthStr::width(label.as_str()) as u16
             })
             .max()
@@ -217,8 +217,8 @@ impl ChatWidget<'_> {
                     let model_label = entry
                         .model
                         .as_ref()
-                        .map(|value| Self::format_model_label(value))
-                        .unwrap_or_else(|| Self::format_model_label(&entry.name));
+                        .map(|value| crate::text_formatting::format_model_label(value))
+                        .unwrap_or_else(|| crate::text_formatting::format_model_label(&entry.name));
                     let status = entry.status;
                     let status_icon = agent_status_icon(status);
                     let name_room = sidebar_width
@@ -326,8 +326,8 @@ impl ChatWidget<'_> {
                     let display_name = entry
                         .model
                         .as_ref()
-                        .map(|m| Self::format_model_label(m))
-                        .unwrap_or_else(|| Self::format_model_label(&entry.name));
+                        .map(|m| crate::text_formatting::format_model_label(m))
+                        .unwrap_or_else(|| crate::text_formatting::format_model_label(&entry.name));
                     let title_text = entry
                         .batch_label
                         .as_ref()
@@ -353,7 +353,7 @@ impl ChatWidget<'_> {
                     let model_meta = entry
                         .model
                         .as_ref()
-                        .map(|m| Self::format_model_label(m))
+                        .map(|m| crate::text_formatting::format_model_label(m))
                         .unwrap_or_else(|| display_name.clone());
                     let mut meta_line: Vec<Span> = vec![
                         Span::raw(" "),

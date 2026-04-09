@@ -119,7 +119,7 @@ impl AutoDriveSettingsView {
             } else {
                 format!(
                     "{} · {}",
-                    Self::format_model_label(model_label),
+                    crate::text_formatting::format_model_label(model_label),
                     Self::reasoning_label(self.model_reasoning)
                 )
             }

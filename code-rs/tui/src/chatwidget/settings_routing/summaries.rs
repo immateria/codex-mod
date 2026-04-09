@@ -278,7 +278,7 @@ impl ChatWidget<'_> {
         let model_display = if model.is_empty() {
             "—"
         } else {
-            model_display_storage = Self::format_model_label(model);
+            model_display_storage = crate::text_formatting::format_model_label(model);
             &model_display_storage
         };
         let effort = Self::format_reasoning_effort(self.config.model_reasoning_effort);
@@ -312,7 +312,7 @@ impl ChatWidget<'_> {
         let model_display = if model.is_empty() {
             "(default)"
         } else {
-            model_display_storage = Self::format_model_label(model);
+            model_display_storage = crate::text_formatting::format_model_label(model);
             &model_display_storage
         };
         let effort = Self::format_reasoning_effort(self.config.planning_model_reasoning_effort);
@@ -416,7 +416,7 @@ impl ChatWidget<'_> {
             let model_label = if self.config.auto_drive.model.trim().is_empty() {
                 "(default)".to_string()
             } else {
-                Self::format_model_label(&self.config.auto_drive.model)
+                crate::text_formatting::format_model_label(&self.config.auto_drive.model)
             };
             let effort = Self::format_reasoning_effort(self.config.auto_drive.model_reasoning_effort);
             (model_label, Some(effort))
@@ -453,7 +453,7 @@ impl ChatWidget<'_> {
         } else {
             format!(
                 "{} ({})",
-                Self::format_model_label(&self.config.review_model),
+                crate::text_formatting::format_model_label(&self.config.review_model),
                 Self::format_reasoning_effort(self.config.review_model_reasoning_effort)
             )
         };
@@ -463,7 +463,7 @@ impl ChatWidget<'_> {
         } else {
             format!(
                 "{} ({})",
-                Self::format_model_label(&self.config.review_resolve_model),
+                crate::text_formatting::format_model_label(&self.config.review_resolve_model),
                 Self::format_reasoning_effort(self.config.review_resolve_model_reasoning_effort)
             )
         };
@@ -473,7 +473,7 @@ impl ChatWidget<'_> {
         } else {
             format!(
                 "{} ({})",
-                Self::format_model_label(&self.config.auto_review_model),
+                crate::text_formatting::format_model_label(&self.config.auto_review_model),
                 Self::format_reasoning_effort(self.config.auto_review_model_reasoning_effort)
             )
         };
@@ -483,7 +483,7 @@ impl ChatWidget<'_> {
         } else {
             format!(
                 "{} ({})",
-                Self::format_model_label(&self.config.auto_review_resolve_model),
+                crate::text_formatting::format_model_label(&self.config.auto_review_resolve_model),
                 Self::format_reasoning_effort(self.config.auto_review_resolve_model_reasoning_effort)
             )
         };
@@ -646,42 +646,6 @@ impl ChatWidget<'_> {
             ReasoningEffort::High => "High",
             ReasoningEffort::XHigh => "XHigh",
         }
-    }
-
-    pub(super) fn format_model_label(model: &str) -> String {
-        // Strip the internal "code-" prefix from agent models so user-facing labels
-        // display the canonical model name (e.g., code-gpt-5.1-codex-mini -> GPT-5.1-Codex-Mini).
-        let model = if model.to_ascii_lowercase().starts_with("code-") {
-            &model[5..]
-        } else {
-            model
-        };
-
-        let mut parts = Vec::new();
-        for (idx, part) in model.split('-').enumerate() {
-            if idx == 0 {
-                parts.push(part.to_ascii_uppercase());
-                continue;
-            }
-            let mut chars = part.chars();
-            let formatted = match chars.next() {
-                Some(first) if first.is_ascii_alphabetic() => {
-                    let mut s = String::new();
-                    s.push(first.to_ascii_uppercase());
-                    s.push_str(chars.as_str());
-                    s
-                }
-                Some(first) => {
-                    let mut s = String::new();
-                    s.push(first);
-                    s.push_str(chars.as_str());
-                    s
-                }
-                None => String::new(),
-            };
-            parts.push(formatted);
-        }
-        parts.join("-")
     }
 
     pub(super) fn on_off_label(value: bool) -> &'static str {

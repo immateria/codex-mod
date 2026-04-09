@@ -217,8 +217,7 @@ impl BrowserSessionCell {
 
         let content_start = rows.len();
 
-        let show_minutes = self.total_duration.as_secs() >= 60;
-        let action_display = self.formatted_action_display(show_minutes);
+        let action_display = self.formatted_action_display();
         let label_width = action_display
             .iter()
             .filter_map(|line| match line {

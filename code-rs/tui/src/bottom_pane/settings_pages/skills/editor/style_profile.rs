@@ -35,10 +35,10 @@ pub(super) fn set_style_resource_fields_from_profile_inner(
 
     view.editor
         .style_references_field
-        .set_text(&format_path_list(&references));
+        .set_text(&crate::text_formatting::format_path_list(&references));
     view.editor
         .style_skill_roots_field
-        .set_text(&format_path_list(&skill_roots));
+        .set_text(&crate::text_formatting::format_path_list(&skill_roots));
     view.editor
         .style_mcp_include_field
         .set_text(&format_string_list(&mcp_include));
