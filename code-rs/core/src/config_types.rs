@@ -1340,10 +1340,6 @@ impl UriBasedFileOpener {
 pub struct History {
     /// If true, history entries will not be written to disk.
     pub persistence: HistoryPersistence,
-
-    /// If set, the maximum size of the history file in bytes.
-    /// TODO(mbolin): Not currently honored.
-    pub max_bytes: Option<usize>,
 }
 
 #[derive(Deserialize, Debug, Copy, Clone, PartialEq, Default, JsonSchema)]

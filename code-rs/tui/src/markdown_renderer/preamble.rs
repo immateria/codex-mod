@@ -130,21 +130,18 @@ impl MarkdownRenderer {
         if self.in_code_block {
             // Closing fence
             // Render accumulated buffer with syntax highlighting
-            let lang = self.code_block_lang.as_deref();
+            let lang_owned = self.code_block_lang.take();
             let code_bg = crate::colors::code_block_bg();
             let crate::syntax_highlight::HighlightedCodeBlock {
                 lines: mut highlighted_lines,
                 line_widths,
                 max_width,
-            } = crate::syntax_highlight::highlight_code_block_with_metrics(&self.code_block_buf, lang);
+            } = crate::syntax_highlight::highlight_code_block_with_metrics(&self.code_block_buf, lang_owned.as_deref());
             use ratatui::style::Style;
             use ratatui::text::Span;
             let target_w = max_width; // no extra horizontal padding
             // Emit hidden sentinel with language for border/title downstream
-            let label = self
-                .code_block_lang
-                .clone()
-                .unwrap_or_else(|| "text".to_string());
+            let label = lang_owned.unwrap_or_else(|| "text".to_string());
             self.lines.push(Line::from(Span::styled(
                 format!("⟦LANG:{label}⟧"),
                 Style::default().fg(code_bg).bg(code_bg),
@@ -170,7 +167,6 @@ impl MarkdownRenderer {
             self.lines.extend(highlighted_lines);
             self.code_block_buf.clear();
             self.in_code_block = false;
-            self.code_block_lang = None;
         } else {
             // Opening fence
             self.flush_current_line();
@@ -403,8 +399,7 @@ impl MarkdownRenderer {
                 let rest: String = chars[i..].iter().collect();
                 if let Some((consumed, label, target)) = find_markdown_image(&rest) {
                     if !current_text.is_empty() {
-                        spans.push(Span::raw(current_text.clone()));
-                        current_text.clear();
+                        spans.push(Span::raw(std::mem::take(&mut current_text)));
                     }
                     // Render label and make the target URL visible next to it.
                     let lbl = if label.is_empty() {
@@ -431,8 +426,7 @@ impl MarkdownRenderer {
             {
                 // Flush current text
                 if !current_text.is_empty() {
-                    spans.push(Span::raw(current_text.clone()));
-                    current_text.clear();
+                    spans.push(Span::raw(std::mem::take(&mut current_text)));
                 }
                 let marker = chars[i];
                 // Find closing triple marker
@@ -463,8 +457,7 @@ impl MarkdownRenderer {
             // Strikethrough ~~text~~
             if i + 1 < chars.len() && chars[i] == '~' && chars[i + 1] == '~' {
                 if !current_text.is_empty() {
-                    spans.push(Span::raw(current_text.clone()));
-                    current_text.clear();
+                    spans.push(Span::raw(std::mem::take(&mut current_text)));
                 }
                 let mut j = i + 2;
                 let mut content = String::new();
@@ -493,8 +486,7 @@ impl MarkdownRenderer {
                 if let Some(inner) = rest.strip_prefix("<u>") {
                     if let Some(end) = inner.find("</u>") {
                         if !current_text.is_empty() {
-                            spans.push(Span::raw(current_text.clone()));
-                            current_text.clear();
+                            spans.push(Span::raw(std::mem::take(&mut current_text)));
                         }
                         let content = inner[..end].to_string();
                         spans.push(Span::styled(
@@ -507,8 +499,7 @@ impl MarkdownRenderer {
                 } else if let Some(inner) = rest.strip_prefix("<sub>") {
                     if let Some(end) = inner.find("</sub>") {
                         if !current_text.is_empty() {
-                            spans.push(Span::raw(current_text.clone()));
-                            current_text.clear();
+                            spans.push(Span::raw(std::mem::take(&mut current_text)));
                         }
                         let content = inner[..end].to_string();
                         spans.push(Span::raw(to_subscript(&content)));
@@ -518,8 +509,7 @@ impl MarkdownRenderer {
                 } else if let Some(inner) = rest.strip_prefix("<sup>")
                     && let Some(end) = inner.find("</sup>") {
                         if !current_text.is_empty() {
-                            spans.push(Span::raw(current_text.clone()));
-                            current_text.clear();
+                            spans.push(Span::raw(std::mem::take(&mut current_text)));
                         }
                         let content = inner[..end].to_string();
                         spans.push(Span::raw(to_superscript(&content)));
@@ -532,8 +522,7 @@ impl MarkdownRenderer {
             if chars[i] == '`' {
                 // Flush current text
                 if !current_text.is_empty() {
-                    spans.push(Span::raw(current_text.clone()));
-                    current_text.clear();
+                    spans.push(Span::raw(std::mem::take(&mut current_text)));
                 }
 
                 // Find closing backtick
@@ -568,8 +557,7 @@ impl MarkdownRenderer {
             {
                 // Flush current text
                 if !current_text.is_empty() {
-                    spans.push(Span::raw(current_text.clone()));
-                    current_text.clear();
+                    spans.push(Span::raw(std::mem::take(&mut current_text)));
                 }
 
                 let marker = chars[i];
@@ -608,8 +596,7 @@ impl MarkdownRenderer {
             {
                 // Flush current text
                 if !current_text.is_empty() {
-                    spans.push(Span::raw(current_text.clone()));
-                    current_text.clear();
+                    spans.push(Span::raw(std::mem::take(&mut current_text)));
                 }
 
                 let marker = chars[i];
@@ -692,10 +679,10 @@ impl MarkdownRenderer {
         self.flush_current_line();
         // If an unterminated fence was left open, render its buffer.
         if self.in_code_block {
-            let lang = self.code_block_lang.as_deref();
+            let lang_owned = self.code_block_lang.take();
             let code_bg = crate::colors::code_block_bg();
             let mut highlighted =
-                crate::syntax_highlight::highlight_code_block(&self.code_block_buf, lang);
+                crate::syntax_highlight::highlight_code_block(&self.code_block_buf, lang_owned.as_deref());
             use ratatui::style::Style;
             use ratatui::text::Span;
             use unicode_width::UnicodeWidthStr;
@@ -711,10 +698,7 @@ impl MarkdownRenderer {
                 .unwrap_or(0);
             let target_w = max_w; // no extra horizontal padding
             // Emit hidden sentinel with language for border/title downstream
-            let label = self
-                .code_block_lang
-                .clone()
-                .unwrap_or_else(|| "text".to_string());
+            let label = lang_owned.unwrap_or_else(|| "text".to_string());
             self.lines.push(Line::from(Span::styled(
                 format!("⟦LANG:{label}⟧"),
                 Style::default().fg(code_bg).bg(code_bg),
@@ -741,7 +725,6 @@ impl MarkdownRenderer {
             self.lines.extend(highlighted);
             self.code_block_buf.clear();
             self.in_code_block = false;
-            self.code_block_lang = None;
         }
     }
 }
