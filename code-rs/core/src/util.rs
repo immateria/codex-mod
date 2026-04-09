@@ -82,6 +82,31 @@ pub(crate) fn canonicalize_or_original(path: &std::path::Path) -> std::path::Pat
     path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
 }
 
+/// Truncate `input` to the last valid UTF-8 char boundary at or before
+/// `max_len` bytes, returning a borrowed slice.
+pub fn truncate_on_char_boundary(input: &str, max_len: usize) -> &str {
+    if input.len() <= max_len {
+        return input;
+    }
+    let mut end = max_len;
+    while end > 0 && !input.is_char_boundary(end) {
+        end -= 1;
+    }
+    &input[..end]
+}
+
+/// Truncate `input` to at most `max_bytes` bytes on a UTF-8 boundary,
+/// returning an owned `String`.
+pub fn truncate_utf8_prefix_by_bytes(input: &str, max_bytes: usize) -> String {
+    if input.len() <= max_bytes {
+        return input.to_string();
+    }
+    if max_bytes == 0 {
+        return String::new();
+    }
+    truncate_on_char_boundary(input, max_bytes).to_string()
+}
+
 /// Check whether a string value is "truthy" (case-insensitive).
 ///
 /// Accepts: `"1"`, `"true"`, `"yes"`, `"on"`.

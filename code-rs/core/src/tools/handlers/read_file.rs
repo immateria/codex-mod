@@ -193,23 +193,9 @@ fn resolve_path(cwd: &Path, path: &str) -> PathBuf {
     }
 }
 
-fn truncate_utf8_prefix_by_bytes(input: &str, max_bytes: usize) -> String {
-    if input.len() <= max_bytes {
-        return input.to_string();
-    }
-    if max_bytes == 0 {
-        return String::new();
-    }
-    let mut end = max_bytes;
-    while end > 0 && !input.is_char_boundary(end) {
-        end -= 1;
-    }
-    input[..end].to_string()
-}
-
 fn format_line(bytes: &[u8]) -> String {
     let decoded = String::from_utf8_lossy(bytes);
-    truncate_utf8_prefix_by_bytes(&decoded, MAX_LINE_LENGTH)
+    crate::util::truncate_utf8_prefix_by_bytes(&decoded, MAX_LINE_LENGTH)
 }
 
 fn trim_empty_lines(out: &mut VecDeque<&LineRecord>) {

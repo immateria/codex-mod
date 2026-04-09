@@ -15,24 +15,13 @@ pub(crate) fn truncate_middle(s: &str, max_bytes: usize) -> (String, Option<u64>
         return (format!("…{est_tokens} tokens truncated…"), Some(est_tokens));
     }
 
-    fn truncate_on_boundary(input: &str, max_len: usize) -> &str {
-        if input.len() <= max_len {
-            return input;
-        }
-        let mut end = max_len;
-        while end > 0 && !input.is_char_boundary(end) {
-            end -= 1;
-        }
-        &input[..end]
-    }
-
     fn pick_prefix_end(s: &str, left_budget: usize) -> usize {
         if let Some(head) = s.get(..left_budget)
             && let Some(i) = head.rfind('\n')
         {
             return i + 1;
         }
-        truncate_on_boundary(s, left_budget).len()
+        crate::util::truncate_on_char_boundary(s, left_budget).len()
     }
 
     fn pick_suffix_start(s: &str, right_budget: usize) -> usize {

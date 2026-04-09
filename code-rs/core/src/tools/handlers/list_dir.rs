@@ -294,28 +294,14 @@ async fn collect_entries(
     Ok(())
 }
 
-fn truncate_utf8_prefix_by_bytes(input: &str, max_bytes: usize) -> String {
-    if input.len() <= max_bytes {
-        return input.to_string();
-    }
-    if max_bytes == 0 {
-        return String::new();
-    }
-    let mut end = max_bytes;
-    while end > 0 && !input.is_char_boundary(end) {
-        end -= 1;
-    }
-    input[..end].to_string()
-}
-
 fn format_entry_name(path: &Path) -> String {
     let normalized = path.to_string_lossy().replace('\\', "/");
-    truncate_utf8_prefix_by_bytes(&normalized, MAX_ENTRY_LENGTH)
+    crate::util::truncate_utf8_prefix_by_bytes(&normalized, MAX_ENTRY_LENGTH)
 }
 
 fn format_entry_component(name: &OsStr) -> String {
     let normalized = name.to_string_lossy();
-    truncate_utf8_prefix_by_bytes(&normalized, MAX_ENTRY_LENGTH)
+    crate::util::truncate_utf8_prefix_by_bytes(&normalized, MAX_ENTRY_LENGTH)
 }
 
 fn format_entry_line(entry: &DirEntry) -> String {

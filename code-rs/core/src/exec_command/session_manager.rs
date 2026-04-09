@@ -172,7 +172,7 @@ fn pick_prefix_slice(input: &str, left_budget: usize) -> &str {
         && let Some(idx) = head.rfind('\n') {
             return &input[..idx + 1];
         }
-    truncate_on_boundary(input, left_budget)
+    crate::util::truncate_on_char_boundary(input, left_budget)
 }
 
 fn pick_suffix_slice(input: &str, right_budget: usize) -> &str {
@@ -189,17 +189,6 @@ fn pick_suffix_slice(input: &str, right_budget: usize) -> &str {
         idx += 1;
     }
     &input[idx..]
-}
-
-fn truncate_on_boundary(input: &str, max_len: usize) -> &str {
-    if input.len() <= max_len {
-        return input;
-    }
-    let mut end = max_len;
-    while end > 0 && !input.is_char_boundary(end) {
-        end -= 1;
-    }
-    &input[..end]
 }
 
 impl ExecCommandOutput {
