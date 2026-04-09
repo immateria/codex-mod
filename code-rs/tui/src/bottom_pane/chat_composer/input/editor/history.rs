@@ -6,7 +6,7 @@ pub(super) fn on_history_entry_response(
     offset: usize,
     entry: Option<String>,
 ) -> bool {
-    let Some(text) = view.history.on_entry_response(log_id, offset, entry) else {
+    let Some(text) = view.history.on_entry_response(log_id, offset, entry, &view.app_event_tx) else {
         return false;
     };
     view.textarea.set_text(&text);

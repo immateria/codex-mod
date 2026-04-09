@@ -676,6 +676,8 @@ enum ClickableAction {
     ShowDirectoryPicker,
     #[cfg(feature = "managed-network-proxy")]
     ShowNetworkSettings,
+    /// Open the MCP settings page (e.g. when the header shows an MCP error).
+    ShowMcpSettings,
     JumpToCallId(String),
     /// Toggle fold/collapse for a history cell at the given index.
     ToggleFoldAtIndex(usize),

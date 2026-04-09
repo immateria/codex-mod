@@ -97,6 +97,9 @@ impl ChatWidget<'_> {
             ClickableAction::ShowNetworkSettings => {
                 self.ensure_settings_overlay_section(crate::bottom_pane::SettingsSection::Network);
             }
+            ClickableAction::ShowMcpSettings => {
+                self.show_settings_overlay(Some(crate::bottom_pane::SettingsSection::Mcp));
+            }
             ClickableAction::JumpToCallId(call_id) => {
                 self.jump_to_call_id(&call_id);
             }

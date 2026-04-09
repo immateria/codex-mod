@@ -143,21 +143,21 @@ pub(super) fn render_dynamic_header_line(input: &DynamicHeaderLayoutInput<'_>) -
             && let Some((kind, value)) = input.mcp_indicator
         {
             push_separator(&mut spans, &mut width);
-            if !compact {
-                push_text(
-                    &mut spans,
-                    &mut width,
-                    "MCP: ",
-                    Style::default().fg(crate::colors::text_dim()),
-                );
-            }
             let value_style = match kind {
                 McpHeaderIndicatorKind::Connecting => Style::default().fg(crate::colors::info()),
                 McpHeaderIndicatorKind::Error => Style::default()
                     .fg(crate::colors::error())
                     .add_modifier(Modifier::BOLD),
             };
-            push_text(&mut spans, &mut width, value, value_style);
+            push_clickable_labeled_segment(
+                &mut spans,
+                &mut ranges,
+                &mut width,
+                if compact { "" } else { "MCP: " },
+                value,
+                value_style,
+                ClickableAction::ShowMcpSettings,
+            );
         }
 
         if include_reasoning {

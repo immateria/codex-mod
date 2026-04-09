@@ -1647,9 +1647,9 @@ impl Config {
             }
         }
 
-        // Apps are currently enabled by default in this fork; if the user wants
-        // to disable them, they can set `features.apps=false`.
-        features_effective.entries.entry("apps".to_string()).or_insert(true);
+        // Apps are disabled by default; users can opt in with
+        // `features.apps = true` in their config.toml.
+        features_effective.entries.entry("apps".to_string()).or_insert(false);
 
         let windows_sandbox_mode =
             resolve_windows_sandbox_mode(&cfg, &config_profile, Some(&features_effective));
