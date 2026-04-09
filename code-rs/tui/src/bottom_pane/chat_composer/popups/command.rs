@@ -1,6 +1,5 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::layout::Margin;
 use ratatui::widgets::WidgetRef;
 
 use crate::bottom_pane::popup_consts::MAX_POPUP_ROWS;
@@ -245,7 +244,7 @@ impl WidgetRef for CommandPopup {
         // slash command typed inside the composer (which has 1px border +
         // 1 space inner padding). This keeps the popup visually lined up
         // with the input text.
-        let indented_area = area.inner(Margin::new(2, 0));
+        let indented_area = area.inner(crate::ui_consts::NESTED_HPAD);
         let matches = self.filtered();
         let rows_all: Vec<GenericDisplayRow> = if matches.is_empty() {
             Vec::new()

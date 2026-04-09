@@ -226,7 +226,7 @@ fn create_seatbelt_command_args(
 
             for (index, wr) in writable_roots.iter().enumerate() {
                 // Canonicalize to avoid mismatches like /var vs /private/var on macOS.
-                let canonical_root = wr.root.canonicalize().unwrap_or_else(|_| wr.root.clone());
+                let canonical_root = crate::util::canonicalize_or_original(&wr.root);
                 let root_param = format!("WRITABLE_ROOT_{index}");
                 cli_args.push(format!(
                     "-D{root_param}={}",
@@ -244,7 +244,7 @@ fn create_seatbelt_command_args(
                     let mut require_parts: Vec<String> = Vec::with_capacity(1 + wr.read_only_subpaths.len());
                     require_parts.push(format!("(subpath (param \"{root_param}\"))"));
                     for (subpath_index, ro) in wr.read_only_subpaths.iter().enumerate() {
-                        let canonical_ro = ro.canonicalize().unwrap_or_else(|_| ro.clone());
+                        let canonical_ro = crate::util::canonicalize_or_original(ro);
                         let ro_param = format!("WRITABLE_ROOT_{index}_RO_{subpath_index}");
                         cli_args.push(format!("-D{ro_param}={}", canonical_ro.to_string_lossy()));
                         require_parts

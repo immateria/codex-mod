@@ -361,25 +361,23 @@ impl RunningToolCallCell {
         }
         let clamped_width = width.max(1);
         let filled = (completed.saturating_mul(clamped_width)).saturating_add(total - 1) / total;
-        let mut bar = String::with_capacity(clamped_width + 2);
-        bar.push('[');
-        for idx in 0..clamped_width {
-            if idx < filled {
-                bar.push('=');
-            } else {
-                bar.push('-');
-            }
-        }
-        bar.push(']');
-        bar
+        format!("[{}{}]", "=".repeat(filled), "-".repeat(clamped_width - filled))
     }
 
     fn format_job_list(names: &[String], max_items: usize) -> String {
         if names.is_empty() {
             return String::new();
         }
-        let shown = names.iter().take(max_items).cloned().collect::<Vec<_>>();
-        let mut text = shown.join(", ");
+        let mut text: String = names.iter().take(max_items).enumerate().fold(
+            String::new(),
+            |mut acc, (i, name)| {
+                if i > 0 {
+                    acc.push_str(", ");
+                }
+                acc.push_str(name);
+                acc
+            },
+        );
         if names.len() > max_items {
             let remaining = names.len() - max_items;
             text.push_str(&format!(" +{remaining} more"));

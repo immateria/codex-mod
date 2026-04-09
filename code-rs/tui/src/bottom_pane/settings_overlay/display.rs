@@ -18,7 +18,7 @@ impl SettingsSection {
             SettingsSection::Apps => "Apps",
             SettingsSection::Agents => "Agents",
             SettingsSection::Memories => "Memories",
-            SettingsSection::AutoDrive => "Auto Drive",
+            SettingsSection::AutoDrive => crate::auto_drive_style::AUTO_DRIVE_TITLE,
             SettingsSection::Review => "Review",
             SettingsSection::Validation => "Validation",
             SettingsSection::Limits => "Limits",

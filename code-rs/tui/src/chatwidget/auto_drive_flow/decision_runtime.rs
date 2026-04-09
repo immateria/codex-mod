@@ -359,7 +359,7 @@ Have we met every part of this goal and is there no further work to do?"#
                 }
                 AutoControllerEffect::LaunchStarted { goal } => {
                     self.bottom_pane.set_task_running(false);
-                    self.bottom_pane.update_status_text("Auto Drive".to_string());
+                    self.bottom_pane.update_status_text(crate::auto_drive_style::AUTO_DRIVE_TITLE.to_string());
                     self.auto_card_start(Some(goal.clone()));
                     self.auto_card_add_action(
                         format!("Auto Drive started: {goal}"),

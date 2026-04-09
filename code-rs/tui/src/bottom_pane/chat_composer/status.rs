@@ -34,9 +34,9 @@ impl ChatComposer {
                 cleaned.to_string()
             }
         } else if lower.contains("auto drive goal") {
-            "Auto Drive Goal".to_string()
+            crate::auto_drive_style::AUTO_DRIVE_GOAL_TITLE.to_string()
         } else if lower.contains("auto drive") {
-            "Auto Drive".to_string()
+            crate::auto_drive_style::AUTO_DRIVE_TITLE.to_string()
         }
         // Thinking/reasoning patterns
         else if lower.contains("reasoning")

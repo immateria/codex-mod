@@ -1,5 +1,5 @@
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Margin, Rect};
+use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
@@ -186,7 +186,7 @@ impl AgentEditorView {
                 .title(Line::from(format!(" {title} ")))
                 .border_style(border_style);
             let inner_rect = blk.inner(rect);
-            let field_inner = inner_rect.inner(Margin::new(1, 0));
+            let field_inner = inner_rect.inner(crate::ui_consts::HORIZONTAL_PAD);
             blk.render(rect, buf);
             Self::clear_rect(buf, inner_rect);
             Some(field_inner)
@@ -263,7 +263,7 @@ impl AgentEditorView {
                     .title(Line::from(" What is this agent good at? "))
                     .border_style(desc_border_style);
                 let inner_rect = blk.inner(rect);
-                let field_inner = inner_rect.inner(Margin::new(1, 0));
+                let field_inner = inner_rect.inner(crate::ui_consts::HORIZONTAL_PAD);
                 blk.render(rect, buf);
                 Self::clear_rect(buf, inner_rect);
                 self.description_field

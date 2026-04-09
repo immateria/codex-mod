@@ -1204,7 +1204,7 @@ impl HistoryCell for AutoDriveCardCell {
 
     fn display_lines(&self) -> Vec<Line<'static>> {
         let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(Line::from(format!("{} — {}", "Auto Drive", self.status.label())));
+        lines.push(Line::from(format!("{} — {}", crate::auto_drive_style::AUTO_DRIVE_TITLE, self.status.label())));
         if let Some(goal) = &self.goal {
             lines.push(Line::from(format!("goal: {goal}")));
         }

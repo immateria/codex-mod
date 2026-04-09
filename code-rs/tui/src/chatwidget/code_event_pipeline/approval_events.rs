@@ -312,7 +312,7 @@ impl ChatWidget<'_> {
         if key.contains("confirm") || key.contains("proceed") {
             "yes".to_string()
         } else if key.contains("name") {
-            "Auto Drive".to_string()
+            crate::auto_drive_style::AUTO_DRIVE_TITLE.to_string()
         } else {
             "auto".to_string()
         }

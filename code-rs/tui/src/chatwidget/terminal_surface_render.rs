@@ -209,7 +209,6 @@ impl ChatWidget<'_> {
 
     pub(super) fn render_status_bar(&self, area: Rect, buf: &mut Buffer) {
         use crate::exec_command::relativize_to_home;
-        use ratatui::layout::Margin;
         use ratatui::style::Style;
         use ratatui::text::Line;
         use ratatui::widgets::Block;
@@ -317,7 +316,7 @@ impl ChatWidget<'_> {
             .border_style(Style::default().fg(crate::colors::border()))
             .style(Style::default().bg(crate::colors::background()));
         let inner_area = status_block.inner(padded_area);
-        let padded_inner = inner_area.inner(Margin::new(1, 0));
+        let padded_inner = inner_area.inner(crate::ui_consts::HORIZONTAL_PAD);
         let inner_width = padded_inner.width as usize;
         // Build the header at full width — scroll handles overflow instead of
         // cascading segment removal.

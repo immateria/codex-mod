@@ -40,14 +40,13 @@ impl App<'_> {
             .is_ok()
         {
             let pending_redraw = self.pending_redraw.clone();
-            let pending_redraw_for_thread = pending_redraw.clone();
             if thread_spawner::spawn_lightweight("redraw-debounce", move || {
                 thread::sleep(REDRAW_DEBOUNCE);
-                pending_redraw_for_thread.store(false, Ordering::Release);
+                pending_redraw.store(false, Ordering::Release);
             })
             .is_none()
             {
-                pending_redraw.store(false, Ordering::Release);
+                self.pending_redraw.store(false, Ordering::Release);
             }
         }
     }

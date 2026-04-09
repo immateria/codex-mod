@@ -1,5 +1,5 @@
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Margin, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
@@ -138,7 +138,7 @@ impl SubagentEditorView {
         let mode_rect = Rect::new(body.x, y, body.width, mode_h);
         let mode_inner = BorderedField::new("Mode", self.focus == Focus::Mode)
             .render_block(mode_rect, buf)
-            .inner(Margin::new(1, 0));
+            .inner(crate::ui_consts::HORIZONTAL_PAD);
         let ro = toggle::checkbox_label(self.read_only, "read-only");
         let ro_style = if self.read_only { ro.style.bold() } else { ro.style };
         let wr = toggle::checkbox_label(!self.read_only, "write");
@@ -168,7 +168,7 @@ impl SubagentEditorView {
         let agents_rect = Rect::new(body.x, y, body.width, agents_h);
         let agents_inner = BorderedField::new("Agents", self.focus == Focus::Agents)
             .render_block(agents_rect, buf)
-            .inner(Margin::new(1, 0));
+            .inner(crate::ui_consts::HORIZONTAL_PAD);
         let agent_lines = self.agent_lines(agents_inner.width);
         Paragraph::new(agent_lines).style(base_style).render(agents_inner, buf);
         y = y.saturating_add(agents_h);

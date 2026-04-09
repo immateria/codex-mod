@@ -183,7 +183,7 @@ pub(super) fn render_text_box(
         ));
     block.render(area, buf);
 
-    let inner = area.inner(ratatui::layout::Margin::new(1, 1));
+    let inner = area.inner(crate::ui_consts::UNIFORM_PAD);
     if inner.height == 0 || inner.width == 0 {
         return;
     }

@@ -61,7 +61,7 @@ impl ChatWidget<'_> {
             let inner_bg = Style::default().bg(crate::colors::background());
             fill_rect(buf, inner, None, inner_bg);
 
-            let content = inner.inner(ratatui::layout::Margin::new(1, 0));
+            let content = inner.inner(crate::ui_consts::HORIZONTAL_PAD);
             if content.height == 0 || content.width == 0 {
                 self.terminal.last_visible_rows.set(0);
                 self.terminal.last_visible_cols.set(0);

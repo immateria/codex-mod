@@ -175,7 +175,10 @@ pub struct BorderGradient {
 pub(crate) const EFFECT_WHITE: Color = Color::Rgb(255, 255, 255);
 
 /// Title label shared across all Auto Drive style variants.
-const AUTO_DRIVE_TITLE: &str = "Auto Drive";
+pub(crate) const AUTO_DRIVE_TITLE: &str = "Auto Drive";
+
+/// Title label for Auto Drive goal status.
+pub(crate) const AUTO_DRIVE_GOAL_TITLE: &str = "Auto Drive Goal";
 
 fn auto_drive_accent_color() -> Color {
     if colors::is_dark_theme() {

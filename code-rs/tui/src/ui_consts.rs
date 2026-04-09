@@ -26,3 +26,21 @@ pub(crate) const CARD_HINT_EXPAND_STOP: &str = " [Ctrl+A] Expand · [Esc] Stop";
 pub(crate) const CARD_HINT_EXPAND: &str = " [Ctrl+A] Expand";
 /// Browser view shortcut + stop hint.
 pub(crate) const CARD_HINT_BROWSER_STOP: &str = " [Ctrl+B] View · [Esc] Stop";
+
+// ---------------------------------------------------------------------------
+// Standard layout margins — shared across settings panels, overlays, etc.
+// ---------------------------------------------------------------------------
+
+use ratatui::layout::Margin;
+
+/// Standard horizontal padding (1 col left + right, 0 rows top + bottom).
+/// Used by settings panels, overlay content areas, and padded render rects.
+pub(crate) const HORIZONTAL_PAD: Margin = Margin::new(1, 0);
+
+/// Uniform padding (1 col horizontal + 1 row vertical).
+/// Used by overlay chrome, widget frames, and settings section boxes.
+pub(crate) const UNIFORM_PAD: Margin = Margin::new(1, 1);
+
+/// Indented horizontal padding (2 cols left + right).
+/// Used for nested elements like command popups and indented form fields.
+pub(crate) const NESTED_HPAD: Margin = Margin::new(2, 0);

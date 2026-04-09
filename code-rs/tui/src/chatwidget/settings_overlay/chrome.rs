@@ -67,7 +67,7 @@ mod imp {
             }
 
             let inner = Block::default().borders(Borders::ALL).inner(area);
-            let content_area = inner.inner(Margin::new(1, 1));
+            let content_area = inner.inner(crate::ui_consts::UNIFORM_PAD);
             if content_area.width == 0 || content_area.height == 0 {
                 return None;
             }
@@ -164,7 +164,7 @@ mod imp {
                 Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
             ]));
 
-            let content_area = inner.inner(Margin::new(1, 1));
+            let content_area = inner.inner(crate::ui_consts::UNIFORM_PAD);
             if content_area.width == 0 || content_area.height == 0 {
                 return;
             }
@@ -282,7 +282,7 @@ mod android_stub {
                 return;
             }
 
-            let content_area = inner.inner(Margin::new(1, 1));
+            let content_area = inner.inner(crate::ui_consts::UNIFORM_PAD);
             if content_area.width == 0 || content_area.height == 0 {
                 return;
             }

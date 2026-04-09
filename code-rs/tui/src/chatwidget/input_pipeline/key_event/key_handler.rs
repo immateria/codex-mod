@@ -497,7 +497,7 @@ impl ChatWidget<'_> {
                     if trimmed.is_empty() {
                         self.bottom_pane.set_task_running(true);
                         self.bottom_pane
-                            .update_status_text("Auto Drive Goal".to_string());
+                            .update_status_text(crate::auto_drive_style::AUTO_DRIVE_GOAL_TITLE.to_string());
                         self.clear_composer();
                         self.request_redraw();
                         return;

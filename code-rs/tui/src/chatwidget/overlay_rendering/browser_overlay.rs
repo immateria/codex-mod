@@ -8,7 +8,7 @@ impl ChatWidget<'_> {
         bottom_pane_area: Rect,
         buf: &mut Buffer,
     ) {
-        use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect as RtRect};
+        use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect as RtRect};
         use ratatui::style::{Modifier, Style};
         use ratatui::text::{Line as RLine, Span};
         use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
@@ -59,7 +59,7 @@ impl ChatWidget<'_> {
         let inner_bg = Style::default().bg(crate::colors::background());
         fill_rect(buf, inner, None, inner_bg);
 
-        let content = inner.inner(Margin::new(1, 0));
+        let content = inner.inner(crate::ui_consts::HORIZONTAL_PAD);
         if content.width == 0 || content.height == 0 {
             return;
         }

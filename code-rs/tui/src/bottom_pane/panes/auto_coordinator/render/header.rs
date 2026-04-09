@@ -132,7 +132,8 @@ fn status_label(model: &AutoActiveViewModel) -> &'static str {
 }
 
 fn is_generic_status_message(message: &str) -> bool {
-    matches!(message, "Auto Drive" | "Auto Drive Goal")
+    message == crate::auto_drive_style::AUTO_DRIVE_TITLE
+        || message == crate::auto_drive_style::AUTO_DRIVE_GOAL_TITLE
 }
 
 pub(super) fn resolve_display_message(view: &AutoCoordinatorView, model: &AutoActiveViewModel) -> String {

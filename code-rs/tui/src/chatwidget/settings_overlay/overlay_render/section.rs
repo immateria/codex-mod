@@ -92,7 +92,7 @@ impl SettingsOverlayView {
         }
 
         let title = Self::section_panel_title(self.active_section());
-        let mut style = SettingsPanelStyle::overlay().with_margin(Margin::new(1, 1));
+        let mut style = SettingsPanelStyle::overlay().with_margin(crate::ui_consts::UNIFORM_PAD);
         style.border_style = Style::default()
             .fg(if self.is_content_focused() {
                 crate::colors::border_focused()
@@ -300,7 +300,7 @@ impl SettingsOverlayView {
             .style(Style::default().bg(crate::colors::background()))
             .render(box_area, buf);
 
-        let inner = box_area.inner(Margin::new(1, 1));
+        let inner = box_area.inner(crate::ui_consts::UNIFORM_PAD);
         if inner.width == 0 || inner.height == 0 {
             return;
         }

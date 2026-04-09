@@ -42,3 +42,17 @@ pub(super) fn write_agent_file(
     Ok(path)
 }
 
+/// Write an agent file and return its display path, or a formatted error string.
+pub(super) fn write_agent_file_display(
+    dir: &Path,
+    filename: &str,
+    content: &str,
+) -> String {
+    match write_agent_file(dir, filename, content) {
+        Ok(p) => p.display().to_string(),
+        Err(e) => e,
+    }
+}
+
+pub(super) const UNKNOWN_ERROR: &str = "Unknown error";
+

@@ -74,7 +74,7 @@ impl ThemeSelectionView {
         match chrome {
             MouseChrome::Framed => {
                 let inner = Block::default().borders(Borders::ALL).inner(area);
-                Some(inner.inner(Margin::new(1, 1)))
+                Some(inner.inner(crate::ui_consts::UNIFORM_PAD))
             }
             MouseChrome::ContentOnly => Some(Rect {
                 x: area.x,

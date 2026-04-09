@@ -465,7 +465,7 @@ fn detect_repo_root(worktree_path: &Path) -> Option<PathBuf> {
     if !gitdir_path.is_absolute() {
         gitdir_path = worktree_path.join(gitdir_value);
     }
-    gitdir_path = gitdir_path.canonicalize().unwrap_or(gitdir_path);
+    gitdir_path = crate::util::canonicalize_or_original(&gitdir_path);
 
     let mut current = gitdir_path;
     let mut levels = 0;
@@ -694,7 +694,7 @@ fn dir_is_empty(path: &Path) -> bool {
 }
 
 fn canonicalize_or_original(path: &Path) -> PathBuf {
-    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+    crate::util::canonicalize_or_original(path)
 }
 
 fn acquire_lock(path: &Path) -> io::Result<Option<File>> {

@@ -1,7 +1,6 @@
 use code_file_search::FileMatch;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::layout::Margin;
 use ratatui::widgets::WidgetRef;
 use ratatui::prelude::Stylize;
 use unicode_width::UnicodeWidthStr;
@@ -142,7 +141,7 @@ impl WidgetRef for &FileSearchPopup {
     fn render_ref(&self, area: Rect, buf: &mut Buffer) {
         // Match the slash-command popup: add two spaces of left padding so
         // rows align with the text inside the composer (border + inner pad).
-        let indented_area = area.inner(Margin::new(2, 0));
+        let indented_area = area.inner(crate::ui_consts::NESTED_HPAD);
         // Convert matches to GenericDisplayRow, translating indices to usize at the UI boundary.
         let rows_all: Vec<GenericDisplayRow> = self
             .matches

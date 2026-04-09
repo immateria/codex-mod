@@ -699,7 +699,7 @@ impl WidgetRef for &UserApprovalWidget<'_> {
 
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
-            .render(options_chunk.inner(Margin::new(1, 0)), buf);
+            .render(options_chunk.inner(crate::ui_consts::HORIZONTAL_PAD), buf);
 
         Block::bordered()
             .border_type(BorderType::QuadrantOutside)

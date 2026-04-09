@@ -62,6 +62,71 @@ mod preview_tests {
     }
 }
 
+/// Extracted result from an agent completion, ready for JSON serialization.
+struct AgentResultMeta {
+    preview_key: &'static str,
+    file_key: &'static str,
+    preview: String,
+    file_path: String,
+    total_lines: usize,
+}
+
+/// Extract preview and file-write metadata from a completed/failed/cancelled agent.
+fn extract_agent_result(
+    status: &AgentStatus,
+    result_text: Option<&str>,
+    error_text: Option<&str>,
+    dir: &std::path::Path,
+) -> AgentResultMeta {
+    use super::fs_utils::{write_agent_file_display, UNKNOWN_ERROR};
+
+    match status {
+        AgentStatus::Completed => {
+            let text = result_text.unwrap_or_default();
+            let (preview, total_lines) = preview_first_n_lines(text, 500);
+            let file_path = write_agent_file_display(dir, "result.txt", text);
+            AgentResultMeta {
+                preview_key: "output_preview",
+                file_key: "output_file",
+                preview,
+                file_path,
+                total_lines,
+            }
+        }
+        AgentStatus::Failed => {
+            let text = error_text.unwrap_or(UNKNOWN_ERROR);
+            let (preview, total_lines) = preview_first_n_lines(text, 500);
+            let file_path = write_agent_file_display(dir, "error.txt", text);
+            AgentResultMeta {
+                preview_key: "error_preview",
+                file_key: "error_file",
+                preview,
+                file_path,
+                total_lines,
+            }
+        }
+        AgentStatus::Cancelled => {
+            let text = "Agent cancelled";
+            let (preview, total_lines) = preview_first_n_lines(text, 500);
+            let file_path = write_agent_file_display(dir, "status.txt", text);
+            AgentResultMeta {
+                preview_key: "status_preview",
+                file_key: "status_file",
+                preview,
+                file_path,
+                total_lines,
+            }
+        }
+        _ => AgentResultMeta {
+            preview_key: "status_preview",
+            file_key: "status_file",
+            preview: String::new(),
+            file_path: String::new(),
+            total_lines: 0,
+        },
+    }
+}
+
 fn resolve_agent_read_only(
     write: Option<bool>,
     read_only: Option<bool>,
@@ -1150,49 +1215,32 @@ async fn handle_get_agent_result(
                 };
 
                 match agent.status {
-                    AgentStatus::Completed => {
-                        let output_text = agent.result.unwrap_or_default();
-                        let (preview, total_lines) = preview_first_n_lines(&output_text, 500);
-                        let file_path = match write_agent_file(&dir, "result.txt", &output_text) {
-                            Ok(p) => p.display().to_string(),
-                            Err(e) => format!("Failed to write result file: {e}"),
-                        };
-                        let response = serde_json::json!({
+                    AgentStatus::Completed | AgentStatus::Failed | AgentStatus::Cancelled => {
+                        let meta = extract_agent_result(
+                            &agent.status,
+                            agent.result.as_deref(),
+                            agent.error.as_deref(),
+                            &dir,
+                        );
+                        let mut response = serde_json::json!({
                             "agent_id": params.agent_id,
                             "batch_id": params.batch_id.clone(),
                             "status": agent.status,
-                            "output_preview": preview,
-                            "output_total_lines": total_lines,
-                            "output_file": file_path,
                         });
-                        ResponseInputItem::FunctionCallOutput {
-                            call_id: call_id_clone,
-                            output: FunctionCallOutputPayload {
-                                body: FunctionCallOutputBody::Text(response.to_string()),
-                                success: Some(true),
-                            },
+                        if let Some(obj) = response.as_object_mut() {
+                            obj.insert(meta.preview_key.to_string(), serde_json::Value::String(meta.preview));
+                            obj.insert(
+                                format!("{}_total_lines", meta.preview_key.trim_end_matches("_preview")),
+                                serde_json::Value::Number(meta.total_lines.into()),
+                            );
+                            obj.insert(meta.file_key.to_string(), serde_json::Value::String(meta.file_path));
                         }
-                    }
-                    AgentStatus::Failed => {
-                        let error_text = agent.error.unwrap_or_else(|| "Unknown error".to_string());
-                        let (preview, total_lines) = preview_first_n_lines(&error_text, 500);
-                        let file_path = match write_agent_file(&dir, "error.txt", &error_text) {
-                            Ok(p) => p.display().to_string(),
-                            Err(e) => format!("Failed to write error file: {e}"),
-                        };
-                        let response = serde_json::json!({
-                            "agent_id": params.agent_id,
-                            "batch_id": params.batch_id.clone(),
-                            "status": agent.status,
-                            "error_preview": preview,
-                            "error_total_lines": total_lines,
-                            "error_file": file_path,
-                        });
+                        let success = matches!(agent.status, AgentStatus::Completed);
                         ResponseInputItem::FunctionCallOutput {
                             call_id: call_id_clone,
                             output: FunctionCallOutputPayload {
                                 body: FunctionCallOutputBody::Text(response.to_string()),
-                                success: Some(false),
+                                success: Some(success),
                             },
                         }
                     }
@@ -1404,33 +1452,12 @@ async fn handle_wait_for_agent(
                                     };
                                 }
                             };
-                            let (preview_key, file_key, preview, file_path, total_lines) = match agent.status {
-                                AgentStatus::Completed => {
-                                    let text = agent.result.clone().unwrap_or_default();
-                                    let (p, total) = preview_first_n_lines(&text, 500);
-                                    let fp = write_agent_file(&dir, "result.txt", &text)
-                                        .map(|p| p.display().to_string())
-                                        .unwrap_or_else(|e| format!("Failed to write result file: {e}"));
-                                    ("output_preview", "output_file", p, fp, total)
-                                }
-                                AgentStatus::Failed => {
-                                    let text = agent.error.clone().unwrap_or_else(|| "Unknown error".to_string());
-                                    let (p, total) = preview_first_n_lines(&text, 500);
-                                    let fp = write_agent_file(&dir, "error.txt", &text)
-                                        .map(|p| p.display().to_string())
-                                        .unwrap_or_else(|e| format!("Failed to write error file: {e}"));
-                                    ("error_preview", "error_file", p, fp, total)
-                                }
-                                AgentStatus::Cancelled => {
-                                    let text = "Agent cancelled".to_string();
-                                    let (p, total) = preview_first_n_lines(&text, 500);
-                                    let fp = write_agent_file(&dir, "status.txt", &text)
-                                        .map(|p| p.display().to_string())
-                                        .unwrap_or_else(|e| format!("Failed to write status file: {e}"));
-                                    ("status_preview", "status_file", p, fp, total)
-                                }
-                                _ => unreachable!(),
-                            };
+                            let meta = extract_agent_result(
+                                &agent.status,
+                                agent.result.as_deref(),
+                                agent.error.as_deref(),
+                                &dir,
+                            );
 
                             let hint = format!(
                                 "agent {{\"action\":\"result\",\"result\":{{\"agent_id\":\"{}\",\"batch_id\":\"{}\"}}}}",
@@ -1442,13 +1469,13 @@ async fn handle_wait_for_agent(
                                 "batch_id": batch_id,
                                 "status": agent.status,
                                 "wait_time_seconds": start.elapsed().as_secs(),
-                                "total_lines": total_lines,
+                                "total_lines": meta.total_lines,
                                 "agent_result_hint": hint,
                                 "agent_result_params": { "action": "result", "result": { "agent_id": agent.id, "batch_id": batch_id } },
                             });
                             if let Some(obj) = response.as_object_mut() {
-                                obj.insert(preview_key.to_string(), serde_json::Value::String(preview));
-                                obj.insert(file_key.to_string(), serde_json::Value::String(file_path));
+                                obj.insert(meta.preview_key.to_string(), serde_json::Value::String(meta.preview));
+                                obj.insert(meta.file_key.to_string(), serde_json::Value::String(meta.file_path));
                             }
                             return ResponseInputItem::FunctionCallOutput {
                                 call_id: call_id_clone,
@@ -1500,33 +1527,12 @@ async fn handle_wait_for_agent(
                                         };
                                     }
                                 };
-                                let (preview_key, file_key, preview, file_path, total_lines) = match a.status {
-                                    AgentStatus::Completed => {
-                                        let text = a.result.clone().unwrap_or_default();
-                                        let (p, total) = preview_first_n_lines(&text, 500);
-                                        let fp = write_agent_file(&dir, "result.txt", &text)
-                                            .map(|p| p.display().to_string())
-                                            .unwrap_or_else(|e| format!("Failed to write result file: {e}"));
-                                        ("output_preview", "output_file", p, fp, total)
-                                    }
-                                    AgentStatus::Failed => {
-                                        let text = a.error.clone().unwrap_or_else(|| "Unknown error".to_string());
-                                        let (p, total) = preview_first_n_lines(&text, 500);
-                                        let fp = write_agent_file(&dir, "error.txt", &text)
-                                            .map(|p| p.display().to_string())
-                                            .unwrap_or_else(|e| format!("Failed to write error file: {e}"));
-                                        ("error_preview", "error_file", p, fp, total)
-                                    }
-                                    AgentStatus::Cancelled => {
-                                        let text = "Agent cancelled".to_string();
-                                        let (p, total) = preview_first_n_lines(&text, 500);
-                                        let fp = write_agent_file(&dir, "status.txt", &text)
-                                            .map(|p| p.display().to_string())
-                                            .unwrap_or_else(|e| format!("Failed to write status file: {e}"));
-                                        ("status_preview", "status_file", p, fp, total)
-                                    }
-                                    _ => unreachable!(),
-                                };
+                                let meta = extract_agent_result(
+                                    &a.status,
+                                    a.result.as_deref(),
+                                    a.error.as_deref(),
+                                    &dir,
+                                );
 
                                 let hint = format!(
                                     "agent {{\"action\":\"result\",\"result\":{{\"agent_id\":\"{}\",\"batch_id\":\"{}\"}}}}",
@@ -1536,13 +1542,13 @@ async fn handle_wait_for_agent(
                                 let mut obj = serde_json::json!({
                                     "agent_id": a.id,
                                     "status": a.status,
-                                    "total_lines": total_lines,
+                                    "total_lines": meta.total_lines,
                                     "agent_result_hint": hint,
                                 "agent_result_params": { "action": "result", "result": { "agent_id": a.id, "batch_id": batch_id } },
                                 });
                                 if let Some(map) = obj.as_object_mut() {
-                                    map.insert(preview_key.to_string(), serde_json::Value::String(preview));
-                                    map.insert(file_key.to_string(), serde_json::Value::String(file_path));
+                                    map.insert(meta.preview_key.to_string(), serde_json::Value::String(meta.preview));
+                                    map.insert(meta.file_key.to_string(), serde_json::Value::String(meta.file_path));
                                 }
                                 summaries.push(obj);
                             }
@@ -1617,33 +1623,12 @@ async fn handle_wait_for_agent(
                                     };
                                 }
                             };
-                            let (preview_key, file_key, preview, file_path, total_lines) = match unseen.status {
-                                AgentStatus::Completed => {
-                                    let text = unseen.result.clone().unwrap_or_default();
-                                    let (p, total) = preview_first_n_lines(&text, 500);
-                                    let fp = write_agent_file(&dir, "result.txt", &text)
-                                        .map(|p| p.display().to_string())
-                                        .unwrap_or_else(|e| format!("Failed to write result file: {e}"));
-                                    ("output_preview", "output_file", p, fp, total)
-                                }
-                                AgentStatus::Failed => {
-                                    let text = unseen.error.clone().unwrap_or_else(|| "Unknown error".to_string());
-                                    let (p, total) = preview_first_n_lines(&text, 500);
-                                    let fp = write_agent_file(&dir, "error.txt", &text)
-                                        .map(|p| p.display().to_string())
-                                        .unwrap_or_else(|e| format!("Failed to write error file: {e}"));
-                                    ("error_preview", "error_file", p, fp, total)
-                                }
-                                AgentStatus::Cancelled => {
-                                    let text = "Agent cancelled".to_string();
-                                    let (p, total) = preview_first_n_lines(&text, 500);
-                                    let fp = write_agent_file(&dir, "status.txt", &text)
-                                        .map(|p| p.display().to_string())
-                                        .unwrap_or_else(|e| format!("Failed to write status file: {e}"));
-                                    ("status_preview", "status_file", p, fp, total)
-                                }
-                                _ => unreachable!(),
-                            };
+                            let meta = extract_agent_result(
+                                &unseen.status,
+                                unseen.result.as_deref(),
+                                unseen.error.as_deref(),
+                                &dir,
+                            );
 
                             let hint = format!(
                                 "agent {{\"action\":\"result\",\"result\":{{\"agent_id\":\"{}\",\"batch_id\":\"{}\"}}}}",
@@ -1654,13 +1639,13 @@ async fn handle_wait_for_agent(
                                 "agent_id": unseen.id,
                                 "status": unseen.status,
                                 "wait_time_seconds": start.elapsed().as_secs(),
-                                "total_lines": total_lines,
+                                "total_lines": meta.total_lines,
                                 "agent_result_hint": hint,
                                 "agent_result_params": { "action": "result", "result": { "agent_id": unseen.id, "batch_id": batch_id } },
                             });
                             if let Some(obj) = response.as_object_mut() {
-                                obj.insert(preview_key.to_string(), serde_json::Value::String(preview));
-                                obj.insert(file_key.to_string(), serde_json::Value::String(file_path));
+                                obj.insert(meta.preview_key.to_string(), serde_json::Value::String(meta.preview));
+                                obj.insert(meta.file_key.to_string(), serde_json::Value::String(meta.file_path));
                             }
                             return ResponseInputItem::FunctionCallOutput {
                                 call_id: call_id_clone,

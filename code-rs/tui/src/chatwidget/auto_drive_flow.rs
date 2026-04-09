@@ -103,7 +103,7 @@ impl ChatWidget<'_> {
         });
         self.bottom_pane.show_auto_coordinator_view(model);
         self.bottom_pane.set_task_running(false);
-        self.bottom_pane.update_status_text("Auto Drive".to_string());
+        self.bottom_pane.update_status_text(crate::auto_drive_style::AUTO_DRIVE_TITLE.to_string());
         self.auto_update_terminal_hint();
         self.bottom_pane.ensure_input_focus();
         self.clear_composer();

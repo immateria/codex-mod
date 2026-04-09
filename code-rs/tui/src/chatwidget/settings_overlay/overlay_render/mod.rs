@@ -1,5 +1,5 @@
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
+use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};

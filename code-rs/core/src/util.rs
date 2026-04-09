@@ -75,3 +75,9 @@ pub(crate) fn header_map_to_json(headers: &reqwest::header::HeaderMap) -> serde_
     }
     serde_json::to_value(ordered).unwrap_or(serde_json::Value::Null)
 }
+
+/// Canonicalize `path`, falling back to the original if resolution fails
+/// (e.g. the path doesn't exist yet or permissions prevent stat).
+pub(crate) fn canonicalize_or_original(path: &std::path::Path) -> std::path::PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+}

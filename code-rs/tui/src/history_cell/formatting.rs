@@ -497,11 +497,14 @@ pub(crate) fn pretty_provider_name(id: &str) -> String {
 }
 
 pub(crate) fn lines_to_plain_text(lines: &[Line<'_>]) -> String {
-    lines
-        .iter()
-        .map(line_to_plain_text)
-        .collect::<Vec<_>>()
-        .join("\n")
+    let mut out = String::new();
+    for (i, line) in lines.iter().enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        out.push_str(&line_to_plain_text(line));
+    }
+    out
 }
 
 pub(crate) fn line_to_plain_text(line: &Line<'_>) -> String {

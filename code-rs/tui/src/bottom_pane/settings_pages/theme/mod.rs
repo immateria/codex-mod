@@ -5,7 +5,6 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 use unicode_segmentation::UnicodeSegmentation;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Alignment;
-use ratatui::layout::Margin;
 use ratatui::layout::Rect;
 use ratatui::style::Modifier;
 use ratatui::style::Style;

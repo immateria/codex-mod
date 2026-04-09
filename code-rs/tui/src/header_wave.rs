@@ -3,7 +3,7 @@ use std::f32::consts::TAU;
 use std::time::{Duration, Instant};
 
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Margin, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::Color;
 
 pub struct HeaderWaveEffect {
@@ -67,11 +67,11 @@ impl HeaderWaveEffect {
             return;
         }
 
-        let inner = area.inner(Margin::new(1, 1));
+        let inner = area.inner(crate::ui_consts::UNIFORM_PAD);
         if inner.width < 3 || inner.height == 0 {
             return;
         }
-        let stripe_area = inner.inner(Margin::new(1, 0));
+        let stripe_area = inner.inner(crate::ui_consts::HORIZONTAL_PAD);
         if stripe_area.width == 0 || stripe_area.height == 0 {
             return;
         }

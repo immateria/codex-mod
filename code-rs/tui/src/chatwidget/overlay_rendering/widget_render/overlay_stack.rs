@@ -132,7 +132,7 @@ impl ChatWidget<'_> {
 
                 // Split into header tabs and body/footer
                 // Add one cell padding around the entire inside of the window
-                let padded_inner = inner.inner(ratatui::layout::Margin::new(1, 1));
+                let padded_inner = inner.inner(crate::ui_consts::UNIFORM_PAD);
                 let [tabs_area, body_area] = if has_tabs {
                     Layout::vertical([Constraint::Length(2), Constraint::Fill(1)])
                         .areas(padded_inner)
