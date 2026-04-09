@@ -646,9 +646,9 @@ impl ExecCell {
 
     pub(crate) fn sync_from_record(&mut self, record: &ExecRecord) {
         let was_running = matches!(self.record.status, ExecStatus::Running);
-        self.record = record.clone();
-        self.command = record.command.clone();
-        self.parsed = record.parsed.clone();
+        self.record.clone_from(record);
+        self.command.clone_from(&self.record.command);
+        self.parsed.clone_from(&self.record.parsed);
         self.parsed_meta = if self.parsed.is_empty() {
             None
         } else {

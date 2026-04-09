@@ -15,7 +15,7 @@ impl ChatComposer {
         history::on_history_entry_response(self, log_id, offset, entry)
     }
 
-    pub fn set_text_content(&mut self, text: String) {
+    pub fn set_text_content(&mut self, text: &str) {
         text::set_text_content(self, text);
     }
 

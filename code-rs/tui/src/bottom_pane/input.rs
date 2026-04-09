@@ -241,7 +241,7 @@ impl<'a> BottomPane<'a> {
         self.request_redraw();
     }
 
-    pub(crate) fn set_composer_text(&mut self, text: String) {
+    pub(crate) fn set_composer_text(&mut self, text: &str) {
         self.composer.set_text_content(text);
         self.request_redraw();
     }

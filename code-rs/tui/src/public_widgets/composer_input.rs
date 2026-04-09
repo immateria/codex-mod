@@ -48,7 +48,7 @@ impl ComposerInput {
 
     /// Clear the input text.
     pub fn clear(&mut self) {
-        self.inner.set_text_content(String::new());
+        self.inner.set_text_content("");
     }
 
     /// Feed a key event into the composer and return a high-level action.

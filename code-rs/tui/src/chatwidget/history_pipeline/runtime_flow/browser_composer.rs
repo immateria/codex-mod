@@ -22,7 +22,7 @@ impl ChatWidget<'_> {
         self.bottom_pane.insert_str(s);
     }
 
-    pub(crate) fn set_composer_text(&mut self, text: String) {
+    pub(crate) fn set_composer_text(&mut self, text: &str) {
         if self.auto_state.should_show_goal_entry()
             && matches!(self.auto_goal_escape_state, AutoGoalEscState::Inactive)
             && !text.trim().is_empty()

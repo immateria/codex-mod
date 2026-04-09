@@ -119,7 +119,7 @@ impl AutoDriveCardCell {
         };
         
         Self {
-            goal: goal.and_then(Self::normalize_text),
+            goal: goal.as_deref().and_then(Self::normalize_text),
             status: AutoDriveStatus::Running,
             actions: Vec::new(),
             cell_key: None,
@@ -133,7 +133,7 @@ impl AutoDriveCardCell {
     }
 
     pub(crate) fn set_goal(&mut self, goal: Option<String>) {
-        self.goal = goal.and_then(Self::normalize_text);
+        self.goal = goal.as_deref().and_then(Self::normalize_text);
     }
 
     #[cfg(test)]
@@ -146,7 +146,7 @@ impl AutoDriveCardCell {
         self.actions.iter().map(|action| action.text.clone()).collect()
     }
 
-    fn normalize_text(value: String) -> Option<String> {
+    fn normalize_text(value: &str) -> Option<String> {
         let trimmed = value.trim();
         if trimmed.is_empty() {
             None
@@ -176,12 +176,12 @@ impl AutoDriveCardCell {
     }
 
     pub(crate) fn set_completion_message(&mut self, message: Option<String>) {
-        self.completion_message = message.and_then(Self::normalize_text);
+        self.completion_message = message.as_deref().and_then(Self::normalize_text);
     }
 
     pub(crate) fn start_celebration(&mut self, message: Option<String>) {
         self.celebration_started_at = Some(Instant::now());
-        if let Some(msg) = message.and_then(Self::normalize_text) {
+        if let Some(msg) = message.as_deref().and_then(Self::normalize_text) {
             self.completion_message = Some(msg);
         }
         self.status = AutoDriveStatus::Stopped;
@@ -278,7 +278,7 @@ impl AutoDriveCardCell {
         let lines = self.celebration_body_lines(body_width);
         for (line_index, line) in lines.into_iter().enumerate() {
             let segments = if line_index > 0 && line_index - 1 < CELEBRATION_ASCII.len() {
-                self.celebration_ascii_segments(line)
+                self.celebration_ascii_segments(&line)
             } else {
                 vec![CardSegment::new(line, Self::celebration_background_style())]
             };
@@ -971,7 +971,7 @@ impl AutoDriveCardCell {
     }
 
     #[allow(clippy::disallowed_methods)]
-    fn celebration_ascii_segments(&self, line: String) -> Vec<CardSegment> {
+    fn celebration_ascii_segments(&self, line: &str) -> Vec<CardSegment> {
         let chars: Vec<char> = line.chars().collect();
         let total = chars.len();
         let left_pad = chars.iter().take_while(|c| **c == ' ').count();

@@ -245,7 +245,7 @@
                     self.input_suspended.store(false, Ordering::Release);
                     if let AppState::Chat { widget } = &mut self.app_state {
                         match editor_result {
-                            Ok(text) => widget.set_composer_text(text),
+                            Ok(text) => widget.set_composer_text(&text),
                             Err(err) => widget.debug_notice(err.to_string()),
                         }
                     }
