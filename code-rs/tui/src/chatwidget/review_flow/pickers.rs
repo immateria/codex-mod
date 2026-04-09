@@ -36,9 +36,9 @@ impl ChatWidget<'_> {
             if sha.is_empty() {
                 continue;
             }
-            let short_sha: String = sha.chars().take(7).collect();
+            let short_sha = &sha[..sha.len().min(7)];
             let title = if subject.is_empty() {
-                short_sha.clone()
+                short_sha.to_string()
             } else {
                 format!("{short_sha} — {subject}")
             };

@@ -779,7 +779,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                         eprintln!("{} {}", "worktree:".style(self.dimmed), path.display());
                     }
                     if let Some(commit) = &snapshot.snapshot_commit {
-                        let short = commit.chars().take(12).collect::<String>();
+                        let short = &commit[..commit.len().min(12)];
                         eprintln!("{} {}", "snapshot:".style(self.dimmed), short);
                     }
                 }

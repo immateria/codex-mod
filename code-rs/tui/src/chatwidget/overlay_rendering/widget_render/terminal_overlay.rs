@@ -240,24 +240,31 @@ impl ChatWidget<'_> {
                 }
 
                 if rows > 0 && cols > 0 {
-                    let mut rendered_rows: Vec<RtLine<'static>> = Vec::new();
-                    if overlay.truncated {
-                        rendered_rows.push(ratatui::text::Line::from(vec![
-                            ratatui::text::Span::styled(
-                                "… output truncated (showing last 10,000 lines)",
-                                Style::default().fg(crate::colors::text_dim()),
-                            ),
-                        ]));
-                    }
-                    rendered_rows.extend(overlay.lines.iter().cloned());
-                    let total = rendered_rows.len();
+                    let truncation_offset = if overlay.truncated { 1usize } else { 0 };
+                    let total = truncation_offset + overlay.lines.len();
                     let visible = rows as usize;
                     if visible > 0 {
                         let max_scroll = total.saturating_sub(visible);
                         let scroll = (overlay.scroll as usize).min(max_scroll);
                         let end = (scroll + visible).min(total);
-                        let window = rendered_rows.get(scroll..end).unwrap_or(&[]);
-                        Paragraph::new(RtText::from(window.to_vec()))
+                        let mut window_lines: Vec<RtLine<'static>> =
+                            Vec::with_capacity(end - scroll);
+                        for i in scroll..end {
+                            if i < truncation_offset {
+                                window_lines.push(ratatui::text::Line::from(vec![
+                                    ratatui::text::Span::styled(
+                                        "… output truncated (showing last 10,000 lines)",
+                                        Style::default().fg(crate::colors::text_dim()),
+                                    ),
+                                ]));
+                            } else {
+                                let idx = i - truncation_offset;
+                                if let Some(line) = overlay.lines.get(idx) {
+                                    window_lines.push(line.clone());
+                                }
+                            }
+                        }
+                        Paragraph::new(RtText::from(window_lines))
                             .wrap(ratatui::widgets::Wrap { trim: false })
                             .render(body_area, buf);
                     }

@@ -112,7 +112,9 @@ impl ChatWidget<'_> {
                 };
                 const SNIPPET_MAX: usize = 64;
                 if summary.chars().count() > SNIPPET_MAX {
-                    summary = summary.chars().take(SNIPPET_MAX).collect::<String>() + "…";
+                    let truncated: String = summary.chars().take(SNIPPET_MAX).collect();
+                    summary = truncated;
+                    summary.push('…');
                 }
                 crate::bottom_pane::panes::resume_selection::ResumeRow {
                     modified,

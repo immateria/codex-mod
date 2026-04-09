@@ -308,7 +308,7 @@ impl MarkdownStreamCollector {
         if end <= self.committed_line_count {
             return Vec::new();
         }
-        let out = rendered[self.committed_line_count..end].to_vec();
+        let out = rendered.drain(self.committed_line_count..end).collect();
         self.committed_line_count = end;
         out
     }
@@ -339,7 +339,7 @@ impl MarkdownStreamCollector {
         let out = if self.committed_line_count >= rendered.len() {
             Vec::new()
         } else {
-            rendered[self.committed_line_count..].to_vec()
+            rendered.drain(self.committed_line_count..).collect()
         };
 
         // Reset collector state for next stream.

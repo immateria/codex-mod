@@ -121,12 +121,15 @@ pub(crate) fn render_intro_animation_with_size_and_alpha_offset(
     }
     let end = (start + area.height as usize).min(lines.len());
     if start > 0 || end < lines.len() {
-        lines = lines[start..end].to_vec();
+        lines.truncate(end);
+        if start > 0 {
+            lines.drain(..start);
+        }
         if full_width > 0 {
             for line in &mut lines {
                 let len = line.chars().count();
                 if len < full_width {
-                    line.push_str(&" ".repeat(full_width - len));
+                    line.extend(std::iter::repeat(' ').take(full_width - len));
                 }
             }
         }

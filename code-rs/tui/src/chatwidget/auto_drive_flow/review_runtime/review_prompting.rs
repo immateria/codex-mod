@@ -394,7 +394,7 @@ impl ChatWidget<'_> {
             Some(scope) => {
                 let commit_id = scope.commit;
                 let commit_for_prompt = commit_id.clone();
-                let short_sha: String = commit_for_prompt.chars().take(8).collect();
+                let short_sha = &commit_for_prompt[..commit_for_prompt.len().min(8)];
                 let file_label = if scope.file_count == 1 {
                     "1 file".to_string()
                 } else {

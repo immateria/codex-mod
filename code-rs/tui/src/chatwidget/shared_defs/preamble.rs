@@ -603,7 +603,7 @@ async fn allocate_fallback_auto_review_worktree(
 ) -> Result<(PathBuf, String, ReviewGuard), String> {
     cleanup_fallback_worktrees(git_root).await?;
     let branches_dir = auto_review_branches_dir(git_root)?;
-    let short = snapshot_id.chars().take(8).collect::<String>();
+    let short = &snapshot_id[..snapshot_id.len().min(8)];
 
     for attempt in 0..AUTO_REVIEW_FALLBACK_MAX {
         let suffix = if attempt == 0 { String::new() } else { format!("-{}", attempt + 1) };
@@ -1159,7 +1159,8 @@ impl GhostSnapshot {
     }
 
     fn short_id(&self) -> String {
-        self.commit.id().chars().take(8).collect()
+        let id = self.commit.id();
+        id[..id.len().min(8)].to_string()
     }
 
     fn summary_snippet(&self, max_len: usize) -> Option<String> {
@@ -1380,7 +1381,7 @@ enum AgentsSortMode {
 fn short_batch_label(batch_id: &str) -> String {
     let compact: String = batch_id.chars().filter(|c| *c != '-').collect();
     let source = if compact.is_empty() { batch_id } else { compact.as_str() };
-    let short: String = source.chars().take(8).collect();
+    let short = &source[..source.len().min(8)];
     if short.is_empty() {
         "Batch".to_string()
     } else {

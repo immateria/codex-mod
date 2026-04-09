@@ -954,13 +954,13 @@ impl AutoDriveCardCell {
         right_pad: usize,
     ) -> String {
         let mut output = String::with_capacity(left_pad + block_width + right_pad);
-        output.push_str(&" ".repeat(left_pad));
+        output.extend(std::iter::repeat(' ').take(left_pad));
         output.push_str(line);
         let line_width = Self::display_width(line);
         if line_width < block_width {
-            output.push_str(&" ".repeat(block_width - line_width));
+            output.extend(std::iter::repeat(' ').take(block_width - line_width));
         }
-        output.push_str(&" ".repeat(right_pad));
+        output.extend(std::iter::repeat(' ').take(right_pad));
         output
     }
 

@@ -185,8 +185,7 @@ impl ImageOutputCell {
         }
         if let Some(hash) = record.sha256.as_ref() {
             let short = if hash.len() > 12 {
-                let prefix: String = hash.chars().take(12).collect();
-                format!("{prefix}…")
+                format!("{}…", &hash[..12])
             } else {
                 hash.clone()
             };

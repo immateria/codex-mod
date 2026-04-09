@@ -349,7 +349,7 @@ impl ChatWidget<'_> {
                         ),
                     ]));
 
-                    let id_short = format!("#{}", agent_id.chars().take(7).collect::<String>());
+                    let id_short = format!("#{}", &agent_id[..agent_id.len().min(7)]);
                     let status_chip = format!("{} {}", agent_status_icon(status), agent_status_label(status));
                     let model_meta = entry
                         .model

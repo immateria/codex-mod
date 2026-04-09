@@ -176,11 +176,11 @@ impl ChatWidget<'_> {
             preface.push_str(&summary);
         }
         if let Some(commit) = self.auto_resolve_commit_sha() {
-                let short_sha: String = commit.chars().take(7).collect();
+                let short_sha = &commit[..commit.len().min(7)];
                 preface.push_str("\n\nCommit under review: ");
                 preface.push_str(&commit);
                 preface.push_str(" (short SHA ");
-                preface.push_str(&short_sha);
+                preface.push_str(short_sha);
                 preface.push_str(
                     "). If you make changes to address these findings, amend this commit before responding so the review target reflects your fixes.",
                 );
@@ -219,11 +219,11 @@ impl ChatWidget<'_> {
         }
         preface.push_str("\n\nReturn JSON: {\"status\": \"...\", \"rationale\": \"optional explanation\"}.");
         if let Some(commit) = self.auto_resolve_commit_sha() {
-                let short_sha: String = commit.chars().take(7).collect();
+                let short_sha = &commit[..commit.len().min(7)];
                 preface.push_str("\n\nCommit under review: ");
                 preface.push_str(&commit);
                 preface.push_str(" (short SHA ");
-                preface.push_str(&short_sha);
+                preface.push_str(short_sha);
                 preface.push_str(
                     "). Confirm that any fixes have been committed (amend the commit if necessary) before returning `no_issue`.",
                 );
@@ -279,7 +279,7 @@ impl ChatWidget<'_> {
         if matches!(next_target, ReviewTarget::Commit { .. })
             && let Some(new_commit) = self.current_head_commit_sha()
         {
-            let short_sha: String = new_commit.chars().take(7).collect();
+            let short_sha = &new_commit[..new_commit.len().min(7)];
             let subject = self.commit_subject_for(&new_commit);
             base_prompt = match subject.as_deref() {
                 Some(subject) => format!(

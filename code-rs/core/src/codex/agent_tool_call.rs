@@ -1013,7 +1013,7 @@ pub(crate) async fn handle_run_agent(
 }
 
 fn short_id(id: &str) -> String {
-    id.chars().take(8).collect()
+    id[..id.len().min(8)].to_string()
 }
 
 fn derive_agent_name_from_task(task: &str) -> Option<String> {

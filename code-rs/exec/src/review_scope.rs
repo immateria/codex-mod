@@ -1,8 +1,10 @@
+use std::fmt::Write;
+use std::path::Path;
+
 use code_auto_drive_core::AUTO_RESOLVE_REVIEW_FOLLOWUP;
 use code_auto_drive_core::AutoResolveState;
 use code_core::protocol::ReviewRequest;
 use code_git_tooling::GhostCommit;
-use std::path::Path;
 
 use crate::review_output::format_review_findings;
 
@@ -34,24 +36,17 @@ pub(crate) fn apply_commit_scope_to_review_request(
     parent: &str,
     paths: Option<&[String]>,
 ) -> ReviewRequest {
-    let short_commit: String = commit.chars().take(7).collect();
-    let short_parent: String = parent.chars().take(7).collect();
+    let short_commit = &commit[..commit.len().min(7)];
+    let short_parent = &parent[..parent.len().min(7)];
 
     let mut prompt = request.prompt.trim_end().to_string();
-    prompt.push_str("\n\nReview scope: changes captured in commit ");
-    prompt.push_str(commit);
-    prompt.push_str(" (parent ");
-    prompt.push_str(parent);
-    prompt.push(')');
-    prompt.push('.');
+    write!(prompt, "\n\nReview scope: changes captured in commit {commit} (parent {parent}).").unwrap();
 
     if let Some(paths) = paths
         && !paths.is_empty() {
             prompt.push_str("\nFiles changed in this snapshot:\n");
             for path in paths {
-                prompt.push_str("- ");
-                prompt.push_str(path);
-                prompt.push('\n');
+                write!(prompt, "- {path}\n").unwrap();
             }
         }
 

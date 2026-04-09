@@ -810,7 +810,7 @@ impl ChatWidget<'_> {
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(|id| {
-                let short = id.chars().take(8).collect::<String>();
+                let short = &id[..id.len().min(8)];
                 format!("Agent: #{short} (auto-review)")
             })
             .unwrap_or_else(|| "Agent: (unknown)".to_string());
