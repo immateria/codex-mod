@@ -94,7 +94,7 @@ pub(super) fn handle_begin(
         .tools_state
         .web_search_by_order
         .insert(request_ordinal, key);
-    chat.bottom_pane.update_status_text("Search".to_string());
+    chat.bottom_pane.update_status_text("Search");
     chat.request_redraw();
 }
 
@@ -159,7 +159,7 @@ pub(super) fn handle_complete(
             .remove(&request_ordinal);
     }
 
-    chat.bottom_pane.update_status_text("responding".to_string());
+    chat.bottom_pane.update_status_text("responding");
     chat.maybe_hide_spinner();
 }
 

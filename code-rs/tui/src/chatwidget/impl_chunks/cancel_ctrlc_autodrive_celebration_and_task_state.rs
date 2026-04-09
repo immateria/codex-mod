@@ -236,7 +236,7 @@ impl ChatWidget<'_> {
 
         self.bottom_pane.set_task_running(false);
         self.bottom_pane
-            .update_status_text("Waiting in background".to_string());
+            .update_status_text("Waiting in background");
 
         if !wait_ids.is_empty() {
             self.push_background_tail(format!(
@@ -337,7 +337,7 @@ impl ChatWidget<'_> {
 
         if !(any_tools_running || any_streaming || any_agents_active || any_tasks_active) {
             self.bottom_pane.set_task_running(false);
-            self.bottom_pane.update_status_text(String::new());
+            self.bottom_pane.update_status_text("");
             self.bottom_pane.clear_ctrl_c_quit_hint();
             self.mark_needs_redraw();
         }

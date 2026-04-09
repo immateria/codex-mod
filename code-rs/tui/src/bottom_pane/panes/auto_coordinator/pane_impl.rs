@@ -47,7 +47,7 @@ impl<'a> BottomPaneView<'a> for AutoCoordinatorView {
         self.render_active(area, buf, model, Some(composer));
     }
 
-    fn update_status_text(&mut self, text: String) -> ConditionalUpdate {
+    fn update_status_text(&mut self, text: &str) -> ConditionalUpdate {
         if self.update_status_message(text) {
             ConditionalUpdate::NeedsRedraw
         } else {

@@ -434,7 +434,7 @@ impl ChatWidget<'_> {
                         .find_map(|cell| cell.parent_call_id().map(str::to_owned))
                 }) else {
                     self.bottom_pane
-                        .update_status_text("no parent tool call to jump to".to_string());
+                        .update_status_text("no parent tool call to jump to");
                     self.request_redraw();
                     return;
                 };
@@ -461,7 +461,7 @@ impl ChatWidget<'_> {
                     })
                 }) else {
                     self.bottom_pane
-                        .update_status_text("no spawned tool call to jump to".to_string());
+                        .update_status_text("no spawned tool call to jump to");
                     self.request_redraw();
                     return;
                 };
@@ -498,13 +498,13 @@ impl ChatWidget<'_> {
                     if trimmed.is_empty() {
                         self.bottom_pane.set_task_running(true);
                         self.bottom_pane
-                            .update_status_text(crate::auto_drive_style::AUTO_DRIVE_GOAL_TITLE.to_string());
+                            .update_status_text(crate::auto_drive_style::AUTO_DRIVE_GOAL_TITLE);
                         self.clear_composer();
                         self.request_redraw();
                         return;
                     }
                     self.clear_composer();
-                    self.bottom_pane.update_status_text(String::new());
+                    self.bottom_pane.update_status_text("");
                     self.bottom_pane.set_task_running(false);
                     self.handle_auto_command(Some(trimmed.to_string()));
                     return;

@@ -148,7 +148,7 @@ pub(in super::super) fn finalize_all_running_as_interrupted(chat: &mut ChatWidge
         chat.tools_state.running_kill_tools.clear();
     }
 
-    chat.bottom_pane.update_status_text("cancelled".to_string());
+    chat.bottom_pane.update_status_text("cancelled");
     let any_tasks_active = !chat.active_task_ids.is_empty();
     if !any_tasks_active {
         chat.bottom_pane.set_task_running(false);

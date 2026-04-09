@@ -88,7 +88,7 @@ pub(crate) trait BottomPaneView<'a> {
     }
 
     /// Update the status indicator text.
-    fn update_status_text(&mut self, _text: String) -> ConditionalUpdate {
+    fn update_status_text(&mut self, _text: &str) -> ConditionalUpdate {
         ConditionalUpdate::NoRedraw
     }
 

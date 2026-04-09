@@ -141,7 +141,7 @@ impl ChatWidget<'_> {
         } else {
             self.auto_turn_review_state = None;
         }
-        self.bottom_pane.update_status_text(String::new());
+        self.bottom_pane.update_status_text("");
         self.bottom_pane.set_task_running(false);
         let mut message: UserMessage = full_prompt.into();
         message.suppress_persistence = true;
@@ -187,7 +187,7 @@ impl ChatWidget<'_> {
         self.bottom_pane.ensure_input_focus();
         self.bottom_pane.set_task_running(true);
         self.bottom_pane
-            .update_status_text("Auto Drive paused".to_string());
+            .update_status_text("Auto Drive paused");
         self.show_auto_drive_exit_hint();
         self.auto_rebuild_live_ring();
         self.request_redraw();

@@ -10,7 +10,7 @@ pub(super) fn sync_command_popup_inner(view: &mut ChatComposer) {
     match &mut view.active_popup {
         ActivePopup::Command(popup) => {
             if input_starts_with_slash && in_slash_head {
-                popup.on_composer_text_change(first_line.to_string());
+                popup.on_composer_text_change(first_line);
             } else {
                 view.active_popup = ActivePopup::None;
             }
@@ -24,7 +24,7 @@ pub(super) fn sync_command_popup_inner(view: &mut ChatComposer) {
                 if !view.subagent_commands.is_empty() {
                     command_popup.set_subagent_commands(view.subagent_commands.clone());
                 }
-                command_popup.on_composer_text_change(first_line.to_string());
+                command_popup.on_composer_text_change(first_line);
                 view.active_popup = ActivePopup::Command(command_popup);
                 // Notify app: composer expanded due to slash popup
                 view.app_event_tx

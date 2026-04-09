@@ -513,7 +513,7 @@ impl ChatWidget<'_> {
             // Keep long waits running but do not block user input.
             self.bottom_pane.set_task_running(false);
             self.bottom_pane
-                .update_status_text("Waiting in background".to_string());
+                .update_status_text("Waiting in background");
         }
 
         tracing::info!(

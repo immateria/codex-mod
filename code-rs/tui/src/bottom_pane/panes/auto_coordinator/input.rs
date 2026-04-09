@@ -17,8 +17,8 @@ impl AutoCoordinatorView {
         }
     }
 
-    pub(super) fn update_status_message(&mut self, message: String) -> bool {
-        let new_value = Self::normalize_status_message(&message);
+    pub(super) fn update_status_message(&mut self, message: &str) -> bool {
+        let new_value = Self::normalize_status_message(message);
         if self.status_message.as_deref() == new_value.as_deref() {
             return false;
         }

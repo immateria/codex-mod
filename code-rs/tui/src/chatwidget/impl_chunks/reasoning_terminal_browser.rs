@@ -55,14 +55,14 @@ impl ChatWidget<'_> {
             } else {
                 "Reasoning hidden"
             };
-            self.bottom_pane.update_status_text(status.to_string());
+            self.bottom_pane.update_status_text(status);
             // Update footer label to reflect current state
             self.bottom_pane
                 .set_reasoning_state(self.config.tui.show_reasoning);
         } else {
             // No reasoning cells exist; inform the user
             self.bottom_pane
-                .update_status_text("No reasoning to toggle".to_string());
+                .update_status_text("No reasoning to toggle");
         }
         self.refresh_reasoning_collapsed_visibility();
         // Collapsed state changes affect heights; clear cache
@@ -171,7 +171,7 @@ impl ChatWidget<'_> {
             // Optimistically reflect browsing activity in the input border if we end up enabling
             // (safe even if we later disable; UI will update on event messages)
             self.bottom_pane
-                .update_status_text("using browser".to_string());
+                .update_status_text("using browser");
 
             // Toggle asynchronously: if internal browser is active, disable it; otherwise enable and open about:blank
             let app_event_tx = self.app_event_tx.clone();
@@ -284,7 +284,7 @@ impl ChatWidget<'_> {
                 self.push_background_tail(status_msg);
                 // Also reflect browsing activity in the input border
                 self.bottom_pane
-                    .update_status_text("using browser".to_string());
+                    .update_status_text("using browser");
 
                 // Connect immediately, don't wait for message send
                 tokio::spawn(async move {

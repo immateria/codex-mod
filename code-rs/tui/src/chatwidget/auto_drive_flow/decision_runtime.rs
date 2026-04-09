@@ -359,7 +359,7 @@ Have we met every part of this goal and is there no further work to do?"#
                 }
                 AutoControllerEffect::LaunchStarted { goal } => {
                     self.bottom_pane.set_task_running(false);
-                    self.bottom_pane.update_status_text(crate::auto_drive_style::AUTO_DRIVE_TITLE.to_string());
+                    self.bottom_pane.update_status_text(crate::auto_drive_style::AUTO_DRIVE_TITLE);
                     self.auto_card_start(Some(goal.clone()));
                     self.auto_card_add_action(
                         format!("Auto Drive started: {goal}"),
@@ -409,7 +409,7 @@ Have we met every part of this goal and is there no further work to do?"#
                     let human_delay = format_duration(delay);
                     self.bottom_pane.set_task_running(false);
                     self.bottom_pane
-                        .update_status_text("Auto Drive paused".to_string());
+                        .update_status_text("Auto Drive paused");
                     self.bottom_pane.set_standard_terminal_hint(Some(
                         AUTO_ESC_EXIT_HINT.to_string(),
                     ));
@@ -451,7 +451,7 @@ Have we met every part of this goal and is there no further work to do?"#
 
                     self.bottom_pane.set_task_running(has_activity);
                     if !has_activity {
-                        self.bottom_pane.update_status_text(String::new());
+                        self.bottom_pane.update_status_text("");
                     }
                 }
                 AutoControllerEffect::EnsureInputFocus => {

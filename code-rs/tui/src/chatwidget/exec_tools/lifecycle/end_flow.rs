@@ -200,7 +200,7 @@ pub(in super::super::super) fn handle_exec_end_now(
             },
             history_cell::ExploreEntryStatus::Running => "exploring…".to_string(),
         };
-        chat.bottom_pane.update_status_text(status_text);
+        chat.bottom_pane.update_status_text(&status_text);
         chat.maybe_hide_spinner();
         chat.refresh_auto_drive_visuals();
         return;
@@ -332,7 +332,7 @@ pub(in super::super::super) fn handle_exec_end_now(
     if exit_code == 0 {
         chat
             .bottom_pane
-            .update_status_text("command completed".to_string());
+            .update_status_text("command completed");
         let gh_ticket = chat.make_background_tail_ticket();
         let tx = chat.app_event_tx.clone();
         let cfg = chat.config.clone();
@@ -345,7 +345,7 @@ pub(in super::super::super) fn handle_exec_end_now(
     } else {
         chat
             .bottom_pane
-            .update_status_text(format!("command failed (exit {exit_code})"));
+            .update_status_text(&format!("command failed (exit {exit_code})"));
     }
     chat.maybe_hide_spinner();
     chat.refresh_auto_drive_visuals();

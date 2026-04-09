@@ -393,7 +393,7 @@ impl<'a> BottomPane<'a> {
                         let status_text = self
                             .composer
                             .status_message()
-                            .map_or_else(String::new, str::to_string);
+                            .unwrap_or("");
                         let _ = auto_view.update_status_text(status_text);
                         let mode = if auto_view.composer_visible() {
                             ComposerRenderMode::Full
@@ -422,7 +422,7 @@ impl<'a> BottomPane<'a> {
         let status_text = self
             .composer
             .status_message()
-            .map_or_else(String::new, str::to_string);
+            .unwrap_or("");
         let _ = view.update_status_text(status_text);
         let mode = if view.composer_visible() {
             ComposerRenderMode::Full

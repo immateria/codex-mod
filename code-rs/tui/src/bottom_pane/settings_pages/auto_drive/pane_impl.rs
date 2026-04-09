@@ -80,7 +80,7 @@ impl<'a> BottomPaneView<'a> for AutoDriveSettingsView {
         self.framed().render(area, buf);
     }
 
-    fn update_status_text(&mut self, _text: String) -> ConditionalUpdate {
+    fn update_status_text(&mut self, _text: &str) -> ConditionalUpdate {
         ConditionalUpdate::NoRedraw
     }
 

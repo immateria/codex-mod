@@ -157,7 +157,7 @@ impl ChatWidget<'_> {
         // Add status message
         self.push_background_tail("Chrome launched with user profile".to_string());
         // Show browsing state in input border after launch
-        self.bottom_pane.update_status_text("using browser".to_string());
+        self.bottom_pane.update_status_text("using browser");
     }
 
     fn launch_chrome_with_temp_profile(&mut self, port: u16) {

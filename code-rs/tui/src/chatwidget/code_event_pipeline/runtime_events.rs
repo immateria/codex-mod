@@ -50,7 +50,7 @@ impl ChatWidget<'_> {
         // Also reflect CDP connect success in the status line.
         if message.starts_with("CDP: connected to Chrome") {
             self.bottom_pane
-                .update_status_text("using browser (CDP)".to_string());
+                .update_status_text("using browser (CDP)");
         }
 
         if is_agent_hint
@@ -149,14 +149,14 @@ impl ChatWidget<'_> {
                 let any_streaming = self.stream.is_write_cycle_active();
                 if !(any_tools_running || any_streaming) {
                     self.bottom_pane.set_task_running(false);
-                    self.bottom_pane.update_status_text(String::new());
+                    self.bottom_pane.update_status_text("");
                 }
             }
         }
 
         if saw_running && has_running_non_auto_review && !self.bottom_pane.is_task_running() {
             self.bottom_pane.set_task_running(true);
-            self.bottom_pane.update_status_text("Running...".to_string());
+            self.bottom_pane.update_status_text("Running...");
             self.refresh_auto_drive_visuals();
             self.request_redraw();
         }
@@ -178,7 +178,7 @@ impl ChatWidget<'_> {
                 && self.active_task_ids.is_empty()
             {
                 self.bottom_pane.set_task_running(false);
-                self.bottom_pane.update_status_text(String::new());
+                self.bottom_pane.update_status_text("");
             }
         }
 
@@ -193,11 +193,11 @@ impl ChatWidget<'_> {
                 "cancelled" => "agents: cancelled".to_string(),
                 _ => "agents: planning".to_string(),
             };
-            self.bottom_pane.update_status_text(msg);
+            self.bottom_pane.update_status_text(&msg);
         } else if has_running_auto_review {
             // Let the dedicated Auto Review footer drive messaging; avoid
             // clobbering it with a generic agents status.
-            self.bottom_pane.update_status_text(String::new());
+            self.bottom_pane.update_status_text("");
         }
 
         // Keep agents visible after completion so users can see final messages/errors.
@@ -266,7 +266,7 @@ impl ChatWidget<'_> {
         self.app_event_tx.send(AppEvent::RequestRedraw);
 
         if update.grouped {
-            self.bottom_pane.update_status_text("using browser".to_string());
+            self.bottom_pane.update_status_text("using browser");
         }
     }
 
@@ -280,7 +280,7 @@ impl ChatWidget<'_> {
         self.turn_sleep_inhibitor.set_turn_running(false);
         streaming::finalize_active_stream(self);
         self.bottom_pane.set_task_running(false);
-        self.bottom_pane.update_status_text(String::new());
+        self.bottom_pane.update_status_text("");
         self.maybe_hide_spinner();
         self.mark_needs_redraw();
     }

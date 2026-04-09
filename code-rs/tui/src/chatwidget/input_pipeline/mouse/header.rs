@@ -138,7 +138,7 @@ impl ChatWidget<'_> {
             .iter()
             .rposition(|cell| cell.call_id() == Some(call_id))
         else {
-            self.bottom_pane.update_status_text("parent tool call not found".to_string());
+            self.bottom_pane.update_status_text("parent tool call not found");
             self.request_redraw();
             return;
         };

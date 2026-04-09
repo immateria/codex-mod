@@ -85,7 +85,7 @@ impl ChatWidget<'_> {
                 self.insert_str(&combined);
             }
             self.queued_user_messages.clear();
-            self.bottom_pane.update_status_text(String::new());
+            self.bottom_pane.update_status_text("");
             self.pending_dispatched_user_messages.clear();
             self.refresh_queued_user_messages(false);
         }

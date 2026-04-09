@@ -145,7 +145,7 @@ impl ChatWidget<'_> {
         let auto_active = self.auto_state.is_active();
         self.push_background_tail(format!("Cancelling {descriptor}…"));
         self.bottom_pane
-            .update_status_text("Cancelling agents…".to_string());
+            .update_status_text("Cancelling agents…");
         self.bottom_pane.set_task_running(true);
         self.submit_op(Op::CancelAgents { batch_ids, agent_ids });
 
@@ -198,7 +198,7 @@ impl ChatWidget<'_> {
             || terminal_running)
         {
             self.bottom_pane.set_task_running(false);
-            self.bottom_pane.update_status_text(String::new());
+            self.bottom_pane.update_status_text("");
         }
     }
 
@@ -222,7 +222,7 @@ impl ChatWidget<'_> {
     #[inline]
     fn stop_spinner(&mut self) {
         self.bottom_pane.set_task_running(false);
-        self.bottom_pane.update_status_text(String::new());
+        self.bottom_pane.update_status_text("");
         self.maybe_hide_spinner();
     }
 
@@ -320,7 +320,7 @@ impl ChatWidget<'_> {
         let status = Self::overall_task_status_for(&self.active_agents);
         self.overall_task_status = status.to_string();
         self.bottom_pane.set_task_running(false);
-        self.bottom_pane.update_status_text(String::new());
+        self.bottom_pane.update_status_text("");
         self.maybe_hide_spinner();
     }
 

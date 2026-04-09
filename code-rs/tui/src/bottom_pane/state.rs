@@ -99,9 +99,9 @@ impl<'a> BottomPane<'a> {
 
     /// Update the status indicator text. Shows status as overlay above composer
     /// to allow continued input while processing.
-    pub(crate) fn update_status_text(&mut self, text: String) {
+    pub(crate) fn update_status_text(&mut self, text: &str) {
         if let Some(view) = self.active_view.as_mut() {
-            let _ = view.update_status_text(text.clone());
+            let _ = view.update_status_text(text);
         }
 
         // Pass status message to composer for dynamic title display

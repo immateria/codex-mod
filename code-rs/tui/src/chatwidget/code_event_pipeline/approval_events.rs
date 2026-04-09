@@ -118,7 +118,7 @@ impl ChatWidget<'_> {
             }
 
             self.bottom_pane
-                .update_status_text("waiting for model".to_string());
+                .update_status_text("waiting for model");
             self.bottom_pane.set_task_running(true);
         } else {
             self.pending_request_user_input = Some(PendingRequestUserInput {
@@ -128,7 +128,7 @@ impl ChatWidget<'_> {
                 questions: ev.questions.clone(),
             });
             self.bottom_pane
-                .update_status_text("waiting for user input".to_string());
+                .update_status_text("waiting for user input");
             self.bottom_pane.set_task_running(true);
             self.bottom_pane.ensure_input_focus();
             self.bottom_pane
@@ -183,7 +183,7 @@ impl ChatWidget<'_> {
                 tracing::error!("failed to send Op::ResolveMcpElicitation: {e}");
             }
             self.bottom_pane
-                .update_status_text("waiting for model".to_string());
+                .update_status_text("waiting for model");
             self.bottom_pane.set_task_running(true);
             self.request_redraw();
             return;
@@ -196,7 +196,7 @@ impl ChatWidget<'_> {
             anchor_key: key,
         });
         self.bottom_pane
-            .update_status_text("waiting for user input".to_string());
+            .update_status_text("waiting for user input");
         self.bottom_pane.set_task_running(true);
         self.bottom_pane.ensure_input_focus();
         self.bottom_pane.show_request_user_input(
@@ -265,7 +265,7 @@ impl ChatWidget<'_> {
         }
 
         self.bottom_pane
-            .update_status_text("waiting for model".to_string());
+            .update_status_text("waiting for model");
         self.bottom_pane.set_task_running(true);
         self.request_redraw();
     }

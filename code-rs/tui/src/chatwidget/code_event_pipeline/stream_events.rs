@@ -132,7 +132,7 @@ impl ChatWidget<'_> {
         self.ensure_spinner_for_activity("assistant-delta");
         // Show responding state while assistant streams.
         self.bottom_pane
-            .update_status_text("responding".to_string());
+            .update_status_text("responding");
     }
 
     pub(super) fn handle_agent_reasoning_event(
@@ -233,7 +233,7 @@ impl ChatWidget<'_> {
         );
         self.ensure_spinner_for_activity("reasoning-delta");
         // Show thinking state while reasoning streams.
-        self.bottom_pane.update_status_text("thinking".to_string());
+        self.bottom_pane.update_status_text("thinking");
     }
 
     pub(super) fn handle_agent_reasoning_section_break_event(&mut self) {

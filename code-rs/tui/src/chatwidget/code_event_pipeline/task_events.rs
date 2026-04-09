@@ -62,7 +62,7 @@ impl ChatWidget<'_> {
         self.reasoning_index.clear();
         self.bottom_pane.set_task_running(true);
         self.bottom_pane
-            .update_status_text("waiting for model".to_string());
+            .update_status_text("waiting for model");
         self.ensure_spinner_for_activity("task-started");
         tracing::info!("[order] EventMsg::TaskStarted id={}", id);
 
@@ -138,7 +138,7 @@ impl ChatWidget<'_> {
         if !(any_tools_running || any_streaming || any_agents_active || any_tasks_active) {
             self.bottom_pane.set_task_running(false);
             // Ensure any transient footer text like "responding" is cleared when truly idle.
-            self.bottom_pane.update_status_text(String::new());
+            self.bottom_pane.update_status_text("");
         }
         self.stream_state.current_kind = None;
         // Final re-check for idle state.

@@ -153,7 +153,7 @@ impl BottomPaneView<'_> for ResumeSelectionView {
         CancellationEvent::Handled
     }
 
-    fn update_status_text(&mut self, _text: String) -> ConditionalUpdate { ConditionalUpdate::NoRedraw }
+    fn update_status_text(&mut self, _text: &str) -> ConditionalUpdate { ConditionalUpdate::NoRedraw }
 
     fn desired_height(&self, _width: u16) -> u16 {
         // Include block borders (+2), optional subtitle (+1), table header (+1),

@@ -914,7 +914,7 @@ impl ChatWidget<'_> {
 
         self.push_background_tail(format!("Cancelling agent {agent_name}…"));
         self.bottom_pane
-            .update_status_text(format!("Cancelling {agent_name}…"));
+            .update_status_text(&format!("Cancelling {agent_name}…"));
         self.bottom_pane.set_task_running(true);
         self.agents_ready_to_start = false;
 

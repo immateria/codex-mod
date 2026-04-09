@@ -63,13 +63,13 @@ impl ChatWidget<'_> {
     pub(crate) fn toggle_context_expansion(&mut self) {
         if !self.context_ui_enabled() {
             self.bottom_pane
-                .update_status_text("Context UI disabled".to_string());
+                .update_status_text("Context UI disabled");
             return;
         }
 
         let Some(mut summary) = self.context_summary.clone() else {
             self.bottom_pane
-                .update_status_text("No context available yet".to_string());
+                .update_status_text("No context available yet");
             return;
         };
 
@@ -85,7 +85,7 @@ impl ChatWidget<'_> {
         } else {
             "Context collapsed"
         };
-        self.bottom_pane.update_status_text(status.to_string());
+        self.bottom_pane.update_status_text(status);
 
         if self.standard_terminal_mode {
             let mut lines = Vec::new();

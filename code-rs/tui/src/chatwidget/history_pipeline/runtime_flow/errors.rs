@@ -10,7 +10,7 @@ impl ChatWidget<'_> {
             if self.reconnect_notice_active {
                 self.reconnect_notice_active = false;
                 self.reconnect_notice_started_at = None;
-                self.bottom_pane.update_status_text(String::new());
+                self.bottom_pane.update_status_text("");
             }
             self.clear_resume_placeholder();
             let summarized = Self::summarize_startup_mcp_error(&message);
@@ -49,7 +49,7 @@ impl ChatWidget<'_> {
         if self.reconnect_notice_active {
             self.reconnect_notice_active = false;
             self.reconnect_notice_started_at = None;
-            self.bottom_pane.update_status_text(String::new());
+            self.bottom_pane.update_status_text("");
             self.request_redraw();
         }
 
@@ -91,7 +91,7 @@ impl ChatWidget<'_> {
         } else {
             "Connecting..."
         };
-        self.bottom_pane.update_status_text(status_text.to_string());
+        self.bottom_pane.update_status_text(status_text);
 
         if !self.reconnect_notice_active {
             self.reconnect_notice_active = true;
@@ -109,7 +109,7 @@ impl ChatWidget<'_> {
         }
         self.reconnect_notice_active = false;
         self.reconnect_notice_started_at = None;
-        self.bottom_pane.update_status_text(String::new());
+        self.bottom_pane.update_status_text("");
         self.bottom_pane
             .flash_footer_notice_for("Resuming".to_string(), Duration::from_secs(2));
         // If the reconnect banner was shown for a background retry (no active
@@ -152,7 +152,7 @@ impl ChatWidget<'_> {
 
         self.reconnect_notice_active = false;
         self.reconnect_notice_started_at = None;
-        self.bottom_pane.update_status_text(String::new());
+        self.bottom_pane.update_status_text("");
         self.maybe_hide_spinner();
     }
 }

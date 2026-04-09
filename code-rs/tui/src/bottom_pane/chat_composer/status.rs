@@ -1,10 +1,10 @@
 use super::*;
 
 impl ChatComposer {
-    pub fn update_status_message(&mut self, message: String) {
+    pub fn update_status_message(&mut self, message: &str) {
         self.show_auto_drive_goal_title =
             message.to_ascii_lowercase().contains("auto drive goal");
-        self.status_message = Self::map_status_message(&message);
+        self.status_message = Self::map_status_message(message);
     }
 
     pub fn status_message(&self) -> Option<&str> {

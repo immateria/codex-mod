@@ -385,7 +385,7 @@ impl ChatWidget<'_> {
         }
         if w.test_mode {
             w.bottom_pane.set_task_running(false);
-            w.bottom_pane.update_status_text(String::new());
+            w.bottom_pane.update_status_text("");
             #[cfg(any(test, feature = "test-helpers"))]
             w.seed_test_mode_greeting();
         }

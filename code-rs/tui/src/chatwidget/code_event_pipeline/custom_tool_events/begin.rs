@@ -57,13 +57,13 @@ impl ChatWidget<'_> {
     fn update_status_for_tool_begin(&mut self, tool_name: &str) {
         if tool_name.starts_with("browser_") {
             self.bottom_pane
-                .update_status_text("using browser".to_string());
+                .update_status_text("using browser");
         } else if agent_runs::is_agent_tool(tool_name) {
             self.bottom_pane
-                .update_status_text("agents coordinating".to_string());
+                .update_status_text("agents coordinating");
         } else {
             self.bottom_pane
-                .update_status_text(format!("using tool: {tool_name}"));
+                .update_status_text(&format!("using tool: {tool_name}"));
         }
     }
 
@@ -129,7 +129,7 @@ impl ChatWidget<'_> {
             )
         {
             self.bottom_pane
-                .update_status_text("agents coordinating".to_string());
+                .update_status_text("agents coordinating");
             return true;
         }
         if tool_name.starts_with("browser_")
@@ -143,7 +143,7 @@ impl ChatWidget<'_> {
             )
         {
             self.bottom_pane
-                .update_status_text("using browser".to_string());
+                .update_status_text("using browser");
             return true;
         }
         false
@@ -189,7 +189,7 @@ impl ChatWidget<'_> {
             let _ = self.update_exec_wait_state_with_pairs(history_id, total, true, &notes);
         }
         self.bottom_pane
-            .update_status_text("waiting for command".to_string());
+            .update_status_text("waiting for command");
         self.invalidate_height_cache();
         self.request_redraw();
         true
@@ -215,7 +215,7 @@ impl ChatWidget<'_> {
             .running_kill_tools
             .insert(ToolCallId(call_id.to_string()), exec_call_id);
         self.bottom_pane
-            .update_status_text("cancelling command".to_string());
+            .update_status_text("cancelling command");
         self.invalidate_height_cache();
         self.request_redraw();
         true

@@ -29,7 +29,7 @@ impl<'a> BottomPaneView<'a> for UndoTimelineView {
         CancellationEvent::Handled
     }
 
-    fn update_status_text(&mut self, _text: String) -> ConditionalUpdate {
+    fn update_status_text(&mut self, _text: &str) -> ConditionalUpdate {
         ConditionalUpdate::NoRedraw
     }
 

@@ -59,7 +59,7 @@ impl ChatWidget<'_> {
 
         self.clear_composer();
         self.bottom_pane
-            .update_status_text("waiting for model".to_string());
+            .update_status_text("waiting for model");
         self.request_redraw();
     }
 
@@ -157,7 +157,7 @@ impl ChatWidget<'_> {
 
             self.clear_composer();
             self.bottom_pane
-                .update_status_text("waiting for model".to_string());
+                .update_status_text("waiting for model");
             self.request_redraw();
             return;
         }
@@ -198,7 +198,7 @@ impl ChatWidget<'_> {
 
         self.clear_composer();
         self.bottom_pane
-            .update_status_text("waiting for model".to_string());
+            .update_status_text("waiting for model");
         self.request_redraw();
     }
 }

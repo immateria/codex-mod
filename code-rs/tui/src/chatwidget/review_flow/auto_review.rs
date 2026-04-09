@@ -760,7 +760,7 @@ impl ChatWidget<'_> {
         // Ensure the main status spinner is cleared once the foreground turn ends;
         // background auto review should not keep the composer in a "running" state.
         self.bottom_pane.set_task_running(false);
-        self.bottom_pane.update_status_text(String::new());
+        self.bottom_pane.update_status_text("");
         self.auto_review_notice = None;
         self.request_redraw();
     }
@@ -867,7 +867,7 @@ impl ChatWidget<'_> {
 
         // Auto review completion should never leave the composer spinner active.
         self.bottom_pane.set_task_running(false);
-        self.bottom_pane.update_status_text(String::new());
+        self.bottom_pane.update_status_text("");
 
         self.handle_auto_review_completion_state(
             has_findings,

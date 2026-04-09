@@ -127,7 +127,7 @@ impl ChatWidget<'_> {
                 self.history_remove_at(idx);
             }
         }
-        self.bottom_pane.update_status_text("responding".to_string());
+        self.bottom_pane.update_status_text("responding");
         self.maybe_hide_spinner();
         true
     }
@@ -154,7 +154,7 @@ impl ChatWidget<'_> {
             );
         }
         self.remove_background_completion_message(&ctx.call_id);
-        self.bottom_pane.update_status_text("responding".to_string());
+        self.bottom_pane.update_status_text("responding");
         self.maybe_hide_spinner();
         true
     }
@@ -175,7 +175,7 @@ impl ChatWidget<'_> {
             let _ = self.history_insert_plain_state_with_key(wait_state, ctx.order_key, "untagged");
         }
 
-        self.bottom_pane.update_status_text("responding".to_string());
+        self.bottom_pane.update_status_text("responding");
         self.maybe_hide_spinner();
         true
     }
@@ -213,13 +213,13 @@ impl ChatWidget<'_> {
             .remove(&ToolCallId(ctx.call_id.clone()));
         if ctx.success {
             self.remove_background_completion_message(&ctx.call_id);
-            self.bottom_pane.update_status_text("responding".to_string());
+            self.bottom_pane.update_status_text("responding");
         } else {
             let trimmed = ctx.content.trim();
             if !trimmed.is_empty() {
                 self.push_background_tail(trimmed.to_string());
             }
-            self.bottom_pane.update_status_text("kill failed".to_string());
+            self.bottom_pane.update_status_text("kill failed");
         }
         self.maybe_hide_spinner();
         self.invalidate_height_cache();
@@ -248,7 +248,7 @@ impl ChatWidget<'_> {
                 .history_insert_with_key_global(Box::new(completed), ctx.order_key);
         }
 
-        self.bottom_pane.update_status_text("responding".to_string());
+        self.bottom_pane.update_status_text("responding");
         self.maybe_hide_spinner();
         true
     }
@@ -309,7 +309,7 @@ impl ChatWidget<'_> {
             let _ = self.history_insert_with_key_global(cell, order_key);
         }
 
-        self.bottom_pane.update_status_text("responding".to_string());
+        self.bottom_pane.update_status_text("responding");
         self.maybe_hide_spinner();
     }
 
@@ -333,7 +333,7 @@ impl ChatWidget<'_> {
                 result,
             )
         {
-            self.bottom_pane.update_status_text("responding".to_string());
+            self.bottom_pane.update_status_text("responding");
             return true;
         }
         if tool_name.starts_with("browser_")
@@ -348,9 +348,9 @@ impl ChatWidget<'_> {
             )
         {
             if tool_name == "browser_close" {
-                self.bottom_pane.update_status_text("responding".to_string());
+                self.bottom_pane.update_status_text("responding");
             } else {
-                self.bottom_pane.update_status_text("using browser".to_string());
+                self.bottom_pane.update_status_text("using browser");
             }
             return true;
         }
@@ -530,7 +530,7 @@ impl ChatWidget<'_> {
         state: &WaitEndState,
     ) {
         if state.exec_completed {
-            self.bottom_pane.update_status_text("responding".to_string());
+            self.bottom_pane.update_status_text("responding");
             self.maybe_hide_spinner();
             self.invalidate_height_cache();
             self.request_redraw();
@@ -539,24 +539,24 @@ impl ChatWidget<'_> {
 
         if success {
             self.remove_background_completion_message(call_id);
-            self.bottom_pane.update_status_text("responding".to_string());
+            self.bottom_pane.update_status_text("responding");
             self.maybe_hide_spinner();
         } else if state.trimmed == WAIT_CANCELLED_BY_USER {
             self.bottom_pane
-                .update_status_text("wait cancelled".to_string());
+                .update_status_text("wait cancelled");
         } else if state.wait_missing_job || (state.wait_interrupted && !state.exec_running) {
             let finalized =
                 exec_tools::finalize_wait_missing_exec(self, exec_call_id, &state.trimmed);
             if finalized {
                 self.bottom_pane
-                    .update_status_text("command finished (output unavailable)".to_string());
+                    .update_status_text("command finished (output unavailable)");
             } else {
                 self.bottom_pane
-                    .update_status_text("command status unavailable".to_string());
+                    .update_status_text("command status unavailable");
             }
         } else {
             self.bottom_pane
-                .update_status_text("waiting for command".to_string());
+                .update_status_text("waiting for command");
         }
         self.invalidate_height_cache();
         self.request_redraw();

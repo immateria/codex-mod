@@ -81,7 +81,7 @@ impl CommandPopup {
     /// passed in is expected to start with a leading '/'. Everything after the
     /// *first* '/" on the *first* line becomes the active filter that is used
     /// to narrow down the list of available commands.
-    pub(crate) fn on_composer_text_change(&mut self, text: String) {
+    pub(crate) fn on_composer_text_change(&mut self, text: &str) {
         let first_line = text.lines().next().unwrap_or("");
 
         if let Some(stripped) = first_line.strip_prefix('/') {
@@ -322,7 +322,7 @@ mod tests {
 
         // Filter to the prompts command; both the built-in "/prompts" and the
         // custom prompt (via "prompts:issues") are perfect prefix matches.
-        popup.on_composer_text_change("/prompts".to_string());
+        popup.on_composer_text_change("/prompts");
 
         let first = popup.filtered_items().first().copied();
         assert!(matches!(first, Some(CommandItem::Builtin(SlashCommand::Prompts))));

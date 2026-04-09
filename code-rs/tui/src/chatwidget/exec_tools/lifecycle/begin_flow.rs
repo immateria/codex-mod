@@ -322,7 +322,7 @@ pub(in super::super::super) fn handle_js_repl_begin_now(
 
     chat.autoscroll_if_near_bottom();
     chat.bottom_pane.set_has_chat_history(true);
-    chat.bottom_pane.update_status_text("running js…".to_string());
+    chat.bottom_pane.update_status_text("running js…");
     chat.refresh_auto_drive_visuals();
 }
 
@@ -450,7 +450,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
                         ExecAction::Read => "reading files…",
                         _ => "exploring…",
                     };
-                    chat.bottom_pane.update_status_text(status_text.to_string());
+                    chat.bottom_pane.update_status_text(status_text);
                     chat.refresh_auto_drive_visuals();
                     return;
                 }
@@ -527,7 +527,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
         running.history_id = history_id;
     }
     if !chat.tools_state.web_search_sessions.is_empty() {
-        chat.bottom_pane.update_status_text("Search".to_string());
+        chat.bottom_pane.update_status_text("Search");
     } else {
         let preview = chat
             .exec
@@ -543,7 +543,7 @@ pub(in super::super::super) fn handle_exec_begin_now(
             preview
         };
         chat.bottom_pane
-            .update_status_text(format!("running command: {preview_short}"));
+            .update_status_text(&format!("running command: {preview_short}"));
     }
     chat.refresh_auto_drive_visuals();
 }

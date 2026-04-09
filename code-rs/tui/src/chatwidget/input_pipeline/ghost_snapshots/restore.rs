@@ -365,7 +365,7 @@ impl ChatWidget<'_> {
             self.auto_state.on_prompt_submitted();
             self.auto_state.seconds_remaining = 0;
             self.auto_rebuild_live_ring();
-            self.bottom_pane.update_status_text(String::new());
+            self.bottom_pane.update_status_text("");
             self.bottom_pane.set_task_running(false);
         }
 

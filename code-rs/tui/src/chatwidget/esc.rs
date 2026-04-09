@@ -72,7 +72,7 @@ impl ChatWidget<'_> {
     fn auto_stop_via_escape(&mut self, message: Option<String>) {
         self.auto_stop(message);
         self.bottom_pane
-            .update_status_text("Auto Drive stopped.".to_string());
+            .update_status_text("Auto Drive stopped.");
         if self.auto_state.last_run_summary.is_some() {
             self.auto_clear_summary_panel();
         } else {
@@ -206,13 +206,13 @@ impl ChatWidget<'_> {
             }
             EscIntent::AutoStopDuringApproval => {
                 self.bottom_pane
-                    .update_status_text("Auto Drive stopped during approval.".to_string());
+                    .update_status_text("Auto Drive stopped during approval.");
                 self.auto_stop_via_escape(Some("Auto Drive stopped during approval.".to_string()));
                 true
             }
             EscIntent::AutoStopActive => {
                 self.bottom_pane
-                    .update_status_text("Stopping Auto Drive…".to_string());
+                    .update_status_text("Stopping Auto Drive…");
                 self.auto_stop_via_escape(Some("Auto Drive stopped by user.".to_string()));
                 true
             }
@@ -247,11 +247,11 @@ impl ChatWidget<'_> {
                     } else {
                         "Auto Drive stopped by user."
                     };
-                    self.bottom_pane.update_status_text(status.to_string());
+                    self.bottom_pane.update_status_text(status);
                     self.auto_stop_via_escape(Some("Auto Drive stopped by user.".to_string()));
                 } else if had_running {
                     self.bottom_pane
-                        .update_status_text("Command cancelled.".to_string());
+                        .update_status_text("Command cancelled.");
                 }
                 true
             }
