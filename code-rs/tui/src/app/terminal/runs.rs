@@ -79,7 +79,7 @@ pub(super) fn start_terminal_run_inner(
             let msg = format!("Failed to open PTY: {err}\n");
             app.app_event_tx.send(AppEvent::TerminalChunk {
                 id,
-                chunk: msg.clone().into_bytes(),
+                chunk: msg.as_bytes().to_vec(),
                 _is_stderr: true,
             });
             if let Some(ref ctrl) = controller_tx {
@@ -111,7 +111,7 @@ pub(super) fn start_terminal_run_inner(
                 let msg = "Failed to acquire terminal writer: poisoned lock\n".to_string();
                 app.app_event_tx.send(AppEvent::TerminalChunk {
                     id,
-                    chunk: msg.clone().into_bytes(),
+                    chunk: msg.as_bytes().to_vec(),
                     _is_stderr: true,
                 });
                 if let Some(ref ctrl) = controller_tx {
@@ -140,7 +140,7 @@ pub(super) fn start_terminal_run_inner(
                 let msg = format!("Failed to acquire terminal writer: {err}\n");
                 app.app_event_tx.send(AppEvent::TerminalChunk {
                     id,
-                    chunk: msg.clone().into_bytes(),
+                    chunk: msg.as_bytes().to_vec(),
                     _is_stderr: true,
                 });
                 if let Some(ref ctrl) = controller_tx {
@@ -170,7 +170,7 @@ pub(super) fn start_terminal_run_inner(
                 let msg = "Failed to read terminal output: poisoned lock\n".to_string();
                 app.app_event_tx.send(AppEvent::TerminalChunk {
                     id,
-                    chunk: msg.clone().into_bytes(),
+                    chunk: msg.as_bytes().to_vec(),
                     _is_stderr: true,
                 });
                 if let Some(ref ctrl) = controller_tx {
@@ -199,7 +199,7 @@ pub(super) fn start_terminal_run_inner(
                 let msg = format!("Failed to read terminal output: {err}\n");
                 app.app_event_tx.send(AppEvent::TerminalChunk {
                     id,
-                    chunk: msg.clone().into_bytes(),
+                    chunk: msg.as_bytes().to_vec(),
                     _is_stderr: true,
                 });
                 if let Some(ref ctrl) = controller_tx {
@@ -234,7 +234,7 @@ pub(super) fn start_terminal_run_inner(
             let msg = format!("Failed to spawn command: {err}\n");
             app.app_event_tx.send(AppEvent::TerminalChunk {
                 id,
-                chunk: msg.clone().into_bytes(),
+                chunk: msg.as_bytes().to_vec(),
                 _is_stderr: true,
             });
             if let Some(ref ctrl) = controller_tx {
@@ -319,7 +319,7 @@ pub(super) fn start_terminal_run_inner(
                         let msg = format!("Error reading terminal output: {err}\n");
                         tx_reader.send(AppEvent::TerminalChunk {
                             id,
-                            chunk: msg.clone().into_bytes(),
+                            chunk: msg.as_bytes().to_vec(),
                             _is_stderr: true,
                         });
                         if let Some(ref ctrl) = controller_tx_reader {
@@ -366,7 +366,7 @@ pub(super) fn start_terminal_run_inner(
                 let msg = format!("Process wait failed: {err}\n");
                 tx.send(AppEvent::TerminalChunk {
                     id,
-                    chunk: msg.clone().into_bytes(),
+                    chunk: msg.as_bytes().to_vec(),
                     _is_stderr: true,
                 });
                 if let Some(ref ctrl) = controller_tx {
@@ -382,7 +382,7 @@ pub(super) fn start_terminal_run_inner(
                 let msg = format!("Process join failed: {err}\n");
                 tx.send(AppEvent::TerminalChunk {
                     id,
-                    chunk: msg.clone().into_bytes(),
+                    chunk: msg.as_bytes().to_vec(),
                     _is_stderr: true,
                 });
                 if let Some(ref ctrl) = controller_tx {
