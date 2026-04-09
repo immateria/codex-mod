@@ -613,13 +613,13 @@ impl AutoDriveCardCell {
                 continue;
             }
             for segment in Self::wrap_segments(trimmed, available) {
-                let mut segments = Vec::new();
-                if ACTION_TIME_INDENT > 0 {
-                    segments.push(CardSegment::new(" ", indent_style));
-                }
                 let mut body = CardSegment::new(segment, content_style);
                 body.inherit_background = true;
-                segments.push(body);
+                let segments = if ACTION_TIME_INDENT > 0 {
+                    vec![CardSegment::new(" ", indent_style), body]
+                } else {
+                    vec![body]
+                };
                 rows.push(CardRow::new(
                     BORDER_BODY,
                     Self::accent_style(style),
@@ -799,7 +799,7 @@ impl AutoDriveCardCell {
         let mut rows = Vec::new();
 
         for (action, elapsed) in self.actions.iter().zip(elapsed_labels.iter()) {
-            let mut segments = Vec::new();
+            let mut segments = Vec::with_capacity(3);
             if ACTION_TIME_INDENT > 0 {
                 segments.push(CardSegment::new(" ", indent_style));
             }

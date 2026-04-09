@@ -676,8 +676,7 @@ fn compute_bullet_prefix_len(plain: &str, indent_spaces: usize, bullet: &str) ->
             None => break,
         }
     }
-    if matches!(chars.clone().next(), Some(c) if c.is_whitespace()) {
-        chars.next();
+    if matches!(chars.next(), Some(c) if c.is_whitespace()) {
         consumed += 1;
     }
     consumed
