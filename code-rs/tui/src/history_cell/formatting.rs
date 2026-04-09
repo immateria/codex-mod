@@ -128,7 +128,7 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
     // Helper to flush current line to out
     let flush_line = |line: &mut Vec<char>, cursor: &mut usize, out: &mut String| {
         if !line.is_empty() {
-            out.push_str(&line.iter().collect::<String>());
+            out.extend(line.iter());
         }
         out.push('\n');
         line.clear();
@@ -226,7 +226,7 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
                                 // parsing can apply later, but do not affect cursor position.
                                 // First, splice current visible buffer into out to preserve order
                                 if !line.is_empty() {
-                                    out.push_str(&line.iter().collect::<String>());
+                                    out.extend(line.iter());
                                     line.clear();
                                     cursor = 0;
                                 }
@@ -244,7 +244,7 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
                 // Other ESC sequences (e.g., OSC): pass through verbatim without affecting cursor
                 // Copy ESC and advance one; do not attempt to parse full OSC payload here.
                 if !line.is_empty() {
-                    out.push_str(&line.iter().collect::<String>());
+                    out.extend(line.iter());
                     line.clear();
                     cursor = 0;
                 }
@@ -268,7 +268,7 @@ pub(crate) fn normalize_overwrite_sequences(input: &str) -> String {
     }
     // Flush any remaining visible text
     if !line.is_empty() {
-        out.push_str(&line.iter().collect::<String>());
+        out.extend(line.iter());
     }
     out
 }

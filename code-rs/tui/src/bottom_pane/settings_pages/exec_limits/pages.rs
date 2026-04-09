@@ -26,18 +26,32 @@ impl ExecLimitsSettingsView {
                 hint,
             )));
 
-            // Make "Auto" less opaque by showing what it would currently resolve to.
+            // Show effective limits (after user overrides) and what "Auto" would resolve to.
+            let eff_pids = code_core::config::exec_limits_effective_pids_max();
+            let eff_mem_bytes = code_core::config::exec_limits_effective_memory_max_bytes();
+            let eff_mem_mib =
+                eff_mem_bytes.map(|b| (b.saturating_add(1024 * 1024 - 1)) / (1024 * 1024));
+            let eff_line = match (eff_pids, eff_mem_mib) {
+                (Some(pids), Some(mib)) => {
+                    format!("Effective: pids_max={pids} · memory_max={mib} MiB")
+                }
+                (Some(pids), None) => format!("Effective: pids_max={pids} · memory_max=disabled"),
+                (None, Some(mib)) => format!("Effective: pids_max=disabled · memory_max={mib} MiB"),
+                (None, None) => "Effective: both disabled".to_string(),
+            };
+            lines.push(Line::from(Span::styled(eff_line, hint)));
+
             let auto_pids = code_core::config::exec_limits_auto_pids_max();
             let auto_mem_bytes = code_core::config::exec_limits_auto_memory_max_bytes();
             let auto_mem_mib =
                 auto_mem_bytes.map(|b| (b.saturating_add(1024 * 1024 - 1)) / (1024 * 1024));
             let auto_line = match (auto_pids, auto_mem_mib) {
                 (Some(pids), Some(mib)) => {
-                    format!("Auto currently: pids_max={pids} · memory_max={mib} MiB")
+                    format!("Auto would be: pids_max={pids} · memory_max={mib} MiB")
                 }
-                (Some(pids), None) => format!("Auto currently: pids_max={pids}"),
-                (None, Some(mib)) => format!("Auto currently: memory_max={mib} MiB"),
-                (None, None) => "Auto currently: (not available)".to_string(),
+                (Some(pids), None) => format!("Auto would be: pids_max={pids}"),
+                (None, Some(mib)) => format!("Auto would be: memory_max={mib} MiB"),
+                (None, None) => "Auto: (not available on this system)".to_string(),
             };
             lines.push(Line::from(Span::styled(auto_line, hint)));
         }

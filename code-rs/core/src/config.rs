@@ -1266,7 +1266,9 @@ pub fn apply_exec_limits_settings(settings: &ExecLimitsToml) -> anyhow::Result<(
     Ok(())
 }
 
-pub fn exec_limits_current_pids_max() -> Option<u64> {
+/// Returns the effective pids limit after applying user overrides.
+/// Falls back to auto when the override is set to Auto mode.
+pub fn exec_limits_effective_pids_max() -> Option<u64> {
     #[cfg(target_os = "linux")]
     {
         return crate::cgroup::default_exec_pids_max();
@@ -1275,6 +1277,7 @@ pub fn exec_limits_current_pids_max() -> Option<u64> {
     None
 }
 
+/// Returns what "Auto" would resolve to, ignoring user overrides.
 pub fn exec_limits_auto_pids_max() -> Option<u64> {
     #[cfg(target_os = "linux")]
     {
@@ -1284,7 +1287,9 @@ pub fn exec_limits_auto_pids_max() -> Option<u64> {
     None
 }
 
-pub fn exec_limits_current_memory_max_bytes() -> Option<u64> {
+/// Returns the effective memory limit after applying user overrides.
+/// Falls back to auto when the override is set to Auto mode.
+pub fn exec_limits_effective_memory_max_bytes() -> Option<u64> {
     #[cfg(target_os = "linux")]
     {
         return crate::cgroup::default_exec_memory_max_bytes();
@@ -1293,6 +1298,7 @@ pub fn exec_limits_current_memory_max_bytes() -> Option<u64> {
     None
 }
 
+/// Returns what "Auto" would resolve to, ignoring user overrides.
 pub fn exec_limits_auto_memory_max_bytes() -> Option<u64> {
     #[cfg(target_os = "linux")]
     {

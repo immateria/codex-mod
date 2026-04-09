@@ -656,9 +656,7 @@ impl MarkdownRenderer {
                 let tint = crate::colors::mix_toward(base, target, 0.30);
                 for sp in &mut linked {
                     if sp.style.fg == Some(base) {
-                        let mut st = sp.style;
-                        st.fg = Some(tint);
-                        *sp = Span::styled(sp.content.clone(), st);
+                        sp.style.fg = Some(tint);
                     }
                 }
             }
