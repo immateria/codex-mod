@@ -46,12 +46,7 @@ pub(crate) struct ModelSelectionView {
     mode: ViewMode,
 }
 
-pub(crate) type ModelSelectionViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, ModelSelectionView>;
-pub(crate) type ModelSelectionViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, ModelSelectionView>;
-pub(crate) type ModelSelectionViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ModelSelectionView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(ModelSelectionView, framed);
 
 impl ModelSelectionView {
     pub fn new(params: ModelSelectionViewParams, app_event_tx: AppEventSender) -> Self {
@@ -66,18 +61,6 @@ impl ModelSelectionView {
             visible_body_rows: Cell::new(0),
             mode: ViewMode::Main,
         }
-    }
-
-    pub(crate) fn framed(&self) -> ModelSelectionViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
-    pub(crate) fn content_only(&self) -> ModelSelectionViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> ModelSelectionViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {

@@ -37,10 +37,7 @@ pub(crate) struct AppsSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type AppsSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, AppsSettingsView>;
-pub(crate) type AppsSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, AppsSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(AppsSettingsView);
 
 impl AppsSettingsView {
     pub(crate) fn new(
@@ -51,8 +48,7 @@ impl AppsSettingsView {
         let baseline_sources = snapshot.sources_snapshot;
         let draft_sources = baseline_sources.clone();
 
-        let mut list_state = ScrollState::new();
-        list_state.selected_idx = Some(0);
+        let list_state = ScrollState::with_first_selected();
 
         Self {
             shared_state,
@@ -65,14 +61,6 @@ impl AppsSettingsView {
             app_event_tx,
             is_complete: false,
         }
-    }
-
-    pub(crate) fn content_only(&self) -> AppsSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> AppsSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     fn sync_sources_snapshot_if_clean(&mut self) {

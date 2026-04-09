@@ -72,12 +72,7 @@ pub(crate) struct ValidationSettingsView {
     pending_notice: Option<String>,
 }
 
-pub(crate) type ValidationSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, ValidationSettingsView>;
-pub(crate) type ValidationSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, ValidationSettingsView>;
-pub(crate) type ValidationSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ValidationSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(ValidationSettingsView, framed);
 
 impl ValidationSettingsView {
     pub fn new(
@@ -85,8 +80,7 @@ impl ValidationSettingsView {
         tools: Vec<ToolRow>,
         app_event_tx: AppEventSender,
     ) -> Self {
-        let mut state = ScrollState::new();
-        state.selected_idx = Some(0);
+        let state = ScrollState::with_first_selected();
         let tool_label_pad_cols = tools.iter().map(|row| row.status.name.width()).max().unwrap_or(0);
         let tool_label_pad_cols = u16::try_from(tool_label_pad_cols).unwrap_or(u16::MAX);
         Self {
@@ -99,18 +93,6 @@ impl ValidationSettingsView {
             viewport_rows: Cell::new(0),
             pending_notice: None,
         }
-    }
-
-    pub(crate) fn framed(&self) -> ValidationSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
-    pub(crate) fn content_only(&self) -> ValidationSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> ValidationSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub fn is_view_complete(&self) -> bool {

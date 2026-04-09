@@ -69,14 +69,7 @@ pub(crate) struct ShellProfilesSettingsView {
     pick_viewport_rows: Cell<usize>,
 }
 
-pub(crate) type ShellProfilesSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, ShellProfilesSettingsView>;
-pub(crate) type ShellProfilesSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, ShellProfilesSettingsView>;
-pub(crate) type ShellProfilesSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, ShellProfilesSettingsView>;
-pub(crate) type ShellProfilesSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ShellProfilesSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(ShellProfilesSettingsView, framed);
 
 impl ShellProfilesSettingsView {
     pub(crate) fn new(
@@ -191,22 +184,6 @@ impl ShellProfilesSettingsView {
 
     pub(crate) fn handle_key_event_direct(&mut self, key: KeyEvent) -> bool {
         input::handle_key_event_direct(self, key)
-    }
-
-    pub(crate) fn framed(&self) -> ShellProfilesSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
-    pub(crate) fn content_only(&self) -> ShellProfilesSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> ShellProfilesSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> ShellProfilesSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {

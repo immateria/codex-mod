@@ -123,10 +123,7 @@ pub(crate) struct PluginsSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type PluginsSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, PluginsSettingsView>;
-pub(crate) type PluginsSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, PluginsSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(PluginsSettingsView);
 
 impl PluginsSettingsView {
     fn selected_list_index(&self, plugin_count: usize) -> usize {

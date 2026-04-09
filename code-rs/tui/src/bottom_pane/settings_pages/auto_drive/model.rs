@@ -33,10 +33,7 @@ impl AutoDriveSettingsView {
 
         Self {
             app_event_tx,
-            main_state: ScrollState {
-                selected_idx: Some(0),
-                scroll_top: 0,
-            },
+            main_state: ScrollState::with_first_selected(),
             mode: AutoDriveSettingsMode::Main,
             hovered: None,
             model,
@@ -50,10 +47,7 @@ impl AutoDriveSettingsView {
             model_routing_enabled,
             model_routing_entries,
             routing_model_options,
-            routing_state: ScrollState {
-                selected_idx: Some(0),
-                scroll_top: 0,
-            },
+            routing_state: ScrollState::with_first_selected(),
             routing_viewport_rows: Cell::new(8),
             continue_mode,
             status_message: None,

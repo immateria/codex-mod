@@ -33,10 +33,7 @@ pub(crate) struct UpdateSettingsView {
     manual_instructions: Option<String>,
 }
 
-pub(crate) type UpdateSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, UpdateSettingsView>;
-pub(crate) type UpdateSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, UpdateSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(UpdateSettingsView);
 
 pub(crate) struct UpdateSettingsInit {
     pub(crate) app_event_tx: AppEventSender,

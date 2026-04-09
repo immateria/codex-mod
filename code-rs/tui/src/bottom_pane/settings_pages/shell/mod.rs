@@ -68,11 +68,4 @@ pub(crate) struct ShellSelectionView {
     hovered_action: Option<EditAction>,
 }
 
-pub(crate) type ShellSelectionViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, ShellSelectionView>;
-pub(crate) type ShellSelectionViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, ShellSelectionView>;
-pub(crate) type ShellSelectionViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, ShellSelectionView>;
-pub(crate) type ShellSelectionViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ShellSelectionView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(ShellSelectionView, framed);

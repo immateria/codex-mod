@@ -64,10 +64,7 @@ pub(crate) struct JsReplSettingsView {
     viewport_rows: Cell<usize>,
 }
 
-pub(crate) type JsReplSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, JsReplSettingsView>;
-pub(crate) type JsReplSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, JsReplSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(JsReplSettingsView);
 
 impl JsReplSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -95,8 +92,7 @@ impl JsReplSettingsView {
         app_event_tx: AppEventSender,
         ticket: BackgroundOrderTicket,
     ) -> Self {
-        let mut state = ScrollState::new();
-        state.selected_idx = Some(0);
+        let state = ScrollState::with_first_selected();
         Self {
             settings,
             network_enabled,
@@ -108,14 +104,6 @@ impl JsReplSettingsView {
             state,
             viewport_rows: Cell::new(0),
         }
-    }
-
-    pub(crate) fn content_only(&self) -> JsReplSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> JsReplSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {

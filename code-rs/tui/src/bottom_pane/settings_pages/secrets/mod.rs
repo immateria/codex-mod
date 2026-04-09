@@ -42,10 +42,7 @@ pub(crate) struct SecretsSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type SecretsSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, SecretsSettingsView>;
-pub(crate) type SecretsSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, SecretsSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(SecretsSettingsView);
 
 impl SecretsSettingsView {
     pub(crate) fn new(
@@ -53,8 +50,7 @@ impl SecretsSettingsView {
         env_id: String,
         app_event_tx: AppEventSender,
     ) -> Self {
-        let mut list_state = ScrollState::new();
-        list_state.selected_idx = Some(0);
+        let list_state = ScrollState::with_first_selected();
 
         let view = Self {
             shared_state,
@@ -85,14 +81,6 @@ impl SecretsSettingsView {
         }
 
         view
-    }
-
-    pub(crate) fn content_only(&self) -> SecretsSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> SecretsSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {

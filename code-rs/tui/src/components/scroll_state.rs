@@ -18,6 +18,14 @@ impl ScrollState {
         }
     }
 
+    /// Create a new state with the first item selected.
+    pub fn with_first_selected() -> Self {
+        Self {
+            selected_idx: Some(0),
+            scroll_top: 0,
+        }
+    }
+
     /// Reset selection and scroll.
     pub fn reset(&mut self) {
         self.selected_idx = None;

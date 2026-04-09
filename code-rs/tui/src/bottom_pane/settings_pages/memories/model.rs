@@ -19,8 +19,7 @@ impl MemoriesSettingsView {
             None,
         )
         .to_toml();
-        let mut state = ScrollState::new();
-        state.selected_idx = Some(0);
+        let state = ScrollState::with_first_selected();
         Self {
             code_home,
             current_project,
@@ -348,14 +347,6 @@ impl MemoriesSettingsView {
             RowKind::Apply => "Persist the current scope to config.toml.",
             RowKind::Close => "Dismiss the Memories settings view.",
         }
-    }
-
-    pub(crate) fn content_only(&self) -> MemoriesSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> MemoriesSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_view_complete(&self) -> bool {

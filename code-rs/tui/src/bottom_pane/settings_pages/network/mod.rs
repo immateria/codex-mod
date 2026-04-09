@@ -60,10 +60,7 @@ pub(crate) struct NetworkSettingsView {
     viewport_rows: Cell<usize>,
 }
 
-pub(crate) type NetworkSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, NetworkSettingsView>;
-pub(crate) type NetworkSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, NetworkSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(NetworkSettingsView);
 
 impl NetworkSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -90,8 +87,7 @@ impl NetworkSettingsView {
         app_event_tx: AppEventSender,
         ticket: BackgroundOrderTicket,
     ) -> Self {
-        let mut state = ScrollState::new();
-        state.selected_idx = Some(0);
+        let state = ScrollState::with_first_selected();
         Self {
             settings: settings.unwrap_or_default(),
             sandbox_policy,
@@ -103,14 +99,6 @@ impl NetworkSettingsView {
             state,
             viewport_rows: Cell::new(0),
         }
-    }
-
-    pub(crate) fn content_only(&self) -> NetworkSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> NetworkSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {

@@ -190,32 +190,9 @@ pub(crate) struct AutoDriveSettingsView {
     closing: bool,
 }
 
-pub(crate) type AutoDriveSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, AutoDriveSettingsView>;
-pub(crate) type AutoDriveSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, AutoDriveSettingsView>;
-pub(crate) type AutoDriveSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, AutoDriveSettingsView>;
-pub(crate) type AutoDriveSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, AutoDriveSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(AutoDriveSettingsView, framed);
 
 impl AutoDriveSettingsView {
-    pub(crate) fn framed(&self) -> AutoDriveSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
-    pub(crate) fn content_only(&self) -> AutoDriveSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> AutoDriveSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> AutoDriveSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
-    }
-
     pub fn is_view_complete(&self) -> bool {
         self.closing
     }

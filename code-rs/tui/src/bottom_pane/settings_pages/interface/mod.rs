@@ -196,10 +196,7 @@ pub(crate) struct InterfaceSettingsView {
     main_viewport_rows: Cell<usize>,
 }
 
-pub(crate) type InterfaceSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, InterfaceSettingsView>;
-pub(crate) type InterfaceSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, InterfaceSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(InterfaceSettingsView);
 
 impl InterfaceSettingsView {
     pub(super) fn desired_height_impl(&self, _width: u16) -> u16 {
@@ -222,8 +219,7 @@ impl InterfaceSettingsView {
         icon_mode: code_core::config_types::IconMode,
         app_event_tx: AppEventSender,
     ) -> Self {
-        let mut state = ScrollState::new();
-        state.selected_idx = Some(0);
+        let state = ScrollState::with_first_selected();
         Self {
             settings,
             hotkeys,
@@ -240,14 +236,6 @@ impl InterfaceSettingsView {
             state,
             main_viewport_rows: Cell::new(0),
         }
-    }
-
-    pub(crate) fn content_only(&self) -> InterfaceSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> InterfaceSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn handle_paste_direct(&mut self, text: String) -> bool {

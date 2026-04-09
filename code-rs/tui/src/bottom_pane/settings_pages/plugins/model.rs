@@ -6,11 +6,9 @@ impl PluginsSettingsView {
         roots: Vec<AbsolutePathBuf>,
         app_event_tx: AppEventSender,
     ) -> Self {
-        let mut list_state = ScrollState::new();
-        list_state.selected_idx = Some(0);
+        let list_state = ScrollState::with_first_selected();
 
-        let mut sources_list_state = ScrollState::new();
-        sources_list_state.selected_idx = Some(0);
+        let sources_list_state = ScrollState::with_first_selected();
 
         let view = Self {
             shared_state,
@@ -47,14 +45,6 @@ impl PluginsSettingsView {
             view.request_plugin_list(/*force_remote_sync*/ false);
         }
         view
-    }
-
-    pub(crate) fn content_only(&self) -> PluginsSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> PluginsSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {

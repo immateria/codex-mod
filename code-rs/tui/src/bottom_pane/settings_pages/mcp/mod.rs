@@ -175,27 +175,6 @@ impl McpSettingsView {
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
     }
-
-    pub(crate) fn framed(&self) -> McpSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
-    pub(crate) fn content_only(&self) -> McpSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> McpSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> McpSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
-    }
 }
 
-pub(crate) type McpSettingsViewFramed<'v> = crate::bottom_pane::chrome_view::Framed<'v, McpSettingsView>;
-pub(crate) type McpSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, McpSettingsView>;
-pub(crate) type McpSettingsViewFramedMut<'v> = crate::bottom_pane::chrome_view::FramedMut<'v, McpSettingsView>;
-pub(crate) type McpSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, McpSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(McpSettingsView, framed);

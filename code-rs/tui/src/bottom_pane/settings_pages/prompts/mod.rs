@@ -48,10 +48,7 @@ pub(crate) struct PromptsSettingsView {
     mode: Mode,
 }
 
-pub(crate) type PromptsSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, PromptsSettingsView>;
-pub(crate) type PromptsSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, PromptsSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(PromptsSettingsView);
 
 impl PromptsSettingsView {
     fn list_row_count(&self) -> usize {

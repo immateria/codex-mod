@@ -10,8 +10,7 @@ impl PromptsSettingsView {
         name_field.set_filter(InputFilter::Id);
         let body_field = FormTextField::new_multi_line();
 
-        let mut list_state = ScrollState::new();
-        list_state.selected_idx = Some(0);
+        let list_state = ScrollState::with_first_selected();
         Self {
             prompts,
             list_state,
@@ -24,14 +23,6 @@ impl PromptsSettingsView {
             is_complete: false,
             mode: Mode::List,
         }
-    }
-
-    pub(crate) fn content_only(&self) -> PromptsSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> PromptsSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub fn is_complete(&self) -> bool {

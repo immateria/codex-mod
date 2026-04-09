@@ -59,10 +59,7 @@ pub(crate) struct ShellEscalationSettingsView {
     editor_notice: Option<String>,
 }
 
-pub(crate) type ShellEscalationSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, ShellEscalationSettingsView>;
-pub(crate) type ShellEscalationSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ShellEscalationSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(ShellEscalationSettingsView);
 
 impl ShellEscalationSettingsView {
     const DEFAULT_VISIBLE_ROWS: usize = 8;
@@ -83,8 +80,7 @@ impl ShellEscalationSettingsView {
         wrapper_override: Option<std::path::PathBuf>,
         app_event_tx: AppEventSender,
     ) -> Self {
-        let mut state = ScrollState::new();
-        state.selected_idx = Some(0);
+        let state = ScrollState::with_first_selected();
 
         let zsh_path = zsh_path.map(|path| path.to_string_lossy().into_owned());
         let wrapper_override = wrapper_override.map(|path| path.to_string_lossy().into_owned());
@@ -106,14 +102,6 @@ impl ShellEscalationSettingsView {
             viewport_rows: Cell::new(0),
             editor_notice: None,
         }
-    }
-
-    pub(crate) fn content_only(&self) -> ShellEscalationSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> ShellEscalationSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {

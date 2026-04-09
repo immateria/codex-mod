@@ -68,10 +68,7 @@ pub(crate) struct ReviewSettingsView {
     pending_notice: Option<String>,
 }
 
-pub(crate) type ReviewSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, ReviewSettingsView>;
-pub(crate) type ReviewSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ReviewSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(ReviewSettingsView);
 
 pub(crate) struct ReviewSettingsInit {
     pub review_use_chat_model: bool,
@@ -170,8 +167,7 @@ impl ReviewSettingsView {
             auto_review_followups,
             app_event_tx,
         } = init;
-        let mut state = ScrollState::new();
-        state.selected_idx = Some(0);
+        let state = ScrollState::with_first_selected();
 
         let default_index = AutoResolveAttemptLimit::ALLOWED
             .iter()
@@ -217,14 +213,6 @@ impl ReviewSettingsView {
 
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
-    }
-
-    pub(crate) fn content_only(&self) -> ReviewSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> ReviewSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 }
 

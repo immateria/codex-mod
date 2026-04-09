@@ -76,33 +76,6 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                     running_status = Some(running_status_line(message));
                 }
             },
-            Some(o) if o.exit_code == 0 => {
-                let done = match action {
-                    ExecAction::Read => "Read".to_string(),
-                    ExecAction::Search => "Search".to_string(),
-                    ExecAction::List => "List".to_string(),
-                    ExecAction::Run => match &ctx_path {
-                        Some(p) => format!("Ran in {p}"),
-                        None => "Ran".to_string(),
-                    },
-                };
-                if matches!(
-                    action,
-                    ExecAction::Read | ExecAction::Search | ExecAction::List
-                ) {
-                    pre.push(Line::styled(
-                        done,
-                        Style::default().fg(crate::colors::text_dim()),
-                    ));
-                } else {
-                    pre.push(Line::styled(
-                        done,
-                        Style::default()
-                            .fg(crate::colors::text_bright())
-                            .add_modifier(Modifier::BOLD),
-                    ));
-                }
-            }
             Some(_) => {
                 let done = match action {
                     ExecAction::Read => "Read".to_string(),

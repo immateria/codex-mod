@@ -66,22 +66,6 @@ impl ShellSelectionView {
         }
     }
 
-    pub(crate) fn framed(&self) -> ShellSelectionViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
-    pub(crate) fn content_only(&self) -> ShellSelectionViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> ShellSelectionViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> ShellSelectionViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
-    }
-
     pub(super) fn pick_shell_binary_from_dialog(&mut self) -> bool {
         self.native_picker_notice = None;
         if !crate::platform_caps::supports_native_picker() {

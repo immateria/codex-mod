@@ -9,8 +9,6 @@ use crate::colors;
 use super::{
     UpdateSettingsInit,
     UpdateSettingsView,
-    UpdateSettingsViewContentOnly,
-    UpdateSettingsViewContentOnlyMut,
     UpdateSharedState,
 };
 
@@ -115,14 +113,6 @@ impl UpdateSettingsView {
             .selected_idx
             .unwrap_or(0)
             .min(Self::ROW_COUNT.saturating_sub(1))
-    }
-
-    pub(crate) fn content_only(&self) -> UpdateSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> UpdateSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub fn is_view_complete(&self) -> bool {

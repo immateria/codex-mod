@@ -80,7 +80,4 @@ pub(crate) struct MemoriesSettingsView {
     app_event_tx: AppEventSender,
 }
 
-pub(crate) type MemoriesSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, MemoriesSettingsView>;
-pub(crate) type MemoriesSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, MemoriesSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(MemoriesSettingsView);

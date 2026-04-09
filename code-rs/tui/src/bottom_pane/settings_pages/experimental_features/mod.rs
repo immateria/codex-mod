@@ -36,10 +36,7 @@ pub(crate) struct ExperimentalFeaturesSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type ExperimentalFeaturesSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, ExperimentalFeaturesSettingsView>;
-pub(crate) type ExperimentalFeaturesSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ExperimentalFeaturesSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(ExperimentalFeaturesSettingsView);
 
 impl ExperimentalFeaturesSettingsView {
     pub(crate) fn new(
@@ -70,8 +67,7 @@ impl ExperimentalFeaturesSettingsView {
         }
         let draft_enabled = baseline_enabled.clone();
 
-        let mut list_state = ScrollState::new();
-        list_state.selected_idx = Some(0);
+        let list_state = ScrollState::with_first_selected();
 
         Self {
             rows,
@@ -84,14 +80,6 @@ impl ExperimentalFeaturesSettingsView {
             app_event_tx,
             is_complete: false,
         }
-    }
-
-    pub(crate) fn content_only(&self) -> ExperimentalFeaturesSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> ExperimentalFeaturesSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {

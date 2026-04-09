@@ -18,8 +18,7 @@ impl ExecLimitsSettingsView {
     }
 
     pub(crate) fn new(settings: code_core::config::ExecLimitsToml, app_event_tx: AppEventSender) -> Self {
-        let mut state = ScrollState::new();
-        state.selected_idx = Some(0);
+        let state = ScrollState::with_first_selected();
         let last_applied = settings.clone();
         Self {
             settings,
@@ -66,14 +65,6 @@ impl ExecLimitsSettingsView {
             }
             code_core::config::ExecLimitToml::Value(v) => format!("{v} MiB"),
         }
-    }
-
-    pub(crate) fn content_only(&self) -> ExecLimitsSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> ExecLimitsSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {

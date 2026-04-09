@@ -26,10 +26,7 @@ pub(crate) struct PlanningSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type PlanningSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, PlanningSettingsView>;
-pub(crate) type PlanningSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, PlanningSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(PlanningSettingsView);
 
 impl PlanningSettingsView {
     pub fn new(
@@ -38,8 +35,7 @@ impl PlanningSettingsView {
         planning_reasoning: ReasoningEffort,
         app_event_tx: AppEventSender,
     ) -> Self {
-        let mut state = ScrollState::new();
-        state.selected_idx = Some(0);
+        let state = ScrollState::with_first_selected();
         Self {
             use_chat_model,
             planning_model,
@@ -57,14 +53,6 @@ impl PlanningSettingsView {
 
     pub fn set_use_chat_model(&mut self, use_chat: bool) {
         self.use_chat_model = use_chat;
-    }
-
-    pub(crate) fn content_only(&self) -> PlanningSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> PlanningSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_complete(&self) -> bool {

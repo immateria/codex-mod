@@ -202,23 +202,9 @@ impl ThemeSelectionView {
     pub(crate) fn is_complete(&self) -> bool {
         self.is_complete
     }
-
-    pub(crate) fn framed(&self) -> ThemeSelectionViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
-    pub(crate) fn content_only(&self) -> ThemeSelectionViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> ThemeSelectionViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> ThemeSelectionViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
-    }
 }
+
+crate::bottom_pane::chrome_view::impl_chrome_view!(ThemeSelectionView, framed);
 
 #[derive(Copy, Clone, PartialEq)]
 enum CreateStep {
@@ -250,14 +236,6 @@ struct ThemeGenerationResult {
     colors: code_core::config_types::ThemeColors,
     is_dark: Option<bool>,
 }
-
-pub(crate) type ThemeSelectionViewFramed<'v> = crate::bottom_pane::chrome_view::Framed<'v, ThemeSelectionView>;
-pub(crate) type ThemeSelectionViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, ThemeSelectionView>;
-pub(crate) type ThemeSelectionViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, ThemeSelectionView>;
-pub(crate) type ThemeSelectionViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ThemeSelectionView>;
 
 impl crate::bottom_pane::chrome_view::ChromeRenderable for ThemeSelectionView {
     fn render_in_framed_chrome(&self, area: Rect, buf: &mut Buffer) {

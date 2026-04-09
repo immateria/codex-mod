@@ -56,7 +56,4 @@ pub(crate) struct ExecLimitsSettingsView {
     app_event_tx: AppEventSender,
 }
 
-pub(crate) type ExecLimitsSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, ExecLimitsSettingsView>;
-pub(crate) type ExecLimitsSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, ExecLimitsSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(ExecLimitsSettingsView);

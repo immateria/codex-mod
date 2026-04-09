@@ -94,3 +94,58 @@ impl<'v, V: ChromeMouseHandler> ContentOnlyMut<'v, V> {
             .handle_mouse_event_direct_in_content_only_chrome(mouse_event, area)
     }
 }
+
+/// Generate chrome-mode convenience methods for a settings view type.
+///
+/// - `impl_chrome_view!(ViewType)` generates `content_only()` and `content_only_mut()`.
+/// - `impl_chrome_view!(ViewType, framed)` also adds `framed()` and `framed_mut()`.
+///
+/// This eliminates per-view type aliases and the identical 2–4 method blocks that
+/// were previously copy-pasted across every settings page module.
+macro_rules! impl_chrome_view {
+    ($view:ty) => {
+        impl $view {
+            pub(crate) fn content_only(
+                &self,
+            ) -> $crate::bottom_pane::chrome_view::ContentOnly<'_, $view> {
+                $crate::bottom_pane::chrome_view::ContentOnly::new(self)
+            }
+
+            pub(crate) fn content_only_mut(
+                &mut self,
+            ) -> $crate::bottom_pane::chrome_view::ContentOnlyMut<'_, $view> {
+                $crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
+            }
+        }
+    };
+    ($view:ty, framed) => {
+        impl $view {
+            pub(crate) fn framed(
+                &self,
+            ) -> $crate::bottom_pane::chrome_view::Framed<'_, $view> {
+                $crate::bottom_pane::chrome_view::Framed::new(self)
+            }
+
+            pub(crate) fn content_only(
+                &self,
+            ) -> $crate::bottom_pane::chrome_view::ContentOnly<'_, $view> {
+                $crate::bottom_pane::chrome_view::ContentOnly::new(self)
+            }
+
+            #[allow(dead_code)]
+            pub(crate) fn framed_mut(
+                &mut self,
+            ) -> $crate::bottom_pane::chrome_view::FramedMut<'_, $view> {
+                $crate::bottom_pane::chrome_view::FramedMut::new(self)
+            }
+
+            pub(crate) fn content_only_mut(
+                &mut self,
+            ) -> $crate::bottom_pane::chrome_view::ContentOnlyMut<'_, $view> {
+                $crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
+            }
+        }
+    };
+}
+
+pub(crate) use impl_chrome_view;

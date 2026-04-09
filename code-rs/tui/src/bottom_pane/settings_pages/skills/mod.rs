@@ -63,6 +63,8 @@ pub(crate) struct SkillsSettingsView {
     editor: SkillEditorState,
 }
 
+crate::bottom_pane::chrome_view::impl_chrome_view!(SkillsSettingsView);
+
 impl SkillsSettingsView {
     pub fn new(
         skills: Vec<Skill>,
@@ -72,10 +74,7 @@ impl SkillsSettingsView {
         Self {
             skills,
             shell_style_profiles,
-            list_state: ScrollState {
-                selected_idx: Some(0),
-                scroll_top: 0,
-            },
+            list_state: ScrollState::with_first_selected(),
             list_viewport_rows: Cell::new(
                 usize::from(SKILLS_SETTINGS_VIEW_HEIGHT)
                     .saturating_sub(5)
@@ -92,14 +91,6 @@ impl SkillsSettingsView {
 
     pub fn is_complete(&self) -> bool {
         self.complete
-    }
-
-    pub(crate) fn content_only(&self) -> SkillsSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> SkillsSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     fn list_item_count(&self) -> usize {
@@ -130,11 +121,6 @@ impl SkillsSettingsView {
             .ensure_visible(item_count, self.list_viewport_rows.get().max(1));
     }
 }
-
-pub(crate) type SkillsSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, SkillsSettingsView>;
-pub(crate) type SkillsSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, SkillsSettingsView>;
 
 #[cfg(test)]
 mod tests;

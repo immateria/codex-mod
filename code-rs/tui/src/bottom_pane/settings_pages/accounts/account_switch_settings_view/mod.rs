@@ -30,14 +30,7 @@ pub(crate) struct AccountSwitchSettingsView {
     is_complete: bool,
 }
 
-pub(crate) type AccountSwitchSettingsViewFramed<'v> =
-    crate::bottom_pane::chrome_view::Framed<'v, AccountSwitchSettingsView>;
-pub(crate) type AccountSwitchSettingsViewContentOnly<'v> =
-    crate::bottom_pane::chrome_view::ContentOnly<'v, AccountSwitchSettingsView>;
-pub(crate) type AccountSwitchSettingsViewFramedMut<'v> =
-    crate::bottom_pane::chrome_view::FramedMut<'v, AccountSwitchSettingsView>;
-pub(crate) type AccountSwitchSettingsViewContentOnlyMut<'v> =
-    crate::bottom_pane::chrome_view::ContentOnlyMut<'v, AccountSwitchSettingsView>;
+crate::bottom_pane::chrome_view::impl_chrome_view!(AccountSwitchSettingsView, framed);
 
 impl AccountSwitchSettingsView {
     const MAIN_OPTION_COUNT: usize = 6;
@@ -51,10 +44,7 @@ impl AccountSwitchSettingsView {
     ) -> Self {
         Self {
             app_event_tx,
-            main_state: ScrollState {
-                selected_idx: Some(0),
-                scroll_top: 0,
-            },
+            main_state: ScrollState::with_first_selected(),
             confirm_state: ScrollState::default(),
             auto_switch_enabled,
             api_key_fallback_enabled,
@@ -62,22 +52,6 @@ impl AccountSwitchSettingsView {
             view_mode: ViewMode::Main,
             is_complete: false,
         }
-    }
-
-    pub(crate) fn framed(&self) -> AccountSwitchSettingsViewFramed<'_> {
-        crate::bottom_pane::chrome_view::Framed::new(self)
-    }
-
-    pub(crate) fn content_only(&self) -> AccountSwitchSettingsViewContentOnly<'_> {
-        crate::bottom_pane::chrome_view::ContentOnly::new(self)
-    }
-
-    pub(crate) fn framed_mut(&mut self) -> AccountSwitchSettingsViewFramedMut<'_> {
-        crate::bottom_pane::chrome_view::FramedMut::new(self)
-    }
-
-    pub(crate) fn content_only_mut(&mut self) -> AccountSwitchSettingsViewContentOnlyMut<'_> {
-        crate::bottom_pane::chrome_view::ContentOnlyMut::new(self)
     }
 
     pub(crate) fn is_view_complete(&self) -> bool {
