@@ -87,7 +87,7 @@ impl ToolHandler for ExecCommandToolHandler {
                     if !effective_workdir.is_absolute() {
                         effective_workdir = cwd.join(&effective_workdir);
                     }
-                    params.workdir = Some(effective_workdir.to_string_lossy().to_string());
+                    params.workdir = Some(effective_workdir.to_string_lossy().into_owned());
 
                     // If shell isn't explicitly set, default to the session shell when it is bash/zsh.
                     if !shell_was_provided {

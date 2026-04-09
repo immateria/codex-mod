@@ -690,7 +690,7 @@ mod tests {
         let (repo, git_ref) = init_marketplace_repo();
         let code_home = TempDir::new().expect("code home");
         let marketplace_repo = PluginMarketplaceRepoToml {
-            url: repo.path().to_string_lossy().to_string(),
+            url: repo.path().to_string_lossy().into_owned(),
             git_ref: Some(git_ref),
         };
 
@@ -707,7 +707,7 @@ mod tests {
         let (repo, git_ref) = init_marketplace_repo();
         let code_home = TempDir::new().expect("code home");
         let plugins = PluginsToml {
-            curated_repo_url: Some(repo.path().to_string_lossy().to_string()),
+            curated_repo_url: Some(repo.path().to_string_lossy().into_owned()),
             curated_repo_ref: Some(git_ref),
             marketplace_repos: Vec::new(),
         };

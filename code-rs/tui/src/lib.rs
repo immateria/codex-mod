@@ -1169,7 +1169,7 @@ fn determine_repo_trust_state(
 
     // If this project has explicit per-project overrides for approval and/or sandbox,
     // honor them and skip the trust screen entirely.
-    let proj_key = config.cwd.to_string_lossy().to_string();
+    let proj_key = config.cwd.to_string_lossy().into_owned();
     let has_per_project_overrides = config_toml
         .projects
         .as_ref()
@@ -1248,7 +1248,7 @@ mod tests {
 
         let mut projects = HashMap::new();
         projects.insert(
-            workspace.path().to_string_lossy().to_string(),
+            workspace.path().to_string_lossy().into_owned(),
             ProjectConfig {
                 trust_level: Some("trusted".to_string()),
                 approval_policy: None,

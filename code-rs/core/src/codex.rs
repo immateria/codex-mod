@@ -516,7 +516,7 @@ async fn build_turn_status_items_legacy(sess: &Session) -> Vec<ResponseItem> {
     let mut jar = EphemeralJar::new();
 
     // Collect environment context
-    let cwd = sess.cwd.to_string_lossy().to_string();
+    let cwd = sess.cwd.to_string_lossy().into_owned();
     let branch = get_git_branch(&sess.cwd).unwrap_or_else(|| "unknown".to_string());
     let reasoning_effort = sess.client.get_reasoning_effort();
 

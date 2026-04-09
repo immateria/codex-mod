@@ -504,9 +504,9 @@ impl JsReplManager {
                     }
 
                     let mut child_command: Vec<String> = Vec::with_capacity(2 + self.runtime.args.len());
-                    child_command.push(self.runtime.executable.to_string_lossy().to_string());
+                    child_command.push(self.runtime.executable.to_string_lossy().into_owned());
                     child_command.extend(self.runtime.args.iter().cloned());
-                    child_command.push(self.kernel_path.to_string_lossy().to_string());
+                    child_command.push(self.kernel_path.to_string_lossy().into_owned());
 
                     let seatbelt_args = crate::seatbelt::build_seatbelt_args(
                         child_command,

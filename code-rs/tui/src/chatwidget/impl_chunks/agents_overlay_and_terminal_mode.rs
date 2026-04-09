@@ -1126,7 +1126,7 @@ fi\n\
         self.terminal.after = Some(TerminalAfter::RefreshAgentsAndClose { selected_index });
         let (controller_tx, controller_rx) = mpsc::channel();
         let controller = TerminalRunController { tx: controller_tx };
-        let cwd = self.config.cwd.to_string_lossy().to_string();
+        let cwd = self.config.cwd.to_string_lossy().into_owned();
         self.push_background_before_next_output(format!(
             "Starting guided install for agent '{name}'"
         ));
@@ -1262,7 +1262,7 @@ fi\n\
             "Terminal command: {command}"
         ));
         self.app_event_tx.send(AppEvent::OpenTerminal(launch));
-        let cwd = self.config.cwd.to_string_lossy().to_string();
+        let cwd = self.config.cwd.to_string_lossy().into_owned();
         start_direct_terminal_session(
             self.app_event_tx.clone(),
             id,
@@ -1278,7 +1278,7 @@ fi\n\
         let id = self.terminal.alloc_id();
         let (controller_tx, controller_rx) = mpsc::channel();
         let controller = TerminalRunController { tx: controller_tx };
-        let cwd = self.config.cwd.to_string_lossy().to_string();
+        let cwd = self.config.cwd.to_string_lossy().into_owned();
         let title = crate::text_formatting::truncate_chars_with_ellipsis(&format!("Guided: {prompt}"), 64);
         let display = crate::text_formatting::truncate_chars_with_ellipsis(prompt, 128);
 

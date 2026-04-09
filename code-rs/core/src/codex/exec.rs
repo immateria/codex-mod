@@ -806,7 +806,7 @@ impl Session {
         env.insert("CODE_HOOK_INDEX".to_string(), (index + 1).to_string());
         env.insert("CODE_HOOK_PAYLOAD".to_string(), payload.to_string());
         env.entry("CODE_SESSION_CWD".to_string())
-            .or_insert_with(|| self.cwd.to_string_lossy().to_string());
+            .or_insert_with(|| self.cwd.to_string_lossy().into_owned());
         if let Some(name) = &hook.name {
             env.entry("CODE_HOOK_NAME".to_string())
                 .or_insert_with(|| name.clone());
@@ -907,7 +907,7 @@ impl Session {
                 .or_insert_with(|| desc.clone());
         }
         env.entry("CODE_SESSION_CWD".to_string())
-            .or_insert_with(|| self.cwd.to_string_lossy().to_string());
+            .or_insert_with(|| self.cwd.to_string_lossy().into_owned());
 
         let exec_params = ExecParams {
             command: command.command.clone(),

@@ -612,7 +612,7 @@ pub fn run_patch_harness(
                         cmd.arg("--examples");
                     }
                     cmd.arg("--manifest-path");
-                    cmd.arg(manifest.to_string_lossy().to_string());
+                    cmd.arg(manifest.to_string_lossy().into_owned());
                     cmd.env("RUSTFLAGS", "-Dwarnings");
 
                     match run_with_timeout(cmd, rust_timeout) {

@@ -586,7 +586,7 @@ async fn parse_rollout_file(
     };
 
     // Create display-friendly cwd (can be enhanced later with ~ substitution)
-    let cwd_display = cwd_real.to_string_lossy().to_string();
+    let cwd_display = cwd_real.to_string_lossy().into_owned();
 
     Some(SessionIndexEntry {
         session_id,
@@ -869,7 +869,7 @@ mod tests {
             created_at: "2025-01-01T10:00:00.000Z".to_string(),
             last_event_at: "2025-01-01T10:05:00.000Z".to_string(),
             cwd_real: cwd.clone(),
-            cwd_display: cwd.to_string_lossy().to_string(),
+            cwd_display: cwd.to_string_lossy().into_owned(),
             git_project_root: Some(git_root.clone()),
             git_branch: Some("main".to_string()),
             git_sha: None,
@@ -1168,7 +1168,7 @@ mod tests {
             created_at: "2025-01-01T10:00:00.000Z".to_string(),
             last_event_at: "2025-01-01T10:05:00.000Z".to_string(),
             cwd_real: cwd1.clone(),
-            cwd_display: cwd1.to_string_lossy().to_string(),
+            cwd_display: cwd1.to_string_lossy().into_owned(),
             git_project_root: None,
             git_branch: None,
             git_sha: None,
@@ -1196,7 +1196,7 @@ mod tests {
         // Update to cwd2
         let entry2 = SessionIndexEntry {
             cwd_real: cwd2.clone(),
-            cwd_display: cwd2.to_string_lossy().to_string(),
+            cwd_display: cwd2.to_string_lossy().into_owned(),
             ..entry1
         };
 

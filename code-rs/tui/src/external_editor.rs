@@ -42,7 +42,7 @@ pub(crate) fn run_editor(initial: &str) -> Result<String, ExternalEditorError> {
 
     let temp_path = temp.into_temp_path();
     let path = temp_path.to_path_buf();
-    let path_str = path.to_string_lossy().to_string();
+    let path_str = path.to_string_lossy().into_owned();
 
     let mut args = args.to_vec();
     let mut replaced = false;

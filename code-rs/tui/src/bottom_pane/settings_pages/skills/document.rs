@@ -213,7 +213,7 @@ pub(super) fn format_path_list(paths: &[PathBuf]) -> String {
     // are displayed lossy and cannot round-trip byte-exactly through the UI.
     paths
         .iter()
-        .map(|path| path.to_string_lossy().to_string())
+        .map(|path| path.to_string_lossy().into_owned())
         .collect::<Vec<_>>()
         .join("\n")
 }

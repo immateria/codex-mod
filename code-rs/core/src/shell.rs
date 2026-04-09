@@ -75,7 +75,7 @@ impl Shell {
                 if let Some(script) = strip_bash_lc(command.as_slice()) {
                     return match &ps.bash_exe_fallback {
                         Some(bash) => Some(vec![
-                            bash.to_string_lossy().to_string(),
+                            bash.to_string_lossy().into_owned(),
                             "-lc".to_string(),
                             script,
                         ]),
@@ -139,10 +139,10 @@ impl Shell {
         match self {
             Shell::Zsh(zsh) => std::path::Path::new(&zsh.shell_path)
                 .file_name()
-                .map(|s| s.to_string_lossy().to_string()),
+                .map(|s| s.to_string_lossy().into_owned()),
             Shell::Bash(bash) => std::path::Path::new(&bash.shell_path)
                 .file_name()
-                .map(|s| s.to_string_lossy().to_string()),
+                .map(|s| s.to_string_lossy().into_owned()),
             Shell::PowerShell(ps) => Some(ps.exe.clone()),
             Shell::Generic(generic) => generic.command.first().cloned(),
             Shell::Unknown => None,

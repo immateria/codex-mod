@@ -427,7 +427,7 @@ mod tests {
             .ok()
             .map(PathBuf::from)
             .and_then(|p| p.canonicalize().ok())
-            .map(|p| p.to_string_lossy().to_string());
+            .map(|p| p.to_string_lossy().into_owned());
 
         let tempdir_policy_entry = if tmpdir_env_var.is_some() {
             r#" (subpath (param "WRITABLE_ROOT_2"))"#

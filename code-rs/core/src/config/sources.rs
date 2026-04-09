@@ -1203,7 +1203,7 @@ fn write_path_array(table: &mut TomlTable, key: &str, values: &[PathBuf]) -> any
 
     let existing = read_path_array(table, key)?
         .into_iter()
-        .map(|path| path.to_string_lossy().to_string())
+        .map(|path| path.to_string_lossy().into_owned())
         .collect::<Vec<_>>();
     if existing == deduped {
         return Ok(false);
@@ -1255,7 +1255,7 @@ fn set_project_trusted_inner(doc: &mut DocumentMut, project_path: &Path) -> anyh
     //
     // [projects]
     // "/path/to/project" = { trust_level = "trusted" }
-    let project_key = project_path.to_string_lossy().to_string();
+    let project_key = project_path.to_string_lossy().into_owned();
 
     // Ensure top-level `projects` exists as a non-inline, explicit table. If it
     // exists but was previously represented as a non-table (e.g., inline),
@@ -2466,7 +2466,7 @@ pub fn set_project_access_mode(
     };
 
     // Ensure projects table and the per-project table exist
-    let project_key = project_path.to_string_lossy().to_string();
+    let project_key = project_path.to_string_lossy().into_owned();
     // Ensure `projects` is a table; if key exists but is not a table, replace it.
     let has_projects_table = doc
         .as_table()
@@ -2548,7 +2548,7 @@ pub fn add_project_allowed_command(
         Err(e) => return Err(e.into()),
     };
 
-    let project_key = project_path.to_string_lossy().to_string();
+    let project_key = project_path.to_string_lossy().into_owned();
     if doc
         .as_table()
         .get("projects")
@@ -4017,7 +4017,7 @@ pub fn set_project_memories_settings(
     settings: Option<&MemoriesToml>,
 ) -> anyhow::Result<()> {
     let (mut doc, config_path) = load_config_doc(code_home)?;
-    let project_key = project_path.to_string_lossy().to_string();
+    let project_key = project_path.to_string_lossy().into_owned();
     let projects_table = doc["projects"]
         .or_insert(TomlItem::Table(TomlTable::new()))
         .as_table_mut()

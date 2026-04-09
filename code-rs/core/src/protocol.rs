@@ -1858,7 +1858,7 @@ mod tests {
         assert_eq!(object.get("service_tier"), Some(&serde_json::json!("fast")));
         assert_eq!(
             object.get("cwd"),
-            Some(&serde_json::json!(cwd.to_string_lossy().to_string()))
+            Some(&serde_json::json!(cwd.to_string_lossy().into_owned()))
         );
         assert!(!object.contains_key("params"));
     }

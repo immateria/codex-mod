@@ -226,7 +226,7 @@ impl ChatWidget<'_> {
             StatusLineItem::ProjectRoot => code_core::git_info::get_git_repo_root(&self.config.cwd)
                 .map(|root| {
                     root.file_name()
-                        .map(|name| name.to_string_lossy().to_string())
+                        .map(|name| name.to_string_lossy().into_owned())
                         .unwrap_or_else(|| root.display().to_string())
                 }),
             StatusLineItem::GitBranch => self.get_git_branch(),

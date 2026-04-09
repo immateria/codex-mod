@@ -53,7 +53,7 @@ impl ChatWidget<'_> {
             start_running: true,
         };
 
-        let cwd = self.config.cwd.to_string_lossy().to_string();
+        let cwd = self.config.cwd.to_string_lossy().into_owned();
         start_upgrade_terminal_session(UpgradeTerminalSessionArgs {
             app_event_tx: self.app_event_tx.clone(),
             terminal_id: id,
@@ -237,7 +237,7 @@ impl ChatWidget<'_> {
 
             let (controller_tx, controller_rx) = mpsc::channel();
             let controller = TerminalRunController { tx: controller_tx };
-            let cwd = self.config.cwd.to_string_lossy().to_string();
+            let cwd = self.config.cwd.to_string_lossy().into_owned();
 
             start_prompt_terminal_session(
                 self.app_event_tx.clone(),
@@ -331,7 +331,7 @@ impl ChatWidget<'_> {
         }
         let (controller_tx, controller_rx) = mpsc::channel();
         let controller = TerminalRunController { tx: controller_tx };
-        let cwd = self.config.cwd.to_string_lossy().to_string();
+        let cwd = self.config.cwd.to_string_lossy().into_owned();
         start_direct_terminal_session(
             self.app_event_tx.clone(),
             id,

@@ -286,11 +286,11 @@ mod tests {
         std::fs::create_dir_all(&gem_dir).expect("create .gemini");
 
         let mut env: HashMap<String, String> = HashMap::new();
-        maybe_set_gemini_config_dir(&mut env, Some(tmp.path().to_string_lossy().to_string()));
+        maybe_set_gemini_config_dir(&mut env, Some(tmp.path().to_string_lossy().into_owned()));
 
         assert_eq!(
             env.get("GEMINI_CONFIG_DIR"),
-            Some(&gem_dir.to_string_lossy().to_string())
+            Some(&gem_dir.to_string_lossy().into_owned())
         );
     }
 
@@ -300,7 +300,7 @@ mod tests {
         let mut env: HashMap<String, String> = HashMap::new();
         env.insert("GEMINI_API_KEY".to_string(), "abc".to_string());
 
-        maybe_set_gemini_config_dir(&mut env, Some(tmp.path().to_string_lossy().to_string()));
+        maybe_set_gemini_config_dir(&mut env, Some(tmp.path().to_string_lossy().into_owned()));
 
         assert!(!env.contains_key("GEMINI_CONFIG_DIR"));
     }

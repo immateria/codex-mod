@@ -24,7 +24,7 @@ pub(crate) fn maybe_set_gemini_config_dir(env: &mut HashMap<String, String>, ori
     if host_gem_cfg.is_dir() {
         env.insert(
             "GEMINI_CONFIG_DIR".to_string(),
-            host_gem_cfg.to_string_lossy().to_string(),
+            host_gem_cfg.to_string_lossy().into_owned(),
         );
     }
 }

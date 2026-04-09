@@ -48,7 +48,7 @@ impl WidgetRef for &TrustDirectoryWidget {
             Line::from(vec![
                 Span::styled("You are running Code in ", success_style),
                 Span::styled(
-                    self.cwd.to_string_lossy().to_string(),
+                    self.cwd.to_string_lossy().into_owned(),
                     Style::default().fg(colors::success()),
                 ),
             ]),

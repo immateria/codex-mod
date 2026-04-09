@@ -466,7 +466,7 @@ pub async fn ensure_local_default_remote(
     let canonical_root = tokio::fs::canonicalize(git_root)
         .await
         .unwrap_or_else(|_| git_root.to_path_buf());
-    let remote_url = canonical_root.to_string_lossy().to_string();
+    let remote_url = canonical_root.to_string_lossy().into_owned();
 
     let remote_check = Command::new("git")
         .current_dir(git_root)

@@ -173,7 +173,7 @@ impl ChatWidget<'_> {
             .config
             .js_repl_runtime_path
             .as_ref()
-            .map(|path| path.to_string_lossy().to_string())
+            .map(|path| path.to_string_lossy().into_owned())
             .unwrap_or_else(|| "auto".to_string());
 
         Some(format!(

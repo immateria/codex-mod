@@ -1492,7 +1492,7 @@ impl ConfigToml {
         let projects = self.projects.as_ref();
 
         let is_path_trusted = |path: &Path| {
-            let path_str = path.to_string_lossy().to_string();
+            let path_str = path.to_string_lossy().into_owned();
             projects
                 .and_then(|p| p.get(&path_str))
                 .map(|p| p.trust_level.as_deref() == Some("trusted"))
@@ -1699,7 +1699,7 @@ impl Config {
         // Any Git-aware features should resolve the repo root on demand.
 
         // Project-specific overrides based on final resolved cwd (exact match)
-        let project_key = resolved_cwd.to_string_lossy().to_string();
+        let project_key = resolved_cwd.to_string_lossy().into_owned();
         let project_override = cfg
             .projects
             .as_ref()

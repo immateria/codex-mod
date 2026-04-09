@@ -26,7 +26,7 @@ impl ShellSelectionView {
             .filter(|p| p.show_in_picker)
             .map(|preset| {
                 let resolved_path =
-                    which::which(&preset.command).ok().map(|path| path.to_string_lossy().to_string());
+                    which::which(&preset.command).ok().map(|path| path.to_string_lossy().into_owned());
                 let available = resolved_path.is_some();
                 ShellOption {
                     preset,
@@ -123,7 +123,7 @@ impl ShellSelectionView {
                 None
             }
         } else {
-            which::which(trimmed).ok().map(|path| path.to_string_lossy().to_string())
+            which::which(trimmed).ok().map(|path| path.to_string_lossy().into_owned())
         };
 
         let Some(resolved) = resolved else {
@@ -314,7 +314,7 @@ impl ShellSelectionView {
     }
 
     fn set_custom_path_from_picker(&mut self, selected_path: &std::path::Path) {
-        let selected = selected_path.to_string_lossy().to_string();
+        let selected = selected_path.to_string_lossy().into_owned();
         let selected = match shlex::try_quote(&selected) {
             Ok(quoted) => quoted.into_owned(),
             Err(_) => {
@@ -395,7 +395,7 @@ impl ShellSelectionView {
             }
         } else {
             match which::which(trimmed) {
-                Ok(path) => path.to_string_lossy().to_string(),
+                Ok(path) => path.to_string_lossy().into_owned(),
                 Err(_) => return false,
             }
         };

@@ -86,8 +86,8 @@ impl ShellEscalationSettingsView {
         let mut state = ScrollState::new();
         state.selected_idx = Some(0);
 
-        let zsh_path = zsh_path.map(|path| path.to_string_lossy().to_string());
-        let wrapper_override = wrapper_override.map(|path| path.to_string_lossy().to_string());
+        let zsh_path = zsh_path.map(|path| path.to_string_lossy().into_owned());
+        let wrapper_override = wrapper_override.map(|path| path.to_string_lossy().into_owned());
 
         Self {
             active_profile,

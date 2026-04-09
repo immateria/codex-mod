@@ -304,7 +304,7 @@ fn cleanup_worktrees(
                 continue;
             }
 
-            let branch_name = branch_entry.file_name().to_string_lossy().to_string();
+            let branch_name = branch_entry.file_name().to_string_lossy().into_owned();
             let repo_root = detect_repo_root(&branch_path);
 
             let canonical = canonicalize_or_original(&branch_path);
@@ -532,7 +532,7 @@ fn purge_session_registry(session_dir: &Path, worktree_path: &Path) {
         Ok(entries) => entries,
         Err(_) => return,
     };
-    let worktree_str = worktree_path.to_string_lossy().to_string();
+    let worktree_str = worktree_path.to_string_lossy().into_owned();
 
     for entry in entries.flatten() {
         if !entry.file_type().is_ok_and(|ft| ft.is_file()) {

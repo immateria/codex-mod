@@ -2348,7 +2348,7 @@ async fn run_shell_with_zsh_fork(
 
     let exec_params = code_shell_escalation::ExecParams {
         command: zsh_fork_exec_config.script,
-        workdir: params.cwd.to_string_lossy().to_string(),
+        workdir: params.cwd.to_string_lossy().into_owned(),
         timeout_ms: params.timeout_ms,
         login: Some(zsh_fork_exec_config.login),
     };
@@ -2473,7 +2473,7 @@ impl code_shell_escalation::ShellCommandExecutor for CoreShellCommandExecutor {
         use code_protocol::protocol::SandboxPolicy as ProtocolSandboxPolicy;
 
         let mut env = env;
-        let command: Vec<String> = std::iter::once(program.to_string_lossy().to_string())
+        let command: Vec<String> = std::iter::once(program.to_string_lossy().into_owned())
             .chain(argv.iter().skip(1).cloned())
             .collect();
 
@@ -2571,7 +2571,7 @@ impl code_shell_escalation::ShellCommandExecutor for CoreShellCommandExecutor {
                     .context("failed to serialize SandboxPolicy to JSON")?;
 
                 wrapper_arg0 = Some("codex-linux-sandbox".to_string());
-                std::iter::once(sandbox_exe.to_string_lossy().to_string())
+                std::iter::once(sandbox_exe.to_string_lossy().into_owned())
                     .chain([
                         sandbox_policy_cwd,
                         sandbox_policy_json,
@@ -3730,7 +3730,7 @@ mod shell_zsh_fork_tests {
         assert_eq!(
             prepared.command,
             vec![
-                program.to_string_lossy().to_string(),
+                program.to_string_lossy().into_owned(),
                 "arg1".to_string()
             ]
         );
@@ -3856,7 +3856,7 @@ mod shell_zsh_fork_tests {
         assert_eq!(
             prepared.command,
             vec![
-                program.to_string_lossy().to_string(),
+                program.to_string_lossy().into_owned(),
                 "arg1".to_string()
             ]
         );

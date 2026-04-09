@@ -75,7 +75,7 @@ impl JsReplSettingsView {
             .settings
             .runtime_path
             .as_ref()
-            .map(|path| path.to_string_lossy().to_string())
+            .map(|path| path.to_string_lossy().into_owned())
             .unwrap_or_else(|| "auto (PATH)".to_string());
         let runtime_args = if self.settings.runtime_args.is_empty() {
             "(none)".to_string()

@@ -28,7 +28,7 @@ impl JsReplSettingsView {
                     self.settings
                         .runtime_path
                         .as_ref()
-                        .map(|path| path.to_string_lossy().to_string())
+                        .map(|path| path.to_string_lossy().into_owned())
                         .unwrap_or_default()
                         .as_str(),
                 );
@@ -50,7 +50,7 @@ impl JsReplSettingsView {
                     .settings
                     .node_module_dirs
                     .iter()
-                    .map(|path| path.to_string_lossy().to_string())
+                    .map(|path| path.to_string_lossy().into_owned())
                     .collect::<Vec<_>>()
                     .join("\n");
                 field.set_text(&lines);
@@ -148,7 +148,7 @@ impl JsReplSettingsView {
         let result = pick_path(NativePickerKind::Folder, "Select node_modules folder");
         match result {
             Ok(Some(path)) => {
-                let rendered = path.to_string_lossy().to_string();
+                let rendered = path.to_string_lossy().into_owned();
                 if !self
                     .settings
                     .node_module_dirs
