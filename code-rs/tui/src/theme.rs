@@ -892,11 +892,7 @@ fn color_distance(a: (u8, u8, u8), b: (u8, u8, u8)) -> i32 {
 pub(crate) fn contrast_ratio(foreground: Color, background: Color) -> f32 {
     let lf = relative_luminance_color(foreground);
     let lb = relative_luminance_color(background);
-    if lf >= lb {
-        (lf + 0.05) / (lb + 0.05)
-    } else {
-        (lb + 0.05) / (lf + 0.05)
-    }
+    crate::colors::contrast_ratio_from_luminance(lf, lb)
 }
 
 fn is_light_color(color: Color) -> bool {
@@ -905,19 +901,7 @@ fn is_light_color(color: Color) -> bool {
 
 pub(crate) fn relative_luminance_color(color: Color) -> f32 {
     let (r, g, b) = color_to_rgb(color);
-    relative_luminance(r, g, b)
-}
-
-fn relative_luminance(r: u8, g: u8, b: u8) -> f32 {
-    fn channel(v: u8) -> f32 {
-        let c = v as f32 / 255.0;
-        if c <= 0.03928 {
-            c / 12.92
-        } else {
-            ((c + 0.055) / 1.055).powf(2.4)
-        }
-    }
-    0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+    crate::colors::wcag_relative_luminance(r, g, b)
 }
 
 fn is_low_saturation((r, g, b): (u8, u8, u8)) -> bool {

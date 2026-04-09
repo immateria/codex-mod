@@ -206,7 +206,8 @@ pub(crate) fn ansi256_to_rgb(i: u8) -> (u8, u8, u8) {
     (v, v, v)
 }
 
-fn blend_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
+pub(crate) fn blend_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
+    let t = t.clamp(0.0, 1.0);
     let inv = 1.0 - t;
     let r = (a.0 as f32 * inv + b.0 as f32 * t).round() as u8;
     let g = (a.1 as f32 * inv + b.1 as f32 * t).round() as u8;
@@ -218,7 +219,7 @@ fn blend_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
 pub(crate) fn mix_toward(from: Color, to: Color, t: f32) -> Color {
     let a = color_to_rgb(from);
     let b = color_to_rgb(to);
-    let (r, g, b) = blend_rgb(a, b, t.clamp(0.0, 1.0));
+    let (r, g, b) = blend_rgb(a, b, t);
     quantize_color_for_palette(rgb(r, g, b))
 }
 
@@ -251,10 +252,30 @@ fn is_light(rgb: (u8, u8, u8)) -> bool {
 }
 
 /// Rec. 709 relative luminance of an sRGB triplet, normalized to 0.0–1.0.
-/// This is a simplified (gamma-unaware) version used for quick UI decisions;
-/// `theme.rs` has a linearized variant for WCAG-style calculations.
+/// This is a simplified (gamma-unaware) version used for quick UI decisions.
+/// For WCAG-compliant contrast calculations, use [`wcag_relative_luminance`].
 pub(crate) fn relative_luminance(rgb: (u8, u8, u8)) -> f32 {
     (0.2126 * rgb.0 as f32 + 0.7152 * rgb.1 as f32 + 0.0722 * rgb.2 as f32) / 255.0
+}
+
+/// WCAG 2.x relative luminance with proper sRGB gamma linearization.
+/// Used for contrast-ratio checks and accessibility-aware color decisions.
+pub(crate) fn wcag_relative_luminance(r: u8, g: u8, b: u8) -> f32 {
+    fn linearize(v: u8) -> f32 {
+        let c = v as f32 / 255.0;
+        if c <= 0.03928 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    }
+    0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+}
+
+/// WCAG 2.x contrast ratio between two luminance values.
+pub(crate) fn contrast_ratio_from_luminance(l1: f32, l2: f32) -> f32 {
+    let (a, b) = if l1 > l2 { (l1, l2) } else { (l2, l1) };
+    (a + 0.05) / (b + 0.05)
 }
 
 /// Returns `true` when the current terminal background is dark (luminance < 0.5).

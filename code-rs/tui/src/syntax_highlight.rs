@@ -2,7 +2,7 @@ use once_cell::sync::OnceCell;
 use ratatui::text::{Line, Span};
 use std::sync::Arc;
 
-use crate::colors::{color_to_rgb, relative_luminance};
+use crate::colors::{color_to_rgb, relative_luminance, contrast_ratio_from_luminance, blend_rgb};
 
 // syntect imports
 use syntect::easy::HighlightLines;
@@ -681,20 +681,6 @@ pub(crate) fn highlight_code_block(content: &str, lang: Option<&str>) -> Vec<Lin
 // --- Color adaptation helpers ---
 use ratatui::style::Color;
 
-fn mix_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
-    let t = t.clamp(0.0, 1.0);
-    let inv = 1.0 - t;
-    let r = (a.0 as f32 * inv + b.0 as f32 * t).round() as u8;
-    let g = (a.1 as f32 * inv + b.1 as f32 * t).round() as u8;
-    let bl = (a.2 as f32 * inv + b.2 as f32 * t).round() as u8;
-    (r, g, bl)
-}
-
-fn contrast_ratio(l1: f32, l2: f32) -> f32 {
-    let (a, b) = if l1 > l2 { (l1, l2) } else { (l2, l1) };
-    (a + 0.05) / (b + 0.05)
-}
-
 #[allow(clippy::disallowed_methods)]
 fn adjust_color(c: Color) -> Color {
     // Blend syntect foreground toward our theme text color to reduce mismatch,
@@ -708,21 +694,21 @@ fn adjust_color(c: Color) -> Color {
     let (tr, tg, tb) = color_to_rgb(text);
     let (br, bgc, bb) = color_to_rgb(bg);
     let base_mix = if is_light_bg() { 0.35 } else { 0.25 };
-    let (mut r, mut g, mut b) = mix_rgb((cr, cg, cb), (tr, tg, tb), base_mix);
+    let (mut r, mut g, mut b) = blend_rgb((cr, cg, cb), (tr, tg, tb), base_mix);
 
     // Enforce a modest contrast so colors don't look washed out.
     let mut l_fg = relative_luminance((r, g, b));
     let l_bg = relative_luminance((br, bgc, bb));
-    let mut ratio = contrast_ratio(l_fg, l_bg);
+    let mut ratio = contrast_ratio_from_luminance(l_fg, l_bg);
     let target = if is_light_bg() { 3.0 } else { 2.5 };
     if ratio < target {
         // Move further toward text color until ratio is met or we cap iterations.
         let mut t = base_mix;
         for _ in 0..4 {
             t = (t + 0.20).min(0.80);
-            let mixed = mix_rgb((cr, cg, cb), (tr, tg, tb), t);
+            let mixed = blend_rgb((cr, cg, cb), (tr, tg, tb), t);
             l_fg = relative_luminance(mixed);
-            ratio = contrast_ratio(l_fg, l_bg);
+            ratio = contrast_ratio_from_luminance(l_fg, l_bg);
             r = mixed.0; g = mixed.1; b = mixed.2;
             if ratio >= target { break; }
         }

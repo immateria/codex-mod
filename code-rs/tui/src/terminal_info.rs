@@ -335,21 +335,8 @@ fn detect_macos_system_theme() -> Option<bool> {
     None
 }
 
-fn relative_luminance((r, g, b): (u8, u8, u8)) -> f64 {
-    let to_linear = |component: u8| {
-        let c = component as f64 / 255.0;
-        if c <= 0.03928 {
-            c / 12.92
-        } else {
-            ((c + 0.055) / 1.055).powf(2.4)
-        }
-    };
-
-    0.2126 * to_linear(r) + 0.7152 * to_linear(g) + 0.0722 * to_linear(b)
-}
-
 fn detect_dark_from_rgb(rgb: (u8, u8, u8)) -> bool {
-    relative_luminance(rgb) < 0.45
+    crate::colors::wcag_relative_luminance(rgb.0, rgb.1, rgb.2) < 0.45
 }
 
 pub fn detect_dark_terminal_background() -> Option<TerminalBackgroundDetection> {
