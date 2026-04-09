@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
 use crate::colors;
+use crate::text_formatting::pad_to_display_width;
 
 use super::clear;
 use super::super::{AutoActiveViewModel, AutoCoordinatorView};
@@ -42,20 +43,20 @@ pub(super) fn pending_prompt_content_lines(
 
     let add_segments = |text: &str, style: Style, rows: &mut Vec<(String, Style)>| {
         if text_width == 0 {
-            let padded = AutoCoordinatorView::pad_to_width(indent, inner_width);
+            let padded = pad_to_display_width(indent, inner_width);
             rows.push((padded, style));
             return;
         }
 
         if text.trim().is_empty() {
-            let padded = AutoCoordinatorView::pad_to_width("", inner_width);
+            let padded = pad_to_display_width("", inner_width);
             rows.push((padded, style));
             return;
         }
 
         for segment in AutoCoordinatorView::wrap_text_segments(text, text_width) {
             let body = format!("{indent}{segment}");
-            let padded = AutoCoordinatorView::pad_to_width(&body, inner_width);
+            let padded = pad_to_display_width(&body, inner_width);
             rows.push((padded, style));
         }
     };

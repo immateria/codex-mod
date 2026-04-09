@@ -20,6 +20,7 @@ use crate::auto_drive_style::EFFECT_WHITE;
 use crate::card_theme;
 use crate::glitch_animation::{gradient_multi, mix_rgb};
 use crate::gradient_background::{GradientBackground, RevealRender};
+use crate::text_formatting::pad_to_display_width;
 use crate::util::buffer::fill_rect;
 use crate::colors;
 use crate::theme::{palette_mode, PaletteMode};
@@ -684,7 +685,7 @@ impl AutoDriveCardCell {
             .unwrap_or(0);
 
         let mut lines: Vec<String> = Vec::new();
-        lines.push(Self::pad_to_width("", body_width));
+        lines.push(pad_to_display_width("", body_width));
 
         let ascii_block_width = CELEBRATION_ASCII
             .iter()
@@ -704,7 +705,7 @@ impl AutoDriveCardCell {
             let mut line = if ascii_block_width <= body_width {
                 Self::pad_line_for_block(ascii, ascii_block_width, ascii_left_pad, ascii_right_pad)
             } else {
-                Self::pad_to_width(ascii, body_width)
+                pad_to_display_width(ascii, body_width)
             };
             if !reduced_motion {
                 let protected = Self::occupied_range(&line);
@@ -713,7 +714,7 @@ impl AutoDriveCardCell {
             lines.push(line);
         }
 
-        lines.push(Self::pad_to_width("", body_width));
+        lines.push(pad_to_display_width("", body_width));
 
         lines
     }
@@ -894,7 +895,7 @@ impl AutoDriveCardCell {
                 current.push_str(word);
                 current_width += needs_space + word_width;
             } else {
-                rows.push(Self::pad_to_width(&current, width));
+                rows.push(pad_to_display_width(&current, width));
                 current.clear();
                 current_width = 0;
                 if word_width > width {
@@ -907,11 +908,11 @@ impl AutoDriveCardCell {
         }
 
         if !current.is_empty() {
-            rows.push(Self::pad_to_width(&current, width));
+            rows.push(pad_to_display_width(&current, width));
         }
 
         if rows.is_empty() {
-            rows.push(Self::pad_to_width("", width));
+            rows.push(pad_to_display_width("", width));
         }
 
         rows
@@ -928,7 +929,7 @@ impl AutoDriveCardCell {
         for ch in word.chars() {
             let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
             if current_width + ch_width > width && !current.is_empty() {
-                rows.push(Self::pad_to_width(&current, width));
+                rows.push(pad_to_display_width(&current, width));
                 current.clear();
                 current_width = 0;
             }
@@ -937,15 +938,13 @@ impl AutoDriveCardCell {
         }
 
         if !current.is_empty() {
-            rows.push(Self::pad_to_width(&current, width));
+            rows.push(pad_to_display_width(&current, width));
         }
 
         rows
     }
 
-    fn pad_to_width(text: &str, width: usize) -> String {
-        crate::text_formatting::pad_to_display_width(text, width)
-    }
+
 
     fn pad_line_for_block(
         line: &str,

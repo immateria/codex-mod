@@ -215,7 +215,7 @@ pub(crate) fn pad_icon(icon: &str, width: usize) -> String {
     if width == 0 {
         return String::new();
     }
-    let trimmed = truncate_to_width(icon, width);
+    let trimmed = crate::text_formatting::pad_to_display_width(icon, width);
     let current = UnicodeWidthStr::width(trimmed.as_str());
     if current < width {
         let mut result = trimmed;
@@ -225,9 +225,7 @@ pub(crate) fn pad_icon(icon: &str, width: usize) -> String {
     trimmed
 }
 
-pub(crate) fn truncate_to_width(text: &str, width: usize) -> String {
-    crate::text_formatting::pad_to_display_width(text, width)
-}
+
 
 pub(crate) fn truncate_with_ellipsis(text: &str, width: usize) -> String {
     crate::text_formatting::pad_to_display_width(

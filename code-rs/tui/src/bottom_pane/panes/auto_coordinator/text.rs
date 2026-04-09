@@ -54,9 +54,7 @@ impl AutoCoordinatorView {
         lines
     }
 
-    pub(super) fn pad_to_width(text: &str, width: usize) -> String {
-        crate::text_formatting::pad_to_display_width(text, width)
-    }
+
 
     pub(super) fn wrap_count(text: &str, width: u16) -> usize {
         if width == 0 {
