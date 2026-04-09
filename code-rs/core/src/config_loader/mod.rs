@@ -579,7 +579,7 @@ fn hash_toml_value(hasher: &mut Sha1, value: &TomlValue) {
         TomlValue::Table(table) => {
             hasher.update(b"t");
             hasher.update(u64::try_from(table.len()).unwrap_or(0).to_le_bytes());
-            let mut keys: Vec<&String> = table.keys().collect();
+            let mut keys: Vec<&str> = table.keys().map(String::as_str).collect();
             keys.sort_unstable();
             for key in keys {
                 hasher.update(u64::try_from(key.len()).unwrap_or(0).to_le_bytes());

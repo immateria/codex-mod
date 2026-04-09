@@ -120,7 +120,7 @@ impl ChatWidget<'_> {
             .cloned()
             .collect();
 
-        let account_sort_key = |id: &String| {
+        let account_sort_key = |id: &str| {
             if let Some(account) = account_map.get(id) {
                 let label = account_display_label(account);
                 (
@@ -129,7 +129,7 @@ impl ChatWidget<'_> {
                     label,
                 )
             } else {
-                (u8::MAX, id.to_ascii_lowercase(), id.clone())
+                (u8::MAX, id.to_ascii_lowercase(), id.to_owned())
             }
         };
 

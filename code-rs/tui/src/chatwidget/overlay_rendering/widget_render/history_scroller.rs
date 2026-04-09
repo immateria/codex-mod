@@ -147,7 +147,7 @@ impl ChatWidget<'_> {
             prefix.push(0);
             let mut acc = 0u16;
             let content_width = content_area.width.saturating_sub(GUTTER_WIDTH);
-            let mut spacing_ranges: Vec<(u16, u16)> = Vec::new();
+            let mut spacing_ranges: Vec<(u16, u16)> = Vec::with_capacity(cells.len().saturating_mul(2));
 
             // Precompute next_visible_idx for each cell in O(n) to avoid
             // the O(n²) forward scan that was inside the per-cell loop.

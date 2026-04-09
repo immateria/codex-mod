@@ -53,6 +53,21 @@ fn auth_credentials_store_mode_label(mode: AuthCredentialsStoreMode) -> &'static
     }
 }
 
+/// Mirror history lines into the terminal scrollback (non-alt-screen mode).
+/// Wraps the synchronized-update dance so each call site is a one-liner.
+fn mirror_to_scrollback(
+    terminal: &mut tui::Tui,
+    widget: &ChatWidget,
+    lines: Vec<ratatui::text::Line<'_>>,
+) {
+    use std::io::stdout;
+    let width = terminal.size().map_or(80, |s| s.width);
+    let reserve = widget.desired_bottom_height(width).max(1);
+    let _ = execute!(stdout(), crossterm::terminal::BeginSynchronizedUpdate);
+    crate::insert_history::insert_history_lines_above(terminal, reserve, lines);
+    let _ = execute!(stdout(), crossterm::terminal::EndSynchronizedUpdate);
+}
+
 impl App<'_> {
     pub(crate) fn run(&mut self, terminal: &mut tui::Tui) -> Result<()> {
         // Insert an event to trigger the first render.

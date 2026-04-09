@@ -656,7 +656,7 @@ impl WidgetRef for &UserApprovalWidget<'_> {
 
         self.confirmation_prompt.clone().render(prompt_chunk, buf);
 
-        let mut lines: Vec<Line> = Vec::new();
+        let mut lines: Vec<Line> = Vec::with_capacity(self.select_options.len().saturating_mul(3));
         let expanded_needed = if self.select_options.is_empty() {
             0
         } else {
@@ -710,7 +710,7 @@ impl WidgetRef for &UserApprovalWidget<'_> {
 }
 
 fn build_exec_select_options(command: &[String]) -> Vec<SelectOption> {
-    let mut options = Vec::new();
+    let mut options = Vec::with_capacity(4);
 
     options.push(SelectOption {
         label: "Yes".to_string(),

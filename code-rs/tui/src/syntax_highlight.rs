@@ -545,6 +545,21 @@ fn try_syntax_for_lang<'a>(ps: &'a SyntaxSet, lang: &str) -> Option<&'a SyntaxRe
 
 // Removed unused helper to keep build warning-free.
 
+/// Try to resolve a syntax from the primary set first, then the extra set.
+/// Returns both the set and the syntax reference so the caller can use the
+/// correct set for highlighting.
+fn resolve_syntax_with_set<'a>(primary: &'a SyntaxSet, lang: &str) -> Option<(&'a SyntaxSet, &'a SyntaxReference)> {
+    if let Some(s) = try_syntax_for_lang(primary, lang) {
+        return Some((primary, s));
+    }
+    if let Some(ref extra) = *extra_syntax_set() {
+        if let Some(s) = try_syntax_for_lang(extra, lang) {
+            return Some((extra, s));
+        }
+    }
+    None
+}
+
 #[allow(clippy::disallowed_methods)]
 fn span_from_syn((SynStyle { foreground, font_style, .. }, text): (SynStyle, &str)) -> Span<'static> {
     use ratatui::style::{Color, Modifier, Style};
@@ -589,16 +604,20 @@ pub(crate) fn highlight_code_block_with_metrics(content: &str, lang: Option<&str
     // Resolve across default and optional extra syntax sets
     let mut ps = syntax_set();
     let mut syntax = if let Some(l) = lang.filter(|l| !l.trim().is_empty()) {
-        if let Some(s) = try_syntax_for_lang(ps, l) { s } else if let Some(ref extra) = *extra_syntax_set() {
-            if let Some(s2) = try_syntax_for_lang(extra, l) { ps = extra; s2 } else { ps.find_syntax_plain_text() }
-        } else { ps.find_syntax_plain_text() }
+        if let Some((set, s)) = resolve_syntax_with_set(ps, l) {
+            ps = set;
+            s
+        } else {
+            ps.find_syntax_plain_text()
+        }
     } else { ps.find_syntax_plain_text() };
 
     if std::ptr::eq(syntax, ps.find_syntax_plain_text()) {
         if let Some(dl) = autodetect_lang(content) {
-            if let Some(s2) = try_syntax_for_lang(ps, dl) { syntax = s2; }
-            else if let Some(ref extra) = *extra_syntax_set()
-                && let Some(s3) = try_syntax_for_lang(extra, dl) { ps = extra; syntax = s3; }
+            if let Some((set, s)) = resolve_syntax_with_set(ps, dl) {
+                ps = set;
+                syntax = s;
+            }
         }
         if std::ptr::eq(syntax, ps.find_syntax_plain_text())
             && let Some(first) = content.lines().next() {

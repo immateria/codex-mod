@@ -150,7 +150,7 @@ impl ChatWidget<'_> {
                         .iter()
                         .map(|(t, _)| format!("  {t}  "))
                         .collect();
-                    let mut constraints: Vec<Constraint> = Vec::new();
+                    let mut constraints: Vec<Constraint> = Vec::with_capacity(labels.len().saturating_add(1));
                     let mut total: u16 = 0;
                     for label in &labels {
                         let w = (label.chars().count() as u16)

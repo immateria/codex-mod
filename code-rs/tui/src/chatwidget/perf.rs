@@ -149,7 +149,7 @@ impl PerfStats {
 
         // Per-kind aggregation
         if !self.per_kind_total.is_empty() {
-            let mut v: Vec<(&String, &ItemStat)> = self.per_kind_total.iter().collect();
+            let mut v: Vec<(&str, &ItemStat)> = self.per_kind_total.iter().map(|(k, s)| (k.as_str(), s)).collect();
             v.sort_by_key(|(_, s)| std::cmp::Reverse(s.ns));
             out.push_str("\n  by kind (total height):\n");
             for (k, s) in v.into_iter().take(5) {
@@ -163,7 +163,7 @@ impl PerfStats {
         }
 
         if !self.per_kind_render.is_empty() {
-            let mut v: Vec<(&String, &ItemStat)> = self.per_kind_render.iter().collect();
+            let mut v: Vec<(&str, &ItemStat)> = self.per_kind_render.iter().map(|(k, s)| (k.as_str(), s)).collect();
             v.sort_by_key(|(_, s)| std::cmp::Reverse(s.ns));
             out.push_str("\n  by kind (render visible):\n");
             for (k, s) in v.into_iter().take(5) {
