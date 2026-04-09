@@ -241,7 +241,7 @@ pub struct OpenRouterMaxPrice {
 }
 
 impl ModelProviderInfo {
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn validate(&self) -> std::result::Result<(), String> {
         let Some(auth) = self.auth.as_ref() else {
             return Ok(());

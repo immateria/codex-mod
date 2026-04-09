@@ -634,8 +634,11 @@ async fn consume_truncated_output(
                             #[cfg(unix)]
                             {
                                 if let Some(pid) = killer.as_mut().id() {
-                                    // Best-effort kill entire process group
-                                    unsafe { libc::kill(-(pid as i32), libc::SIGKILL); }
+                                    // Best-effort kill entire process group.
+                                    // Clamp to i32 range to avoid sign-bit overflow on negate.
+                                    if let Ok(pid_i32) = i32::try_from(pid) {
+                                        unsafe { libc::kill(-pid_i32, libc::SIGKILL); }
+                                    }
                                 }
                             }
                             killer.as_mut().start_kill()?;

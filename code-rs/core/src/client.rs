@@ -139,10 +139,8 @@ struct WrappedWebsocketErrorEvent {
 #[derive(Debug, Deserialize)]
 struct Error {
     r#type: Option<String>,
-    #[allow(dead_code)]
     code: Option<String>,
     /// Optional parameter that triggered the error (e.g. "reasoning.summary").
-    #[allow(dead_code)]
     param: Option<String>,
     message: Option<String>,
 

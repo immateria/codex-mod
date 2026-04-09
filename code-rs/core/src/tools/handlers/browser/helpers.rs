@@ -30,7 +30,9 @@ pub(super) async fn resolve_target_id_from_value(
             .list_page_targets()
             .await
             .map_err(|e| format!("Failed to list browser targets: {e}"))?;
-        match targets.get((index - 1) as usize) {
+        let idx = usize::try_from(index - 1)
+            .map_err(|_| format!("index {index} too large"))?;
+        match targets.get(idx) {
             Some(target) => Ok(target.target_id.clone()),
             None => Err(format!(
                 "index out of range (got {index}, available {len})",

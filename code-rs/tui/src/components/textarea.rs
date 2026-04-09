@@ -920,8 +920,13 @@ impl TextArea {
                 {
                     match line {
                         std::borrow::Cow::Borrowed(slice) => {
+                            // textwrap::wrap with FirstFit always borrows from the
+                            // input, so `slice` is guaranteed to point into
+                            // `self.text`. Compute byte offset via pointer
+                            // arithmetic (safe: both pointers from same allocation).
                             let start =
-                                unsafe { slice.as_ptr().offset_from(self.text.as_ptr()) as usize };
+                                (slice.as_ptr() as usize) - (self.text.as_ptr() as usize);
+                            debug_assert!(start + slice.len() <= self.text.len());
                             let end = start + slice.len();
                             let trailing_spaces =
                                 self.text[end..].chars().take_while(|c| *c == ' ').count();

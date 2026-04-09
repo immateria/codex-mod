@@ -7,7 +7,7 @@ use arboard;
 #[derive(Debug)]
 pub enum PasteImageError {
     ClipboardUnavailable(String),
-    #[allow(dead_code)]
+    #[cfg_attr(not(feature = "clipboard"), allow(dead_code))]
     NoImage(String),
     DecodeFailed(String),
     EncodeFailed(String),

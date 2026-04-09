@@ -7,6 +7,7 @@ mod session_manager;
 
 pub(crate) use exec_command_params::ExecCommandParams;
 pub(crate) use exec_command_params::WriteStdinParams;
+// Used by unified_exec (WIP, dead_code-gated); keep re-exports available.
 #[allow(unused_imports)]
 pub(crate) use exec_command_session::ExecCommandSession;
 #[allow(unused_imports)]

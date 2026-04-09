@@ -18,24 +18,6 @@ use crate::app_event_sender::AppEventSender;
 use crate::components::scroll_state::ScrollState;
 
 pub(crate) use tool_detection::detect_tools;
-#[allow(unused_imports)]
-pub use tool_detection::{
-    actionlint_hint,
-    cargo_check_hint,
-    eslint_hint,
-    golangci_lint_hint,
-    hadolint_hint,
-    markdownlint_hint,
-    mypy_hint,
-    phpstan_hint,
-    prettier_hint,
-    psalm_hint,
-    pyright_hint,
-    shellcheck_hint,
-    shfmt_hint,
-    tsc_hint,
-    yamllint_hint,
-};
 
 #[derive(Clone, Debug)]
 pub(crate) struct ToolStatus {

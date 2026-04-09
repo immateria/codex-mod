@@ -14,12 +14,16 @@ pub const MAX_SNIPPET_CHARS: usize = 800;
 
 const INITIAL_DELAY_MS: u64 = 200;
 const BACKOFF_FACTOR: f64 = 2.0;
+/// Cap the exponent to avoid f64 overflow when `attempt` is very large.
+const MAX_BACKOFF_EXPONENT: u32 = 31;
 
 pub(crate) fn backoff(attempt: u64) -> Duration {
-    let exp = BACKOFF_FACTOR.powi(attempt.saturating_sub(1) as i32);
-    let base = (INITIAL_DELAY_MS as f64 * exp) as u64;
+    let exp_power = (attempt.saturating_sub(1)).min(MAX_BACKOFF_EXPONENT as u64) as u32;
+    let exp = BACKOFF_FACTOR.powi(exp_power as i32);
+    let base_f = (INITIAL_DELAY_MS as f64 * exp).clamp(0.0, u64::MAX as f64);
     let jitter = rand::rng().random_range(0.9..1.1);
-    Duration::from_millis((base as f64 * jitter) as u64)
+    let ms = (base_f * jitter).clamp(0.0, u64::MAX as f64) as u64;
+    Duration::from_millis(ms)
 }
 
 /// Format byte counts with binary units (`KiB`, `MiB`, `GiB`).
