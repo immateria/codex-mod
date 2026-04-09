@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
@@ -77,13 +78,13 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                 }
             },
             Some(_) => {
-                let done = match action {
-                    ExecAction::Read => "Read".to_string(),
-                    ExecAction::Search => "Search".to_string(),
-                    ExecAction::List => "List".to_string(),
+                let done: Cow<'static, str> = match action {
+                    ExecAction::Read => "Read".into(),
+                    ExecAction::Search => "Search".into(),
+                    ExecAction::List => "List".into(),
                     ExecAction::Run => match &ctx_path {
-                        Some(p) => format!("Ran in {p}"),
-                        None => "Ran".to_string(),
+                        Some(p) => format!("Ran in {p}").into(),
+                        None => "Ran".into(),
                     },
                 };
                 if matches!(
@@ -158,7 +159,7 @@ pub(crate) fn exec_render_parts_parsed_with_meta(
                     Style::default().add_modifier(Modifier::DIM),
                 ));
             }
-            match label.as_str() {
+            match &*label {
                 "Search" => {
                     let remaining = line_text.to_string();
                     let (terms_part, path_part) = if let Some(idx) = remaining.rfind(" (in ") {
@@ -464,8 +465,7 @@ fn new_parsed_command(
                 ));
             }
 
-            match label.as_str() {
-                // Highlight searched terms in normal text color; keep connectors/path dim
+            match &*label {
                 "Search" => {
                     let remaining = line_text.to_string();
                     // Split off optional path suffix. Support both " (in ...)" and " in <dir>/" forms.
@@ -690,29 +690,29 @@ fn format_search_query(q: &str) -> String {
 fn command_label_content(
     parsed: &ParsedCommand,
     search_paths: &HashSet<String>,
-) -> (String, String) {
+) -> (Cow<'static, str>, Cow<'static, str>) {
     match parsed {
         ParsedCommand::Read { name, cmd, .. } => {
             let mut c = name.clone();
             if let Some(ann) = parse_read_line_annotation(cmd) {
                 c = format!("{c} {ann}");
             }
-            ("Read".to_string(), c)
+            (Cow::Borrowed("Read"), Cow::Owned(c))
         }
         ParsedCommand::ListFiles { cmd: _, path } => match path {
             Some(p) => {
                 if search_paths.contains(p) {
-                    (String::new(), String::new())
+                    (Cow::Borrowed(""), Cow::Borrowed(""))
                 } else {
                     let display_p = if p.ends_with('/') {
                         p.clone()
                     } else {
                         format!("{p}/")
                     };
-                    ("List".to_string(), display_p)
+                    (Cow::Borrowed("List"), Cow::Owned(display_p))
                 }
             }
-            None => ("List".to_string(), "./".to_string()),
+            None => (Cow::Borrowed("List"), Cow::Borrowed("./")),
         },
         ParsedCommand::Search { query, path, cmd } => {
             match (query.as_deref(), path.as_deref()) {
@@ -723,30 +723,30 @@ fn command_label_content(
                         format!("{p}/")
                     };
                     (
-                        "Search".to_string(),
-                        format!("{} in {}", format_search_query(q), display_p),
+                        Cow::Borrowed("Search"),
+                        Cow::Owned(format!("{} in {}", format_search_query(q), display_p)),
                     )
                 }
-                (Some(q), None) => ("Search".to_string(), format_search_query(q)),
+                (Some(q), None) => (Cow::Borrowed("Search"), Cow::Owned(format_search_query(q))),
                 (None, Some(p)) => {
                     let display_p = if p.ends_with('/') {
                         p.to_string()
                     } else {
                         format!("{p}/")
                     };
-                    ("Search".to_string(), format!(" in {display_p}"))
+                    (Cow::Borrowed("Search"), Cow::Owned(format!(" in {display_p}")))
                 }
-                (None, None) => ("Search".to_string(), cmd.clone()),
+                (None, None) => (Cow::Borrowed("Search"), Cow::Owned(cmd.clone())),
             }
         }
-        ParsedCommand::ReadCommand { cmd } => ("Run".to_string(), cmd.clone()),
+        ParsedCommand::ReadCommand { cmd } => (Cow::Borrowed("Run"), Cow::Owned(cmd.clone())),
         ParsedCommand::Unknown { cmd } => {
             let t = cmd.trim();
             let lower = t.to_lowercase();
             if lower.starts_with("echo") && lower.contains("---") {
-                (String::new(), String::new())
+                (Cow::Borrowed(""), Cow::Borrowed(""))
             } else {
-                ("Run".to_string(), format_inline_script_for_display(cmd))
+                (Cow::Borrowed("Run"), Cow::Owned(format_inline_script_for_display(cmd)))
             }
         }
     }
