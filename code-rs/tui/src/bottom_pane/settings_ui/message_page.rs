@@ -25,6 +25,7 @@ pub(crate) struct SettingsMessagePage<'a> {
     body_lines: Vec<Line<'static>>,
     body_wrap: bool,
     body_style: Style,
+    body_scroll: u16,
 }
 
 pub(crate) struct SettingsMessagePageFramed<'p, 'a> {
@@ -49,12 +50,35 @@ impl<'a> SettingsMessagePage<'a> {
             body_lines,
             body_wrap: true,
             body_style: Style::new().bg(colors::background()).fg(colors::text()),
+            body_scroll: 0,
         }
     }
 
     pub(crate) fn with_min_body_rows(mut self, min_body_rows: usize) -> Self {
         self.page = self.page.with_min_body_rows(min_body_rows);
         self
+    }
+
+    /// Set the vertical scroll offset (in lines) for the body content.
+    #[cfg(test)]
+    pub(crate) fn with_body_scroll(mut self, scroll: u16) -> Self {
+        self.body_scroll = scroll;
+        self
+    }
+
+    /// Return the number of wrapped body lines that overflow the given
+    /// `body_height`.  Returns 0 when all content fits.
+    #[cfg(test)]
+    pub(crate) fn body_overflow(&self, body_width: u16, body_height: u16) -> usize {
+        if self.body_lines.is_empty() || body_width == 0 || body_height == 0 {
+            return 0;
+        }
+        let mut paragraph = Paragraph::new(self.body_lines.clone());
+        if self.body_wrap {
+            paragraph = paragraph.wrap(Wrap { trim: true });
+        }
+        let total = paragraph.line_count(body_width);
+        total.saturating_sub(body_height as usize)
     }
 
     pub(crate) fn framed(&self) -> SettingsMessagePageFramed<'_, 'a> {
@@ -94,7 +118,8 @@ impl<'a> SettingsMessagePage<'a> {
         if layout.body.width > 0 && layout.body.height > 0 && !self.body_lines.is_empty() {
             let mut paragraph = Paragraph::new(self.body_lines.clone())
                 .alignment(Alignment::Left)
-                .style(self.body_style);
+                .style(self.body_style)
+                .scroll((self.body_scroll, 0));
             if self.body_wrap {
                 paragraph = paragraph.wrap(Wrap { trim: true });
             }
@@ -195,5 +220,43 @@ mod tests {
             page.render_in_chrome(ChromeMode::ContentOnly, area, &mut chrome_buf),
             page.content_only().render(area, &mut concrete_buf)
         );
+    }
+
+    #[test]
+    fn body_scroll_and_overflow() {
+        // Create body content with 10 lines in a small area that can show 3.
+        let body_lines: Vec<Line<'static>> = (0..10)
+            .map(|i| Line::from(format!("line {i}")))
+            .collect();
+        let page = SettingsMessagePage::new(
+            "Scroll",
+            SettingsPanelStyle::bottom_pane_padded(),
+            vec![Line::from("hdr")],
+            body_lines,
+            vec![Line::from("ftr")],
+        )
+        .with_min_body_rows(3);
+
+        let area = Rect::new(0, 0, 30, 10);
+        let layout = page.framed().layout(area).expect("layout");
+        let overflow = page.body_overflow(layout.body.width, layout.body.height);
+        assert!(overflow > 0, "10 body lines should overflow a 3-row body");
+
+        // Render without scroll — first line visible.
+        let mut buf = Buffer::empty(area);
+        page.framed().render(area, &mut buf);
+        let first_row = (layout.body.x..layout.body.x + layout.body.width)
+            .map(|x| buf.cell((x, layout.body.y)).unwrap().symbol().to_string())
+            .collect::<String>();
+        assert!(first_row.contains("line 0"), "first visible row should be line 0");
+
+        // Render with scroll offset — "line 0" should no longer be first.
+        let scrolled = page.with_body_scroll(5);
+        let mut buf2 = Buffer::empty(area);
+        scrolled.framed().render(area, &mut buf2);
+        let scrolled_row = (layout.body.x..layout.body.x + layout.body.width)
+            .map(|x| buf2.cell((x, layout.body.y)).unwrap().symbol().to_string())
+            .collect::<String>();
+        assert!(scrolled_row.contains("line 5"), "after scroll=5, first visible row should be line 5");
     }
 }

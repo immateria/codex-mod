@@ -106,8 +106,9 @@ impl McpSettingsView {
             });
         list_block.render(layout.list_rect, buf);
 
-        let list_lines = self.list_lines(layout.list_inner.width as usize);
-        let list_scroll_top = self.list_scroll_top(layout.list_inner.height);
+        let list_width = layout.list_inner.width as usize;
+        let list_lines = self.list_lines(list_width);
+        let list_scroll_top = self.list_scroll_top(layout.list_inner.height, list_width);
         Paragraph::new(list_lines)
             .style(
                 Style::default()

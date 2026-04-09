@@ -5,18 +5,36 @@ use crate::ui_interaction::{centered_scroll_top, contains_point};
 use super::McpSettingsView;
 
 impl McpSettingsView {
-    fn list_prefix_lines(&self) -> usize {
-        // `list_lines()` renders a two-line empty-state header when there are no servers.
-        if self.rows.is_empty() { 2 } else { 0 }
+    /// Number of non-selectable lines before the first server row.
+    ///
+    /// This must mirror the exact output of `list_lines()` so scroll
+    /// calculations and mouse hit-tests stay correct.  `list_width` is
+    /// the same value passed to `list_lines()` (i.e. `list_inner.width`).
+    fn list_prefix_lines(&self, list_width: usize) -> usize {
+        let content_width = list_width.saturating_sub(2).max(1);
+        let error_lines = if let Some(err) = &self.startup_error {
+            let wrapped_count = textwrap::wrap(err, content_width).len();
+            // header + blank + wrapped lines + trailing blank
+            3 + wrapped_count
+        } else {
+            0
+        };
+        let empty_state_lines = if self.rows.is_empty() && self.startup_error.is_none() {
+            // "No MCP servers configured." + blank
+            2
+        } else {
+            0
+        };
+        error_lines + empty_state_lines
     }
 
-    fn list_total_lines(&self) -> usize {
-        let prefix = self.list_prefix_lines();
+    fn list_total_lines(&self, list_width: usize) -> usize {
+        let prefix = self.list_prefix_lines(list_width);
         prefix + self.rows.len() + 4
     }
 
-    fn list_selection_line_index(&self) -> usize {
-        let prefix = self.list_prefix_lines();
+    fn list_selection_line_index(&self, list_width: usize) -> usize {
+        let prefix = self.list_prefix_lines(list_width);
         let row_lines = self.rows.len();
 
         if self.selected < self.rows.len() {
@@ -31,8 +49,8 @@ impl McpSettingsView {
         }
     }
 
-    fn list_selection_at_line_index(&self, line_index: usize) -> Option<usize> {
-        let prefix = self.list_prefix_lines();
+    fn list_selection_at_line_index(&self, line_index: usize, list_width: usize) -> Option<usize> {
+        let prefix = self.list_prefix_lines(list_width);
         let row_lines = self.rows.len();
 
         if line_index < prefix {
@@ -58,10 +76,10 @@ impl McpSettingsView {
         None
     }
 
-    pub(super) fn list_scroll_top(&self, viewport_height: u16) -> usize {
+    pub(super) fn list_scroll_top(&self, viewport_height: u16, list_width: usize) -> usize {
         centered_scroll_top(
-            self.list_selection_line_index(),
-            self.list_total_lines(),
+            self.list_selection_line_index(list_width),
+            self.list_total_lines(list_width),
             viewport_height as usize,
         )
     }
@@ -75,15 +93,16 @@ impl McpSettingsView {
     }
 
     pub(super) fn server_index_at_mouse_row(&self, list_inner: Rect, row: u16) -> Option<usize> {
+        let list_width = list_inner.width as usize;
         let y0 = list_inner.y;
         let y1 = list_inner.y.saturating_add(list_inner.height);
         if row < y0 || row >= y1 {
             return None;
         }
         let rel_y = row.saturating_sub(list_inner.y) as usize;
-        let scroll_top = self.list_scroll_top(list_inner.height);
+        let scroll_top = self.list_scroll_top(list_inner.height, list_width);
         let line = scroll_top.saturating_add(rel_y);
-        self.list_selection_at_line_index(line)
+        self.list_selection_at_line_index(line, list_width)
     }
 
     pub(super) fn server_index_at_mouse_position(
@@ -96,10 +115,11 @@ impl McpSettingsView {
             return None;
         }
 
+        let list_width = list_inner.width as usize;
         let rel_y = row.saturating_sub(list_inner.y) as usize;
-        let scroll_top = self.list_scroll_top(list_inner.height);
+        let scroll_top = self.list_scroll_top(list_inner.height, list_width);
         let line_idx = scroll_top.saturating_add(rel_y);
-        self.list_selection_at_line_index(line_idx)
+        self.list_selection_at_line_index(line_idx, list_width)
     }
 
     pub(super) fn tool_index_at_mouse_row(&self, tools_inner: Rect, row: u16) -> Option<usize> {
