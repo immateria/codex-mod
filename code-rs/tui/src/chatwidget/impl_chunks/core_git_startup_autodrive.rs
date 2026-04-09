@@ -45,7 +45,7 @@ impl ChatWidget<'_> {
             .output()
             .await
         {
-            Ok(out) if out.status.success() => Ok(String::from_utf8_lossy(&out.stdout).to_string()),
+            Ok(out) if out.status.success() => Ok(String::from_utf8_lossy(&out.stdout).into_owned()),
             Ok(out) => {
                 let stderr_s = String::from_utf8_lossy(&out.stderr).trim().to_string();
                 let stdout_s = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -74,7 +74,7 @@ impl ChatWidget<'_> {
             .output()
             .await
         {
-            Ok(out) if out.status.success() => Ok(String::from_utf8_lossy(&out.stdout).to_string()),
+            Ok(out) if out.status.success() => Ok(String::from_utf8_lossy(&out.stdout).into_owned()),
             Ok(out) => {
                 let stderr_s = String::from_utf8_lossy(&out.stderr).trim().to_string();
                 let stdout_s = String::from_utf8_lossy(&out.stdout).trim().to_string();

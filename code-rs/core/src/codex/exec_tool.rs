@@ -224,7 +224,7 @@ pub(crate) async fn handle_wait(
                     if now >= deadline {
                         let tail_text = tail
                             .as_ref()
-                            .map(|arc| String::from_utf8_lossy(&crate::codex::lock_or_panic!(arc)).to_string())
+                            .map(|arc| String::from_utf8_lossy(&crate::codex::lock_or_panic!(arc)).into_owned())
                             .unwrap_or_default();
                         let msg = if tail_text.is_empty() {
                             format!("Background job {call_id} still running...")
@@ -2061,7 +2061,7 @@ pub(crate) async fn handle_container_exec_with_params(
 
     // Still running: mark as backgrounded and return background notice + tail and instructions
     backgrounded.store(true, std::sync::atomic::Ordering::Relaxed);
-    let tail = String::from_utf8_lossy(&crate::codex::lock_or_panic!(tail_buf)).to_string();
+    let tail = String::from_utf8_lossy(&crate::codex::lock_or_panic!(tail_buf)).into_owned();
     let header = format!(
         "Command running in background (call_id={call_id}).\nTo wait: wait(call_id=\"{call_id}\")\nYou can continue other work or wait. You'll be notified when the command completes."
     );

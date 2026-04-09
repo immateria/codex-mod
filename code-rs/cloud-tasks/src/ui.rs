@@ -815,12 +815,12 @@ fn render_task_item(_app: &App, t: &code_cloud_tasks_client::TaskSummary) -> Lis
             " ".into(),
             "•".dim(),
             " ".into(),
-            format!("{files}").into(),
+            files.to_string().into(),
             " ".into(),
             "files".dim(),
         ])
     } else {
-        Line::from("no diff".to_string().dim())
+        Line::from("no diff".dim())
     };
 
     // Insert a blank spacer line after the summary to separate tasks

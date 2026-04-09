@@ -3690,7 +3690,7 @@ async fn run_thread_event_loop(
                         ).await;
                     }
                     code_core::protocol::EventMsg::ExecCommandOutputDelta(delta) => {
-                        let delta_text = String::from_utf8_lossy(&delta.chunk).to_string();
+                        let delta_text = String::from_utf8_lossy(&delta.chunk).into_owned();
                         broadcast_server_notification(
                             outgoing.as_ref(),
                             &thread_state,

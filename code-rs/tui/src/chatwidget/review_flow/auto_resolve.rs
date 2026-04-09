@@ -1,5 +1,13 @@
+use std::fmt::Write as _;
+
 use super::super::*;
 use code_protocol::protocol::ReviewTarget;
+
+/// Append a "Commit under review: <sha> (short SHA <short>). <instruction>" block.
+fn append_commit_block(buf: &mut String, sha: &str, instruction: &str) {
+    let short = &sha[..sha.len().min(7)];
+    let _ = write!(buf, "\n\nCommit under review: {sha} (short SHA {short}). {instruction}");
+}
 
 impl ChatWidget<'_> {
     pub(in crate::chatwidget) fn auto_resolve_enabled(&self) -> bool {
@@ -172,29 +180,23 @@ impl ChatWidget<'_> {
             "You are continuing an automated /review resolution loop. Review the listed findings and determine whether they represent real issues introduced by our changes. If they are, apply the necessary fixes and resolve any similar issues you can identify before responding."
         );
         if !summary.is_empty() {
-            preface.push_str("\n\nFindings:\n");
-            preface.push_str(&summary);
+            let _ = write!(preface, "\n\nFindings:\n{summary}");
         }
         if let Some(commit) = self.auto_resolve_commit_sha() {
-                let short_sha = &commit[..commit.len().min(7)];
-                preface.push_str("\n\nCommit under review: ");
-                preface.push_str(&commit);
-                preface.push_str(" (short SHA ");
-                preface.push_str(short_sha);
-                preface.push_str(
-                    "). If you make changes to address these findings, amend this commit before responding so the review target reflects your fixes.",
-                );
-            }
+            append_commit_block(
+                &mut preface,
+                &commit,
+                "If you make changes to address these findings, amend this commit before responding so the review target reflects your fixes.",
+            );
+        }
 
         // Pass the full structured output so the resolving agent sees file paths and line ranges.
         if let Ok(raw_json) = serde_json::to_string_pretty(review) {
-            preface.push_str("\n\nFull review JSON (includes file paths and line ranges):\n");
-            preface.push_str(&raw_json);
+            let _ = write!(preface, "\n\nFull review JSON (includes file paths and line ranges):\n{raw_json}");
         }
 
         if let Some(context) = self.turn_context_block() {
-            preface.push_str("\n\n");
-            preface.push_str(&context);
+            let _ = write!(preface, "\n\n{context}");
         }
 
         self.auto_resolve_notice("Auto-resolve: asking the agent to verify and address the review findings.");
@@ -210,28 +212,22 @@ impl ChatWidget<'_> {
             "You are evaluating whether the latest fixes resolved the findings from `/review`. Respond with a strict JSON object containing `status` and optional `rationale`. Valid `status` values: `review_again`, `no_issue`, `continue_fix`. Do not include any additional text before or after the JSON."
         );
         if !summary.is_empty() {
-            preface.push_str("\n\nOriginal findings:\n");
-            preface.push_str(&summary);
+            let _ = write!(preface, "\n\nOriginal findings:\n{summary}");
         }
         if let Some(fix) = fix_message.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
-            preface.push_str("\n\nLatest agent response:\n");
-            preface.push_str(fix);
+            let _ = write!(preface, "\n\nLatest agent response:\n{fix}");
         }
         preface.push_str("\n\nReturn JSON: {\"status\": \"...\", \"rationale\": \"optional explanation\"}.");
         if let Some(commit) = self.auto_resolve_commit_sha() {
-                let short_sha = &commit[..commit.len().min(7)];
-                preface.push_str("\n\nCommit under review: ");
-                preface.push_str(&commit);
-                preface.push_str(" (short SHA ");
-                preface.push_str(short_sha);
-                preface.push_str(
-                    "). Confirm that any fixes have been committed (amend the commit if necessary) before returning `no_issue`.",
-                );
-            }
+            append_commit_block(
+                &mut preface,
+                &commit,
+                "Confirm that any fixes have been committed (amend the commit if necessary) before returning `no_issue`.",
+            );
+        }
 
         if let Some(context) = self.turn_context_block() {
-            preface.push_str("\n\n");
-            preface.push_str(&context);
+            let _ = write!(preface, "\n\n{context}");
         }
 
         self.auto_resolve_notice("Auto-resolve: requesting status JSON from the agent.");
@@ -244,12 +240,10 @@ impl ChatWidget<'_> {
             "The previous status check indicated more work is required on the review findings. Continue addressing the remaining issues before responding."
         );
         if !summary.is_empty() {
-            preface.push_str("\n\nOutstanding findings:\n");
-            preface.push_str(&summary);
+            let _ = write!(preface, "\n\nOutstanding findings:\n{summary}");
         }
         if let Some(context) = self.turn_context_block() {
-            preface.push_str("\n\n");
-            preface.push_str(&context);
+            let _ = write!(preface, "\n\n{context}");
         }
         self.auto_resolve_notice("Auto-resolve: asking the agent to continue working on the findings.");
         self.submit_hidden_text_message_with_preface("Please continue".to_string(), preface);
@@ -300,23 +294,18 @@ impl ChatWidget<'_> {
         if let Some(last_review) = state_snapshot.last_review.as_ref() {
             let recap = Self::auto_resolve_format_findings(last_review);
             if !recap.is_empty() {
-                continued_prompt.push_str("\n\nPreviously reported findings to re-validate:\n");
-                continued_prompt.push_str(&recap);
+                let _ = write!(continued_prompt, "\n\nPreviously reported findings to re-validate:\n{recap}");
             }
         }
         if let ReviewTarget::Commit { sha, .. } = &state_snapshot.target
             && let Some(true) = self.worktree_has_uncommitted_changes()
         {
-            continued_prompt.push_str(
-                "\n\nNote: there are uncommitted changes in the working tree since commit ",
-            );
-            continued_prompt.push_str(sha);
-            continued_prompt.push_str(
-                ". Ensure the review covers the updated workspace rather than only the original commit snapshot.",
+            let _ = write!(
+                continued_prompt,
+                "\n\nNote: there are uncommitted changes in the working tree since commit {sha}. Ensure the review covers the updated workspace rather than only the original commit snapshot.",
             );
         }
-        continued_prompt.push_str("\n\n");
-        continued_prompt.push_str(AUTO_RESOLVE_REVIEW_FOLLOWUP);
+        let _ = write!(continued_prompt, "\n\n{AUTO_RESOLVE_REVIEW_FOLLOWUP}");
         let hint = (!next_hint.trim().is_empty()).then(|| next_hint.clone());
         self.begin_review(next_target.clone(), continued_prompt, hint, Some(prep_label));
         if let Some(state) = self.auto_resolve_state.as_mut() {

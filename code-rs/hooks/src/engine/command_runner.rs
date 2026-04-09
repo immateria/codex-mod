@@ -75,8 +75,8 @@ pub(crate) async fn run_command(
             completed_at: chrono::Utc::now().timestamp(),
             duration_ms: started.elapsed().as_millis().try_into().unwrap_or(i64::MAX),
             exit_code: output.status.code(),
-            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
             error: None,
         },
         Ok(Err(err)) => CommandRunResult {

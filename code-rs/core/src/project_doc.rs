@@ -146,7 +146,7 @@ async fn read_project_doc_parts_with_candidates(
             );
         }
 
-        let text = String::from_utf8_lossy(&data).to_string();
+        let text = String::from_utf8_lossy(&data).into_owned();
         if !text.trim().is_empty() {
             parts.push(text);
             remaining = remaining.saturating_sub(data.len() as u64);

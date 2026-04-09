@@ -148,7 +148,7 @@ fn truncate_message(message: &str, max_bytes: usize) -> Cow<'_, str> {
         return Cow::Borrowed(message);
     }
     let bytes = message.as_bytes();
-    let head = String::from_utf8_lossy(&bytes[..max_bytes]).to_string();
+    let head = String::from_utf8_lossy(&bytes[..max_bytes]).into_owned();
     Cow::Owned(format!("{head}\n...truncated..."))
 }
 

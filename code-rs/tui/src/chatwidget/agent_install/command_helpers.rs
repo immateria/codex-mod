@@ -9,7 +9,7 @@ fn collect_command_output(
             Err(_) => return Ok(None),
         }
     };
-    let text = String::from_utf8_lossy(&buf).to_string();
+    let text = String::from_utf8_lossy(&buf).into_owned();
     Ok(Some((text, exit_code)))
 }
 
