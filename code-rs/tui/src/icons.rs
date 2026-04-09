@@ -653,3 +653,18 @@ pub fn is_spinner(s:     &str) -> bool { matches!(s, "◐" | "◓" | "◑" | "�
 pub fn is_context(s:     &str) -> bool { GUTTER_CONTEXT.matches(s) }
 pub fn is_compaction(s:  &str) -> bool { GUTTER_COMPACTION.matches(s) }
 pub fn is_background(s:  &str) -> bool { GUTTER_BACKGROUND.matches(s) }
+
+// ── Selection prefix helper ──────────────────────────────────────────
+use std::borrow::Cow;
+
+/// Returns `"› "` (or equivalent) when `selected`, or `"  "` otherwise.
+///
+/// Uses `Cow::Borrowed` for the unselected case to avoid a heap allocation
+/// on every unselected row in list views (the common path).
+pub fn selection_prefix(selected: bool) -> Cow<'static, str> {
+    if selected {
+        format!("{} ", pointer_active()).into()
+    } else {
+        Cow::Borrowed("  ")
+    }
+}

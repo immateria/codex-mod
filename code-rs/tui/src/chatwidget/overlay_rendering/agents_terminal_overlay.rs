@@ -238,7 +238,7 @@ impl ChatWidget<'_> {
                         .is_some_and(|entry| matches!(entry, AgentsSidebarEntry::Agent(id) if *id == agent_id));
                     let prefix_span = if is_selected {
                         Span::styled(
-                            format!("{} ", crate::icons::pointer_active()),
+                            crate::icons::selection_prefix(true),
                             Style::default().fg(crate::colors::primary()),
                         )
                     } else {

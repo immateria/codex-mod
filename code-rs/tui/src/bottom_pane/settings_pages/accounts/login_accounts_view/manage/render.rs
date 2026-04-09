@@ -173,7 +173,7 @@ impl LoginAccountsState {
                 };
 
                 let mut spans = vec![
-                    Span::styled(if selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() }, arrow_style),
+                    Span::styled(crate::icons::selection_prefix(selected), arrow_style),
                     Span::styled(account.label.clone(), label_style),
                     Span::styled(
                         format!("  [{}]", Self::account_mode_badge(account.mode)),
@@ -202,7 +202,7 @@ impl LoginAccountsState {
         )]));
         lines.push(Line::from(vec![
             Span::styled(
-                if add_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
+                crate::icons::selection_prefix(add_selected),
                 if add_selected {
                     Style::default().fg(crate::colors::primary())
                 } else {
@@ -224,7 +224,7 @@ impl LoginAccountsState {
         let store_selected = self.selected == self.store_paths_index();
         lines.push(Line::from(vec![
             Span::styled(
-                if store_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
+                crate::icons::selection_prefix(store_selected),
                 if store_selected {
                     Style::default().fg(crate::colors::primary())
                 } else {

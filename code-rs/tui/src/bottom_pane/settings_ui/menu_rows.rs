@@ -189,11 +189,7 @@ where
             .label_pad_cols
             .map(|_| u16::try_from(self.label.as_ref().width()).unwrap_or(u16::MAX));
 
-        let pointer = if selected {
-            format!("{} ", crate::icons::pointer_active())
-        } else {
-            "  ".to_string()
-        };
+        let pointer = crate::icons::selection_prefix(selected);
         let mut spans = vec![
             Span::styled(pointer, arrow_style),
         ];
@@ -272,11 +268,7 @@ fn menu_row_run_with_width<'a, Id: Copy + PartialEq>(
     let mut used_cols = 0usize;
     let mut spans = Vec::new();
 
-    let pointer = if selected {
-        format!("{} ", crate::icons::pointer_active())
-    } else {
-        "  ".to_string()
-    };
+    let pointer = crate::icons::selection_prefix(selected);
     let _ = push_text_clipped(
         &mut spans,
         &mut used_cols,

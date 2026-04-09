@@ -50,7 +50,7 @@ impl AgentsSettingsContent {
 
             let mut spans = Vec::new();
             spans.push(Span::styled(
-                if selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
+                crate::icons::selection_prefix(selected),
                 if selected {
                     Style::default().fg(crate::colors::primary())
                 } else {
@@ -120,7 +120,7 @@ impl AgentsSettingsContent {
         let add_agent_selected = add_agent_idx == state.selected;
         let mut add_spans: Vec<Span<'static>> = Vec::new();
         add_spans.push(Span::styled(
-            if add_agent_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
+            crate::icons::selection_prefix(add_agent_selected),
             if add_agent_selected {
                 Style::default().fg(crate::colors::primary())
             } else {
@@ -157,7 +157,7 @@ impl AgentsSettingsContent {
             let selected = idx == state.selected;
             let mut spans = Vec::new();
             spans.push(Span::styled(
-                if selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
+                crate::icons::selection_prefix(selected),
                 if selected {
                     Style::default().fg(crate::colors::primary())
                 } else {
@@ -188,7 +188,7 @@ impl AgentsSettingsContent {
         let add_selected = add_idx == state.selected;
         let mut add_spans = Vec::new();
         add_spans.push(Span::styled(
-            if add_selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() },
+            crate::icons::selection_prefix(add_selected),
             if add_selected {
                 Style::default().fg(crate::colors::primary())
             } else {

@@ -90,15 +90,16 @@ impl McpSettingsView {
             } else {
                 row_style
             };
+            let prefix: std::borrow::Cow<'static, str> = if focused {
+                        crate::icons::selection_prefix(true)
+                    } else if hovered_row {
+                        "> ".into()
+                    } else {
+                        "  ".into()
+                    };
             let mut spans = vec![
                 Span::styled(
-                    if focused {
-                        format!("{} ", crate::icons::pointer_active())
-                    } else if hovered_row {
-                        "> ".to_string()
-                    } else {
-                        "  ".to_string()
-                    },
+                    prefix,
                     row_style,
                 ),
                 Span::styled(marker, marker_style),

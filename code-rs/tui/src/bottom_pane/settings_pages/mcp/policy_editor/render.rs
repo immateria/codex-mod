@@ -103,7 +103,7 @@ impl McpSettingsView {
             } else {
                 Style::default()
             };
-            let prefix = if selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() };
+            let prefix = crate::icons::selection_prefix(selected);
 
             let (label, value_text, field_opt): (
                 &str,
@@ -329,7 +329,7 @@ impl McpSettingsView {
             } else {
                 Style::default()
             };
-            let prefix = if selected { format!("{} ", crate::icons::pointer_active()) } else { "  ".to_string() };
+            let prefix = crate::icons::selection_prefix(selected);
 
             let label_rect = Rect {
                 x: inner.x,

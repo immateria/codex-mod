@@ -92,13 +92,8 @@ pub(crate) fn row_style(selected: bool) -> Style {
 }
 
 pub(crate) fn arrow_span(selected: bool) -> Span<'static> {
-    let text = if selected {
-        format!("{} ", crate::icons::pointer_active())
-    } else {
-        "  ".to_string()
-    };
     Span::styled(
-        text,
+        crate::icons::selection_prefix(selected),
         Style::new().fg(if selected {
             colors::primary()
         } else {
