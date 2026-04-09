@@ -37,11 +37,11 @@ impl ChatWidget<'_> {
         }
     }
 
-    async fn git_short_status(path: &std::path::Path) -> Result<String, String> {
+    async fn run_simple_git_command(path: &std::path::Path, args: &[&str], label: &str) -> Result<String, String> {
         use tokio::process::Command;
         match Command::new("git")
             .current_dir(path)
-            .args(["status", "--short"])
+            .args(args)
             .output()
             .await
         {
@@ -59,40 +59,19 @@ impl ChatWidget<'_> {
                         .code()
                         .map(|c| format!("exit status {c}"))
                         .unwrap_or_else(|| "terminated by signal".to_string());
-                    Err(format!("git status failed: {code}"))
+                    Err(format!("{label} failed: {code}"))
                 }
             }
             Err(err) => Err(err.to_string()),
         }
     }
 
+    async fn git_short_status(path: &std::path::Path) -> Result<String, String> {
+        Self::run_simple_git_command(path, &["status", "--short"], "git status").await
+    }
+
     async fn git_diff_stat(path: &std::path::Path) -> Result<String, String> {
-        use tokio::process::Command;
-        match Command::new("git")
-            .current_dir(path)
-            .args(["diff", "--stat"])
-            .output()
-            .await
-        {
-            Ok(out) if out.status.success() => Ok(String::from_utf8_lossy(&out.stdout).into_owned()),
-            Ok(out) => {
-                let stderr_s = String::from_utf8_lossy(&out.stderr).trim().to_string();
-                let stdout_s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if !stderr_s.is_empty() {
-                    Err(stderr_s)
-                } else if !stdout_s.is_empty() {
-                    Err(stdout_s)
-                } else {
-                    let code = out
-                        .status
-                        .code()
-                        .map(|c| format!("exit status {c}"))
-                        .unwrap_or_else(|| "terminated by signal".to_string());
-                    Err(format!("git diff --stat failed: {code}"))
-                }
-            }
-            Err(err) => Err(err.to_string()),
-        }
+        Self::run_simple_git_command(path, &["diff", "--stat"], "git diff --stat").await
     }
 
     pub(super) fn is_startup_mcp_error(&self, message: &str) -> bool {

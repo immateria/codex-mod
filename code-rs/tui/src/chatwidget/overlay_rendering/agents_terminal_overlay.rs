@@ -235,8 +235,7 @@ impl ChatWidget<'_> {
                     let color = agent_status_color(status);
                     let is_selected = selected_entry
                         .as_ref()
-                        .map(|entry| entry == &AgentsSidebarEntry::Agent(agent_id.clone()))
-                        .unwrap_or(false);
+                        .is_some_and(|entry| matches!(entry, AgentsSidebarEntry::Agent(id) if *id == agent_id));
                     let prefix_span = if is_selected {
                         Span::styled(
                             format!("{} ", crate::icons::pointer_active()),

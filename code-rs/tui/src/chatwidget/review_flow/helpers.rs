@@ -1,5 +1,19 @@
 use super::super::*;
 
+/// Run a synchronous git command and return trimmed stdout if non-empty.
+fn git_stdout_trimmed(cwd: &std::path::Path, args: &[&str]) -> Option<String> {
+    let output = Command::new("git")
+        .current_dir(cwd)
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if s.is_empty() { None } else { Some(s) }
+}
+
 impl ChatWidget<'_> {
     pub(in crate::chatwidget) fn worktree_has_uncommitted_changes(&self) -> Option<bool> {
         let output = Command::new("git")
@@ -15,37 +29,11 @@ impl ChatWidget<'_> {
     }
 
     pub(in crate::chatwidget) fn current_head_commit_sha(&self) -> Option<String> {
-        let output = Command::new("git")
-            .current_dir(&self.config.cwd)
-            .args(["rev-parse", "HEAD"])
-            .output()
-            .ok()?;
-        if !output.status.success() {
-            return None;
-        }
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if stdout.is_empty() {
-            None
-        } else {
-            Some(stdout)
-        }
+        git_stdout_trimmed(&self.config.cwd, &["rev-parse", "HEAD"])
     }
 
     pub(in crate::chatwidget) fn commit_subject_for(&self, commit: &str) -> Option<String> {
-        let output = Command::new("git")
-            .current_dir(&self.config.cwd)
-            .args(["show", "-s", "--format=%s", commit])
-            .output()
-            .ok()?;
-        if !output.status.success() {
-            return None;
-        }
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if stdout.is_empty() {
-            None
-        } else {
-            Some(stdout)
-        }
+        git_stdout_trimmed(&self.config.cwd, &["show", "-s", "--format=%s", commit])
     }
 
     pub(in crate::chatwidget) fn strip_context_sections(text: &str) -> String {

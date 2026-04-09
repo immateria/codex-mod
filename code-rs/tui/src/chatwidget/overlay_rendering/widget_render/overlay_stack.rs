@@ -236,16 +236,10 @@ impl ChatWidget<'_> {
                     }
                 }
 
-                // Render selected tab with vertical scroll and highlight current diff block
+                // Render selected tab with vertical scroll
                 if let Some((_, blocks)) = overlay.tabs.get(overlay.selected) {
-                    // Flatten blocks into lines and record block start indices
-                    let mut all_lines: Vec<ratatui::text::Line<'static>> = Vec::new();
-                    let mut block_starts: Vec<(usize, usize)> = Vec::new(); // (start_index, len)
-                    for b in blocks {
-                        let start = all_lines.len();
-                        block_starts.push((start, b.lines.len()));
-                        all_lines.extend(b.lines.clone());
-                    }
+                    // Compute total line count without cloning
+                    let total_lines: usize = blocks.iter().map(|b| b.lines.len()).sum();
 
                     let raw_skip = overlay
                         .scroll_offsets
@@ -255,18 +249,32 @@ impl ChatWidget<'_> {
                     let visible_rows = body_area.height as usize;
                     // Cache visible rows so key handler can clamp
                     self.diffs.body_visible_rows.set(body_area.height);
-                    let max_off = all_lines.len().saturating_sub(visible_rows.max(1));
+                    let max_off = total_lines.saturating_sub(visible_rows.max(1));
                     let skip = raw_skip.min(max_off);
                     let body_inner = body_area;
                     let visible_rows = body_inner.height as usize;
+                    let end = (skip + visible_rows).min(total_lines);
 
-                    // Collect visible slice
-                    let end = (skip + visible_rows).min(all_lines.len());
-                    let visible = if skip < all_lines.len() {
-                        &all_lines[skip..end]
-                    } else {
-                        &[]
-                    };
+                    // Clone only the visible window of lines across blocks
+                    let mut visible_lines: Vec<ratatui::text::Line<'static>> = Vec::with_capacity(end.saturating_sub(skip));
+                    {
+                        let mut global_idx = 0usize;
+                        for b in blocks {
+                            let block_end = global_idx + b.lines.len();
+                            if block_end <= skip {
+                                global_idx = block_end;
+                                continue;
+                            }
+                            if global_idx >= end {
+                                break;
+                            }
+                            let local_start = skip.saturating_sub(global_idx);
+                            let local_end = (end - global_idx).min(b.lines.len());
+                            visible_lines.extend_from_slice(&b.lines[local_start..local_end]);
+                            global_idx = block_end;
+                        }
+                    }
+
                     // Fill body background with a slightly lighter paper-like background
                     let bg = crate::colors::background();
                     let paper_color = crate::colors::mix_toward(bg, ratatui::style::Color::White, 0.06);
@@ -288,7 +296,7 @@ impl ChatWidget<'_> {
                         let cells = (body_inner.width as u64) * (body_inner.height as u64);
                         p.cells_overlay_body_bg = p.cells_overlay_body_bg.saturating_add(cells);
                     }
-                    let paragraph = Paragraph::new(RtText::from(visible.to_vec()))
+                    let paragraph = Paragraph::new(RtText::from(visible_lines))
                         .wrap(ratatui::widgets::Wrap { trim: false });
                     ratatui::widgets::Widget::render(paragraph, body_inner, buf);
 
