@@ -66,13 +66,13 @@ impl ThemeSelectionView {
         let t_fg = Style::default().fg(crate::colors::text());
         let mut title_spans = vec![Span::styled(" ", t_dim), Span::styled("/theme", t_fg)];
         title_spans.extend_from_slice(&[
-            Span::styled(" ——— ", t_dim),
+            Span::styled(crate::ui_consts::SEP_EM, t_dim),
             Span::styled("▲ ▼ ◀ ▶", t_fg),
             Span::styled(" select ", t_dim),
-            Span::styled("——— ", t_dim),
+            Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
             Span::styled(crate::icons::enter(), t_fg),
             Span::styled(" choose ", t_dim),
-            Span::styled("——— ", t_dim),
+            Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
             Span::styled(crate::icons::escape(), t_fg),
         ]);
         if matches!(self.mode, Mode::Overview) {
@@ -129,13 +129,13 @@ impl ThemeSelectionView {
 
         let mut spans = vec![Span::styled(" ", t_dim), Span::styled("/theme", t_fg)];
         spans.extend_from_slice(&[
-            Span::styled(" ——— ", t_dim),
+            Span::styled(crate::ui_consts::SEP_EM, t_dim),
             Span::styled("▲ ▼ ◀ ▶", t_fg),
             Span::styled(" select ", t_dim),
-            Span::styled("——— ", t_dim),
+            Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
             Span::styled(crate::icons::enter(), t_fg),
             Span::styled(" choose ", t_dim),
-            Span::styled("——— ", t_dim),
+            Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
             Span::styled(crate::icons::escape(), t_fg),
         ]);
         if matches!(self.mode, Mode::Overview) {

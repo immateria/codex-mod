@@ -353,3 +353,21 @@ pub(crate) fn wrap_text(text: &str, width: usize) -> Vec<String> {
     }
     lines
 }
+
+/// Word-wrap `text` into lines that fit within `body_width` minus the given
+/// `indent_cols` and `right_padding`.  Used by card renderers (image, browser)
+/// to wrap body text inside bordered cards.
+pub(crate) fn wrap_card_lines(
+    text: &str,
+    body_width: usize,
+    indent_cols: usize,
+    right_padding: usize,
+) -> Vec<String> {
+    let available = body_width
+        .saturating_sub(indent_cols)
+        .saturating_sub(right_padding);
+    if available == 0 {
+        return vec![String::new()];
+    }
+    wrap_text(text, available)
+}

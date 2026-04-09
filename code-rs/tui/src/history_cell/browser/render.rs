@@ -21,7 +21,7 @@ use super::super::card_style::{
     CardStyle,
     HINT_BROWSER_STOP,
 };
-use crate::text_formatting::split_long_word;
+use crate::text_formatting::{wrap_card_lines, wrap_text};
 use crate::colors;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -334,7 +334,7 @@ impl BrowserSessionCell {
         let label_padding = effective_label_width.saturating_sub(label_full_width);
         let gap = " ".repeat(ACTION_LABEL_GAP);
 
-        let mut lines = wrap_line_to_width(entry.detail.as_str(), detail_width);
+        let mut lines = wrap_text(entry.detail.as_str(), detail_width);
         if lines.is_empty() {
             lines.push(String::new());
         }
@@ -629,62 +629,6 @@ impl HistoryCell for BrowserSessionCell {
             }
         }
     }
-}
-fn wrap_card_lines(text: &str, body_width: usize, indent_cols: usize, right_padding: usize) -> Vec<String> {
-    let available = body_width
-        .saturating_sub(indent_cols)
-        .saturating_sub(right_padding);
-    if available == 0 {
-        return vec![String::new()];
-    }
-    wrap_line_to_width(text, available)
-}
-
-fn wrap_line_to_width(text: &str, width: usize) -> Vec<String> {
-    if width == 0 {
-        return vec![String::new()];
-    }
-    if text.trim().is_empty() {
-        return vec![String::new()];
-    }
-
-    let mut lines: Vec<String> = Vec::new();
-    let mut current = String::new();
-    let mut current_width = 0;
-
-    let push_part = |lines: &mut Vec<String>, current: &mut String, current_width: &mut usize, part: String, width: usize| {
-        let part_width = string_display_width(&part);
-        if current.is_empty() {
-            *current = part;
-            *current_width = part_width;
-        } else if *current_width + 1 + part_width > width {
-            lines.push(std::mem::replace(current, part));
-            *current_width = part_width;
-        } else {
-            current.push(' ');
-            current.push_str(&part);
-            *current_width += 1 + part_width;
-        }
-    };
-
-    for word in text.split_whitespace() {
-        if string_display_width(word) > width {
-            for part in split_long_word(word, width) {
-                push_part(&mut lines, &mut current, &mut current_width, part, width);
-            }
-        } else {
-            push_part(&mut lines, &mut current, &mut current_width, word.to_string(), width);
-        }
-    }
-
-    if !current.is_empty() {
-        lines.push(current);
-    }
-
-    if lines.is_empty() {
-        lines.push(String::new());
-    }
-    lines
 }
 
 use crate::text_formatting::string_display_width;

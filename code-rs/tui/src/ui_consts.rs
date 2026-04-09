@@ -7,6 +7,14 @@
 /// Middle-dot separator used between metadata items (model, timestamp, tokens).
 pub(crate) const SEP_DOT: &str = " · ";
 
+/// Em-dash separator with surrounding spaces — used between title and first
+/// hint group in overlay title bars (diff viewer, theme picker, guide).
+pub(crate) const SEP_EM: &str = " ——— ";
+
+/// Em-dash separator with trailing space only — used between successive hint
+/// groups in overlay title bars (e.g. "explain ——— undo ——— close").
+pub(crate) const SEP_EM_CONT: &str = "——— ";
+
 // ---------------------------------------------------------------------------
 // Standard layout margins — shared across settings panels, overlays, etc.
 // ---------------------------------------------------------------------------

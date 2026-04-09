@@ -84,19 +84,19 @@ impl ChatWidget<'_> {
                 ];
                 if has_tabs {
                     title_spans.extend_from_slice(&[
-                        ratatui::text::Span::styled(" ——— ", t_dim),
+                        ratatui::text::Span::styled(crate::ui_consts::SEP_EM, t_dim),
                         ratatui::text::Span::styled(format!("{} {}", crate::icons::tab_prev(), crate::icons::tab_next()), t_fg),
                         ratatui::text::Span::styled(" change tabs ", t_dim),
                     ]);
                 }
                 title_spans.extend_from_slice(&[
-                    ratatui::text::Span::styled("——— ", t_dim),
+                    ratatui::text::Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
                     ratatui::text::Span::styled("e", t_fg),
                     ratatui::text::Span::styled(" explain ", t_dim),
-                    ratatui::text::Span::styled("——— ", t_dim),
+                    ratatui::text::Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
                     ratatui::text::Span::styled("u", t_fg),
                     ratatui::text::Span::styled(" undo ", t_dim),
-                    ratatui::text::Span::styled("——— ", t_dim),
+                    ratatui::text::Span::styled(crate::ui_consts::SEP_EM_CONT, t_dim),
                     ratatui::text::Span::styled(crate::icons::escape(), t_fg),
                     ratatui::text::Span::styled(" close ", t_dim),
                 ]);
@@ -392,7 +392,7 @@ impl ChatWidget<'_> {
                                 Style::default().fg(crate::colors::text()),
                             ),
                             ratatui::text::Span::styled(
-                                " ——— ",
+                                crate::ui_consts::SEP_EM,
                                 Style::default().fg(crate::colors::text_dim()),
                             ),
                             ratatui::text::Span::styled(

@@ -18,7 +18,7 @@ use super::card_style::{
 };
 use super::*;
 use crate::colors;
-use crate::text_formatting::wrap_text;
+use crate::text_formatting::wrap_card_lines;
 use crate::history::state::ImageRecord;
 use code_protocol::num_format::format_with_separators_u64;
 use ::image::ImageReader;
@@ -628,12 +628,4 @@ impl HistoryCell for ImageOutputCell {
     }
 }
 
-fn wrap_card_lines(text: &str, body_width: usize, indent_cols: usize, right_padding: usize) -> Vec<String> {
-    let available = body_width
-        .saturating_sub(indent_cols)
-        .saturating_sub(right_padding);
-    if available == 0 {
-        return vec![String::new()];
-    }
-    wrap_text(text, available)
-}
+
