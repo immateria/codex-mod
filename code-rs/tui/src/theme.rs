@@ -945,26 +945,9 @@ fn color_to_rgb(color: Color) -> (u8, u8, u8) {
         Color::LightMagenta => (255, 102, 255),
         Color::LightCyan => (102, 255, 255),
         Color::White => (255, 255, 255),
-        Color::Indexed(idx) => ansi256_to_rgb(idx),
+        Color::Indexed(idx) => crate::colors::ansi256_to_rgb(idx),
         Color::Reset => (255, 255, 255),
     }
-}
-
-fn ansi256_to_rgb(idx: u8) -> (u8, u8, u8) {
-    if idx < 16 {
-        return ANSI16_COLORS[idx as usize];
-    }
-    if (16..=231).contains(&idx) {
-        let offset = idx - 16;
-        let r = offset / 36;
-        let g = (offset % 36) / 6;
-        let b = offset % 6;
-        let steps = [0, 95, 135, 175, 215, 255];
-        return (steps[r as usize], steps[g as usize], steps[b as usize]);
-    }
-    let level = idx.saturating_sub(232);
-    let value = 8 + 10 * level;
-    (value, value, value)
 }
 
 /// Get a predefined theme by name

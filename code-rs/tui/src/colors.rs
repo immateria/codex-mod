@@ -167,7 +167,7 @@ pub(crate) fn color_to_rgb(c: Color) -> (u8, u8, u8) {
 
 // Convert an ANSI-256 color index into an approximate RGB triple using the
 // standard xterm 256-color palette: 0–15 ANSI, 16–231 6×6×6 cube, 232–255 grayscale.
-fn ansi256_to_rgb(i: u8) -> (u8, u8, u8) {
+pub(crate) fn ansi256_to_rgb(i: u8) -> (u8, u8, u8) {
     // ANSI 16 base colors
     const ANSI16: [(u8, u8, u8); 16] = [
         (0, 0, 0),       // 0 black
