@@ -68,15 +68,12 @@ impl SettingsOverlayView {
             return;
         }
 
-        let line = Line::from(vec![
-            Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::text())),
-            Span::styled(" Move    ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::text())),
-            Span::styled(" Open    ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::text())),
-            Span::styled(" Close    ", Style::default().fg(crate::colors::text_dim())),
-            Span::styled("?", Style::default().fg(crate::colors::text())),
-            Span::styled(" Help", Style::default().fg(crate::colors::text_dim())),
+        let line = crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+            crate::bottom_pane::settings_ui::hints::hint_nav(" Move"),
+            crate::bottom_pane::settings_ui::hints::hint_enter(" Open"),
+            crate::bottom_pane::settings_ui::hints::hint_esc(" Close"),
+            crate::bottom_pane::settings_ui::hints::KeyHint::new("?", " Help")
+                .with_key_style(Style::default().fg(crate::colors::info())),
         ]);
 
         Paragraph::new(line)

@@ -15,10 +15,6 @@ impl ValidationSettingsView {
                 "Toggle validation groups and installed tools.",
                 Style::new().fg(colors::text_dim()),
             )),
-            Line::from(Span::styled(
-                format!("Use {ud} to navigate · Enter/Space toggle · Esc close", ud = crate::icons::nav_up_down()),
-                Style::new().fg(colors::text_dim()),
-            )),
             Line::from(""),
         ]
     }

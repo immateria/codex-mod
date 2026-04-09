@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
 use crate::bottom_pane::settings_ui::buttons::{standard_button_specs, SettingsButtonKind, StandardButtonSpec};
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, title_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, hint_nav_horizontal, title_line, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
@@ -97,7 +97,7 @@ impl SecretsSettingsView {
 
     fn list_shortcuts(&self, deleting: bool) -> Vec<KeyHint<'static>> {
         let mut hints = vec![
-            KeyHint::new(crate::icons::nav_up_down(), " select").with_key_style(Style::new().fg(colors::primary())),
+            hint_nav(" select"),
             KeyHint::new("r", " refresh").with_key_style(Style::new().fg(colors::info())),
             hint_esc(" back"),
         ];
@@ -167,7 +167,7 @@ impl SecretsSettingsView {
         });
 
         let shortcuts = [
-            KeyHint::new(crate::icons::nav_left_right(), " actions").with_key_style(Style::new().fg(colors::function())),
+            hint_nav_horizontal(" actions"),
             hint_enter(" activate"),
             hint_esc(" back"),
         ];

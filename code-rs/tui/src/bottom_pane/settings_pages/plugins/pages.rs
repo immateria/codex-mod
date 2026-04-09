@@ -16,6 +16,7 @@ use crate::bottom_pane::settings_ui::hints::{
     hint_esc,
     hint_enter,
     hint_nav,
+    hint_nav_horizontal,
     status_and_shortcuts_split,
     title_line,
     KeyHint,
@@ -531,7 +532,7 @@ impl PluginsSettingsView {
             )
         });
         let shortcuts = [
-            KeyHint::new(crate::icons::nav_left_right(), " actions").with_key_style(Style::new().fg(colors::function())),
+            hint_nav_horizontal(" actions"),
             hint_enter(" activate"),
             hint_esc(" back"),
         ];

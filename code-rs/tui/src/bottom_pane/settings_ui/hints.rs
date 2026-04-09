@@ -14,6 +14,10 @@ pub(crate) struct KeyHint<'a> {
     description: Cow<'a, str>,
     key_style: Style,
     description_style: Style,
+    /// When set, these spans replace the single `key`/`key_style` pair in
+    /// `shortcut_line()`, allowing multi-colored key glyphs (e.g. bi-color
+    /// nav arrows).
+    key_spans: Option<Vec<Span<'static>>>,
 }
 
 impl<'a> KeyHint<'a> {
@@ -26,11 +30,17 @@ impl<'a> KeyHint<'a> {
             description: description.into(),
             key_style: Style::new().fg(colors::primary()),
             description_style: Style::new().fg(colors::text_dim()),
+            key_spans: None,
         }
     }
 
     pub(crate) fn with_key_style(mut self, key_style: Style) -> Self {
         self.key_style = key_style;
+        self
+    }
+
+    pub(crate) fn with_key_spans(mut self, spans: Vec<Span<'static>>) -> Self {
+        self.key_spans = Some(spans);
         self
     }
 }
@@ -85,7 +95,11 @@ pub(crate) fn shortcut_line(hints: &[KeyHint<'_>]) -> Line<'static> {
         if idx > 0 {
             spans.push(Span::raw("   "));
         }
-        spans.push(Span::styled(hint.key.clone().into_owned(), hint.key_style));
+        if let Some(key_spans) = &hint.key_spans {
+            spans.extend(key_spans.iter().cloned());
+        } else {
+            spans.push(Span::styled(hint.key.clone().into_owned(), hint.key_style));
+        }
         spans.push(Span::styled(
             hint.description.clone().into_owned(),
             hint.description_style,
@@ -94,9 +108,27 @@ pub(crate) fn shortcut_line(hints: &[KeyHint<'_>]) -> Line<'static> {
     Line::from(spans)
 }
 
-/// Navigate (↑↓) hint with `colors::function()` key style.
+/// Navigate (↑ ↓) hint with bi-colored arrows — up in `function()`, down in
+/// `primary()` — so the pair reads as two distinct arrows rather than a
+/// monochrome zigzag.
 pub(crate) fn hint_nav(description: &'static str) -> KeyHint<'static> {
-    KeyHint::new(icons::nav_up_down(), description).with_key_style(Style::new().fg(colors::function()))
+    KeyHint::new(icons::nav_up_down(), description)
+        .with_key_spans(vec![
+            Span::styled(icons::arrow_up().to_string(), Style::new().fg(colors::function())),
+            Span::raw(" "),
+            Span::styled(icons::arrow_down().to_string(), Style::new().fg(colors::primary())),
+        ])
+}
+
+/// Horizontal (◂ ▸) hint with bi-colored arrows — left in `function()`, right
+/// in `primary()`.
+pub(crate) fn hint_nav_horizontal(description: &'static str) -> KeyHint<'static> {
+    KeyHint::new(icons::nav_left_right(), description)
+        .with_key_spans(vec![
+            Span::styled(icons::arrow_left().to_string(), Style::new().fg(colors::function())),
+            Span::raw(" "),
+            Span::styled(icons::arrow_right().to_string(), Style::new().fg(colors::primary())),
+        ])
 }
 
 pub(crate) fn key_tab() -> &'static str {

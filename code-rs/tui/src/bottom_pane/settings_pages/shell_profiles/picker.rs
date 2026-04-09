@@ -334,10 +334,16 @@ impl ShellProfilesSettingsView {
     }
 
     pub(super) fn picker_footer_lines() -> Vec<Line<'static>> {
-        vec![Line::from(Span::styled(
-            format!("{ud} move  •  Space/Enter toggle  •  Ctrl+S save  •  Esc cancel", ud = crate::icons::nav_up_down()),
-            Style::default().fg(crate::colors::text_dim()),
-        ))]
+        vec![Line::from(vec![
+            Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
+            Span::styled(" move   ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("Space/Enter", Style::default().fg(crate::colors::success())),
+            Span::styled(" toggle   ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled("Ctrl+S", Style::default().fg(crate::colors::success())),
+            Span::styled(" save   ", Style::default().fg(crate::colors::text_dim())),
+            Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
+            Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
+        ])]
     }
 
     fn picker_page(&self, state: &PickListState) -> SettingsMenuPage<'static> {

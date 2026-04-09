@@ -209,14 +209,20 @@ pub fn shift_combo(key: &str) -> String {
     format!("{}+{key}", shift())
 }
 
-/// Vertical arrow pair for navigation hints (e.g. "↑↓").
+/// Vertical arrow pair for navigation hints (e.g. "↑ ↓").
+///
+/// A thin space separates the glyphs so they read as two distinct arrows
+/// rather than a single zigzag glyph.
 pub fn nav_up_down() -> String {
-    format!("{}{}", arrow_up(), arrow_down())
+    format!("{} {}", arrow_up(), arrow_down())
 }
 
-/// Horizontal arrow pair for adjust hints (e.g. "←→").
+/// Horizontal arrow pair for adjust hints (e.g. "◂ ▸").
+///
+/// A thin space separates the glyphs so they read as two distinct arrows
+/// rather than a single zigzag glyph.
 pub fn nav_left_right() -> String {
-    format!("{}{}", arrow_left(), arrow_right())
+    format!("{} {}", arrow_left(), arrow_right())
 }
 
 // ── Icon definitions ─────────────────────────────────────────────────

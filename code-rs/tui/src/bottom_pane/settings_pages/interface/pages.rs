@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
 use crate::bottom_pane::settings_ui::hints::{
-    hint_esc, hint_enter, hint_nav, key_ctrl, shortcut_line, KeyHint,
+    hint_esc, hint_enter, hint_nav, hint_nav_horizontal, key_ctrl, shortcut_line, KeyHint,
 };
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::message_page::SettingsMessagePage;
@@ -27,7 +27,7 @@ impl InterfaceSettingsView {
         let shortcuts = vec![
             hint_nav(" navigate"),
             hint_enter(" activate"),
-            KeyHint::new(crate::icons::nav_left_right(), " adjust").with_key_style(Style::new().fg(crate::colors::function())),
+            hint_nav_horizontal(" adjust"),
             KeyHint::new(key_ctrl("S"), " save").with_key_style(Style::new().fg(crate::colors::success())),
             hint_esc(" close"),
         ];

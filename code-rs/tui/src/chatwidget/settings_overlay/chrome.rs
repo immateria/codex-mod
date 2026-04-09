@@ -152,16 +152,16 @@ mod imp {
                 lines.push(Line::from(""));
             }
 
-            lines.push(Line::from(vec![
-                Span::styled(format!("{ud}/jk", ud = crate::icons::nav_up_down()), Style::default().fg(crate::colors::function())),
-                Span::styled(" move  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled(crate::icons::enter(), Style::default().fg(crate::colors::function())),
-                Span::styled(" select  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled(
+            lines.push(crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+                crate::bottom_pane::settings_ui::hints::KeyHint::new(
+                    format!("{ud}/jk", ud = crate::icons::nav_up_down()),
+                    " move",
+                ).with_key_style(Style::default().fg(crate::colors::function())),
+                crate::bottom_pane::settings_ui::hints::hint_enter(" select"),
+                crate::bottom_pane::settings_ui::hints::KeyHint::new(
                     format!("{}/q", crate::icons::escape()),
-                    Style::default().fg(crate::colors::function()),
-                ),
-                Span::styled(" cancel", Style::default().fg(crate::colors::text_dim())),
+                    " cancel",
+                ).with_key_style(Style::default().fg(crate::colors::error())),
             ]));
 
             let content_area = inner.inner(crate::ui_consts::UNIFORM_PAD);
@@ -298,7 +298,9 @@ mod android_stub {
                 Line::from("Use the internal browser tooling on desktop builds instead."),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("Enter/Esc", Style::default().fg(crate::colors::function())),
+                    Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                    Span::styled("/", Style::default().fg(crate::colors::text_dim())),
+                    Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
                     Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
                 ]),
             ];

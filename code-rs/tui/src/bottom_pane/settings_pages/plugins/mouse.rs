@@ -6,7 +6,7 @@ use ratatui::style::Style;
 use ratatui::layout::Position;
 
 use crate::bottom_pane::chrome::ChromeMode;
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav_horizontal};
 use crate::bottom_pane::settings_ui::form_page::SettingsFormPageLayout;
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::rows::StyledText;
@@ -128,7 +128,7 @@ impl PluginsSettingsView {
             .as_ref()
             .map(|err| StyledText::new(err.clone(), Style::new().fg(colors::error())));
         let shortcuts = [
-            KeyHint::new(crate::icons::nav_left_right(), " actions").with_key_style(Style::new().fg(colors::function())),
+            hint_nav_horizontal(" actions"),
             hint_enter(" activate"),
             hint_esc(" back"),
         ];
@@ -194,7 +194,7 @@ impl PluginsSettingsView {
             .as_ref()
             .map(|err| StyledText::new(err.clone(), Style::new().fg(colors::error())));
         let shortcuts = [
-            KeyHint::new(crate::icons::nav_left_right(), " actions").with_key_style(Style::new().fg(colors::function())),
+            hint_nav_horizontal(" actions"),
             hint_enter(" activate"),
             hint_esc(" back"),
         ];

@@ -3,8 +3,8 @@ use super::*;
 use crate::colors;
 use crate::bottom_pane::settings_ui::action_page::SettingsActionPage;
 use crate::bottom_pane::settings_ui::hints::{
-    hint_enter, hint_esc, key_ctrl, key_space, key_tab, status_and_shortcuts,
-    status_and_shortcuts_split, KeyHint,
+    hint_enter, hint_esc, hint_nav_horizontal, key_ctrl, key_space, key_tab,
+    status_and_shortcuts, status_and_shortcuts_split, KeyHint,
 };
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
@@ -88,7 +88,7 @@ impl AutoDriveSettingsView {
                 .map(|message| crate::bottom_pane::settings_ui::rows::StyledText::new(message, Style::new().fg(colors::warning()))),
             &[
                 hint_enter(" select/toggle"),
-                KeyHint::new(crate::icons::nav_left_right(), " adjust delay"),
+                hint_nav_horizontal(" adjust delay"),
                 hint_esc(" close"),
                 KeyHint::new(key_ctrl("S"), " close"),
             ],

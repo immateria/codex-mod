@@ -4,7 +4,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 use crate::colors;
-use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, hint_nav_horizontal, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 
@@ -13,10 +13,6 @@ impl ReviewSettingsView {
         vec![
             Line::from(Span::styled(
                 "Configure /review and Auto Review models, resolve models, and follow-ups.",
-                Style::new().fg(colors::text_dim()),
-            )),
-            Line::from(Span::styled(
-                format!("Use {ud} to navigate · Enter select/open · Space toggle · {lr} adjust values · Esc close", ud = crate::icons::nav_up_down(), lr = crate::icons::nav_left_right()),
                 Style::new().fg(colors::text_dim()),
             )),
             Line::from(""),
@@ -29,7 +25,7 @@ impl ReviewSettingsView {
             hint_enter(" Select"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " Toggle")
                 .with_key_style(Style::new().fg(colors::success())),
-            KeyHint::new(crate::icons::nav_left_right(), " Adjust").with_key_style(Style::new().fg(colors::function())),
+            hint_nav_horizontal(" Adjust"),
             hint_esc(" Close"),
         ]
     }

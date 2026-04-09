@@ -25,7 +25,7 @@ pub(crate) struct CloudTasksView {
     state: ScrollState,
     env_label: String,
     env_filter: Option<String>,
-    footer_hint: String,
+    footer_hint: Line<'static>,
     app_event_tx: AppEventSender,
     complete: bool,
 }
@@ -48,7 +48,20 @@ impl CloudTasksView {
             state,
             env_label: env_label.unwrap_or_else(|| "All environments".to_string()),
             env_filter,
-            footer_hint: format!("{ud} select · Enter actions · r refresh · n new · e environments · Esc close", ud = crate::icons::nav_up_down()),
+            footer_hint: Line::from(vec![
+                Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
+                Span::styled(" select   ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                Span::styled(" actions   ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("r", Style::default().fg(crate::colors::info())),
+                Span::styled(" refresh   ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("n", Style::default().fg(crate::colors::function())),
+                Span::styled(" new   ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("e", Style::default().fg(crate::colors::function())),
+                Span::styled(" environments   ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
+                Span::styled(" close", Style::default().fg(crate::colors::text_dim())),
+            ]),
             app_event_tx,
             complete: false,
         };
@@ -150,10 +163,7 @@ impl BottomPaneView<'_> for CloudTasksView {
             width: inner.width,
             height: 1,
         };
-        Paragraph::new(Line::from(vec![Span::styled(
-            self.footer_hint.clone(),
-            Style::default().fg(crate::colors::text_dim()),
-        )]))
+        Paragraph::new(self.footer_hint.clone())
         .render(footer_area, buf);
 
         if inner.height <= 2 {

@@ -3,7 +3,7 @@ use super::*;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
-use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_enter, hint_esc, hint_nav, KeyHint};
 use crate::bottom_pane::settings_ui::menu_page::SettingsMenuPage;
 use crate::bottom_pane::settings_ui::menu_rows::SettingsMenuRow;
 use crate::ui_consts::SEP_DOT;
@@ -109,7 +109,7 @@ impl AppsSettingsView {
         }
 
         let shortcuts = vec![
-            KeyHint::new(crate::icons::nav_up_down(), " select").with_key_style(Style::new().fg(colors::primary())),
+            hint_nav(" select"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_space(), " pin")
                 .with_key_style(Style::new().fg(colors::success())),
             hint_enter(" details"),

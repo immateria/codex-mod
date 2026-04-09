@@ -6,7 +6,6 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::Line;
-use ratatui::text::Span;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
 use unicode_width::UnicodeWidthStr;
@@ -322,13 +321,10 @@ impl BottomPaneView<'_> for ListSelectionView {
             }
             // Render footer on the last inner line
             let footer_area = Rect { x: inner.x.saturating_add(1), y: inner.y + inner.height - 1, width: content_width, height: 1 };
-            let line = Line::from(vec![
-                Span::styled(crate::icons::nav_up_down(), Style::default().fg(crate::colors::function())),
-                Span::styled(" Navigate  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Enter", Style::default().fg(crate::colors::success())),
-                Span::styled(" Select  ", Style::default().fg(crate::colors::text_dim())),
-                Span::styled("Esc", Style::default().fg(crate::colors::error())),
-                Span::styled(" Cancel", Style::default().fg(crate::colors::text_dim())),
+            let line = crate::bottom_pane::settings_ui::hints::shortcut_line(&[
+                crate::bottom_pane::settings_ui::hints::hint_nav(" Navigate"),
+                crate::bottom_pane::settings_ui::hints::hint_enter(" Select"),
+                crate::bottom_pane::settings_ui::hints::hint_esc(" Cancel"),
             ]);
             Paragraph::new(line)
                 .style(Style::default().bg(crate::colors::background()).fg(crate::colors::text()))

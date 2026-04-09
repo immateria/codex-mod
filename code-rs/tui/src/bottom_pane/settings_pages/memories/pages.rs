@@ -5,7 +5,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
 use crate::bottom_pane::settings_ui::editor_page::SettingsEditorPage;
-use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, shortcut_line, KeyHint};
+use crate::bottom_pane::settings_ui::hints::{hint_esc, hint_enter, hint_nav, hint_nav_horizontal, shortcut_line, KeyHint};
 use crate::bottom_pane::settings_ui::panel::SettingsPanelStyle;
 use crate::bottom_pane::settings_ui::row_page::SettingsRowPage;
 use crate::colors;
@@ -115,7 +115,7 @@ impl MemoriesSettingsView {
     fn render_footer_lines(&self) -> Vec<Line<'static>> {
         vec![shortcut_line(&[
             hint_nav(" move"),
-            KeyHint::new(crate::icons::nav_left_right(), " cycle").with_key_style(Style::new().fg(colors::function())),
+            hint_nav_horizontal(" cycle"),
             hint_enter(" edit/activate"),
             KeyHint::new(crate::bottom_pane::settings_ui::hints::key_ctrl("S"), " apply")
                 .with_key_style(Style::new().fg(colors::success())),

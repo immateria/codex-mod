@@ -57,10 +57,14 @@ impl JsReplSettingsView {
                 Style::default().fg(crate::colors::warning()),
             )]));
         } else {
-            lines.push(Line::from(vec![Span::styled(
-                "Enter edits. Ctrl+S saves in editors. Esc closes.",
-                Style::default().fg(crate::colors::text_dim()),
-            )]));
+            lines.push(Line::from(vec![
+                Span::styled("Enter", Style::default().fg(crate::colors::success())),
+                Span::styled(" edits  ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled("Ctrl+S", Style::default().fg(crate::colors::success())),
+                Span::styled(" saves in editors  ", Style::default().fg(crate::colors::text_dim())),
+                Span::styled(crate::icons::escape(), Style::default().fg(crate::colors::error())),
+                Span::styled(" closes", Style::default().fg(crate::colors::text_dim())),
+            ]));
         }
 
         lines.push(Line::from(""));
