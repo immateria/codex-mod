@@ -594,19 +594,18 @@ fn record_threshold_log(
         let previous_logged = existing.logged_at;
         let new_reset = reset_at;
 
-        let reset_moved_earlier = match (previous_reset, new_reset) {
-            (Some(prev), Some(next)) => next + RESET_PASSED_TOLERANCE < prev,
-            _ => false,
-        };
+        let reset_moved_earlier = matches!(
+            (previous_reset, new_reset),
+            (Some(prev), Some(next)) if next + RESET_PASSED_TOLERANCE < prev
+        );
 
-        let logged_after_prev_reset = match (previous_logged, previous_reset) {
-            (Some(logged), Some(prev)) => logged >= prev,
-            _ => false,
-        };
+        let logged_after_prev_reset = matches!(
+            (previous_logged, previous_reset),
+            (Some(logged), Some(prev)) if logged >= prev
+        );
 
         let prev_reset_elapsed = previous_reset
-            .map(|prev| observed_at + RESET_PASSED_TOLERANCE >= prev)
-            .unwrap_or(false);
+            .is_some_and(|prev| observed_at + RESET_PASSED_TOLERANCE >= prev);
 
         let unknown_reset_elapsed = (previous_reset.is_none() || new_reset.is_none())
             && previous_logged

@@ -470,11 +470,10 @@ fn should_skip_notification_for_connection(
         warn!("failed to read outbound opted-out notifications");
         return false;
     };
-    match message {
-        OutgoingMessage::Notification(notification) => {
-            opted_out_notification_methods.contains(notification.method.as_str())
-        }
-        _ => false,
+    if let OutgoingMessage::Notification(notification) = message {
+        opted_out_notification_methods.contains(notification.method.as_str())
+    } else {
+        false
     }
 }
 

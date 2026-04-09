@@ -1336,13 +1336,11 @@ fn select_bridge_target(selector: Option<&str>) -> anyhow::Result<bridge::Bridge
 }
 
 fn paths_match(left: &Path, right: &Path) -> bool {
-    if left == right {
-        return true;
-    }
-    match (left.canonicalize(), right.canonicalize()) {
-        (Ok(l), Ok(r)) => l == r,
-        _ => false,
-    }
+    left == right
+        || matches!(
+            (left.canonicalize(), right.canonicalize()),
+            (Ok(l), Ok(r)) if l == r
+        )
 }
 
 fn read_subscription_file(path: &Path) -> anyhow::Result<SubscriptionOverride> {
