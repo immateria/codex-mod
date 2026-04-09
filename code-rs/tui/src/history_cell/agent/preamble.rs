@@ -113,8 +113,7 @@ impl AgentStatusKind {
             AgentStatusKind::Running => colors::info(),
             AgentStatusKind::Completed => colors::success(),
             AgentStatusKind::Failed => colors::error(),
-            AgentStatusKind::Cancelled => colors::text_dim(),
-            AgentStatusKind::Pending => colors::text_dim(),
+            AgentStatusKind::Cancelled | AgentStatusKind::Pending => colors::text_dim(),
         }
     }
 }

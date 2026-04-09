@@ -17,6 +17,19 @@ layout_build_counter!(
     bump_assistant_layout_builds
 );
 
+// ==================== Helpers ====================
+
+fn format_elapsed_ago(elapsed: std::time::Duration) -> String {
+    let secs = elapsed.as_secs();
+    if secs < 60 {
+        format!("{secs}s ago")
+    } else if secs < 3600 {
+        format!("{}m ago", secs / 60)
+    } else {
+        format!("{}h {}m ago", secs / 3600, (secs % 3600) / 60)
+    }
+}
+
 // ==================== AssistantMarkdownCell ====================
 // Stores assistant markdown state alongside minimal rendering context (file opener + cwd).
 
@@ -109,14 +122,7 @@ impl AssistantMarkdownCell {
         }
         let ts = self.state.created_at;
         if let Ok(elapsed) = ts.elapsed() {
-            let secs = elapsed.as_secs();
-            let ago = if secs < 60 {
-                format!("{secs}s ago")
-            } else if secs < 3600 {
-                format!("{}m ago", secs / 60)
-            } else {
-                format!("{}h {}m ago", secs / 3600, (secs % 3600) / 60)
-            };
+            let ago = format_elapsed_ago(elapsed);
             spans.push(Span::styled(SEP_DOT, dim));
             spans.push(Span::styled(ago, dim));
         }
@@ -147,14 +153,7 @@ impl AssistantMarkdownCell {
         // Timestamp
         let ts = self.state.created_at;
         if let Ok(elapsed) = ts.elapsed() {
-            let secs = elapsed.as_secs();
-            let ago = if secs < 60 {
-                format!("{secs}s ago")
-            } else if secs < 3600 {
-                format!("{}m ago", secs / 60)
-            } else {
-                format!("{}h {}m ago", secs / 3600, (secs % 3600) / 60)
-            };
+            let ago = format_elapsed_ago(elapsed);
             header_spans.push(Span::styled(SEP_DOT, dim));
             header_spans.push(Span::styled(ago, dim));
         }
