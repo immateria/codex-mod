@@ -12,6 +12,7 @@ pub struct GradientSpec {
 pub struct PaletteSpec {
     pub border: Color,
     pub text: Color,
+    #[allow(dead_code)]
     pub title: Color,
     pub footer: Color,
 }
@@ -23,6 +24,7 @@ pub struct RevealConfig {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[allow(dead_code)]
 pub enum RevealVariant {
     GlitchSweep,
     VertDrift,
@@ -46,25 +48,9 @@ pub struct CardTheme {
 
 #[derive(Clone, Copy, Debug)]
 pub struct CardThemeDefinition {
+    #[allow(dead_code)]
     pub name: &'static str,
     pub theme: CardTheme,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct CardPreviewSpec {
-    pub name: &'static str,
-    pub body: &'static [&'static str],
-    pub theme: CardTheme,
-}
-
-impl CardThemeDefinition {
-    pub fn preview(&self, body: &'static [&'static str]) -> CardPreviewSpec {
-        CardPreviewSpec {
-            name: self.name,
-            body,
-            theme: self.theme,
-        }
-    }
 }
 
 #[allow(clippy::disallowed_methods)]
@@ -123,17 +109,6 @@ pub fn auto_drive_dark_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn agent_orange_dark_theme() -> CardThemeDefinition {
-    CardThemeDefinition {
-        name: "Agent Orange Dark",
-        theme: CardTheme {
-            gradient: gradient((39, 18, 2), (114, 62, 22), -0.05),
-            palette: palette((180, 100, 40), (252, 235, 220), (255, 242, 226), (210, 168, 132)),
-            reveal: None,
-        },
-    }
-}
-
 pub fn browser_dark_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Browser Dark",
@@ -145,12 +120,23 @@ pub fn browser_dark_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn agent_green_dark_theme() -> CardThemeDefinition {
+pub fn agent_read_only_dark_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Agent Green Dark",
         theme: CardTheme {
             gradient: gradient((6, 33, 10), (0, 90, 13), -0.05),
             palette: palette((120, 180, 130), (226, 250, 230), (240, 252, 240), (180, 220, 188)),
+            reveal: None,
+        },
+    }
+}
+
+pub fn agent_read_only_light_theme() -> CardThemeDefinition {
+    CardThemeDefinition {
+        name: "Agent Green Light",
+        theme: CardTheme {
+            gradient: gradient((236, 253, 238), (249, 255, 250), -0.05),
+            palette: palette((156, 206, 168), (40, 90, 54), (30, 70, 44), (86, 128, 95)),
             reveal: None,
         },
     }
@@ -178,17 +164,6 @@ pub fn auto_drive_light_theme() -> CardThemeDefinition {
     }
 }
 
-pub fn agent_orange_light_theme() -> CardThemeDefinition {
-    CardThemeDefinition {
-        name: "Agent Orange Light",
-        theme: CardTheme {
-            gradient: gradient((244, 211, 193), (255, 243, 237), -0.05),
-            palette: palette((216, 166, 132), (142, 76, 44), (110, 55, 28), (184, 111, 77)),
-            reveal: None,
-        },
-    }
-}
-
 pub fn browser_light_theme() -> CardThemeDefinition {
     CardThemeDefinition {
         name: "Browser Light",
@@ -198,61 +173,4 @@ pub fn browser_light_theme() -> CardThemeDefinition {
             reveal: None,
         },
     }
-}
-
-pub fn agent_green_light_theme() -> CardThemeDefinition {
-    CardThemeDefinition {
-        name: "Agent Green Light",
-        theme: CardTheme {
-            gradient: gradient((236, 253, 238), (249, 255, 250), -0.05),
-            palette: palette((156, 206, 168), (40, 90, 54), (30, 70, 44), (86, 128, 95)),
-            reveal: None,
-        },
-    }
-}
-
-pub fn dark_theme_catalog() -> Vec<CardThemeDefinition> {
-    vec![
-        search_dark_theme(),
-        auto_drive_dark_theme(),
-        agent_read_only_dark_theme(),
-        browser_dark_theme(),
-        agent_write_dark_theme(),
-    ]
-}
-
-pub fn light_theme_catalog() -> Vec<CardThemeDefinition> {
-    vec![
-        search_light_theme(),
-        auto_drive_light_theme(),
-        agent_read_only_light_theme(),
-        browser_light_theme(),
-        agent_write_light_theme(),
-    ]
-}
-
-pub fn theme_catalog() -> Vec<CardThemeDefinition> {
-    let mut themes = dark_theme_catalog();
-    themes.extend(light_theme_catalog());
-    themes
-}
-
-pub fn auto_drive_theme_catalog() -> Vec<CardThemeDefinition> {
-    vec![auto_drive_dark_theme(), auto_drive_light_theme()]
-}
-
-pub fn agent_read_only_dark_theme() -> CardThemeDefinition {
-    agent_green_dark_theme()
-}
-
-pub fn agent_read_only_light_theme() -> CardThemeDefinition {
-    agent_green_light_theme()
-}
-
-pub fn agent_write_dark_theme() -> CardThemeDefinition {
-    agent_orange_dark_theme()
-}
-
-pub fn agent_write_light_theme() -> CardThemeDefinition {
-    agent_orange_light_theme()
 }

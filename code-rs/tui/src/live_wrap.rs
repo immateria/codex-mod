@@ -7,9 +7,11 @@ pub struct Row {
     pub text: String,
     /// True if this row ends with an explicit line break (as opposed to a hard wrap).
     pub explicit_break: bool,
+    #[allow(dead_code)]
     width: usize,
 }
 
+#[allow(dead_code)]
 impl Row {
     pub fn width(&self) -> usize {
         self.width
@@ -45,10 +47,12 @@ impl RowBuilder {
         }
     }
 
+    #[allow(dead_code)]
     pub fn width(&self) -> usize {
         self.target_width
     }
 
+    #[allow(dead_code)]
     pub fn set_width(&mut self, width: usize) {
         self.target_width = width.max(1);
         // Rewrap everything we have (simple approach for Step 1).
@@ -87,11 +91,13 @@ impl RowBuilder {
     }
 
     /// Mark the end of the current logical line (equivalent to pushing a '\n').
+    #[allow(dead_code)]
     pub fn end_line(&mut self) {
         self.flush_current_line(true);
     }
 
     /// Drain and return all produced rows.
+    #[allow(dead_code)]
     pub fn drain_rows(&mut self) -> Vec<Row> {
         std::mem::take(&mut self.rows)
     }
@@ -133,6 +139,7 @@ impl RowBuilder {
 
     /// Drain the oldest rows that exceed `max_keep` display rows (including the
     /// current partial line, if any). Returns the drained rows in order.
+    #[allow(dead_code)]
     pub fn drain_commit_ready(&mut self, max_keep: usize) -> Vec<Row> {
         let display_count = self.rows.len() + if self.current_line.is_empty() { 0 } else { 1 };
         if display_count <= max_keep {
