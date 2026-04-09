@@ -34,15 +34,18 @@ use std::rc::Rc;
 use unicode_width::UnicodeWidthChar;
 
 const DEFAULT_TEXT_INDENT: usize = 2;
-const TEXT_RIGHT_PADDING: usize = 2;
 const IMAGE_GAP: usize = 2;
 const IMAGE_LEFT_PAD: usize = 1;
-const IMAGE_MIN_WIDTH: usize = 18;
-const IMAGE_MAX_WIDTH: usize = 64;
-const MIN_TEXT_WIDTH: usize = 28;
 const MIN_IMAGE_ROWS: usize = 4;
-const MAX_IMAGE_ROWS: usize = 60;
 const HINT_TEXT: &str = "Image output";
+
+use super::card_style::{
+    MEDIA_MAX_ROWS as MAX_IMAGE_ROWS,
+    MEDIA_MAX_WIDTH as IMAGE_MAX_WIDTH,
+    MEDIA_MIN_TEXT_WIDTH as MIN_TEXT_WIDTH,
+    MEDIA_MIN_WIDTH as IMAGE_MIN_WIDTH,
+    MEDIA_TEXT_RIGHT_PADDING as TEXT_RIGHT_PADDING,
+};
 
 struct ImagePreviewLayout {
     start_row: usize,

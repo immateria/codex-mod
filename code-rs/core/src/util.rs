@@ -97,7 +97,7 @@ pub(crate) fn canonicalize_or_original(path: &std::path::Path) -> std::path::Pat
 
 /// Truncate `input` to the last valid UTF-8 char boundary at or before
 /// `max_len` bytes, returning a borrowed slice.
-pub fn truncate_on_char_boundary(input: &str, max_len: usize) -> &str {
+pub(crate) fn truncate_on_char_boundary(input: &str, max_len: usize) -> &str {
     if input.len() <= max_len {
         return input;
     }
@@ -110,7 +110,7 @@ pub fn truncate_on_char_boundary(input: &str, max_len: usize) -> &str {
 
 /// Truncate `input` to at most `max_bytes` bytes on a UTF-8 boundary,
 /// returning an owned `String`.
-pub fn truncate_utf8_prefix_by_bytes(input: &str, max_bytes: usize) -> String {
+pub(crate) fn truncate_utf8_prefix_by_bytes(input: &str, max_bytes: usize) -> String {
     if input.len() <= max_bytes {
         return input.to_string();
     }
@@ -131,7 +131,7 @@ pub fn is_truthy(value: &str) -> bool {
 }
 
 /// Check whether an environment variable is set to a truthy value.
-pub fn is_env_truthy(var: &str) -> bool {
+pub(crate) fn is_env_truthy(var: &str) -> bool {
     std::env::var(var)
         .ok()
         .is_some_and(|v| is_truthy(&v))
@@ -151,14 +151,14 @@ pub fn truncate_to_hour(ts: DateTime<Utc>) -> DateTime<Utc> {
 }
 
 /// Truncate a UTC timestamp to the start of its day (midnight).
-pub fn truncate_to_day(ts: DateTime<Utc>) -> DateTime<Utc> {
+pub(crate) fn truncate_to_day(ts: DateTime<Utc>) -> DateTime<Utc> {
     let date = ts.date_naive();
     let start = date.and_hms_opt(0, 0, 0).unwrap_or_else(|| ts.naive_utc());
     Utc.from_utc_datetime(&start)
 }
 
 /// Truncate a UTC timestamp to the start of its month.
-pub fn truncate_to_month(ts: DateTime<Utc>) -> DateTime<Utc> {
+pub(crate) fn truncate_to_month(ts: DateTime<Utc>) -> DateTime<Utc> {
     let date = ts.date_naive();
     let month_start = NaiveDate::from_ymd_opt(date.year(), date.month(), 1)
         .and_then(|month| month.and_hms_opt(0, 0, 0))

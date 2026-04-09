@@ -889,7 +889,7 @@ fn color_distance(a: (u8, u8, u8), b: (u8, u8, u8)) -> i32 {
     dr * dr + dg * dg + db * db
 }
 
-fn contrast_ratio(foreground: Color, background: Color) -> f32 {
+pub(crate) fn contrast_ratio(foreground: Color, background: Color) -> f32 {
     let lf = relative_luminance_color(foreground);
     let lb = relative_luminance_color(background);
     if lf >= lb {
@@ -903,7 +903,7 @@ fn is_light_color(color: Color) -> bool {
     relative_luminance_color(color) > 0.78
 }
 
-fn relative_luminance_color(color: Color) -> f32 {
+pub(crate) fn relative_luminance_color(color: Color) -> f32 {
     let (r, g, b) = color_to_rgb(color);
     relative_luminance(r, g, b)
 }

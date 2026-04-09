@@ -69,6 +69,13 @@ pub(crate) const CARD_BORDER_BOTTOM: &str = "╰─";
 
 pub(crate) const CARD_HINT_SETTINGS_STOP: &str = " [Ctrl+S] Settings · [Esc] Stop";
 
+// Shared layout constants for image and screenshot rendering.
+pub(crate) const MEDIA_MIN_WIDTH: usize = 18;
+pub(crate) const MEDIA_MAX_WIDTH: usize = 64;
+pub(crate) const MEDIA_MAX_ROWS: usize = 60;
+pub(crate) const MEDIA_TEXT_RIGHT_PADDING: usize = 2;
+pub(crate) const MEDIA_MIN_TEXT_WIDTH: usize = 28;
+
 /// Build a `CardStyle` from a pair of light/dark theme definitions, applying
 /// ANSI-16 fallback when needed.
 fn card_style_for(

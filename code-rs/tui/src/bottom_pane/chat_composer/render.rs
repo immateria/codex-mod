@@ -191,8 +191,8 @@ impl WidgetRef for ChatComposer {
                 // cursor while processing arrow keys; preserving the foreground color
                 // keeps the caret location visible instead of flashing blank cells.
                 cell.set_bg(cursor_bg);
-                let fg_bg_ratio = contrast_ratio(theme.background, cursor_bg);
-                let fg_text_ratio = contrast_ratio(theme.text_bright, cursor_bg);
+                let fg_bg_ratio = crate::theme::contrast_ratio(theme.background, cursor_bg);
+                let fg_text_ratio = crate::theme::contrast_ratio(theme.text_bright, cursor_bg);
                 let cursor_fg = if fg_text_ratio >= fg_bg_ratio {
                     theme.text_bright
                 } else {
@@ -202,32 +202,6 @@ impl WidgetRef for ChatComposer {
             }
         }
     }
-}
-
-fn linearize_channel(channel: u8) -> f32 {
-    let srgb = channel as f32 / 255.0;
-    if srgb <= 0.04045 {
-        srgb / 12.92
-    } else {
-        ((srgb + 0.055) / 1.055).powf(2.4)
-    }
-}
-
-fn relative_luminance(rgb: (u8, u8, u8)) -> f32 {
-    0.2126 * linearize_channel(rgb.0)
-        + 0.7152 * linearize_channel(rgb.1)
-        + 0.0722 * linearize_channel(rgb.2)
-}
-
-fn contrast_ratio(color_a: Color, color_b: Color) -> f32 {
-    let luminance_a = relative_luminance(crate::colors::color_to_rgb(color_a));
-    let luminance_b = relative_luminance(crate::colors::color_to_rgb(color_b));
-    let (bright, dark) = if luminance_a >= luminance_b {
-        (luminance_a, luminance_b)
-    } else {
-        (luminance_b, luminance_a)
-    };
-    (bright + 0.05) / (dark + 0.05)
 }
 
 fn apply_auto_drive_border_gradient(
