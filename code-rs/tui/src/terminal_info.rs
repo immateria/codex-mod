@@ -354,7 +354,7 @@ fn detect_dark_from_rgb(rgb: (u8, u8, u8)) -> bool {
 
 pub fn detect_dark_terminal_background() -> Option<TerminalBackgroundDetection> {
     if let Ok(value) = env::var("CODE_DISABLE_THEME_AUTODETECT")
-        && matches!(value.as_str(), "1" | "true" | "TRUE" | "True") {
+        && code_core::util::is_truthy(&value) {
             return None;
         }
 

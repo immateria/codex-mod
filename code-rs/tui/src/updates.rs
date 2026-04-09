@@ -42,10 +42,7 @@ fn force_upgrade_preview_enabled() -> bool {
         FORCE_UPGRADE_FALSE => false,
         _ => {
             let computed = std::env::var("SHOW_UPGRADE")
-                .map(|value| {
-                    let normalized = value.trim().to_ascii_lowercase();
-                    matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
-                })
+                .map(|value| code_core::util::is_truthy(value.trim()))
                 .unwrap_or(false);
 
             FORCE_UPGRADE_PREVIEW.store(

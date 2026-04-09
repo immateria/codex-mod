@@ -81,3 +81,20 @@ pub(crate) fn header_map_to_json(headers: &reqwest::header::HeaderMap) -> serde_
 pub(crate) fn canonicalize_or_original(path: &std::path::Path) -> std::path::PathBuf {
     path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
 }
+
+/// Check whether a string value is "truthy" (case-insensitive).
+///
+/// Accepts: `"1"`, `"true"`, `"yes"`, `"on"`.
+pub fn is_truthy(value: &str) -> bool {
+    value.eq_ignore_ascii_case("1")
+        || value.eq_ignore_ascii_case("true")
+        || value.eq_ignore_ascii_case("yes")
+        || value.eq_ignore_ascii_case("on")
+}
+
+/// Check whether an environment variable is set to a truthy value.
+pub fn is_env_truthy(var: &str) -> bool {
+    std::env::var(var)
+        .ok()
+        .is_some_and(|v| is_truthy(&v))
+}

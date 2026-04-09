@@ -22,10 +22,7 @@ pub(crate) fn is_test_mode() -> bool {
     {
         static FLAG: OnceLock<bool> = OnceLock::new();
         *FLAG.get_or_init(|| match std::env::var("CODE_TUI_TEST_MODE") {
-            Ok(raw) => {
-                let val = raw.trim().to_ascii_lowercase();
-                matches!(val.as_str(), "1" | "true" | "yes" | "on")
-            }
+            Ok(raw) => code_core::util::is_truthy(raw.trim()),
             Err(_) => true,
         })
     }
@@ -33,10 +30,7 @@ pub(crate) fn is_test_mode() -> bool {
     {
         static FLAG: OnceLock<bool> = OnceLock::new();
         *FLAG.get_or_init(|| match std::env::var("CODE_TUI_TEST_MODE") {
-            Ok(raw) => {
-                let val = raw.trim().to_ascii_lowercase();
-                matches!(val.as_str(), "1" | "true" | "yes" | "on")
-            }
+            Ok(raw) => code_core::util::is_truthy(raw.trim()),
             Err(_) => false,
         })
     }

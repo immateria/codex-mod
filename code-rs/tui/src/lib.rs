@@ -1024,7 +1024,7 @@ fn maybe_apply_terminal_theme_detection(config: &mut Config, theme_configured_ex
     let theme = &mut config.tui.theme;
 
     let autodetect_disabled = std::env::var("CODE_DISABLE_THEME_AUTODETECT")
-        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "True"))
+        .map(|value| code_core::util::is_truthy(&value))
         .unwrap_or(false);
     if autodetect_disabled {
         tracing::info!("Terminal theme autodetect disabled via CODE_DISABLE_THEME_AUTODETECT");

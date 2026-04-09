@@ -1,13 +1,7 @@
 use super::*;
 
 pub(super) fn debug_subagents_enabled() -> bool {
-    match std::env::var("CODE_SUBAGENT_DEBUG") {
-        Ok(val) => {
-            let lower = val.to_ascii_lowercase();
-            matches!(lower.as_str(), "1" | "true" | "yes" | "on")
-        }
-        Err(_) => false,
-    }
+    crate::util::is_env_truthy("CODE_SUBAGENT_DEBUG")
 }
 
 pub(super) fn has_debug_flag(args: &[String]) -> bool {
