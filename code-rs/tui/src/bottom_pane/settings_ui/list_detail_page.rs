@@ -148,7 +148,6 @@ impl<'a> SettingsListDetailPage<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::layout::Margin;
 
     #[test]
     fn compact_and_split_switch_at_thresholds() {

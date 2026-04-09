@@ -518,7 +518,6 @@ fn render_menu_detail_pane<Id: Copy + PartialEq>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::layout::Margin;
 
     fn buffer_lines(buf: &Buffer, area: Rect) -> Vec<String> {
         let mut out = Vec::new();

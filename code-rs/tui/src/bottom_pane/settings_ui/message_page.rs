@@ -155,7 +155,6 @@ impl<'p, 'a> SettingsMessagePageContentOnly<'p, 'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::layout::Margin;
 
     #[test]
     fn layout_and_render_agree() {

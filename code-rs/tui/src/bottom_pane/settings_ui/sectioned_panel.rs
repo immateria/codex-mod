@@ -142,7 +142,6 @@ impl<'a> SettingsSectionedPanel<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::layout::Margin;
 
     #[test]
     fn render_produces_expected_section_rects() {

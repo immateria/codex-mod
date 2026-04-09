@@ -362,7 +362,6 @@ mod tests {
     use super::*;
     use super::super::buttons::TextButtonAlign;
     use super::super::test_helpers::assert_layout_and_render_shell_agree;
-    use ratatui::layout::Margin;
 
     #[test]
     fn layout_and_render_match_action_rects() {
